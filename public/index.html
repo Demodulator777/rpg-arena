@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Battle ⚔️ Arena</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+<div id="app">
+
+    <!-- AUTH -->
+    <div id="screen-auth" class="screen active">
+        <div class="auth-bg"></div>
+
+        <div class="auth-container">
+
+            <!-- Replaced title with logo -->
+            <img src="images/logo/logo.png" alt="BATTLE ARENA" class="game-logo">
+
+            <p class="game-subtitle">Build. Train. Conquer.</p>
+
+            <div class="auth-tabs">
+                <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+                <button class="tab-btn" onclick="switchTab('register')">Register</button>
+            </div>
+
+            <div id="auth-error" class="error-msg hidden"></div>
+
+            <div id="tab-login" class="tab-content active">
+                <input type="text" id="login-user" placeholder="Username" class="input-field"/>
+                <input type="password" id="login-pass" placeholder="Password" class="input-field"/>
+                <button class="btn-primary" onclick="login()">Enter the Arena</button>
+            </div>
+
+            <div id="tab-register" class="tab-content">
+                <input type="text" id="reg-user" placeholder="Choose a username" class="input-field"/>
+                <input type="password" id="reg-pass" placeholder="Choose a password" class="input-field"/>
+                <button class="btn-primary" onclick="register()">Create Account</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARACTER CREATION -->
+    <div id="screen-create" class="screen">
+        <div class="auth-bg"></div>
+        <div class="auth-container wide">
+            <h2 class="game-title small">Create Your Hero</h2>
+            <input type="text" id="char-name" placeholder="Hero name..." class="input-field center" maxlength="20"/>
+            <div id="create-error" class="error-msg hidden"></div>
+            <div class="class-grid">
+                <div class="class-card" data-class="warrior" onclick="selectClass(this)">
+                    <div class="class-icon">🛡️</div><div class="class-name">Warrior</div>
+                    <div class="class-stats">STR 16 · DEF 14 · AGI 10 · MAG 5</div>
+                    <div class="class-discounts">30% off STR · 15% off DEF upgrades</div>
+                    <div class="class-desc">Unstoppable force, immovable object</div>
+                </div>
+                <div class="class-card" data-class="mage" onclick="selectClass(this)">
+                    <div class="class-icon">🔮</div><div class="class-name">Mage</div>
+                    <div class="class-stats">STR 8 · DEF 8 · AGI 10 · MAG 20</div>
+                    <div class="class-discounts">35% off MAG · 10% off AGI · 1.5× elemental dmg</div>
+                    <div class="class-desc">Glass cannon of arcane destruction</div>
+                </div>
+                <div class="class-card" data-class="rogue" onclick="selectClass(this)">
+                    <div class="class-icon">🗡️</div><div class="class-name">Rogue</div>
+                    <div class="class-stats">STR 12 · DEF 8 · AGI 20 · MAG 6</div>
+                    <div class="class-discounts">35% off AGI · 10% off STR upgrades</div>
+                    <div class="class-desc">Strike fast, vanish faster</div>
+                </div>
+                <div class="class-card" data-class="paladin" onclick="selectClass(this)">
+                    <div class="class-icon">✨</div><div class="class-name">Paladin</div>
+                    <div class="class-stats">STR 12 · DEF 16 · AGI 8 · MAG 12</div>
+                    <div class="class-discounts">25% off DEF · 20% off MAG upgrades</div>
+                    <div class="class-desc">Holy blade and divine shield</div>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="createCharacter()">Forge My Hero</button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME -->
+    <div id="screen-game" class="screen">
+
+        <!-- ── TOP BAR ──────────────────────────────────────────────────────── -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-avatar-wrap">
+                    <img id="topbar-avatar" class="topbar-avatar" src="" alt="avatar">
+                    <div class="topbar-avatar-info">
+                        <span id="topbar-name" class="topbar-name">Hero</span>
+                        <span id="topbar-level" class="topbar-level">Lv.1</span>
+                    </div>
+                </div>
+                <div class="topbar-bars">
+                    <div class="topbar-bar-row">
+                        <span class="topbar-bar-label">HP</span>
+                        <div class="topbar-bar-track hp-track">
+                            <div id="topbar-hp-fill" class="topbar-bar-fill hp-fill"></div>
+                        </div>
+                        <span id="topbar-hp-text" class="topbar-bar-text">100 / 100</span>
+                    </div>
+                    <div class="topbar-bar-row">
+                        <span class="topbar-bar-label">XP</span>
+                        <div class="topbar-bar-track xp-track">
+                            <div id="topbar-xp-fill" class="topbar-bar-fill xp-fill"></div>
+                        </div>
+                        <span id="topbar-xp-text" class="topbar-bar-text">0 / 100</span>
+                    </div>
+                    <div class="topbar-bar-row">
+                        <span class="topbar-bar-label" style="color:#9b59b6">MP</span>
+                        <div class="topbar-bar-track mp-track">
+                            <div id="topbar-mp-fill" class="topbar-bar-fill mp-fill"></div>
+                        </div>
+                        <span id="topbar-mp-text" class="topbar-bar-text" style="color:#9b59b6">240 / 240</span>
+                    </div>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <span id="topbar-event" class="topbar-currency hidden" style="cursor:pointer;border-color:rgba(201,146,42,0.3);background:rgba(201,146,42,0.08)" onclick="showTab('skills')" title="Event active!"></span>
+                <span id="topbar-mp" class="topbar-currency" style="cursor:pointer;border-color:rgba(142,68,173,0.25);background:rgba(142,68,173,0.07)" onclick="showTab('skills')" title="Mission Points">🔮 –</span>
+                <span id="topbar-gold" class="topbar-currency">💰 0</span>
+                <span id="topbar-gems" class="topbar-currency topbar-gems-btn" onclick="showTab('shop')" title="Go to Shop">💎 0</span>
+                <button class="topbar-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- ── EVENT BANNER ──────────────────────────────────────────────────── -->
+        <div id="event-banner" class="event-banner hidden"></div>
+
+        <!-- ── GAME BODY ─────────────────────────────────────────────────────── -->
+        <div class="game-body">
+
+            <!-- ── TOP NAV (desktop) / BOTTOM NAV (mobile) ──────────────────── -->
+            <nav class="sidebar">
+                <div class="nav-edge nav-edge-left"></div>
+                <div class="sidebar-section-label">Character</div>
+                <button class="nav-btn" onclick="showTab('character')">👤 Character</button>
+                <button class="nav-btn" onclick="showTab('loadout')">⚔️ Loadout</button>
+                <button class="nav-btn" onclick="showTab('skills')">✨ Skills</button>
+                <button class="nav-btn" onclick="showTab('train')">💪 Training</button>
+                <button class="nav-btn" onclick="showTab('upgrade')">⬆️ Upgrade</button>
+
+                <div class="sidebar-section-label">World</div>
+                <button class="nav-btn" onclick="showTab('missions')">🗺️ Missions</button>
+
+                <div class="sidebar-section-label">Equipment</div>
+                <button class="nav-btn" onclick="showTab('forge')">🔨 Forge</button>
+                <button class="nav-btn" onclick="showTab('inventory')">🎒 Inventory</button>
+                <button class="nav-btn" onclick="showTab('shop')">🛒 Shop</button>
+
+                <div class="sidebar-section-label">Social</div>
+                <button class="nav-btn" onclick="showTab('leaderboard')">🏆 Leaderboard</button>
+                <button class="nav-btn nav-btn-last" onclick="showTab('inbox')">
+                    ✉️ Inbox
+                    <span id="unread-badge" class="unread-badge hidden">0</span>
+                </button>
+                <div class="nav-edge nav-edge-right"></div>
+            </nav>
+
+            <!-- ── TAB CONTENT ───────────────────────────────────────────────── -->
+            <main class="tab-content-area">
+
+                <!-- SKILLS -->
+                <div id="tab-skills" class="game-tab">
+                    <div class="tab-header"><h2>✨ Class Skills</h2></div>
+                    <div id="skills-event-banner" class="hidden"></div>
+                    <div id="skills-mp-bar" style="margin-bottom:20px"></div>
+                    <div id="skills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+                    <div id="skills-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- CHARACTER -->
+                <div id="tab-character" class="game-tab active">
+                    <div id="char-sheet" class="char-grid"></div>
+                </div>
+
+                <!-- LOADOUT -->
+                <div id="tab-loadout" class="game-tab">
+                    <div class="tab-header"><h2>⚔️ Combat Loadout</h2></div>
+                    <div id="loadout-content"></div>
+                </div>
+
+                <!-- TRAIN -->
+                <div id="tab-train" class="game-tab">
+                    <div class="tab-header"><h2>💪 Training</h2></div>
+                    <div id="train-status" class="train-status-bar hidden"></div>
+                    <div id="train-grid" class="train-grid">
+                        <button class="btn-train" onclick="startTrain('strength')">💪 Strength<br><small>+1 STR</small></button>
+                        <button class="btn-train" onclick="startTrain('defense')">🛡️ Defense<br><small>+1 DEF</small></button>
+                        <button class="btn-train" onclick="startTrain('agility')">⚡ Agility<br><small>+1 AGI</small></button>
+                        <button class="btn-train" onclick="startTrain('magic')">✨ Magic<br><small>+1 MAG</small></button>
+                    </div>
+                    <div id="train-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- UPGRADE -->
+                <div id="tab-upgrade" class="game-tab">
+                    <div class="tab-header"><h2>⬆️ Upgrade Stats</h2></div>
+                    <div id="upgrade-gold" class="gold-display"></div>
+                    <div id="upgrade-grid" class="upgrade-grid"></div>
+                    <div id="upgrade-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- MISSIONS -->
+                <div id="tab-missions" class="game-tab" style="position:relative">
+                    <div id="world-map-container" class="world-map-container">
+                        <img id="world-map-bg" class="world-map-bg" src="/images/world-map.jpg" alt="World Map" onerror="this.style.background='#1a2332'">
+                        <div id="map-nodes-layer" class="map-nodes-layer"></div>
+                    </div>
+                    <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
+
+                    <!-- Mission timer — covers entire tab while active -->
+                    <div id="mission-overlay" class="mission-overlay hidden">
+                        <div class="mission-overlay-inner">
+                            <div class="mission-overlay-badge">⚔️ ON MISSION</div>
+                            <div id="overlay-mission-name" class="mission-overlay-name">Mission</div>
+                            <div id="overlay-mission-zone" class="mission-overlay-zone"></div>
+                            <div id="overlay-mission-timer" class="mission-overlay-timer">0:00</div>
+                            <div class="mission-overlay-progress-track">
+                                <div id="overlay-progress-fill" class="mission-overlay-progress-fill"></div>
+                            </div>
+                            <div id="overlay-mission-subtext" class="mission-overlay-subtext">Return when complete...</div>
+                            <button id="overlay-collect-btn" class="btn-collect" onclick="overlayCollectMission()" disabled>Collect Rewards</button>
+                        </div>
+                    </div>
+
+                    <!-- Travel timer — covers entire tab while traveling -->
+                    <div id="travel-overlay" class="travel-overlay hidden">
+                        <div class="travel-overlay-inner">
+                            <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2">🚶 TRAVELING</div>
+                            <div class="travel-overlay-label">Destination</div>
+                            <div id="travel-overlay-name" class="travel-overlay-name">Zone</div>
+                            <div id="travel-overlay-from" class="travel-overlay-from"></div>
+                            <div id="travel-overlay-timer" class="mission-overlay-timer">0:00</div>
+                            <div class="mission-overlay-progress-track">
+                                <div id="travel-overlay-fill" class="mission-overlay-progress-fill travel"></div>
+                            </div>
+                            <button id="travel-cancel-btn" class="btn-cancel-travel" onclick="cancelTravel()">Cancel (Free)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORGE -->
+                <div id="tab-forge" class="game-tab">
+                    <div class="tab-header"><h2>🔨 Forge</h2></div>
+                    <div id="forge-gold" class="gold-display"></div>
+                    <div class="forge-tabs filter-tabs">
+                        <button class="filter-btn active" onclick="setForgeTab('refine',this)">Refine</button>
+                        <button class="filter-btn" onclick="setForgeTab('craft',this)">Craft</button>
+                    </div>
+                    <div id="forge-content"></div>
+                    <div id="forge-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- INVENTORY -->
+                <div id="tab-inventory" class="game-tab">
+                    <div class="tab-header"><h2>🎒 Inventory</h2></div>
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" onclick="setInvTab('equipment',this)">Equipment</button>
+                        <button class="filter-btn" onclick="setInvTab('consumables',this)">Consumables</button>
+                        <button class="filter-btn" onclick="setInvTab('materials',this)">Materials</button>
+                    </div>
+                    <div id="inventory-content"></div>
+                    <div id="inv-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- SHOP -->
+                <div id="tab-shop" class="game-tab">
+                    <div class="tab-header"><h2>🛒 Shop</h2></div>
+                    <div class="shop-currency-row">
+                        <span id="shop-gold"></span>
+                        <span id="shop-gems"></span>
+                    </div>
+                    <div class="shop-tabs filter-tabs">
+                        <button class="filter-btn active" onclick="setShopCategory('weapons',this)">Weapons</button>
+                        <button class="filter-btn" onclick="setShopCategory('armor',this)">Armor</button>
+                        <button class="filter-btn" onclick="setShopCategory('accessories',this)">Accessories</button>
+                        <button class="filter-btn" onclick="setShopCategory('consumables',this)">Potions</button>
+                        <button class="filter-btn" onclick="setShopCategory('premium',this)">💎 Premium</button>
+                    </div>
+                    <div id="shop-content" class="shop-grid"></div>
+                    <div id="shop-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- LEADERBOARD -->
+                <div id="tab-leaderboard" class="game-tab">
+                    <div class="tab-header"><h2>🏆 Leaderboard</h2></div>
+
+                    <!-- Matchmaking -->
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:20px">
+                        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px">⚔️ Find Opponent</div>
+                        <div id="matchmaking-box"><p class="empty" style="padding:10px">Open leaderboard to find an opponent.</p></div>
+                    </div>
+
+                    <div class="lb-controls">
+                        <input id="lb-search" type="text" placeholder="Search players..." oninput="filterLeaderboard()" class="lb-search">
+                        <div class="lb-filters filter-tabs">
+                            <button class="filter-btn active" onclick="setLbSort('total_gold_earned',this)">Gold</button>
+                            <button class="filter-btn" onclick="setLbSort('wins',this)">Wins</button>
+                            <button class="filter-btn" onclick="setLbSort('losses',this)">Losses</button>
+                            <button class="filter-btn" onclick="setLbSort('level',this)">Level</button>
+                        </div>
+                    </div>
+                    <div id="leaderboard-list"></div>
+                </div>
+
+                <!-- INBOX -->
+                <div id="tab-inbox" class="game-tab">
+                    <div class="tab-header"><h2>✉️ Inbox</h2></div>
+                    <div id="inbox-content"></div>
+                </div>
+
+            </main>
+        </div><!-- /.game-body -->
+
+        <!-- ── MODALS ─────────────────────────────────────────────────────────── -->
+
+        <!-- Profile modal -->
+        <div id="profile-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <div id="profile-content"></div>
+            </div>
+        </div>
+
+        <!-- Mission location modal — fullscreen -->
+        <div id="mission-location-modal" class="mission-modal-overlay hidden">
+            <div class="mission-modal-inner">
+                <button class="mission-modal-close" onclick="closeMissionModal2()">✕</button>
+                <div id="mission-location-header"></div>
+                <div id="mission-spots-grid"></div>
+                <div id="mission-location-active"></div>
+            </div>
+        </div>
+
+        <!-- Mission rewards modal -->
+        <div id="mission-rewards-modal" class="modal-overlay hidden">
+            <div class="modal-box mission-rewards-box" style="text-align:center">
+                <h3 style="margin:0 0 12px;color:#f1c40f">Mission Complete!</h3>
+                <div id="mission-rewards-message" style="font-size:1rem;color:#fff;line-height:1.6"></div>
+                <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeMissionModal()">Continue</button>
+            </div>
+        </div>
+
+        <!-- Battle result modal (global — used by arena, leaderboard attacks, and mission collect) -->
+        <div id="battle-result-modal" class="modal-overlay hidden">
+            <div class="modal-box battle-result-box">
+                <div id="battle-outcome" class="battle-outcome"></div>
+                <div id="battle-log" class="battle-log"></div>
+                <button class="btn-secondary" style="width:100%;margin-top:4px" onclick="closeBattle()">Close</button>
+            </div>
+        </div>
+
+        <!-- Compose modal -->
+        <div id="compose-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h3>Compose Message</h3>
+                    <button class="btn-secondary" onclick="closeCompose()">✕</button>
+                </div>
+                <div id="compose-receiver-name" style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin-bottom:12px"></div>
+                <input id="compose-receiver-id" type="hidden">
+                <input id="compose-subject" type="text" placeholder="Subject" class="auth-input" style="margin-bottom:10px">
+                <textarea id="compose-body" placeholder="Message..." class="auth-input" style="height:120px;resize:vertical;margin-bottom:10px"></textarea>
+                <div id="compose-error" class="error-msg hidden"></div>
+                <button class="btn-primary" onclick="sendMessage()" style="width:100%">Send</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+<script src="/js/app.js"></script>
+</body>
+</html>
