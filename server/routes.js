@@ -509,9 +509,10 @@ function generateBackendRandomItem(level, type) {
     }
     const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
     const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
-    const name = `${prefix} ${suffix}`;
-    const emoji = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
-    const item = {
+const name = `${prefix} ${suffix}`;
+const emoji = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
+const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
+const item = {
     id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
     name, emoji, tier, level,
     img: `/images/assets/${imgSlug}.png`,
