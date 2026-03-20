@@ -512,8 +512,9 @@ function generateBackendRandomItem(level, type) {
     const name = `${prefix} ${suffix}`;
     const emoji = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const item = {
-        id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
-        name, emoji, tier, level,
+    id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+    name, emoji, tier, level,
+    img: `/images/assets/${imgSlug}.png`,
         desc: `A ${name.toLowerCase()} for level ${level} adventurers.`,
         stats,
         slot: type === 'weapon' ? 'weapon' : type === 'armor' ? 'armor' : 'accessory',
