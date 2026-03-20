@@ -284,7 +284,7 @@ function showScreen(name) {
     document.getElementById(`screen-${name}`).classList.add('active');
     if (name==='game') { renderTopBar(); renderCharacter(); startPolling(); showTab('character'); }
 }
-const TAB_ORDER=['character','loadout','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox'];
+const TAB_ORDER=['character','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -295,6 +295,7 @@ function showTab(name) {
     if (name==='loadout')     renderLoadout();
     if (name==='train')       renderTraining();
     if (name==='upgrade')     renderUpgrade();
+    if (name==='skills')      renderSkills();
     if (name==='missions')    loadMissions();
     if (name==='forge')       loadForge();
     if (name==='inventory')   { syncInvTabButtons(); loadInventory(); }
@@ -309,7 +310,7 @@ function renderTopBar() {
     const c=character;
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
-    const lxp=c.level*25;
+    const lxp=c.level*100;
     const xpPct=Math.min(100,Math.round((c.xp/lxp)*100));
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
@@ -318,10 +319,29 @@ function renderTopBar() {
     set('topbar-hp-text',el=>{ el.textContent=`${hpCur} / ${c.hp_max}`; });
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
     set('topbar-xp-text',el=>{ el.textContent=`${c.xp} / ${lxp} XP`; });
+    const mp=c.mission_points??0, mpMax=c.mp_max||240;
+    const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
+    const dms=c.daily_mp_spent??0, unl=c.skills_unlocked;
+    set('topbar-mp-fill',el=>{ el.style.width=mpPct+'%'; });
+    set('topbar-mp-text',el=>{
+        el.textContent=`${mp} / ${mpMax} MP`;
+        el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`;
+    });
+    set('topbar-mp',el=>{
+        if(!el) return;
+        el.textContent=unl?`🔮 ${mp} ✨`:`🔮 ${mp} (${dms}/60)`;
+        el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`;
+    });
     set('topbar-gold',el=>{ el.textContent=`💰 ${c.gold.toLocaleString()}`; });
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
     set('topbar-name',el=>{ el.textContent=c.name; });
+    const evEl=document.getElementById('topbar-event');
+    if (evEl) {
+        const ev=c.active_event;
+        if (ev) { evEl.textContent=ev.name||''; evEl.classList.remove('hidden'); }
+        else evEl.classList.add('hidden');
+    }
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────
@@ -364,6 +384,7 @@ function renderCharacter() {
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat=Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
 
+    // Equipment slot tiles
     const eqSlots=[
         {slot:'weapon',  icon:'⚔️', label:'Weapon'},
         {slot:'armor',   icon:'🛡️', label:'Armor'},
@@ -524,7 +545,7 @@ function renderTraining() {
     if (c.trainingDone) {
         statusEl.className='train-status-bar ready'; statusEl.textContent=`✅ ${capitalize(c.training_stat)} training complete!`; statusEl.classList.remove('hidden');
         allBtns.forEach(b=>b.disabled=true);
-        if (!oldBtn) { const btn=document.createElement('button'); btn.id='collect-btn'; btn.className='btn-primary'; btn.style.cssText='grid-column:1/-1;margin-top:8px'; btn.textContent=`⚡ Collect +2 ${capitalize(c.training_stat)}`; btn.onclick=collectTraining; document.getElementById('train-grid').after(btn); }
+        if (!oldBtn) { const btn=document.createElement('button'); btn.id='collect-btn'; btn.className='btn-primary'; btn.style.cssText='grid-column:1/-1;margin-top:8px'; btn.textContent=`⚡ Collect +1 ${capitalize(c.training_stat)}`; btn.onclick=collectTraining; document.getElementById('train-grid').after(btn); }
     } else if (c.trainingActive) {
         statusEl.className='train-status-bar'; statusEl.textContent=`⏳ Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`; statusEl.classList.remove('hidden');
         allBtns.forEach(b=>b.disabled=true); if(oldBtn)oldBtn.remove();
@@ -545,13 +566,30 @@ function renderUpgrade() {
     const c=character, costs=c.upgradeCosts||{};
     const disc={ warrior:{strength:30,defense:15,vitality:10}, mage:{magic:35,agility:10}, rogue:{agility:35,strength:10}, paladin:{defense:25,magic:20,vitality:15} };
     const cd=disc[c.class]||{};
+    const ev=c.active_event;
+    const hasStatDiscount=ev?.key==='discount_stats';
     document.getElementById('upgrade-gold').textContent=`💰 ${c.gold.toLocaleString()} Gold available`;
-    const stats=[{key:'strength',icon:'💪'},{key:'defense',icon:'🛡️'},{key:'agility',icon:'⚡'},{key:'magic',icon:'✨'},{key:'vitality',icon:'❤️'}];
-    document.getElementById('upgrade-grid').innerHTML=stats.map(s=>{
-        const cost=costs[s.key]||'?',disc2=cd[s.key],can=c.gold>=cost;
+    const evBanner=hasStatDiscount?`<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>`:'';
+    const stats=[
+        {key:'strength',icon:'💪',label:'Strength'},
+        {key:'defense',icon:'🛡️',label:'Defense'},
+        {key:'agility',icon:'⚡',label:'Agility',hint:'Dodge incoming hits'},
+        {key:'magic',icon:'✨',label:'Magic'},
+        {key:'vitality',icon:'❤️',label:'Vitality',hint:'Also boosts current HP'},
+        {key:'hit_chance',icon:'🎯',label:'Hit Chance',hint:'Accuracy vs agility'},
+        {key:'crit_chance',icon:'💥',label:'Crit Chance',hint:'% chance to hit max dmg'},
+    ];
+    document.getElementById('upgrade-grid').innerHTML=evBanner+stats.map(s=>{
+        let cost=costs[s.key]||'?';
+        const disc2=cd[s.key];
+        if (hasStatDiscount&&typeof cost==='number') cost=Math.max(1,Math.floor(cost*0.70));
+        const can=c.gold>=cost;
+        const displayName=s.label||capitalize(s.key);
         return `<div class="upgrade-card">
-      <div class="upgrade-card-header"><span class="upgrade-card-icon">${s.icon}</span><span class="upgrade-card-name">${capitalize(s.key)}</span><span class="upgrade-card-val">${c[s.key]||0}</span></div>
+      <div class="upgrade-card-header"><span class="upgrade-card-icon">${s.icon}</span><span class="upgrade-card-name">${displayName}</span><span class="upgrade-card-val">${c[s.key]||0}</span></div>
+      ${s.hint?`<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>`:''}
       ${disc2?`<div class="upgrade-discount">✦ ${disc2}% class discount</div>`:''}
+      ${hasStatDiscount?`<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>`:''}
       <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
       <button class="btn-upgrade" onclick="upgradestat('${s.key}')" ${can?'':'disabled'}>${can?`+1 for ${cost}g`:`Need ${cost-c.gold} more`}</button>
     </div>`;
@@ -560,6 +598,113 @@ function renderUpgrade() {
 async function upgradestat(stat) {
     try { const d=await api('POST','/game/upgrade',{stat}); character=d.character; renderUpgrade(); renderCharacter(); showMsg('upgrade-msg',d.message); }
     catch(e) { showMsg('upgrade-msg',e.message,true); }
+}
+
+// ── Event Banner Helper ───────────────────────────────────────────────────
+function renderEventBanner(containerId) {
+    const el=document.getElementById(containerId); if(!el) return;
+    const ev=character?.active_event;
+    if (!ev) { el.classList.add('hidden'); return; }
+    const now=Math.floor(Date.now()/1000);
+    const left=Math.max(0,ev.ends_at-now);
+    const h=Math.floor(left/3600), m=Math.floor((left%3600)/60);
+    const timeStr=h>0?`${h}h ${m}m`:`${m}m`;
+    el.classList.remove('hidden');
+    el.style.display='flex';
+    el.innerHTML=`<span style="font-size:1.4rem">${ev.name?.split(' ')[0]||'🎉'}</span>
+    <div><div style="font-weight:700;color:var(--gold)">${ev.name||'Event Active'}</div>
+    <div style="font-size:0.8rem;color:var(--text-dim)">${ev.desc||''} · Ends in ${timeStr}</div></div>`;
+}
+
+// ── Skills Tab ────────────────────────────────────────────────────────────
+function renderSkills() {
+    if (!character) return;
+    const c=character;
+    const mp=character?.mission_points??0, mpMax=character?.mp_max||240;
+    const dailyMpSpent=character?.daily_mp_spent??0;
+    const unlocked=character?.skills_unlocked||(dailyMpSpent>=60);
+    const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
+    const unlockPct=Math.min(100,Math.round((dailyMpSpent/60)*100));
+    const now=Math.floor(Date.now()/1000);
+
+    const mpEl=document.getElementById('skills-mp-bar');
+    if (mpEl) mpEl.innerHTML=`
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-weight:700;color:#9b59b6">🔮 Mission Points</span>
+            <span style="font-weight:700;color:#9b59b6">${mp} / ${mpMax}</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px">
+            <div style="width:${mpPct}%;height:100%;background:linear-gradient(90deg,#8e44ad,#9b59b6);border-radius:6px;transition:width 0.4s"></div>
+        </div>
+        ${!unlocked?`
+        <div style="margin-bottom:10px;padding:10px 14px;background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px">
+            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔒 Skills unlock by spending 60 MP on missions today</div>
+            <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden">
+                <div style="width:${unlockPct}%;height:100%;background:#9b59b6;border-radius:4px"></div>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP spent today</div>
+        </div>`:''}
+        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +10/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration</div>`;
+
+    renderEventBanner('skills-event-banner');
+
+    const skills=c.class_skills||[];
+    const activeSkills=c.active_skills||{};
+    const lastUsed=c.skill_last_used||{};
+    const todayMidnight=Math.floor(now/86400)*86400;
+    const anyUsedToday=Object.values(lastUsed).some(t=>t>=todayMidnight);
+
+    const grid=document.getElementById('skills-grid');
+    if (!grid) return;
+    if (!skills.length) { grid.innerHTML='<p style="color:var(--text-dim)">No skills for your class.</p>'; return; }
+
+    grid.innerHTML=skills.map(sk=>{
+        const isActive=activeSkills[sk.id]&&activeSkills[sk.id]>now;
+        const usedToday=(lastUsed[sk.id]||0)>=todayMidnight;
+        const expiresIn=isActive?Math.ceil((activeSkills[sk.id]-now)/60):0;
+        const expiresStr=expiresIn>=60?`${Math.floor(expiresIn/60)}h ${expiresIn%60}m`:`${expiresIn}m`;
+        const canActivate=unlocked&&!isActive&&!anyUsedToday;
+
+        let btnLabel, btnDisabled;
+        if (!unlocked)     { btnLabel=`🔒 Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
+        else if (isActive) { btnLabel=`⏳ Active — ${expiresStr} left`; btnDisabled=true; }
+        else if (anyUsedToday&&!usedToday){ btnLabel=`✅ Another skill active today`; btnDisabled=true; }
+        else if (usedToday){ btnLabel=`✅ Used today`; btnDisabled=true; }
+        else               { btnLabel=`✨ Activate (Free)`; btnDisabled=false; }
+
+        const cardBg=isActive
+            ?'background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(142,68,173,0.15));border-color:rgba(155,89,182,0.5)'
+            :(usedToday||anyUsedToday&&!isActive)
+                ?'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);opacity:0.6'
+                :unlocked?'background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)'
+                    :'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.05);opacity:0.5';
+
+        return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                <span style="font-size:1.8rem">${sk.emoji}</span>
+                <div>
+                    <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${sk.name}</div>
+                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">✨ ACTIVE · ${expiresStr} remaining</div>`:
+            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today — resets at midnight</div>`:''}
+                </div>
+            </div>
+            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45">${sk.desc}</div>
+            <button onclick="activateSkill('${sk.id}')" ${btnDisabled?'disabled':''}
+                style="width:100%;padding:8px;border-radius:8px;border:1px solid ${canActivate?'rgba(155,89,182,0.5)':'rgba(255,255,255,0.1)'};
+                background:${canActivate?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.04)'};
+                color:${canActivate?'#9b59b6':'var(--text-dim)'};cursor:${canActivate?'pointer':'not-allowed'};
+                font-size:0.82rem;font-weight:600;transition:all 0.2s">${btnLabel}</button>
+        </div>`;
+    }).join('');
+}
+
+async function activateSkill(skillId) {
+    try {
+        const d=await api('POST','/game/skills/activate',{skillId});
+        character=d.character;
+        renderSkills(); renderTopBar();
+        showMsg('skills-msg',d.message);
+    } catch(e) { showMsg('skills-msg',e.message,true); }
 }
 
 // ── Missions ──────────────────────────────────────────────────────────────
@@ -672,7 +817,7 @@ function openLocationModal(zoneId) {
                     </div>
                     <div class="mz-spot-info">
                         <div class="mz-spot-name">${spot.name}</div>
-                        <div class="mz-spot-stats">⏱️ ${Math.floor(spot.missionDuration/60)}m &nbsp;·&nbsp; 💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]}</div>
+                        <div class="mz-spot-stats">🔮 20–60 MP &nbsp;·&nbsp; ⏱️ 10–30 min &nbsp;·&nbsp; 💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]}</div>
                     </div>
                 </div>`;
     }).join('')}
@@ -689,16 +834,38 @@ function openSpotMissions(zoneId, spotId) {
     const spot=zone.spots.find(s=>s.id===spotId); if(!spot) return;
     const activeEl=document.getElementById('mission-location-active');
     const dc={easy:'#2ecc71',medium:'#f39c12',hard:'#e74c3c'};
+    const mp=character?.mission_points??0;
+    const sizes=[
+        {key:'small',  label:'Small',  mpCost:20, duration:'10 min', mult:'1×',  desc:'Quick mission, standard rewards'},
+        {key:'medium', label:'Medium', mpCost:40, duration:'20 min', mult:'1.8×',desc:'Longer mission, better rewards'},
+        {key:'large',  label:'Large',  mpCost:60, duration:'30 min', mult:'3×',  desc:'Epic mission, best rewards'},
+    ];
     activeEl.innerHTML=`
-        <div class="mz-section-label" style="margin-top:24px">${spot.name} — choose a mission</div>
-        <div class="mz-missions-grid">
+        <div class="mz-section-label" style="margin-top:24px">${spot.name} — pick mission size</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+            ${sizes.map(sz=>{
+        const canAfford=mp>=sz.mpCost;
+        const border=canAfford?`1px solid ${dc[spot.difficulty]}44`:'1px solid rgba(255,255,255,0.08)';
+        const bg=canAfford?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.02)';
+        const opacity=canAfford?'1':'0.45';
+        return `<div onclick="${canAfford?`pickMissionSize('${zoneId}','${spotId}','${sz.key}')`:''}"
+                    style="border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford?'pointer':'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
+                    <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
+                    <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
+                    <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
+                    <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">${sz.mult} rewards</div>
+                    ${!canAfford?`<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost-mp} more MP</div>`:''}
+                </div>`;
+    }).join('')}
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / 240</strong> · MP regenerates +10/hr</div>
+        <div class="mz-section-label">Choose a mission</div>
+        <div class="mz-missions-grid" id="spot-missions-list">
             ${spot.missions.map((m,idx)=>`
-            <div class="mz-mission-card" onclick="doStartMission('${zoneId}','${spotId}',${idx})">
+            <div class="mz-mission-card" id="mission-opt-${idx}" style="opacity:0.4;pointer-events:none">
                 <div class="mz-mission-img-wrap">
                     <img class="mz-mission-img" src="${m.img}" alt="${m.name}" onerror="this.style.background='#1c2b38'">
-                    <div class="mz-mission-img-overlay">
-                        <div class="mz-mission-start-btn">▶ Start</div>
-                    </div>
+                    <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ Start</div></div>
                 </div>
                 <div class="mz-mission-info">
                     <div class="mz-mission-name">${m.name}</div>
@@ -709,19 +876,47 @@ function openSpotMissions(zoneId, spotId) {
                 </div>
             </div>`).join('')}
         </div>`;
+    activeEl.dataset.zoneId=zoneId;
+    activeEl.dataset.spotId=spotId;
+    activeEl.dataset.selectedSize='';
 }
 
-async function doStartMission(zoneId, spotId, missionIdx) {
+function pickMissionSize(zoneId, spotId, sizeKey) {
+    const activeEl=document.getElementById('mission-location-active');
+    activeEl.dataset.selectedSize=sizeKey;
+    const zone=ZONES[zoneId], spot=zone?.spots.find(s=>s.id===spotId);
+    const dc={easy:'#2ecc71',medium:'#f39c12',hard:'#e74c3c'};
+    const mults={small:1.0,medium:1.8,large:3.0};
+    const mult=mults[sizeKey]||1;
+    spot.missions.forEach((m,idx)=>{
+        const card=document.getElementById(`mission-opt-${idx}`);
+        if (card) {
+            card.style.opacity='1';
+            card.style.pointerEvents='auto';
+            card.onclick=()=>doStartMission(zoneId,spotId,idx,sizeKey);
+            const reward=card.querySelector('.mz-mission-reward');
+            if (reward) reward.innerHTML=`💰 ${Math.floor(zone.payoutBase[spot.difficulty][0]*mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1]*mult)} &nbsp;·&nbsp; ⭐ ${Math.floor(zone.xpBase[spot.difficulty][0]*mult)}–${Math.floor(zone.xpBase[spot.difficulty][1]*mult)} XP`;
+        }
+    });
+    document.querySelectorAll('#mission-location-active [onclick^="pickMissionSize"]').forEach(el=>{
+        el.style.background=el.getAttribute('onclick')?.includes(sizeKey)?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.05)';
+        el.style.borderColor=el.getAttribute('onclick')?.includes(sizeKey)?'rgba(155,89,182,0.5)':'';
+    });
+}
+
+async function doStartMission(zoneId, spotId, missionIdx, size='small') {
     const zone=ZONES[zoneId]; const spot=zone?.spots.find(s=>s.id===spotId); if(!spot) return;
     if (character?.location!==zoneId) { showMsg('missions-msg','Travel to this zone first!',true); closeMissionModal2(); return; }
     if ((character?.hp_current??character?.hp_max)<=0) { showMsg('missions-msg','Out of HP! Wait for regeneration.',true); closeMissionModal2(); return; }
     const chosenMission=spot.missions[missionIdx]||spot.missions[0];
     const missionName=chosenMission.name;
     try {
-        const result=await api('POST','/game/missions/start',{zoneId,spotId,missionIdx,missionName});
+        const result=await api('POST','/game/missions/start',{zoneId,spotId,missionIdx,missionName,size});
+        character=await api('GET','/game/character');
+        renderTopBar();
         closeMissionModal2();
         const confirmedName=result?.mission?.missionName||result?.mission?.mission_name||missionName;
-        const endsAt=result?.mission?.ends_at||(Math.floor(Date.now()/1000)+spot.missionDuration);
+        const endsAt=result?.mission?.ends_at||(Math.floor(Date.now()/1000)+result?.mission?.duration||600);
         showMissionOverlay({id:result?.mission?.id||1,zone:zoneId,ends_at:endsAt},confirmedName);
         renderWorldMap();
         setTimeout(()=>checkAndShowMissionOverlay(),1000);
@@ -1008,7 +1203,7 @@ function showItemTooltip(event,itemId) {
     }
     const sp=Math.max(1,Math.floor((d.price||0)*0.3));
     const sn=(d.name||'').replace(/'/g,"\\'");
-    tooltip.innerHTML='<div class="tt-header"><span class="tt-icon">'+(d.emoji||'📦')+'</span>'
+    tooltip.innerHTML='<div class="tt-header"><span class="tt-icon">'+(d.img?`<img src="${d.img}" style="width:2rem;height:2rem;object-fit:contain;border-radius:4px" onerror="this.style.display='none'">`:d.emoji||'📦')+'</span>'
         +'<div><div class="tt-name" style="color:'+qColor+'">'+(d.name||'')+'</div>'
         +'<div class="tt-meta">'+capitalize(d.slot||'')+(d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':'')+'</div></div></div>'
         +(d.desc?'<div class="tt-desc">'+d.desc+'</div>':'')
@@ -1061,14 +1256,35 @@ function renderShopContent() {
 function renderShop() {
     if (!character||!shopInventory.length) return;
     const el=document.getElementById('shop-content');
-    el.innerHTML=shopInventory.map(item=>{
+    const filtered=currentShopCategory==='all'?shopInventory:shopInventory.filter(item=>{
+        const cat=item.category||item.slot||'';
+        if(currentShopCategory==='weapons') return cat==='weapon';
+        if(currentShopCategory==='armor') return cat==='armor';
+        if(currentShopCategory==='accessories') return cat==='accessory';
+        if(currentShopCategory==='consumables') return item.consumable||cat==='consumable';
+        if(currentShopCategory==='premium') return item.priceType==='gems'||cat==='premium';
+        return cat===currentShopCategory;
+    });
+    if(!filtered.length){el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`;return;}
+    el.innerHTML=filtered.map(item=>{
         const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
         const isAvail=character.level>=(item.level||1), classOk=!item.classes||item.classes.includes(character.class);
         const hasEnough=pt==='gems'?(character.gems||0)>=item.price:character.gold>=item.price;
         let cardClass='shop-card'; if(!isAvail)cardClass+=' locked-future'; if(!classOk)cardClass+=' class-locked'; if(item.quality==='legendary')cardClass+=' legendary'; else if(item.quality==='rare')cardClass+=' rare';
         const statsHtml=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')&&!k.includes('elem')).map(([k,v])=>v!==0?`<div class="shop-card-stat"><span class="shop-card-stat-label">${k.replace(/_/g,' ')}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`:'').join(''):'';
         const elemHtml=item.stats?.elem_dmg?`<div class="shop-card-stat"><span class="shop-card-stat-label">Elemental</span><span class="shop-card-stat-value">+${item.stats.elem_dmg} ${item.stats.elem_dmg_type}</span></div>`:'';
-        const effectHtml=item.effect?`<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value">${item.effect.type} ${item.effect.value||''}</span></div>`:'';
+        const effectHtml=item.effect?(()=>{
+            const e=item.effect;
+            let label='';
+            if(e.type==='heal') label=`Heals ${e.value} HP`;
+            else if(e.type==='heal_full') label='Restores 100% HP';
+            else if(e.type==='temp_stat') label=`+${e.value} ${capitalize(e.stat||'')}`;
+            else if(e.type==='xp_multiplier') label=`${e.value}× XP boost`;
+            else if(e.type==='gold_multiplier') label=`${e.value}× Gold boost`;
+            else if(e.type==='xp') label=`+${e.value} XP`;
+            else label=`${e.type}${e.value?' '+e.value:''}`;
+            return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
+        })():'';
         return `<div class="${cardClass}">${pt==='gems'?'<span class="premium-badge">💎 PREMIUM</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header"><span class="shop-card-icon">${itemIcon(item,'2rem')}</span><span class="shop-card-name">${item.name}</span><span class="shop-card-tier">Lv.${item.level||1}</span></div>
             <div class="shop-card-desc">${item.desc}</div>
@@ -1086,15 +1302,16 @@ async function buyItem(itemId) {
     if (item.classes&&!item.classes.includes(character.class)){showMsg('shop-msg',`Not available for ${capitalize(character.class)}!`,true);return;}
     if (pt==='gems'&&(character.gems||0)<item.price){showMsg('shop-msg','Not enough gems!',true);return;}
     if (pt!=='gems'&&character.gold<item.price){showMsg('shop-msg','Not enough gold!',true);return;}
+    if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
+    item._buying=true;
     try {
         const result=await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||'weapon',price:item.price,priceType:pt,item});
-        character=result.character; showMsg('shop-msg',`Purchased ${item.name}!`);
-        shopInventory=shopInventory.filter(i=>i.id!==itemId); loadShop();
-        if (item.consumable) {
-            invTab='consumables';
-            loadInventory();
-        }
-    } catch(e) { showMsg('shop-msg',e.message,true); }
+        character=result.character;
+        shopInventory=shopInventory.filter(i=>i.id!==itemId);
+        showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
+        renderShop(); renderTopBar();
+        if (item.consumable) { invTab='consumables'; loadInventory(); }
+    } catch(e) { item._buying=false; showMsg('shop-msg',e.message,true); }
 }
 function setShopCategory(category,btn) { currentShopCategory=category; document.querySelectorAll('.shop-tabs .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderShop(); }
 async function refreshShop() { if(!character)return; shopInventory=await generateShopInventory(character.level); renderShop(); }
@@ -1104,7 +1321,6 @@ async function generateShopInventory(playerLevel) { try { const r=await api('GET
 function setLbSort(sort,btn) { lbSort=sort; document.querySelectorAll('.lb-filters .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadLeaderboard(); }
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
-    // Init matchmaking box on first load
     const mmBox = document.getElementById('matchmaking-box');
     if (mmBox && !mmBox.dataset.loaded) { mmBox.dataset.loaded='1'; findOpponent('similar'); }
     try { lbData=await api('GET',`/game/leaderboard?sort=${lbSort}`); renderLeaderboard(); }
@@ -1144,7 +1360,19 @@ async function openProfile(id) {
         const isMe=p.user_id===character?.user_id;
         const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
-        const maxStat=Math.max(str,def,agi,mag,vit,30);
+        const hc=p.hit_chance||0,cc=p.crit_chance||0;
+        const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
+
+        const eq=p.equipped||{};
+        const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
+        const eqHtml=slots.map(([slot,fallback])=>{
+            const item=eq[slot];
+            if(!item) return `<div style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:rgba(255,255,255,0.2)">${fallback}</div>`;
+            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.7)';
+            const statsText=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')).map(([k,v])=>v!==0?`${k.replace(/_/g,' ')}: ${v>0?'+':''}${v}`:'').filter(Boolean).join('\n'):'No stats';
+            return `<div title="${item.name}\n${statsText}" style="width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid ${qc}33;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:default;position:relative">${itemIcon(item,'1.8rem')}</div>`;
+        }).join('');
+
         content.innerHTML=`
       <div class="profile-header">
         <div style="display:flex;align-items:center;gap:12px">
@@ -1153,39 +1381,44 @@ async function openProfile(id) {
         </div>
         <button class="btn-secondary" onclick="closeProfile()">✕</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
         <div style="background:var(--bg3);border-radius:8px;padding:14px">
-          <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em">STATS</div>
-          ${miniStat('💪','STR',str,maxStat,'str')}${miniStat('🛡️','DEF',def,maxStat,'def')}${miniStat('⚡','AGI',agi,maxStat,'agi')}${miniStat('✨','MAG',mag,maxStat,'mag')}${miniStat('❤️','VIT',vit,maxStat,'vit')}
+          <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
+          ${miniStat('💪','STR',str,maxStat,'str')}
+          ${miniStat('🛡️','DEF',def,maxStat,'def')}
+          ${miniStat('⚡','AGI',agi,maxStat,'agi')}
+          ${miniStat('✨','MAG',mag,maxStat,'mag')}
+          ${miniStat('❤️','VIT',vit,maxStat,'vit')}
+          ${hc>0?miniStat('🎯','HIT',hc,maxStat,'hit'):''}
+          ${cc>0?miniStat('💥','CRIT',cc,maxStat,'crit'):''}
         </div>
         <div style="background:var(--bg3);border-radius:8px;padding:14px">
-          <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em">RECORD</div>
-          <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
+          <div style="display:flex;flex-direction:column;gap:7px">
             <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
             <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
-            <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
-            <div style="display:flex;justify-content:space-between;margin-top:4px"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+            <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
           </div>
         </div>
       </div>
+      ${Object.keys(eq).length?`
+      <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:12px">
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${eqHtml}</div>
+      </div>`:''}
       ${!isMe ? (() => {
-            const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0;
-            const onM=p.onMission, onT=p.onTravel, hpLow=p.hpLow;
-            // My own cooldown after a recent battle
-            const myBattleCd = character?.battle_cooldown_remaining||0;
+            const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
+            const myBattleCd=character?.battle_cooldown_remaining||0;
             let blocked=false, reason='';
-            // Check defender-side blocks first
             if(hpLow){blocked=true;reason='Too little HP';}
-            else if(onM){blocked=true;reason='On a mission';}
-            else if(onT){blocked=true;reason='Traveling';}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
-            // Then check attacker-side (my own post-battle cooldown)
             else if(myBattleCd>0){blocked=true;const m=Math.ceil(myBattleCd/60);reason='Wait '+m+'m to fight again';}
-            const atkBtn = blocked
-                ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
-                : `<button class="btn-attack" onclick="closeProfile();attackFromProfile(${id},'${name.replace(/'/g,"\\'")}')">⚔️ Attack</button>`;
+            const atkBtn=blocked
+                ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
+                :`<button class="btn-attack" onclick="closeProfile();attackFromProfile(${id},'${name.replace(/'/g,"\\'")}')">⚔️ Attack</button>`;
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" onclick="closeProfile();openCompose(${id},'${name.replace(/'/g,"\\'")}')">✉️ Message</button></div>`;
         })() : ''}`;
     } catch(e) { content.innerHTML=`<p class="error">Failed to load profile: ${e.message||'Unknown error'}</p>`; }
@@ -1280,7 +1513,6 @@ function showHistoryLog(logJson,a,d) {
 }
 
 // ── Inbox ─────────────────────────────────────────────────────────────────
-// Cache for battle reports so viewBattleReport doesn't need a re-fetch
 window._reportCache = {};
 
 async function loadInbox() {
@@ -1296,7 +1528,6 @@ async function loadInbox() {
             if (isReport) {
                 let report = null;
                 try { report = JSON.parse(m.body.slice('BATTLE_REPORT:'.length)); } catch {}
-                // Cache for later retrieval
                 if (report) window._reportCache[m.id] = report;
                 const isMission = report?.type === 'mission';
                 const icon = isMission ? (report?.won ? '✅' : '💀') : (report?.won ? '🏆' : '⚔️');
@@ -1322,7 +1553,6 @@ async function loadInbox() {
                     </div>
                 </div>`;
             }
-            // Regular message
             return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
                 <div class="msg-header"><div class="msg-from ${m.read?'':'unread-from'}">From: ${m.sender_name}</div><div class="msg-date">${new Date(m.sent_at*1000).toLocaleDateString()}</div></div>
                 <div class="msg-subject">${escHtml(m.subject)}</div>
@@ -1332,7 +1562,6 @@ async function loadInbox() {
         }).join('')}</div>`;
         el.innerHTML=html;
 
-        // Wire up regular message expand/read
         messages.filter(m=>!m.body?.startsWith('BATTLE_REPORT:')).forEach(m=>{
             const row=document.getElementById(`msg-${m.id}`); if(!row) return;
             row.addEventListener('click',async(e)=>{
@@ -1343,7 +1572,6 @@ async function loadInbox() {
             });
         });
 
-        // Auto-mark reports as read
         messages.filter(m=>m.body?.startsWith('BATTLE_REPORT:')&&!m.read).forEach(async m=>{
             m.read=1;
             const row=document.getElementById(`msg-${m.id}`);
