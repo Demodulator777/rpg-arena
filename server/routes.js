@@ -18,26 +18,10 @@ const router = express.Router();
             'ALTER TABLE characters ADD COLUMN last_regen_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN travel_start_time INTEGER DEFAULT 0',
             'ALTER TABLE equipment ADD COLUMN accessory_id INTEGER',
-            'ALTER TABLE characters ADD COLUMN hit_chance INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN crit_chance INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN mission_points INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN mp_last_regen_at INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN total_mp_earned INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN daily_mp_spent INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN daily_mp_reset_at INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN active_skills TEXT DEFAULT NULL',
-            'ALTER TABLE characters ADD COLUMN skill_last_used TEXT DEFAULT NULL',
         ];
         for (const sql of migrations) {
             try { db.prepare(sql).run(); } catch {} // Ignore "column already exists"
         }
-        // Events table
-        db.prepare(`CREATE TABLE IF NOT EXISTS global_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_key TEXT NOT NULL,
-            started_at INTEGER NOT NULL,
-            ends_at INTEGER NOT NULL
-        )`).run();
         db.prepare(`CREATE TABLE IF NOT EXISTS attack_cooldowns (
                                                                     attacker_id INTEGER,
                                                                     defender_id INTEGER,
@@ -61,8 +45,8 @@ const CLASS_DISCOUNTS = {
     rogue:    { strength:0.10, defense:0,    agility:0.35, magic:0,    vitality:0    },
     paladin:  { strength:0.10, defense:0.25, agility:0,    magic:0.20, vitality:0.15 },
 };
-const UPGRADE_BASE = 5;
-const UPGRADE_EXPONENT = 1.25;
+const UPGRADE_BASE = 25;
+const UPGRADE_EXPONENT = 1.5;
 function upgradeCost(stat, currentVal, charClass) {
     const raw = Math.floor(UPGRADE_BASE * Math.pow(currentVal, UPGRADE_EXPONENT));
     const discount = CLASS_DISCOUNTS[charClass]?.[stat] || 0;
@@ -102,109 +86,6 @@ const DEFAULT_ATTACK_ZONES = ['chest','chest','solar_plexus','chest','head','sol
 const DEFAULT_BLOCK_ZONES  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
 const HP_REGEN_RATE     = 0.10;
 const HP_REGEN_INTERVAL = 3600;
-const MP_MAX            = 240;
-const MP_REGEN_AMOUNT   = 10;   // per hour
-const MP_SKILL_UNLOCK   = 60;   // daily MP spent to unlock skills that day
-// Mission MP costs and durations by size
-const MISSION_SIZES = {
-    small:  { mpCost: 20, duration: 600,  label: 'Small',  rewardMult: 1.0 },
-    medium: { mpCost: 40, duration: 1200, label: 'Medium', rewardMult: 1.8 },
-    large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 3.0 },
-};
-const SKILL_DURATION    = 5 * 3600; // 5 hours in seconds
-
-// ── Class Skills ───────────────────────────────────────────────────────────
-const CLASS_SKILLS = {
-    warrior: [
-        { id:'berserker_rage',   name:'Berserker Rage',   emoji:'🔥', desc:'+25% damage on all attacks for 5h. Pure aggression.',                         effect:'dmg_bonus',      value:0.25 },
-        { id:'iron_wall',        name:'Iron Wall',         emoji:'🏰', desc:'+30% block effectiveness on all guards for 5h. Near-impenetrable defense.',   effect:'block_bonus',    value:0.30 },
-        { id:'war_cry',          name:'War Cry',           emoji:'📯', desc:'Your hits cannot miss for the first 3 rounds for 5h. Fear your enemies.',     effect:'no_miss_rounds', value:3    },
-    ],
-    mage: [
-        { id:'arcane_surge',     name:'Arcane Surge',      emoji:'🌟', desc:'+20% elemental damage for 5h. Channel the raw forces of magic.',              effect:'elem_dmg_bonus', value:0.20 },
-        { id:'hex',              name:'Hex',                emoji:'💜', desc:'Reduces opponent elemental resistance by 15% for 5h. Curse your foes.',       effect:'elem_res_debuff',value:0.15 },
-        { id:'magic_circle',     name:'Magic Circle',       emoji:'🔵', desc:'Avoid 20% of all incoming hits for 5h. Arcane deflection shield.',            effect:'magic_dodge',    value:0.20 },
-    ],
-    rogue: [
-        { id:'shadow_step',      name:'Shadow Step',        emoji:'🌑', desc:'+40% dodge chance for 5h. Become a ghost on the battlefield.',               effect:'dodge_bonus',    value:0.40 },
-        { id:'expose',           name:'Expose',             emoji:'🎯', desc:'+15% crit chance for 5h. Find every gap in their armour.',                   effect:'crit_bonus',     value:0.15 },
-        { id:'venomfang',        name:'Venomfang',          emoji:'🐍', desc:'Each hit poisons for 5 bonus damage per round for 5h. Death by a thousand cuts.', effect:'poison',    value:5    },
-    ],
-    paladin: [
-        { id:'divine_shield',    name:'Divine Shield',      emoji:'✨', desc:'Negate the first hit received each battle round for 5h. Holy protection.',   effect:'first_hit_negate',value:1   },
-        { id:'holy_strike',      name:'Holy Strike',        emoji:'⚡', desc:'+20% damage and heal 10% of damage dealt per hit for 5h. Sacred power.',     effect:'holy_strike',    value:0.20 },
-        { id:'consecrate',       name:'Consecrate',         emoji:'🌿', desc:'Reflect 15% of damage received back to attacker for 5h. Divine retribution.', effect:'reflect',       value:0.15 },
-    ],
-};
-
-// ── Global Events ──────────────────────────────────────────────────────────
-// The GLOBAL_DISCOUNT_EVENT is the one true event — activated by admin from code.
-// It bundles everything: stat discounts, gold rush, short missions, battle frenzy, gem fever, xp surge.
-// To activate: set ADMIN_EVENT_ACTIVE = true and ADMIN_EVENT_ENDS_AT to a unix timestamp.
-// Example: ADMIN_EVENT_ENDS_AT = Math.floor(Date.now()/1000) + 4*3600  (4 hours from now)
-const ADMIN_EVENT_ACTIVE   = false;  // ← flip to true to start the event
-const ADMIN_EVENT_ENDS_AT  = 0;      // ← set to unix timestamp when event ends
-const ADMIN_EVENT_NAME     = '🎉 Grand Festival';
-const ADMIN_EVENT_DESC     = 'Everything discounted! Cheaper stats, doubled gold, halved missions, more gems, doubled XP, reduced PvP cooldowns!';
-
-const GLOBAL_EVENTS = [
-    { key:'grand_festival', name: ADMIN_EVENT_NAME, desc: ADMIN_EVENT_DESC, duration: 4*3600 },
-];
-
-function getActiveEvent(db) {
-    const now = Math.floor(Date.now() / 1000);
-    if (ADMIN_EVENT_ACTIVE && ADMIN_EVENT_ENDS_AT > now) {
-        return { event_key: 'grand_festival', started_at: ADMIN_EVENT_ENDS_AT - 4*3600, ends_at: ADMIN_EVENT_ENDS_AT };
-    }
-    return null;
-}
-
-// Helper: check if a specific bonus applies right now
-function eventHas(db, bonus) {
-    const ev = getActiveEvent(db);
-    if (!ev) return false;
-    // Grand festival gives ALL bonuses
-    return ev.event_key === 'grand_festival';
-}
-
-// ── MP Regen (10 MP per hour, at top of each clock hour) ──────────────────
-function applyMpRegen(db, characterId) {
-    const char = db.prepare('SELECT * FROM characters WHERE id = ?').get(characterId);
-    if (!char) return;
-    const now = Math.floor(Date.now() / 1000);
-    const currentHourStart = Math.floor(now / 3600) * 3600;
-    const lastRegen = char.mp_last_regen_at || 0;
-    const lastRegenHour = Math.floor(lastRegen / 3600) * 3600;
-    if (currentHourStart <= lastRegenHour) return;
-    const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
-    const currentMp = char.mission_points ?? 0;
-    if (currentMp >= MP_MAX) {
-        db.prepare('UPDATE characters SET mp_last_regen_at=? WHERE id=?').run(currentHourStart, characterId);
-        return;
-    }
-    const gained = Math.min(10 * hoursElapsed, MP_MAX - currentMp);
-    const newMp = currentMp + gained;
-    db.prepare('UPDATE characters SET mission_points=?, mp_last_regen_at=? WHERE id=?')
-        .run(newMp, currentHourStart, characterId);
-}
-
-// Get active skills for a fighter (parsed from DB)
-function getActiveSkills(char) {
-    if (!char.active_skills) return {};
-    try {
-        const skills = JSON.parse(char.active_skills);
-        const now = Math.floor(Date.now() / 1000);
-        const active = {};
-        for (const [id, expiresAt] of Object.entries(skills)) {
-            if (expiresAt > now) active[id] = expiresAt;
-        }
-        return active;
-    } catch { return {}; }
-}
-
-function hasSkill(activeSkills, skillId) {
-    return !!activeSkills[skillId];
-}
 
 // ── Battle helpers ─────────────────────────────────────────────────────────
 function applyHpRegen(db, characterId) {
@@ -253,113 +134,38 @@ function calcBaseDamage(char, equippedItems) {
 function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty) {
     const hit = HIT_ZONES[atkZone]  || HIT_ZONES.chest;
     const blk = BLOCK_ZONES[blkZone] || BLOCK_ZONES.cross_guard;
-    const atkSkills = attacker.activeSkills || {};
-    const defSkills = defender.activeSkills || {};
-
-    // Base hit chance from zone + attacker's hit_chance stat bonus
-    let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005);
+    let atkHitChance = hit.hitChance + ((attacker.agility || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
-    // Warrior: War Cry — can't miss first 3 rounds
-    if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
-
-    // Agility-based dodge
-    const defAgi = defender.agility || 0;
-    const atkAgi = attacker.agility || 0;
-    const agiDiff = defAgi - atkAgi;
-    let dodgeChance = Math.max(0, Math.min(0.999, agiDiff / 200));
-    // Rogue: Shadow Step +40% dodge
-    if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
-    // Mage: Magic Circle +20% dodge
-    if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
-
-    let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
-    // Warrior: Berserker Rage +25% dmg
-    if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
-    // Paladin: Holy Strike +20% dmg
-    if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
-
+    const atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
     let forceMiss = false;
-    if (Math.random() < dodgeChance) forceMiss = true;
-    if (!forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
-
-    // Paladin: Divine Shield — negate first hit each round (defender)
-    let divineNegate = false;
-    if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
-
-    const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
+    if ((blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
+    const atkHit = !forceMiss && Math.random() <= atkHitChance;
     let logLine = '', finalDmg = 0;
     let nextAtkPenalty = false;
-    let healBack = 0;
-
     if (!atkHit) {
-        if (divineNegate) {
-            logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
-        } else if (forceMiss && dodgeChance > 0.001) {
-            logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
-        } else {
-            logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
-        }
+        logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
     } else {
-        // Critical hit
-        const baseCritChance = (attacker.crit_chance || 0) / 100;
-        const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
-        const isCrit = Math.random() < (baseCritChance + critBonus);
-
-        let rawDmg = isCrit ? attacker.dmgMax
-            : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
+        let rawDmg = attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
-
-        // Elemental damage bonus (Mage: Arcane Surge +20%)
-        let elemBonus = attacker.elem_dmg || 0;
-        if (hasSkill(atkSkills, 'arcane_surge')) elemBonus = Math.floor(elemBonus * 1.20);
-        // Mage: Hex — reduce defender elemental resistance
-        if (hasSkill(atkSkills, 'hex') && elemBonus > 0) elemBonus = Math.floor(elemBonus * 1.15);
-        rawDmg += elemBonus;
-
-        // Warrior: Iron Wall — +30% to block effectiveness (applied on defender side in block reduction)
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
-        const blockFails  = Math.random() < 0.01;
+        const blockFails  = Math.random() < 0.10;
         if (blockCovers && !blockFails) {
-            let reduction = blk.reduction;
-            if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
-            finalDmg = Math.max(0, Math.floor(rawDmg * (1 - reduction)));
-            const critTag = isCrit ? ' ⚡CRIT' : '';
+            finalDmg = Math.max(0, Math.floor(rawDmg * (1 - blk.reduction)));
             logLine = finalDmg === 0
-                ? `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED (${rawDmg} absorbed)`
-                : `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED partially — ${finalDmg} slips through`;
+                ? `Round ${roundNum}: ${attacker.name} hits — BLOCKED (${rawDmg} absorbed)`
+                : `Round ${roundNum}: ${attacker.name} hits — BLOCKED partially — ${finalDmg} slips through`;
         } else {
             finalDmg = rawDmg;
-            const critTag = isCrit ? ' ⚡ CRITICAL HIT!' : '';
-            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
+            logLine = `Round ${roundNum}: ${attacker.name} lands a hit — ${finalDmg} damage`;
         }
-
-        // Rogue: Venomfang — add poison damage
-        if (hasSkill(atkSkills, 'venomfang')) {
-            finalDmg += 5;
-            logLine += ' ☠️+5 poison';
-        }
-
-        // Paladin: Holy Strike — heal 10% of damage dealt
-        if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
-            healBack = Math.floor(finalDmg * 0.10);
-            logLine += ` 💚+${healBack} heal`;
-        }
-
-        // Paladin: Consecrate — reflect 15% back to attacker
-        if (hasSkill(defSkills, 'consecrate') && finalDmg > 0) {
-            const reflect = Math.floor(finalDmg * 0.15);
-            logLine += ` 🌿 ${reflect} reflected`;
-            return { logLine, damageDealt: finalDmg, damageCounter: reflect, nextAtkPenalty, healBack };
-        }
-
         if (blk.special === 'next_round_hit_penalty') nextAtkPenalty = true;
         if (blk.special === 'counter_25' && Math.random() < 0.25) {
             const counterDmg = Math.floor(finalDmg * 0.50);
             logLine += ` — COUNTERED for ${counterDmg}`;
-            return { logLine, damageDealt: finalDmg, damageCounter: counterDmg, nextAtkPenalty, healBack };
+            return { logLine, damageDealt: finalDmg, damageCounter: counterDmg, nextAtkPenalty };
         }
     }
-    return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty, healBack };
+    return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty };
 }
 
 function runBattle(fighterA, fighterB) {
@@ -369,11 +175,6 @@ function runBattle(fighterA, fighterB) {
     let totalDmgToA = 0, totalDmgToB = 0;
 
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
-    // Log active skills
-    const skA = Object.keys(fighterA.activeSkills || {});
-    const skB = Object.keys(fighterB.activeSkills || {});
-    if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
-    if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
     log.push('---');
 
     for (let round = 1; round <= 10; round++) {
@@ -390,8 +191,8 @@ function runBattle(fighterA, fighterB) {
         totalDmgToA += dmgToA;
         totalDmgToB += dmgToB;
 
-        hpA = Math.max(0, hpA - dmgToA + (resA.healBack || 0));
-        hpB = Math.max(0, hpB - dmgToB + (resB.healBack || 0));
+        hpA = Math.max(0, hpA - dmgToA);
+        hpB = Math.max(0, hpB - dmgToB);
 
         log.push(resA.logLine);
         log.push(resB.logLine);
@@ -455,40 +256,26 @@ function buildNpc(difficulty, playerLevel) {
 }
 
 // ── Item generation ────────────────────────────────────────────────────────
-// Tiers 1-2: basic stats only (str, def, dmg, hp)
-// Tiers 3-4: unlock agility on weapons/accessories
-// Tier 5:    unlock exclusive stats (crit_chance, hit_chance, elem_dmg, elem_resist)
-
 const ITEM_GENERATORS = {
     weapon: {
         namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
         emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
-        // Base stats always present
-        baseStats: { dmg_min:{min:2,max:4,scale:1.2}, dmg_max:{min:4,max:7,scale:1.3}, strength:{min:0,max:2,scale:0.5} },
-        // Tier 3+ unlocks
-        tier3Stats: { agility:{min:0,max:2,scale:0.4} },
-        // Tier 5 exclusive
-        tier5Stats: { crit_chance:{min:1,max:5,scale:0.3}, hit_chance:{min:1,max:4,scale:0.2} },
+        baseStats: { dmg_min:{min:2,max:4,scale:1.2}, dmg_max:{min:4,max:7,scale:1.3}, strength:{min:0,max:2,scale:0.5}, agility:{min:0,max:2,scale:0.4}, magic:{min:0,max:2,scale:0.4} },
         classBonus: { warrior:{strength:1.2}, rogue:{agility:1.2}, mage:{magic:1.2}, paladin:{strength:1.1,magic:0.8} }
     },
     armor: {
         namePrefixes: ['Leather','Chain','Plate','Scale','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
         emojis: ['🛡️','🧥','🥼','👕','🦺'],
-        baseStats: { defense:{min:1,max:3,scale:1.3}, hp_max:{min:5,max:15,scale:1.4}, strength:{min:0,max:1,scale:0.2} },
-        tier3Stats: { agility:{min:0,max:1,scale:0.2} },
-        // Tier 5: elemental resistance
-        tier5Stats: { elem_resist:{min:1,max:8,scale:0.4} },
+        baseStats: { defense:{min:1,max:3,scale:1.3}, hp_max:{min:5,max:15,scale:1.4}, strength:{min:0,max:1,scale:0.2}, agility:{min:-1,max:0,scale:0.1} },
         classBonus: { warrior:{defense:1.2,hp_max:1.1}, paladin:{defense:1.2,hp_max:1.1}, rogue:{agility:0.2}, mage:{magic:0.2} }
     },
     accessory: {
         namePrefixes: ['Iron','Silver','Golden','Crystal','Ruby','Sapphire','Emerald','Diamond','Mythril'],
         nameSuffixes: ['Ring','Amulet','Necklace','Bracelet','Circlet','Brooch','Talisman'],
         emojis: ['💍','📿','👑','🔮','✨'],
-        baseStats: { strength:{min:0,max:2,scale:0.4}, defense:{min:0,max:1,scale:0.3}, hp_max:{min:5,max:20,scale:0.8} },
-        tier3Stats: { agility:{min:0,max:2,scale:0.4}, magic:{min:0,max:2,scale:0.4} },
-        tier5Stats: { crit_chance:{min:1,max:6,scale:0.4}, hit_chance:{min:1,max:5,scale:0.3} },
+        baseStats: { strength:{min:0,max:2,scale:0.4}, defense:{min:0,max:1,scale:0.3}, agility:{min:0,max:2,scale:0.4}, magic:{min:0,max:2,scale:0.4}, hp_max:{min:5,max:20,scale:0.8} },
         classBonus: { warrior:{strength:1.2,defense:1.1}, rogue:{agility:1.2,strength:0.8}, mage:{magic:1.3,hp_max:0.8}, paladin:{defense:1.1,magic:1.1} }
     },
     consumable: {
@@ -505,37 +292,6 @@ const ITEM_GENERATORS = {
     }
 };
 
-// ── Fixed Potion Catalogue ─────────────────────────────────────────────────
-// Health potions: constant heal amounts, level-gated, progressive pricing
-// Always available: Full Elixir (100% heal) for 5 gems
-const POTION_CATALOGUE = [
-    // Tier 1 — available from level 1
-    { id:'potion_minor_hp',    name:'Minor Health Potion',    emoji:'🧪', level:1,  price:80,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
-    { id:'potion_minor_str',   name:'Minor Strength Draught', emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
-    { id:'potion_minor_def',   name:'Minor Defense Tonic',    emoji:'🧴', level:1,  price:120,  priceType:'gold', desc:'+2 Defense for session.',   effect:{ type:'temp_stat', stat:'defense',  value:2 }, consumable:true, category:'consumable' },
-    // Tier 2 — level 5
-    { id:'potion_light_hp',    name:'Light Health Potion',    emoji:'🧪', level:5,  price:200,  priceType:'gold', desc:'Restores 80 HP.',          effect:{ type:'heal', value:80  }, consumable:true, category:'consumable' },
-    { id:'potion_light_agi',   name:'Light Agility Draught',  emoji:'⚗️', level:5,  price:250,  priceType:'gold', desc:'+3 Agility for session.',  effect:{ type:'temp_stat', stat:'agility',  value:3 }, consumable:true, category:'consumable' },
-    // Tier 3 — level 10
-    { id:'potion_moderate_hp', name:'Health Potion',          emoji:'🧪', level:10, price:450,  priceType:'gold', desc:'Restores 180 HP.',         effect:{ type:'heal', value:180 }, consumable:true, category:'consumable' },
-    { id:'potion_moderate_str',name:'Strength Elixir',        emoji:'⚗️', level:10, price:550,  priceType:'gold', desc:'+5 Strength for session.', effect:{ type:'temp_stat', stat:'strength', value:5 }, consumable:true, category:'consumable' },
-    { id:'potion_moderate_mag',name:'Mage\'s Focus Tonic',    emoji:'🔮', level:10, price:550,  priceType:'gold', desc:'+5 Magic for session.',    effect:{ type:'temp_stat', stat:'magic',    value:5 }, consumable:true, category:'consumable' },
-    // Tier 4 — level 20
-    { id:'potion_greater_hp',  name:'Greater Health Potion',  emoji:'🧪', level:20, price:900,  priceType:'gold', desc:'Restores 400 HP.',         effect:{ type:'heal', value:400 }, consumable:true, category:'consumable' },
-    { id:'potion_greater_def', name:'Greater Defense Tonic',  emoji:'🧴', level:20, price:1100, priceType:'gold', desc:'+8 Defense for session.',  effect:{ type:'temp_stat', stat:'defense',  value:8 }, consumable:true, category:'consumable' },
-    { id:'potion_greater_agi', name:'Greater Agility Draught',emoji:'⚗️', level:20, price:1100, priceType:'gold', desc:'+8 Agility for session.',  effect:{ type:'temp_stat', stat:'agility',  value:8 }, consumable:true, category:'consumable' },
-    // Tier 5 — level 35
-    { id:'potion_superior_hp', name:'Superior Health Potion', emoji:'🧪', level:35, price:2200, priceType:'gold', desc:'Restores 900 HP.',         effect:{ type:'heal', value:900 }, consumable:true, category:'consumable' },
-    { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️',level:35, price:2800, priceType:'gold', desc:'+15 Strength for session.',effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
-    { id:'potion_superior_mag',name:'Superior Mage\'s Focus',  emoji:'🔮', level:35, price:2800, priceType:'gold', desc:'+15 Magic for session.',   effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
-    // Always available gem item — 100% heal
-    { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP. Always available.', effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
-];
-
-function getPotionsForLevel(playerLevel) {
-    return POTION_CATALOGUE.filter(p => playerLevel >= p.level);
-}
-
 function calculateBackendItemPrice(item, level) {
     const basePrice = 50 + (level * 30);
     const statMultiplier = Object.values(item.stats || {}).reduce((sum, val) => sum + Math.max(0, val), 1);
@@ -547,37 +303,17 @@ function generateBackendRandomItem(level, type) {
     if (!generator) return null;
     const tier = Math.min(5, Math.ceil(level / 10) + 1);
     const stats = {};
-
-    function rollStat(statConfig, lvl) {
-        const scaledMin = Math.floor(statConfig.min + (lvl * statConfig.scale * 0.3));
-        const scaledMax = Math.floor(statConfig.max + (lvl * statConfig.scale * 0.5));
-        let value = scaledMin + Math.floor(Math.random() * Math.max(1, scaledMax - scaledMin + 1));
-        value = Math.floor(value * (0.8 + Math.random() * 0.4));
-        if (statConfig.min !== undefined) value = Math.max(statConfig.min, value);
-        return value;
-    }
-
     if (type !== 'consumable' && generator.baseStats) {
         for (const [statName, statConfig] of Object.entries(generator.baseStats)) {
-            const v = rollStat(statConfig, level);
-            if (statName.includes('dmg_min') && v < 1) { stats[statName] = 1; continue; }
-            if (statName.includes('dmg_max') && v < 2) { stats[statName] = 2; continue; }
-            stats[statName] = v;
-        }
-        // Tier 3+: unlock agility/magic
-        if (tier >= 3 && generator.tier3Stats) {
-            for (const [statName, statConfig] of Object.entries(generator.tier3Stats)) {
-                if (Math.random() < 0.6) stats[statName] = rollStat(statConfig, level);
-            }
-        }
-        // Tier 5: exclusive stats (crit_chance, hit_chance, elem_resist)
-        if (tier >= 5 && generator.tier5Stats) {
-            for (const [statName, statConfig] of Object.entries(generator.tier5Stats)) {
-                if (Math.random() < 0.5) stats[statName] = rollStat(statConfig, level);
-            }
+            const scaledMin = Math.floor(statConfig.min + (level * statConfig.scale * 0.3));
+            const scaledMax = Math.floor(statConfig.max + (level * statConfig.scale * 0.5));
+            let value = scaledMin + Math.floor(Math.random() * (scaledMax - scaledMin + 1));
+            value = Math.floor(value * (0.8 + Math.random() * 0.4));
+            if (statName.includes('dmg_min') && value < 1) value = 1;
+            if (statName.includes('dmg_max') && value < 2) value = 2;
+            stats[statName] = Math.max(statConfig.min || -10, value);
         }
     }
-
     const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
     const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
     const name = `${prefix} ${suffix}`;
@@ -591,8 +327,7 @@ function generateBackendRandomItem(level, type) {
         stats,
         slot: type === 'weapon' ? 'weapon' : type === 'armor' ? 'armor' : 'accessory',
         category: type, price: 0,
-        quality: tier >= 5 ? (Math.random() > 0.5 ? 'legendary' : 'rare') :
-                 tier >= 3 ? (Math.random() > 0.7 ? 'rare' : 'common') : 'common'
+        quality: Math.random() > 0.9 ? 'legendary' : Math.random() > 0.7 ? 'rare' : 'common'
     };
     if (type === 'consumable') {
         item.price = 20 + level * 15;
@@ -611,8 +346,7 @@ function generateBackendRandomItem(level, type) {
         const classes = ['warrior','mage','rogue','paladin'];
         item.classes = [classes[Math.floor(Math.random() * classes.length)]];
     }
-    // Elemental damage on weapons — tier 3+ only
-    if (type === 'weapon' && tier >= 3 && Math.random() < (tier >= 5 ? 0.40 : 0.15)) {
+    if (type === 'weapon' && Math.random() < 0.15) {
         const elements = ['pyro','water','wind','electro'];
         stats.elem_dmg_type = elements[Math.floor(Math.random() * elements.length)];
         stats.elem_dmg = Math.floor(level * 0.5 + Math.random() * level);
@@ -630,7 +364,7 @@ function withTrainingStatus(char) {
 }
 function withUpgradeCosts(char) {
     const costs = {};
-    ['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].forEach(s => { costs[s] = upgradeCost(s, char[s] || 0, char.class); });
+    ['strength','defense','agility','magic','vitality'].forEach(s => { costs[s] = upgradeCost(s, char[s] || 0, char.class); });
     return { ...char, upgradeCosts: costs };
 }
 
@@ -686,43 +420,17 @@ function buildCharacterResponse(char, db) {
     const now = Math.floor(Date.now() / 1000);
     const lastBattle = char.last_battle_at || 0;
     const battleCooldownRemaining = (lastBattle + 600 > now) ? (lastBattle + 600 - now) : 0;
-
-    // Parse active skills, filter expired
-    const rawSkills = char.active_skills ? (() => { try { return JSON.parse(char.active_skills); } catch { return {}; } })() : {};
-    const activeSkills = {};
-    for (const [id, exp] of Object.entries(rawSkills)) { if (exp > now) activeSkills[id] = exp; }
-
-    // Parse skill_last_used
-    const skillLastUsed = char.skill_last_used ? (() => { try { return JSON.parse(char.skill_last_used); } catch { return {}; } })() : {};
-
-    // Daily MP spent (resets each day) — for skill unlock check
-    const todayStart2 = Math.floor(now / 86400) * 86400;
-    const dailyMpSpent = (char.daily_mp_reset_at || 0) >= todayStart2 ? (char.daily_mp_spent || 0) : 0;
-    const skillsUnlocked = dailyMpSpent >= MP_SKILL_UNLOCK;
-    const activeEvent = getActiveEvent(db);
-    const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
-
     return {
         ...withTrain,
         vitality:     char.vitality    || 10,
         gems:         char.gems        || 0,
         hp_max:       hpMax,
         hp_current:   hpCurrent,
-        hit_chance:   char.hit_chance  || 0,
-        crit_chance:  char.crit_chance || 0,
-        mission_points: Math.min(MP_MAX, char.mission_points ?? 0),
-        mp_max:       MP_MAX,
-        daily_mp_spent: dailyMpSpent,
-        skills_unlocked: skillsUnlocked,
-        active_skills: activeSkills,
-        skill_last_used: skillLastUsed,
-        class_skills: CLASS_SKILLS[char.class] || [],
         attack_zones: char.attack_zones || null,
         block_zones:  char.block_zones  || null,
         equipped:     equippedObj,
         last_battle_at: char.last_battle_at || 0,
         battle_cooldown_remaining: battleCooldownRemaining,
-        active_event: eventInfo,
     };
 }
 
@@ -777,9 +485,8 @@ router.get('/character', auth, async (req, res) => {
         const db = await getDb();
         const char = db.prepare('SELECT * FROM characters WHERE user_id = ?').get(req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
-        // Apply HP and MP regen before returning
+        // Apply HP regen before returning
         applyHpRegen(db, char.id);
-        applyMpRegen(db, char.id);
         const freshChar = db.prepare('SELECT * FROM characters WHERE id = ?').get(char.id);
         res.json(buildCharacterResponse(freshChar, db));
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -792,17 +499,10 @@ router.post('/upgrade', auth, async (req, res) => {
         const char = db.prepare('SELECT * FROM characters WHERE user_id = ?').get(req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const { stat } = req.body;
-        if (!['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].includes(stat)) return res.status(400).json({ error: 'Invalid stat' });
-        let cost = upgradeCost(stat, char[stat] || 0, char.class);
-        // Global event: 30% stat discount
-        const ev = getActiveEvent(db);
-        if (eventHas(db, 'discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
+        if (!['strength','defense','agility','magic','vitality'].includes(stat)) return res.status(400).json({ error: 'Invalid stat' });
+        const cost = upgradeCost(stat, char[stat] || 0, char.class);
         if (char.gold < cost) return res.status(400).json({ error: `Need ${cost} gold, have ${char.gold}.` });
         db.prepare(`UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE user_id=?`).run(cost, req.user.userId);
-        // If vitality increased, boost current HP by the same amount the max HP grows (25 per vitality point)
-        if (stat === 'vitality') {
-            db.prepare('UPDATE characters SET hp_current=MIN(hp_current+25, hp_current+25) WHERE user_id=?').run(req.user.userId);
-        }
         const updated = db.prepare('SELECT * FROM characters WHERE user_id = ?').get(req.user.userId);
         res.json({ message:`+1 ${stat}! Spent ${cost} gold.`, character: buildCharacterResponse(updated, db) });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -872,85 +572,48 @@ router.get('/missions', auth, async (req, res) => {
 });
 
 router.post('/missions/start', auth, async (req, res) => {
+    console.log('=== MISSION START ===', req.body);
     try {
         const db = await getDb();
-        const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
+        const { zoneId, spotId } = req.body;
         const character = db.prepare('SELECT * FROM characters WHERE user_id = ?').get(req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
-
+        // Check HP
         const hpCurrent = character.hp_current ?? character.hp_max;
         if (hpCurrent <= 0) return res.status(400).json({ error: 'Out of HP. Wait for regeneration.' });
-
+        // Check battle cooldown — can't start a mission right after a fight
         const now = Math.floor(Date.now() / 1000);
         const lastBattle = character.last_battle_at || 0;
         if (lastBattle + 600 > now) {
             const secs = (lastBattle + 600) - now;
             return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'}.` });
         }
-
         const existing = db.prepare('SELECT * FROM active_missions WHERE character_id = ?').get(character.id);
         if (existing) return res.status(400).json({ error: 'You already have an active mission' });
-
-        // Validate size
-        const sizeKey = ['small','medium','large'].includes(reqSize) ? reqSize : 'small';
-        const sizeConf = MISSION_SIZES[sizeKey];
-
-        // Check and reset daily MP spent counter
-        const todayStart = Math.floor(now / 86400) * 86400;
-        const lastReset = character.daily_mp_reset_at || 0;
-        let dailyMpSpent = character.daily_mp_spent || 0;
-        if (lastReset < todayStart) {
-            dailyMpSpent = 0;
-            db.prepare('UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?').run(todayStart, character.id);
-        }
-
-        // Check MP
-        applyMpRegen(db, character.id);
-        const freshChar = db.prepare('SELECT * FROM characters WHERE id=?').get(character.id);
-        const currentMp = freshChar.mission_points ?? 0;
-        if (currentMp < sizeConf.mpCost) {
-            return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${sizeConf.mpCost} MP, you have ${currentMp}.` });
-        }
-
         const zone = ZONES[zoneId];
         const spot = zone?.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
-
-        // Deduct MP and track daily spent
-        db.prepare('UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?')
-            .run(sizeConf.mpCost, sizeConf.mpCost, character.id);
-
         const difficulty = spot.difficulty;
         const [minGold, maxGold] = zone.payoutBase[difficulty];
         const [minXp, maxXp]     = zone.xpBase[difficulty];
-        // Apply size reward multiplier
-        const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
-        const xpReward   = Math.floor((Math.floor(Math.random() * (maxXp   - minXp   + 1)) + minXp)   * sizeConf.rewardMult);
-
+        const goldReward = Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold;
+        const xpReward   = Math.floor(Math.random() * (maxXp   - minXp   + 1)) + minXp;
+        const sentName   = req.body.missionName;
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (sentName && missionList.includes(sentName))
             ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
-
-        // Apply event or use size duration
-        const baseDuration = sizeConf.duration;
-        const duration = eventHas(db, 'short_missions')
-            ? Math.max(30, Math.floor(baseDuration / 2))
-            : baseDuration;
-
         const insertResult = db.prepare(`
             INSERT INTO active_missions
             (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration);
-
+        `).run(character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + spot.missionDuration);
         res.json({
             success: true,
             mission: {
                 id: insertResult.lastInsertRowid, zone: zoneId, spot: spotId, spot_name: spot.name,
-                mission_name: missionName, missionName, difficulty, size: sizeKey,
-                gold_reward: goldReward, xp_reward: xpReward,
-                started_at: now, ends_at: now + duration, duration
+                mission_name: missionName, missionName, difficulty, gold_reward: goldReward,
+                xp_reward: xpReward, started_at: now, ends_at: now + spot.missionDuration, duration: spot.missionDuration
             }
         });
     } catch (e) {
@@ -967,7 +630,6 @@ router.post('/missions/collect', auth, async (req, res) => {
 
         // Apply regen before battle
         applyHpRegen(db, character.id);
-        applyMpRegen(db, character.id);
         const freshChar = db.prepare('SELECT * FROM characters WHERE id = ?').get(character.id);
 
         const mission = db.prepare('SELECT * FROM active_missions WHERE character_id = ?').get(character.id);
@@ -975,27 +637,19 @@ router.post('/missions/collect', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
 
-        // ── Active event bonuses ───────────────────────────────────────────
-        const isEvent = eventHas(db, 'grand_festival');
-
         // ── Build player fighter ───────────────────────────────────────────
         const equippedArray = getEquippedItemsArray(db, freshChar.id);
         const hpMax     = calcHpMax(freshChar, equippedArray);
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
-        const charActiveSkills = getActiveSkills(freshChar);
         const playerFighter = {
             id: freshChar.id, name: freshChar.name,
             hp: hpCurrent, dmgMin, dmgMax, agility: freshChar.agility || 0,
-            hit_chance: freshChar.hit_chance || 0,
-            crit_chance: freshChar.crit_chance || 0,
-            activeSkills: charActiveSkills,
             attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones:  JSON.parse(freshChar.block_zones  || 'null') || DEFAULT_BLOCK_ZONES,
         };
 
         const npc    = buildNpc(mission.difficulty, freshChar.level);
-        npc.activeSkills = {};
         const battle = runBattle(playerFighter, npc);
         const playerWon = battle.winnerId === freshChar.id;
 
@@ -1004,17 +658,6 @@ router.post('/missions/collect', auth, async (req, res) => {
         let xpEarned   = playerWon ? mission.xp_reward   : Math.floor(mission.xp_reward   * 0.30);
         goldEarned = Math.floor(goldEarned * (1 + freshChar.level * 0.05));
         xpEarned   = Math.floor(xpEarned   * (1 + freshChar.level * 0.10));
-        // Event: Gold Rush doubles gold, XP Surge doubles XP
-        if (isEvent) goldEarned *= 2;
-        if (isEvent) xpEarned *= 2;
-
-        // ── Gem drop (5% base, 15% during festival) ───────────────────────
-        const gemChance = isEvent ? 0.15 : 0.05;
-        let gemsFound = 0;
-        if (playerWon && Math.random() < gemChance) { gemsFound = 1; }
-
-        // ── Mission Points — already spent on start, nothing to add ──────
-        // Track daily_mp_spent for skill unlock check (already written on start)
 
         const newHp = Math.max(0, battle.hpRemainingA);
 
@@ -1026,8 +669,8 @@ router.post('/missions/collect', auth, async (req, res) => {
         const newWins   = freshChar.wins   + (playerWon ? 1 : 0);
         const newLosses = freshChar.losses + (playerWon ? 0 : 1);
 
-        db.prepare(`UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+? WHERE id=?`)
-            .run(newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id);
+        db.prepare(`UPDATE characters SET xp=?,gold=gold+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+? WHERE id=?`)
+            .run(newXp, goldEarned, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id);
 
         db.prepare('DELETE FROM active_missions WHERE character_id = ?').run(freshChar.id);
 
@@ -1076,10 +719,9 @@ router.post('/missions/collect', auth, async (req, res) => {
             success: true,
             won: playerWon,
             battleLog: battle.log,
-            message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
-            goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
+            message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold, ${xpEarned} XP`,
+            goldEarned, xpEarned, leveledUp, newLevel: leveledUp ? newLevel : undefined,
             drops, hpRemaining: newHp,
-            activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
             character: buildCharacterResponse(updatedChar, db),
         });
     } catch (e) { console.error('Mission collect error:', e); res.status(500).json({ error: e.message }); }
@@ -1336,14 +978,9 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         const hpMax = calcHpMax(freshChar, equippedArray);
         let message = '';
         if (effect.type === 'heal') {
-            const healAmt = effect.value;
-            const newHp = Math.min(hpMax, (freshChar.hp_current ?? hpMax) + healAmt);
-            const restored = newHp - (freshChar.hp_current ?? hpMax);
+            const newHp = Math.min(hpMax, (freshChar.hp_current ?? hpMax) + effect.value);
             db.prepare('UPDATE characters SET hp_current=? WHERE id=?').run(newHp, char.id);
-            message = restored > 0 ? `Restored ${restored} HP.` : 'HP already full.';
-        } else if (effect.type === 'heal_full') {
-            db.prepare('UPDATE characters SET hp_current=? WHERE id=?').run(hpMax, char.id);
-            message = `Fully restored HP to ${hpMax}!`;
+            message = `Restored ${newHp - (freshChar.hp_current ?? hpMax)} HP.`;
         } else if (effect.type === 'xp') {
             let newXp = (freshChar.xp || 0) + effect.value;
             let newLevel = freshChar.level;
@@ -1395,8 +1032,6 @@ router.post('/shop/buy', auth, async (req, res) => {
             }
         } else {
             db.prepare(`INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'equipment',?)`).run(character.id, JSON.stringify(item));
-            // Mark as sold in shop_items so it doesn't re-appear on refresh
-            try { db.prepare('UPDATE shop_items SET sold=1 WHERE user_id=? AND json_extract(item_data,\'$.id\')=?').run(req.user.userId, item.id); } catch {}
         }
         const updatedChar = db.prepare('SELECT * FROM characters WHERE id = ?').get(character.id);
         res.json({ success:true, newGold:updatedChar.gold, newGems:updatedChar.gems, character:updatedChar, message:`Purchased ${item.name}!` });
@@ -1413,38 +1048,27 @@ router.get('/shop/items', auth, async (req, res) => {
         const userLastGen = db.prepare('SELECT MAX(generation_date) as last_date FROM shop_items WHERE user_id=?').get(userId);
         if (!userLastGen.last_date || shouldResetShop(userLastGen.last_date)) {
             db.prepare('DELETE FROM shop_items WHERE user_id=?').run(userId);
-            // Generate only equipment + premium (no consumables stored)
             const newItems = generateBackendInventory(character.level);
-            const equipOnly = newItems.filter(i => !i.consumable);
             const stmt = db.prepare('INSERT INTO shop_items (user_id,item_data,generation_date) VALUES (?,?,?)');
-            for (const item of equipOnly) stmt.run(userId, JSON.stringify(item), now);
-            // Always inject fresh potions (not stored in DB)
-            const potions = getPotionsForLevel(character.level);
-            res.json({ items: [...potions, ...equipOnly], resetTime: getNextMidnight() });
+            for (const item of newItems) stmt.run(userId, JSON.stringify(item), now);
+            res.json({ items: newItems, resetTime: getNextMidnight() });
         } else {
             const rows = db.prepare('SELECT item_data,sold FROM shop_items WHERE user_id=? ORDER BY id').all(userId);
-            const equipItems = rows.filter(r => !r.sold).map(row => JSON.parse(row.item_data));
-            // Always inject fresh potions on top
-            const potions = getPotionsForLevel(character.level);
-            res.json({ items: [...potions, ...equipItems], resetTime: getNextMidnight(userLastGen.last_date) });
+            const items = rows.map(row => { const item = JSON.parse(row.item_data); item.sold = row.sold; return item; });
+            res.json({ items, resetTime: getNextMidnight(userLastGen.last_date) });
         }
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
 function generateBackendInventory(playerLevel) {
     const inventory = [];
-    // Generate random equipment items (weapons, armor, accessories)
     const itemCount = 30 + Math.floor(Math.random() * 10);
     for (let i = 0; i < itemCount; i++) {
         const rand = Math.random();
-        const type = rand < 0.35 ? 'weapon' : rand < 0.65 ? 'armor' : 'accessory';
+        const type = rand < 0.3 ? 'weapon' : rand < 0.55 ? 'armor' : rand < 0.75 ? 'accessory' : 'consumable';
         const item = generateBackendRandomItem(playerLevel, type);
         if (item) inventory.push(item);
     }
-    // Add fixed potions available for this player level (no random consumables)
-    const potions = getPotionsForLevel(playerLevel);
-    inventory.push(...potions);
-    // Add premium gem items
     for (let i = 0; i < 3; i++) {
         inventory.push({ id:`premium_${Date.now()}_${i}`, name:['XP Booster','Gold Booster','Legendary Crate'][i], emoji:['⚡','💰','📦'][i], desc:'Premium item - increases gains!', price:[200,200,500][i], priceType:'gems', level:1, category:'premium', consumable:true, effect:{type:['xp_multiplier','gold_multiplier','lootbox'][i],value:2,duration:3600} });
     }
@@ -1480,8 +1104,9 @@ router.get('/matchmaking', auth, async (req, res) => {
                      JOIN users u ON c.user_id=u.id
             WHERE c.id != ?
           AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
+          AND (c.travel_target IS NULL OR c.travel_end_time <= ?)
           AND (c.hp_current IS NULL OR c.hp_current >= 10)
-        `).all(me.id, now);
+        `).all(me.id, now, now);
 
         // Exclude players the attacker is personally on cooldown for
         const myCooldowns = db.prepare('SELECT defender_id FROM attack_cooldowns WHERE attacker_id=? AND expires_at>?').all(me.id, now).map(r => r.defender_id);
@@ -1528,23 +1153,29 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         if (attacker.travel_target && attacker.travel_end_time > now)
             return res.status(400).json({ error: 'Cannot attack while traveling.' });
 
-        // 3. Attacker 10-min global cooldown (2 min during Battle Frenzy event)
+        // 3. Attacker 10-min global cooldown after any recent battle (can't spam different players either)
         const atkCooldown = attacker.last_battle_at || 0;
-        const ev = getActiveEvent(db);
-        const pvpCooldown = eventHas(db, 'discount_duels') ? 120 : 600;
-        if (atkCooldown + pvpCooldown > now) {
-            const secs = (atkCooldown + pvpCooldown) - now;
+        if (atkCooldown + 600 > now) {
+            const secs = (atkCooldown + 600) - now;
             return res.status(400).json({ error: `You must wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'} before your next attack.` });
         }
 
-        // 4. Defender 1h global cooldown — any attacker must wait 1h after someone else attacked them
+        // 4. Defender can't be attacked while on a mission
+        const defMission = db.prepare('SELECT id FROM active_missions WHERE character_id=?').get(defender.id);
+        if (defMission) return res.status(400).json({ error: 'That player is currently on a mission.' });
+
+        // 5. Defender can't be attacked while traveling
+        if (defender.travel_target && defender.travel_end_time > now)
+            return res.status(400).json({ error: 'That player is currently traveling.' });
+
+        // 6. Defender 1h global cooldown — any attacker must wait 1h after someone else attacked them
         const defGlobalCooldown = defender.attack_cooldown_until || 0;
         if (defGlobalCooldown > now) {
             const mins = Math.ceil((defGlobalCooldown - now) / 60);
             return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
         }
 
-        // 5. Per-target 12h cooldown — same attacker can't re-attack same defender for 12h
+        // 7. Per-target 12h cooldown — same attacker can't re-attack same defender for 12h
         try { db.prepare('CREATE TABLE IF NOT EXISTS attack_cooldowns (attacker_id INTEGER, defender_id INTEGER, expires_at INTEGER, PRIMARY KEY (attacker_id, defender_id))').run(); } catch {}
         const perTarget = db.prepare('SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?').get(attacker.id, defender.id);
         if (perTarget && perTarget.expires_at > now) {
@@ -1577,18 +1208,12 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const fighterA = {
             id: freshA.id, name: freshA.name,
             hp: hpA, dmgMin: dmgMinA, dmgMax: dmgMaxA, agility: freshA.agility || 0,
-            hit_chance: freshA.hit_chance || 0,
-            crit_chance: freshA.crit_chance || 0,
-            activeSkills: getActiveSkills(freshA),
             attackZones: JSON.parse(freshA.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones:  JSON.parse(freshA.block_zones  || 'null') || DEFAULT_BLOCK_ZONES,
         };
         const fighterB = {
             id: freshD.id, name: freshD.name,
             hp: freshD.hp_current ?? hpMaxD, dmgMin: dmgMinD, dmgMax: dmgMaxD, agility: freshD.agility || 0,
-            hit_chance: freshD.hit_chance || 0,
-            crit_chance: freshD.crit_chance || 0,
-            activeSkills: getActiveSkills(freshD),
             attackZones: JSON.parse(freshD.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones:  JSON.parse(freshD.block_zones  || 'null') || DEFAULT_BLOCK_ZONES,
         };
@@ -1716,7 +1341,9 @@ router.get('/player/:id', auth, async (req, res) => {
         const player = db.prepare(`SELECT c.*,u.username FROM characters c JOIN users u ON c.user_id=u.id WHERE c.id=?`).get(req.params.id);
         if (!player) return res.status(404).json({ error: 'Not found' });
         const now = Math.floor(Date.now() / 1000);
+        // Check if this player is on global attack cooldown
         const globalCooldown = (player.attack_cooldown_until || 0) > now ? player.attack_cooldown_until - now : 0;
+        // Check per-target cooldown (can I attack this person right now?)
         let perTargetCooldown = 0;
         if (me) {
             try {
@@ -1724,28 +1351,14 @@ router.get('/player/:id', auth, async (req, res) => {
                 if (cd && cd.expires_at > now) perTargetCooldown = cd.expires_at - now;
             } catch {}
         }
-        // Only expose HP low status (relevant for attack) — never expose onMission/onTravel
-        const equippedArray = getEquippedItemsArray(db, player.id);
-        const hpMax = calcHpMax(player, equippedArray);
-        const hpCurrent = player.hp_current ?? hpMax;
-        const hpLow = hpCurrent < 10;
-        // Equipped gear — safe to show publicly
-        const equipped = getEquippedItems(db, player.id);
+        // Check if on mission or traveling
+        const onMission = !!db.prepare('SELECT id FROM active_missions WHERE character_id=?').get(player.id);
+        const onTravel  = !!(player.travel_target && player.travel_end_time > now);
+        const hpLow     = (player.hp_current !== null && player.hp_current !== undefined) && player.hp_current < 10;
         const battles = db.prepare(`SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
                                     FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
                                     WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`).all(player.id, player.id);
-        // Whitelist what we expose — never leak travel_target, hp_current exact, active_skills, or mission data
-        res.json({
-            id: player.id, name: player.name, class: player.class, level: player.level,
-            username: player.username,
-            strength: player.strength, defense: player.defense, agility: player.agility,
-            magic: player.magic, vitality: player.vitality || 10,
-            hit_chance: player.hit_chance || 0, crit_chance: player.crit_chance || 0,
-            hp_max: hpMax, wins: player.wins, losses: player.losses,
-            gold: player.gold, total_gold_earned: player.total_gold_earned, total_gold_lost: player.total_gold_lost,
-            globalCooldown, perTargetCooldown, hpLow, equipped,
-            recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
-        });
+        res.json({ ...player, globalCooldown, perTargetCooldown, onMission, onTravel, recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1809,75 +1422,6 @@ router.delete('/messages/:id', auth, async (req, res) => {
         const char = db.prepare('SELECT id FROM characters WHERE user_id = ?').get(req.user.userId);
         db.prepare('DELETE FROM messages WHERE id=? AND receiver_id=?').run(req.params.id, char.id);
         res.json({ ok:true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ── Class Skills ───────────────────────────────────────────────────────────
-router.post('/skills/activate', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = db.prepare('SELECT * FROM characters WHERE user_id = ?').get(req.user.userId);
-        if (!char) return res.status(404).json({ error: 'No character' });
-
-        applyMpRegen(db, char.id);
-        const freshChar = db.prepare('SELECT * FROM characters WHERE id = ?').get(char.id);
-
-        const { skillId } = req.body;
-        const classSkills = CLASS_SKILLS[freshChar.class] || [];
-        const skill = classSkills.find(s => s.id === skillId);
-        if (!skill) return res.status(400).json({ error: 'Invalid skill for your class' });
-
-        const now = Math.floor(Date.now() / 1000);
-        const todayStart = Math.floor(now / 86400) * 86400;
-
-        // Unlock check: need 60 MP spent on missions today
-        // Reset daily counter if needed
-        if ((freshChar.daily_mp_reset_at || 0) < todayStart) {
-            db.prepare('UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?').run(todayStart, freshChar.id);
-            freshChar.daily_mp_spent = 0;
-        }
-        const dailyMpSpent = freshChar.daily_mp_spent || 0;
-        if (dailyMpSpent < MP_SKILL_UNLOCK) {
-            const needed = MP_SKILL_UNLOCK - dailyMpSpent;
-            return res.status(400).json({ error: `Skills unlock by spending 60 MP on missions today. Spend ${needed} more MP — start some missions!` });
-        }
-
-        // 1 skill activation per day total across all skills
-        const lastUsed = freshChar.skill_last_used ? (() => { try { return JSON.parse(freshChar.skill_last_used); } catch { return {}; } })() : {};
-        const usedToday = Object.entries(lastUsed).find(([, t]) => t >= todayStart);
-        if (usedToday) {
-            const usedDef = classSkills.find(s => s.id === usedToday[0]);
-            const hoursLeft = Math.ceil((todayStart + 86400 - now) / 3600);
-            return res.status(400).json({ error: `Already activated ${usedDef?.name || 'a skill'} today. One skill per day — resets in ${hoursLeft}h.` });
-        }
-
-        // Check not already active
-        const activeSkills = freshChar.active_skills ? (() => { try { return JSON.parse(freshChar.active_skills); } catch { return {}; } })() : {};
-        if (activeSkills[skillId] && activeSkills[skillId] > now) {
-            const rem = activeSkills[skillId] - now;
-            const h = Math.floor(rem / 3600), m = Math.ceil((rem % 3600) / 60);
-            return res.status(400).json({ error: `${skill.name} is already active (${h > 0 ? h+'h ' : ''}${m}m left).` });
-        }
-
-        // Activate — completely free, no MP deducted
-        activeSkills[skillId] = now + SKILL_DURATION;
-        lastUsed[skillId] = now;
-        db.prepare('UPDATE characters SET active_skills=?, skill_last_used=? WHERE id=?')
-            .run(JSON.stringify(activeSkills), JSON.stringify(lastUsed), freshChar.id);
-
-        const updated = db.prepare('SELECT * FROM characters WHERE id = ?').get(freshChar.id);
-        res.json({ message: `✨ ${skill.emoji} ${skill.name} activated for 5 hours! Free — one skill per day.`, character: buildCharacterResponse(updated, db) });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
-});
-
-// ── Global event status ────────────────────────────────────────────────────
-router.get('/events/active', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const ev = getActiveEvent(db);
-        if (!ev) return res.json(null);
-        const def = GLOBAL_EVENTS.find(e => e.key === ev.event_key);
-        res.json({ ...def, ends_at: ev.ends_at });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
