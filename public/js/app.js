@@ -394,28 +394,25 @@ function renderCharacter() {
         {slot:'boots',   icon:'👢', label:'Boots'},
     ];
     const eqGrid=eqSlots.map(({slot,icon,label},idx)=>{
-        // Insert avatar after 3rd slot (index 3 = position 4 in grid)
         const avatarDiv = idx === 3 ? `
             <div class="eq-avatar-center">
                 <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
             </div>` : '';
         const item=eq[slot];
         if (!item) return avatarDiv + `
-            <div class="eq-slot empty" title="${label} (empty)">
+            <div class="eq-slot empty">
                 <span class="eq-slot-icon">${icon}</span>
                 <span class="eq-slot-label">${label}</span>
             </div>`;
         const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-        const statsLines=item.stats?Object.entries(item.stats)
-            .filter(([k])=>!k.includes('type'))
-            .map(([k,v])=>v!==0?`${k.replace(/_/g,' ')}: ${v>0?'+':''}${v}`:'')
-            .filter(Boolean).join('&#10;'):'';
-        const tipText=`${item.name}${statsLines?'&#10;'+statsLines:''}`;
+        const imgSrc=item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
         return avatarDiv + `
-            <div class="eq-slot filled" style="border-color:${qc}44" title="${tipText}">
-                <span class="eq-slot-icon" style="font-size:1.6rem">${itemIcon(item,'64px')}</span>
-                <span class="eq-slot-label" style="color:${qc};font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px">${item.name}</span>
-                ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.5rem;color:${qc};text-transform:uppercase;letter-spacing:0.05em">${item.quality}</span>`:''}
+            <div class="eq-slot filled" style="border-color:${qc}44"
+                onmouseenter="showEqTooltip(event,${JSON.stringify(JSON.stringify(item))})"
+                onmouseleave="scheduleHideTooltip()">
+                <span class="eq-slot-icon">${itemIcon(item,'56px')}</span>
+                <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
+                ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
             </div>`;
     }).join('');
 
@@ -1239,6 +1236,40 @@ function showItemTooltip(event,itemId) {
 }
 
 function hideItemTooltip(){ const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
+
+// Tooltip for eq slots in character sheet + profile modal (no inv data needed)
+function showEqTooltip(event, itemJson) {
+    cancelHideTooltip();
+    const tooltip=document.getElementById('item-tooltip');
+    if(!tooltip) return;
+    let item; try { item=JSON.parse(itemJson); } catch { return; }
+    const qColor={legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const imgSrc=item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+    const statsHtml=Object.entries(item.stats||{})
+        .filter(([k])=>!k.includes('type'))
+        .filter(([,v])=>v!==0)
+        .map(([k,v])=>`<div class="tt-stat"><span class="tt-stat-name">${k.replace(/_/g,' ')}</span><span class="tt-stat-val" style="color:${v>0?'#2ecc71':'#e74c3c'}">${v>0?'+':''}${v}</span></div>`)
+        .join('');
+    tooltip.innerHTML=`
+        <div class="tt-preview">
+            ${imgSrc?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
+        </div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:${qColor}">${item.name||''}</div>
+            <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
+            ${item.desc?`<div class="tt-desc">${item.desc}</div>`:''}
+            <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+        </div>`;
+    tooltip.classList.remove('hidden');
+    const r=event.currentTarget.getBoundingClientRect();
+    tooltip.style.left='-9999px'; tooltip.style.top='-9999px';
+    const tw=tooltip.offsetWidth||220, th=tooltip.offsetHeight||300;
+    let left=r.right+12, top=r.top;
+    if(left+tw>window.innerWidth-8) left=r.left-tw-12;
+    if(top+th>window.innerHeight-8) top=window.innerHeight-th-8;
+    tooltip.style.left=Math.max(8,left)+'px';
+    tooltip.style.top=Math.max(8,top)+'px';
+}
 function toggleEquipItem(invId,slot,isEquipped){ hideItemTooltip(); if(isEquipped) unequipSlot(slot); else equipItem(invId); }
 async function equipItem(invId) { try { await api('POST',`/game/equip/${invId}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Equipped!'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
@@ -1378,13 +1409,16 @@ async function openProfile(id) {
         const eq=p.equipped||{};
         const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
         const eqHtml=slots.map(([slot,fallback], idx)=>{
-            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:120px;height:120px;object-fit:contain" onerror="this.style.opacity='0'"></div>` : '';
+            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:116px;height:116px;object-fit:contain" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
-            const sq=`width:80px;height:80px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;`;
+            const sq=`width:80px;height:80px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
             if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-            const statsText=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')).map(([k,v])=>v!==0?`${k.replace(/_/g,' ')}: ${v>0?'+':''}${v}`:'').filter(Boolean).join('\n'):'';
-            return avatarDiv+`<div title="${item.name}${statsText?'\n'+statsText:''}" style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;cursor:default;transition:all 0.18s" onmouseenter="this.style.background='rgba(255,255,255,0.08)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform=''">${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
+            const itemJson=JSON.stringify(JSON.stringify(item));
+            return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
+                onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,${itemJson})"
+                onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
+            >${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
 
         content.innerHTML=`
