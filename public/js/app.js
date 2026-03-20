@@ -310,7 +310,7 @@ function renderTopBar() {
     const c=character;
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
-    const lxp=c.level*100;
+    const lxp=c.level*25;
     const xpPct=Math.min(100,Math.round((c.xp/lxp)*100));
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
