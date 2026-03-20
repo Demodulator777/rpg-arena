@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+console.log('DB URL:', process.env.TURSO_DATABASE_URL ? 'SET' : 'MISSING');
+console.log('DB TOKEN:', process.env.TURSO_AUTH_TOKEN ? 'SET' : 'MISSING');
 const { getDb } = require('./db');
 
 const app = express();
