@@ -1078,19 +1078,20 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .mission-overlay,
 .travel-overlay {
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 50;
-    /* Dark backdrop blocks all interaction below */
-    background: rgba(4,6,12,0.88);
-    backdrop-filter: blur(6px);
+    z-index: 500;
+    background: rgba(4,6,12,0.92);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 0;
-    padding: 0;
+    padding: 20px;
     box-shadow: none;
     border: none;
+    /* Prevent any clicks going through */
+    pointer-events: all;
 }
 .mission-overlay.hidden,
 .travel-overlay.hidden { display: none; }
@@ -1312,16 +1313,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .nav-btn.active::before{ display:none; }
     .nav-btn.active{ background:rgba(52,143,209,0.18); }
     .tab-content-area{ padding: 14px; padding-bottom: 70px; }
-    /* Mission/travel overlays — full tab cover on mobile too */
-    .mission-overlay,
-    .travel-overlay{
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        left: auto; right: auto; bottom: auto;
-        z-index: 500;
-        border-radius: 0;
-    }
+    /* Mission/travel overlays on mobile — just adjust inner card size */
     .mission-overlay-inner,
     .travel-overlay-inner{
         padding: 28px 24px;
