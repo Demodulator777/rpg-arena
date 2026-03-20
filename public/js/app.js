@@ -413,7 +413,7 @@ function renderCharacter() {
         const tipText=`${item.name}${statsLines?'&#10;'+statsLines:''}`;
         return avatarDiv + `
             <div class="eq-slot filled" style="border-color:${qc}44" title="${tipText}">
-                <span class="eq-slot-icon" style="font-size:1.6rem">${itemIcon(item,'2.2rem')}</span>
+                <span class="eq-slot-icon" style="font-size:1.6rem">${itemIcon(item,'64px')}</span>
                 <span class="eq-slot-label" style="color:${qc};font-size:0.6rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px">${item.name}</span>
                 ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.5rem;color:${qc};text-transform:uppercase;letter-spacing:0.05em">${item.quality}</span>`:''}
             </div>`;
@@ -1371,12 +1371,12 @@ async function openProfile(id) {
         const eq=p.equipped||{};
         const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
         const eqHtml=slots.map(([slot,fallback], idx)=>{
-            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;width:72px"><img src="/images/class/${p.class}.png" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid rgba(201,146,42,0.4);box-shadow:0 0 16px rgba(201,146,42,0.2)" onerror="this.style.opacity='0'"></div>` : '';
+            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:110px;height:110px;object-fit:contain" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
-            if(!item) return avatarDiv + `<div style="width:52px;height:52px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px dashed rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:rgba(255,255,255,0.2)">${fallback}</div>`;
-            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.7)';
+            if(!item) return avatarDiv + `<div style="min-height:96px;border-radius:10px;background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><span style="font-size:1.4rem;opacity:0.3">${fallback}</span></div>`;
+            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const statsText=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')).map(([k,v])=>v!==0?`${k.replace(/_/g,' ')}: ${v>0?'+':''}${v}`:'').filter(Boolean).join('\n'):'No stats';
-            return avatarDiv + `<div title="${item.name}\n${statsText}" style="width:52px;height:52px;border-radius:8px;background:rgba(255,255,255,0.06);border:1px solid ${qc}33;display:flex;align-items:center;justify-content:center;cursor:default;position:relative;overflow:hidden">${itemIcon(item,'48px')}</div>`;
+            return avatarDiv + `<div title="${item.name}\n${statsText}" style="min-height:96px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid ${qc}33;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 4px;position:relative;cursor:default">${itemIcon(item,'64px')}<span style="font-size:0.54rem;color:${qc};text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.5rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
 
         content.innerHTML=`
@@ -1412,7 +1412,7 @@ async function openProfile(id) {
       ${Object.keys(eq).length?`
       <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:12px">
         <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center">${eqHtml}</div>
+        <div style="display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;align-items:center">${eqHtml}</div>
       </div>`:''}
       ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
