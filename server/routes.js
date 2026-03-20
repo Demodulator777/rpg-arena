@@ -3,6 +3,9 @@ const { getDb } = require('./db');
 const auth = require('./middleware');
 const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, generateMission, TIER_COLORS, TIER_LABELS } = require('./gamedata');
 
+// Patch BigInt serialization — Turso returns BigInt for IDs, JSON.stringify chokes on them
+BigInt.prototype.toJSON = function() { return Number(this); };
+
 const router = express.Router();
 
 // ── DB Migrations (run once on startup) ───────────────────────────────────
@@ -838,7 +841,7 @@ router.post('/missions/start', auth, async (req, res) => {
         res.json({
             success: true,
             mission: {
-                id: insertResult.lastInsertRowid, zone: zoneId, spot: spotId, spot_name: spot.name,
+                id: Number(insertResult.lastInsertRowid), zone: zoneId, spot: spotId, spot_name: spot.name,
                 mission_name: missionName, missionName, difficulty, size: sizeKey,
                 gold_reward: goldReward, xp_reward: xpReward,
                 started_at: now, ends_at: now + duration, duration
