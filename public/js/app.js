@@ -1627,7 +1627,11 @@ function calculateItemPrice(item,level) {
 // ── Item Icon Helper ──────────────────────────────────────────────────────
 function itemIcon(item, size='2rem') {
     if (!item) return '';
-    if (item.img) return `<img src="${item.img}" style="width:${size};height:${size};object-fit:contain;border-radius:4px;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:${size};line-height:1">${item.emoji||'📦'}</span>`;
+    // Derive img path from name if not stored (items created before img field was added)
+    const imgSrc = item.img || (item.name && !item.consumable
+        ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`
+        : null);
+    if (imgSrc) return `<img src="${imgSrc}" style="width:${size};height:${size};object-fit:contain;border-radius:4px;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:${size};line-height:1">${item.emoji||'📦'}</span>`;
     return `<span style="font-size:${size};line-height:1">${item.emoji||'📦'}</span>`;
 }
 
