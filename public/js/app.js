@@ -214,6 +214,14 @@ async function api(method, path, body=null) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+    // Create global item tooltip once
+    if (!document.getElementById('item-tooltip')) {
+        const tt=document.createElement('div');
+        tt.id='item-tooltip'; tt.className='item-tooltip hidden';
+        tt.addEventListener('mouseenter', cancelHideTooltip);
+        tt.addEventListener('mouseleave', scheduleHideTooltip);
+        document.body.appendChild(tt);
+    }
     initMissionTimer();
     if (token) {
         try { character=await api('GET','/game/character'); showScreen('game'); }
@@ -405,12 +413,13 @@ function renderCharacter() {
                 <span class="eq-slot-label">${label}</span>
             </div>`;
         const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-        const imgSrc=item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+        const itemData=escHtml(JSON.stringify(item));
         return avatarDiv + `
             <div class="eq-slot filled" style="border-color:${qc}44"
-                onmouseenter="showEqTooltip(event,${JSON.stringify(JSON.stringify(item))})"
-                onmouseleave="scheduleHideTooltip()">
-                <span class="eq-slot-icon">${itemIcon(item,'56px')}</span>
+                onmouseenter="showEqTooltip(event,this.dataset.item)"
+                onmouseleave="scheduleHideTooltip()"
+                data-item="${itemData}">
+                <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
                 <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
                 ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
             </div>`;
@@ -1145,12 +1154,11 @@ function renderInventory(data) {
             const d=i.item_data, eq=i.equipped;
             const qc=d.quality==='legendary'?'inv-legendary':d.quality==='rare'?'inv-rare':'';
             return '<div class="inv-item-cell '+(eq?'inv-item-equipped ':'')+qc+'" onmouseenter="showItemTooltip(event,'+i.id+')" onmouseleave="scheduleHideTooltip()" onclick="toggleEquipItem('+i.id+',\''+d.slot+'\','+(eq?'true':'false')+')">'
-                +'<div class="inv-item-icon">'+itemIcon(d,'2rem')+'</div>'
+                +'<div class="inv-item-icon">'+itemIcon(d,'64px')+'</div>'
                 +(eq?'<div class="inv-item-equipped-dot"></div>':'')
                 +'<div class="inv-item-name-label">'+(d.name||'').split(' ').slice(-1)[0]+'</div>'
                 +'</div>';
         }).join('')}</div>
-        <div id="item-tooltip" class="item-tooltip hidden" onmouseenter="cancelHideTooltip()" onmouseleave="scheduleHideTooltip()"></div>
         <div id="inv-msg" class="msg-bar hidden" style="margin-top:12px"></div>`;
     } else if (invTab==='consumables') {
         const cons=data.items.filter(i=>i.item_type==='consumable');
@@ -1242,7 +1250,7 @@ function showEqTooltip(event, itemJson) {
     cancelHideTooltip();
     const tooltip=document.getElementById('item-tooltip');
     if(!tooltip) return;
-    let item; try { item=JSON.parse(itemJson); } catch { return; }
+    let item; try { item=typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
     const qColor={legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
     const imgSrc=item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
     const statsHtml=Object.entries(item.stats||{})
@@ -1414,9 +1422,10 @@ async function openProfile(id) {
             const sq=`width:80px;height:80px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
             if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-            const itemJson=JSON.stringify(JSON.stringify(item));
+            const itemData=escHtml(JSON.stringify(item));
             return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
-                onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,${itemJson})"
+                data-item="${itemData}"
+                onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
                 onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
             >${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
@@ -1675,12 +1684,13 @@ function calculateItemPrice(item,level) {
 // ── Item Icon Helper ──────────────────────────────────────────────────────
 function itemIcon(item, size='2rem') {
     if (!item) return '';
-    // Derive img path from name if not stored (items created before img field was added)
     const imgSrc = item.img || (item.name && !item.consumable
         ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`
         : null);
-    if (imgSrc) return `<img src="${imgSrc}" style="width:${size};height:${size};object-fit:contain;border-radius:4px;display:block" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;font-size:${size};line-height:1">${item.emoji||'📦'}</span>`;
-    return `<span style="font-size:${size};line-height:1">${item.emoji||'📦'}</span>`;
+    const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
+    const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
+    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
+    return `<span style="${sStyle}">${item.emoji||'📦'}</span>`;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────
