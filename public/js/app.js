@@ -1417,9 +1417,10 @@ async function openProfile(id) {
         const eq=p.equipped||{};
         const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
         const eqHtml=slots.map(([slot,fallback], idx)=>{
-            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:116px;height:116px;object-fit:contain" onerror="this.style.opacity='0'"></div>` : '';
+            // avatar: 3 rows × 80px + 2 gaps × 6px = 252px tall
+            const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:150px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
-            const sq=`width:80px;height:80px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
+            const sq=`width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
             if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const itemData=escHtml(JSON.stringify(item));
@@ -1463,7 +1464,7 @@ async function openProfile(id) {
       ${Object.keys(eq).length?`
       <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:12px">
         <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
-        <div style="display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;align-items:center">${eqHtml}</div>
+        <div style="display:grid;grid-template-columns:80px 160px 80px;grid-template-rows:repeat(3,80px);gap:6px;align-items:center;justify-content:center;margin:0 auto;width:fit-content">${eqHtml}</div>
       </div>`:''}
       ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
