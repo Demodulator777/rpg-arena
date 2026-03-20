@@ -1194,38 +1194,45 @@ function showItemTooltip(event,itemId) {
     if(!info) return;
     const d=info.item_data, eq=info.equippedInSlot, isEquipped=info.equipped;
     const allStats=new Set([...Object.keys(d.stats||{}),...Object.keys(eq?.stats||{})].filter(k=>!k.includes('type')));
-    const qColor={legendary:'#ffd700',rare:'#4169e1',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const qColor={legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const imgSrc=d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+
     let statsHtml='';
     for(const stat of allStats){
         const nv=d.stats?.[stat]||0, ov=eq?.stats?.[stat]||0, diff=nv-ov;
         const dc=diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds=diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
-        statsHtml+='<div class="tt-stat">'
-            +'<span class="tt-stat-name">'+stat.replace(/_/g,' ')+'</span>'
-            +'<span class="tt-stat-val">'+nv+'</span>'
-            +(eq&&!isEquipped&&ds?'<span class="tt-stat-diff" style="color:'+dc+'">'+ds+'</span>':'')
-            +'</div>';
+        statsHtml+=`<div class="tt-stat"><span class="tt-stat-name">${stat.replace(/_/g,' ')}</span><span class="tt-stat-val">${nv}</span>${eq&&!isEquipped&&ds?`<span style="font-size:0.68rem;color:${dc}">${ds}</span>`:''}</div>`;
     }
     const sp=Math.max(1,Math.floor((d.price||0)*0.3));
     const sn=(d.name||'').replace(/'/g,"\\'");
-    tooltip.innerHTML='<div class="tt-header"><span class="tt-icon">'+(d.img?`<img src="${d.img}" style="width:2rem;height:2rem;object-fit:contain;border-radius:4px" onerror="this.style.display='none'">`:d.emoji||'📦')+'</span>'
-        +'<div><div class="tt-name" style="color:'+qColor+'">'+(d.name||'')+'</div>'
-        +'<div class="tt-meta">'+capitalize(d.slot||'')+(d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':'')+'</div></div></div>'
-        +(d.desc?'<div class="tt-desc">'+d.desc+'</div>':'')
-        +'<div class="tt-stats">'+(statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>')+'</div>'
-        +(eq&&!isEquipped?'<div class="tt-vs">vs equipped: <strong>'+eq.name+'</strong></div>':'')
-        +'<div class="tt-actions">'
-        +(isEquipped
-            ?'<button class="tt-btn tt-btn-secondary" onclick="unequipSlot(\''+d.slot+'\')">Unequip</button>'
-            :'<button class="tt-btn tt-btn-primary" onclick="equipItem('+itemId+')">Equip</button>')
-        +'<button class="tt-btn tt-btn-danger" onclick="sellItem('+itemId+',\''+sn+'\','+sp+')" '+(isEquipped?'disabled':'')+'> Sell '+sp+'g</button>'
-        +'</div>';
+
+    tooltip.innerHTML=`
+        <div class="tt-preview">
+            ${imgSrc
+                ?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+                :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
+        </div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
+            <div class="tt-meta">${capitalize(d.slot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
+            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            ${eq&&!isEquipped?`<div class="tt-vs">vs equipped: <strong>${eq.name}</strong></div>`:''}
+        </div>
+        <div class="tt-actions">
+            ${isEquipped
+                ?`<button class="tt-btn tt-btn-secondary" onclick="unequipSlot('${d.slot}')">Unequip</button>`
+                :`<button class="tt-btn tt-btn-primary" onclick="equipItem(${itemId})">Equip</button>`}
+            <button class="tt-btn tt-btn-danger" onclick="sellItem(${itemId},'${sn}',${sp})" ${isEquipped?'disabled':''}>Sell ${sp}g</button>
+        </div>`;
+
     tooltip.classList.remove('hidden');
     const r=event.currentTarget.getBoundingClientRect();
     tooltip.style.left='-9999px'; tooltip.style.top='-9999px';
-    const tw=tooltip.offsetWidth||260, th=tooltip.offsetHeight||300;
-    let left=r.right+10, top=r.top;
-    if(left+tw>window.innerWidth-8) left=r.left-tw-10;
+    const tw=tooltip.offsetWidth||220, th=tooltip.offsetHeight||340;
+    let left=r.right+12, top=r.top;
+    if(left+tw>window.innerWidth-8) left=r.left-tw-12;
     if(top+th>window.innerHeight-8) top=window.innerHeight-th-8;
     tooltip.style.left=Math.max(8,left)+'px';
     tooltip.style.top=Math.max(8,top)+'px';
@@ -1371,12 +1378,13 @@ async function openProfile(id) {
         const eq=p.equipped||{};
         const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
         const eqHtml=slots.map(([slot,fallback], idx)=>{
-            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:110px;height:110px;object-fit:contain" onerror="this.style.opacity='0'"></div>` : '';
+            const avatarDiv = idx === 3 ? `<div style="display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:120px;height:120px;object-fit:contain" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
-            if(!item) return avatarDiv + `<div style="min-height:96px;border-radius:10px;background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><span style="font-size:1.4rem;opacity:0.3">${fallback}</span></div>`;
+            const sq=`width:80px;height:80px;border-radius:10px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;`;
+            if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-            const statsText=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')).map(([k,v])=>v!==0?`${k.replace(/_/g,' ')}: ${v>0?'+':''}${v}`:'').filter(Boolean).join('\n'):'No stats';
-            return avatarDiv + `<div title="${item.name}\n${statsText}" style="min-height:96px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid ${qc}33;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 4px;position:relative;cursor:default">${itemIcon(item,'64px')}<span style="font-size:0.54rem;color:${qc};text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.5rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
+            const statsText=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')).map(([k,v])=>v!==0?`${k.replace(/_/g,' ')}: ${v>0?'+':''}${v}`:'').filter(Boolean).join('\n'):'';
+            return avatarDiv+`<div title="${item.name}${statsText?'\n'+statsText:''}" style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;cursor:default;transition:all 0.18s" onmouseenter="this.style.background='rgba(255,255,255,0.08)';this.style.transform='translateY(-2px)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform=''">${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
 
         content.innerHTML=`
