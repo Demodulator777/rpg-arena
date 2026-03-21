@@ -22,6 +22,7 @@ const _missionStartLock = new Set();
             'ALTER TABLE characters ADD COLUMN travel_start_time INTEGER DEFAULT 0',
             'ALTER TABLE equipment ADD COLUMN accessory_id INTEGER',
             'ALTER TABLE equipment ADD COLUMN helmet_id INTEGER',
+            'ALTER TABLE equipment ADD COLUMN shield_id INTEGER',
             'ALTER TABLE characters ADD COLUMN hit_chance INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN crit_chance INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mission_points INTEGER DEFAULT 0',
@@ -116,7 +117,7 @@ const MISSION_SIZES = {
 const SKILL_DURATION = 5 * 3600;
 
 // ── All equipment slots ───────────────────────────────────────────────────
-const EQUIPMENT_SLOTS = ['weapon','armor','helmet','boots','amulet','ring','accessory'];
+const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','amulet','ring','accessory'];
 
 // ── Class Skills ──────────────────────────────────────────────────────────
 const CLASS_SKILLS = {
@@ -579,6 +580,23 @@ const ITEM_GENERATORS = {
         },
         classBonus: { rogue:{agility:1.5}, warrior:{defense:1.2} }
     },
+    shield: {
+        namePrefixes: ['Wooden','Iron','Steel','Tower','Dragon','Mythril','Crystal','Obsidian','Adamant'],
+        nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
+        emojis: ['🛡️','⛨','🔰'],
+        baseStats: {
+            defense: { min:3,  max:7,  scale:1.6 },
+            armor:   { min:2,  max:5,  scale:1.2 },
+            hp_max:  { min:8,  max:18, scale:1.2 },
+        },
+        tier3Stats: {
+            vitality: { min:0, max:2, scale:0.3 },
+        },
+        tier5Stats: {
+            elem_resist: { min:3, max:10, scale:0.6 },
+        },
+        classBonus: { warrior:{defense:1.4,armor:1.4,hp_max:1.2}, paladin:{defense:1.3,armor:1.3,hp_max:1.2}, rogue:{defense:0.7}, mage:{defense:0.6} }
+    },
 };
 
 const POTION_CATALOGUE = [
@@ -662,7 +680,7 @@ function generateBackendRandomItem(level, type) {
     const name   = `${prefix} ${suffix}`;
     const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
-    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
+    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
 
     const item = {
         id:       `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
@@ -1421,13 +1439,14 @@ router.get('/shop/items', auth, async (req, res) => {
 function generateBackendInventory(playerLevel) {
     const inventory = [];
     const typeWeights = [
-        { type:'weapon',    w:0.20 },
-        { type:'armor',     w:0.17 },
-        { type:'helmet',    w:0.14 },
-        { type:'accessory', w:0.11 },
-        { type:'amulet',    w:0.12 },
-        { type:'ring',      w:0.13 },
-        { type:'boots',     w:0.13 },
+        { type:'weapon',    w:0.18 },
+        { type:'armor',     w:0.15 },
+        { type:'helmet',    w:0.12 },
+        { type:'shield',    w:0.12 },
+        { type:'accessory', w:0.10 },
+        { type:'amulet',    w:0.11 },
+        { type:'ring',      w:0.11 },
+        { type:'boots',     w:0.11 },
     ];
     const itemCount = 30 + Math.floor(Math.random() * 10);
     for (let i = 0; i < itemCount; i++) {
