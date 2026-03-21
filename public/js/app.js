@@ -368,8 +368,8 @@ function startPolling() {
                 await checkAndShowMissionOverlay();
             }
         } catch {}
-    },5000);
-    unreadTimer=setInterval(pollUnread,15000);
+    },60000);
+    unreadTimer=setInterval(pollUnread,60000);
     pollUnread();
 }
 async function pollUnread() {
