@@ -7,6 +7,97 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css"/>
+    <style>
+        /* ── Equipment grid — 3-column layout ─────────────────────────────── */
+        .eq-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        /* Avatar center cell */
+        .eq-avatar-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 4px;
+            min-height: 80px;
+        }
+        .eq-avatar-center img {
+            max-width: 100%;
+            max-height: 90px;
+            object-fit: contain;
+            object-position: center top;
+        }
+
+        /* Accessory row below main grid */
+        .eq-accessory-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 2px 2px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            margin-top: 4px;
+        }
+        .eq-accessory-hint {
+            font-size: 0.68rem;
+            color: rgba(255,255,255,0.25);
+            flex: 1;
+            text-align: right;
+        }
+
+        /* Small accessory slot */
+        .eq-slot-small {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px dashed rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.02);
+            min-width: 120px;
+            max-width: 260px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+        }
+        .eq-slot-small.filled {
+            border-style: solid;
+            background: rgba(255,255,255,0.04);
+        }
+        .eq-slot-small:hover {
+            background: rgba(255,255,255,0.07);
+            transform: translateY(-1px);
+        }
+        .eq-slot-small .eq-slot-label {
+            font-size: 0.62rem;
+            color: rgba(255,255,255,0.5);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Shop tabs — wrap on smaller screens */
+        .shop-tabs.filter-tabs {
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .shop-tabs .filter-btn {
+            font-size: 0.72rem;
+            padding: 5px 8px;
+            white-space: nowrap;
+        }
+
+        /* Elemental type colour helpers used in shop/tooltip */
+        .elem-pyro    { color: #e74c3c; }
+        .elem-water   { color: #3498db; }
+        .elem-wind    { color: #2ecc71; }
+        .elem-electro { color: #f1c40f; }
+    </style>
 </head>
 <body>
 <div id="app">
