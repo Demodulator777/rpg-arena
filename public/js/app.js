@@ -1418,7 +1418,7 @@ async function openProfile(id) {
         const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
         const eqHtml=slots.map(([slot,fallback], idx)=>{
             // avatar: 3 rows × 80px + 2 gaps × 6px = 252px tall
-            const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:150px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
+            const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
             const sq=`width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
             if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
