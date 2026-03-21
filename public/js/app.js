@@ -4,7 +4,7 @@ let username = localStorage.getItem('rpg_username');
 let character = null;
 let trainTimer = null, unreadTimer = null;
 let lbData = [];
-let forgeTab = 'refine', invTab = 'equipment';
+let forgeTab = 'refine', invTab = 'weapons';
 let forgeData = null;
 let lbSort = 'total_gold_earned';
 let shopInventory = [];
@@ -1205,7 +1205,7 @@ function setInvTab(tab, btn) {
 }
 
 function syncInvTabButtons() {
-    const tabs = ['equipment', 'helmets', 'accessories', 'consumables', 'materials'];
+    const tabs = ['weapons', 'armor', 'helmets', 'shields', 'boots', 'jewelry', 'accessory', 'consumables', 'materials'];
     document.querySelectorAll('#tab-inventory .filter-btn').forEach((btn, i) => {
         btn.classList.toggle('active', tabs[i] === invTab);
     });
@@ -1243,25 +1243,20 @@ function renderInventory(data) {
         return d.slot || '';
     }
 
-    if (invTab === 'equipment') {
-        // Main combat gear: weapon, armor, boots
-        const gear = data.items.filter(i => i.item_type === 'equipment' && ['weapon','armor','boots'].includes(getSlot(i)));
-        if (!gear.length) { el.innerHTML = '<p class="empty">No weapons, armor or boots yet. Craft some at the Forge or buy from the Shop!</p>'; return; }
+    const gearTab = (slots, emptyMsg) => {
+        const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
+        if (!gear.length) { el.innerHTML = `<p class="empty">${emptyMsg}</p>`; return; }
         renderGearGrid(el, gear, data.equipped);
+    };
 
-    } else if (invTab === 'helmets') {
-        // Head, neck, fingers, shield: helmet, ring, amulet, shield
-        const gear = data.items.filter(i => i.item_type === 'equipment' && ['helmet','ring','amulet','shield'].includes(getSlot(i)));
-        if (!gear.length) { el.innerHTML = '<p class="empty">No helmets, jewelry or shields yet.</p>'; return; }
-        renderGearGrid(el, gear, data.equipped);
-
-    } else if (invTab === 'accessories') {
-        // Small trinket slot only
-        const gear = data.items.filter(i => i.item_type === 'equipment' && getSlot(i) === 'accessory');
-        if (!gear.length) { el.innerHTML = '<p class="empty">No accessories yet. Find them on missions or buy from the Shop!</p>'; return; }
-        renderGearGrid(el, gear, data.equipped);
-
-    } else if (invTab === 'consumables') {
+    if      (invTab === 'weapons')    gearTab(['weapon'],          'No weapons yet.');
+    else if (invTab === 'armor')      gearTab(['armor'],           'No armor yet.');
+    else if (invTab === 'helmets')    gearTab(['helmet'],          'No helmets yet.');
+    else if (invTab === 'shields')    gearTab(['shield'],          'No shields yet.');
+    else if (invTab === 'boots')      gearTab(['boots'],           'No boots yet.');
+    else if (invTab === 'jewelry')    gearTab(['ring','amulet'],   'No rings or amulets yet.');
+    else if (invTab === 'accessory')  gearTab(['accessory'],       'No accessories yet.');
+    else if (invTab === 'consumables') {
         const cons = data.items.filter(i => i.item_type === 'consumable');
         if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
         el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
@@ -1283,7 +1278,6 @@ function renderInventory(data) {
                 +'<button class="btn-sm danger" onclick="sellItem('+i.id+',\''+sn+'\','+sp+')">Sell '+sp+'g</button>'
                 +'</div></div>';
         }).join('') + '</div>';
-
     } else {
         // Materials
         const mats = data.items.filter(i => i.item_type==='raw_mat' || i.item_type==='component');
@@ -1435,17 +1429,19 @@ function renderShop() {
     if (!character||!shopInventory.length) return;
     const el=document.getElementById('shop-content');
 
-    // Filter by slot
+    // Filter by slot — 7 item classes: weapon, armor, helmet, shield, boots, jewelry(ring+amulet), accessory
     const filtered = currentShopCategory === 'all' ? shopInventory : shopInventory.filter(item => {
         const slot = item.slot || item.category || '';
         const cat  = item.category || '';
-        if (currentShopCategory === 'weapons')     return slot === 'weapon';
-        if (currentShopCategory === 'armor')       return slot === 'armor';
-        if (currentShopCategory === 'helmets')     return slot === 'helmet';
-        if (currentShopCategory === 'rings')       return slot === 'ring' || slot === 'amulet';
-        if (currentShopCategory === 'accessories') return slot === 'accessory' || slot === 'boots' || slot === 'shield';
+        if (currentShopCategory === 'weapons')   return slot === 'weapon';
+        if (currentShopCategory === 'armor')     return slot === 'armor';
+        if (currentShopCategory === 'helmets')   return slot === 'helmet';
+        if (currentShopCategory === 'shields')   return slot === 'shield';
+        if (currentShopCategory === 'boots')     return slot === 'boots';
+        if (currentShopCategory === 'jewelry')   return slot === 'ring' || slot === 'amulet';
+        if (currentShopCategory === 'accessory') return slot === 'accessory';
         if (currentShopCategory === 'consumables') return !!(item.consumable || cat === 'consumable');
-        if (currentShopCategory === 'premium')     return item.priceType === 'gems' || cat === 'premium';
+        if (currentShopCategory === 'premium')   return item.priceType === 'gems' || cat === 'premium';
         return false;
     });
 
@@ -1581,7 +1577,7 @@ async function openProfile(id) {
         const profileEqHtml =
             // Avatar spans col2 rows 1-3
             `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
-                <img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
+                <img src="/images/class/${p.class}.png" style="width:140px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
             </div>`
             + profileSlots.map(({slot,icon,col,row})=>{
             const item=profileResolvedEq[slot];
