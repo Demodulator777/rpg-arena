@@ -17,7 +17,6 @@
 
         <div class="auth-container">
 
-            <!-- Replaced title with logo -->
             <img src="images/logo/logo.png" alt="BATTLE ARENA" class="game-logo">
 
             <p class="game-subtitle">Build. Train. Conquer.</p>
@@ -132,7 +131,7 @@
         <!-- ── GAME BODY ─────────────────────────────────────────────────────── -->
         <div class="game-body">
 
-            <!-- ── TOP NAV (desktop) / BOTTOM NAV (mobile) ──────────────────── -->
+            <!-- ── SIDEBAR NAV ───────────────────────────────────────────────── -->
             <nav class="sidebar">
                 <div class="nav-edge nav-edge-left"></div>
                 <div class="sidebar-section-label">Character</div>
@@ -211,7 +210,6 @@
                     </div>
                     <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
 
-                    <!-- Mission timer — covers entire tab while active -->
                     <div id="mission-overlay" class="mission-overlay hidden">
                         <div class="mission-overlay-inner">
                             <div class="mission-overlay-badge">⚔️ ON MISSION</div>
@@ -226,7 +224,6 @@
                         </div>
                     </div>
 
-                    <!-- Travel timer — covers entire tab while traveling -->
                     <div id="travel-overlay" class="travel-overlay hidden">
                         <div class="travel-overlay-inner">
                             <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2">🚶 TRAVELING</div>
@@ -258,9 +255,11 @@
                 <div id="tab-inventory" class="game-tab">
                     <div class="tab-header"><h2>🎒 Inventory</h2></div>
                     <div class="filter-tabs">
-                        <button class="filter-btn active" onclick="setInvTab('equipment',this)">Equipment</button>
-                        <button class="filter-btn" onclick="setInvTab('consumables',this)">Consumables</button>
-                        <button class="filter-btn" onclick="setInvTab('materials',this)">Materials</button>
+                        <button class="filter-btn active" onclick="setInvTab('equipment',this)">⚔️ Gear</button>
+                        <button class="filter-btn" onclick="setInvTab('helmets',this)">⛑️ Helmets</button>
+                        <button class="filter-btn" onclick="setInvTab('accessories',this)">🔮 Trinkets</button>
+                        <button class="filter-btn" onclick="setInvTab('consumables',this)">🧪 Potions</button>
+                        <button class="filter-btn" onclick="setInvTab('materials',this)">📦 Materials</button>
                     </div>
                     <div id="inventory-content"></div>
                     <div id="inv-msg" class="msg-bar hidden"></div>
@@ -274,10 +273,13 @@
                         <span id="shop-gems"></span>
                     </div>
                     <div class="shop-tabs filter-tabs">
-                        <button class="filter-btn active" onclick="setShopCategory('weapons',this)">Weapons</button>
-                        <button class="filter-btn" onclick="setShopCategory('armor',this)">Armor</button>
-                        <button class="filter-btn" onclick="setShopCategory('accessories',this)">Accessories</button>
-                        <button class="filter-btn" onclick="setShopCategory('consumables',this)">Potions</button>
+                        <button class="filter-btn active" onclick="setShopCategory('weapons',this)">⚔️ Weapons</button>
+                        <button class="filter-btn" onclick="setShopCategory('armor',this)">🛡️ Armor</button>
+                        <button class="filter-btn" onclick="setShopCategory('helmets',this)">⛑️ Helmets</button>
+                        <button class="filter-btn" onclick="setShopCategory('accessories',this)">👢 Acc/Boots</button>
+                        <button class="filter-btn" onclick="setShopCategory('rings',this)">💍 Rings</button>
+                        <button class="filter-btn" onclick="setShopCategory('amulets',this)">📿 Amulets</button>
+                        <button class="filter-btn" onclick="setShopCategory('consumables',this)">🧪 Potions</button>
                         <button class="filter-btn" onclick="setShopCategory('premium',this)">💎 Premium</button>
                     </div>
                     <div id="shop-content" class="shop-grid"></div>
@@ -288,7 +290,6 @@
                 <div id="tab-leaderboard" class="game-tab">
                     <div class="tab-header"><h2>🏆 Leaderboard</h2></div>
 
-                    <!-- Matchmaking -->
                     <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:20px">
                         <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px">⚔️ Find Opponent</div>
                         <div id="matchmaking-box"><p class="empty" style="padding:10px">Open leaderboard to find an opponent.</p></div>
@@ -324,7 +325,7 @@
             </div>
         </div>
 
-        <!-- Mission location modal — fullscreen -->
+        <!-- Mission location modal -->
         <div id="mission-location-modal" class="mission-modal-overlay hidden">
             <div class="mission-modal-inner">
                 <button class="mission-modal-close" onclick="closeMissionModal2()">✕</button>
@@ -343,7 +344,7 @@
             </div>
         </div>
 
-        <!-- Battle result modal (global — used by arena, leaderboard attacks, and mission collect) -->
+        <!-- Battle result modal -->
         <div id="battle-result-modal" class="modal-overlay hidden">
             <div class="modal-box battle-result-box">
                 <div id="battle-outcome" class="battle-outcome"></div>
