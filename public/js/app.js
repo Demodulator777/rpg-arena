@@ -18,6 +18,23 @@ let playerTravelEndTime = 0;
 let playerTravelStartTime = 0;
 const FREE_CANCEL_WINDOW = 300;
 
+// ── Stat display labels ───────────────────────────────────────────────────
+const STAT_LABELS = {
+    dmg_min:     'Min Dmg',
+    dmg_max:     'Max Dmg',
+    armor:       '🛡 Armor',
+    hp_max:      '❤️ HP',
+    defense:     '🛡️ Defense',
+    strength:    '💪 Strength',
+    agility:     '⚡ Agility',
+    magic:       '✨ Magic',
+    vitality:    '❤️ Vitality',
+    hit_chance:  '🎯 Hit%',
+    crit_chance: '💥 Crit%',
+    elem_dmg:    '🔥 Elem Dmg',
+    elem_resist: '🌀 Elem Resist',
+};
+
 // ── Hit & Block Zone Definitions ──────────────────────────────────────────
 const HIT_ZONES = {
     head:         { label: 'Head',         dmgMult: 1.5,  hitChance: 0.60, desc: 'High risk, high reward. Devastating if it lands.' },
@@ -214,7 +231,6 @@ async function api(method, path, body=null) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-    // Create global item tooltip once
     if (!document.getElementById('item-tooltip')) {
         const tt=document.createElement('div');
         tt.id='item-tooltip'; tt.className='item-tooltip hidden';
@@ -331,15 +347,8 @@ function renderTopBar() {
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
     const dms=c.daily_mp_spent??0, unl=c.skills_unlocked;
     set('topbar-mp-fill',el=>{ el.style.width=mpPct+'%'; });
-    set('topbar-mp-text',el=>{
-        el.textContent=`${mp} / ${mpMax} MP`;
-        el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`;
-    });
-    set('topbar-mp',el=>{
-        if(!el) return;
-        el.textContent=unl?`🔮 ${mp} ✨`:`🔮 ${mp} (${dms}/60)`;
-        el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`;
-    });
+    set('topbar-mp-text',el=>{ el.textContent=`${mp} / ${mpMax} MP`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`; });
+    set('topbar-mp',el=>{ el.textContent=unl?`🔮 ${mp} ✨`:`🔮 ${mp} (${dms}/60)`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`; });
     set('topbar-gold',el=>{ el.textContent=`💰 ${c.gold.toLocaleString()}`; });
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
@@ -380,6 +389,32 @@ async function pollUnread() {
     } catch {}
 }
 
+// ── Equipment slot helpers ────────────────────────────────────────────────
+function buildEqSlot(slot, eq, icon, label) {
+    const item = eq[slot];
+    if (!item) return `<div class="eq-slot empty"><span class="eq-slot-icon">${icon}</span><span class="eq-slot-label">${label}</span></div>`;
+    const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+    const itemData = escHtml(JSON.stringify(item));
+    return `<div class="eq-slot filled" style="border-color:${qc}44"
+        onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()" data-item="${itemData}">
+        <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
+        <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
+        ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
+    </div>`;
+}
+
+function buildEqSlotSmall(slot, eq, icon, label) {
+    const item = eq[slot];
+    if (!item) return `<div class="eq-slot-small empty"><span style="font-size:1rem;opacity:0.3">${icon}</span><span class="eq-slot-label">${label}</span></div>`;
+    const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+    const itemData = escHtml(JSON.stringify(item));
+    return `<div class="eq-slot-small filled" style="border-color:${qc}44"
+        onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()" data-item="${itemData}">
+        <span style="font-size:1.1rem;line-height:1">${itemIcon(item,'slot')}</span>
+        <span class="eq-slot-label" style="color:${qc};font-size:0.55rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${item.name}</span>
+    </div>`;
+}
+
 // ── Character Sheet ───────────────────────────────────────────────────────
 function renderCharacter() {
     if (!character) return;
@@ -392,38 +427,32 @@ function renderCharacter() {
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat=Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
 
-    // Equipment slot tiles
-    const eqSlots=[
-        {slot:'weapon',  icon:'⚔️', label:'Weapon'},
-        {slot:'armor',   icon:'🛡️', label:'Armor'},
-        {slot:'accessory',icon:'💍',label:'Accessory'},
-        {slot:'amulet',  icon:'📿', label:'Amulet'},
-        {slot:'ring',    icon:'💍', label:'Ring'},
-        {slot:'boots',   icon:'👢', label:'Boots'},
-    ];
-    const eqGrid=eqSlots.map(({slot,icon,label},idx)=>{
-        const avatarDiv = idx === 3 ? `
-            <div class="eq-avatar-center">
-                <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
-            </div>` : '';
-        const item=eq[slot];
-        if (!item) return avatarDiv + `
-            <div class="eq-slot empty">
-                <span class="eq-slot-icon">${icon}</span>
-                <span class="eq-slot-label">${label}</span>
-            </div>`;
-        const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-        const itemData=escHtml(JSON.stringify(item));
-        return avatarDiv + `
-            <div class="eq-slot filled" style="border-color:${qc}44"
-                onmouseenter="showEqTooltip(event,this.dataset.item)"
-                onmouseleave="scheduleHideTooltip()"
-                data-item="${itemData}">
-                <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
-                <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
-                ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
-            </div>`;
-    }).join('');
+    // Armor value: base defense/4 + equipped armor stats
+    let armorVal = Math.floor((c.defense||0)/4);
+    Object.values(eq).forEach(item => { if (item?.stats?.armor) armorVal += item.stats.armor; });
+
+    // Elemental weapon info
+    const wep = eq.weapon;
+    const elemDmg = wep?.stats?.elem_dmg;
+    const elemType = wep?.stats?.elem_dmg_type;
+    const elemEmojis = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'};
+
+    const eqGrid = `
+    <div class="eq-main-grid">
+        ${buildEqSlot('weapon', eq, '⚔️', 'Weapon')}
+        <div class="eq-avatar-center">
+            <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
+        </div>
+        ${buildEqSlot('armor', eq, '🛡️', 'Armor')}
+        ${buildEqSlot('helmet', eq, '⛑️', 'Helmet')}
+        ${buildEqSlot('boots', eq, '👢', 'Boots')}
+        ${buildEqSlot('ring', eq, '💍', 'Ring')}
+        ${buildEqSlot('amulet', eq, '📿', 'Amulet')}
+    </div>
+    <div class="eq-accessory-row">
+        ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
+        <div class="eq-accessory-hint">Small trinket slot</div>
+    </div>`;
 
     const charSheet=document.getElementById('char-sheet');
     if (!charSheet) return;
@@ -468,14 +497,15 @@ function renderCharacter() {
       ${(c.hit_chance||0)>0?statRow('🎯','Hit Chance',c.hit_chance,maxStat,'hit'):''}
       ${(c.crit_chance||0)>0?statRow('💥','Crit Chance',c.crit_chance,maxStat,'crit'):''}
       <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px">
-        DMG: <strong style="color:var(--text-bright)">${Math.floor(c.strength/4)}${eq.weapon?` +${eq.weapon.stats?.dmg_min||0}–${eq.weapon.stats?.dmg_max||0}`:''}</strong>
-        ${eq.weapon?.stats?.elem_dmg_type?`&nbsp; ${elemEmoji(eq.weapon.stats.elem_dmg_type)} <strong>${eq.weapon.stats.elem_dmg}</strong>`:''}
+        DMG: <strong style="color:var(--text-bright)">${Math.floor(c.strength/4)}${wep?` +${wep.stats?.dmg_min||0}–${wep.stats?.dmg_max||0}`:''}</strong>
+        ${elemDmg?`&nbsp; ${elemEmojis[elemType]||'✨'} <strong style="color:#f1c40f">${elemDmg} ${elemType||''}</strong>`:''}
+        &nbsp;·&nbsp; 🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong>
         ${hpCur<c.hp_max?'<span style="float:right;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
       </div>
     </div>
     <div class="char-panel">
       <h3>EQUIPMENT</h3>
-      <div class="eq-grid">${eqGrid}</div>
+      ${eqGrid}
     </div>
     <div class="char-panel">
       <h3>RECORD</h3>
@@ -608,19 +638,18 @@ function renderUpgrade() {
 }
 let _upgradingStats = {};
 async function upgradestat(stat) {
-    if (_upgradingStats[stat]) return; // drop rapid duplicate clicks
+    if (_upgradingStats[stat]) return;
     _upgradingStats[stat] = true;
-    // Immediately disable all upgrade buttons so the UI feels instant
     document.querySelectorAll('.btn-upgrade').forEach(b => b.disabled = true);
     try {
         const d = await api('POST', '/game/upgrade', { stat });
         character = d.character;
-        renderUpgrade();   // re-enables buttons with fresh gold/costs
+        renderUpgrade();
         renderCharacter();
         showMsg('upgrade-msg', d.message);
     } catch(e) {
         showMsg('upgrade-msg', e.message, true);
-        renderUpgrade();   // re-enable on error so player can retry
+        renderUpgrade();
     } finally {
         _upgradingStats[stat] = false;
     }
@@ -690,21 +719,18 @@ function renderSkills() {
         const expiresIn=isActive?Math.ceil((activeSkills[sk.id]-now)/60):0;
         const expiresStr=expiresIn>=60?`${Math.floor(expiresIn/60)}h ${expiresIn%60}m`:`${expiresIn}m`;
         const canActivate=unlocked&&!isActive&&!anyUsedToday;
-
         let btnLabel, btnDisabled;
         if (!unlocked)     { btnLabel=`🔒 Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
         else if (isActive) { btnLabel=`⏳ Active — ${expiresStr} left`; btnDisabled=true; }
         else if (anyUsedToday&&!usedToday){ btnLabel=`✅ Another skill active today`; btnDisabled=true; }
         else if (usedToday){ btnLabel=`✅ Used today`; btnDisabled=true; }
         else               { btnLabel=`✨ Activate (Free)`; btnDisabled=false; }
-
         const cardBg=isActive
             ?'background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(142,68,173,0.15));border-color:rgba(155,89,182,0.5)'
             :(usedToday||anyUsedToday&&!isActive)
                 ?'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);opacity:0.6'
                 :unlocked?'background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)'
                     :'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.05);opacity:0.5';
-
         return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg}">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
                 <span style="font-size:1.8rem">${sk.emoji}</span>
@@ -723,7 +749,6 @@ function renderSkills() {
         </div>`;
     }).join('');
 }
-
 async function activateSkill(skillId) {
     try {
         const d=await api('POST','/game/skills/activate',{skillId});
@@ -813,7 +838,6 @@ function openLocationModal(zoneId) {
     }
     const dc={easy:'#2ecc71',medium:'#f39c12',hard:'#e74c3c'};
     const db2={easy:'rgba(39,174,96,0.2)',medium:'rgba(243,156,18,0.2)',hard:'rgba(192,57,43,0.2)'};
-
     header.innerHTML=`
         <div class="mz-hero" style="background-image:url('${zone.bgImg||zone.mapImg}')">
             <div class="mz-hero-overlay">
@@ -829,7 +853,6 @@ function openLocationModal(zoneId) {
                 </div>
             </div>
         </div>`;
-
     spotsEl.innerHTML=`
         <div class="mz-section-label">Choose a location</div>
         <div class="mz-spots-grid">
@@ -848,7 +871,6 @@ function openLocationModal(zoneId) {
                 </div>`;
     }).join('')}
         </div>`;
-
     activeEl.innerHTML='';
     modal.classList.remove('hidden');
 }
@@ -931,27 +953,15 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
 }
 
 let _missionStarting = false;
- 
 async function doStartMission(zoneId, spotId, missionIdx, size='small') {
-    if (_missionStarting) return; // drop rapid duplicate taps
+    if (_missionStarting) return;
     _missionStarting = true;
- 
     const zone = ZONES[zoneId];
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
- 
-    if (character?.location !== zoneId) {
-        showMsg('missions-msg', 'Travel to this zone first!', true);
-        closeMissionModal2(); _missionStarting = false; return;
-    }
-    if ((character?.hp_current ?? character?.hp_max) <= 0) {
-        showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true);
-        closeMissionModal2(); _missionStarting = false; return;
-    }
- 
-    // Immediately close modal and show "starting..." so player can't tap again
+    if (character?.location !== zoneId) { showMsg('missions-msg', 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
+    if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
     closeMissionModal2();
- 
     const chosenMission = spot.missions[missionIdx] || spot.missions[0];
     const missionName = chosenMission.name;
     try {
@@ -1124,7 +1134,7 @@ function showMissionModal(message) {
 }
 function closeMissionModal() { const m=document.getElementById('mission-rewards-modal'); if(m) m.classList.add('hidden'); }
 
-// ── Battle Report Modal ────────────────────────────────────────────────────
+// ── Battle Report Modal ───────────────────────────────────────────────────
 function showBattleReportModal(log, won, summary) {
     const modal=document.getElementById('battle-result-modal');
     if (!modal) { showMissionModal(summary); return; }
@@ -1171,39 +1181,84 @@ async function loadInventory() {
     try { const d=await api('GET','/game/inventory'); renderInventory(d); }
     catch(e) { document.getElementById('inventory-content').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
-function setInvTab(tab,btn) { invTab=tab; document.querySelectorAll('#tab-inventory .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadInventory(); }
+
+function setInvTab(tab, btn) {
+    invTab = tab;
+    document.querySelectorAll('#tab-inventory .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadInventory();
+}
+
 function syncInvTabButtons() {
-    const tabs=['equipment','consumables','materials'];
-    document.querySelectorAll('#tab-inventory .filter-btn').forEach((btn,i)=>{
-        btn.classList.toggle('active', tabs[i]===invTab);
+    const tabs = ['equipment', 'helmets', 'accessories', 'consumables', 'materials'];
+    document.querySelectorAll('#tab-inventory .filter-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', tabs[i] === invTab);
     });
 }
+
+function renderGearGrid(el, gear, equipped) {
+    window._invGearData = {};
+    gear.forEach(i => {
+        const d = typeof i.item_data === 'object' ? i.item_data : {};
+        window._invGearData[i.id] = { ...i, equippedInSlot: equipped?.[d.slot] };
+    });
+    const equippedIds = Object.values(equipped || {}).map(e => e.inventoryId).filter(Boolean);
+    el.innerHTML = `<div class="inv-hint">Hover to inspect &nbsp;·&nbsp; Click to equip / unequip</div>
+    <div class="inv-equipment-grid">${gear.map(i => {
+        const d = typeof i.item_data === 'object' ? i.item_data : {};
+        const isEquipped = equippedIds.includes(i.id);
+        const qc = d.quality==='legendary'?'inv-legendary':d.quality==='rare'?'inv-rare':'';
+        return '<div class="inv-item-cell '+(isEquipped?'inv-item-equipped ':'')+qc+'"'
+            +' onmouseenter="showItemTooltip(event,'+i.id+')"'
+            +' onmouseleave="scheduleHideTooltip()"'
+            +' onclick="toggleEquipItem('+i.id+',\''+d.slot+'\',' +(isEquipped?'true':'false')+')">'
+            +'<div class="inv-item-icon">'+itemIcon(d,'64px')+'</div>'
+            +(isEquipped?'<div class="inv-item-equipped-dot"></div>':'')
+            +'<div class="inv-item-name-label">'+(d.name||'').split(' ').slice(-1)[0]+'</div>'
+            +'</div>';
+    }).join('')}</div>
+    <div id="inv-msg" class="msg-bar hidden" style="margin-top:12px"></div>`;
+}
+
 function renderInventory(data) {
-    const el=document.getElementById('inventory-content');
-    if (invTab==='equipment') {
-        const gear=data.items.filter(i=>i.item_type==='equipment');
-        if (!gear.length) { el.innerHTML='<p class="empty">No equipment yet. Craft some at the Forge!</p>'; return; }
-        window._invGearData={};
-        gear.forEach(i=>{ window._invGearData[i.id]={...i, equippedInSlot:data.equipped?.[i.item_data.slot]}; });
-        el.innerHTML=`<div class="inv-hint">Hover to inspect &nbsp;·&nbsp; Click to equip / unequip</div>
-        <div class="inv-equipment-grid">${gear.map(i=>{
-            const d=i.item_data, eq=i.equipped;
-            const qc=d.quality==='legendary'?'inv-legendary':d.quality==='rare'?'inv-rare':'';
-            return '<div class="inv-item-cell '+(eq?'inv-item-equipped ':'')+qc+'" onmouseenter="showItemTooltip(event,'+i.id+')" onmouseleave="scheduleHideTooltip()" onclick="toggleEquipItem('+i.id+',\''+d.slot+'\','+(eq?'true':'false')+')">'
-                +'<div class="inv-item-icon">'+itemIcon(d,'64px')+'</div>'
-                +(eq?'<div class="inv-item-equipped-dot"></div>':'')
-                +'<div class="inv-item-name-label">'+(d.name||'').split(' ').slice(-1)[0]+'</div>'
-                +'</div>';
-        }).join('')}</div>
-        <div id="inv-msg" class="msg-bar hidden" style="margin-top:12px"></div>`;
-    } else if (invTab==='consumables') {
-        const cons=data.items.filter(i=>i.item_type==='consumable');
-        if (!cons.length) { el.innerHTML='<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
-        el.innerHTML='<div class="inv-grid">'+cons.map(i=>{
-            const d=i.item_data;
-            const eff=d.effect?(d.effect.type==='heal'?'❤️ Restore '+d.effect.value+' HP':d.effect.type==='xp'?'⭐ +'+d.effect.value+' XP':d.effect.type==='temp_stat'?'💪 +'+d.effect.value+' '+d.effect.stat:''):'';
-            const sp=Math.max(1,Math.floor((d.price||0)*0.3));
-            const sn=(d.name||'').replace(/'/g,"\\'");
+    const el = document.getElementById('inventory-content');
+
+    function getSlot(i) {
+        const d = typeof i.item_data === 'object' ? i.item_data : {};
+        return d.slot || '';
+    }
+
+    if (invTab === 'equipment') {
+        // Main combat gear: weapon, armor, boots
+        const gear = data.items.filter(i => i.item_type === 'equipment' && ['weapon','armor','boots'].includes(getSlot(i)));
+        if (!gear.length) { el.innerHTML = '<p class="empty">No weapons, armor or boots yet. Craft some at the Forge or buy from the Shop!</p>'; return; }
+        renderGearGrid(el, gear, data.equipped);
+
+    } else if (invTab === 'helmets') {
+        // Head, neck, fingers: helmet, ring, amulet
+        const gear = data.items.filter(i => i.item_type === 'equipment' && ['helmet','ring','amulet'].includes(getSlot(i)));
+        if (!gear.length) { el.innerHTML = '<p class="empty">No helmets, rings or amulets yet.</p>'; return; }
+        renderGearGrid(el, gear, data.equipped);
+
+    } else if (invTab === 'accessories') {
+        // Small trinket slot only
+        const gear = data.items.filter(i => i.item_type === 'equipment' && getSlot(i) === 'accessory');
+        if (!gear.length) { el.innerHTML = '<p class="empty">No accessories yet. Find them on missions or buy from the Shop!</p>'; return; }
+        renderGearGrid(el, gear, data.equipped);
+
+    } else if (invTab === 'consumables') {
+        const cons = data.items.filter(i => i.item_type === 'consumable');
+        if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
+        el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
+            const d = i.item_data;
+            const eff = d.effect ? (
+                d.effect.type==='heal'      ? '❤️ Restore '+d.effect.value+' HP' :
+                d.effect.type==='heal_full' ? '❤️ Full HP restore' :
+                d.effect.type==='xp'        ? '⭐ +'+d.effect.value+' XP' :
+                d.effect.type==='temp_stat' ? '💪 +'+d.effect.value+' '+d.effect.stat : ''
+            ) : '';
+            const sp = Math.max(1, Math.floor((d.price||0)*0.3));
+            const sn = (d.name||'').replace(/'/g,"\\'");
             return '<div class="inv-card">'
                 +'<div class="inv-card-header"><span style="font-size:1.4rem">'+(d.emoji||'🧪')+'</span><span class="inv-card-name">'+(d.name||'')+'</span><span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×'+(d.qty||1)+'</span></div>'
                 +'<div class="inv-stat-str">'+eff+'</div>'
@@ -1212,14 +1267,16 @@ function renderInventory(data) {
                 +'<button class="btn-sm" style="flex:1;background:rgba(39,174,96,0.15);border-color:rgba(39,174,96,0.4);color:#2ecc71" onclick="useItem('+i.id+',\''+sn+'\')">Use</button>'
                 +'<button class="btn-sm danger" onclick="sellItem('+i.id+',\''+sn+'\','+sp+')">Sell '+sp+'g</button>'
                 +'</div></div>';
-        }).join('')+'</div>';
+        }).join('') + '</div>';
+
     } else {
-        const mats=data.items.filter(i=>i.item_type==='raw_mat'||i.item_type==='component');
-        if (!mats.length) { el.innerHTML='<p class="empty">No materials yet. Complete missions to gather resources!</p>'; return; }
-        el.innerHTML='<div class="mat-grid">'+mats.map(i=>{
-            const d=i.item_data;
+        // Materials
+        const mats = data.items.filter(i => i.item_type==='raw_mat' || i.item_type==='component');
+        if (!mats.length) { el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; return; }
+        el.innerHTML = '<div class="mat-grid">' + mats.map(i => {
+            const d = i.item_data;
             return '<div class="mat-card"><div style="font-size:1.6rem">'+(d.emoji||'📦')+'</div><div class="mat-name">'+(d.name||d.id)+'</div><div class="mat-qty">× '+(d.qty||1)+'</div><div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">'+(i.item_type==='component'?'Component':'Raw Material')+'</div></div>';
-        }).join('')+'</div>';
+        }).join('') + '</div>';
     }
 }
 
@@ -1227,28 +1284,37 @@ let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
 
-function showItemTooltip(event,itemId) {
+function showItemTooltip(event, itemId) {
     cancelHideTooltip();
-    const tooltip=document.getElementById('item-tooltip');
-    if(!tooltip) return;
-    const info=window._invGearData?.[itemId];
-    if(!info) return;
-    const d=info.item_data, eq=info.equippedInSlot, isEquipped=info.equipped;
-    const allStats=new Set([...Object.keys(d.stats||{}),...Object.keys(eq?.stats||{})].filter(k=>!k.includes('type')));
-    const qColor={legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
-    const imgSrc=d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    const info = window._invGearData?.[itemId];
+    if (!info) return;
+    const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
+    const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(eq?.stats||{})].filter(k=>!k.includes('type')));
+    const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const imgSrc = d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
 
-    let statsHtml='';
-    for(const stat of allStats){
-        const nv=d.stats?.[stat]||0, ov=eq?.stats?.[stat]||0, diff=nv-ov;
-        const dc=diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
-        const ds=diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
-        statsHtml+=`<div class="tt-stat"><span class="tt-stat-name">${stat.replace(/_/g,' ')}</span><span class="tt-stat-val">${nv}</span>${eq&&!isEquipped&&ds?`<span style="font-size:0.68rem;color:${dc}">${ds}</span>`:''}</div>`;
+    let statsHtml = '';
+    for (const stat of allStats) {
+        const nv = d.stats?.[stat]||0, ov = eq?.stats?.[stat]||0, diff = nv - ov;
+        const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
+        const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
+        const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${eq&&!isEquipped&&ds?`<span style="font-size:0.68rem;color:${dc}">${ds}</span>`:''}</div>`;
     }
-    const sp=Math.max(1,Math.floor((d.price||0)*0.3));
-    const sn=(d.name||'').replace(/'/g,"\\'");
 
-    tooltip.innerHTML=`
+    // Elemental damage display
+    let elemHtml = '';
+    if (d.stats?.elem_dmg) {
+        const eEmoji = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[d.stats.elem_dmg_type]||'✨';
+        elemHtml = `<div class="tt-stat"><span class="tt-stat-name">${eEmoji} ${d.stats.elem_dmg_type||'Elem'}</span><span class="tt-stat-val" style="color:#f1c40f">+${d.stats.elem_dmg}</span></div>`;
+    }
+
+    const sp = Math.max(1, Math.floor((d.price||0)*0.3));
+    const sn = (d.name||'').replace(/'/g,"\\'");
+
+    tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
                 ?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
@@ -1258,7 +1324,7 @@ function showItemTooltip(event,itemId) {
             <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
             <div class="tt-meta">${capitalize(d.slot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
-            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            <div class="tt-stats">${statsHtml}${elemHtml||''}</div>
             ${eq&&!isEquipped?`<div class="tt-vs">vs equipped: <strong>${eq.name}</strong></div>`:''}
         </div>
         <div class="tt-actions">
@@ -1269,32 +1335,41 @@ function showItemTooltip(event,itemId) {
         </div>`;
 
     tooltip.classList.remove('hidden');
-    const r=event.currentTarget.getBoundingClientRect();
-    tooltip.style.left='-9999px'; tooltip.style.top='-9999px';
-    const tw=tooltip.offsetWidth||220, th=tooltip.offsetHeight||340;
-    let left=r.right+12, top=r.top;
-    if(left+tw>window.innerWidth-8) left=r.left-tw-12;
-    if(top+th>window.innerHeight-8) top=window.innerHeight-th-8;
-    tooltip.style.left=Math.max(8,left)+'px';
-    tooltip.style.top=Math.max(8,top)+'px';
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||340;
+    let left = r.right+12, top = r.top;
+    if (left+tw>window.innerWidth-8) left = r.left-tw-12;
+    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    tooltip.style.left = Math.max(8,left)+'px';
+    tooltip.style.top  = Math.max(8,top)+'px';
 }
 
-function hideItemTooltip(){ const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
+function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
 
-// Tooltip for eq slots in character sheet + profile modal (no inv data needed)
 function showEqTooltip(event, itemJson) {
     cancelHideTooltip();
-    const tooltip=document.getElementById('item-tooltip');
-    if(!tooltip) return;
-    let item; try { item=typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
-    const qColor={legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
-    const imgSrc=item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
-    const statsHtml=Object.entries(item.stats||{})
-        .filter(([k])=>!k.includes('type'))
-        .filter(([,v])=>v!==0)
-        .map(([k,v])=>`<div class="tt-stat"><span class="tt-stat-name">${k.replace(/_/g,' ')}</span><span class="tt-stat-val" style="color:${v>0?'#2ecc71':'#e74c3c'}">${v>0?'+':''}${v}</span></div>`)
-        .join('');
-    tooltip.innerHTML=`
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    let item; try { item = typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
+    const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const imgSrc = item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+
+    let statsHtml = Object.entries(item.stats||{})
+        .filter(([k]) => !k.includes('type') && k !== 'elem_dmg')
+        .filter(([,v]) => v !== 0)
+        .map(([k,v]) => {
+            const label = STAT_LABELS[k] || k.replace(/_/g,' ');
+            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${v>0?'#2ecc71':'#e74c3c'}">${v>0?'+':''}${v}</span></div>`;
+        }).join('');
+
+    // Elemental
+    if (item.stats?.elem_dmg) {
+        const eEmoji = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[item.stats.elem_dmg_type]||'✨';
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${eEmoji} ${item.stats.elem_dmg_type||'Elem'}</span><span class="tt-stat-val" style="color:#f1c40f">+${item.stats.elem_dmg}</span></div>`;
+    }
+
+    tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
         </div>
@@ -1305,16 +1380,17 @@ function showEqTooltip(event, itemJson) {
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
         </div>`;
     tooltip.classList.remove('hidden');
-    const r=event.currentTarget.getBoundingClientRect();
-    tooltip.style.left='-9999px'; tooltip.style.top='-9999px';
-    const tw=tooltip.offsetWidth||220, th=tooltip.offsetHeight||300;
-    let left=r.right+12, top=r.top;
-    if(left+tw>window.innerWidth-8) left=r.left-tw-12;
-    if(top+th>window.innerHeight-8) top=window.innerHeight-th-8;
-    tooltip.style.left=Math.max(8,left)+'px';
-    tooltip.style.top=Math.max(8,top)+'px';
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||300;
+    let left = r.right+12, top = r.top;
+    if (left+tw>window.innerWidth-8) left = r.left-tw-12;
+    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    tooltip.style.left = Math.max(8,left)+'px';
+    tooltip.style.top  = Math.max(8,top)+'px';
 }
-function toggleEquipItem(invId,slot,isEquipped){ hideItemTooltip(); if(isEquipped) unequipSlot(slot); else equipItem(invId); }
+
+function toggleEquipItem(invId, slot, isEquipped) { hideItemTooltip(); if(isEquipped) unequipSlot(slot); else equipItem(invId); }
 async function equipItem(invId) { try { await api('POST',`/game/equip/${invId}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Equipped!'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function sellItem(invId, name, price) {
@@ -1343,26 +1419,46 @@ function renderShopContent() {
 function renderShop() {
     if (!character||!shopInventory.length) return;
     const el=document.getElementById('shop-content');
-    const filtered=currentShopCategory==='all'?shopInventory:shopInventory.filter(item=>{
-        const cat=item.category||item.slot||'';
-        if(currentShopCategory==='weapons') return cat==='weapon';
-        if(currentShopCategory==='armor') return cat==='armor';
-        if(currentShopCategory==='accessories') return cat==='accessory';
-        if(currentShopCategory==='consumables') return item.consumable||cat==='consumable';
-        if(currentShopCategory==='premium') return item.priceType==='gems'||cat==='premium';
-        return cat===currentShopCategory;
+
+    // Filter by slot
+    const filtered = currentShopCategory === 'all' ? shopInventory : shopInventory.filter(item => {
+        const slot = item.slot || item.category || '';
+        const cat  = item.category || '';
+        if (currentShopCategory === 'weapons')     return slot === 'weapon';
+        if (currentShopCategory === 'armor')       return slot === 'armor';
+        if (currentShopCategory === 'helmets')     return slot === 'helmet';
+        if (currentShopCategory === 'rings')       return slot === 'ring';
+        if (currentShopCategory === 'amulets')     return slot === 'amulet';
+        if (currentShopCategory === 'accessories') return slot === 'accessory' || slot === 'boots';
+        if (currentShopCategory === 'consumables') return !!(item.consumable || cat === 'consumable');
+        if (currentShopCategory === 'premium')     return item.priceType === 'gems' || cat === 'premium';
+        return false;
     });
-    if(!filtered.length){el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`;return;}
+
+    if (!filtered.length) { el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`; return; }
     el.innerHTML=filtered.map(item=>{
         const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
         const isAvail=character.level>=(item.level||1), classOk=!item.classes||item.classes.includes(character.class);
         const hasEnough=pt==='gems'?(character.gems||0)>=item.price:character.gold>=item.price;
-        let cardClass='shop-card'; if(!isAvail)cardClass+=' locked-future'; if(!classOk)cardClass+=' class-locked'; if(item.quality==='legendary')cardClass+=' legendary'; else if(item.quality==='rare')cardClass+=' rare';
-        const statsHtml=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')&&!k.includes('elem')).map(([k,v])=>v!==0?`<div class="shop-card-stat"><span class="shop-card-stat-label">${k.replace(/_/g,' ')}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`:'').join(''):'';
-        const elemHtml=item.stats?.elem_dmg?`<div class="shop-card-stat"><span class="shop-card-stat-label">Elemental</span><span class="shop-card-stat-value">+${item.stats.elem_dmg} ${item.stats.elem_dmg_type}</span></div>`:'';
+        let cardClass='shop-card';
+        if(!isAvail)cardClass+=' locked-future';
+        if(!classOk)cardClass+=' class-locked';
+        if(item.quality==='legendary')cardClass+=' legendary';
+        else if(item.quality==='rare')cardClass+=' rare';
+
+        const statsHtml=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')&&k!=='elem_dmg').map(([k,v])=>{
+            if(v===0) return '';
+            const label = STAT_LABELS[k] || k.replace(/_/g,' ');
+            return `<div class="shop-card-stat"><span class="shop-card-stat-label">${label}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`;
+        }).join(''):'';
+
+        const elemHtml=item.stats?.elem_dmg?(() => {
+            const eEmoji={pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[item.stats.elem_dmg_type]||'✨';
+            return `<div class="shop-card-stat"><span class="shop-card-stat-label">${eEmoji} Elemental</span><span class="shop-card-stat-value positive">+${item.stats.elem_dmg} ${item.stats.elem_dmg_type||''}</span></div>`;
+        })():'';
+
         const effectHtml=item.effect?(()=>{
-            const e=item.effect;
-            let label='';
+            const e=item.effect; let label='';
             if(e.type==='heal') label=`Heals ${e.value} HP`;
             else if(e.type==='heal_full') label='Restores 100% HP';
             else if(e.type==='temp_stat') label=`+${e.value} ${capitalize(e.stat||'')}`;
@@ -1372,11 +1468,12 @@ function renderShop() {
             else label=`${e.type}${e.value?' '+e.value:''}`;
             return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
         })():'';
+
         return `<div class="${cardClass}">${pt==='gems'?'<span class="premium-badge">💎 PREMIUM</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header"><span class="shop-card-icon">${itemIcon(item,'2rem')}</span><span class="shop-card-name">${item.name}</span><span class="shop-card-tier">Lv.${item.level||1}</span></div>
             <div class="shop-card-desc">${item.desc}</div>
             <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
-            ${statsHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
+            ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer"><span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}</span>
             <button class="btn-shop" onclick="buyItem('${item.id}')" ${isAvail&&classOk&&hasEnough?'':'disabled'}>${!isAvail?`Level ${item.level}`:!classOk?'Class Locked':!hasEnough?`Need ${item.price-(pt==='gems'?(character.gems||0):character.gold)}`:'Buy'}</button></div>
         </div>`;
@@ -1392,7 +1489,7 @@ async function buyItem(itemId) {
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
     try {
-        const result=await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||'weapon',price:item.price,priceType:pt,item});
+        const result=await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item});
         character=result.character;
         shopInventory=shopInventory.filter(i=>i.id!==itemId);
         showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
@@ -1400,7 +1497,12 @@ async function buyItem(itemId) {
         if (item.consumable) { invTab='consumables'; loadInventory(); }
     } catch(e) { item._buying=false; showMsg('shop-msg',e.message,true); }
 }
-function setShopCategory(category,btn) { currentShopCategory=category; document.querySelectorAll('.shop-tabs .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderShop(); }
+function setShopCategory(category, btn) {
+    currentShopCategory = category;
+    document.querySelectorAll('.shop-tabs .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderShop();
+}
 async function refreshShop() { if(!character)return; shopInventory=await generateShopInventory(character.level); renderShop(); }
 async function generateShopInventory(playerLevel) { try { const r=await api('GET','/game/shop/items'); return r.items; } catch { return []; } }
 
@@ -1449,23 +1551,36 @@ async function openProfile(id) {
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
-
         const eq=p.equipped||{};
-        const slots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
-        const eqHtml=slots.map(([slot,fallback], idx)=>{
-            // avatar: 3 rows × 80px + 2 gaps × 6px = 252px tall
-            const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
+
+        // Profile slots: 3-col, no avatar in center (different layout from char sheet)
+        const profileSlots=[['weapon','⚔️'],['armor','🛡️'],['helmet','⛑️'],['boots','👢'],['amulet','📿'],['ring','💍']];
+        const profileEqHtml = profileSlots.map(([slot,fallback])=>{
             const item=eq[slot];
             const sq=`width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
-            if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
+            if(!item) return `<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const itemData=escHtml(JSON.stringify(item));
-            return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
+            return `<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
                 data-item="${itemData}"
                 onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
                 onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
             >${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
+
+        // Accessory badge for profile
+        const accItem = eq['accessory'];
+        const accHtml = accItem ? (() => {
+            const qc=accItem.quality==='legendary'?'#f1c40f':accItem.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+            const itemData=escHtml(JSON.stringify(accItem));
+            return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${qc}33;background:rgba(255,255,255,0.03);margin-top:8px;font-size:0.72rem;"
+                data-item="${itemData}"
+                onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()">
+                ${itemIcon(accItem,'1.2rem')}
+                <span style="color:${qc}">${accItem.name}</span>
+                <span style="color:rgba(255,255,255,0.3)">· Accessory</span>
+            </div>`;
+        })() : '';
 
         content.innerHTML=`
       <div class="profile-header">
@@ -1500,7 +1615,8 @@ async function openProfile(id) {
       ${Object.keys(eq).length?`
       <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:12px">
         <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
-        <div style="display:grid;grid-template-columns:80px 160px 80px;grid-template-rows:repeat(3,80px);gap:6px;align-items:center;justify-content:center;margin:0 auto;width:fit-content">${eqHtml}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,80px);gap:6px;justify-content:center">${profileEqHtml}</div>
+        ${accHtml}
       </div>`:''}
       ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
@@ -1527,17 +1643,13 @@ async function attackFromProfile(id,name) { await attack(id,name); }
 
 // ── Matchmaking ────────────────────────────────────────────────────────────
 let _matchmakingTarget = null;
-
 async function findOpponent(direction='similar') {
     const box = document.getElementById('matchmaking-box');
     if (box) box.innerHTML = '<p class="loading">Finding opponent...</p>';
     try {
         const p = await api('GET', `/game/matchmaking?direction=${direction}`);
         _matchmakingTarget = p;
-        if (!p) {
-            if (box) box.innerHTML = '<p class="empty">No available opponents right now.</p>';
-            return;
-        }
+        if (!p) { if (box) box.innerHTML = '<p class="empty">No available opponents right now.</p>'; return; }
         const ci={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'};
         const power = (p.strength||0)+(p.defense||0)+(p.agility||0)+(p.magic||0)+p.level*5;
         const myPower = character ? (character.strength+character.defense+character.agility+character.magic+character.level*5) : 0;
@@ -1560,9 +1672,7 @@ async function findOpponent(direction='similar') {
                 <button class="btn-secondary" style="flex:1" onclick="findOpponent('similar')">↔️ Similar</button>
                 <button class="btn-secondary" style="flex:1" onclick="findOpponent('stronger')">⬆️ Stronger</button>
             </div>`;
-    } catch(e) {
-        if (box) box.innerHTML = `<p class="empty">${e.message}</p>`;
-    }
+    } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
 async function attack(targetId,targetName) {
     if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
@@ -1608,13 +1718,11 @@ function showHistoryLog(logJson,a,d) {
 
 // ── Inbox ─────────────────────────────────────────────────────────────────
 window._reportCache = {};
-
 async function loadInbox() {
     const el=document.getElementById('inbox-content'); el.innerHTML='<p class="loading">Loading...</p>';
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
-
         let html=`<button class="compose-btn" onclick="openCompose(null,null)">✉️ New Message</button>`;
         if (!messages.length) html+='<p class="empty">Your inbox is empty.</p>';
         else html+=`<div class="inbox-list">${messages.map(m=>{
@@ -1655,7 +1763,6 @@ async function loadInbox() {
             </div>`;
         }).join('')}</div>`;
         el.innerHTML=html;
-
         messages.filter(m=>!m.body?.startsWith('BATTLE_REPORT:')).forEach(m=>{
             const row=document.getElementById(`msg-${m.id}`); if(!row) return;
             row.addEventListener('click',async(e)=>{
@@ -1665,7 +1772,6 @@ async function loadInbox() {
                 if(!m.read&&!exp){m.read=1;row.classList.remove('unread');row.querySelector('.msg-from').classList.remove('unread-from');await api('POST',`/game/messages/${m.id}/read`);pollUnread();}
             });
         });
-
         messages.filter(m=>m.body?.startsWith('BATTLE_REPORT:')&&!m.read).forEach(async m=>{
             m.read=1;
             const row=document.getElementById(`msg-${m.id}`);
@@ -1673,18 +1779,12 @@ async function loadInbox() {
             try{await api('POST',`/game/messages/${m.id}/read`);}catch{}
         });
         pollUnread();
-
     } catch(e) { el.innerHTML=`<p class="loading">${e.message}</p>`; }
 }
-
 function viewBattleReport(msgId) {
     const report = window._reportCache?.[msgId];
     if (!report) { alert('Report not found. Try reloading the inbox.'); return; }
-    const summary = [
-        report.won ? '✅ Victory' : '💀 Defeated',
-        report.goldEarned ? `💰 ${report.goldEarned>0?'+':''}${report.goldEarned} gold` : null,
-        report.xpEarned   ? `⭐ +${report.xpEarned} XP` : null,
-    ].filter(Boolean).join(' · ');
+    const summary = [report.won?'✅ Victory':'💀 Defeated', report.goldEarned?`💰 ${report.goldEarned>0?'+':''}${report.goldEarned} gold`:null, report.xpEarned?`⭐ +${report.xpEarned} XP`:null].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary);
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
@@ -1706,24 +1806,10 @@ async function sendMessage() {
     catch(e) { setError('compose-error',e.message); }
 }
 
-// ── Item Generators ───────────────────────────────────────────────────────
-const ITEM_GENERATORS = {
-    weapon:{ namePrefixes:['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],nameSuffixes:['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],emojis:['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],baseStats:{dmg_min:{min:2,max:4,scale:1.2},dmg_max:{min:4,max:7,scale:1.3},strength:{min:0,max:2,scale:0.5},agility:{min:0,max:2,scale:0.4},magic:{min:0,max:2,scale:0.4}},classBonus:{warrior:{strength:1.2},rogue:{agility:1.2},mage:{magic:1.2},paladin:{strength:1.1,magic:0.8}} },
-    armor:{ namePrefixes:['Leather','Chain','Plate','Scale','Crystal','Obsidian','Dragon','Mythril','Adamant'],nameSuffixes:['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],emojis:['🛡️','🧥','🥼','👕','🦺'],baseStats:{defense:{min:1,max:3,scale:1.3},hp_max:{min:5,max:15,scale:1.4},strength:{min:0,max:1,scale:0.2},agility:{min:-1,max:0,scale:0.1}},classBonus:{warrior:{defense:1.2,hp_max:1.1},paladin:{defense:1.2,hp_max:1.1},rogue:{agility:0.2},mage:{magic:0.2}} },
-    accessory:{ namePrefixes:['Iron','Silver','Golden','Crystal','Ruby','Sapphire','Emerald','Diamond','Mythril'],nameSuffixes:['Ring','Amulet','Necklace','Bracelet','Circlet','Brooch','Talisman'],emojis:['💍','📿','👑','🔮','✨'],baseStats:{strength:{min:0,max:2,scale:0.4},defense:{min:0,max:1,scale:0.3},agility:{min:0,max:2,scale:0.4},magic:{min:0,max:2,scale:0.4},hp_max:{min:5,max:20,scale:0.8}},classBonus:{warrior:{strength:1.2,defense:1.1},rogue:{agility:1.2,strength:0.8},mage:{magic:1.3,hp_max:0.8},paladin:{defense:1.1,magic:1.1}} },
-    consumable:{ namePrefixes:['Small','Medium','Large','Greater','Superior','Divine'],nameSuffixes:['Health Potion','Mana Potion','Strength Elixir','Agility Draught','Defense Tonic','XP Tome'],emojis:['🧪','⚗️','🧴','💊','📖','🍵'],effects:[{type:'heal',baseValue:50,scale:1.5},{type:'heal',baseValue:100,scale:1.4},{type:'temp_stat',stat:'strength',baseValue:2,scale:1.2,duration:1800},{type:'temp_stat',stat:'agility',baseValue:2,scale:1.2,duration:1800},{type:'temp_stat',stat:'defense',baseValue:2,scale:1.2,duration:1800},{type:'xp',baseValue:100,scale:1.5},{type:'xp',baseValue:250,scale:1.4}] }
-};
-function calculateItemPrice(item,level) {
-    const basePrice=50+(level*30), sm=Object.values(item.stats||{}).reduce((s,v)=>s+Math.max(0,v),1);
-    return Math.floor(basePrice*sm*(item.tier||1));
-}
-
 // ── Item Icon Helper ──────────────────────────────────────────────────────
 function itemIcon(item, size='2rem') {
     if (!item) return '';
-    const imgSrc = item.img || (item.name && !item.consumable
-        ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`
-        : null);
+    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
     if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
