@@ -8,33 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css"/>
     <style>
-        /* ── Equipment grid — 3-column layout ─────────────────────────────── */
-        .eq-main-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 8px;
-        }
-
-        /* Avatar center cell */
-        .eq-avatar-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 10px;
-            padding: 4px;
-            min-height: 80px;
-        }
-        .eq-avatar-center img {
-            max-width: 100%;
-            max-height: 90px;
-            object-fit: contain;
-            object-position: center top;
-        }
-
-        /* Accessory row below main grid */
+        /* ── Accessory row below the main eq-grid ───────────────────────── */
         .eq-accessory-row {
             display: flex;
             align-items: center;
@@ -50,7 +24,7 @@
             text-align: right;
         }
 
-        /* Small accessory slot */
+        /* Small slot (helmet + accessory badge) */
         .eq-slot-small {
             display: flex;
             align-items: center;
@@ -59,7 +33,7 @@
             border-radius: 8px;
             border: 1px dashed rgba(255,255,255,0.12);
             background: rgba(255,255,255,0.02);
-            min-width: 120px;
+            min-width: 100px;
             max-width: 260px;
             cursor: pointer;
             transition: all 0.15s;
@@ -81,22 +55,9 @@
             white-space: nowrap;
         }
 
-        /* Shop tabs — wrap on smaller screens */
-        .shop-tabs.filter-tabs {
-            flex-wrap: wrap;
-            gap: 4px;
-        }
-        .shop-tabs .filter-btn {
-            font-size: 0.72rem;
-            padding: 5px 8px;
-            white-space: nowrap;
-        }
-
-        /* Elemental type colour helpers used in shop/tooltip */
-        .elem-pyro    { color: #e74c3c; }
-        .elem-water   { color: #3498db; }
-        .elem-wind    { color: #2ecc71; }
-        .elem-electro { color: #f1c40f; }
+        /* Shop tabs wrap on smaller screens */
+        .shop-tabs.filter-tabs { flex-wrap: wrap; gap: 4px; }
+        .shop-tabs .filter-btn { font-size: 0.72rem; padding: 5px 8px; white-space: nowrap; }
     </style>
 </head>
 <body>
