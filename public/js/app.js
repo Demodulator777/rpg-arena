@@ -466,6 +466,7 @@ function renderCharacter() {
     <div class="eq-grid">${mainEqGrid}</div>
     <div class="eq-accessory-row">
         ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
+        <div class="eq-accessory-hint">Small trinket slot</div>
     </div>`;
 
     const charSheet=document.getElementById('char-sheet');
@@ -1566,17 +1567,29 @@ async function openProfile(id) {
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const eq=p.equipped||{};
 
-        // Profile slots: matches character sheet layout
+        // Profile slots: matches character sheet layout exactly
+        // Grid: col1=[helmet,armor,weapon] col2=[avatar] col3=[amulet,shield,boots]
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
-        const profileSlots=[['helmet','⛑️'],['armor','🛡️'],['weapon','⚔️'],['amulet','📿'],['shield','🛡'],['boots','👢']];
-        const profileEqHtml = profileSlots.map(([slot,fallback], idx)=>{
-            const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
+        const profileSlots=[
+            {slot:'helmet', icon:'⛑️', col:1, row:1},
+            {slot:'armor',  icon:'🛡️', col:1, row:2},
+            {slot:'weapon', icon:'⚔️', col:1, row:3},
+            {slot:'amulet', icon:'📿', col:3, row:1},
+            {slot:'shield', icon:'🛡',  col:3, row:2},
+            {slot:'boots',  icon:'👢', col:3, row:3},
+        ];
+        const profileEqHtml =
+            // Avatar spans col2 rows 1-3
+            `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
+                <img src="/images/class/${p.class}.png" style="width:140px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
+            </div>`
+            + profileSlots.map(({slot,icon,col,row})=>{
             const item=profileResolvedEq[slot];
-            const sq=`width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
-            if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
+            const sq=`grid-column:${col};grid-row:${row};width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
+            if(!item) return `<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${icon}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const itemData=escHtml(JSON.stringify(item));
-            return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
+            return `<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
                 data-item="${itemData}"
                 onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
                 onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
