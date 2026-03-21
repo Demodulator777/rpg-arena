@@ -703,13 +703,25 @@ router.post('/upgrade', auth, async (req, res) => {
             return res.status(400).json({ error: 'Invalid stat' });
         let cost = upgradeCost(stat, char[stat] || 0, char.class);
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
-        if (char.gold < cost) return res.status(400).json({ error: `Need ${cost} gold, have ${char.gold}.` });
-        await dbRun(db, `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE user_id=?`, [cost, req.user.userId]);
+ 
+        // ATOMIC: UPDATE only succeeds if gold is still sufficient at write time.
+        // No gap between the SELECT check and the deduction — concurrent clicks all race
+        // to this single statement and only one can win the WHERE gold>=? check.
+        const result = await dbRun(db,
+            `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE user_id=? AND gold>=?`,
+            [cost, req.user.userId, cost]
+        );
+        if (!result.rowsAffected && result.rowsAffected !== undefined ? true : result.changes === 0) {
+            // Turso returns rowsAffected, better-sqlite3 returns changes — handle both
+            const fresh = await dbGet(db, 'SELECT gold FROM characters WHERE user_id=?', [req.user.userId]);
+            return res.status(400).json({ error: `Need ${cost} gold, have ${fresh?.gold ?? 0}.` });
+        }
+ 
         if (stat === 'vitality') {
             await dbRun(db, 'UPDATE characters SET hp_current=hp_current+25 WHERE user_id=?', [req.user.userId]);
         }
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
-        res.json({ message:`+1 ${stat}! Spent ${cost} gold.`, character: await buildCharacterResponse(updated, db) });
+        res.json({ message: `+1 ${stat}! Spent ${cost} gold.`, character: await buildCharacterResponse(updated, db) });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
