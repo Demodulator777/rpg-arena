@@ -425,14 +425,15 @@ function renderCharacter() {
     const elemType = wep?.stats?.elem_dmg_type;
     const elemEmojis = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'};
 
-    // Equipment slot tiles — original layout preserved, accessory as small row below
+    // Equipment slot tiles — helmet replaces accessory in main grid (top = head)
+    // Layout: [weapon][avatar][amulet] / [armor][...][ring] / [helmet][...][boots]
     const eqSlots=[
-        {slot:'weapon',   icon:'⚔️', label:'Weapon'},
-        {slot:'armor',    icon:'🛡️', label:'Armor'},
-        {slot:'accessory',icon:'💍', label:'Accessory'},
-        {slot:'amulet',   icon:'📿', label:'Amulet'},
-        {slot:'ring',     icon:'💍', label:'Ring'},
-        {slot:'boots',    icon:'👢', label:'Boots'},
+        {slot:'weapon',  icon:'⚔️', label:'Weapon'},
+        {slot:'armor',   icon:'🛡️', label:'Armor'},
+        {slot:'helmet',  icon:'⛑️', label:'Helmet'},
+        {slot:'amulet',  icon:'📿', label:'Amulet'},
+        {slot:'ring',    icon:'💍', label:'Ring'},
+        {slot:'boots',   icon:'👢', label:'Boots'},
     ];
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
@@ -461,8 +462,8 @@ function renderCharacter() {
     const eqGrid = `
     <div class="eq-grid">${mainEqGrid}</div>
     <div class="eq-accessory-row">
-        ${buildEqSlotSmall('helmet', eq, '⛑️', 'Helmet')}
         ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
+        <div class="eq-accessory-hint">Small trinket slot</div>
     </div>`;
 
     const charSheet=document.getElementById('char-sheet');
@@ -1564,8 +1565,8 @@ async function openProfile(id) {
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const eq=p.equipped||{};
 
-        // Profile slots: same as original character sheet (weapon, armor, amulet, ring, boots)
-        const profileSlots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
+        // Profile slots: weapon, armor, helmet in main grid (matches character sheet)
+        const profileSlots=[['weapon','⚔️'],['armor','🛡️'],['helmet','⛑️'],['amulet','📿'],['ring','💍'],['boots','👢']];
         const profileEqHtml = profileSlots.map(([slot,fallback], idx)=>{
             const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
@@ -1580,8 +1581,8 @@ async function openProfile(id) {
             >${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
 
-        // Helmet + accessory as small badges below
-        const smallSlots = [['helmet','⛑️','Helmet'],['accessory','🔮','Accessory']];
+        // Accessory as small badge below the main grid
+        const smallSlots = [['accessory','🔮','Accessory']];
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
             const item = eq[slot];
             if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
