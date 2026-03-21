@@ -390,18 +390,6 @@ async function pollUnread() {
 }
 
 // ── Equipment slot helpers ────────────────────────────────────────────────
-function buildEqSlot(slot, eq, icon, label) {
-    const item = eq[slot];
-    if (!item) return `<div class="eq-slot empty"><span class="eq-slot-icon">${icon}</span><span class="eq-slot-label">${label}</span></div>`;
-    const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-    const itemData = escHtml(JSON.stringify(item));
-    return `<div class="eq-slot filled" style="border-color:${qc}44"
-        onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()" data-item="${itemData}">
-        <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
-        <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
-        ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
-    </div>`;
-}
 
 function buildEqSlotSmall(slot, eq, icon, label) {
     const item = eq[slot];
@@ -437,21 +425,44 @@ function renderCharacter() {
     const elemType = wep?.stats?.elem_dmg_type;
     const elemEmojis = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'};
 
+    // Equipment slot tiles — original layout preserved, accessory as small row below
+    const eqSlots=[
+        {slot:'weapon',   icon:'⚔️', label:'Weapon'},
+        {slot:'armor',    icon:'🛡️', label:'Armor'},
+        {slot:'accessory',icon:'💍', label:'Accessory'},
+        {slot:'amulet',   icon:'📿', label:'Amulet'},
+        {slot:'ring',     icon:'💍', label:'Ring'},
+        {slot:'boots',    icon:'👢', label:'Boots'},
+    ];
+    const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
+        const avatarDiv = idx === 3 ? `
+            <div class="eq-avatar-center">
+                <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
+            </div>` : '';
+        const item = eq[slot];
+        if (!item) return avatarDiv + `
+            <div class="eq-slot empty">
+                <span class="eq-slot-icon">${icon}</span>
+                <span class="eq-slot-label">${label}</span>
+            </div>`;
+        const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+        const itemData = escHtml(JSON.stringify(item));
+        return avatarDiv + `
+            <div class="eq-slot filled" style="border-color:${qc}44"
+                onmouseenter="showEqTooltip(event,this.dataset.item)"
+                onmouseleave="scheduleHideTooltip()"
+                data-item="${itemData}">
+                <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
+                <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
+                ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
+            </div>`;
+    }).join('');
+
     const eqGrid = `
-    <div class="eq-main-grid">
-        ${buildEqSlot('weapon', eq, '⚔️', 'Weapon')}
-        <div class="eq-avatar-center">
-            <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
-        </div>
-        ${buildEqSlot('armor', eq, '🛡️', 'Armor')}
-        ${buildEqSlot('helmet', eq, '⛑️', 'Helmet')}
-        ${buildEqSlot('boots', eq, '👢', 'Boots')}
-        ${buildEqSlot('ring', eq, '💍', 'Ring')}
-        ${buildEqSlot('amulet', eq, '📿', 'Amulet')}
-    </div>
+    <div class="eq-grid">${mainEqGrid}</div>
     <div class="eq-accessory-row">
+        ${buildEqSlotSmall('helmet', eq, '⛑️', 'Helmet')}
         ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
-        <div class="eq-accessory-hint">Small trinket slot</div>
     </div>`;
 
     const charSheet=document.getElementById('char-sheet');
@@ -1553,34 +1564,37 @@ async function openProfile(id) {
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const eq=p.equipped||{};
 
-        // Profile slots: 3-col, no avatar in center (different layout from char sheet)
-        const profileSlots=[['weapon','⚔️'],['armor','🛡️'],['helmet','⛑️'],['boots','👢'],['amulet','📿'],['ring','💍']];
-        const profileEqHtml = profileSlots.map(([slot,fallback])=>{
+        // Profile slots: same as original character sheet (weapon, armor, amulet, ring, boots)
+        const profileSlots=[['weapon','⚔️'],['armor','🛡️'],['accessory','💍'],['amulet','📿'],['ring','💍'],['boots','👢']];
+        const profileEqHtml = profileSlots.map(([slot,fallback], idx)=>{
+            const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
             const item=eq[slot];
             const sq=`width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
-            if(!item) return `<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
+            if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const itemData=escHtml(JSON.stringify(item));
-            return `<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
+            return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
                 data-item="${itemData}"
                 onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
                 onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
             >${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
 
-        // Accessory badge for profile
-        const accItem = eq['accessory'];
-        const accHtml = accItem ? (() => {
-            const qc=accItem.quality==='legendary'?'#f1c40f':accItem.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-            const itemData=escHtml(JSON.stringify(accItem));
-            return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${qc}33;background:rgba(255,255,255,0.03);margin-top:8px;font-size:0.72rem;"
+        // Helmet + accessory as small badges below
+        const smallSlots = [['helmet','⛑️','Helmet'],['accessory','🔮','Accessory']];
+        const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
+            const item = eq[slot];
+            if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
+            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+            const itemData=escHtml(JSON.stringify(item));
+            return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${qc}33;background:rgba(255,255,255,0.03);cursor:default"
                 data-item="${itemData}"
                 onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()">
-                ${itemIcon(accItem,'1.2rem')}
-                <span style="color:${qc}">${accItem.name}</span>
-                <span style="color:rgba(255,255,255,0.3)">· Accessory</span>
+                ${itemIcon(item,'1.2rem')}
+                <span style="color:${qc};font-size:0.7rem">${item.name}</span>
+                <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">· ${label}</span>
             </div>`;
-        })() : '';
+        }).join('');
 
         content.innerHTML=`
       <div class="profile-header">
@@ -1615,8 +1629,8 @@ async function openProfile(id) {
       ${Object.keys(eq).length?`
       <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:12px">
         <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
-        <div style="display:grid;grid-template-columns:repeat(3,80px);gap:6px;justify-content:center">${profileEqHtml}</div>
-        ${accHtml}
+        <div style="display:grid;grid-template-columns:80px 160px 80px;grid-template-rows:repeat(3,80px);gap:6px;align-items:center;justify-content:center;margin:0 auto;width:fit-content">${profileEqHtml}</div>
+        ${smallSlotsHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${smallSlotsHtml}</div>`:''}
       </div>`:''}
       ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
