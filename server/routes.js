@@ -670,8 +670,8 @@ function generateBackendRandomItem(level, type) {
         }
     }
 
-    // Elemental resistance on armor / helmet / amulet (tier 4+)
-    if (['armor','helmet','amulet'].includes(type) && tier >= 4 && !stats.elem_resist) {
+    // Elemental resistance on armor / helmet / amulet / shield (tier 4+)
+    if (['armor','helmet','amulet','shield'].includes(type) && tier >= 4 && !stats.elem_resist) {
         const chance = tier >= 5 ? 0.50 : 0.20;
         if (Math.random() < chance) {
             stats.elem_resist = Math.max(1, Math.floor(level * 0.3 + Math.random() * level * 0.5));
@@ -1441,18 +1441,27 @@ router.get('/shop/items', auth, async (req, res) => {
 
 function generateBackendInventory(playerLevel) {
     const inventory = [];
+    // Always generate at least 2 of each type so every shop tab has items
+    const allTypes = ['weapon','armor','helmet','shield','boots','ring','amulet','accessory'];
+    for (const type of allTypes) {
+        for (let i = 0; i < 2; i++) {
+            const item = generateBackendRandomItem(playerLevel, type);
+            if (item) inventory.push(item);
+        }
+    }
+    // Fill remaining slots randomly weighted
     const typeWeights = [
-        { type:'weapon',    w:0.18 },
+        { type:'weapon',    w:0.20 },
         { type:'armor',     w:0.15 },
         { type:'helmet',    w:0.12 },
         { type:'shield',    w:0.12 },
         { type:'accessory', w:0.10 },
-        { type:'amulet',    w:0.11 },
-        { type:'ring',      w:0.11 },
+        { type:'amulet',    w:0.10 },
+        { type:'ring',      w:0.10 },
         { type:'boots',     w:0.11 },
     ];
-    const itemCount = 30 + Math.floor(Math.random() * 10);
-    for (let i = 0; i < itemCount; i++) {
+    const extraCount = 16 + Math.floor(Math.random() * 8); // 16-23 extra on top of the 16 guaranteed
+    for (let i = 0; i < extraCount; i++) {
         const rand = Math.random();
         let cum = 0, type = 'weapon';
         for (const { type: t, w } of typeWeights) { cum += w; if (rand < cum) { type = t; break; } }
