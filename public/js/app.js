@@ -463,7 +463,6 @@ function renderCharacter() {
     <div class="eq-grid">${mainEqGrid}</div>
     <div class="eq-accessory-row">
         ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
-        <div class="eq-accessory-hint">Small trinket slot</div>
     </div>`;
 
     const charSheet=document.getElementById('char-sheet');
