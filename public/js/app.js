@@ -930,23 +930,44 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
     });
 }
 
+let _missionStarting = false;
+ 
 async function doStartMission(zoneId, spotId, missionIdx, size='small') {
-    const zone=ZONES[zoneId]; const spot=zone?.spots.find(s=>s.id===spotId); if(!spot) return;
-    if (character?.location!==zoneId) { showMsg('missions-msg','Travel to this zone first!',true); closeMissionModal2(); return; }
-    if ((character?.hp_current??character?.hp_max)<=0) { showMsg('missions-msg','Out of HP! Wait for regeneration.',true); closeMissionModal2(); return; }
-    const chosenMission=spot.missions[missionIdx]||spot.missions[0];
-    const missionName=chosenMission.name;
+    if (_missionStarting) return; // drop rapid duplicate taps
+    _missionStarting = true;
+ 
+    const zone = ZONES[zoneId];
+    const spot = zone?.spots.find(s => s.id === spotId);
+    if (!spot) { _missionStarting = false; return; }
+ 
+    if (character?.location !== zoneId) {
+        showMsg('missions-msg', 'Travel to this zone first!', true);
+        closeMissionModal2(); _missionStarting = false; return;
+    }
+    if ((character?.hp_current ?? character?.hp_max) <= 0) {
+        showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true);
+        closeMissionModal2(); _missionStarting = false; return;
+    }
+ 
+    // Immediately close modal and show "starting..." so player can't tap again
+    closeMissionModal2();
+ 
+    const chosenMission = spot.missions[missionIdx] || spot.missions[0];
+    const missionName = chosenMission.name;
     try {
-        const result=await api('POST','/game/missions/start',{zoneId,spotId,missionIdx,missionName,size});
-        character=await api('GET','/game/character');
+        const result = await api('POST', '/game/missions/start', { zoneId, spotId, missionIdx, missionName, size });
+        character = await api('GET', '/game/character');
         renderTopBar();
-        closeMissionModal2();
-        const confirmedName=result?.mission?.missionName||result?.mission?.mission_name||missionName;
-        const endsAt=result?.mission?.ends_at||(Math.floor(Date.now()/1000)+result?.mission?.duration||600);
-        showMissionOverlay({id:result?.mission?.id||1,zone:zoneId,ends_at:endsAt},confirmedName);
+        const confirmedName = result?.mission?.missionName || result?.mission?.mission_name || missionName;
+        const endsAt = result?.mission?.ends_at || (Math.floor(Date.now() / 1000) + (result?.mission?.duration || 600));
+        showMissionOverlay({ id: result?.mission?.id || 1, zone: zoneId, ends_at: endsAt }, confirmedName);
         renderWorldMap();
-        setTimeout(()=>checkAndShowMissionOverlay(),1000);
-    } catch(e) { showMsg('missions-msg',e.message,true); }
+        setTimeout(() => checkAndShowMissionOverlay(), 1000);
+    } catch(e) {
+        showMsg('missions-msg', e.message, true);
+    } finally {
+        _missionStarting = false;
+    }
 }
 
 async function doTravelToZone(zoneId) {
