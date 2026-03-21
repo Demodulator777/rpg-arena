@@ -315,9 +315,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         else if (forceMiss && dodgeChance > 0.001) logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
         else logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
     } else {
-        const baseCritChance = (attacker.crit_chance || 0) / 100;
+        // Crit chance is relative: attacker's crit_chance minus defender's crit_chance (both 0-100 scale)
+        // 100 more crit than opponent = 100% crit, capped at 95% max, floor at 0%
+        const rawCritChance = (attacker.crit_chance || 0) - (defender.crit_chance || 0);
+        const baseCritChance = Math.max(0, Math.min(0.95, rawCritChance / 100));
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
-        const isCrit = Math.random() < (baseCritChance + critBonus);
+        const isCrit = Math.random() < Math.min(0.95, baseCritChance + critBonus);
         let rawDmg = isCrit ? attacker.dmgMax
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
