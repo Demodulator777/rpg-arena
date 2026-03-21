@@ -425,22 +425,25 @@ function renderCharacter() {
     const elemType = wep?.stats?.elem_dmg_type;
     const elemEmojis = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'};
 
-    // Equipment slot tiles — helmet replaces accessory in main grid (top = head)
-    // Layout: [weapon][avatar][amulet] / [armor][...][ring] / [helmet][...][boots]
+    // Equipment slot tiles
+    // Layout: [Helmet][AVATAR][Amulet] / [Armor][...][Shield] / [Weapon][...][Boots]
+    // Amulet slot = amulet OR ring (same slot, amulet takes priority)
     const eqSlots=[
-        {slot:'weapon',  icon:'⚔️', label:'Weapon'},
-        {slot:'armor',   icon:'🛡️', label:'Armor'},
-        {slot:'helmet',  icon:'⛑️', label:'Helmet'},
-        {slot:'amulet',  icon:'📿', label:'Amulet'},
-        {slot:'ring',    icon:'💍', label:'Ring'},
-        {slot:'boots',   icon:'👢', label:'Boots'},
+        {slot:'helmet', icon:'⛑️', label:'Helmet'},
+        {slot:'armor',  icon:'🛡️', label:'Armor'},
+        {slot:'weapon', icon:'⚔️', label:'Weapon'},
+        {slot:'amulet', icon:'📿', label:'Amulet / Ring'},
+        {slot:'shield', icon:'🛡', label:'Shield'},
+        {slot:'boots',  icon:'👢', label:'Boots'},
     ];
+    // For amulet slot: show ring if no amulet equipped
+    const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
             <div class="eq-avatar-center">
                 <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
             </div>` : '';
-        const item = eq[slot];
+        const item = resolvedEq[slot];
         if (!item) return avatarDiv + `
             <div class="eq-slot empty">
                 <span class="eq-slot-icon">${icon}</span>
@@ -1246,9 +1249,9 @@ function renderInventory(data) {
         renderGearGrid(el, gear, data.equipped);
 
     } else if (invTab === 'helmets') {
-        // Head, neck, fingers: helmet, ring, amulet
-        const gear = data.items.filter(i => i.item_type === 'equipment' && ['helmet','ring','amulet'].includes(getSlot(i)));
-        if (!gear.length) { el.innerHTML = '<p class="empty">No helmets, rings or amulets yet.</p>'; return; }
+        // Head, neck, fingers, shield: helmet, ring, amulet, shield
+        const gear = data.items.filter(i => i.item_type === 'equipment' && ['helmet','ring','amulet','shield'].includes(getSlot(i)));
+        if (!gear.length) { el.innerHTML = '<p class="empty">No helmets, jewelry or shields yet.</p>'; return; }
         renderGearGrid(el, gear, data.equipped);
 
     } else if (invTab === 'accessories') {
@@ -1438,9 +1441,8 @@ function renderShop() {
         if (currentShopCategory === 'weapons')     return slot === 'weapon';
         if (currentShopCategory === 'armor')       return slot === 'armor';
         if (currentShopCategory === 'helmets')     return slot === 'helmet';
-        if (currentShopCategory === 'rings')       return slot === 'ring';
-        if (currentShopCategory === 'amulets')     return slot === 'amulet';
-        if (currentShopCategory === 'accessories') return slot === 'accessory' || slot === 'boots';
+        if (currentShopCategory === 'rings')       return slot === 'ring' || slot === 'amulet';
+        if (currentShopCategory === 'accessories') return slot === 'accessory' || slot === 'boots' || slot === 'shield';
         if (currentShopCategory === 'consumables') return !!(item.consumable || cat === 'consumable');
         if (currentShopCategory === 'premium')     return item.priceType === 'gems' || cat === 'premium';
         return false;
@@ -1564,11 +1566,12 @@ async function openProfile(id) {
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const eq=p.equipped||{};
 
-        // Profile slots: weapon, armor, helmet in main grid (matches character sheet)
-        const profileSlots=[['weapon','⚔️'],['armor','🛡️'],['helmet','⛑️'],['amulet','📿'],['ring','💍'],['boots','👢']];
+        // Profile slots: matches character sheet layout
+        const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
+        const profileSlots=[['helmet','⛑️'],['armor','🛡️'],['weapon','⚔️'],['amulet','📿'],['shield','🛡'],['boots','👢']];
         const profileEqHtml = profileSlots.map(([slot,fallback], idx)=>{
             const avatarDiv = idx === 3 ? `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;"><img src="/images/class/${p.class}.png" style="width:250px;height:252px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'"></div>` : '';
-            const item=eq[slot];
+            const item=profileResolvedEq[slot];
             const sq=`width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
             if(!item) return avatarDiv+`<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${fallback}</span></div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
