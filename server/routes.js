@@ -7,6 +7,7 @@ const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, generateMission, TI
 BigInt.prototype.toJSON = function() { return Number(this); };
 
 const router = express.Router();
+const _missionStartLock = new Set();
 
 // ── DB Migrations (run once on startup) ───────────────────────────────────
 (async () => {
@@ -790,29 +791,35 @@ router.get('/missions', auth, async (req, res) => {
 });
 
 router.post('/missions/start', auth, async (req, res) => {
+    const userId = req.user.userId;
+ 
+    // In-process lock: prevents two concurrent requests from the same user
+    // racing through before either INSERT commits
+    if (_missionStartLock.has(userId)) {
+        return res.status(400).json({ error: 'Mission start already in progress.' });
+    }
+    _missionStartLock.add(userId);
+ 
     try {
         const db = await getDb();
         const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
-
+ 
         const hpCurrent = character.hp_current ?? character.hp_max;
         if (hpCurrent <= 0) return res.status(400).json({ error: 'Out of HP. Wait for regeneration.' });
-
+ 
         const now = Math.floor(Date.now() / 1000);
         const lastBattle = character.last_battle_at || 0;
         if (lastBattle + 600 > now) {
             const secs = (lastBattle + 600) - now;
-            return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'}.` });
+            return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'}.` });
         }
-
-        const existing = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
-        if (existing) return res.status(400).json({ error: 'You already have an active mission' });
-
-        const sizeKey = ['small','medium','large'].includes(reqSize) ? reqSize : 'small';
+ 
+        const sizeKey = ['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small';
         const sizeConf = MISSION_SIZES[sizeKey];
-
+ 
         const todayStart = Math.floor(now / 86400) * 86400;
         const lastReset = character.daily_mp_reset_at || 0;
         let dailyMpSpent = character.daily_mp_spent || 0;
@@ -820,38 +827,49 @@ router.post('/missions/start', auth, async (req, res) => {
             dailyMpSpent = 0;
             await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, character.id]);
         }
-
+ 
         await applyMpRegen(db, character.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
         const currentMp = freshChar.mission_points ?? 0;
         if (currentMp < sizeConf.mpCost)
             return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${sizeConf.mpCost} MP, you have ${currentMp}.` });
-
+ 
         const zone = ZONES[zoneId];
         const spot = zone?.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
-
-        await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
-            [sizeConf.mpCost, sizeConf.mpCost, character.id]);
-
+ 
         const difficulty = spot.difficulty;
         const [minGold, maxGold] = zone.payoutBase[difficulty];
-        const [minXp, maxXp]     = zone.xpBase[difficulty];
+        const [minXp, maxXp] = zone.xpBase[difficulty];
         const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
-        const xpReward   = Math.floor((Math.floor(Math.random() * (maxXp   - minXp   + 1)) + minXp)   * sizeConf.rewardMult);
-
+        const xpReward = Math.floor((Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp) * sizeConf.rewardMult);
+ 
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (sentName && missionList.includes(sentName))
             ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
-
+ 
         const baseDuration = sizeConf.duration;
         const duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
-
+ 
+        // ATOMIC INSERT: only inserts if no active mission exists for this character.
+        // If two requests race to this point, only one INSERT succeeds — the other
+        // finds the row already there and inserts nothing (rowsAffected = 0).
         const insertResult = await dbRun(db, `
             INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration]);
-
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
+        `, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, character.id]);
+ 
+        // Check if the INSERT actually wrote a row
+        const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
+        if (!didInsert) {
+            return res.status(400).json({ error: 'You already have an active mission.' });
+        }
+ 
+        // Deduct MP only after confirmed insert
+        await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
+            [sizeConf.mpCost, sizeConf.mpCost, character.id]);
+ 
         res.json({
             success: true,
             mission: {
@@ -864,6 +882,8 @@ router.post('/missions/start', auth, async (req, res) => {
     } catch (e) {
         console.error('Mission start error:', e);
         res.status(500).json({ error: e?.message || String(e) });
+    } finally {
+        _missionStartLock.delete(userId); // always release the lock
     }
 });
 
