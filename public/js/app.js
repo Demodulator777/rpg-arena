@@ -606,9 +606,24 @@ function renderUpgrade() {
     </div>`;
     }).join('');
 }
+let _upgradingStats = {};
 async function upgradestat(stat) {
-    try { const d=await api('POST','/game/upgrade',{stat}); character=d.character; renderUpgrade(); renderCharacter(); showMsg('upgrade-msg',d.message); }
-    catch(e) { showMsg('upgrade-msg',e.message,true); }
+    if (_upgradingStats[stat]) return; // drop rapid duplicate clicks
+    _upgradingStats[stat] = true;
+    // Immediately disable all upgrade buttons so the UI feels instant
+    document.querySelectorAll('.btn-upgrade').forEach(b => b.disabled = true);
+    try {
+        const d = await api('POST', '/game/upgrade', { stat });
+        character = d.character;
+        renderUpgrade();   // re-enables buttons with fresh gold/costs
+        renderCharacter();
+        showMsg('upgrade-msg', d.message);
+    } catch(e) {
+        showMsg('upgrade-msg', e.message, true);
+        renderUpgrade();   // re-enable on error so player can retry
+    } finally {
+        _upgradingStats[stat] = false;
+    }
 }
 
 // ── Event Banner Helper ───────────────────────────────────────────────────
