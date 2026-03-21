@@ -799,7 +799,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-slot:nth-child(2) { grid-column: 1; grid-row: 2; }
 .eq-slot:nth-child(3) { grid-column: 1; grid-row: 3; }
 .eq-avatar-center     { grid-column: 2; grid-row: 1 / 4; display:flex; align-items:center; justify-content:center; }
-.eq-avatar-center img { width: 150px; height: 252px; object-fit: contain; object-position: center top; }
+.eq-avatar-center img { width: 250px; height: 252px; object-fit: contain; object-position: center top; }
 .eq-slot:nth-child(5) { grid-column: 3; grid-row: 1; }
 .eq-slot:nth-child(6) { grid-column: 3; grid-row: 2; }
 .eq-slot:nth-child(7) { grid-column: 3; grid-row: 3; }
