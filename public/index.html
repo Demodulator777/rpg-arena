@@ -7,58 +7,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css"/>
-    <style>
-        /* ── Accessory row below the main eq-grid ───────────────────────── */
-        .eq-accessory-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 2px 2px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            margin-top: 4px;
-        }
-        .eq-accessory-hint {
-            font-size: 0.68rem;
-            color: rgba(255,255,255,0.25);
-            flex: 1;
-            text-align: right;
-        }
-
-        /* Small slot (helmet + accessory badge) */
-        .eq-slot-small {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 10px;
-            border-radius: 8px;
-            border: 1px dashed rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.02);
-            min-width: 100px;
-            max-width: 260px;
-            cursor: pointer;
-            transition: all 0.15s;
-            position: relative;
-        }
-        .eq-slot-small.filled {
-            border-style: solid;
-            background: rgba(255,255,255,0.04);
-        }
-        .eq-slot-small:hover {
-            background: rgba(255,255,255,0.07);
-            transform: translateY(-1px);
-        }
-        .eq-slot-small .eq-slot-label {
-            font-size: 0.62rem;
-            color: rgba(255,255,255,0.5);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Shop tabs wrap on smaller screens */
-        .shop-tabs.filter-tabs { flex-wrap: wrap; gap: 4px; }
-        .shop-tabs .filter-btn { font-size: 0.72rem; padding: 5px 8px; white-space: nowrap; }
-    </style>
 </head>
 <body>
 <div id="app">
