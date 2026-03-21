@@ -385,7 +385,7 @@ function renderCharacter() {
     if (!character) return;
     const c=character;
     const eq=c.equipped||{};
-    const lxp=c.level*100;
+    const lxp=c.level*25;
     const xpPct=Math.min(100,(c.xp/lxp)*100);
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,(hpCur/c.hp_max)*100);
