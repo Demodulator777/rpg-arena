@@ -218,6 +218,7 @@
                     </div>
                     <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
 
+                    <!-- Active mission overlay -->
                     <div id="mission-overlay" class="mission-overlay hidden">
                         <div class="mission-overlay-inner">
                             <div class="mission-overlay-badge">⚔️ ON MISSION</div>
@@ -232,6 +233,7 @@
                         </div>
                     </div>
 
+                    <!-- Traveling overlay -->
                     <div id="travel-overlay" class="travel-overlay hidden">
                         <div class="travel-overlay-inner">
                             <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2">🚶 TRAVELING</div>
@@ -245,7 +247,22 @@
                             <button id="travel-cancel-btn" class="btn-cancel-travel" onclick="cancelTravel()">Cancel (Free)</button>
                         </div>
                     </div>
-                </div>
+
+                    <!-- Post-battle rest overlay -->
+                    <div id="rest-overlay" class="travel-overlay hidden">
+                        <div class="travel-overlay-inner">
+                            <div class="mission-overlay-badge" style="border-color:rgba(231,76,60,0.4);color:#e74c3c">⚔️ RESTING AFTER BATTLE</div>
+                            <div class="travel-overlay-name" style="color:var(--text-bright)">Recovering</div>
+                            <div class="travel-overlay-from">You must rest before starting a new mission</div>
+                            <div id="rest-overlay-timer" class="mission-overlay-timer" style="color:#e74c3c">0:00</div>
+                            <div class="mission-overlay-progress-track">
+                                <div id="rest-overlay-fill" class="mission-overlay-progress-fill" style="background:#e74c3c"></div>
+                            </div>
+                            <div class="mission-overlay-subtext">Cooldown clears automatically</div>
+                        </div>
+                    </div>
+
+                </div><!-- /#tab-missions -->
 
                 <!-- FORGE -->
                 <div id="tab-forge" class="game-tab">
