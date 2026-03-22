@@ -449,9 +449,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
 
-        // Block
+        // Block — 0.1% chance to fail even when covering
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
-        const blockFails  = Math.random() < 0.01;
+        const blockFails  = Math.random() < 0.001;
         if (blockCovers && !blockFails) {
             let reduction = blk.reduction;
             if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
@@ -465,29 +465,35 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${isCrit ? ' ⚡ CRITICAL HIT!' : ''} — ${finalDmg} damage`;
         }
 
-        // Armor reduces physical damage
+        // Armor reduces physical damage — show only final value
         if (finalDmg > 0 && (defender.armor || 0) > 0) {
             const physReduction = Math.min(finalDmg - 1, defender.armor);
             finalDmg -= physReduction;
-            if (physReduction > 0) logLine += ` (🛡${physReduction} armor)`;
+            // Rewrite the damage number in the log to be the post-armor final
+            logLine = logLine.replace(/— (\d+) (damage|slips through)/, `— ${finalDmg} $2`);
         }
 
-        // Elemental damage — each element handled separately, bypasses armor, reduced by specific resist
+        // Elemental damage — subject to same block reduction, then combined into one log entry
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
-        const elemLog = [];
-        const elemEmojis = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' };
         for (const elem of ELEMENTS) {
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            // Apply same block reduction to elemental if block covered the hit
+            if (blockCovers && !blockFails) {
+                let reduction = blk.reduction;
+                if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
+                ed = Math.max(0, Math.floor(ed * (1 - reduction)));
+            }
             const resist = (defender.elem_resist || {})[elem] || 0;
-            const final = Math.max(0, ed - resist);
-            if (final > 0) { totalElemDmg += final; elemLog.push(`${elemEmojis[elem]}+${final}`); }
-            else if (resist > 0) { elemLog.push(`(${elemEmojis[elem]} resisted)`); }
+            totalElemDmg += Math.max(0, ed - resist);
         }
-        if (elemLog.length) { finalDmg += totalElemDmg; logLine += ` ${elemLog.join(' ')}`; }
+        if (totalElemDmg > 0) {
+            finalDmg += totalElemDmg;
+            logLine += ` ✨+${totalElemDmg} elemental`;
+        }
 
         if (hasSkill(atkSkills, 'venomfang')) { finalDmg += 5; logLine += ' ☠️+5 poison'; }
         if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
