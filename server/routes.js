@@ -612,20 +612,17 @@ function maxElemStats(level) {
 // rarity of getting any elemental stat at all: common~20%, rare~50%, legendary~80%
 function rollElemStats(stats, level, tier, canDmg, canResist) {
     const baseChance = tier >= 5 ? 0.80 : tier >= 3 ? 0.45 : 0.20;
-    if (Math.random() > baseChance) return; // no elemental this item
+    if (Math.random() > baseChance) return;
 
     const maxStats = maxElemStats(level);
-    // How many we actually roll: 1 at low levels, scaling up
     const maxRoll = Math.min(maxStats, Math.ceil(level / 20));
     const count = 1 + Math.floor(Math.random() * maxRoll);
 
-    // Shuffle elements so we don't always pick pyro first
     const shuffled = [...ELEMENTS].sort(() => Math.random() - 0.5);
     let rolled = 0;
 
     for (const elem of shuffled) {
         if (rolled >= count) break;
-        // Each element slot randomly is dmg or resist (if item supports both), or forced
         const doDmg    = canDmg    && (!canResist || Math.random() < 0.5);
         const doResist = canResist && !doDmg;
         if (!doDmg && !doResist) continue;
@@ -634,14 +631,28 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
         const resistKey = `${elem}_resist`;
 
         if (doDmg && !stats[dmgKey]) {
-            // Scales with level: ~1-3 at level 1, ~15-40 at level 100
-            const base = 1 + Math.floor(level * 0.25);
-            const range = Math.floor(level * 0.15);
-            stats[dmgKey] = base + Math.floor(Math.random() * Math.max(1, range));
+            // Elemental dmg scales with level
+            const base  = 1 + Math.floor(level * 0.18);
+            const range = Math.floor(level * 0.10);
+            const dmgVal = base + Math.floor(Math.random() * Math.max(1, range));
+            stats[dmgKey] = dmgVal;
             rolled++;
+
+            // Same-element resist is naturally higher — ~1.8-2.2× the damage value
+            if (!stats[resistKey]) {
+                const resMult = 1.8 + Math.random() * 0.4;
+                stats[resistKey] = Math.floor(dmgVal * resMult);
+            }
+
+            // Pyro damage: ~30% chance to give negative water resist (fire dries out defences)
+            if (elem === 'pyro' && Math.random() < 0.30) {
+                const penalty = -(1 + Math.floor(dmgVal * 0.5));
+                stats['water_resist'] = (stats['water_resist'] || 0) + penalty;
+            }
         } else if (doResist && !stats[resistKey]) {
-            const base = 1 + Math.floor(level * 0.20);
-            const range = Math.floor(level * 0.12);
+            // Pure resist items have stronger resist values
+            const base  = 1 + Math.floor(level * 0.22);
+            const range = Math.floor(level * 0.14);
             stats[resistKey] = base + Math.floor(Math.random() * Math.max(1, range));
             rolled++;
         }
@@ -968,7 +979,9 @@ async function buildCharacterResponse(char, db) {
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
     const lastBattle = char.last_battle_at || 0;
-    const battleCooldownRemaining = (lastBattle + 600 > now) ? (lastBattle + 600 - now) : 0;
+    const pvpCd = hasPremium(activePremium, 'fortune_hunter') ? Math.floor(600 * 0.75) : 600;
+    const battleCooldownEndsAt = lastBattle > 0 ? lastBattle + pvpCd : 0;
+    const battleCooldownRemaining = battleCooldownEndsAt > now ? battleCooldownEndsAt - now : 0;
 
     const rawSkills = char.active_skills ? (() => { try { return JSON.parse(char.active_skills); } catch { return {}; } })() : {};
     const activeSkills = {};
@@ -1021,6 +1034,7 @@ async function buildCharacterResponse(char, db) {
         equipped:     equippedObj,
         last_battle_at: char.last_battle_at || 0,
         battle_cooldown_remaining: battleCooldownRemaining,
+        battle_cooldown_ends_at:   battleCooldownEndsAt,
         active_event: eventInfo,
         armor_value:  armorValue,
         elem_dmg:     elemDmg,
