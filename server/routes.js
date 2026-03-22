@@ -32,6 +32,7 @@ const _missionStartLock = new Set();
             'ALTER TABLE characters ADD COLUMN daily_mp_reset_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN active_skills TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN skill_last_used TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN premium_features TEXT DEFAULT NULL',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -115,6 +116,104 @@ const MISSION_SIZES = {
     large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 3.0 },
 };
 const SKILL_DURATION = 5 * 3600;
+const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
+
+// ── Premium Features ───────────────────────────────────────────────────────
+const PREMIUM_FEATURES = {
+    arcane_reservoir: {
+        id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', cost: 20,
+        desc: '2× max MP (480) and 2× MP regen (+20/hr instead of +10/hr).',
+        effect: { mp_max_mult: 2, mp_regen_mult: 2 },
+    },
+    warlord: {
+        id: 'warlord', name: 'Warlord', emoji: '⚔️', cost: 25,
+        desc: '+15% damage and +10 hit chance on attacks.',
+        effect: { atk_dmg_bonus: 0.15, atk_hit_bonus: 10 },
+    },
+    iron_fortress: {
+        id: 'iron_fortress', name: 'Iron Fortress', emoji: '🏰', cost: 25,
+        desc: '+20% agility and +5 armor when defending.',
+        effect: { def_agility_bonus: 0.20, def_armor_bonus: 5 },
+    },
+    apprentice: {
+        id: 'apprentice', name: 'Apprentice', emoji: '📚', cost: 15,
+        desc: 'All stat upgrade costs reduced by 20%.',
+        effect: { upgrade_discount: 0.20 },
+    },
+    vault_keeper: {
+        id: 'vault_keeper', name: 'Vault Keeper', emoji: '🏦', cost: 20,
+        desc: 'Lose only 5% gold on PvP defeat instead of 10%.',
+        effect: { gold_loss_reduction: 0.50 }, // reduces the 10% stake to 5%
+    },
+    fortune_hunter: {
+        id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', cost: 30,
+        desc: '+30% gold from missions. Mission and duel cooldowns 25% shorter.',
+        effect: { gold_bonus: 0.30, cooldown_reduction: 0.25 },
+    },
+};
+
+// ── Premium Synergy Bonuses ────────────────────────────────────────────────
+// Pairs: if both are active → extra bonus
+const PREMIUM_SYNERGIES = [
+    {
+        requires: ['warlord', 'iron_fortress'],
+        name: 'Veteran', emoji: '🎖️',
+        desc: '+8 crit chance while both Warlord and Iron Fortress are active.',
+        effect: { crit_bonus: 8 },
+    },
+    {
+        requires: ['arcane_reservoir', 'fortune_hunter'],
+        name: 'Midas Flow', emoji: '✨',
+        desc: 'Mission MP cost reduced by 10 while both Arcane Reservoir and Fortune Hunter are active.',
+        effect: { mp_cost_reduction: 10 },
+    },
+    {
+        requires: ['vault_keeper', 'apprentice'],
+        name: 'Merchant Prince', emoji: '👑',
+        desc: 'Sell items for 40% of value instead of 30% while both are active.',
+        effect: { sell_bonus: 0.10 }, // 30%+10% = 40%
+    },
+];
+
+// All 6 active → ultimate bonus
+const PREMIUM_ULTIMATE = {
+    name: 'Ascendant', emoji: '🌟',
+    desc: 'All 6 features active: +50% XP from all sources and +10 to all stats.',
+    effect: { xp_bonus: 0.50, all_stats: 10 },
+};
+
+// Helper: get active premium features for a character
+function getActivePremium(char) {
+    if (!char.premium_features) return {};
+    try {
+        const feats = JSON.parse(char.premium_features);
+        const now = Math.floor(Date.now() / 1000);
+        const active = {};
+        for (const [id, expiresAt] of Object.entries(feats)) {
+            if (expiresAt > now) active[id] = expiresAt;
+        }
+        return active;
+    } catch { return {}; }
+}
+
+function hasPremium(activePremium, featureId) {
+    return !!activePremium[featureId];
+}
+
+// Compute all active synergies
+function getActiveSynergies(activePremium) {
+    const active = [];
+    for (const syn of PREMIUM_SYNERGIES) {
+        if (syn.requires.every(id => hasPremium(activePremium, id))) {
+            active.push(syn);
+        }
+    }
+    return active;
+}
+
+function hasUltimate(activePremium) {
+    return Object.keys(PREMIUM_FEATURES).every(id => hasPremium(activePremium, id));
+}
 
 // ── All equipment slots ───────────────────────────────────────────────────
 const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','amulet','ring','accessory'];
@@ -179,12 +278,15 @@ async function applyMpRegen(db, characterId) {
     const lastRegenHour = Math.floor(lastRegen / 3600) * 3600;
     if (currentHourStart <= lastRegenHour) return;
     const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
+    const activePrem = getActivePremium(char);
+    const regenPerHour = hasPremium(activePrem, 'arcane_reservoir') ? 20 : 10;
+    const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
     const currentMp = char.mission_points ?? 0;
-    if (currentMp >= MP_MAX) {
+    if (currentMp >= mpMax) {
         await dbRun(db, 'UPDATE characters SET mp_last_regen_at=? WHERE id=?', [currentHourStart, characterId]);
         return;
     }
-    const gained = Math.min(10 * hoursElapsed, MP_MAX - currentMp);
+    const gained = Math.min(regenPerHour * hoursElapsed, mpMax - currentMp);
     await dbRun(db, 'UPDATE characters SET mission_points=?, mp_last_regen_at=? WHERE id=?', [currentMp + gained, currentHourStart, characterId]);
 }
 
@@ -258,12 +360,33 @@ function calcArmorValue(char, equippedItems) {
     return armor;
 }
 
-function calcElemResist(char, equippedItems) {
-    let resist = 0;
+// Sum a specific elemental damage type from all equipped items
+function calcElemDmg(equippedItems) {
+    // Returns object: { pyro:N, water:N, wind:N, electro:N }
+    const dmg = { pyro:0, water:0, wind:0, electro:0 };
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (data?.stats?.elem_resist) resist += data.stats.elem_resist;
+            if (!data?.stats) continue;
+            for (const elem of ELEMENTS) {
+                if (data.stats[`${elem}_dmg`]) dmg[elem] += data.stats[`${elem}_dmg`];
+            }
+        } catch {}
+    }
+    return dmg;
+}
+
+// Sum elemental resistances from all equipped items
+function calcElemResist(char, equippedItems) {
+    // Returns object: { pyro:N, water:N, wind:N, electro:N }
+    const resist = { pyro:0, water:0, wind:0, electro:0 };
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (!data?.stats) continue;
+            for (const elem of ELEMENTS) {
+                if (data.stats[`${elem}_resist`]) resist[elem] += data.stats[`${elem}_resist`];
+            }
         } catch {}
     }
     return resist;
@@ -286,17 +409,18 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
 
-    let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005);
+    let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
 
-    const defAgi = defender.agility || 0;
+    const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const atkAgi = attacker.agility || 0;
     let dodgeChance = Math.max(0, Math.min(0.999, (defAgi - atkAgi) / 200));
     if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
 
     let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
+    if (attacker.dmg_bonus) atkBonusDmg *= (1 + attacker.dmg_bonus);
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
@@ -348,19 +472,22 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (physReduction > 0) logLine += ` (🛡${physReduction} armor)`;
         }
 
-        // Elemental damage — bypasses armor, reduced by elem_resist
-        const elemDmgRaw = attacker.elem_dmg || 0;
-        if (elemDmgRaw > 0) {
-            const resist = defender.elem_resist || 0;
-            let elemDmgFinal = Math.max(0, elemDmgRaw - resist);
-            if (hasSkill(atkSkills, 'arcane_surge')) elemDmgFinal = Math.floor(elemDmgFinal * 1.20);
-            if (hasSkill(atkSkills, 'hex') && elemDmgFinal > 0) elemDmgFinal = Math.floor(elemDmgFinal * 1.15);
-            finalDmg += elemDmgFinal;
-            const elemType = attacker.elem_dmg_type || '';
-            const elemEmoji = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' }[elemType] || '✨';
-            if (elemDmgFinal > 0) logLine += ` ${elemEmoji}+${elemDmgFinal} elem`;
-            else if (resist > 0) logLine += ` (${elemEmoji} resisted)`;
+        // Elemental damage — each element handled separately, bypasses armor, reduced by specific resist
+        const elemDmgs = attacker.elem_dmg || {};
+        let totalElemDmg = 0;
+        const elemLog = [];
+        const elemEmojis = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' };
+        for (const elem of ELEMENTS) {
+            let ed = elemDmgs[elem] || 0;
+            if (ed <= 0) continue;
+            if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+            if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            const resist = (defender.elem_resist || {})[elem] || 0;
+            const final = Math.max(0, ed - resist);
+            if (final > 0) { totalElemDmg += final; elemLog.push(`${elemEmojis[elem]}+${final}`); }
+            else if (resist > 0) { elemLog.push(`(${elemEmojis[elem]} resisted)`); }
         }
+        if (elemLog.length) { finalDmg += totalElemDmg; logLine += ` ${elemLog.join(' ')}`; }
 
         if (hasSkill(atkSkills, 'venomfang')) { finalDmg += 5; logLine += ' ☠️+5 poison'; }
         if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
@@ -453,7 +580,7 @@ function buildNpc(difficulty, playerLevel) {
         id: -1, name: cfg.name,
         hp: cfg.hpBase + (playerLevel * cfg.hpScale),
         dmgMin: cfg.atkMin, dmgMax: cfg.atkMax, agility: cfg.agi,
-        armor: 0, elem_dmg: 0, elem_dmg_type: '', elem_resist: 0,
+        armor: 0, elem_dmg: { pyro:0, water:0, wind:0, electro:0 }, elem_resist: { pyro:0, water:0, wind:0, electro:0 },
         attackZones: npcAttack[difficulty] || npcAttack.easy,
         blockZones:  npcBlock[difficulty]  || npcBlock.easy,
         activeSkills: {},
@@ -461,144 +588,203 @@ function buildNpc(difficulty, playerLevel) {
 }
 
 // ── Item Generators ───────────────────────────────────────────────────────
+// ── Element types ─────────────────────────────────────────────────────────
+const ELEMENTS = ['pyro','water','wind','electro'];
+
+// How many elemental stats an item can roll based on level
+// level 1-10: max 1, 11-30: max 2, 31-50: max 3, 51-70: max 4, 71-85: max 5, 86+: max 6
+function maxElemStats(level) {
+    if (level >= 86) return 6;
+    if (level >= 71) return 5;
+    if (level >= 51) return 4;
+    if (level >= 31) return 3;
+    if (level >= 11) return 2;
+    return 1;
+}
+
+// Roll elemental stats onto an item — dmgTypes can roll elem_dmg, resistTypes can roll elem_resist
+// rarity of getting any elemental stat at all: common~20%, rare~50%, legendary~80%
+function rollElemStats(stats, level, tier, canDmg, canResist) {
+    const baseChance = tier >= 5 ? 0.80 : tier >= 3 ? 0.45 : 0.20;
+    if (Math.random() > baseChance) return; // no elemental this item
+
+    const maxStats = maxElemStats(level);
+    // How many we actually roll: 1 at low levels, scaling up
+    const maxRoll = Math.min(maxStats, Math.ceil(level / 20));
+    const count = 1 + Math.floor(Math.random() * maxRoll);
+
+    // Shuffle elements so we don't always pick pyro first
+    const shuffled = [...ELEMENTS].sort(() => Math.random() - 0.5);
+    let rolled = 0;
+
+    for (const elem of shuffled) {
+        if (rolled >= count) break;
+        // Each element slot randomly is dmg or resist (if item supports both), or forced
+        const doDmg    = canDmg    && (!canResist || Math.random() < 0.5);
+        const doResist = canResist && !doDmg;
+        if (!doDmg && !doResist) continue;
+
+        const dmgKey    = `${elem}_dmg`;
+        const resistKey = `${elem}_resist`;
+
+        if (doDmg && !stats[dmgKey]) {
+            // Scales with level: ~1-3 at level 1, ~15-40 at level 100
+            const base = 1 + Math.floor(level * 0.25);
+            const range = Math.floor(level * 0.15);
+            stats[dmgKey] = base + Math.floor(Math.random() * Math.max(1, range));
+            rolled++;
+        } else if (doResist && !stats[resistKey]) {
+            const base = 1 + Math.floor(level * 0.20);
+            const range = Math.floor(level * 0.12);
+            stats[resistKey] = base + Math.floor(Math.random() * Math.max(1, range));
+            rolled++;
+        }
+    }
+}
+
 const ITEM_GENERATORS = {
     weapon: {
         namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
         emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
         baseStats: {
-            dmg_min:  { min:2, max:4,  scale:1.2 },
-            dmg_max:  { min:4, max:7,  scale:1.3 },
-            strength: { min:0, max:2,  scale:0.4 },
+            dmg_min:  { min:2, max:5,  scale:1.4 },
+            dmg_max:  { min:5, max:10, scale:1.6 },
+            strength: { min:0, max:3,  scale:0.5 },
         },
         tier3Stats: {
-            agility:    { min:0, max:2, scale:0.3 },
-            hit_chance: { min:1, max:4, scale:0.2 },
+            agility:    { min:0, max:3, scale:0.4 },
+            hit_chance: { min:1, max:5, scale:0.3 },   // flat +N to hit_chance stat
         },
         tier5Stats: {
-            crit_chance: { min:2, max:6, scale:0.3 },
+            crit_chance: { min:2, max:8, scale:0.4 },  // flat +N to crit_chance stat
         },
-        classBonus: { warrior:{strength:1.2}, rogue:{agility:1.2}, mage:{magic:1.2}, paladin:{strength:1.1} }
+        // Weapons can roll elemental DAMAGE only
+        elemDmg: true, elemResist: false,
     },
     armor: {
         namePrefixes: ['Leather','Chain','Plate','Scale','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
         emojis: ['🛡️','🧥','🥼','👕','🦺'],
         baseStats: {
-            defense: { min:2,  max:5,  scale:1.4 },
-            armor:   { min:1,  max:3,  scale:0.8 },
-            hp_max:  { min:10, max:20, scale:1.6 },
+            defense: { min:2,  max:6,  scale:1.5 },
+            armor:   { min:1,  max:4,  scale:1.0 },
+            hp_max:  { min:10, max:25, scale:1.8 },
         },
         tier3Stats: {
-            vitality: { min:0, max:2, scale:0.3 },
+            vitality: { min:0, max:3, scale:0.4 },
         },
         tier5Stats: {
-            elem_resist: { min:2, max:8, scale:0.5 },
+            strength: { min:0, max:3, scale:0.3 },
         },
-        classBonus: { warrior:{defense:1.3,hp_max:1.2,armor:1.3}, paladin:{defense:1.2,armor:1.1} }
+        // Armor can roll elemental RESIST only
+        elemDmg: false, elemResist: true,
     },
     helmet: {
         namePrefixes: ['Leather','Iron','Steel','Battle','Shadow','Crystal','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Helm','Helmet','Visor','Cap','Hood','Cowl','Crown','Circlet','Headguard'],
         emojis: ['⛑️','🪖','👑','🎭'],
         baseStats: {
-            defense: { min:1, max:3, scale:0.9 },
-            armor:   { min:1, max:2, scale:0.5 },
-            hp_max:  { min:5, max:15, scale:1.0 },
+            defense: { min:1, max:4,  scale:1.0 },
+            armor:   { min:1, max:3,  scale:0.6 },
+            hp_max:  { min:5, max:18, scale:1.2 },
         },
         tier3Stats: {
-            hit_chance:  { min:1, max:4, scale:0.3 },
-            crit_chance: { min:1, max:3, scale:0.2 },
+            hit_chance: { min:1, max:5, scale:0.3 },
         },
         tier5Stats: {
-            elem_resist: { min:2, max:6, scale:0.4 },
+            crit_chance: { min:2, max:7, scale:0.4 },
         },
-        classBonus: { warrior:{defense:1.2,armor:1.2}, mage:{crit_chance:1.2}, rogue:{crit_chance:1.3} }
+        // Helmets can roll either dmg or resist
+        elemDmg: true, elemResist: true,
     },
-    accessory: {
-        namePrefixes: ['Iron','Silver','Golden','Crystal','Ruby','Sapphire','Emerald','Diamond','Bone'],
-        nameSuffixes: ['Ring','Signet','Band','Seal','Token','Charm'],
-        emojis: ['💍','🔮','✨','⭕','🪬'],
+    shield: {
+        namePrefixes: ['Wooden','Iron','Steel','Tower','Dragon','Mythril','Crystal','Obsidian','Adamant'],
+        nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
+        emojis: ['🛡️','🔰'],
         baseStats: {
-            strength: { min:0, max:2, scale:0.4 },
-            agility:  { min:0, max:2, scale:0.4 },
-            magic:    { min:0, max:2, scale:0.4 },
+            defense: { min:3,  max:8,  scale:1.8 },
+            armor:   { min:2,  max:6,  scale:1.4 },
+            hp_max:  { min:8,  max:20, scale:1.4 },
         },
         tier3Stats: {
-            hit_chance:  { min:1, max:4, scale:0.3 },
-            crit_chance: { min:1, max:4, scale:0.3 },
+            vitality: { min:0, max:3, scale:0.4 },
         },
         tier5Stats: {
-            hp_max: { min:10, max:30, scale:1.0 },
+            defense: { min:1, max:4, scale:0.5 }, // extra defense on legendary shields
         },
-        classBonus: { warrior:{strength:1.3}, rogue:{agility:1.3,crit_chance:1.2}, mage:{magic:1.4}, paladin:{magic:1.2} }
-    },
-    amulet: {
-        namePrefixes: ['Ancient','Blessed','Cursed','Enchanted','Void','Holy','Shadow','Dragon','Arcane'],
-        nameSuffixes: ['Amulet','Pendant','Talisman','Necklace','Locket','Medallion'],
-        emojis: ['📿','🔱','⚜️','🌟','💫'],
-        baseStats: {
-            magic:   { min:0, max:3, scale:0.5 },
-            defense: { min:0, max:2, scale:0.4 },
-            hp_max:  { min:5, max:20, scale:0.9 },
-        },
-        tier3Stats: {
-            crit_chance: { min:1, max:4, scale:0.3 },
-        },
-        tier5Stats: {
-            elem_resist: { min:3, max:10, scale:0.6 },
-        },
-        classBonus: { mage:{magic:1.4,elem_resist:1.2}, paladin:{magic:1.2,defense:1.2} }
-    },
-    ring: {
-        namePrefixes: ['Iron','Silver','Golden','Obsidian','Ruby','Sapphire','Emerald','Diamond','Bone'],
-        nameSuffixes: ['Ring','Band','Loop','Signet','Seal'],
-        emojis: ['💍','⭕','🔵','🟢','🔴'],
-        baseStats: {
-            strength: { min:0, max:2, scale:0.4 },
-            magic:    { min:0, max:2, scale:0.4 },
-            agility:  { min:0, max:2, scale:0.3 },
-        },
-        tier3Stats: {
-            hit_chance: { min:1, max:3, scale:0.2 },
-        },
-        tier5Stats: {
-            crit_chance: { min:1, max:5, scale:0.3 },
-        },
-        classBonus: { warrior:{strength:1.3}, mage:{magic:1.4}, rogue:{agility:1.3} }
+        // Shields can roll elemental RESIST only
+        elemDmg: false, elemResist: true,
     },
     boots: {
         namePrefixes: ['Leather','Iron','Steel','Shadow','Swift','Dragon','Mythril'],
         nameSuffixes: ['Boots','Greaves','Sabatons','Treads','Stompers','Walkers'],
         emojis: ['👢','🥾','👟'],
         baseStats: {
-            agility: { min:1, max:4, scale:0.8 },
+            agility: { min:1, max:5, scale:1.0 },
             defense: { min:0, max:2, scale:0.4 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:3, scale:0.2 },
+            hit_chance: { min:1, max:4, scale:0.3 },
         },
         tier5Stats: {
-            crit_chance: { min:1, max:3, scale:0.2 },
+            agility: { min:1, max:4, scale:0.5 },
         },
-        classBonus: { rogue:{agility:1.5}, warrior:{defense:1.2} }
+        elemDmg: false, elemResist: true,
     },
-    shield: {
-        namePrefixes: ['Wooden','Iron','Steel','Tower','Dragon','Mythril','Crystal','Obsidian','Adamant'],
-        nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
-        emojis: ['🛡️','⛨','🔰'],
+    ring: {
+        namePrefixes: ['Iron','Silver','Golden','Obsidian','Ruby','Sapphire','Emerald','Diamond','Bone'],
+        nameSuffixes: ['Ring','Band','Loop','Signet','Seal'],
+        emojis: ['💍','⭕','🔵','🟢','🔴'],
         baseStats: {
-            defense: { min:3,  max:7,  scale:1.6 },
-            armor:   { min:2,  max:5,  scale:1.2 },
-            hp_max:  { min:8,  max:18, scale:1.2 },
+            strength: { min:0, max:3, scale:0.5 },
+            magic:    { min:0, max:3, scale:0.5 },
+            agility:  { min:0, max:3, scale:0.4 },
         },
         tier3Stats: {
-            vitality: { min:0, max:2, scale:0.3 },
+            hit_chance: { min:1, max:4, scale:0.3 },
         },
         tier5Stats: {
-            elem_resist: { min:3, max:10, scale:0.6 },
+            crit_chance: { min:2, max:6, scale:0.4 },
         },
-        classBonus: { warrior:{defense:1.4,armor:1.4,hp_max:1.2}, paladin:{defense:1.3,armor:1.3,hp_max:1.2}, rogue:{defense:0.7}, mage:{defense:0.6} }
+        // Rings can roll either dmg or resist
+        elemDmg: true, elemResist: true,
+    },
+    amulet: {
+        namePrefixes: ['Ancient','Blessed','Cursed','Enchanted','Void','Holy','Shadow','Dragon','Arcane'],
+        nameSuffixes: ['Amulet','Pendant','Talisman','Necklace','Locket','Medallion'],
+        emojis: ['📿','🔱','⚜️','🌟','💫'],
+        baseStats: {
+            magic:   { min:0, max:4, scale:0.6 },
+            defense: { min:0, max:2, scale:0.4 },
+            hp_max:  { min:5, max:22, scale:1.0 },
+        },
+        tier3Stats: {
+            magic: { min:0, max:3, scale:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:2, max:7, scale:0.4 },
+        },
+        // Amulets can roll either dmg or resist
+        elemDmg: true, elemResist: true,
+    },
+    accessory: {
+        namePrefixes: ['Iron','Silver','Golden','Crystal','Ruby','Sapphire','Emerald','Diamond','Bone'],
+        nameSuffixes: ['Charm','Token','Seal','Signet','Talisman','Rune'],
+        emojis: ['🔮','✨','🪬','💠','🔷'],
+        baseStats: {
+            strength: { min:0, max:2, scale:0.4 },
+            agility:  { min:0, max:2, scale:0.4 },
+            magic:    { min:0, max:2, scale:0.4 },
+        },
+        tier3Stats: {
+            hit_chance: { min:1, max:4, scale:0.3 },
+        },
+        tier5Stats: {
+            crit_chance: { min:2, max:6, scale:0.4 },
+        },
+        // Accessories can roll either — they're wild-card trinkets
+        elemDmg: true, elemResist: true,
     },
 };
 
@@ -630,7 +816,7 @@ function calculateBackendItemPrice(item, level) {
 function generateBackendRandomItem(level, type) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
-    const tier = Math.min(5, Math.ceil(level / 10) + 1);
+    const tier = Math.min(5, Math.ceil(level / 20) + 1);
     const stats = {};
 
     function rollStat(cfg, lvl) {
@@ -641,42 +827,36 @@ function generateBackendRandomItem(level, type) {
         return Math.max(cfg.min, v);
     }
 
+    // Base stats — always roll these
     if (generator.baseStats) {
         for (const [k, cfg] of Object.entries(generator.baseStats)) {
             let v = rollStat(cfg, level);
             if (k === 'dmg_min' && v < 1) v = 1;
             if (k === 'dmg_max' && v < 2) v = 2;
-            stats[k] = v;
+            if (v > 0) stats[k] = v;
         }
     }
+    // Tier 3+ bonus stats (each has a 60% chance to appear)
     if (tier >= 3 && generator.tier3Stats) {
         for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
-            if (Math.random() < 0.60) stats[k] = rollStat(cfg, level);
+            if (Math.random() < 0.60) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
         }
     }
+    // Tier 5 bonus stats (each has a 55% chance to appear)
     if (tier >= 5 && generator.tier5Stats) {
         for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
-            if (Math.random() < 0.55) stats[k] = rollStat(cfg, level);
+            if (Math.random() < 0.55) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
         }
     }
 
-    // Elemental damage on weapons (tier 3+ only)
-    if (type === 'weapon' && tier >= 3) {
-        const chance = tier >= 5 ? 0.55 : 0.25;
-        if (Math.random() < chance) {
-            const elements = ['pyro','water','wind','electro'];
-            stats.elem_dmg_type = elements[Math.floor(Math.random() * elements.length)];
-            stats.elem_dmg = Math.max(1, Math.floor(level * 0.4 + Math.random() * level * 0.8));
-        }
-    }
-
-    // Elemental resistance on armor / helmet / amulet / shield (tier 4+)
-    if (['armor','helmet','amulet','shield'].includes(type) && tier >= 4 && !stats.elem_resist) {
-        const chance = tier >= 5 ? 0.50 : 0.20;
-        if (Math.random() < chance) {
-            stats.elem_resist = Math.max(1, Math.floor(level * 0.3 + Math.random() * level * 0.5));
-        }
-    }
+    // Progressive elemental stats — specific per element, count scales with level
+    rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist);
 
     const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
     const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
@@ -783,10 +963,18 @@ async function buildCharacterResponse(char, db) {
     const activeEvent = getActiveEvent();
     const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
 
-    // Compute armor & elem values for display
-    const armorValue   = calcArmorValue(char, equippedArray);
-    const elemResist   = calcElemResist(char, equippedArray);
-    const weaponData   = getEquippedWeaponData(equippedArray);
+    // Compute armor & per-element values for display
+    const armorValue = calcArmorValue(char, equippedArray);
+    const elemDmg    = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
+    // Premium
+    const activePremium  = getActivePremium(char);
+    const activeSynergies = getActiveSynergies(activePremium);
+    const ultimateActive = hasUltimate(activePremium);
+    const mpMaxMult      = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
+    const effectiveMpMax = MP_MAX * mpMaxMult;
+    const upgradeDiscount = hasPremium(activePremium, 'apprentice') ? 0.20 : 0;
 
     return {
         ...withTrain,
@@ -796,8 +984,8 @@ async function buildCharacterResponse(char, db) {
         hp_current:   hpCurrent,
         hit_chance:   char.hit_chance  || 0,
         crit_chance:  char.crit_chance || 0,
-        mission_points: Math.min(MP_MAX, char.mission_points ?? 0),
-        mp_max:       MP_MAX,
+        mission_points: Math.min(effectiveMpMax, char.mission_points ?? 0),
+        mp_max:       effectiveMpMax,
         daily_mp_spent: dailyMpSpent,
         skills_unlocked: skillsUnlocked,
         active_skills: activeSkills,
@@ -810,9 +998,13 @@ async function buildCharacterResponse(char, db) {
         battle_cooldown_remaining: battleCooldownRemaining,
         active_event: eventInfo,
         armor_value:  armorValue,
+        elem_dmg:     elemDmg,
         elem_resist:  elemResist,
-        elem_dmg:     weaponData?.stats?.elem_dmg || 0,
-        elem_dmg_type: weaponData?.stats?.elem_dmg_type || '',
+        // Premium
+        premium_features:  activePremium,
+        premium_synergies: activeSynergies,
+        premium_ultimate:  ultimateActive,
+        upgrade_discount:  upgradeDiscount,
     };
 }
 
@@ -870,6 +1062,9 @@ router.post('/upgrade', auth, async (req, res) => {
             return res.status(400).json({ error: 'Invalid stat' });
         let cost = upgradeCost(stat, char[stat] || 0, char.class);
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
+        // Apprentice premium: additional 20% off
+        const activePrem = getActivePremium(char);
+        if (hasPremium(activePrem, 'apprentice')) cost = Math.max(1, Math.floor(cost * 0.80));
         const result = await dbRun(db,
             `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE user_id=? AND gold>=?`,
             [cost, req.user.userId, cost]
@@ -982,8 +1177,6 @@ router.post('/missions/start', auth, async (req, res) => {
         await applyMpRegen(db, character.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
         const currentMp = freshChar.mission_points ?? 0;
-        if (currentMp < sizeConf.mpCost)
-            return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${sizeConf.mpCost} MP, you have ${currentMp}.` });
         const zone = ZONES[zoneId];
         const spot = zone?.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
@@ -995,7 +1188,18 @@ router.post('/missions/start', auth, async (req, res) => {
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (sentName && missionList.includes(sentName)) ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
         const baseDuration = sizeConf.duration;
-        const duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
+        const activePremMission = getActivePremium(character);
+        let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
+        if (hasPremium(activePremMission, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.75));
+
+        // Midas Flow synergy: -10 MP cost
+        let effectiveMpCost = sizeConf.mpCost;
+        const midasFlow = PREMIUM_SYNERGIES.find(s => s.requires.includes('arcane_reservoir') && s.requires.includes('fortune_hunter'));
+        if (midasFlow && hasPremium(activePremMission, 'arcane_reservoir') && hasPremium(activePremMission, 'fortune_hunter')) {
+            effectiveMpCost = Math.max(0, effectiveMpCost - midasFlow.effect.mp_cost_reduction);
+        }
+        if (currentMp < effectiveMpCost)
+            return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${effectiveMpCost} MP, you have ${currentMp}.` });
         const insertResult = await dbRun(db, `
             INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at)
             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
@@ -1004,7 +1208,7 @@ router.post('/missions/start', auth, async (req, res) => {
         const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
         if (!didInsert) return res.status(400).json({ error: 'You already have an active mission.' });
         await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
-            [sizeConf.mpCost, sizeConf.mpCost, character.id]);
+            [effectiveMpCost, effectiveMpCost, character.id]);
         res.json({
             success: true,
             mission: {
@@ -1035,6 +1239,8 @@ router.post('/missions/collect', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         const isEvent = eventHas('grand_festival');
+        const activePremCollect = getActivePremium(freshChar);
+        const hasUlt = hasUltimate(activePremCollect);
         const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax     = calcHpMax(freshChar, equippedArray);
         const hpCurrent = freshChar.hp_current ?? hpMax;
@@ -1044,11 +1250,10 @@ router.post('/missions/collect', auth, async (req, res) => {
         const playerFighter = {
             id: freshChar.id, name: freshChar.name,
             hp: hpCurrent, dmgMin, dmgMax, agility: freshChar.agility || 0,
-            hit_chance: freshChar.hit_chance || 0,
+            hit_chance:  freshChar.hit_chance  || 0,
             crit_chance: freshChar.crit_chance || 0,
-            armor: calcArmorValue(freshChar, equippedArray),
-            elem_dmg: weaponData?.stats?.elem_dmg || 0,
-            elem_dmg_type: weaponData?.stats?.elem_dmg_type || '',
+            armor:       calcArmorValue(freshChar, equippedArray),
+            elem_dmg:    calcElemDmg(equippedArray),
             elem_resist: calcElemResist(freshChar, equippedArray),
             activeSkills: charActiveSkills,
             attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
@@ -1063,6 +1268,8 @@ router.post('/missions/collect', auth, async (req, res) => {
         xpEarned   = Math.floor(xpEarned   * (1 + freshChar.level * 0.10));
         if (isEvent) goldEarned *= 2;
         if (isEvent) xpEarned   *= 2;
+        if (hasPremium(activePremCollect, 'fortune_hunter')) goldEarned = Math.floor(goldEarned * 1.30);
+        if (hasUlt) xpEarned = Math.floor(xpEarned * 1.50);
         const gemChance = isEvent ? 0.15 : 0.05;
         let gemsFound = 0;
         if (playerWon && Math.random() < gemChance) gemsFound = 1;
@@ -1531,8 +1738,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             return res.status(400).json({ error: 'Cannot attack while traveling.' });
         const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
         const atkCooldown = attacker.last_battle_at || 0;
-        if (atkCooldown + pvpCooldown > now) {
-            const secs = (atkCooldown + pvpCooldown) - now;
+        // Fortune Hunter: attacker gets 25% shorter cooldown
+        const activePremAtk = getActivePremium(attacker);
+        const effectivePvpCooldown = hasPremium(activePremAtk, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.75) : pvpCooldown;
+        if (atkCooldown + effectivePvpCooldown > now) {
+            const secs = (atkCooldown + effectivePvpCooldown) - now;
             return res.status(400).json({ error: `Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'} before next attack.` });
         }
         const defGlobalCooldown = defender.attack_cooldown_until || 0;
@@ -1562,13 +1772,21 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const hpMaxD = calcHpMax(freshD, equippedD);
         const weaponA = getEquippedWeaponData(equippedA);
         const weaponD = getEquippedWeaponData(equippedD);
+        const premA = getActivePremium(freshA);
+        const premD = getActivePremium(freshD);
+        const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
+        const veteranD = hasPremium(premD, 'warlord') && hasPremium(premD, 'iron_fortress');
+
         const fighterA = {
             id: freshA.id, name: freshA.name,
             hp: hpA, dmgMin: dmgMinA, dmgMax: dmgMaxA, agility: freshA.agility || 0,
-            hit_chance: freshA.hit_chance || 0, crit_chance: freshA.crit_chance || 0,
-            armor: calcArmorValue(freshA, equippedA),
-            elem_dmg: weaponA?.stats?.elem_dmg || 0,
-            elem_dmg_type: weaponA?.stats?.elem_dmg_type || '',
+            hit_chance:  freshA.hit_chance  || 0,
+            crit_chance: (freshA.crit_chance || 0) + (veteranA ? 8 : 0),
+            armor:       calcArmorValue(freshA, equippedA) + (hasPremium(premA, 'iron_fortress') ? 5 : 0),
+            agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.20 : 0,
+            dmg_bonus:   hasPremium(premA, 'warlord') ? 0.15 : 0,
+            hit_bonus:   hasPremium(premA, 'warlord') ? 10 : 0,
+            elem_dmg:    calcElemDmg(equippedA),
             elem_resist: calcElemResist(freshA, equippedA),
             activeSkills: getActiveSkills(freshA),
             attackZones: JSON.parse(freshA.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
@@ -1577,10 +1795,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const fighterB = {
             id: freshD.id, name: freshD.name,
             hp: freshD.hp_current ?? hpMaxD, dmgMin: dmgMinD, dmgMax: dmgMaxD, agility: freshD.agility || 0,
-            hit_chance: freshD.hit_chance || 0, crit_chance: freshD.crit_chance || 0,
-            armor: calcArmorValue(freshD, equippedD),
-            elem_dmg: weaponD?.stats?.elem_dmg || 0,
-            elem_dmg_type: weaponD?.stats?.elem_dmg_type || '',
+            hit_chance:  freshD.hit_chance  || 0,
+            crit_chance: (freshD.crit_chance || 0) + (veteranD ? 8 : 0),
+            armor:       calcArmorValue(freshD, equippedD) + (hasPremium(premD, 'iron_fortress') ? 5 : 0),
+            agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.20 : 0,
+            dmg_bonus:   hasPremium(premD, 'warlord') ? 0.15 : 0,
+            hit_bonus:   hasPremium(premD, 'warlord') ? 10 : 0,
+            elem_dmg:    calcElemDmg(equippedD),
             elem_resist: calcElemResist(freshD, equippedD),
             activeSkills: getActiveSkills(freshD),
             attackZones: JSON.parse(freshD.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
@@ -1596,9 +1817,14 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         }
         const xpGained = attackerWon ? calculateBattleXP(freshA.level, freshD.level) : 0;
         const atkGoldStake = Math.floor((freshA.gold || 0) * 0.10);
-        const defGoldStake = Math.floor((freshD.gold || 0) * 0.10);
+        // Vault Keeper: defender only loses 5% instead of 10% when they lose
+        const defStakeRate = hasPremium(premD, 'vault_keeper') ? 0.05 : 0.10;
+        const defGoldStake = Math.floor((freshD.gold || 0) * defStakeRate);
         const goldGained   = attackerWon ? defGoldStake  : -atkGoldStake;
         const defGoldChange = attackerWon ? -defGoldStake : atkGoldStake;
+
+        // Fortune Hunter: 25% shorter PvP cooldown
+        const pvpCooldownA = hasPremium(premA, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.75) : pvpCooldown;
         const newHpA = Math.max(0, battle.hpRemainingA);
         const newHpD = Math.max(0, battle.hpRemainingB);
         let atkXp = Math.max(0, (freshA.xp || 0) + xpGained), atkLevel = freshA.level, leveledUp = false;
@@ -1794,6 +2020,77 @@ router.get('/events/active', auth, async (req, res) => {
         if (!ev) return res.json(null);
         const def = GLOBAL_EVENTS.find(e => e.key === ev.event_key);
         res.json({ ...def, ends_at: ev.ends_at });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Premium Features ──────────────────────────────────────────────────────
+router.get('/premium/features', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const active = getActivePremium(char);
+        const synergies = getActiveSynergies(active);
+        const ultimate = hasUltimate(active);
+        const now = Math.floor(Date.now() / 1000);
+        res.json({
+            features: Object.values(PREMIUM_FEATURES).map(f => ({
+                ...f,
+                active: !!active[f.id],
+                expiresAt: active[f.id] || 0,
+                expiresIn: active[f.id] ? Math.max(0, active[f.id] - now) : 0,
+            })),
+            synergies,
+            ultimate,
+            gems: char.gems || 0,
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/premium/activate', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { featureId } = req.body;
+        const feature = PREMIUM_FEATURES[featureId];
+        if (!feature) return res.status(400).json({ error: 'Unknown feature' });
+        if ((char.gems || 0) < feature.cost) return res.status(400).json({ error: `Need ${feature.cost} 💎 gems` });
+        const now = Math.floor(Date.now() / 1000);
+        const current = getActivePremium(char);
+        // If already active, extend from current expiry; otherwise from now
+        const base = (current[featureId] && current[featureId] > now) ? current[featureId] : now;
+        current[featureId] = base + PREMIUM_DURATION;
+        await dbRun(db, 'UPDATE characters SET premium_features=?, gems=gems-? WHERE id=?',
+            [JSON.stringify(current), feature.cost, char.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ message: `${feature.emoji} ${feature.name} activated for 30 days!`, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Shop reroll ────────────────────────────────────────────────────────────
+router.post('/shop/reroll', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to reroll the shop' });
+        await dbRun(db, 'UPDATE characters SET gems=gems-1 WHERE id=?', [char.id]);
+        await dbRun(db, 'DELETE FROM shop_items WHERE user_id=?', [req.user.userId]);
+        const now = Math.floor(Date.now() / 1000);
+        const newItems = generateBackendInventory(char.level);
+        const equipOnly = newItems.filter(i => !i.consumable);
+        for (const item of equipOnly) {
+            await dbRun(db, 'INSERT INTO shop_items (user_id,item_data,generation_date) VALUES (?,?,?)',
+                [req.user.userId, JSON.stringify(item), now]);
+        }
+        const potions = getPotionsForLevel(char.level);
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            items: [...potions, ...equipOnly],
+            newGems: updatedChar.gems,
+            message: '🎲 Shop rerolled!',
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
