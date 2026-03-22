@@ -121,19 +121,19 @@ const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
 // ── Premium Features ───────────────────────────────────────────────────────
 const PREMIUM_FEATURES = {
     arcane_reservoir: {
-        id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', cost: 20,
+        id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', cost: 30,
         desc: '2× max MP (480) and 2× MP regen (+20/hr instead of +10/hr).',
         effect: { mp_max_mult: 2, mp_regen_mult: 2 },
     },
     warlord: {
         id: 'warlord', name: 'Warlord', emoji: '⚔️', cost: 25,
-        desc: '+15% damage and +10 hit chance on attacks.',
-        effect: { atk_dmg_bonus: 0.15, atk_hit_bonus: 10 },
+        desc: '+15% damage and +10% hit chance on attacks.',
+        effect: { atk_dmg_bonus: 0.15, atk_hit_bonus: 0.10 },
     },
     iron_fortress: {
         id: 'iron_fortress', name: 'Iron Fortress', emoji: '🏰', cost: 25,
-        desc: '+20% agility and +5 armor when defending.',
-        effect: { def_agility_bonus: 0.20, def_armor_bonus: 5 },
+        desc: '+10% agility and +1% armor when defending.',
+        effect: { def_agility_bonus: 0.10, def_armor_bonus: 0.01 },
     },
     apprentice: {
         id: 'apprentice', name: 'Apprentice', emoji: '📚', cost: 15,
@@ -143,23 +143,22 @@ const PREMIUM_FEATURES = {
     vault_keeper: {
         id: 'vault_keeper', name: 'Vault Keeper', emoji: '🏦', cost: 20,
         desc: 'Lose only 5% gold on PvP defeat instead of 10%.',
-        effect: { gold_loss_reduction: 0.50 }, // reduces the 10% stake to 5%
+        effect: { gold_loss_reduction: 0.50 },
     },
     fortune_hunter: {
-        id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', cost: 30,
+        id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', cost: 20,
         desc: '+30% gold from missions. Mission and duel cooldowns 25% shorter.',
         effect: { gold_bonus: 0.30, cooldown_reduction: 0.25 },
     },
 };
 
 // ── Premium Synergy Bonuses ────────────────────────────────────────────────
-// Pairs: if both are active → extra bonus
 const PREMIUM_SYNERGIES = [
     {
         requires: ['warlord', 'iron_fortress'],
         name: 'Veteran', emoji: '🎖️',
-        desc: '+8 crit chance while both Warlord and Iron Fortress are active.',
-        effect: { crit_bonus: 8 },
+        desc: '+5% crit chance while both Warlord and Iron Fortress are active.',
+        effect: { crit_bonus: 0.05 }, // applied as percentage
     },
     {
         requires: ['arcane_reservoir', 'fortune_hunter'],
@@ -171,15 +170,15 @@ const PREMIUM_SYNERGIES = [
         requires: ['vault_keeper', 'apprentice'],
         name: 'Merchant Prince', emoji: '👑',
         desc: 'Sell items for 40% of value instead of 30% while both are active.',
-        effect: { sell_bonus: 0.10 }, // 30%+10% = 40%
+        effect: { sell_bonus: 0.10 },
     },
 ];
 
 // All 6 active → ultimate bonus
 const PREMIUM_ULTIMATE = {
     name: 'Ascendant', emoji: '🌟',
-    desc: 'All 6 features active: +50% XP from all sources and +10 to all stats.',
-    effect: { xp_bonus: 0.50, all_stats: 10 },
+    desc: 'All 6 features active: +50% XP from all sources and +1% to all stats.',
+    effect: { xp_bonus: 0.50, all_stats_pct: 0.01 },
 };
 
 // Helper: get active premium features for a character
@@ -409,6 +408,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
 
+    // hit_bonus is pre-computed as 10% of hit_chance (Warlord premium)
     let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
@@ -880,17 +880,16 @@ function generateBackendRandomItem(level, type) {
     };
     item.price = calculateBackendItemPrice(item, level);
 
-    // ~25% of items are gem-priced: 1-30 gems, cost up to 20% less than gold equivalent
-    // Higher tier = higher gem cost, but always strictly cheaper in value terms
-    if (Math.random() < 0.25) {
+    // ~20% of items have a small gem co-pay (1–30 gems) alongside their gold price
+    // These items cost up to 20% less gold in exchange for the gem requirement
+    if (Math.random() < 0.20) {
         const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
-        const gemPrice = 1 + Math.floor(Math.random() * maxGems);
-        // Store gold equivalent for display comparison, but sell for gems at 20% discount
-        item.goldEquivalent = item.price;
-        item.price = gemPrice;
-        item.priceType = 'gems';
-        // Slightly richer desc to signal gem value
-        item.desc = `✨ Gem deal — ${item.desc}`;
+        const gemCost = 1 + Math.floor(Math.random() * maxGems);
+        item.gemCost  = gemCost;
+        // Gold price reduced proportionally: 1–20% discount based on gem cost
+        const discount = Math.min(0.20, gemCost / 150);
+        item.price = Math.max(1, Math.floor(item.price * (1 - discount)));
+        item.desc  = `✨ ${item.desc}`;
     }
 
     if (Math.random() < 0.10) {
@@ -983,21 +982,27 @@ async function buildCharacterResponse(char, db) {
     const elemResist = calcElemResist(char, equippedArray);
 
     // Premium
-    const activePremium  = getActivePremium(char);
+    const activePremium   = getActivePremium(char);
     const activeSynergies = getActiveSynergies(activePremium);
-    const ultimateActive = hasUltimate(activePremium);
-    const mpMaxMult      = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
-    const effectiveMpMax = MP_MAX * mpMaxMult;
+    const ultimateActive  = hasUltimate(activePremium);
+    const mpMaxMult       = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
+    const effectiveMpMax  = MP_MAX * mpMaxMult;
     const upgradeDiscount = hasPremium(activePremium, 'apprentice') ? 0.20 : 0;
+    // Ultimate: +1% to all base stats for display
+    const ultMult = ultimateActive ? 1.01 : 1.0;
 
     return {
         ...withTrain,
-        vitality:     char.vitality    || 10,
+        vitality:     Math.floor((char.vitality    || 10) * ultMult),
         gems:         char.gems        || 0,
         hp_max:       hpMax,
         hp_current:   hpCurrent,
-        hit_chance:   char.hit_chance  || 0,
-        crit_chance:  char.crit_chance || 0,
+        strength:     Math.floor((char.strength    || 0)  * ultMult),
+        defense:      Math.floor((char.defense     || 0)  * ultMult),
+        agility:      Math.floor((char.agility     || 0)  * ultMult),
+        magic:        Math.floor((char.magic       || 0)  * ultMult),
+        hit_chance:   Math.floor((char.hit_chance  || 0)  * ultMult),
+        crit_chance:  Math.floor((char.crit_chance || 0)  * ultMult),
         mission_points: Math.min(effectiveMpMax, char.mission_points ?? 0),
         mp_max:       effectiveMpMax,
         daily_mp_spent: dailyMpSpent,
@@ -1557,7 +1562,10 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
             if (equippedIds.includes(item.id)) return res.status(400).json({ error: 'Unequip the item before selling.' });
         }
         const data = JSON.parse(item.item_data);
-        const sellPrice = Math.max(1, Math.floor((data.price || 0) * 0.3));
+        const activePremSell = getActivePremium(char);
+        const merchantPrince = hasPremium(activePremSell, 'vault_keeper') && hasPremium(activePremSell, 'apprentice');
+        const sellRate = merchantPrince ? 0.40 : 0.30;
+        const sellPrice = Math.max(1, Math.floor((data.price || 0) * sellRate));
         await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
         await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [sellPrice, char.id]);
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
@@ -1609,12 +1617,24 @@ router.post('/shop/buy', auth, async (req, res) => {
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!character) return res.status(404).json({ error: 'No character' });
         if (!item) return res.status(400).json({ error: 'Invalid item data' });
-        if (priceType === 'gems') { if ((character.gems||0) < price) return res.status(400).json({ error: 'Not enough gems' }); }
-        else { if (character.gold < price) return res.status(400).json({ error: 'Not enough gold' }); }
+
+        const gemCost = item.gemCost || 0; // gem co-pay (if any)
+
+        if (priceType === 'gems') {
+            if ((character.gems||0) < price) return res.status(400).json({ error: 'Not enough gems' });
+        } else {
+            if (character.gold < price) return res.status(400).json({ error: 'Not enough gold' });
+            if (gemCost > 0 && (character.gems||0) < gemCost)
+                return res.status(400).json({ error: `Not enough gems — this item also costs ${gemCost} 💎` });
+        }
+
         if (priceType === 'gems') {
             await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [price, price, character.id]);
         } else {
             await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [price, character.id]);
+            if (gemCost > 0) {
+                await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [gemCost, gemCost, character.id]);
+            }
         }
         if (item.consumable) {
             const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='consumable' AND json_extract(item_data,'$.id')=?`, [character.id, item.id]);
@@ -1790,16 +1810,23 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const premD = getActivePremium(freshD);
         const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
         const veteranD = hasPremium(premD, 'warlord') && hasPremium(premD, 'iron_fortress');
+        const armorA = calcArmorValue(freshA, equippedA);
+        const armorD = calcArmorValue(freshD, equippedD);
 
         const fighterA = {
             id: freshA.id, name: freshA.name,
             hp: hpA, dmgMin: dmgMinA, dmgMax: dmgMaxA, agility: freshA.agility || 0,
             hit_chance:  freshA.hit_chance  || 0,
-            crit_chance: (freshA.crit_chance || 0) + (veteranA ? 8 : 0),
-            armor:       calcArmorValue(freshA, equippedA) + (hasPremium(premA, 'iron_fortress') ? 5 : 0),
-            agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.20 : 0,
+            // Veteran synergy: +5% crit (applied as flat bonus to crit_chance stat)
+            crit_chance: (freshA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
+            // Iron Fortress: +1% of armor value added to armor
+            armor:       armorA + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.01)) : 0),
+            // Iron Fortress: +10% agility multiplier when defending
+            agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
+            // Warlord: +15% damage multiplier
             dmg_bonus:   hasPremium(premA, 'warlord') ? 0.15 : 0,
-            hit_bonus:   hasPremium(premA, 'warlord') ? 10 : 0,
+            // Warlord: +10% of hit_chance added to effective hit
+            hit_bonus:   hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0,
             elem_dmg:    calcElemDmg(equippedA),
             elem_resist: calcElemResist(freshA, equippedA),
             activeSkills: getActiveSkills(freshA),
@@ -1810,11 +1837,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             id: freshD.id, name: freshD.name,
             hp: freshD.hp_current ?? hpMaxD, dmgMin: dmgMinD, dmgMax: dmgMaxD, agility: freshD.agility || 0,
             hit_chance:  freshD.hit_chance  || 0,
-            crit_chance: (freshD.crit_chance || 0) + (veteranD ? 8 : 0),
-            armor:       calcArmorValue(freshD, equippedD) + (hasPremium(premD, 'iron_fortress') ? 5 : 0),
-            agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.20 : 0,
+            crit_chance: (freshD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
+            armor:       armorD + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.01)) : 0),
+            agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus:   hasPremium(premD, 'warlord') ? 0.15 : 0,
-            hit_bonus:   hasPremium(premD, 'warlord') ? 10 : 0,
+            hit_bonus:   hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0,
             elem_dmg:    calcElemDmg(equippedD),
             elem_resist: calcElemResist(freshD, equippedD),
             activeSkills: getActiveSkills(freshD),
