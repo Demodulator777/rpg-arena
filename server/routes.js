@@ -978,6 +978,16 @@ async function buildCharacterResponse(char, db) {
     const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent });
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
+
+    // Premium — must be computed first, used in cooldown calc below
+    const activePremium   = getActivePremium(char);
+    const activeSynergies = getActiveSynergies(activePremium);
+    const ultimateActive  = hasUltimate(activePremium);
+    const mpMaxMult       = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
+    const effectiveMpMax  = MP_MAX * mpMaxMult;
+    const upgradeDiscount = hasPremium(activePremium, 'apprentice') ? 0.20 : 0;
+    const ultMult         = ultimateActive ? 1.01 : 1.0;
+
     const lastBattle = char.last_battle_at || 0;
     const pvpCd = hasPremium(activePremium, 'fortune_hunter') ? Math.floor(600 * 0.75) : 600;
     const battleCooldownEndsAt = lastBattle > 0 ? lastBattle + pvpCd : 0;
@@ -999,16 +1009,6 @@ async function buildCharacterResponse(char, db) {
     const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
-
-    // Premium
-    const activePremium   = getActivePremium(char);
-    const activeSynergies = getActiveSynergies(activePremium);
-    const ultimateActive  = hasUltimate(activePremium);
-    const mpMaxMult       = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
-    const effectiveMpMax  = MP_MAX * mpMaxMult;
-    const upgradeDiscount = hasPremium(activePremium, 'apprentice') ? 0.20 : 0;
-    // Ultimate: +1% to all base stats for display
-    const ultMult = ultimateActive ? 1.01 : 1.0;
 
     return {
         ...withTrain,
