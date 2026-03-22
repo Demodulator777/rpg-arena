@@ -1862,7 +1862,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             // Veteran synergy: +5% crit (applied as flat bonus to crit_chance stat)
             crit_chance: (freshA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
             // Iron Fortress: +1% of armor value added to armor
-            armor:       armorA + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.01)) : 0),
+            armor:       armorA + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
             // Iron Fortress: +10% agility multiplier when defending
             agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
             // Warlord: +15% damage multiplier
