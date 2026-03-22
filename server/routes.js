@@ -132,8 +132,8 @@ const PREMIUM_FEATURES = {
     },
     iron_fortress: {
         id: 'iron_fortress', name: 'Iron Fortress', emoji: '🏰', cost: 25,
-        desc: '+10% agility and +1% armor when defending.',
-        effect: { def_agility_bonus: 0.10, def_armor_bonus: 0.01 },
+        desc: '+10% agility and +15% armor when defending.',
+        effect: { def_agility_bonus: 0.10, def_armor_bonus: 0.15 },
     },
     apprentice: {
         id: 'apprentice', name: 'Apprentice', emoji: '📚', cost: 15,
@@ -147,8 +147,8 @@ const PREMIUM_FEATURES = {
     },
     fortune_hunter: {
         id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', cost: 20,
-        desc: '+30% gold from missions. Mission and duel cooldowns 25% shorter.',
-        effect: { gold_bonus: 0.30, cooldown_reduction: 0.25 },
+        desc: '+30% gold from missions. Mission and duel cooldowns 50% shorter.',
+        effect: { gold_bonus: 0.30, cooldown_reduction: 0.50 },
     },
 };
 
