@@ -667,8 +667,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .stat-row:hover { background: rgba(255,255,255,0.015); border-radius: 6px; }
 .stat-icon { font-size: 1rem; width: 22px; text-align: center; }
 .stat-label { flex: 1; color: var(--text-dim); font-size: 0.8rem; }
-.stat-val { font-size: 1rem; color: var(--text-bright); font-weight: 700; min-width: 28px; text-align: right; }
-.stat-bar-wrap { width: 72px; }
+.stat-val { font-size: 0.88rem; color: var(--text-dim); font-weight: 600; min-width: 28px; text-align: right; }
+.stat-bar-wrap { width: 60px; }
 .stat-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
 .stat-fill { height: 100%; border-radius: 2px; }
 .str-fill  { background: linear-gradient(90deg, #8b1a1a, #e74c3c); }
