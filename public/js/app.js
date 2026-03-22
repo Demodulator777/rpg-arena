@@ -1481,13 +1481,18 @@ function renderShop() {
             return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
         })():'';
 
-        return `<div class="${cardClass}">${pt==='gems'?'<span class="premium-badge">💎 PREMIUM</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
+        return `<div class="${cardClass}">${pt==='gems'&&item.goldEquivalent?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">💎 GEM DEAL</span>':pt==='gems'?'<span class="premium-badge">💎 PREMIUM</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header"><span class="shop-card-icon">${itemIcon(item,'2rem')}</span><span class="shop-card-name">${item.name}</span><span class="shop-card-tier">Lv.${item.level||1}</span></div>
             <div class="shop-card-desc">${item.desc}</div>
             <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
-            <div class="shop-card-footer"><span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}</span>
-            <button class="btn-shop" onclick="buyItem('${item.id}')" ${isAvail&&classOk&&hasEnough?'':'disabled'}>${!isAvail?`Level ${item.level}`:!classOk?'Class Locked':!hasEnough?`Need ${item.price-(pt==='gems'?(character.gems||0):character.gold)}`:'Buy'}</button></div>
+            <div class="shop-card-footer">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                    <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}</span>
+                    ${item.goldEquivalent?`<span style="font-size:0.62rem;color:var(--text-dim);text-decoration:line-through">💰 ${item.goldEquivalent.toLocaleString()}</span>`:''}
+                </div>
+                <button class="btn-shop" onclick="buyItem('${item.id}')" ${isAvail&&classOk&&hasEnough?'':'disabled'}>${!isAvail?`Level ${item.level}`:!classOk?'Class Locked':!hasEnough?`Need ${item.price-(pt==='gems'?(character.gems||0):character.gold)} more`:'Buy'}</button>
+            </div>
         </div>`;
     }).join('');
 }
