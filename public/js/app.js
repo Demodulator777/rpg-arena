@@ -20,19 +20,25 @@ const FREE_CANCEL_WINDOW = 300;
 
 // ── Stat display labels ───────────────────────────────────────────────────
 const STAT_LABELS = {
-    dmg_min:     'Min Dmg',
-    dmg_max:     'Max Dmg',
-    armor:       '🛡 Armor',
-    hp_max:      '❤️ HP',
-    defense:     '🛡️ Defense',
-    strength:    '💪 Strength',
-    agility:     '⚡ Agility',
-    magic:       '✨ Magic',
-    vitality:    '❤️ Vitality',
-    hit_chance:  '🎯 Hit%',
-    crit_chance: '💥 Crit%',
-    elem_dmg:    '🔥 Elem Dmg',
-    elem_resist: '🌀 Elem Resist',
+    dmg_min:        'Min Dmg',
+    dmg_max:        'Max Dmg',
+    armor:          '🛡 Armor',
+    hp_max:         '❤️ HP',
+    defense:        '🛡️ Defense',
+    strength:       '💪 Strength',
+    agility:        '⚡ Agility',
+    magic:          '✨ Magic',
+    vitality:       '❤️ Vitality',
+    hit_chance:     '🎯 Hit Chance',
+    crit_chance:    '💥 Crit Chance',
+    pyro_dmg:       '🔥 Fire Dmg',
+    water_dmg:      '💧 Water Dmg',
+    wind_dmg:       '🌀 Wind Dmg',
+    electro_dmg:    '⚡ Electro Dmg',
+    pyro_resist:    '🔥 Fire Resist',
+    water_resist:   '💧 Water Resist',
+    wind_resist:    '🌀 Wind Resist',
+    electro_resist: '⚡ Electro Resist',
 };
 
 // ── Hit & Block Zone Definitions ──────────────────────────────────────────
@@ -308,7 +314,7 @@ function showScreen(name) {
     document.getElementById(`screen-${name}`).classList.add('active');
     if (name==='game') { renderTopBar(); renderCharacter(); startPolling(); showTab('character'); }
 }
-const TAB_ORDER=['character','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox'];
+const TAB_ORDER=['character','premium','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -316,6 +322,7 @@ function showTab(name) {
     const idx=TAB_ORDER.indexOf(name);
     if (idx>=0) document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
     if (name==='character')   renderCharacter();
+    if (name==='premium')     loadPremium();
     if (name==='loadout')     renderLoadout();
     if (name==='train')       renderTraining();
     if (name==='upgrade')     renderUpgrade();
@@ -419,11 +426,14 @@ function renderCharacter() {
     let armorVal = Math.floor((c.defense||0)/4);
     Object.values(eq).forEach(item => { if (item?.stats?.armor) armorVal += item.stats.armor; });
 
-    // Elemental weapon info
-    const wep = eq.weapon;
-    const elemDmg = wep?.stats?.elem_dmg;
-    const elemType = wep?.stats?.elem_dmg_type;
-    const elemEmojis = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'};
+    // Elemental dmg/resist from character response (aggregated across all items)
+    const elemDmgObj    = c.elem_dmg    || {};
+    const elemResistObj = c.elem_resist || {};
+    const elemEmojis    = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' };
+    const activeDmg     = Object.entries(elemDmgObj).filter(([,v]) => v > 0);
+    const activeResist  = Object.entries(elemResistObj).filter(([,v]) => v > 0);
+    const elemDmgStr    = activeDmg.map(([e,v])   => `${elemEmojis[e]}+${v}`).join(' ');
+    const elemResistStr = activeResist.map(([e,v]) => `${elemEmojis[e]}${v}`).join(' ');
 
     // Equipment slot tiles
     // Layout: [Helmet][AVATAR][Amulet] / [Armor][...][Shield] / [Weapon][...][Boots]
@@ -511,11 +521,12 @@ function renderCharacter() {
       ${statRow('❤️','Vitality',c.vitality||10,maxStat,'vit')}
       ${(c.hit_chance||0)>0?statRow('🎯','Hit Chance',c.hit_chance,maxStat,'hit'):''}
       ${(c.crit_chance||0)>0?statRow('💥','Crit Chance',c.crit_chance,maxStat,'crit'):''}
-      <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px">
-        DMG: <strong style="color:var(--text-bright)">${Math.floor(c.strength/4)}${wep?` +${wep.stats?.dmg_min||0}–${wep.stats?.dmg_max||0}`:''}</strong>
-        ${elemDmg?`&nbsp; ${elemEmojis[elemType]||'✨'} <strong style="color:#f1c40f">${elemDmg} ${elemType||''}</strong>`:''}
-        &nbsp;·&nbsp; 🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong>
-        ${hpCur<c.hp_max?'<span style="float:right;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
+      <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <span>DMG: <strong style="color:var(--text-bright)">${Math.floor(c.strength/4)}${eq.weapon?` +${eq.weapon.stats?.dmg_min||0}–${eq.weapon.stats?.dmg_max||0}`:''}</strong></span>
+        <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+        ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
+        ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
+        ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
       </div>
     </div>
     <div class="char-panel">
@@ -624,8 +635,10 @@ function renderUpgrade() {
     const cd=disc[c.class]||{};
     const ev=c.active_event;
     const hasStatDiscount=ev?.key==='discount_stats';
+    const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
     document.getElementById('upgrade-gold').textContent=`💰 ${c.gold.toLocaleString()} Gold available`;
     const evBanner=hasStatDiscount?`<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>`:'';
+    const apprenticeBanner=hasApprentice?`<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>`:'';
     const stats=[
         {key:'strength',icon:'💪',label:'Strength'},
         {key:'defense',icon:'🛡️',label:'Defense'},
@@ -635,10 +648,11 @@ function renderUpgrade() {
         {key:'hit_chance',icon:'🎯',label:'Hit Chance',hint:'Accuracy vs agility'},
         {key:'crit_chance',icon:'💥',label:'Crit Chance',hint:'% chance to hit max dmg'},
     ];
-    document.getElementById('upgrade-grid').innerHTML=evBanner+stats.map(s=>{
+    document.getElementById('upgrade-grid').innerHTML=evBanner+apprenticeBanner+stats.map(s=>{
         let cost=costs[s.key]||'?';
         const disc2=cd[s.key];
         if (hasStatDiscount&&typeof cost==='number') cost=Math.max(1,Math.floor(cost*0.70));
+        if (hasApprentice&&typeof cost==='number') cost=Math.max(1,Math.floor(cost*0.80));
         const can=c.gold>=cost;
         const displayName=s.label||capitalize(s.key);
         return `<div class="upgrade-card">
@@ -646,6 +660,7 @@ function renderUpgrade() {
       ${s.hint?`<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>`:''}
       ${disc2?`<div class="upgrade-discount">✦ ${disc2}% class discount</div>`:''}
       ${hasStatDiscount?`<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>`:''}
+      ${hasApprentice?`<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>`:''}
       <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
       <button class="btn-upgrade" onclick="upgradestat('${s.key}')" ${can?'':'disabled'}>${can?`+1 for ${cost}g`:`Need ${cost-c.gold} more`}</button>
     </div>`;
@@ -1306,18 +1321,12 @@ function showItemTooltip(event, itemId) {
 
     let statsHtml = '';
     for (const stat of allStats) {
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue; // legacy keys, skip
         const nv = d.stats?.[stat]||0, ov = eq?.stats?.[stat]||0, diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${eq&&!isEquipped&&ds?`<span style="font-size:0.68rem;color:${dc}">${ds}</span>`:''}</div>`;
-    }
-
-    // Elemental damage display
-    let elemHtml = '';
-    if (d.stats?.elem_dmg) {
-        const eEmoji = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[d.stats.elem_dmg_type]||'✨';
-        elemHtml = `<div class="tt-stat"><span class="tt-stat-name">${eEmoji} ${d.stats.elem_dmg_type||'Elem'}</span><span class="tt-stat-val" style="color:#f1c40f">+${d.stats.elem_dmg}</span></div>`;
     }
 
     const sp = Math.max(1, Math.floor((d.price||0)*0.3));
@@ -1333,7 +1342,7 @@ function showItemTooltip(event, itemId) {
             <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
             <div class="tt-meta">${capitalize(d.slot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
-            <div class="tt-stats">${statsHtml}${elemHtml||''}</div>
+            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${eq&&!isEquipped?`<div class="tt-vs">vs equipped: <strong>${eq.name}</strong></div>`:''}
         </div>
         <div class="tt-actions">
@@ -1365,18 +1374,12 @@ function showEqTooltip(event, itemJson) {
     const imgSrc = item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
 
     let statsHtml = Object.entries(item.stats||{})
-        .filter(([k]) => !k.includes('type') && k !== 'elem_dmg')
-        .filter(([,v]) => v !== 0)
+        .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist') // skip legacy
+        .filter(([,v]) => typeof v === 'number' && v !== 0)
         .map(([k,v]) => {
             const label = STAT_LABELS[k] || k.replace(/_/g,' ');
             return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${v>0?'#2ecc71':'#e74c3c'}">${v>0?'+':''}${v}</span></div>`;
         }).join('');
-
-    // Elemental
-    if (item.stats?.elem_dmg) {
-        const eEmoji = {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[item.stats.elem_dmg_type]||'✨';
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${eEmoji} ${item.stats.elem_dmg_type||'Elem'}</span><span class="tt-stat-val" style="color:#f1c40f">+${item.stats.elem_dmg}</span></div>`;
-    }
 
     tooltip.innerHTML = `
         <div class="tt-preview">
@@ -1456,16 +1459,15 @@ function renderShop() {
         if(item.quality==='legendary')cardClass+=' legendary';
         else if(item.quality==='rare')cardClass+=' rare';
 
-        const statsHtml=item.stats?Object.entries(item.stats).filter(([k])=>!k.includes('type')&&k!=='elem_dmg').map(([k,v])=>{
-            if(v===0) return '';
-            const label = STAT_LABELS[k] || k.replace(/_/g,' ');
-            return `<div class="shop-card-stat"><span class="shop-card-stat-label">${label}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`;
-        }).join(''):'';
+        const statsHtml = item.stats ? Object.entries(item.stats)
+            .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
+            .filter(([,v]) => typeof v === 'number' && v !== 0)
+            .map(([k,v]) => {
+                const label = STAT_LABELS[k] || k.replace(/_/g,' ');
+                return `<div class="shop-card-stat"><span class="shop-card-stat-label">${label}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`;
+            }).join('') : '';
 
-        const elemHtml=item.stats?.elem_dmg?(() => {
-            const eEmoji={pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[item.stats.elem_dmg_type]||'✨';
-            return `<div class="shop-card-stat"><span class="shop-card-stat-label">${eEmoji} Elemental</span><span class="shop-card-stat-value positive">+${item.stats.elem_dmg} ${item.stats.elem_dmg_type||''}</span></div>`;
-        })():'';
+        const elemHtml = ''; // now handled inline via STAT_LABELS above
 
         const effectHtml=item.effect?(()=>{
             const e=item.effect; let label='';
@@ -1515,6 +1517,107 @@ function setShopCategory(category, btn) {
 }
 async function refreshShop() { if(!character)return; shopInventory=await generateShopInventory(character.level); renderShop(); }
 async function generateShopInventory(playerLevel) { try { const r=await api('GET','/game/shop/items'); return r.items; } catch { return []; } }
+
+// ── Premium ───────────────────────────────────────────────────────────────
+async function loadPremium() {
+    const el = document.getElementById('premium-content');
+    if (!el) return;
+    el.innerHTML = '<p class="loading">Loading...</p>';
+    try {
+        const data = await api('GET', '/game/premium/features');
+        renderPremium(data);
+    } catch(e) { el.innerHTML = `<p class="loading">${e.message}</p>`; }
+}
+
+function renderPremium(data) {
+    const el = document.getElementById('premium-content');
+    if (!el) return;
+    const { features, synergies, ultimate, gems } = data;
+    const activeCount = features.filter(f => f.active).length;
+    const now = Math.floor(Date.now() / 1000);
+
+    // Ultimate banner
+    const ultimateBanner = ultimate ? `
+        <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
+            <div style="font-size:1.5rem;margin-bottom:4px">🌟 ASCENDANT</div>
+            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">All 6 features active · +50% XP from all sources · +10 to all stats</div>
+        </div>` : (activeCount >= 2 ? `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
+            ${activeCount}/6 features active${synergies.length ? ` · <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} synergy active!</span>` : ' · Activate more for synergy bonuses'}
+        </div>` : `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
+            ${activeCount}/6 features active · Activate all 6 for the 🌟 Ascendant ultimate bonus
+        </div>`);
+
+    // Active synergies row
+    const synergyHtml = synergies.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
+            ${synergies.map(s => `
+            <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(241,196,15,0.08);border:1px solid rgba(241,196,15,0.3);border-radius:20px;font-size:0.76rem;color:var(--gold)">
+                ${s.emoji} <strong>${s.name}</strong> · ${s.desc}
+            </div>`).join('')}
+        </div>` : '';
+
+    // Feature cards
+    const cardsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+        ${features.map(f => {
+            const isActive = f.active;
+            const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
+            const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
+            const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
+            return `<div style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);padding:18px;position:relative;overflow:hidden">
+                ${isActive ? `<div style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                    <span style="font-size:2rem">${f.emoji}</span>
+                    <div>
+                        <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--text-bright)">${f.name}</div>
+                        <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 days</div>
+                    </div>
+                </div>
+                <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5">${f.desc}</div>
+                <button onclick="activatePremium('${f.id}')"
+                    style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s"
+                    ${gems < f.cost && !isActive ? 'disabled' : ''}>
+                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
+                </button>
+            </div>`;
+        }).join('')}
+    </div>`;
+
+    el.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:10px 14px;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.25);border-radius:var(--radius-sm)">
+            <span style="font-size:0.82rem;color:var(--text-dim)">Your gems</span>
+            <span style="font-size:1.1rem;font-weight:700;color:#9b59b6">💎 ${gems.toLocaleString()}</span>
+        </div>
+        ${ultimateBanner}
+        ${synergyHtml}
+        ${cardsHtml}`;
+}
+
+async function activatePremium(featureId) {
+    try {
+        const d = await api('POST', '/game/premium/activate', { featureId });
+        character = d.character;
+        renderTopBar();
+        showMsg('premium-msg', d.message);
+        loadPremium();
+    } catch(e) { showMsg('premium-msg', e.message, true); }
+}
+
+// ── Shop Reroll ────────────────────────────────────────────────────────────
+async function rerollShop() {
+    if (!character) return;
+    if ((character.gems || 0) < 1) { showMsg('shop-msg', 'Need 1 💎 gem to reroll the shop!', true); return; }
+    if (!confirm('Reroll the entire shop for 1 💎?')) return;
+    try {
+        const d = await api('POST', '/game/shop/reroll');
+        shopInventory = d.items;
+        character.gems = d.newGems;
+        renderTopBar();
+        renderShop();
+        showMsg('shop-msg', d.message);
+    } catch(e) { showMsg('shop-msg', e.message, true); }
+}
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
 function setLbSort(sort,btn) { lbSort=sort; document.querySelectorAll('.lb-filters .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadLeaderboard(); }
