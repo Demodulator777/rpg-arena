@@ -1451,8 +1451,11 @@ function renderShop() {
     if (!filtered.length) { el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`; return; }
     el.innerHTML=filtered.map(item=>{
         const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
+        const gemCost = item.gemCost || 0;
         const isAvail=character.level>=(item.level||1), classOk=!item.classes||item.classes.includes(character.class);
-        const hasEnough=pt==='gems'?(character.gems||0)>=item.price:character.gold>=item.price;
+        const hasEnoughGold = pt==='gems' ? (character.gems||0)>=item.price : character.gold>=item.price;
+        const hasEnoughGems = gemCost === 0 || (character.gems||0) >= gemCost;
+        const hasEnough = hasEnoughGold && hasEnoughGems;
         let cardClass='shop-card';
         if(!isAvail)cardClass+=' locked-future';
         if(!classOk)cardClass+=' class-locked';
@@ -1481,17 +1484,22 @@ function renderShop() {
             return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
         })():'';
 
-        return `<div class="${cardClass}">${pt==='gems'&&item.goldEquivalent?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">💎 GEM DEAL</span>':pt==='gems'?'<span class="premium-badge">💎 PREMIUM</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
+        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header"><span class="shop-card-icon">${itemIcon(item,'2rem')}</span><span class="shop-card-name">${item.name}</span><span class="shop-card-tier">Lv.${item.level||1}</span></div>
             <div class="shop-card-desc">${item.desc}</div>
             <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer">
                 <div style="display:flex;flex-direction:column;gap:2px">
-                    <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}</span>
-                    ${item.goldEquivalent?`<span style="font-size:0.62rem;color:var(--text-dim);text-decoration:line-through">💰 ${item.goldEquivalent.toLocaleString()}</span>`:''}
+                    <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
-                <button class="btn-shop" onclick="buyItem('${item.id}')" ${isAvail&&classOk&&hasEnough?'':'disabled'}>${!isAvail?`Level ${item.level}`:!classOk?'Class Locked':!hasEnough?`Need ${item.price-(pt==='gems'?(character.gems||0):character.gold)} more`:'Buy'}</button>
+                <button class="btn-shop" onclick="buyItem('${item.id}')" ${isAvail&&classOk&&hasEnough?'':'disabled'}>${
+                    !isAvail ? `Level ${item.level}` :
+                    !classOk ? 'Class Locked' :
+                    !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
+                    !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} 💎` :
+                    'Buy'
+                }</button>
             </div>
         </div>`;
     }).join('');
@@ -1499,10 +1507,12 @@ function renderShop() {
 async function buyItem(itemId) {
     const item=shopInventory.find(i=>i.id===itemId); if(!item){showMsg('shop-msg','Item not found!',true);return;}
     const pt=item.priceType||'gold';
+    const gemCost=item.gemCost||0;
     if (character.level<(item.level||1)){showMsg('shop-msg',`Requires level ${item.level}!`,true);return;}
     if (item.classes&&!item.classes.includes(character.class)){showMsg('shop-msg',`Not available for ${capitalize(character.class)}!`,true);return;}
     if (pt==='gems'&&(character.gems||0)<item.price){showMsg('shop-msg','Not enough gems!',true);return;}
     if (pt!=='gems'&&character.gold<item.price){showMsg('shop-msg','Not enough gold!',true);return;}
+    if (gemCost>0&&(character.gems||0)<gemCost){showMsg('shop-msg',`This item also costs ${gemCost} 💎 — not enough gems!`,true);return;}
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
     try {
