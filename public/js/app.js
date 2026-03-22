@@ -1277,21 +1277,110 @@ async function loadForge() {
 function setForgeTab(tab,btn) { forgeTab=tab; document.querySelectorAll('.forge-tabs .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderForge(); }
 function renderForge() {
     if (!forgeData) return;
-    document.getElementById('forge-gold').textContent=`💰 ${forgeData.gold} Gold`;
+    document.getElementById('forge-gold').textContent=`💰 ${forgeData.gold.toLocaleString()} Gold`;
     const el=document.getElementById('forge-content');
+
     if (forgeTab==='refine') {
         el.innerHTML=`<div class="forge-grid">${forgeData.components.map(c=>{
-            const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{ const have=(forgeData.mats[mat]?.qty||0); return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${mat.replace(/_/g,' ')} (have ${have})</span>`; }).join(', ');
-            return `<div class="forge-card"><div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div><div class="forge-recipe">Requires: ${recipeStr}</div><div class="forge-cost">+ ${c.goldCost} gold</div><button class="btn-forge" onclick="refine('${c.id}')" ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button></div>`;
+            const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{
+                const have=(forgeData.mats[mat]?.qty||0);
+                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${mat.replace(/_/g,' ')} (have ${have})</span>`;
+            }).join(', ');
+            return `<div class="forge-card">
+                <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div>
+                <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc}</div>
+                <div class="forge-recipe">Requires: ${recipeStr}</div>
+                <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold</div>
+                <button class="btn-forge" onclick="refine('${c.id}')" ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button>
+            </div>`;
         }).join('')}</div>`;
-    } else {
-        el.innerHTML=`<div class="forge-grid">${forgeData.equipment.map(r=>{
-            const compStr=Object.entries(r.components).map(([comp,qty])=>{ const have=(forgeData.mats[comp]?.qty||0); return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`; }).join(', ');
-            const statStr=Object.entries(r.stats).filter(([k])=>!k.includes('type')).map(([k,v])=>`${k.replace(/_/g,' ')} +${v}`).join(' · ');
-            const locked=!r.zoneUnlocked;
-            return `<div class="forge-card ${locked?'locked':''}"><div class="forge-card-header"><span style="font-size:1.3rem">${r.emoji||'⚔️'}</span><span class="forge-card-name">${r.name}</span><span class="forge-tier">T${r.tier}</span></div><div class="forge-desc">${r.desc}</div><div style="font-size:0.75rem;color:var(--gold);margin:4px 0">${statStr}</div>${locked?`<div style="font-size:0.75rem;color:var(--red-light)">🔒 Complete a mission in ${r.requiredZone.replace('_',' ')} first</div>`:`<div class="forge-recipe">Components: ${compStr}</div>`}<div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div><button class="btn-forge" onclick="craftItem('${r.id}')" ${r.canCraft?'':'disabled'}>${locked?'Locked':r.canCraft?'Craft':'Cannot Craft'}</button></div>`;
-        }).join('')}</div>`;
+        return;
     }
+
+    // Craft tab — group by set
+    const sets = forgeData.sets || {};
+    const bySet = {};
+    for (const r of forgeData.equipment) {
+        if (!bySet[r.setId]) bySet[r.setId] = [];
+        bySet[r.setId].push(r);
+    }
+
+    const rarityColor = { epic:'#9b59b6', legendary:'#f1c40f', rare:'#3498db', common:'#aaa' };
+    const slotIcon = { weapon:'⚔️', armor:'🛡️', helmet:'⛑️', shield:'🔰', boots:'👢' };
+
+    el.innerHTML = Object.entries(bySet).map(([setId, pieces]) => {
+        const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
+        const ownedCount = pieces.filter(p => p.owned).length;
+        const ownedPct = Math.round(ownedCount / pieces.length * 100);
+
+        const progressBar = `
+            <div style="margin:8px 0 4px;display:flex;align-items:center;gap:8px">
+                <div style="flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+                    <div style="height:100%;width:${ownedPct}%;background:${rarityColor[pieces[0].quality]||'#9b59b6'};border-radius:3px;transition:width 0.3s"></div>
+                </div>
+                <span style="font-size:0.7rem;color:var(--text-dim)">${ownedCount}/${pieces.length}</span>
+            </div>`;
+
+        const bonusHtml = `
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px">
+                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${ownedCount>=3?'var(--green)':'var(--text-dim)'}">
+                    ✦ 3/5: ${setDef.bonus3?.desc||'Set bonus'}
+                </div>
+                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${ownedCount>=5?'var(--gold)':'var(--text-dim)'}">
+                    ✦ 5/5: ${setDef.bonus5?.desc||'Full set bonus'}
+                </div>
+            </div>`;
+
+        const pieceCards = pieces.map(r => {
+            const locked = !r.zoneUnlocked;
+            const qColor = rarityColor[r.quality] || '#aaa';
+            const compStr = Object.entries(r.components).map(([comp,qty]) => {
+                const have = (forgeData.mats[comp]?.qty||0);
+                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
+            }).join(', ');
+            const statStr = Object.entries(r.stats||{})
+                .filter(([k,v]) => typeof v === 'number' && v !== 0)
+                .map(([k,v]) => {
+                    const label = {dmg_min:'Min',dmg_max:'Max',defense:'DEF',armor:'ARM',hp_max:'HP',strength:'STR',agility:'AGI',magic:'MAG',vitality:'VIT',hit_chance:'HIT',crit_chance:'CRIT',pyro_dmg:'🔥',water_dmg:'💧',wind_dmg:'🌀',electro_dmg:'⚡',pyro_resist:'🔥RES',water_resist:'💧RES',wind_resist:'🌀RES',electro_resist:'⚡RES'}[k]||k;
+                    return `<span style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:0.65rem">${label} +${v}</span>`;
+                }).join(' ');
+
+            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.owned?qColor+'66':'rgba(255,255,255,0.08)'}">
+                ${r.owned ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ OWNED</div>` : ''}
+                <div class="forge-card-header">
+                    <span style="font-size:1.3rem">${r.emoji||slotIcon[r.slot]||'⚔️'}</span>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:6px">
+                            <span class="forge-card-name">${r.name}</span>
+                            <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:${qColor}22;color:${qColor};border:1px solid ${qColor}44;text-transform:uppercase;font-weight:700">${r.quality}</span>
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-dim)">${slotIcon[r.slot]||''} ${capitalize(r.slot)} · Lv.${r.level}</div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${statStr}</div>
+                ${locked
+                    ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
+                    : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
+                <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
+                <button class="btn-forge ${r.owned?'btn-forge-owned':''}" onclick="craftItem('${r.id}')" ${r.canCraft&&!r.owned?'':'disabled'}>
+                    ${locked?'🔒 Locked':r.owned?'✓ Already Crafted':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
+                </button>
+            </div>`;
+        }).join('');
+
+        return `<div style="margin-bottom:32px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <span style="font-size:1.4rem">${setDef.emoji}</span>
+                <div>
+                    <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${setDef.name}</div>
+                    <div style="font-size:0.72rem;color:var(--text-dim)">Collect all 5 pieces for full set bonuses</div>
+                </div>
+            </div>
+            ${progressBar}
+            ${bonusHtml}
+            <div class="forge-grid">${pieceCards}</div>
+        </div>`;
+    }).join('');
 }
 async function refine(componentId) { try { const d=await api('POST','/game/forge/refine',{componentId}); showMsg('forge-msg',d.message); loadForge(); } catch(e) { showMsg('forge-msg',e.message,true); } }
 async function craftItem(recipeId) { try { const d=await api('POST','/game/forge/craft',{recipeId}); showMsg('forge-msg',d.message); loadForge(); loadInventory(); } catch(e) { showMsg('forge-msg',e.message,true); } }
