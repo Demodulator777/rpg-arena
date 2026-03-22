@@ -158,7 +158,7 @@ const PREMIUM_SYNERGIES = [
         requires: ['warlord', 'iron_fortress'],
         name: 'Veteran', emoji: '🎖️',
         desc: '+5% crit chance while both Warlord and Iron Fortress are active.',
-        effect: { crit_bonus: 0.05 }, // applied as percentage
+        effect: { crit_bonus: 0.05 },
     },
     {
         requires: ['arcane_reservoir', 'fortune_hunter'],
@@ -174,14 +174,12 @@ const PREMIUM_SYNERGIES = [
     },
 ];
 
-// All 6 active → ultimate bonus
 const PREMIUM_ULTIMATE = {
     name: 'Ascendant', emoji: '🌟',
     desc: 'All 6 features active: +50% XP from all sources and +1% to all stats.',
     effect: { xp_bonus: 0.50, all_stats_pct: 0.01 },
 };
 
-// Helper: get active premium features for a character
 function getActivePremium(char) {
     if (!char.premium_features) return {};
     try {
@@ -199,7 +197,6 @@ function hasPremium(activePremium, featureId) {
     return !!activePremium[featureId];
 }
 
-// Compute all active synergies
 function getActiveSynergies(activePremium) {
     const active = [];
     for (const syn of PREMIUM_SYNERGIES) {
@@ -346,9 +343,8 @@ function calcBaseDamage(char, equippedItems) {
     return { dmgMin, dmgMax };
 }
 
-// ── NEW: Armor & Elemental helpers ────────────────────────────────────────
+// ── Armor & Elemental helpers ─────────────────────────────────────────────
 function calcArmorValue(char, equippedItems) {
-    // Base armor from defense: floor(defense / 4)
     let armor = Math.floor((char.defense || 0) / 4);
     for (const item of equippedItems) {
         try {
@@ -359,9 +355,7 @@ function calcArmorValue(char, equippedItems) {
     return armor;
 }
 
-// Sum a specific elemental damage type from all equipped items
 function calcElemDmg(equippedItems) {
-    // Returns object: { pyro:N, water:N, wind:N, electro:N }
     const dmg = { pyro:0, water:0, wind:0, electro:0 };
     for (const item of equippedItems) {
         try {
@@ -375,9 +369,7 @@ function calcElemDmg(equippedItems) {
     return dmg;
 }
 
-// Sum elemental resistances from all equipped items
 function calcElemResist(char, equippedItems) {
-    // Returns object: { pyro:N, water:N, wind:N, electro:N }
     const resist = { pyro:0, water:0, wind:0, electro:0 };
     for (const item of equippedItems) {
         try {
@@ -408,7 +400,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
 
-    // hit_bonus is pre-computed as 10% of hit_chance (Warlord premium)
     let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
@@ -439,8 +430,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         else if (forceMiss && dodgeChance > 0.001) logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
         else logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
     } else {
-        // Crit chance is relative: attacker's crit_chance minus defender's crit_chance (both 0-100 scale)
-        // 100 more crit than opponent = 100% crit, capped at 95% max, floor at 0%
         const rawCritChance = (attacker.crit_chance || 0) - (defender.crit_chance || 0);
         const baseCritChance = Math.max(0, Math.min(0.95, rawCritChance / 100));
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
@@ -449,7 +438,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
 
-        // Block — 0.1% chance to fail even when covering
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
         const blockFails  = Math.random() < 0.001;
         if (blockCovers && !blockFails) {
@@ -465,15 +453,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${isCrit ? ' ⚡ CRITICAL HIT!' : ''} — ${finalDmg} damage`;
         }
 
-        // Armor reduces physical damage — show only final value
         if (finalDmg > 0 && (defender.armor || 0) > 0) {
             const physReduction = Math.min(finalDmg - 1, defender.armor);
             finalDmg -= physReduction;
-            // Rewrite the damage number in the log to be the post-armor final
             logLine = logLine.replace(/— (\d+) (damage|slips through)/, `— ${finalDmg} $2`);
         }
 
-        // Elemental damage — subject to same block reduction, then combined into one log entry
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
@@ -481,7 +466,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (ed <= 0) continue;
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-            // Apply same block reduction to elemental if block covered the hit
             if (blockCovers && !blockFails) {
                 let reduction = blk.reduction;
                 if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
@@ -594,11 +578,8 @@ function buildNpc(difficulty, playerLevel) {
 }
 
 // ── Item Generators ───────────────────────────────────────────────────────
-// ── Element types ─────────────────────────────────────────────────────────
 const ELEMENTS = ['pyro','water','wind','electro'];
 
-// How many elemental stats an item can roll based on level
-// level 1-10: max 1, 11-30: max 2, 31-50: max 3, 51-70: max 4, 71-85: max 5, 86+: max 6
 function maxElemStats(level) {
     if (level >= 86) return 6;
     if (level >= 71) return 5;
@@ -608,8 +589,6 @@ function maxElemStats(level) {
     return 1;
 }
 
-// Roll elemental stats onto an item — dmgTypes can roll elem_dmg, resistTypes can roll elem_resist
-// rarity of getting any elemental stat at all: common~20%, rare~50%, legendary~80%
 function rollElemStats(stats, level, tier, canDmg, canResist) {
     const baseChance = tier >= 5 ? 0.80 : tier >= 3 ? 0.45 : 0.20;
     if (Math.random() > baseChance) return;
@@ -631,26 +610,22 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
         const resistKey = `${elem}_resist`;
 
         if (doDmg && !stats[dmgKey]) {
-            // Elemental dmg scales with level
             const base  = 1 + Math.floor(level * 0.18);
             const range = Math.floor(level * 0.10);
             const dmgVal = base + Math.floor(Math.random() * Math.max(1, range));
             stats[dmgKey] = dmgVal;
             rolled++;
 
-            // Same-element resist is naturally higher — ~1.8-2.2× the damage value
             if (!stats[resistKey]) {
                 const resMult = 1.8 + Math.random() * 0.4;
                 stats[resistKey] = Math.floor(dmgVal * resMult);
             }
 
-            // Pyro damage: ~30% chance to give negative water resist (fire dries out defences)
             if (elem === 'pyro' && Math.random() < 0.30) {
                 const penalty = -(1 + Math.floor(dmgVal * 0.5));
                 stats['water_resist'] = (stats['water_resist'] || 0) + penalty;
             }
         } else if (doResist && !stats[resistKey]) {
-            // Pure resist items have stronger resist values
             const base  = 1 + Math.floor(level * 0.22);
             const range = Math.floor(level * 0.14);
             stats[resistKey] = base + Math.floor(Math.random() * Math.max(1, range));
@@ -671,12 +646,11 @@ const ITEM_GENERATORS = {
         },
         tier3Stats: {
             agility:    { min:0, max:3, scale:0.4 },
-            hit_chance: { min:1, max:5, scale:0.3 },   // flat +N to hit_chance stat
+            hit_chance: { min:1, max:5, scale:0.3 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:8, scale:0.4 },  // flat +N to crit_chance stat
+            crit_chance: { min:2, max:8, scale:0.4 },
         },
-        // Weapons can roll elemental DAMAGE only
         elemDmg: true, elemResist: false,
     },
     armor: {
@@ -694,7 +668,6 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             strength: { min:0, max:3, scale:0.3 },
         },
-        // Armor can roll elemental RESIST only
         elemDmg: false, elemResist: true,
     },
     helmet: {
@@ -712,7 +685,6 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:2, max:7, scale:0.4 },
         },
-        // Helmets can roll either dmg or resist
         elemDmg: true, elemResist: true,
     },
     shield: {
@@ -728,9 +700,8 @@ const ITEM_GENERATORS = {
             vitality: { min:0, max:3, scale:0.4 },
         },
         tier5Stats: {
-            defense: { min:1, max:4, scale:0.5 }, // extra defense on legendary shields
+            defense: { min:1, max:4, scale:0.5 },
         },
-        // Shields can roll elemental RESIST only
         elemDmg: false, elemResist: true,
     },
     boots: {
@@ -764,7 +735,6 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:2, max:6, scale:0.4 },
         },
-        // Rings can roll either dmg or resist
         elemDmg: true, elemResist: true,
     },
     amulet: {
@@ -782,7 +752,6 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:2, max:7, scale:0.4 },
         },
-        // Amulets can roll either dmg or resist
         elemDmg: true, elemResist: true,
     },
     accessory: {
@@ -800,7 +769,6 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:2, max:6, scale:0.4 },
         },
-        // Accessories can roll either — they're wild-card trinkets
         elemDmg: true, elemResist: true,
     },
 };
@@ -825,7 +793,6 @@ const POTION_CATALOGUE = [
 function getPotionsForLevel(playerLevel) { return POTION_CATALOGUE.filter(p => playerLevel >= p.level); }
 
 function calculateBackendItemPrice(item, level) {
-    // 30% cheaper than before: was (50 + level*30), now (35 + level*21)
     const basePrice = 35 + (level * 21);
     const statMultiplier = Object.values(item.stats || {}).reduce((sum, val) => typeof val === 'number' ? sum + Math.max(0, val) : sum, 1);
     return Math.floor(basePrice * statMultiplier * (item.tier || 1));
@@ -845,7 +812,6 @@ function generateBackendRandomItem(level, type) {
         return Math.max(cfg.min, v);
     }
 
-    // Base stats — always roll these
     if (generator.baseStats) {
         for (const [k, cfg] of Object.entries(generator.baseStats)) {
             let v = rollStat(cfg, level);
@@ -854,7 +820,6 @@ function generateBackendRandomItem(level, type) {
             if (v > 0) stats[k] = v;
         }
     }
-    // Tier 3+ bonus stats (each has a 60% chance to appear)
     if (tier >= 3 && generator.tier3Stats) {
         for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
             if (Math.random() < 0.60) {
@@ -863,7 +828,6 @@ function generateBackendRandomItem(level, type) {
             }
         }
     }
-    // Tier 5 bonus stats (each has a 55% chance to appear)
     if (tier >= 5 && generator.tier5Stats) {
         for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
             if (Math.random() < 0.55) {
@@ -873,7 +837,6 @@ function generateBackendRandomItem(level, type) {
         }
     }
 
-    // Progressive elemental stats — specific per element, count scales with level
     rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist);
 
     const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
@@ -897,13 +860,10 @@ function generateBackendRandomItem(level, type) {
     };
     item.price = calculateBackendItemPrice(item, level);
 
-    // ~20% of items have a small gem co-pay (1–30 gems) alongside their gold price
-    // These items cost up to 20% less gold in exchange for the gem requirement
     if (Math.random() < 0.20) {
         const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
         const gemCost = 1 + Math.floor(Math.random() * maxGems);
         item.gemCost  = gemCost;
-        // Gold price reduced proportionally: 1–20% discount based on gem cost
         const discount = Math.min(0.20, gemCost / 150);
         item.price = Math.max(1, Math.floor(item.price * (1 - discount)));
         item.desc  = `✨ ${item.desc}`;
@@ -979,7 +939,6 @@ async function buildCharacterResponse(char, db) {
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
 
-    // Premium — must be computed first, used in cooldown calc below
     const activePremium   = getActivePremium(char);
     const activeSynergies = getActiveSynergies(activePremium);
     const ultimateActive  = hasUltimate(activePremium);
@@ -1005,7 +964,6 @@ async function buildCharacterResponse(char, db) {
     const activeEvent = getActiveEvent();
     const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
 
-    // Compute armor & per-element values for display
     const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
@@ -1039,7 +997,6 @@ async function buildCharacterResponse(char, db) {
         armor_value:  armorValue,
         elem_dmg:     elemDmg,
         elem_resist:  elemResist,
-        // Premium
         premium_features:  activePremium,
         premium_synergies: activeSynergies,
         premium_ultimate:  ultimateActive,
@@ -1101,7 +1058,6 @@ router.post('/upgrade', auth, async (req, res) => {
             return res.status(400).json({ error: 'Invalid stat' });
         let cost = upgradeCost(stat, char[stat] || 0, char.class);
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
-        // Apprentice premium: additional 20% off
         const activePrem = getActivePremium(char);
         if (hasPremium(activePrem, 'apprentice')) cost = Math.max(1, Math.floor(cost * 0.80));
         const result = await dbRun(db,
@@ -1231,7 +1187,6 @@ router.post('/missions/start', auth, async (req, res) => {
         let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
         if (hasPremium(activePremMission, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
 
-        // Midas Flow synergy: -10 MP cost
         let effectiveMpCost = sizeConf.mpCost;
         const midasFlow = PREMIUM_SYNERGIES.find(s => s.requires.includes('arcane_reservoir') && s.requires.includes('fortune_hunter'));
         if (midasFlow && hasPremium(activePremMission, 'arcane_reservoir') && hasPremium(activePremMission, 'fortune_hunter')) {
@@ -1285,7 +1240,6 @@ router.post('/missions/collect', auth, async (req, res) => {
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
-        const weaponData = getEquippedWeaponData(equippedArray);
         const playerFighter = {
             id: freshChar.id, name: freshChar.name,
             hp: hpCurrent, dmgMin, dmgMax, agility: freshChar.agility || 0,
@@ -1397,13 +1351,11 @@ router.get('/forge/recipes', auth, async (req, res) => {
         const completedZones = new Set(completedRows.map(r => r.zone));
         const mats = await getInventoryMaterials(db, char.id);
 
-        // Check which crafted set pieces the player already owns (in inventory or equipped)
         const ownedRecipeIds = new Set();
         const allItems = await dbAll(db, `SELECT item_data FROM inventory WHERE char_id=? AND item_type='equipment'`, [char.id]);
         for (const row of allItems) {
             try { const d = JSON.parse(row.item_data); if (d.id) ownedRecipeIds.add(d.id); } catch {}
         }
-        // Also check equipped
         const equippedArray = await getEquippedItemsArray(db, char.id);
         for (const row of equippedArray) {
             try { const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data; if (d.id) ownedRecipeIds.add(d.id); } catch {}
@@ -1482,10 +1434,9 @@ router.post('/forge/craft', auth, async (req, res) => {
             }
         }
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
-        // Store crafted item with all needed fields for inventory/equip system
         const craftedItem = {
             ...recipe,
-            price: recipe.goldCost,  // sell value reference
+            price: recipe.goldCost,
             priceType: 'gold',
             category: recipe.slot,
             crafted: true,
@@ -1660,7 +1611,7 @@ router.post('/shop/buy', auth, async (req, res) => {
         if (!character) return res.status(404).json({ error: 'No character' });
         if (!item) return res.status(400).json({ error: 'Invalid item data' });
 
-        const gemCost = item.gemCost || 0; // gem co-pay (if any)
+        const gemCost = item.gemCost || 0;
 
         if (priceType === 'gems') {
             if ((character.gems||0) < price) return res.status(400).json({ error: 'Not enough gems' });
@@ -1724,7 +1675,6 @@ router.get('/shop/items', auth, async (req, res) => {
 
 function generateBackendInventory(playerLevel) {
     const inventory = [];
-    // Always generate at least 2 of each type so every shop tab has items
     const allTypes = ['weapon','armor','helmet','shield','boots','ring','amulet','accessory'];
     for (const type of allTypes) {
         for (let i = 0; i < 2; i++) {
@@ -1732,7 +1682,6 @@ function generateBackendInventory(playerLevel) {
             if (item) inventory.push(item);
         }
     }
-    // Fill remaining slots randomly weighted
     const typeWeights = [
         { type:'weapon',    w:0.20 },
         { type:'armor',     w:0.15 },
@@ -1743,7 +1692,7 @@ function generateBackendInventory(playerLevel) {
         { type:'ring',      w:0.10 },
         { type:'boots',     w:0.11 },
     ];
-    const extraCount = 16 + Math.floor(Math.random() * 8); // 16-23 extra on top of the 16 guaranteed
+    const extraCount = 16 + Math.floor(Math.random() * 8);
     for (let i = 0; i < extraCount; i++) {
         const rand = Math.random();
         let cum = 0, type = 'weapon';
@@ -1770,6 +1719,8 @@ function shouldResetShop(lastGenerationDate) {
 }
 
 // ── Matchmaking ───────────────────────────────────────────────────────────
+// FIX: Run applyHpRegen on all candidates before filtering by HP,
+// so inactive players who have regenerated are correctly included.
 router.get('/matchmaking', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -1778,7 +1729,22 @@ router.get('/matchmaking', auth, async (req, res) => {
         const direction = req.query.direction || 'similar';
         const now = Math.floor(Date.now() / 1000);
         const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
+
+        // Step 1: Fetch all candidates not under global protection cooldown,
+        // WITHOUT the hp_current filter yet — we need to regen first.
         let candidates = await dbAll(db, `
+            SELECT c.*, u.username,
+                   (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
+            FROM characters c JOIN users u ON c.user_id=u.id
+            WHERE c.id != ?
+              AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
+        `, [me.id, now]);
+
+        // Step 2: Apply HP regen to all candidates so inactive players are up to date.
+        await Promise.all(candidates.map(c => applyHpRegen(db, c.id)));
+
+        // Step 3: Re-fetch candidates with fresh HP, now applying the HP filter.
+        candidates = await dbAll(db, `
             SELECT c.*, u.username,
                    (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
             FROM characters c JOIN users u ON c.user_id=u.id
@@ -1786,9 +1752,12 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
         `, [me.id, now]);
+
+        // Step 4: Filter out targets the attacker is on a per-target cooldown for.
         const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
         const myCooldowns = myCooldownRows.map(r => r.defender_id);
         candidates = candidates.filter(c => !myCooldowns.includes(c.id));
+
         if (!candidates.length) return res.json(null);
         let target;
         if (direction === 'weaker') target = candidates.filter(c => c.power < myPower).sort((a,b) => b.power - a.power)[0] || null;
@@ -1814,7 +1783,6 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             return res.status(400).json({ error: 'Cannot attack while traveling.' });
         const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
         const atkCooldown = attacker.last_battle_at || 0;
-        // Fortune Hunter: attacker gets 25% shorter cooldown
         const activePremAtk = getActivePremium(attacker);
         const effectivePvpCooldown = hasPremium(activePremAtk, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.75) : pvpCooldown;
         if (atkCooldown + effectivePvpCooldown > now) {
@@ -1846,8 +1814,6 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const { dmgMin:dmgMinD, dmgMax:dmgMaxD } = calcBaseDamage(freshD, equippedD);
         const hpMaxA = calcHpMax(freshA, equippedA);
         const hpMaxD = calcHpMax(freshD, equippedD);
-        const weaponA = getEquippedWeaponData(equippedA);
-        const weaponD = getEquippedWeaponData(equippedD);
         const premA = getActivePremium(freshA);
         const premD = getActivePremium(freshD);
         const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
@@ -1859,15 +1825,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             id: freshA.id, name: freshA.name,
             hp: hpA, dmgMin: dmgMinA, dmgMax: dmgMaxA, agility: freshA.agility || 0,
             hit_chance:  freshA.hit_chance  || 0,
-            // Veteran synergy: +5% crit (applied as flat bonus to crit_chance stat)
             crit_chance: (freshA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
-            // Iron Fortress: +1% of armor value added to armor
             armor:       armorA + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
-            // Iron Fortress: +10% agility multiplier when defending
             agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
-            // Warlord: +15% damage multiplier
             dmg_bonus:   hasPremium(premA, 'warlord') ? 0.15 : 0,
-            // Warlord: +10% of hit_chance added to effective hit
             hit_bonus:   hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0,
             elem_dmg:    calcElemDmg(equippedA),
             elem_resist: calcElemResist(freshA, equippedA),
@@ -1900,13 +1861,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         }
         const xpGained = attackerWon ? calculateBattleXP(freshA.level, freshD.level) : 0;
         const atkGoldStake = Math.floor((freshA.gold || 0) * 0.10);
-        // Vault Keeper: defender only loses 5% instead of 10% when they lose
         const defStakeRate = hasPremium(premD, 'vault_keeper') ? 0.05 : 0.10;
         const defGoldStake = Math.floor((freshD.gold || 0) * defStakeRate);
         const goldGained   = attackerWon ? defGoldStake  : -atkGoldStake;
         const defGoldChange = attackerWon ? -defGoldStake : atkGoldStake;
 
-        // Fortune Hunter: 25% shorter PvP cooldown
         const pvpCooldownA = hasPremium(premA, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.75) : pvpCooldown;
         const newHpA = Math.max(0, battle.hpRemainingA);
         const newHpD = Math.max(0, battle.hpRemainingB);
@@ -1953,12 +1912,20 @@ router.get('/leaderboard', auth, async (req, res) => {
 });
 
 // ── Player profile ────────────────────────────────────────────────────────
+// FIX: Apply HP regen before reading the target player's HP,
+// so viewers see accurate current HP and the attackability check is correct.
 router.get('/player/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
         const me = await dbGet(db, 'SELECT id FROM characters WHERE user_id=?', [req.user.userId]);
+
+        // Run HP regen for the viewed player before reading their data
+        await applyHpRegen(db, req.params.id);
+
+        // Re-fetch with fresh HP after regen
         const player = await dbGet(db, 'SELECT c.*,u.username FROM characters c JOIN users u ON c.user_id=u.id WHERE c.id=?', [req.params.id]);
         if (!player) return res.status(404).json({ error: 'Not found' });
+
         const now = Math.floor(Date.now() / 1000);
         const globalCooldown = (player.attack_cooldown_until || 0) > now ? player.attack_cooldown_until - now : 0;
         let perTargetCooldown = 0;
@@ -1970,7 +1937,10 @@ router.get('/player/:id', auth, async (req, res) => {
         }
         const equippedArray = await getEquippedItemsArray(db, player.id);
         const hpMax = calcHpMax(player, equippedArray);
+
+        // hpLow now reflects the regenerated HP value, not a stale one
         const hpLow = (player.hp_current ?? hpMax) < 10;
+
         const equipped = await getEquippedItems(db, player.id);
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
@@ -1980,7 +1950,9 @@ router.get('/player/:id', auth, async (req, res) => {
             strength:player.strength, defense:player.defense, agility:player.agility,
             magic:player.magic, vitality:player.vitality||10,
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
-            hp_max:hpMax, wins:player.wins, losses:player.losses,
+            hp_max:hpMax,
+            hp_current: player.hp_current ?? hpMax,
+            wins:player.wins, losses:player.losses,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
             globalCooldown, perTargetCooldown, hpLow, equipped,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
@@ -2141,7 +2113,6 @@ router.post('/premium/activate', auth, async (req, res) => {
         if ((char.gems || 0) < feature.cost) return res.status(400).json({ error: `Need ${feature.cost} 💎 gems` });
         const now = Math.floor(Date.now() / 1000);
         const current = getActivePremium(char);
-        // If already active, extend from current expiry; otherwise from now
         const base = (current[featureId] && current[featureId] > now) ? current[featureId] : now;
         current[featureId] = base + PREMIUM_DURATION;
         await dbRun(db, 'UPDATE characters SET premium_features=?, gems=gems-? WHERE id=?',
