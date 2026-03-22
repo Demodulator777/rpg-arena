@@ -136,6 +136,7 @@
                 <div class="nav-edge nav-edge-left"></div>
                 <div class="sidebar-section-label">Character</div>
                 <button class="nav-btn" onclick="showTab('character')">👤 Character</button>
+                <button class="nav-btn" onclick="showTab('premium')">💎 Premium</button>
                 <button class="nav-btn" onclick="showTab('loadout')">⚔️ Loadout</button>
                 <button class="nav-btn" onclick="showTab('skills')">✨ Skills</button>
                 <button class="nav-btn" onclick="showTab('train')">💪 Training</button>
@@ -173,6 +174,13 @@
                 <!-- CHARACTER -->
                 <div id="tab-character" class="game-tab active">
                     <div id="char-sheet" class="char-grid"></div>
+                </div>
+
+                <!-- PREMIUM -->
+                <div id="tab-premium" class="game-tab">
+                    <div class="tab-header"><h2>💎 Premium Features</h2></div>
+                    <div id="premium-content"></div>
+                    <div id="premium-msg" class="msg-bar hidden"></div>
                 </div>
 
                 <!-- LOADOUT -->
@@ -271,7 +279,12 @@
 
                 <!-- SHOP -->
                 <div id="tab-shop" class="game-tab">
-                    <div class="tab-header"><h2>🛒 Shop</h2></div>
+                    <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                        <h2>🛒 Shop</h2>
+                        <button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" onclick="rerollShop()">
+                            🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
+                        </button>
+                    </div>
                     <div class="shop-currency-row">
                         <span id="shop-gold"></span>
                         <span id="shop-gems"></span>
