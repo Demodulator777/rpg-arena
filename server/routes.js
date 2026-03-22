@@ -1,7 +1,7 @@
 const express = require('express');
 const { getDb } = require('./db');
 const auth = require('./middleware');
-const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, generateMission, TIER_COLORS, TIER_LABELS } = require('./gamedata');
+const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS } = require('./gamedata');
 
 BigInt.prototype.toJSON = function() { return Number(this); };
 
@@ -1396,6 +1396,19 @@ router.get('/forge/recipes', auth, async (req, res) => {
         const completedRows = await dbAll(db, 'SELECT DISTINCT zone FROM missions WHERE char_id=? AND collected=1', [char.id]);
         const completedZones = new Set(completedRows.map(r => r.zone));
         const mats = await getInventoryMaterials(db, char.id);
+
+        // Check which crafted set pieces the player already owns (in inventory or equipped)
+        const ownedRecipeIds = new Set();
+        const allItems = await dbAll(db, `SELECT item_data FROM inventory WHERE char_id=? AND item_type='equipment'`, [char.id]);
+        for (const row of allItems) {
+            try { const d = JSON.parse(row.item_data); if (d.id) ownedRecipeIds.add(d.id); } catch {}
+        }
+        // Also check equipped
+        const equippedArray = await getEquippedItemsArray(db, char.id);
+        for (const row of equippedArray) {
+            try { const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data; if (d.id) ownedRecipeIds.add(d.id); } catch {}
+        }
+
         const components = Object.entries(COMPONENTS).map(([id, comp]) => {
             const canCraft = char.gold >= comp.goldCost && Object.entries(comp.recipe).every(([mat, qty]) => (mats[mat]?.qty || 0) >= qty);
             return { id, ...comp, canCraft, playerMats: mats };
@@ -1403,9 +1416,10 @@ router.get('/forge/recipes', auth, async (req, res) => {
         const equipment = EQUIPMENT_RECIPES.map(rec => {
             const zoneUnlocked = completedZones.has(rec.requiredZone) || char.level >= (ZONES[rec.requiredZone]?.minLevel || 1);
             const canCraft = zoneUnlocked && char.gold >= rec.goldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
-            return { ...rec, zoneUnlocked, canCraft };
+            const owned = ownedRecipeIds.has(rec.id);
+            return { ...rec, zoneUnlocked, canCraft, owned };
         });
-        res.json({ components, equipment, gold: char.gold, mats });
+        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -1468,8 +1482,16 @@ router.post('/forge/craft', auth, async (req, res) => {
             }
         }
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
-        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [char.id, 'equipment', JSON.stringify(recipe)]);
-        res.json({ message:`Crafted: ${recipe.name}!` });
+        // Store crafted item with all needed fields for inventory/equip system
+        const craftedItem = {
+            ...recipe,
+            price: recipe.goldCost,  // sell value reference
+            priceType: 'gold',
+            category: recipe.slot,
+            crafted: true,
+        };
+        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [char.id, 'equipment', JSON.stringify(craftedItem)]);
+        res.json({ message:`⚒️ Crafted: ${recipe.name}!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
