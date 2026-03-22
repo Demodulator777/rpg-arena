@@ -808,7 +808,8 @@ const POTION_CATALOGUE = [
 function getPotionsForLevel(playerLevel) { return POTION_CATALOGUE.filter(p => playerLevel >= p.level); }
 
 function calculateBackendItemPrice(item, level) {
-    const basePrice = 50 + (level * 30);
+    // 30% cheaper than before: was (50 + level*30), now (35 + level*21)
+    const basePrice = 35 + (level * 21);
     const statMultiplier = Object.values(item.stats || {}).reduce((sum, val) => typeof val === 'number' ? sum + Math.max(0, val) : sum, 1);
     return Math.floor(basePrice * statMultiplier * (item.tier || 1));
 }
@@ -878,6 +879,19 @@ function generateBackendRandomItem(level, type) {
                   tier >= 3 ? (Math.random() > 0.7 ? 'rare' : 'common') : 'common',
     };
     item.price = calculateBackendItemPrice(item, level);
+
+    // ~25% of items are gem-priced: 1-30 gems, cost up to 20% less than gold equivalent
+    // Higher tier = higher gem cost, but always strictly cheaper in value terms
+    if (Math.random() < 0.25) {
+        const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
+        const gemPrice = 1 + Math.floor(Math.random() * maxGems);
+        // Store gold equivalent for display comparison, but sell for gems at 20% discount
+        item.goldEquivalent = item.price;
+        item.price = gemPrice;
+        item.priceType = 'gems';
+        // Slightly richer desc to signal gem value
+        item.desc = `✨ Gem deal — ${item.desc}`;
+    }
 
     if (Math.random() < 0.10) {
         const classes = ['warrior','mage','rogue','paladin'];
