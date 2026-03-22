@@ -1199,17 +1199,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         flex-shrink: 0; text-align: center; justify-content: center; border-radius: 8px;
     }
     .nav-btn::after { font-size: 1.3rem; line-height: 1; }
-    .nav-btn:nth-of-type(1)::after  { content: '👤'; }
-    .nav-btn:nth-of-type(2)::after  { content: '⚔️'; }
-    .nav-btn:nth-of-type(3)::after  { content: '✨'; }
-    .nav-btn:nth-of-type(4)::after  { content: '💪'; }
-    .nav-btn:nth-of-type(5)::after  { content: '⬆️'; }
-    .nav-btn:nth-of-type(6)::after  { content: '🗺️'; }
-    .nav-btn:nth-of-type(7)::after  { content: '🔨'; }
-    .nav-btn:nth-of-type(8)::after  { content: '🎒'; }
-    .nav-btn:nth-of-type(9)::after  { content: '🛒'; }
-    .nav-btn:nth-of-type(10)::after { content: '🏆'; }
-    .nav-btn:nth-of-type(11)::after { content: '✉️'; }
+.nav-btn:nth-of-type(1)::after  { content: '👤'; }
+.nav-btn:nth-of-type(2)::after  { content: '💎'; }
+.nav-btn:nth-of-type(3)::after  { content: '⚔️'; }
+.nav-btn:nth-of-type(4)::after  { content: '✨'; }
+.nav-btn:nth-of-type(5)::after  { content: '💪'; }
+.nav-btn:nth-of-type(6)::after  { content: '⬆️'; }
+.nav-btn:nth-of-type(7)::after  { content: '🗺️'; }
+.nav-btn:nth-of-type(8)::after  { content: '🔨'; }
+.nav-btn:nth-of-type(9)::after  { content: '🎒'; }
+.nav-btn:nth-of-type(10)::after { content: '🛒'; }
+.nav-btn:nth-of-type(11)::after { content: '🏆'; }
+.nav-btn:nth-of-type(12)::after { content: '✉️'; }
     .nav-btn .unread-badge { font-size: 0.55rem; padding: 1px 4px; min-width: 14px; }
     .nav-btn.active::before { display: none; }
     .nav-btn.active { background: rgba(52,143,209,0.18); }
