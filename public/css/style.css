@@ -313,6 +313,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
 }
 .btn-forge:disabled { background: rgba(255,255,255,0.04); color: var(--text-dim); border-color: var(--border); cursor: not-allowed; }
+.btn-forge-owned:disabled { background: rgba(39,174,96,0.06); color: rgba(46,204,113,0.4); border-color: rgba(39,174,96,0.2); }
 .btn-forge:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
 
 .btn-shop {
