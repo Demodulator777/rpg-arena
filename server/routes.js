@@ -1229,7 +1229,7 @@ router.post('/missions/start', auth, async (req, res) => {
         const baseDuration = sizeConf.duration;
         const activePremMission = getActivePremium(character);
         let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
-        if (hasPremium(activePremMission, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.75));
+        if (hasPremium(activePremMission, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
 
         // Midas Flow synergy: -10 MP cost
         let effectiveMpCost = sizeConf.mpCost;
