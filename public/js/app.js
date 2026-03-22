@@ -12,6 +12,7 @@ let currentShopCategory = 'weapons';
 let activeMissionInterval = null;
 let overlayInterval = null;
 let travelOverlayInterval = null;
+let restOverlayInterval = null;
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -422,9 +423,55 @@ function renderCharacter() {
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat=Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
 
-    // Armor value: base defense/4 + equipped armor stats
-    let armorVal = Math.floor((c.defense||0)/4);
-    Object.values(eq).forEach(item => { if (item?.stats?.armor) armorVal += item.stats.armor; });
+    // Compute item bonuses per stat from equipped gear
+    const STAT_KEYS = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance','hp_max','armor'];
+    const itemBonus = {};
+    STAT_KEYS.forEach(k => { itemBonus[k] = 0; });
+    Object.values(eq).forEach(item => {
+        if (!item?.stats) return;
+        STAT_KEYS.forEach(k => { if (item.stats[k]) itemBonus[k] += item.stats[k]; });
+    });
+
+    // Base stats (before item bonuses — the raw trained/upgraded values)
+    // c.strength etc. already includes ultimate +1% mult from server, so base = floor(c.strength / ultMult)
+    // But we don't have ultMult here — just show item bonus separately, total on right
+    const baseStr  = c.strength    || 0;
+    const baseDef  = c.defense     || 0;
+    const baseAgi  = c.agility     || 0;
+    const baseMag  = c.magic       || 0;
+    const baseVit  = c.vitality    || 10;
+    const baseHit  = c.hit_chance  || 0;
+    const baseCrit = c.crit_chance || 0;
+
+    // Final damage range: base from strength + weapon
+    const wep = eq.weapon;
+    const baseDmgMin = Math.floor(baseStr * 0.5);
+    const baseDmgMax = baseDmgMin + 4;
+    const weapDmgMin = wep?.stats?.dmg_min || 0;
+    const weapDmgMax = wep?.stats?.dmg_max || 0;
+    const finalDmgMin = baseDmgMin + weapDmgMin;
+    const finalDmgMax = baseDmgMax + weapDmgMax;
+    const dmgTooltip = `Base: ${baseDmgMin}–${baseDmgMax} (STR ${baseStr}×0.5) + Weapon: +${weapDmgMin}–${weapDmgMax}`;
+
+    // statRow with breakdown: shows "base" bar, bonus tag, total on right
+    function statRowBreakdown(icon, label, base, bonus, max, cls) {
+        const total = base + bonus;
+        const pct = Math.round(total / Math.max(max, 1) * 100);
+        const bonusTag = bonus !== 0
+            ? `<span style="font-size:0.62rem;color:${bonus>0?'#2ecc71':'#e74c3c'};margin-left:3px">${bonus>0?'+':''}${bonus}</span>`
+            : '';
+        return `<div class="stat-row">
+            <span class="stat-icon">${icon}</span>
+            <span class="stat-label">${label}</span>
+            <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${pct}%"></div></div></div>
+            <span class="stat-val">${base}${bonusTag}</span>
+            <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);min-width:36px;text-align:right">${total}</span>
+        </div>`;
+    }
+
+    // Armor value: base defense/4 + item armor stats
+    const baseArmor = Math.floor(baseDef / 4);
+    const armorVal  = baseArmor + (itemBonus.armor || 0);
 
     // Elemental dmg/resist from character response (aggregated across all items)
     const elemDmgObj    = c.elem_dmg    || {};
@@ -514,15 +561,17 @@ function renderCharacter() {
     </div>
     <div class="char-panel">
       <h3>STATS</h3>
-      ${statRow('💪','Strength',c.strength,maxStat,'str')}
-      ${statRow('🛡️','Defense',c.defense,maxStat,'def')}
-      ${statRow('⚡','Agility',c.agility,maxStat,'agi')}
-      ${statRow('✨','Magic',c.magic,maxStat,'mag')}
-      ${statRow('❤️','Vitality',c.vitality||10,maxStat,'vit')}
-      ${(c.hit_chance||0)>0?statRow('🎯','Hit Chance',c.hit_chance,maxStat,'hit'):''}
-      ${(c.crit_chance||0)>0?statRow('💥','Crit Chance',c.crit_chance,maxStat,'crit'):''}
-      <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <span>DMG: <strong style="color:var(--text-bright)">${Math.floor(c.strength/4)}${eq.weapon?` +${eq.weapon.stats?.dmg_min||0}–${eq.weapon.stats?.dmg_max||0}`:''}</strong></span>
+      ${statRowBreakdown('💪','Strength', baseStr,  itemBonus.strength||0, maxStat,'str')}
+      ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
+      ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
+      ${statRowBreakdown('✨','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
+      ${statRowBreakdown('❤️','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
+      ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('🎯','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
+      ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('💥','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
+      <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <span title="${escHtml(dmgTooltip)}" style="cursor:help">
+          ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
+        </span>
         <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
         ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
         ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
@@ -1043,9 +1092,51 @@ async function collectMission() {
 async function checkAndShowMissionOverlay() {
     try {
         const active=await api('GET','/game/missions/active');
-        if (active&&active.id) { showMissionOverlay(active,active.mission_name||active.missionName||'Mission'); }
-        else hideMissionOverlay();
-    } catch { hideMissionOverlay(); }
+        if (active&&active.id) {
+            hideRestOverlay();
+            showMissionOverlay(active,active.mission_name||active.missionName||'Mission');
+            return;
+        }
+        hideMissionOverlay();
+        // Check battle cooldown — show rest overlay if still cooling down
+        const endsAt = character?.battle_cooldown_ends_at || 0;
+        const lastBattle = character?.last_battle_at || 0;
+        const now = Math.floor(Date.now() / 1000);
+        if (endsAt > now && lastBattle > 0) {
+            showRestOverlay(lastBattle, endsAt);
+        } else {
+            hideRestOverlay();
+        }
+    } catch { hideMissionOverlay(); hideRestOverlay(); }
+}
+
+function showRestOverlay(startedAt, endsAt) {
+    const overlay = document.getElementById('rest-overlay'); if (!overlay) return;
+    if (restOverlayInterval) { clearInterval(restOverlayInterval); restOverlayInterval = null; }
+    const timerEl = document.getElementById('rest-overlay-timer');
+    const fillEl  = document.getElementById('rest-overlay-fill');
+    const totalDuration = endsAt - startedAt;
+    function tick() {
+        const now = Math.floor(Date.now() / 1000);
+        const left = Math.max(0, endsAt - now);
+        const elapsed = now - startedAt;
+        const pct = Math.min(100, (elapsed / Math.max(totalDuration, 1)) * 100);
+        const m = Math.floor(left / 60), s = left % 60;
+        if (timerEl) timerEl.textContent = left > 0 ? `${m}:${String(s).padStart(2,'0')}` : 'Ready!';
+        if (fillEl)  fillEl.style.width = pct + '%';
+        if (left <= 0) {
+            clearInterval(restOverlayInterval); restOverlayInterval = null;
+            hideRestOverlay();
+        }
+    }
+    tick();
+    restOverlayInterval = setInterval(tick, 1000);
+    overlay.classList.remove('hidden');
+}
+
+function hideRestOverlay() {
+    if (restOverlayInterval) { clearInterval(restOverlayInterval); restOverlayInterval = null; }
+    const o = document.getElementById('rest-overlay'); if (o) o.classList.add('hidden');
 }
 function showMissionOverlay(active, displayName) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
@@ -1555,7 +1646,7 @@ function renderPremium(data) {
     const ultimateBanner = ultimate ? `
         <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
             <div style="font-size:1.5rem;margin-bottom:4px">🌟 ASCENDANT</div>
-            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">All 6 features active · +50% XP from all sources · +10 to all stats</div>
+            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">All 6 features active · +50% XP from all sources · +1% to all stats</div>
         </div>` : (activeCount >= 2 ? `
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
             ${activeCount}/6 features active${synergies.length ? ` · <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} synergy active!</span>` : ' · Activate more for synergy bonuses'}
