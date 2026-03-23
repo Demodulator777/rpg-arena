@@ -664,15 +664,15 @@ function renderLoadout() {
             ⚔️ Select a round, then click a zone dot to change it. Your opponent cannot see your choices.
         </div>
         <div id="loadout-rounds" style="display:flex;gap:5px;margin-bottom:20px;flex-wrap:wrap"></div>
-        <div style="display:flex;gap:16px;justify-content:center;margin-bottom:16px;flex-wrap:wrap">
-            <div style="width:280px;flex-shrink:0">
+        <div class="loadout-figures-row" style="margin-bottom:16px">
+            <div class="loadout-figure-col">
                 <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:10px">⚔️ Attack Zone</div>
-                <div id="loadout-atk-grid" class="loadout-dot-grid" style="height:420px"></div>
+                <div id="loadout-atk-grid" class="loadout-dot-grid"></div>
                 <div id="loadout-atk-info" class="loadout-zone-info"></div>
             </div>
-            <div style="width:280px;flex-shrink:0">
+            <div class="loadout-figure-col">
                 <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:10px">🛡️ Block Zone</div>
-                <div id="loadout-blk-grid" class="loadout-dot-grid" style="height:420px"></div>
+                <div id="loadout-blk-grid" class="loadout-dot-grid"></div>
                 <div id="loadout-blk-info" class="loadout-zone-info"></div>
             </div>
         </div>
