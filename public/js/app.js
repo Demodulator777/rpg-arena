@@ -653,70 +653,71 @@ let _loadoutActiveRound = 0;
 let _loadoutAttackZones = [...DEFAULT_ATTACK_ZONES];
 let _loadoutBlockZones  = [...DEFAULT_BLOCK_ZONES];
 
+// Shared SVG silhouette
+const LOADOUT_SILHOUETTE_SVG = `
+    <svg viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg"
+         style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.2">
+        <ellipse cx="50" cy="12" rx="11" ry="13" fill="currentColor"/>
+        <rect x="44" y="24" width="12" height="8" rx="3" fill="currentColor"/>
+        <path d="M28 32 Q25 55 27 80 L73 80 Q75 55 72 32 Q61 28 50 28 Q39 28 28 32Z" fill="currentColor"/>
+        <path d="M28 33 Q18 40 16 65 Q19 67 23 65 Q24 45 32 38Z" fill="currentColor"/>
+        <path d="M72 33 Q82 40 84 65 Q81 67 77 65 Q76 45 68 38Z" fill="currentColor"/>
+        <path d="M16 65 Q14 80 15 90 Q19 91 23 90 Q23 80 23 65Z" fill="currentColor"/>
+        <path d="M84 65 Q86 80 85 90 Q81 91 77 90 Q77 80 77 65Z" fill="currentColor"/>
+        <path d="M27 80 Q25 110 26 135 Q30 137 36 135 Q37 110 38 80Z" fill="currentColor"/>
+        <path d="M73 80 Q75 110 74 135 Q70 137 64 135 Q63 110 62 80Z" fill="currentColor"/>
+        <path d="M26 135 Q25 155 27 170 Q31 172 36 170 Q37 155 36 135Z" fill="currentColor"/>
+        <path d="M74 135 Q75 155 73 170 Q69 172 64 170 Q63 155 64 135Z" fill="currentColor"/>
+    </svg>`;
+
 function renderLoadout() {
     if (!character) return;
     _loadoutAttackZones = JSON.parse(character.attack_zones||'null') || [...DEFAULT_ATTACK_ZONES];
     _loadoutBlockZones  = JSON.parse(character.block_zones||'null')  || [...DEFAULT_BLOCK_ZONES];
     const el = document.getElementById('loadout-content');
     if (!el) return;
-
     el.innerHTML = `
         <div style="margin-bottom:14px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:0.78rem;color:rgba(255,255,255,0.45)">
-            ⚔️ Select a round, then click a zone on each figure to assign attack and block. Your opponent cannot see your choices.
+            ⚔️ Select a round tab, then click anywhere on a figure to choose a zone. Your opponent cannot see your choices.
         </div>
-
-        <!-- Round selector tabs -->
         <div id="loadout-rounds" style="display:flex;gap:5px;margin-bottom:18px;flex-wrap:wrap"></div>
-
-        <!-- Two figures side by side -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-            <!-- Attack figure -->
             <div>
                 <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:8px">⚔️ Attack Zone</div>
                 <div id="loadout-atk-figure" class="loadout-figure"></div>
                 <div id="loadout-atk-info" class="loadout-zone-info"></div>
             </div>
-            <!-- Block figure -->
             <div>
                 <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:8px">🛡️ Block Zone</div>
                 <div id="loadout-blk-figure" class="loadout-figure"></div>
                 <div id="loadout-blk-info" class="loadout-zone-info"></div>
             </div>
         </div>
-
-        <!-- Hidden inputs saveLoadout() still reads from -->
         <div style="display:none" id="loadout-hidden-inputs">
-            ${Array.from({length:10},(_,i)=>`
-                <input id="atk-${i}" value="${_loadoutAttackZones[i]||'chest'}">
-                <input id="blk-${i}" value="${_loadoutBlockZones[i]||'cross_guard'}">
-            `).join('')}
+            ${Array.from({length:10},(_,i)=>`<input id="atk-${i}" value="${_loadoutAttackZones[i]||'chest'}"><input id="blk-${i}" value="${_loadoutBlockZones[i]||'cross_guard'}">`).join('')}
         </div>
-
         <button class="btn-primary" style="width:100%;margin-top:4px" onclick="saveLoadout()">Save Loadout</button>
-        <div id="loadout-msg" class="msg-bar hidden"></div>
-    `;
-
+        <div id="loadout-msg" class="msg-bar hidden"></div>`;
     _loadoutActiveRound = 0;
     renderLoadoutRoundTabs();
     renderLoadoutFigure('atk');
     renderLoadoutFigure('blk');
+    document.addEventListener('click', closeLoadoutPopup, true);
 }
 
 function renderLoadoutRoundTabs() {
     const el = document.getElementById('loadout-rounds');
     if (!el) return;
     el.innerHTML = Array.from({length:10}, (_,i) => {
-        const atkZone = _loadoutAttackZones[i] || 'chest';
-        const blkZone = _loadoutBlockZones[i]  || 'cross_guard';
+        const atkZone  = _loadoutAttackZones[i] || 'chest';
+        const blkZone  = _loadoutBlockZones[i]  || 'cross_guard';
         const atkColor = ZONE_COLORS[atkZone]   || '#aaa';
         const blkColor = BLOCK_COLORS[blkZone]  || '#aaa';
         const isActive = i === _loadoutActiveRound;
         return `<div onclick="selectLoadoutRound(${i})" style="
             flex:1;min-width:42px;padding:7px 4px;border-radius:8px;cursor:pointer;text-align:center;
-            border:2px solid ${isActive ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.1)'};
-            background:${isActive ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'};
-            transition:all 0.15s;
-        ">
+            border:2px solid ${isActive?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.1)'};
+            background:${isActive?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.03)'};transition:all 0.15s">
             <div style="font-size:0.62rem;color:${isActive?'#fff':'rgba(255,255,255,0.4)'};font-weight:700;margin-bottom:4px">${i+1}</div>
             <div style="display:flex;gap:3px;justify-content:center">
                 <div style="width:8px;height:8px;border-radius:50%;background:${atkColor};box-shadow:0 0 4px ${atkColor}66" title="${HIT_ZONES[atkZone]?.label||atkZone}"></div>
@@ -727,116 +728,128 @@ function renderLoadoutRoundTabs() {
 }
 
 function renderLoadoutFigure(type) {
-    const isAtk = type === 'atk';
-    const el = document.getElementById(`loadout-${type}-figure`);
+    const isAtk  = type === 'atk';
+    const el     = document.getElementById(`loadout-${type}-figure`);
     if (!el) return;
-    const charClass = character?.class || 'warrior';
+    const charClass   = character?.class || 'warrior';
+    const currentZone = isAtk
+        ? (_loadoutAttackZones[_loadoutActiveRound] || 'chest')
+        : (_loadoutBlockZones[_loadoutActiveRound]  || 'cross_guard');
+    const blockHighlights = !isAtk ? (BLOCK_HIGHLIGHT_ZONES[currentZone] || []) : [];
+
+    const hotspots = Object.entries(ZONE_POSITIONS).map(([zoneKey, pos]) => {
+        let isSelected, color, size;
+        if (isAtk) {
+            isSelected = currentZone === zoneKey;
+            color = ZONE_COLORS[zoneKey] || '#aaa';
+        } else {
+            isSelected = blockHighlights.includes(zoneKey);
+            color = isSelected ? (BLOCK_COLORS[currentZone] || '#3498db') : 'rgba(255,255,255,0.15)';
+        }
+        size = isSelected ? 14 : 11;
+        const glow   = isSelected ? `box-shadow:0 0 10px ${color},0 0 4px ${color};` : '';
+        const border = isSelected ? 'border:2px solid rgba(255,255,255,0.8);' : 'border:1px solid rgba(255,255,255,0.2);';
+        const label  = HIT_ZONES[zoneKey]?.label || zoneKey;
+        return `<div data-zone="${zoneKey}" title="${label}"
+            style="position:absolute;
+                left:calc(${pos.x}% - ${size/2}px);top:calc(${pos.y}% - ${size/2}px);
+                width:${size}px;height:${size}px;border-radius:50%;
+                background:${color};${border}${glow}
+                cursor:pointer;transition:all 0.15s;z-index:2"></div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div id="loadout-${type}-wrap" onclick="onLoadoutFigureClick(event,'${type}')"
+             style="position:relative;width:100%;padding-top:185%;
+                    background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:10px;overflow:visible;cursor:pointer">
+            <img src="/images/class/${charClass}.png"
+                 style="position:absolute;inset:0;width:100%;height:92%;object-fit:contain;
+                        object-position:center top;opacity:0.18;pointer-events:none;z-index:0"
+                 onerror="this.style.display='none'">
+            <div style="position:absolute;inset:0;color:rgba(255,255,255,0.9)">${LOADOUT_SILHOUETTE_SVG}</div>
+            ${hotspots}
+        </div>`;
+
+    updateLoadoutZoneInfo(type, currentZone);
+}
+
+function onLoadoutFigureClick(e, type) {
+    e.stopPropagation();
+    closeLoadoutPopup();
+    const wrap = document.getElementById(`loadout-${type}-wrap`);
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    showLoadoutPopup(type, clickX, clickY, rect);
+}
+
+function showLoadoutPopup(type, localX, localY, wrapRect) {
+    const isAtk = type === 'atk';
+    const entries = isAtk ? Object.entries(HIT_ZONES) : Object.entries(BLOCK_ZONES);
     const currentZone = isAtk
         ? (_loadoutAttackZones[_loadoutActiveRound] || 'chest')
         : (_loadoutBlockZones[_loadoutActiveRound]  || 'cross_guard');
 
-    // For block figures, determine which body positions are highlighted
-    const blockHighlights = !isAtk ? (BLOCK_HIGHLIGHT_ZONES[currentZone] || []) : [];
+    const popup = document.createElement('div');
+    popup.id = 'loadout-popup';
+    popup.style.cssText = `position:fixed;z-index:9999;
+        background:rgba(8,12,22,0.97);border:1px solid rgba(255,255,255,0.14);
+        border-radius:10px;padding:6px;min-width:170px;max-width:210px;
+        box-shadow:0 12px 40px rgba(0,0,0,0.8);max-height:320px;overflow-y:auto;`;
 
-    // Build SVG silhouette
-    const silhouette = `
-        <svg viewBox="0 0 100 200" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0.18">
-            <!-- Head -->
-            <ellipse cx="50" cy="12" rx="11" ry="13" fill="currentColor"/>
-            <!-- Neck -->
-            <rect x="44" y="24" width="12" height="8" rx="3" fill="currentColor"/>
-            <!-- Torso -->
-            <path d="M28 32 Q25 55 27 80 L73 80 Q75 55 72 32 Q61 28 50 28 Q39 28 28 32Z" fill="currentColor"/>
-            <!-- Left arm -->
-            <path d="M28 33 Q18 40 16 65 Q19 67 23 65 Q24 45 32 38Z" fill="currentColor"/>
-            <!-- Right arm -->
-            <path d="M72 33 Q82 40 84 65 Q81 67 77 65 Q76 45 68 38Z" fill="currentColor"/>
-            <!-- Left forearm -->
-            <path d="M16 65 Q14 80 15 90 Q19 91 23 90 Q23 80 23 65Z" fill="currentColor"/>
-            <!-- Right forearm -->
-            <path d="M84 65 Q86 80 85 90 Q81 91 77 90 Q77 80 77 65Z" fill="currentColor"/>
-            <!-- Left leg -->
-            <path d="M27 80 Q25 110 26 135 Q30 137 36 135 Q37 110 38 80Z" fill="currentColor"/>
-            <!-- Right leg -->
-            <path d="M73 80 Q75 110 74 135 Q70 137 64 135 Q63 110 62 80Z" fill="currentColor"/>
-            <!-- Left shin -->
-            <path d="M26 135 Q25 155 27 170 Q31 172 36 170 Q37 155 36 135Z" fill="currentColor"/>
-            <!-- Right shin -->
-            <path d="M74 135 Q75 155 73 170 Q69 172 64 170 Q63 155 64 135Z" fill="currentColor"/>
-        </svg>`;
-
-    // Build zone hotspots
-    const zones = isAtk ? Object.entries(ZONE_POSITIONS) : Object.entries(ZONE_POSITIONS);
-    const hotspots = zones.map(([zoneKey, pos]) => {
-        let isSelected, color, label, onclick;
-
-        if (isAtk) {
-            isSelected = currentZone === zoneKey;
-            color = ZONE_COLORS[zoneKey] || '#aaa';
-            label = HIT_ZONES[zoneKey]?.label || zoneKey;
-            onclick = `selectLoadoutZone('atk','${zoneKey}')`;
-        } else {
-            // For block, we highlight body positions covered by the selected guard
-            isSelected = blockHighlights.includes(zoneKey);
-            color = isSelected ? (BLOCK_COLORS[currentZone] || '#3498db') : 'rgba(255,255,255,0.15)';
-            label = HIT_ZONES[zoneKey]?.label || zoneKey; // label is the body zone name
-            onclick = ''; // block zones are selected from the list below, not by clicking body
-        }
-
-        const size = isSelected ? 14 : 11;
-        const glow = isSelected ? `box-shadow:0 0 10px ${color},0 0 4px ${color};` : '';
-        const border = isSelected ? `border:2px solid rgba(255,255,255,0.8);` : `border:1px solid rgba(255,255,255,0.2);`;
-
-        return `<div
-            title="${label}"
-            ${onclick ? `onclick="${onclick}"` : ''}
-            style="
-                position:absolute;
-                left:calc(${pos.x}% - ${size/2}px);
-                top:calc(${pos.y}% - ${size/2}px);
-                width:${size}px;height:${size}px;
-                border-radius:50%;
-                background:${color};
-                ${border}${glow}
-                cursor:${onclick ? 'pointer' : 'default'};
-                transition:all 0.15s;
-                z-index:2;
-            "
-        ></div>`;
+    popup.innerHTML = entries.map(([k, v]) => {
+        const isActive = currentZone === k;
+        const color = isAtk ? (ZONE_COLORS[k]||'#aaa') : (BLOCK_COLORS[k]||'#aaa');
+        const stat  = isAtk
+            ? `×${v.dmgMult} · ${Math.round(v.hitChance*100)}% hit`
+            : `${Math.round(v.reduction*100)}% block`;
+        return `<div onclick="pickLoadoutZone('${type}','${k}')"
+            style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
+                   background:${isActive?`${color}22`:'transparent'};
+                   border:1px solid ${isActive?color:'transparent'};
+                   transition:background 0.1s;margin-bottom:2px"
+            onmouseenter="this.style.background='rgba(255,255,255,0.07)'"
+            onmouseleave="this.style.background='${isActive?`${color}22`:'transparent'}'">
+            <div style="width:9px;height:9px;border-radius:50%;background:${color};flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:0.73rem;color:${isActive?'#fff':'rgba(255,255,255,0.75)'};font-weight:${isActive?'700':'400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.label}</div>
+                <div style="font-size:0.6rem;color:rgba(255,255,255,0.3)">${stat}</div>
+            </div>
+            ${isActive?`<div style="font-size:0.6rem;color:${color}">✓</div>`:''}
+        </div>`;
     }).join('');
 
-    // For block figure, also render a scrollable list of guard options
-    const blockList = !isAtk ? `
-        <div style="position:absolute;bottom:0;left:0;right:0;display:flex;flex-direction:column;gap:3px;padding:6px;background:rgba(5,8,14,0.85);border-top:1px solid rgba(255,255,255,0.08);border-radius:0 0 10px 10px;z-index:3;max-height:120px;overflow-y:auto">
-            ${Object.entries(BLOCK_ZONES).map(([k,v]) => {
-                const isActive = currentZone === k;
-                const bc = BLOCK_COLORS[k] || '#aaa';
-                return `<div onclick="selectLoadoutZone('blk','${k}')" style="
-                    display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:5px;cursor:pointer;
-                    background:${isActive ? `${bc}22` : 'transparent'};
-                    border:1px solid ${isActive ? bc : 'transparent'};
-                    transition:all 0.12s;
-                ">
-                    <div style="width:8px;height:8px;border-radius:50%;background:${bc};flex-shrink:0"></div>
-                    <span style="font-size:0.65rem;color:${isActive ? '#fff' : 'rgba(255,255,255,0.5)'};font-weight:${isActive?'700':'400'}">${v.label}</span>
-                    <span style="font-size:0.58rem;color:rgba(255,255,255,0.25);margin-left:auto">${Math.round(v.reduction*100)}%</span>
-                </div>`;
-            }).join('')}
-        </div>` : '';
+    document.body.appendChild(popup);
 
-    el.innerHTML = `
-        <div style="position:relative;width:100%;padding-top:185%;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden">
-            <!-- Character class image as faded bg -->
-            <img src="/images/class/${charClass}.png" style="position:absolute;inset:0;width:100%;height:92%;object-fit:contain;object-position:center top;opacity:0.18;pointer-events:none;z-index:0" onerror="this.style.display='none'">
-            <!-- SVG silhouette -->
-            <div style="position:absolute;inset:0;color:rgba(255,255,255,0.9)">${silhouette}</div>
-            <!-- Zone hotspots -->
-            ${hotspots}
-            ${blockList}
-        </div>`;
+    const pw = popup.offsetWidth  || 180;
+    const ph = popup.offsetHeight || 300;
+    let left = wrapRect.left + localX + 14;
+    let top  = wrapRect.top  + localY - 20;
+    if (left + pw > window.innerWidth  - 8) left = wrapRect.left + localX - pw - 14;
+    if (top  + ph > window.innerHeight - 8) top  = window.innerHeight - ph - 8;
+    if (top < 8) top = 8;
+    if (left < 8) left = 8;
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+}
 
-    // Update info bar
-    updateLoadoutZoneInfo(type, isAtk ? currentZone : currentZone);
+function pickLoadoutZone(type, zoneKey) {
+    if (type === 'atk') _loadoutAttackZones[_loadoutActiveRound] = zoneKey;
+    else                 _loadoutBlockZones[_loadoutActiveRound]  = zoneKey;
+    const inp = document.getElementById(`${type}-${_loadoutActiveRound}`);
+    if (inp) inp.value = zoneKey;
+    closeLoadoutPopup();
+    renderLoadoutRoundTabs();
+    renderLoadoutFigure(type);
+}
+
+function closeLoadoutPopup(e) {
+    const popup = document.getElementById('loadout-popup');
+    if (!popup) return;
+    if (e && popup.contains(e.target)) return;
+    popup.remove();
 }
 
 function updateLoadoutZoneInfo(type, zoneKey) {
@@ -844,15 +857,13 @@ function updateLoadoutZoneInfo(type, zoneKey) {
     if (!el) return;
     const isAtk = type === 'atk';
     if (isAtk) {
-        const z = HIT_ZONES[zoneKey];
-        if (!z) return;
+        const z = HIT_ZONES[zoneKey]; if (!z) return;
         const color = ZONE_COLORS[zoneKey] || '#aaa';
         el.innerHTML = `<span style="color:${color};font-weight:700">${z.label}</span>
             <span style="color:rgba(255,255,255,0.35)"> · ×${z.dmgMult} dmg · ${Math.round(z.hitChance*100)}% hit</span>
             <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${z.desc}</div>`;
     } else {
-        const z = BLOCK_ZONES[zoneKey];
-        if (!z) return;
+        const z = BLOCK_ZONES[zoneKey]; if (!z) return;
         const color = BLOCK_COLORS[zoneKey] || '#aaa';
         el.innerHTML = `<span style="color:${color};font-weight:700">${z.label}</span>
             <span style="color:rgba(255,255,255,0.35)"> · ${Math.round(z.reduction*100)}% block</span>
@@ -862,32 +873,14 @@ function updateLoadoutZoneInfo(type, zoneKey) {
 
 function selectLoadoutRound(i) {
     _loadoutActiveRound = i;
+    closeLoadoutPopup();
     renderLoadoutRoundTabs();
     renderLoadoutFigure('atk');
     renderLoadoutFigure('blk');
 }
 
-function selectLoadoutZone(type, zoneKey) {
-    const isAtk = type === 'atk';
-    if (isAtk) {
-        _loadoutAttackZones[_loadoutActiveRound] = zoneKey;
-    } else {
-        _loadoutBlockZones[_loadoutActiveRound] = zoneKey;
-    }
-    // Keep hidden inputs in sync so saveLoadout() still works
-    const inp = document.getElementById(`${type}-${_loadoutActiveRound}`);
-    if (inp) inp.value = zoneKey;
-    renderLoadoutRoundTabs();
-    renderLoadoutFigure(type);
-}
+function onZoneSelectChange(sel, type) { /* legacy stub */ }
 
-function onZoneSelectChange(sel, type) {
-    // Legacy — kept for compatibility but no longer used visually
-    const idx = sel.id.split('-')[1];
-    const zoneData = type === 'attack' ? HIT_ZONES[sel.value] : BLOCK_ZONES[sel.value];
-    const tip = document.getElementById(`${type==='attack'?'atk':'blk'}-tip-${idx}`);
-    if (tip && zoneData) tip.textContent = zoneData.desc;
-}
 async function saveLoadout() {
     const attackZones=Array.from({length:10},(_,i)=>document.getElementById(`atk-${i}`)?.value||'chest');
     const blockZones=Array.from({length:10},(_,i)=>document.getElementById(`blk-${i}`)?.value||'cross_guard');
