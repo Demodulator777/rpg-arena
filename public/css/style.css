@@ -1269,6 +1269,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
     border-radius: 8px; font-size: 0.75rem; color: var(--text-bright); line-height: 1.5;
 }
+/* Loadout figures layout */
 .loadout-figures-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1276,18 +1277,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .loadout-figure-col { width: 100%; }
 
-/* Mobile: height proportional to column width so dots aren't spread too far */
-.loadout-dot-grid {
+/* Mobile: wrap uses padding-top so height is proportional to width */
+.loadout-dot-grid { width: 100%; }
+.loadout-wrap {
     position: relative;
     width: 100%;
     padding-top: 185%;
 }
-.loadout-dot-grid > div {
+.loadout-wrap img,
+.loadout-wrap [data-zone] {
     position: absolute;
-    inset: 0;
 }
 
-/* PC: fixed size, centered */
+/* PC: fixed size figures, centered */
 @media (min-width: 641px) {
     .loadout-figures-row {
         display: flex;
@@ -1295,13 +1297,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         gap: 16px;
     }
     .loadout-figure-col { width: 280px; flex-shrink: 0; }
-    .loadout-dot-grid {
+    .loadout-wrap {
         padding-top: 0;
         height: 420px;
     }
-    .loadout-dot-grid > div {
-        position: relative;
-        inset: unset;
-        height: 100%;
-    }
+}
+
+.loadout-figure { width: 100%; }
+.loadout-zone-info {
+    min-height: 44px; margin-top: 8px; padding: 7px 10px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px; font-size: 0.75rem; color: var(--text-bright); line-height: 1.5;
 }
