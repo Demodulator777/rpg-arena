@@ -1263,7 +1263,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .char-avatar-ring { width: 78px; height: 78px; }
 }
 .loadout-figure { width: 100%;
-                opacity: 0.05;}
+                opacity: 0.95;}
 .loadout-zone-info {
     min-height: 44px; margin-top: 8px; padding: 7px 10px;
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
