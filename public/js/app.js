@@ -112,7 +112,7 @@ const ZONES = {
             },
             { id: 'swamp_heart', name: 'Swamp Heart', difficulty: 'hard', img: '/images/spots/swamp-heart.jpg',
                 description: 'The center of the swamp, where the Bog Witch dwells.', missionDuration: 600, payoutMultiplier: 2.5,
-                missions: [{name:'Slay the Bog Witch',img:'/images/missions/bog-witch.jpg'},{name:'Destroy the Corrupted Heart',img:'/images/missions/heart.jpg'},{name:'Purify the Waters',img:'/images/missions/purify.jpg'},{name:'Face the Swamp Horror',img:'/images/missions/horror.jpg'}]
+                missions: [{name:'Slay the Bog Witch',img:'/images/missions/bog-witch.png'},{name:'Destroy the Corrupted Heart',img:'/images/missions/heart.jpg'},{name:'Purify the Waters',img:'/images/missions/purify.jpg'},{name:'Face the Swamp Horror',img:'/images/missions/horror.jpg'}]
             }
         ],
         payoutBase: { easy:[60,130], medium:[130,280], hard:[280,500] },
