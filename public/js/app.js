@@ -667,12 +667,12 @@ function renderLoadout() {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
             <div>
                 <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:10px">⚔️ Attack Zone</div>
-                <div id="loadout-atk-grid" class="loadout-dot-grid"></div>
+                <div id="loadout-atk-grid" class="loadout-dot-grid" style="height:min(55vh,420px)"></div>
                 <div id="loadout-atk-info" class="loadout-zone-info"></div>
             </div>
             <div>
                 <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:10px">🛡️ Block Zone</div>
-                <div id="loadout-blk-grid" class="loadout-dot-grid"></div>
+                <div id="loadout-blk-grid" class="loadout-dot-grid" style="height:min(55vh,420px)"></div>
                 <div id="loadout-blk-info" class="loadout-zone-info"></div>
             </div>
         </div>
@@ -748,7 +748,7 @@ function renderLoadoutDotGrid(type) {
 
     el.innerHTML = `
         <div id="loadout-${type}-wrap"
-             style="position:relative;width:100%;padding-top:185%;
+             style="position:relative;width:100%;height:100%;
                     background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
                     border-radius:10px;overflow:hidden">
             <img src="/images/class/${charClass}.png"
