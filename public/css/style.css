@@ -1275,16 +1275,33 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     gap: 16px;
 }
 .loadout-figure-col { width: 100%; }
-.loadout-dot-grid { height: 420px; }
 
-/* On PC: fixed size, centered */
+/* Mobile: height proportional to column width so dots aren't spread too far */
+.loadout-dot-grid {
+    position: relative;
+    width: 100%;
+    padding-top: 185%;
+}
+.loadout-dot-grid > div {
+    position: absolute;
+    inset: 0;
+}
+
+/* PC: fixed size, centered */
 @media (min-width: 641px) {
     .loadout-figures-row {
         display: flex;
         justify-content: center;
         gap: 16px;
-        flex-wrap: wrap;
     }
     .loadout-figure-col { width: 280px; flex-shrink: 0; }
-    .loadout-dot-grid { height: 420px; }
+    .loadout-dot-grid {
+        padding-top: 0;
+        height: 420px;
+    }
+    .loadout-dot-grid > div {
+        position: relative;
+        inset: unset;
+        height: 100%;
+    }
 }
