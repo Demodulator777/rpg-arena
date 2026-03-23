@@ -748,8 +748,8 @@ function renderLoadoutDotGrid(type) {
 
     el.innerHTML = `
         <div id="loadout-${type}-wrap"
-             style="position:relative;width:100%;height:100%;
-                    background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
+             class="loadout-wrap"
+             style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
                     border-radius:10px;overflow:hidden">
             <img src="/images/class/${charClass}.png"
                  style="position:absolute;inset:0;width:100%;height:92%;
