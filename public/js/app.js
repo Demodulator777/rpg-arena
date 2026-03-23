@@ -714,44 +714,109 @@ function renderLoadoutDotGrid(type) {
     const isAtk = type === 'atk';
     const el = document.getElementById(`loadout-${type}-grid`);
     if (!el) return;
+    const charClass   = character?.class || 'warrior';
     const currentZone = isAtk
         ? (_loadoutAttackZones[_loadoutActiveRound] || 'chest')
         : (_loadoutBlockZones[_loadoutActiveRound]  || 'cross_guard');
-    const entries = isAtk ? Object.entries(HIT_ZONES) : Object.entries(BLOCK_ZONES);
+    const blockHighlights = !isAtk ? (BLOCK_HIGHLIGHT_ZONES[currentZone] || []) : [];
 
-    el.innerHTML = entries.map(([k, v]) => {
-        const isActive = currentZone === k;
-        const color = isAtk ? (ZONE_COLORS[k]||'#aaa') : (BLOCK_COLORS[k]||'#aaa');
-        const stat  = isAtk
-            ? `×${v.dmgMult} · ${Math.round(v.hitChance*100)}%`
-            : `${Math.round(v.reduction*100)}%`;
-        return `<div onclick="onLoadoutDotClick(event,'${type}','${k}')" style="
-            display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;cursor:pointer;
-            background:${isActive?`${color}18`:'rgba(255,255,255,0.02)'};
-            border:1px solid ${isActive?color:'rgba(255,255,255,0.06)'};
-            transition:all 0.15s;margin-bottom:4px"
-            onmouseenter="if('${isActive}'!=='true')this.style.background='rgba(255,255,255,0.05)'"
-            onmouseleave="if('${isActive}'!=='true')this.style.background='rgba(255,255,255,0.02)'">
-            <div style="width:18px;height:18px;border-radius:50%;flex-shrink:0;
-                background:${color};
-                box-shadow:${isActive?`0 0 10px ${color},0 0 4px ${color}`:'none'};
-                border:${isActive?'2px solid rgba(255,255,255,0.7)':'1px solid rgba(255,255,255,0.15)'};
-                transition:all 0.15s"></div>
-            <div style="flex:1;min-width:0">
-                <div style="font-size:0.76rem;color:${isActive?'#fff':'rgba(255,255,255,0.65)'};font-weight:${isActive?'700':'400'}">${v.label}</div>
-                <div style="font-size:0.62rem;color:rgba(255,255,255,0.28)">${stat}</div>
-            </div>
-            ${isActive?`<div style="font-size:0.7rem;color:${color}">✓</div>`:''}
-        </div>`;
+    const dots = Object.entries(ZONE_POSITIONS).map(([zoneKey, pos]) => {
+        let isSelected, color;
+        if (isAtk) {
+            isSelected = currentZone === zoneKey;
+            color = ZONE_COLORS[zoneKey] || '#aaa';
+        } else {
+            isSelected = blockHighlights.includes(zoneKey);
+            color = isSelected ? (BLOCK_COLORS[currentZone] || '#3498db') : 'rgba(255,255,255,0.18)';
+        }
+        const size   = isSelected ? 22 : 18;
+        const glow   = isSelected ? `box-shadow:0 0 14px ${color},0 0 5px ${color};` : '';
+        const border = isSelected ? 'border:2px solid rgba(255,255,255,0.85);' : 'border:1px solid rgba(255,255,255,0.2);';
+        const label  = HIT_ZONES[zoneKey]?.label || zoneKey;
+        return `<div
+            data-zone="${zoneKey}"
+            title="${label}"
+            onclick="onLoadoutDotClick(event,'${type}','${zoneKey}')"
+            style="position:absolute;
+                left:calc(${pos.x}% - ${size/2}px);
+                top:calc(${pos.y}% - ${size/2}px);
+                width:${size}px;height:${size}px;
+                border-radius:50%;background:${color};
+                ${border}${glow}
+                cursor:pointer;transition:all 0.15s;z-index:2;"></div>`;
     }).join('');
+
+    el.innerHTML = `
+        <div id="loadout-${type}-wrap"
+             style="position:relative;width:100%;padding-top:185%;
+                    background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:10px;overflow:hidden">
+            <img src="/images/class/${charClass}.png"
+                 style="position:absolute;inset:0;width:100%;height:92%;
+                        object-fit:contain;object-position:center top;
+                        opacity:0.2;pointer-events:none;z-index:0"
+                 onerror="this.style.display='none'">
+            ${dots}
+        </div>`;
 
     updateLoadoutZoneInfo(type, currentZone);
 }
 
 function onLoadoutDotClick(e, type, zoneKey) {
     e.stopPropagation();
-    // Direct selection — no popup needed since the list is already visible
-    pickLoadoutZone(type, zoneKey);
+    closeLoadoutPopup();
+    const dot = e.currentTarget;
+    const rect = dot.getBoundingClientRect();
+    showLoadoutPopup(type, rect);
+}
+
+function showLoadoutPopup(type, anchorRect) {
+    const isAtk = type === 'atk';
+    const entries = isAtk ? Object.entries(HIT_ZONES) : Object.entries(BLOCK_ZONES);
+    const currentZone = isAtk
+        ? (_loadoutAttackZones[_loadoutActiveRound] || 'chest')
+        : (_loadoutBlockZones[_loadoutActiveRound]  || 'cross_guard');
+
+    const popup = document.createElement('div');
+    popup.id = 'loadout-popup';
+    popup.style.cssText = `position:fixed;z-index:9999;
+        background:rgba(8,12,22,0.97);border:1px solid rgba(255,255,255,0.14);
+        border-radius:10px;padding:6px;min-width:175px;max-width:215px;
+        box-shadow:0 12px 40px rgba(0,0,0,0.85);max-height:320px;overflow-y:auto;`;
+
+    popup.innerHTML = entries.map(([k, v]) => {
+        const isActive = currentZone === k;
+        const color = isAtk ? (ZONE_COLORS[k]||'#aaa') : (BLOCK_COLORS[k]||'#aaa');
+        const stat  = isAtk
+            ? `\u00d7${v.dmgMult} \u00b7 ${Math.round(v.hitChance*100)}% hit`
+            : `${Math.round(v.reduction*100)}% block`;
+        return `<div onclick="pickLoadoutZone('${type}','${k}')"
+            style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
+                   background:${isActive?`${color}22`:'transparent'};
+                   border:1px solid ${isActive?color:'transparent'};
+                   transition:background 0.1s;margin-bottom:2px"
+            onmouseenter="this.style.background='rgba(255,255,255,0.07)'"
+            onmouseleave="this.style.background='${isActive?`${color}22`:'transparent'}'">
+            <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:0.73rem;color:${isActive?'#fff':'rgba(255,255,255,0.75)'};font-weight:${isActive?'700':'400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.label}</div>
+                <div style="font-size:0.6rem;color:rgba(255,255,255,0.3)">${stat}</div>
+            </div>
+            ${isActive?`<div style="font-size:0.65rem;color:${color}">\u2713</div>`:''}
+        </div>`;
+    }).join('');
+
+    document.body.appendChild(popup);
+
+    const pw = popup.offsetWidth  || 185;
+    const ph = popup.offsetHeight || 300;
+    let left = anchorRect.right + 10;
+    let top  = anchorRect.top - 10;
+    if (left + pw > window.innerWidth  - 8) left = anchorRect.left - pw - 10;
+    if (top  + ph > window.innerHeight - 8) top  = window.innerHeight - ph - 8;
+    if (top < 8) top = 8;
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
 }
 
 function pickLoadoutZone(type, zoneKey) {
