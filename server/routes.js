@@ -948,7 +948,7 @@ async function buildCharacterResponse(char, db) {
     const ultMult         = ultimateActive ? 1.01 : 1.0;
 
     const lastBattle = char.last_battle_at || 0;
-    const pvpCd = hasPremium(activePremium, 'fortune_hunter') ? Math.floor(600 * 0.75) : 600;
+    const pvpCd = hasPremium(activePremium, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
     const battleCooldownEndsAt = lastBattle > 0 ? lastBattle + pvpCd : 0;
     const battleCooldownRemaining = battleCooldownEndsAt > now ? battleCooldownEndsAt - now : 0;
 
@@ -1784,7 +1784,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
         const atkCooldown = attacker.last_battle_at || 0;
         const activePremAtk = getActivePremium(attacker);
-        const effectivePvpCooldown = hasPremium(activePremAtk, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.75) : pvpCooldown;
+        const effectivePvpCooldown = hasPremium(activePremAtk, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
         if (atkCooldown + effectivePvpCooldown > now) {
             const secs = (atkCooldown + effectivePvpCooldown) - now;
             return res.status(400).json({ error: `Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'} before next attack.` });
@@ -1866,7 +1866,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const goldGained   = attackerWon ? defGoldStake  : -atkGoldStake;
         const defGoldChange = attackerWon ? -defGoldStake : atkGoldStake;
 
-        const pvpCooldownA = hasPremium(premA, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.75) : pvpCooldown;
+        const pvpCooldownA = hasPremium(premA, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
         const newHpA = Math.max(0, battle.hpRemainingA);
         const newHpD = Math.max(0, battle.hpRemainingB);
         let atkXp = Math.max(0, (freshA.xp || 0) + xpGained), atkLevel = freshA.level, leveledUp = false;
