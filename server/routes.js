@@ -1328,6 +1328,24 @@ router.get('/missions/active', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+router.post('/battle/recover', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to recover instantly' });
+        const now = Math.floor(Date.now() / 1000);
+        const activePrem = getActivePremium(char);
+        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+        const cooldownEnds = (char.last_battle_at || 0) + pvpCd;
+        if (cooldownEnds <= now) return res.status(400).json({ error: 'No active battle cooldown to clear' });
+        // Clear cooldown by setting last_battle_at far enough in the past
+        await dbRun(db, 'UPDATE characters SET last_battle_at = 0, gems = gems - 1 WHERE id = ?', [char.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({ success: true, message: '⚡ Battle cooldown cleared!', character: await buildCharacterResponse(updated, db) });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
 // ── Inventory ─────────────────────────────────────────────────────────────
 router.get('/inventory', auth, async (req, res) => {
     try {
