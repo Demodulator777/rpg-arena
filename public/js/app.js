@@ -423,7 +423,6 @@ function renderCharacter() {
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat=Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
 
-    // Compute item bonuses per stat from equipped gear
     const STAT_KEYS = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance','hp_max','armor'];
     const itemBonus = {};
     STAT_KEYS.forEach(k => { itemBonus[k] = 0; });
@@ -432,9 +431,6 @@ function renderCharacter() {
         STAT_KEYS.forEach(k => { if (item.stats[k]) itemBonus[k] += item.stats[k]; });
     });
 
-    // Base stats (before item bonuses — the raw trained/upgraded values)
-    // c.strength etc. already includes ultimate +1% mult from server, so base = floor(c.strength / ultMult)
-    // But we don't have ultMult here — just show item bonus separately, total on right
     const baseStr  = c.strength    || 0;
     const baseDef  = c.defense     || 0;
     const baseAgi  = c.agility     || 0;
@@ -443,7 +439,6 @@ function renderCharacter() {
     const baseHit  = c.hit_chance  || 0;
     const baseCrit = c.crit_chance || 0;
 
-    // Final damage range: base from strength + weapon
     const wep = eq.weapon;
     const baseDmgMin = Math.floor(baseStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
@@ -453,7 +448,6 @@ function renderCharacter() {
     const finalDmgMax = baseDmgMax + weapDmgMax;
     const dmgTooltip = `Base: ${baseDmgMin}–${baseDmgMax} (STR ${baseStr}×0.5) + Weapon: +${weapDmgMin}–${weapDmgMax}`;
 
-    // statRow with breakdown: shows "base" bar, bonus tag, total on right
     function statRowBreakdown(icon, label, base, bonus, max, cls) {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
@@ -469,11 +463,9 @@ function renderCharacter() {
         </div>`;
     }
 
-    // Armor value: base defense/4 + item armor stats
     const baseArmor = Math.floor(baseDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0);
 
-    // Elemental dmg/resist from character response (aggregated across all items)
     const elemDmgObj    = c.elem_dmg    || {};
     const elemResistObj = c.elem_resist || {};
     const elemEmojis    = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' };
@@ -482,9 +474,6 @@ function renderCharacter() {
     const elemDmgStr    = activeDmg.map(([e,v])   => `${elemEmojis[e]}+${v}`).join(' ');
     const elemResistStr = activeResist.map(([e,v]) => `${elemEmojis[e]}${v}`).join(' ');
 
-    // Equipment slot tiles
-    // Layout: [Helmet][AVATAR][Amulet] / [Armor][...][Shield] / [Weapon][...][Boots]
-    // Amulet slot = amulet OR ring (same slot, amulet takes priority)
     const eqSlots=[
         {slot:'helmet', icon:'⛑️', label:'Helmet'},
         {slot:'armor',  icon:'🛡️', label:'Armor'},
@@ -493,7 +482,6 @@ function renderCharacter() {
         {slot:'shield', icon:'🛡', label:'Shield'},
         {slot:'boots',  icon:'👢', label:'Boots'},
     ];
-    // For amulet slot: show ring if no amulet equipped
     const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
@@ -1297,7 +1285,6 @@ function renderForge() {
         return;
     }
 
-    // Craft tab — group by set
     const sets = forgeData.sets || {};
     const bySet = {};
     for (const r of forgeData.equipment) {
@@ -1474,7 +1461,6 @@ function renderInventory(data) {
                 +'</div></div>';
         }).join('') + '</div>';
     } else {
-        // Materials
         const mats = data.items.filter(i => i.item_type==='raw_mat' || i.item_type==='component');
         if (!mats.length) { el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; return; }
         el.innerHTML = '<div class="mat-grid">' + mats.map(i => {
@@ -1501,7 +1487,7 @@ function showItemTooltip(event, itemId) {
 
     let statsHtml = '';
     for (const stat of allStats) {
-        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue; // legacy keys, skip
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
         const nv = d.stats?.[stat]||0, ov = eq?.stats?.[stat]||0, diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
@@ -1554,7 +1540,7 @@ function showEqTooltip(event, itemJson) {
     const imgSrc = item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
 
     let statsHtml = Object.entries(item.stats||{})
-        .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist') // skip legacy
+        .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
         .filter(([,v]) => typeof v === 'number' && v !== 0)
         .map(([k,v]) => {
             const label = STAT_LABELS[k] || k.replace(/_/g,' ');
@@ -1612,7 +1598,6 @@ function renderShop() {
     if (!character||!shopInventory.length) return;
     const el=document.getElementById('shop-content');
 
-    // Filter by slot — 7 item classes: weapon, armor, helmet, shield, boots, jewelry(ring+amulet), accessory
     const filtered = currentShopCategory === 'all' ? shopInventory : shopInventory.filter(item => {
         const slot = item.slot || item.category || '';
         const cat  = item.category || '';
@@ -1650,7 +1635,7 @@ function renderShop() {
                 return `<div class="shop-card-stat"><span class="shop-card-stat-label">${label}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`;
             }).join('') : '';
 
-        const elemHtml = ''; // now handled inline via STAT_LABELS above
+        const elemHtml = '';
 
         const effectHtml=item.effect?(()=>{
             const e=item.effect; let label='';
@@ -1731,7 +1716,6 @@ function renderPremium(data) {
     const activeCount = features.filter(f => f.active).length;
     const now = Math.floor(Date.now() / 1000);
 
-    // Ultimate banner
     const ultimateBanner = ultimate ? `
         <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
             <div style="font-size:1.5rem;margin-bottom:4px">🌟 ASCENDANT</div>
@@ -1744,7 +1728,6 @@ function renderPremium(data) {
             ${activeCount}/6 features active · Activate all 6 for the 🌟 Ascendant ultimate bonus
         </div>`);
 
-    // Active synergies row
     const synergyHtml = synergies.length ? `
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
             ${synergies.map(s => `
@@ -1753,7 +1736,6 @@ function renderPremium(data) {
             </div>`).join('')}
         </div>` : '';
 
-    // Feature cards
     const cardsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
         ${features.map(f => {
             const isActive = f.active;
@@ -1861,8 +1843,6 @@ async function openProfile(id) {
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const eq=p.equipped||{};
 
-        // Profile slots: matches character sheet layout exactly
-        // Grid: col1=[helmet,armor,weapon] col2=[avatar] col3=[amulet,shield,boots]
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
         const profileSlots=[
             {slot:'helmet', icon:'⛑️', col:1, row:1},
@@ -1873,7 +1853,6 @@ async function openProfile(id) {
             {slot:'boots',  icon:'👢', col:3, row:3},
         ];
         const profileEqHtml =
-            // Avatar spans col2 rows 1-3
             `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
                 <img src="/images/class/${p.class}.png" style="width:140px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
             </div>`
@@ -1890,7 +1869,6 @@ async function openProfile(id) {
             >${itemIcon(item,'60px')}<span style="font-size:0.48rem;color:${qc};text-align:center;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${item.name}</span>${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:2px;right:3px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}</div>`;
         }).join('');
 
-        // Accessory as small badge below the main grid
         const smallSlots = [['accessory','🔮','Accessory']];
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
             const item = eq[slot];
@@ -1943,12 +1921,17 @@ async function openProfile(id) {
         ${smallSlotsHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${smallSlotsHtml}</div>`:''}
       </div>`:''}
       ${!isMe ? (() => {
+            // FIX: Check per-target cooldown (12h) BEFORE global cooldown (1h).
+            // ptc = your specific cooldown against this player (12h after attacking them)
+            // gc  = their global protection cooldown (1h, applies to all attackers)
+            // By checking ptc first, the profile correctly shows "Cooldown 12h" to the
+            // attacker who just hit them, rather than being hidden behind the 1h gc display.
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
             const myBattleCd=character?.battle_cooldown_remaining||0;
             let blocked=false, reason='';
             if(hpLow){blocked=true;reason='Too little HP';}
-            else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
+            else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(myBattleCd>0){blocked=true;const m=Math.ceil(myBattleCd/60);reason='Wait '+m+'m to fight again';}
             const atkBtn=blocked
                 ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
