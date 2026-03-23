@@ -1269,3 +1269,22 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
     border-radius: 8px; font-size: 0.75rem; color: var(--text-bright); line-height: 1.5;
 }
+.loadout-figures-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+.loadout-figure-col { width: 100%; }
+.loadout-dot-grid { height: 420px; }
+
+/* On PC: fixed size, centered */
+@media (min-width: 641px) {
+    .loadout-figures-row {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .loadout-figure-col { width: 280px; flex-shrink: 0; }
+    .loadout-dot-grid { height: 420px; }
+}
