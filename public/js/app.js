@@ -1106,6 +1106,7 @@ function showRestOverlay(startedAt, endsAt) {
     if (restOverlayInterval) { clearInterval(restOverlayInterval); restOverlayInterval = null; }
     const timerEl = document.getElementById('rest-overlay-timer');
     const fillEl  = document.getElementById('rest-overlay-fill');
+    const recoverBtn = document.getElementById('rest-recover-btn');
     const totalDuration = endsAt - startedAt;
     function tick() {
         const now = Math.floor(Date.now() / 1000);
@@ -1115,6 +1116,12 @@ function showRestOverlay(startedAt, endsAt) {
         const m = Math.floor(left / 60), s = left % 60;
         if (timerEl) timerEl.textContent = left > 0 ? `${m}:${String(s).padStart(2,'0')}` : 'Ready!';
         if (fillEl)  fillEl.style.width = pct + '%';
+        if (recoverBtn) {
+            const hasGems = (character?.gems || 0) >= 1;
+            recoverBtn.disabled = !hasGems;
+            recoverBtn.textContent = hasGems ? '⚡ Recover Now (1 💎)' : '⚡ Recover Now (need 💎)';
+            recoverBtn.style.opacity = hasGems ? '1' : '0.4';
+        }
         if (left <= 0) {
             clearInterval(restOverlayInterval); restOverlayInterval = null;
             hideRestOverlay();
@@ -1128,6 +1135,27 @@ function showRestOverlay(startedAt, endsAt) {
 function hideRestOverlay() {
     if (restOverlayInterval) { clearInterval(restOverlayInterval); restOverlayInterval = null; }
     const o = document.getElementById('rest-overlay'); if (o) o.classList.add('hidden');
+}
+
+async function instantBattleRecovery() {
+    const gems = character?.gems || 0;
+    if (gems < 1) {
+        showMsg('missions-msg', 'Need 1 💎 gem to recover instantly!', true);
+        return;
+    }
+    if (!confirm('Skip battle cooldown for 1 💎?')) return;
+    const btn = document.getElementById('rest-recover-btn');
+    if (btn) btn.disabled = true;
+    try {
+        const d = await api('POST', '/game/battle/recover');
+        character = d.character;
+        renderTopBar();
+        hideRestOverlay();
+        showMsg('missions-msg', '⚡ Recovered! You can now start a mission.');
+    } catch(e) {
+        showMsg('missions-msg', e.message, true);
+        if (btn) btn.disabled = false;
+    }
 }
 function showMissionOverlay(active, displayName) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
