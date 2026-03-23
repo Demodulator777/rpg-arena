@@ -1086,7 +1086,10 @@ async function checkAndShowMissionOverlay() {
             return;
         }
         hideMissionOverlay();
-        // Check battle cooldown — show rest overlay if still cooling down
+        // Re-fetch character to get fresh battle_cooldown_ends_at — the cached
+        // `character` object may be stale (e.g. set before the last battle completed).
+        const freshChar = await api('GET', '/game/character');
+        if (freshChar) character = freshChar;
         const endsAt = character?.battle_cooldown_ends_at || 0;
         const lastBattle = character?.last_battle_at || 0;
         const now = Math.floor(Date.now() / 1000);
@@ -1531,6 +1534,79 @@ function showItemTooltip(event, itemId) {
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
 
+// ── Shop Item Tooltip (with vs-equipped comparison) ───────────────────────
+function showShopItemTooltip(event, itemJson) {
+    cancelHideTooltip();
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    let item; try { item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson; } catch { return; }
+    const qColor = {legendary:'#ffd700', rare:'#9b59b6', common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
+
+    // Find currently equipped item in the same slot for comparison
+    const slot = item.slot || item.category;
+    const equipped = character?.equipped?.[slot] || null;
+    const allStats = new Set([
+        ...Object.keys(item.stats||{}),
+        ...Object.keys(equipped?.stats||{})
+    ].filter(k => !k.includes('type') && k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist'));
+
+    let statsHtml = '';
+    for (const stat of allStats) {
+        const nv = item.stats?.[stat] || 0;
+        const ov = equipped?.stats?.[stat] || 0;
+        const diff = nv - ov;
+        const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
+        const ds = diff > 0 ? '▲'+diff : diff < 0 ? '▼'+Math.abs(diff) : '';
+        const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+    }
+
+    // Consumable effect line
+    let effectHtml = '';
+    if (item.effect) {
+        const e = item.effect;
+        let label = '';
+        if (e.type==='heal')               label = `❤️ Restore ${e.value} HP`;
+        else if (e.type==='heal_full')     label = '❤️ Full HP restore';
+        else if (e.type==='temp_stat')     label = `💪 +${e.value} ${capitalize(e.stat||'')}`;
+        else if (e.type==='xp_multiplier') label = `${e.value}× XP boost`;
+        else if (e.type==='gold_multiplier') label = `${e.value}× Gold boost`;
+        else if (e.type==='xp')            label = `⭐ +${e.value} XP`;
+        if (label) effectHtml = `<div class="tt-stat"><span class="tt-stat-name">Effect</span><span class="tt-stat-val" style="color:#2ecc71">${label}</span></div>`;
+    }
+
+    const bodyStats = statsHtml || effectHtml
+        ? `${statsHtml}${effectHtml}`
+        : '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>';
+
+    tooltip.innerHTML = `
+        <div class="tt-preview">
+            ${imgSrc
+                ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`
+                : `<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
+        </div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:${qColor}">${item.name||''}</div>
+            <div class="tt-meta">${capitalize(slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
+            ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
+            <div class="tt-stats">${bodyStats}</div>
+            ${equipped
+                ? `<div class="tt-vs">vs equipped: <strong>${equipped.name}</strong></div>`
+                : `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">Nothing equipped in this slot</div>`}
+        </div>`;
+
+    tooltip.classList.remove('hidden');
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||320;
+    let left = r.right + 12, top = r.top;
+    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
+    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+    tooltip.style.left = Math.max(8, left) + 'px';
+    tooltip.style.top  = Math.max(8, top)  + 'px';
+}
+
 function showEqTooltip(event, itemJson) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
@@ -1649,7 +1725,8 @@ function renderShop() {
             return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
         })():'';
 
-        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
+        const shopItemData = escHtml(JSON.stringify(item));
+        return `<div class="${cardClass}" onmouseenter="showShopItemTooltip(event,this.dataset.shopitem)" onmouseleave="scheduleHideTooltip()" data-shopitem="${shopItemData}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header"><span class="shop-card-icon">${itemIcon(item,'2rem')}</span><span class="shop-card-name">${item.name}</span><span class="shop-card-tier">Lv.${item.level||1}</span></div>
             <div class="shop-card-desc">${item.desc}</div>
             <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
