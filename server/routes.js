@@ -637,30 +637,32 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
 }
 
 // ── 3. REPLACE ITEM_GENERATORS ───────────────────────────────────────
+// ── 3. REPLACE ITEM_GENERATORS ───────────────────────────────────────
 const ITEM_GENERATORS = {
-weapon: {
-    namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
-    nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
-    emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
-    baseStats: {
-        dmg_min:  { min:4,  max:10,  scale:2.0 },  // Lowered from 5,12,2.8
-        dmg_max:  { min:8,  max:20,  scale:4.0 },  // Lowered from 10,25,5.5
-        strength: { min:0,  max:3,   scale:0.5 },
+    weapon: {
+        namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
+        nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
+        emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
+        baseStats: {
+            dmg_min:  { min:4,  max:10,  scale:2.0 },
+            dmg_max:  { min:8,  max:20,  scale:4.0 },
+            strength: { min:0,  max:3,   scale:0.5 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            agility:     { min:0, max:3, scale:0.4, chance:0.5 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            magic:       { min:0, max:3, scale:0.3, chance:0.4 },
+            crit_chance: { min:2, max:7, scale:0.45, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:3, max:10, scale:0.5, chance:0.6 },
+            strength:    { min:1, max:4, scale:0.35, chance:0.5 },
+        },
+        elemDmg: true, elemResist: false,
     },
-    tier2Stats: {
-        hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
-    },
-    tier3Stats: {
-        agility:    { min:0, max:3, scale:0.4, chance:0.5 },
-        hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
-        magic:      { min:0, max:3, scale:0.3, chance:0.4 },
-    },
-    tier5Stats: {
-        crit_chance: { min:2, max:7, scale:0.4, chance:0.5 },
-        strength:    { min:1, max:4, scale:0.35, chance:0.5 },
-    },
-    elemDmg: true, elemResist: false,
-},
     armor: {
         namePrefixes: ['Leather','Chain','Plate','Scale','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
@@ -674,11 +676,12 @@ weapon: {
             vitality: { min:0, max:2, scale:0.25, chance:0.4 },
         },
         tier3Stats: {
-            vitality: { min:1, max:3, scale:0.4, chance:0.5 },
-            magic:    { min:0, max:2, scale:0.25, chance:0.4 },
+            vitality:    { min:1, max:3, scale:0.4, chance:0.5 },
+            magic:       { min:0, max:2, scale:0.25, chance:0.4 },
+            crit_chance: { min:1, max:4, scale:0.3, chance:0.4 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:5, scale:0.3, chance:0.5 },
+            crit_chance: { min:2, max:6, scale:0.35, chance:0.55 },
             strength:    { min:0, max:3, scale:0.35, chance:0.5 },
         },
         elemDmg: false, elemResist: true,
@@ -696,11 +699,12 @@ weapon: {
             hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
-            magic:      { min:0, max:3, scale:0.3, chance:0.4 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            magic:       { min:0, max:3, scale:0.3, chance:0.4 },
+            crit_chance: { min:2, max:6, scale:0.4, chance:0.4 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:6, scale:0.4, chance:0.5 },
+            crit_chance: { min:2, max:8, scale:0.5, chance:0.55 },
         },
         elemDmg: true, elemResist: true,
     },
@@ -717,10 +721,11 @@ weapon: {
             vitality: { min:0, max:2, scale:0.25, chance:0.4 },
         },
         tier3Stats: {
-            vitality: { min:1, max:3, scale:0.4, chance:0.5 },
+            vitality:    { min:1, max:3, scale:0.4, chance:0.5 },
+            crit_chance: { min:1, max:4, scale:0.35, chance:0.4 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:5, scale:0.3, chance:0.5 },
+            crit_chance: { min:2, max:6, scale:0.35, chance:0.55 },
             defense:     { min:1, max:4, scale:0.4, chance:0.5 },
         },
         elemDmg: false, elemResist: true,
@@ -732,21 +737,22 @@ weapon: {
         baseStats: {
             agility: { min:1, max:5, scale:1.0 },
             defense: { min:0, max:2, scale:0.4 },
-            armor:   { min:0, max:3, scale:0.5 },  // Added armor
+            armor:   { min:0, max:3, scale:0.5 },
         },
         tier2Stats: {
             hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
-            armor:      { min:1, max:2, scale:0.25, chance:0.35 },  // Added armor option
+            armor:      { min:1, max:2, scale:0.25, chance:0.35 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
-            agility:    { min:1, max:3, scale:0.35, chance:0.5 },
-            armor:      { min:1, max:3, scale:0.35, chance:0.4 },  // Added armor option
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            agility:     { min:1, max:3, scale:0.35, chance:0.5 },
+            armor:       { min:1, max:3, scale:0.35, chance:0.4 },
+            crit_chance: { min:1, max:4, scale:0.35, chance:0.4 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:5, scale:0.35, chance:0.5 },
+            crit_chance: { min:2, max:7, scale:0.45, chance:0.55 },
             agility:     { min:1, max:4, scale:0.4, chance:0.5 },
-            armor:       { min:2, max:5, scale:0.4, chance:0.45 },  // Added armor option
+            armor:       { min:2, max:5, scale:0.4, chance:0.45 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -763,11 +769,12 @@ weapon: {
             hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
-            magic:      { min:1, max:3, scale:0.35, chance:0.5 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            magic:       { min:1, max:3, scale:0.35, chance:0.5 },
+            crit_chance: { min:2, max:5, scale:0.4, chance:0.45 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:7, scale:0.4, chance:0.5 },
+            crit_chance: { min:3, max:9, scale:0.5, chance:0.6 },
             magic:       { min:1, max:4, scale:0.35, chance:0.5 },
         },
         elemDmg: true, elemResist: true,
@@ -785,11 +792,12 @@ weapon: {
             magic: { min:1, max:2, scale:0.25, chance:0.4 },
         },
         tier3Stats: {
-            magic:      { min:1, max:4, scale:0.4, chance:0.5 },
-            hit_chance: { min:1, max:3, scale:0.25, chance:0.5 },
+            magic:       { min:1, max:4, scale:0.4, chance:0.5 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.5 },
+            crit_chance: { min:2, max:6, scale:0.45, chance:0.45 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:7, scale:0.4, chance:0.5 },
+            crit_chance: { min:3, max:9, scale:0.5, chance:0.6 },
             magic:       { min:2, max:5, scale:0.4, chance:0.5 },
         },
         elemDmg: true, elemResist: true,
@@ -807,17 +815,17 @@ weapon: {
             hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:3, scale:0.25, chance:0.5 },
-            magic:      { min:0, max:3, scale:0.3, chance:0.4 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.5 },
+            magic:       { min:0, max:3, scale:0.3, chance:0.4 },
+            crit_chance: { min:2, max:5, scale:0.4, chance:0.4 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:6, scale:0.4, chance:0.5 },
+            crit_chance: { min:3, max:8, scale:0.5, chance:0.55 },
         },
         elemDmg: true, elemResist: true,
     },
 };
 
-// ── 4. REPLACE generateBackendRandomItem ─────────────────────────────
 // ── 4. REPLACE generateBackendRandomItem ─────────────────────────────
 function generateBackendRandomItem(level, type) {
     const generator = ITEM_GENERATORS[type];
@@ -825,21 +833,53 @@ function generateBackendRandomItem(level, type) {
     const tier = Math.min(5, Math.ceil(level / 20) + 1);
     const stats = {};
 
-function rollStat(cfg, lvl) {
-    const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);  // Back to 0.3
-    const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);  // Back to 0.6
-    let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
-    v = Math.floor(v * (0.85 + Math.random() * 0.30));  // 0.85-1.15 range
-    return Math.max(cfg.min, v);
-}
+    function rollStat(cfg, lvl) {
+        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);
+        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);
+        let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
+        v = Math.floor(v * (0.85 + Math.random() * 0.30));
+        return Math.max(cfg.min, v);
+    }
+
+    // First determine quality to affect stat chances
+    const quality = (() => {
+        const legendaryChance = 0.001; // 0.1%
+        if (Math.random() < legendaryChance) return 'legendary';
+        
+        let rareChance = 0;
+        if (tier >= 5) rareChance = 0.20;
+        else if (tier >= 4) rareChance = 0.12;
+        else if (tier >= 3) rareChance = 0.07;
+        else if (tier >= 2) rareChance = 0.03;
+        else rareChance = 0.01;
+        
+        return Math.random() < rareChance ? 'rare' : 'common';
+    })();
+
+    // Helper function to get stat chance based on quality
+    function getStatChance(baseChance) {
+        if (quality === 'legendary') return Math.min(0.95, baseChance + 0.35);
+        if (quality === 'rare') return Math.min(0.85, baseChance + 0.20);
+        return baseChance;
+    }
 
     // Base stats
     if (generator.baseStats) {
         for (const [k, cfg] of Object.entries(generator.baseStats)) {
-            let v = rollStat(cfg, level);
-            if (k === 'dmg_min' && v < 1) v = 1;
-            if (k === 'dmg_max' && v < 2) v = 2;
-            if (v > 0) stats[k] = v;
+            // Hit chance and agility have 50% base chance
+            // Crit chance has 35% base chance (rarer)
+            let shouldRoll = true;
+            if (k === 'hit_chance' || k === 'agility') {
+                shouldRoll = Math.random() < getStatChance(0.5);
+            } else if (k === 'crit_chance') {
+                shouldRoll = Math.random() < getStatChance(0.35);
+            }
+            if (shouldRoll) {
+                let v = rollStat(cfg, level);
+                if (k === 'dmg_min' && v < 1) v = 1;
+                if (k === 'dmg_max' && v < 2) v = 2;
+                if (v > 0) stats[k] = v;
+            }
         }
     }
     
@@ -854,7 +894,14 @@ function rollStat(cfg, lvl) {
     // Tier 2+ extra stats
     if (tier >= 2 && generator.tier2Stats) {
         for (const [k, cfg] of Object.entries(generator.tier2Stats)) {
-            const chance = cfg.chance || 0.45;
+            let baseChance = cfg.chance || 0.45;
+            // Adjust chances for specific stats
+            if (k === 'hit_chance' || k === 'agility') {
+                baseChance = 0.5;
+            } else if (k === 'crit_chance') {
+                baseChance = 0.35;
+            }
+            const chance = getStatChance(baseChance);
             if (Math.random() < chance) {
                 const v = rollStat(cfg, level);
                 if (v > 0) stats[k] = v;
@@ -865,7 +912,14 @@ function rollStat(cfg, lvl) {
     // Tier 3+ stats
     if (tier >= 3 && generator.tier3Stats) {
         for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
-            const chance = cfg.chance || 0.5;
+            let baseChance = cfg.chance || 0.5;
+            // Adjust chances for specific stats
+            if (k === 'hit_chance' || k === 'agility') {
+                baseChance = 0.5;
+            } else if (k === 'crit_chance') {
+                baseChance = 0.35;
+            }
+            const chance = getStatChance(baseChance);
             if (Math.random() < chance) {
                 const v = rollStat(cfg, level);
                 if (v > 0) stats[k] = v;
@@ -876,7 +930,14 @@ function rollStat(cfg, lvl) {
     // Tier 5 stats
     if (tier >= 5 && generator.tier5Stats) {
         for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
-            const chance = cfg.chance || 0.45;
+            let baseChance = cfg.chance || 0.45;
+            // Adjust chances for specific stats
+            if (k === 'hit_chance' || k === 'agility') {
+                baseChance = 0.5;
+            } else if (k === 'crit_chance') {
+                baseChance = 0.35;
+            }
+            const chance = getStatChance(baseChance);
             if (Math.random() < chance) {
                 const v = rollStat(cfg, level);
                 if (v > 0) stats[k] = v;
@@ -892,24 +953,7 @@ function rollStat(cfg, lvl) {
     const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
     
-    // CRITICAL: Use the EXACT same slot mapping as your original code
     const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
-
-const quality = (() => {
-    // Legendary chance - 0.1% at all tiers
-    const legendaryChance = 0.001; // 0.1% (1 in 1000 items)
-    if (Math.random() < legendaryChance) return 'legendary';
-    
-    // Rare chance based on tier
-    let rareChance = 0;
-    if (tier >= 5) rareChance = 0.20;      // 20% at tier 5
-    else if (tier >= 4) rareChance = 0.12; // 12% at tier 4
-    else if (tier >= 3) rareChance = 0.07; // 7% at tier 3
-    else if (tier >= 2) rareChance = 0.03; // 3% at tier 2
-    else rareChance = 0.01;                // 1% at tier 1
-    
-    return Math.random() < rareChance ? 'rare' : 'common';
-})();
 
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
@@ -917,8 +961,8 @@ const quality = (() => {
         img:     `/images/assets/${imgSlug}.png`,
         desc:    generateItemLore(name, type, prefix, suffix, quality),
         stats,
-        slot:    slotMap[type] || type,  // EXACT same as original
-        category: type,                   // EXACT same as original
+        slot:    slotMap[type] || type,
+        category: type,
         price:   0,
         quality,
     };
@@ -932,49 +976,11 @@ const quality = (() => {
         item.desc    = `✨ ${item.desc}`;
     }
 
-    if (Math.random() < 0.10) {
+    if (Math.random() < 0.06) {
         const classes = ['warrior','mage','rogue','paladin'];
         item.classes = [classes[Math.floor(Math.random() * classes.length)]];
     }
     return item;
-}
-
-// ── 6. calculateBackendItemPrice (ADJUSTED FOR LEVEL 29 TARGET ~100k) ─────────────────
-function calculateBackendItemPrice(item, level) {
-    // Base price - adjusted down by 30%
-    const basePrice = 21 + (level * 12.6);  // Reduced from 30 + (level * 18)
-    
-    // Sum all positive stats
-    const statSum = Object.values(item.stats || {}).reduce((sum, val) => {
-        if (typeof val === 'number' && val > 0) {
-            return sum + val;
-        }
-        return sum;
-    }, 0);
-    
-    // Stat multiplier - reduced by 30%
-    const statMultiplier = Math.max(1, statSum * 1.54);  // Reduced from 2.2
-    
-    // Tier multiplier - reduced by 30%
-    const tierMultiplier = item.tier === 5 ? 1.4 :   // was 2.0
-                           item.tier === 4 ? 1.12 :  // was 1.6
-                           item.tier === 3 ? 0.91 :  // was 1.3
-                           item.tier === 2 ? 0.77 :  // was 1.1
-                           0.7;                      // was 1.0
-    
-    // Quality multiplier - reduced by 30%
-    const qualityMultiplier = item.quality === 'legendary' ? 0.945 :  // was 1.35
-                              item.quality === 'rare' ? 0.805 :       // was 1.15
-                              0.7;                                     // was 1.0
-    
-    let price = Math.floor(basePrice * statMultiplier * tierMultiplier * qualityMultiplier);
-    
-    // Minimum prices - also reduced by 30%
-    if (item.quality === 'legendary') price = Math.max(price, 35000);  // was 50000
-    else if (item.quality === 'rare') price = Math.max(price, 10500);  // was 15000
-    else if (item.tier >= 3) price = Math.max(price, 3500);            // was 5000
-    
-    return price;
 }
 
 // ── 5. ADD generateItemLore (unchanged) ──────────────────────────────
