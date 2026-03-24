@@ -818,6 +818,7 @@ const ITEM_GENERATORS = {
 };
 
 // ── 4. REPLACE generateBackendRandomItem ─────────────────────────────
+// ── 4. REPLACE generateBackendRandomItem ─────────────────────────────
 function generateBackendRandomItem(level, type) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
@@ -842,17 +843,15 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Enforce dmg gap - weapons MUST have both min and max damage
-    if (type === 'weapon') {
-        if (!stats.dmg_min) stats.dmg_min = Math.max(1, rollStat(generator.baseStats.dmg_min, level));
-        if (!stats.dmg_max) stats.dmg_max = Math.max(2, rollStat(generator.baseStats.dmg_max, level));
+    // Enforce dmg gap
+    if (stats.dmg_min && stats.dmg_max) {
         const minGap = Math.max(8, Math.floor(stats.dmg_max * 0.25));
         if (stats.dmg_max < stats.dmg_min + minGap) {
             stats.dmg_max = stats.dmg_min + minGap;
         }
     }
     
-    // Tier 2+ extra stats (lower chance to get stats)
+    // Tier 2+ extra stats
     if (tier >= 2 && generator.tier2Stats) {
         for (const [k, cfg] of Object.entries(generator.tier2Stats)) {
             const chance = cfg.chance || 0.45;
@@ -863,7 +862,7 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Tier 3+ stats (lower chance to get stats)
+    // Tier 3+ stats
     if (tier >= 3 && generator.tier3Stats) {
         for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
             const chance = cfg.chance || 0.5;
@@ -874,7 +873,7 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Tier 5 stats (rare/legendary only — lower chance)
+    // Tier 5 stats
     if (tier >= 5 && generator.tier5Stats) {
         for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
             const chance = cfg.chance || 0.45;
@@ -892,11 +891,12 @@ function generateBackendRandomItem(level, type) {
     const name   = `${prefix} ${suffix}`;
     const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
+    
+    // CRITICAL: Use the EXACT same slot mapping as your original code
     const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
 
-    // Lower quality rates - make good gear rarer
-    const quality = tier >= 5 ? (Math.random() > 0.7 ? 'legendary' : 'rare') :
-                    tier >= 3 ? (Math.random() > 0.85 ? 'rare' : 'common') : 'common';
+    const quality = tier >= 5 ? (Math.random() > 0.45 ? 'legendary' : 'rare') :
+                    tier >= 3 ? (Math.random() > 0.65 ? 'rare' : 'common') : 'common';
 
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
@@ -904,15 +904,14 @@ function generateBackendRandomItem(level, type) {
         img:     `/images/assets/${imgSlug}.png`,
         desc:    generateItemLore(name, type, prefix, suffix, quality),
         stats,
-        slot:    slotMap[type] || type,
-        category: type,
+        slot:    slotMap[type] || type,  // EXACT same as original
+        category: type,                   // EXACT same as original
         price:   0,
         quality,
     };
     item.price = calculateBackendItemPrice(item, level);
 
-    // Lower chance for gem discount
-    if (Math.random() < 0.12) {
+    if (Math.random() < 0.20) {
         const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
         const gemCost = 1 + Math.floor(Math.random() * maxGems);
         item.gemCost = gemCost;
@@ -920,19 +919,19 @@ function generateBackendRandomItem(level, type) {
         item.desc    = `✨ ${item.desc}`;
     }
 
-    // Lower chance for class restriction
-    if (Math.random() < 0.06) {
+    if (Math.random() < 0.10) {
         const classes = ['warrior','mage','rogue','paladin'];
         item.classes = [classes[Math.floor(Math.random() * classes.length)]];
     }
     return item;
 }
 
+// ── 6. UPDATE calculateBackendItemPrice (RESTORED HIGH PRICING) ─────────────────
 function calculateBackendItemPrice(item, level) {
-    // Restored original base price
+    // Original base price from your working version
     const basePrice = 35 + (level * 21);
     
-    // Count stats and sum values like original
+    // Count stats and sum values
     let statSum = 0;
     let statCount = 0;
     for (const val of Object.values(item.stats || {})) {
@@ -942,22 +941,37 @@ function calculateBackendItemPrice(item, level) {
         }
     }
     
-    // Original multiplier logic - higher multiplier for more/better stats
-    const statMultiplier = Math.max(1, statCount * 0.8 + statSum * 0.05);
+    // MUCH HIGHER multiplier - similar to original working version
+    // Original had: sum of stats as multiplier, here we make it exponential
+    const statMultiplier = Math.max(1, (statCount * 12) + (statSum * 1.2));
     
-    // Tier multiplier (original style)
-    const tierMult = item.tier === 5 ? 2.2 : item.tier === 4 ? 1.8 : item.tier === 3 ? 1.5 : item.tier === 2 ? 1.2 : 1;
+    // Tier multiplier - higher for better tiers
+    const tierMult = item.tier === 5 ? 8.0 : 
+                     item.tier === 4 ? 5.0 : 
+                     item.tier === 3 ? 3.0 : 
+                     item.tier === 2 ? 1.8 : 1.2;
     
-    // Quality multiplier (original style)
-    const qualityMult = item.quality === 'legendary' ? 2.0 : item.quality === 'rare' ? 1.5 : 1;
+    // Quality multiplier - huge for rare/legendary
+    const qualityMult = item.quality === 'legendary' ? 6.0 : 
+                        item.quality === 'rare' ? 3.0 : 1.0;
     
-    let price = Math.floor(basePrice * statMultiplier * tierMult * qualityMult);
+    // Elemental stats add extra value
+    let elemBonus = 0;
+    for (const elem of ELEMENTS) {
+        if (item.stats[`${elem}_dmg`]) elemBonus += item.stats[`${elem}_dmg`] * 15;
+        if (item.stats[`${elem}_resist`]) elemBonus += item.stats[`${elem}_resist`] * 8;
+    }
     
-    // Minimum price
-    price = Math.max(50, price);
+    let price = Math.floor((basePrice * statMultiplier * tierMult * qualityMult) + elemBonus);
     
-    // Cap at reasonable maximum (around 500k for top tier)
-    price = Math.min(price, 500000);
+    // Ensure minimum prices based on tier and quality
+    if (item.quality === 'legendary') price = Math.max(price, 150000);
+    else if (item.quality === 'rare') price = Math.max(price, 50000);
+    else if (item.tier >= 3) price = Math.max(price, 15000);
+    else price = Math.max(price, 500);
+    
+    // Cap at reasonable maximum (1 million for top tier)
+    price = Math.min(price, 1000000);
     
     return price;
 }
