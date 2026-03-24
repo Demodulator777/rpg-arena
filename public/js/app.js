@@ -315,7 +315,7 @@ function showScreen(name) {
     document.getElementById(`screen-${name}`).classList.add('active');
     if (name==='game') { renderTopBar(); renderCharacter(); startPolling(); showTab('character'); }
 }
-const TAB_ORDER=['character','premium','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox'];
+const TAB_ORDER=['character','premium','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox', 'dungeon'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -334,6 +334,7 @@ function showTab(name) {
     if (name==='leaderboard') loadLeaderboard();
     if (name==='shop')        loadShop();
     if (name==='inbox')       loadInbox();
+    if (name==='dungeon')     renderDungeonTab();
 }
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
@@ -1267,6 +1268,11 @@ async function doStartMission(zoneId, spotId, missionIdx, size='small') {
     const missionName = chosenMission.name;
     try {
         const result = await api('POST', '/game/missions/start', { zoneId, spotId, missionIdx, missionName, size });
+
+        // ── Dungeon token generation ──
+        const mpCosts = { small: 20, medium: 40, large: 60 };
+        if (typeof dungeonAddTokens === 'function') dungeonAddTokens(mpCosts[size] || 20);
+
         character = await api('GET', '/game/character');
         renderTopBar();
         const confirmedName = result?.mission?.missionName || result?.mission?.mission_name || missionName;
