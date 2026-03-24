@@ -182,7 +182,7 @@
   // ── Database Sync Functions ─────────────────────────────────
   async function loadDungeonDataFromDB() {
     try {
-      const response = await apiFetch('GET', '/dungeon/data');
+      const response = await apiFetch('GET', '/api/game/dungeon/data');
       if (response && response.success) {
         D.tokens = response.tokens || 0;
         D.floor = response.floor || 1;
@@ -210,7 +210,7 @@
 
   async function saveTokensToDB() {
     try {
-      await apiFetch('POST', '/api/dungeon/tokens', { tokens: D.tokens });
+      await apiFetch('POST', '/api/game/dungeon/tokens', { tokens: D.tokens });
       saveState();
     } catch (e) {
       console.error('Failed to save tokens to DB:', e);
@@ -221,7 +221,7 @@
     try {
       const progress = D.savedProgress[D.activeDungeon] || null;
       
-      await apiFetch('POST', '/api/dungeon/progress', {
+      await apiFetch('POST', '/api/game/dungeon/progress', {
         floor: D.floor,
         highestFloor: D.highestFloor || D.floor,
         progress: progress ? {
@@ -249,7 +249,7 @@
 
   // ── Token Economy ──────────────────────────────────────────
   function addTokensFromMP(mpSpent) {
-    apiFetch('POST', '/api/dungeon/mp-spent', { mpSpent })
+    apiFetch('POST', '/api/game/dungeon/mp-spent', { mpSpent })
       .then(response => {
         if (response && response.totalTokens !== undefined) {
           D.tokens = response.totalTokens;
@@ -517,7 +517,7 @@
       
       // Sync back to server
       if (typeof api === 'function') {
-        api('POST', '/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
+        api('POST', '/api/hame//dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
       }
     }
 
@@ -660,7 +660,7 @@
     D.floor++;
     if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
     
-    apiFetch('POST', '/api/dungeon/boss-defeated', {
+    apiFetch('POST', '/api/game/dungeon/boss-defeated', {
       newFloor: D.floor,
       highestFloor: D.highestFloor,
       tokens: D.tokens,
