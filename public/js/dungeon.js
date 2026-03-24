@@ -699,11 +699,15 @@
     }
   }
 
-  // ── Render Functions ─────────────────────────────────────────────────
-  function renderDungeonTab() {
-    const container = document.getElementById('tab-dungeon');
-    if (!container) return;
-    loadState();
+function renderDungeonTab() {
+  const container = document.getElementById('tab-dungeon');
+  if (!container) return;
+  loadState(); // Load local state first
+  
+  // Only load from DB if we have a character
+  if (character) {
+    loadDungeonDataFromDB();
+  }
 
     container.innerHTML = `
       <div class="dungeon-wrapper">
@@ -732,14 +736,14 @@
       </div>
     `;
 
-    if (D.activeDungeon) {
-      if (D.combat) renderCombatPanel();
-      else renderDungeonView();
-    } else {
-      renderDungeonList();
-    }
-    renderLog();
+  if (D.activeDungeon) {
+    if (D.combat) renderCombatPanel();
+    else renderDungeonView();
+  } else {
+    renderDungeonList();
   }
+  renderLog();
+}
 
   function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
@@ -1122,6 +1126,13 @@
   // ── Init ───────────────────────────────────────────────────
   loadCSS();
   loadState();
-  loadDungeonDataFromDB();
+
+  global.renderDungeonTab = function() {
+  renderDungeonTab();
+  // Load fresh data when tab is opened
+  if (character) {
+    loadDungeonDataFromDB();
+  }
+};
 
 })(window);
