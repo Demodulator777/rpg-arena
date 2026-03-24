@@ -2293,6 +2293,105 @@ router.delete('/messages/:id', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Add to your backend router (in the file you showed earlier)
+router.get('/dungeon/data', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    // Get tokens from your new dungeon_tokens column
+    const tokens = char.dungeon_tokens || 0;
+    const floor = char.dungeon_floor || 1;
+    const highestFloor = char.dungeon_highest_floor || 1;
+    let progress = null;
+    
+    if (char.dungeon_progress) {
+      try {
+        progress = JSON.parse(char.dungeon_progress);
+      } catch(e) {}
+    }
+    
+    res.json({
+      success: true,
+      tokens,
+      floor,
+      highestFloor,
+      progress
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/tokens', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { tokens } = req.body;
+    await dbRun(db, 'UPDATE characters SET dungeon_tokens = ? WHERE user_id = ?', [tokens, req.user.userId]);
+    res.json({ success: true, tokens });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/progress', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, highestFloor, progress, activeDungeon, combat } = req.body;
+    
+    const progressData = {
+      activeDungeon: activeDungeon || null,
+      floor: floor || 1,
+      rooms: progress?.rooms || [],
+      playerPos: progress?.playerPos || 0,
+      exploredRooms: progress?.exploredRooms || [],
+      combat: combat || null
+    };
+    
+    await dbRun(db, `UPDATE characters SET 
+      dungeon_floor = ?,
+      dungeon_highest_floor = ?,
+      dungeon_progress = ?
+      WHERE user_id = ?`,
+      [floor, highestFloor, JSON.stringify(progressData), req.user.userId]
+    );
+    
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/mp-spent', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { mpSpent } = req.body;
+    const tokensEarned = Math.floor(mpSpent / 20);
+    
+    if (tokensEarned > 0) {
+      const result = await dbRun(db, `
+        UPDATE characters 
+        SET dungeon_tokens = dungeon_tokens + ?
+        WHERE user_id = ?
+        RETURNING dungeon_tokens
+      `, [tokensEarned, req.user.userId]);
+      
+      // For SQLite without RETURNING, do a separate select
+      const char = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE user_id = ?', [req.user.userId]);
+      res.json({ success: true, tokensEarned, totalTokens: char.dungeon_tokens });
+    } else {
+      res.json({ success: true, tokensEarned: 0, totalTokens: null });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Class Skills ──────────────────────────────────────────────────────────
 router.post('/skills/activate', auth, async (req, res) => {
     try {
