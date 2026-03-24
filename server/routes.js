@@ -2294,7 +2294,7 @@ router.delete('/messages/:id', auth, async (req, res) => {
 });
 
 // Add to your backend router (in the file you showed earlier)
-router.get('/game/dungeon/data', auth, async (req, res) => {
+router.get('/dungeon/data', auth, async (req, res) => {
   try {
     const db = await getDb();
     const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
@@ -2325,7 +2325,7 @@ router.get('/game/dungeon/data', auth, async (req, res) => {
   }
 });
 
-router.post('/game/dungeon/tokens', auth, async (req, res) => {
+router.post('/dungeon/tokens', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { tokens } = req.body;
@@ -2337,7 +2337,7 @@ router.post('/game/dungeon/tokens', auth, async (req, res) => {
   }
 });
 
-router.post('/game/dungeon/progress', auth, async (req, res) => {
+router.post('/dungeon/progress', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { floor, highestFloor, progress, activeDungeon, combat } = req.body;
@@ -2366,7 +2366,7 @@ router.post('/game/dungeon/progress', auth, async (req, res) => {
   }
 });
 
-router.post('/game/dungeon/mp-spent', auth, async (req, res) => {
+router.post('/dungeon/mp-spent', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { mpSpent } = req.body;
@@ -2513,10 +2513,6 @@ router.post('/shop/reroll', auth, async (req, res) => {
             message: '🎲 Shop rerolled!',
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.get('/game/test', auth, async (req, res) => {
-  res.json({ success: true, message: 'Test works!' });
 });
 
 module.exports = router;
