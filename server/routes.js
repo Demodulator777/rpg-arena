@@ -638,29 +638,29 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
 
 // ── 3. REPLACE ITEM_GENERATORS ───────────────────────────────────────
 const ITEM_GENERATORS = {
-    weapon: {
-        namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
-        nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
-        emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
-        baseStats: {
-            dmg_min:  { min:3,  max:8,   scale:1.2 },  // Lowered from 2.8
-            dmg_max:  { min:6,  max:15,  scale:2.0 },  // Lowered from 5.5
-            strength: { min:0,  max:3,   scale:0.4 },
-        },
-        tier2Stats: {
-            hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },  // Added chance
-        },
-        tier3Stats: {
-            agility:    { min:0, max:3, scale:0.35, chance:0.5 },
-            hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
-            magic:      { min:0, max:3, scale:0.3, chance:0.4 },
-        },
-        tier5Stats: {
-            crit_chance: { min:2, max:7, scale:0.4, chance:0.5 },
-            strength:    { min:1, max:4, scale:0.35, chance:0.5 },
-        },
-        elemDmg: true, elemResist: false,
+weapon: {
+    namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
+    nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
+    emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
+    baseStats: {
+        dmg_min:  { min:5,  max:12,  scale:2.8 },  // Restored original
+        dmg_max:  { min:10, max:25,  scale:5.5 },  // Restored original
+        strength: { min:0,  max:4,   scale:0.6 },
     },
+    tier2Stats: {
+        hit_chance: { min:1, max:4, scale:0.3, chance:0.4 },
+    },
+    tier3Stats: {
+        agility:    { min:0, max:4, scale:0.5, chance:0.5 },
+        hit_chance: { min:2, max:6, scale:0.4, chance:0.5 },
+        magic:      { min:0, max:4, scale:0.35, chance:0.4 },
+    },
+    tier5Stats: {
+        crit_chance: { min:3, max:10, scale:0.5, chance:0.5 },
+        strength:    { min:1, max:5,  scale:0.4, chance:0.5 },
+    },
+    elemDmg: true, elemResist: false,
+},
     armor: {
         namePrefixes: ['Leather','Chain','Plate','Scale','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
@@ -825,13 +825,13 @@ function generateBackendRandomItem(level, type) {
     const tier = Math.min(5, Math.ceil(level / 20) + 1);
     const stats = {};
 
-    function rollStat(cfg, lvl) {
-        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);
-        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);
-        let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
-        v = Math.floor(v * (0.85 + Math.random() * 0.30));
-        return Math.max(cfg.min, v);
-    }
+function rollStat(cfg, lvl) {
+    const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.5);  // Was 0.3, original had 0.5
+    const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.8);  // Was 0.6, original had 0.8
+    let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
+    v = Math.floor(v * (0.9 + Math.random() * 0.3));  // Was 0.85-1.15, original had 0.9-1.2
+    return Math.max(cfg.min, v);
+}
 
     // Base stats
     if (generator.baseStats) {
