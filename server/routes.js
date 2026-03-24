@@ -2515,4 +2515,8 @@ router.post('/shop/reroll', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/game/test', auth, async (req, res) => {
+  res.json({ success: true, message: 'Test works!' });
+});
+
 module.exports = router;
