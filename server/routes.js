@@ -732,17 +732,21 @@ const ITEM_GENERATORS = {
         baseStats: {
             agility: { min:1, max:5, scale:1.0 },
             defense: { min:0, max:2, scale:0.4 },
+            armor:   { min:0, max:3, scale:0.5 },  // Added armor
         },
         tier2Stats: {
             hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
+            armor:      { min:1, max:2, scale:0.25, chance:0.35 },  // Added armor option
         },
         tier3Stats: {
             hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
             agility:    { min:1, max:3, scale:0.35, chance:0.5 },
+            armor:      { min:1, max:3, scale:0.35, chance:0.4 },  // Added armor option
         },
         tier5Stats: {
             crit_chance: { min:2, max:5, scale:0.35, chance:0.5 },
             agility:     { min:1, max:4, scale:0.4, chance:0.5 },
+            armor:       { min:2, max:5, scale:0.4, chance:0.45 },  // Added armor option
         },
         elemDmg: false, elemResist: true,
     },
