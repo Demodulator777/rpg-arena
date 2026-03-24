@@ -577,32 +577,37 @@ function buildNpc(difficulty, playerLevel) {
     };
 }
 
-// ── Item Generators ───────────────────────────────────────────────────────
+// ── Item Generators (UPDATED) ───────────────────────────────────────────
 const ELEMENTS = ['pyro','water','wind','electro'];
 
+// ── 1. REPLACE maxElemStats ───────────────────────────────────────────
 function maxElemStats(level) {
     if (level >= 86) return 6;
     if (level >= 71) return 5;
     if (level >= 51) return 4;
-    if (level >= 31) return 3;
-    if (level >= 11) return 2;
+    if (level >= 25) return 3;  // was 31 — now get 3 elems at level 25
+    if (level >= 10) return 2;  // was 11
     return 1;
 }
 
+// ── 2. REPLACE rollElemStats ──────────────────────────────────────────
 function rollElemStats(stats, level, tier, canDmg, canResist) {
-    const baseChance = tier >= 5 ? 0.80 : tier >= 3 ? 0.45 : 0.20;
+    // Start rolling from tier 2, higher chance at higher tiers
+    const baseChance = tier >= 5 ? 0.95 : tier >= 3 ? 0.85 : tier >= 2 ? 0.65 : 0.25;
     if (Math.random() > baseChance) return;
 
     const maxStats = maxElemStats(level);
-    const maxRoll = Math.min(maxStats, Math.ceil(level / 20));
-    const count = 1 + Math.floor(Math.random() * maxRoll);
+    // Guarantee minimums: level 35+ gets 3, level 25+ gets 2, else 1
+    const minCount = level >= 35 ? 3 : level >= 25 ? 2 : 1;
+    const maxRoll  = Math.max(minCount, Math.min(maxStats, Math.ceil(level / 15)));
+    const count    = minCount + Math.floor(Math.random() * Math.max(1, maxRoll - minCount + 1));
 
     const shuffled = [...ELEMENTS].sort(() => Math.random() - 0.5);
     let rolled = 0;
 
     for (const elem of shuffled) {
         if (rolled >= count) break;
-        const doDmg    = canDmg    && (!canResist || Math.random() < 0.5);
+        const doDmg    = canDmg    && (!canResist || Math.random() < 0.45);
         const doResist = canResist && !doDmg;
         if (!doDmg && !doResist) continue;
 
@@ -610,46 +615,66 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
         const resistKey = `${elem}_resist`;
 
         if (doDmg && !stats[dmgKey]) {
-            const base  = 1 + Math.floor(level * 0.18);
-            const range = Math.floor(level * 0.10);
+            const base   = 1 + Math.floor(level * 0.22);
+            const range  = Math.floor(level * 0.14);
             const dmgVal = base + Math.floor(Math.random() * Math.max(1, range));
             stats[dmgKey] = dmgVal;
             rolled++;
-
             if (!stats[resistKey]) {
-                const resMult = 1.8 + Math.random() * 0.4;
-                stats[resistKey] = Math.floor(dmgVal * resMult);
+                stats[resistKey] = Math.floor(dmgVal * (1.8 + Math.random() * 0.4));
             }
-
             if (elem === 'pyro' && Math.random() < 0.30) {
-                const penalty = -(1 + Math.floor(dmgVal * 0.5));
-                stats['water_resist'] = (stats['water_resist'] || 0) + penalty;
+                stats['water_resist'] = (stats['water_resist'] || 0) - (1 + Math.floor(dmgVal * 0.5));
             }
         } else if (doResist && !stats[resistKey]) {
-            const base  = 1 + Math.floor(level * 0.22);
-            const range = Math.floor(level * 0.14);
+            const base  = 2 + Math.floor(level * 0.30);
+            const range = Math.floor(level * 0.20);
             stats[resistKey] = base + Math.floor(Math.random() * Math.max(1, range));
             rolled++;
         }
     }
+
+    // Force remaining minCount slots as resist if we fell short
+    if (rolled < minCount && canResist) {
+        for (const elem of shuffled) {
+            if (rolled >= minCount) break;
+            const resistKey = `${elem}_resist`;
+            if (!stats[resistKey]) {
+                const base = 2 + Math.floor(level * 0.30);
+                stats[resistKey] = base + Math.floor(Math.random() * Math.max(1, Math.floor(level * 0.20)));
+                rolled++;
+            }
+        }
+    }
 }
 
+// ── 3. REPLACE ITEM_GENERATORS ───────────────────────────────────────
+// Key changes:
+//   - weapon dmg scaled ~3x (min 40-50, max 90-95 at level 29)
+//   - magic added to weapons/armor/boots/accessories at tier3
+//   - crit_chance ONLY at tier5 (rare+ quality) across all types
+//   - more stats overall, tier2Stats block added for early bonuses
 const ITEM_GENERATORS = {
     weapon: {
         namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
         nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
         emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
         baseStats: {
-            dmg_min:  { min:2, max:5,  scale:1.4 },
-            dmg_max:  { min:5, max:10, scale:1.6 },
-            strength: { min:0, max:3,  scale:0.5 },
+            dmg_min:  { min:5,  max:12,  scale:2.8 },
+            dmg_max:  { min:10, max:25,  scale:5.5 },
+            strength: { min:0,  max:4,   scale:0.6 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:4, scale:0.3 },
         },
         tier3Stats: {
-            agility:    { min:0, max:3, scale:0.4 },
-            hit_chance: { min:1, max:5, scale:0.3 },
+            agility:    { min:0, max:4, scale:0.5 },
+            hit_chance: { min:2, max:6, scale:0.4 },
+            magic:      { min:0, max:4, scale:0.35 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:8, scale:0.4 },
+            crit_chance: { min:3, max:10, scale:0.5 },
+            strength:    { min:1, max:5,  scale:0.4 },
         },
         elemDmg: true, elemResist: false,
     },
@@ -658,15 +683,20 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
         emojis: ['🛡️','🧥','🥼','👕','🦺'],
         baseStats: {
-            defense: { min:2,  max:6,  scale:1.5 },
-            armor:   { min:1,  max:4,  scale:1.0 },
-            hp_max:  { min:10, max:25, scale:1.8 },
+            defense: { min:3,  max:8,  scale:2.0 },
+            armor:   { min:2,  max:6,  scale:1.4 },
+            hp_max:  { min:15, max:35, scale:2.5 },
+        },
+        tier2Stats: {
+            vitality: { min:0, max:2, scale:0.3 },
         },
         tier3Stats: {
-            vitality: { min:0, max:3, scale:0.4 },
+            vitality: { min:1, max:4, scale:0.5 },
+            magic:    { min:0, max:3, scale:0.3 },
         },
         tier5Stats: {
-            strength: { min:0, max:3, scale:0.3 },
+            crit_chance: { min:2, max:6, scale:0.35 },
+            strength:    { min:0, max:4, scale:0.4 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -675,15 +705,19 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Helm','Helmet','Visor','Cap','Hood','Cowl','Crown','Circlet','Headguard'],
         emojis: ['⛑️','🪖','👑','🎭'],
         baseStats: {
-            defense: { min:1, max:4,  scale:1.0 },
-            armor:   { min:1, max:3,  scale:0.6 },
-            hp_max:  { min:5, max:18, scale:1.2 },
+            defense: { min:2,  max:5,  scale:1.4 },
+            armor:   { min:1,  max:4,  scale:0.8 },
+            hp_max:  { min:8,  max:22, scale:1.8 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:4, scale:0.3 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:5, scale:0.3 },
+            hit_chance: { min:2, max:6, scale:0.4 },
+            magic:      { min:0, max:4, scale:0.35 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:7, scale:0.4 },
+            crit_chance: { min:2, max:8, scale:0.5 },
         },
         elemDmg: true, elemResist: true,
     },
@@ -692,15 +726,19 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
         emojis: ['🛡️','🔰'],
         baseStats: {
-            defense: { min:3,  max:8,  scale:1.8 },
-            armor:   { min:2,  max:6,  scale:1.4 },
-            hp_max:  { min:8,  max:20, scale:1.4 },
+            defense: { min:4,  max:10, scale:2.5 },
+            armor:   { min:3,  max:8,  scale:1.8 },
+            hp_max:  { min:10, max:28, scale:2.0 },
+        },
+        tier2Stats: {
+            vitality: { min:0, max:2, scale:0.3 },
         },
         tier3Stats: {
-            vitality: { min:0, max:3, scale:0.4 },
+            vitality: { min:1, max:4, scale:0.5 },
         },
         tier5Stats: {
-            defense: { min:1, max:4, scale:0.5 },
+            crit_chance: { min:2, max:6, scale:0.35 },
+            defense:     { min:2, max:6, scale:0.6 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -709,14 +747,19 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Boots','Greaves','Sabatons','Treads','Stompers','Walkers'],
         emojis: ['👢','🥾','👟'],
         baseStats: {
-            agility: { min:1, max:5, scale:1.0 },
-            defense: { min:0, max:2, scale:0.4 },
+            agility: { min:2, max:7,  scale:1.5 },
+            defense: { min:0, max:3,  scale:0.5 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:3, scale:0.25 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:4, scale:0.3 },
+            hit_chance: { min:2, max:5, scale:0.4 },
+            agility:    { min:1, max:4, scale:0.4 },
         },
         tier5Stats: {
-            agility: { min:1, max:4, scale:0.5 },
+            crit_chance: { min:2, max:7, scale:0.45 },
+            agility:     { min:2, max:5, scale:0.5 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -725,15 +768,20 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Ring','Band','Loop','Signet','Seal'],
         emojis: ['💍','⭕','🔵','🟢','🔴'],
         baseStats: {
-            strength: { min:0, max:3, scale:0.5 },
-            magic:    { min:0, max:3, scale:0.5 },
-            agility:  { min:0, max:3, scale:0.4 },
+            strength: { min:0, max:4, scale:0.6 },
+            magic:    { min:0, max:4, scale:0.6 },
+            agility:  { min:0, max:3, scale:0.5 },
         },
-        tier3Stats: {
+        tier2Stats: {
             hit_chance: { min:1, max:4, scale:0.3 },
         },
+        tier3Stats: {
+            hit_chance: { min:2, max:5, scale:0.4 },
+            magic:      { min:1, max:4, scale:0.4 },
+        },
         tier5Stats: {
-            crit_chance: { min:2, max:6, scale:0.4 },
+            crit_chance: { min:3, max:9, scale:0.5 },
+            magic:       { min:1, max:5, scale:0.4 },
         },
         elemDmg: true, elemResist: true,
     },
@@ -742,15 +790,20 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Amulet','Pendant','Talisman','Necklace','Locket','Medallion'],
         emojis: ['📿','🔱','⚜️','🌟','💫'],
         baseStats: {
-            magic:   { min:0, max:4, scale:0.6 },
-            defense: { min:0, max:2, scale:0.4 },
-            hp_max:  { min:5, max:22, scale:1.0 },
+            magic:   { min:1, max:6,  scale:0.9 },
+            defense: { min:0, max:3,  scale:0.4 },
+            hp_max:  { min:8, max:28, scale:1.5 },
+        },
+        tier2Stats: {
+            magic: { min:1, max:3, scale:0.3 },
         },
         tier3Stats: {
-            magic: { min:0, max:3, scale:0.4 },
+            magic:      { min:2, max:6, scale:0.5 },
+            hit_chance: { min:1, max:4, scale:0.3 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:7, scale:0.4 },
+            crit_chance: { min:3, max:9, scale:0.5 },
+            magic:       { min:2, max:7, scale:0.5 },
         },
         elemDmg: true, elemResist: true,
     },
@@ -759,19 +812,203 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Charm','Token','Seal','Signet','Talisman','Rune'],
         emojis: ['🔮','✨','🪬','💠','🔷'],
         baseStats: {
-            strength: { min:0, max:2, scale:0.4 },
-            agility:  { min:0, max:2, scale:0.4 },
-            magic:    { min:0, max:2, scale:0.4 },
+            strength: { min:0, max:3, scale:0.5 },
+            agility:  { min:0, max:3, scale:0.5 },
+            magic:    { min:0, max:3, scale:0.5 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:3, scale:0.25 },
         },
         tier3Stats: {
-            hit_chance: { min:1, max:4, scale:0.3 },
+            hit_chance: { min:2, max:5, scale:0.4 },
+            magic:      { min:1, max:4, scale:0.35 },
         },
         tier5Stats: {
-            crit_chance: { min:2, max:6, scale:0.4 },
+            crit_chance: { min:3, max:8, scale:0.5 },
         },
         elemDmg: true, elemResist: true,
     },
 };
+
+// ── 4. REPLACE generateBackendRandomItem ─────────────────────────────
+// Key changes:
+//   - tier2Stats block added
+//   - crit only on tier5 (rare/legendary quality)
+//   - dmg_max always > dmg_min + 20% gap enforced
+//   - lore description generated from item name instead of generic line
+function generateBackendRandomItem(level, type) {
+    const generator = ITEM_GENERATORS[type];
+    if (!generator) return null;
+    const tier = Math.min(5, Math.ceil(level / 20) + 1);
+    const stats = {};
+
+    function rollStat(cfg, lvl) {
+        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);
+        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);
+        let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
+        v = Math.floor(v * (0.85 + Math.random() * 0.30));
+        return Math.max(cfg.min, v);
+    }
+
+    // Base stats
+    if (generator.baseStats) {
+        for (const [k, cfg] of Object.entries(generator.baseStats)) {
+            let v = rollStat(cfg, level);
+            if (k === 'dmg_min' && v < 1) v = 1;
+            if (k === 'dmg_max' && v < 2) v = 2;
+            if (v > 0) stats[k] = v;
+        }
+    }
+    // Enforce dmg gap: max must be at least min + 20% of max
+    if (stats.dmg_min && stats.dmg_max) {
+        const minGap = Math.max(8, Math.floor(stats.dmg_max * 0.25));
+        if (stats.dmg_max < stats.dmg_min + minGap) {
+            stats.dmg_max = stats.dmg_min + minGap;
+        }
+    }
+    // Tier 2+ extra stats
+    if (tier >= 2 && generator.tier2Stats) {
+        for (const [k, cfg] of Object.entries(generator.tier2Stats)) {
+            if (Math.random() < 0.65) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+    // Tier 3+ stats
+    if (tier >= 3 && generator.tier3Stats) {
+        for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
+            if (Math.random() < 0.65) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+    // Tier 5 stats (rare/legendary only — includes crit_chance)
+    if (tier >= 5 && generator.tier5Stats) {
+        for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
+            if (Math.random() < 0.60) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+
+    rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist);
+
+    const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
+    const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
+    const name   = `${prefix} ${suffix}`;
+    const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
+    const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
+    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
+
+    const quality = tier >= 5 ? (Math.random() > 0.45 ? 'legendary' : 'rare') :
+                    tier >= 3 ? (Math.random() > 0.65 ? 'rare' : 'common') : 'common';
+
+    const item = {
+        id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+        name, emoji, tier, level,
+        img:     `/images/assets/${imgSlug}.png`,
+        desc:    generateItemLore(name, type, prefix, suffix, quality),
+        stats,
+        slot:    slotMap[type] || type,
+        category: type,
+        price:   0,
+        quality,
+    };
+    item.price = calculateBackendItemPrice(item, level);
+
+    if (Math.random() < 0.20) {
+        const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
+        const gemCost = 1 + Math.floor(Math.random() * maxGems);
+        item.gemCost = gemCost;
+        item.price   = Math.max(1, Math.floor(item.price * (1 - Math.min(0.20, gemCost / 150))));
+        item.desc    = `✨ ${item.desc}`;
+    }
+
+    if (Math.random() < 0.10) {
+        const classes = ['warrior','mage','rogue','paladin'];
+        item.classes = [classes[Math.floor(Math.random() * classes.length)]];
+    }
+    return item;
+}
+
+// ── 5. ADD generateItemLore (new function) ──────────────────────────────
+function generateItemLore(name, type, prefix, suffix, quality) {
+    const loreParts = {
+        // Prefixes → lore fragments
+        prefix: {
+            'Dragon':   ['forged from dragon scales', 'tempered in dragon fire', 'etched with draconic runes'],
+            'Mythril':  ['woven from mythril veins', 'lighter than air yet unyielding', 'mined from the deepest seams'],
+            'Adamant':  ['harder than any known ore', 'capable of cutting stone', 'said to be unbreakable'],
+            'Obsidian': ['carved from volcanic glass', 'born of ancient eruptions', 'sharp as a razor\'s edge'],
+            'Crystal':  ['grown over centuries underground', 'resonating with arcane energy', 'humming with inner light'],
+            'Golden':   ['gilded in pure mountain gold', 'worth a king\'s ransom', 'shimmering with wealth'],
+            'Silver':   ['blessed by moonlight', 'polished to a mirror sheen', 'favored by rogues and priests alike'],
+            'Shadow':   ['absorbed the darkness of the void', 'wreathed in perpetual shadow', 'invisible in dim light'],
+            'Ancient':  ['recovered from a forgotten tomb', 'older than any kingdom', 'inscribed with a dead language'],
+            'Blessed':  ['consecrated by a high priest', 'humming with holy energy', 'said to repel evil'],
+            'Cursed':   ['carrying the weight of a dark oath', 'bound to a restless soul', 'whispering in the dark'],
+            'Holy':     ['radiating divine warmth', 'crafted in a sacred forge', 'glowing with righteous light'],
+            'Arcane':   ['pulsing with raw magical energy', 'traced with glowing sigils', 'humming with arcane power'],
+            'Swift':    ['light as a feather', 'built for speed above all', 'crafted for the fastest warriors'],
+            'Iron':     ['crude but dependable', 'hammered into shape by a steady hand', 'reliable in any battle'],
+            'Steel':    ['folded a thousand times over', 'tempered to perfection', 'hardened through fire and water'],
+            'Leather':  ['stitched from tanned beast hide', 'supple yet tough', 'worn smooth from years of use'],
+            'Tower':    ['wide enough to shelter two', 'an immovable wall in battle', 'tested against siege weapons'],
+            'Wooden':   ['carved from a century-old oak', 'lightweight and surprisingly resilient', 'reinforced with iron bands'],
+            'Battle':   ['scarred from a hundred conflicts', 'tested on the bloodiest fields', 'a veteran\'s companion'],
+            'Void':     ['touched by the emptiness between worlds', 'draining warmth from its surroundings', 'unsettling to behold'],
+            'Bone':     ['carved from the remains of a great beast', 'rattling with an uneasy energy', 'bleached white by sun and wind'],
+            'Ruby':     ['set with a blood-red gemstone', 'warm to the touch', 'catching light like a flame'],
+            'Sapphire': ['inlaid with a deep blue gem', 'cool as the northern sea', 'prized by mages and scholars'],
+            'Emerald':  ['adorned with a verdant stone', 'said to grow sharper in forests', 'humming with natural energy'],
+            'Diamond':  ['encrusted with the hardest gem known', 'refracting light into rainbows', 'beyond the price of most kings'],
+            'Enchanted':['bound with a permanent enchantment', 'glowing faintly in the dark', 'responding to its wielder\'s will'],
+        },
+        // Suffixes → lore fragments
+        suffix: {
+            'Sword':      ['its edge never seems to dull', 'balanced for both slash and thrust'],
+            'Blade':      ['thin enough to slip between ribs', 'honed to an impossible edge'],
+            'Axe':        ['capable of felling trees in one blow', 'built for pure destructive force'],
+            'Dagger':     ['small enough to conceal anywhere', 'favored by assassins throughout history'],
+            'Bow':        ['its string never snaps', 'silent enough to hunt ghosts'],
+            'Staff':      ['amplifying the wielder\'s magic tenfold', 'humming with channeled power'],
+            'Hammer':     ['every strike sending shockwaves through armor', 'heavier than it looks'],
+            'Spear':      ['its reach giving a decisive advantage', 'balanced for both thrust and throw'],
+            'Mace':       ['capable of crumpling armor like parchment', 'devastating against the undead'],
+            'Scythe':     ['originally a farming tool, now a weapon of terror', 'wide arc cuts through crowds'],
+            'Armor':      ['distributed weight across the entire torso', 'showing countless old dents and repairs'],
+            'Vest':       ['allowing full range of movement', 'light enough to forget you\'re wearing it'],
+            'Cuirass':    ['molded perfectly to the warrior\'s chest', 'the centerpiece of a veteran\'s kit'],
+            'Breastplate':['turned aside many a killing blow', 'engraved with a personal crest'],
+            'Helm':       ['protecting the most vital target on the battlefield', 'dented but never broken'],
+            'Helmet':     ['fitted with a sturdy visor', 'padding worn smooth from years of use'],
+            'Crown':      ['commanding instant respect from allies and enemies alike', 'heavier than it appears'],
+            'Shield':     ['absorbing blows that would have ended lesser warriors', 'scarred but unbroken'],
+            'Buckler':    ['small enough to punch with', 'fast enough to deflect arrows mid-flight'],
+            'Aegis':      ['said to have turned aside a dragon\'s claw', 'legendary among defenders'],
+            'Boots':      ['waterproofed with rendered fat', 'silent on any surface'],
+            'Greaves':    ['articulated for full leg mobility', 'protecting shins from sweeping attacks'],
+            'Ring':       ['worn smooth from generations of use', 'always the perfect fit'],
+            'Amulet':     ['passed down through three warrior bloodlines', 'warm against the skin'],
+            'Pendant':    ['swaying gently even in still air', 'given as a token of power'],
+            'Charm':      ['carried for luck by its previous owner — who survived', 'small enough to hide in a fist'],
+            'Talisman':   ['said to ward off dark magic', 'inscribed with a prayer of protection'],
+        }
+    };
+
+    const prefixLore  = loreParts.prefix[prefix]  || [`crafted with great skill`];
+    const suffixLore  = loreParts.suffix[suffix]   || [`built to endure the harshest battles`];
+    const chosenPre   = prefixLore[Math.floor(Math.random() * prefixLore.length)];
+    const chosenSuf   = suffixLore[Math.floor(Math.random() * suffixLore.length)];
+
+    // Quality suffix
+    const qualityTag = quality === 'legendary' ? ' A true legend.' : quality === 'rare' ? ' Rarely seen.' : '';
+
+    return `A ${name.toLowerCase()} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
+}
 
 const POTION_CATALOGUE = [
     { id:'potion_minor_hp',    name:'Minor Health Potion',     emoji:'🧪', level:1,  price:80,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
@@ -796,84 +1033,6 @@ function calculateBackendItemPrice(item, level) {
     const basePrice = 35 + (level * 21);
     const statMultiplier = Object.values(item.stats || {}).reduce((sum, val) => typeof val === 'number' ? sum + Math.max(0, val) : sum, 1);
     return Math.floor(basePrice * statMultiplier * (item.tier || 1));
-}
-
-function generateBackendRandomItem(level, type) {
-    const generator = ITEM_GENERATORS[type];
-    if (!generator) return null;
-    const tier = Math.min(5, Math.ceil(level / 20) + 1);
-    const stats = {};
-
-    function rollStat(cfg, lvl) {
-        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);
-        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.5);
-        let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
-        v = Math.floor(v * (0.8 + Math.random() * 0.4));
-        return Math.max(cfg.min, v);
-    }
-
-    if (generator.baseStats) {
-        for (const [k, cfg] of Object.entries(generator.baseStats)) {
-            let v = rollStat(cfg, level);
-            if (k === 'dmg_min' && v < 1) v = 1;
-            if (k === 'dmg_max' && v < 2) v = 2;
-            if (v > 0) stats[k] = v;
-        }
-    }
-    if (tier >= 3 && generator.tier3Stats) {
-        for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
-            if (Math.random() < 0.60) {
-                const v = rollStat(cfg, level);
-                if (v > 0) stats[k] = v;
-            }
-        }
-    }
-    if (tier >= 5 && generator.tier5Stats) {
-        for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
-            if (Math.random() < 0.55) {
-                const v = rollStat(cfg, level);
-                if (v > 0) stats[k] = v;
-            }
-        }
-    }
-
-    rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist);
-
-    const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
-    const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
-    const name   = `${prefix} ${suffix}`;
-    const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
-    const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
-    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
-
-    const item = {
-        id:       `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
-        name, emoji, tier, level,
-        img:      `/images/assets/${imgSlug}.png`,
-        desc:     `A ${name.toLowerCase()} for level ${level} adventurers.`,
-        stats,
-        slot:     slotMap[type] || type,
-        category: type,
-        price:    0,
-        quality:  tier >= 5 ? (Math.random() > 0.5 ? 'legendary' : 'rare') :
-                  tier >= 3 ? (Math.random() > 0.7 ? 'rare' : 'common') : 'common',
-    };
-    item.price = calculateBackendItemPrice(item, level);
-
-    if (Math.random() < 0.20) {
-        const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
-        const gemCost = 1 + Math.floor(Math.random() * maxGems);
-        item.gemCost  = gemCost;
-        const discount = Math.min(0.20, gemCost / 150);
-        item.price = Math.max(1, Math.floor(item.price * (1 - discount)));
-        item.desc  = `✨ ${item.desc}`;
-    }
-
-    if (Math.random() < 0.10) {
-        const classes = ['warrior','mage','rogue','paladin'];
-        item.classes = [classes[Math.floor(Math.random() * classes.length)]];
-    }
-    return item;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
