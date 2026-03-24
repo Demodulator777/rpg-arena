@@ -953,7 +953,7 @@ function generateBackendRandomItem(level, type) {
     const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
     
-    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'jewelry', ring:'jewelry', boots:'boots' };
+    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', jewelry:'amulet', jewelry:'ring', boots:'boots' };
 
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
