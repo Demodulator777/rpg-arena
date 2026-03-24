@@ -1812,8 +1812,23 @@ function showShopItemTooltip(event, itemJson) {
     const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
 
     // Find currently equipped item in the same slot for comparison
-    const slot = item.slot || item.category;
-    const equipped = character?.equipped?.[slot] || null;
+    let slot = item.slot || item.category;
+    let equipped = null;
+    
+    // FIX: For rings and amulets, treat them as the same slot
+    if (slot === 'ring' || slot === 'amulet') {
+        // Check both slots, prefer the one that's actually equipped
+        equipped = character?.equipped?.ring || character?.equipped?.amulet || null;
+        // For display, show which one is currently equipped
+        const equippedSlot = character?.equipped?.ring ? 'ring' : (character?.equipped?.amulet ? 'amulet' : null);
+        if (equipped && equippedSlot) {
+            // Add a note about which slot is occupied
+            // We'll handle this in the UI below
+        }
+    } else {
+        equipped = character?.equipped?.[slot] || null;
+    }
+    
     const allStats = new Set([
         ...Object.keys(item.stats||{}),
         ...Object.keys(equipped?.stats||{})
@@ -1848,6 +1863,21 @@ function showShopItemTooltip(event, itemJson) {
         ? `${statsHtml}${effectHtml}`
         : '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>';
 
+    // Add a note about which jewelry slot is currently occupied
+    let vsText = '';
+    if (slot === 'ring' || slot === 'amulet') {
+        if (equipped) {
+            const equippedSlot = character?.equipped?.ring ? 'ring' : (character?.equipped?.amulet ? 'amulet' : null);
+            vsText = `<div class="tt-vs">vs equipped ${equippedSlot}: <strong>${equipped.name}</strong></div>`;
+        } else {
+            vsText = `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">No jewelry currently equipped</div>`;
+        }
+    } else {
+        vsText = equipped
+            ? `<div class="tt-vs">vs equipped: <strong>${equipped.name}</strong></div>`
+            : `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">Nothing equipped in this slot</div>`;
+    }
+
     tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
@@ -1859,9 +1889,7 @@ function showShopItemTooltip(event, itemJson) {
             <div class="tt-meta">${capitalize(slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
             ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
             <div class="tt-stats">${bodyStats}</div>
-            ${equipped
-                ? `<div class="tt-vs">vs equipped: <strong>${equipped.name}</strong></div>`
-                : `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">Nothing equipped in this slot</div>`}
+            ${vsText}
         </div>`;
 
     tooltip.classList.remove('hidden');
