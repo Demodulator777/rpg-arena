@@ -1062,38 +1062,6 @@ function getPotionsForLevel(playerLevel) {
     return POTION_CATALOGUE.filter(p => playerLevel >= p.level); 
 }
 
-// ── 6. UPDATE calculateBackendItemPrice (MUCH LOWER PRICES) ─────────────────
-function calculateBackendItemPrice(item, level) {
-    // Much lower base price
-    const basePrice = 15 + (level * 6);
-    
-    // Count only positive stats, with lower multiplier
-    let statCount = 0;
-    let totalStatValue = 0;
-    for (const val of Object.values(item.stats || {})) {
-        if (typeof val === 'number' && val > 0) {
-            statCount++;
-            totalStatValue += val;
-        }
-    }
-    
-    // Lower stat multiplier - 1.5x instead of 20x
-    const statMultiplier = Math.max(1, 1 + (statCount * 0.15) + (totalStatValue * 0.02));
-    
-    // Tier multiplier much lower
-    const tierMult = item.tier === 5 ? 1.8 : item.tier === 4 ? 1.5 : item.tier === 3 ? 1.3 : item.tier === 2 ? 1.15 : 1;
-    
-    // Quality multiplier
-    const qualityMult = item.quality === 'legendary' ? 1.4 : item.quality === 'rare' ? 1.2 : 1;
-    
-    let price = Math.floor(basePrice * statMultiplier * tierMult * qualityMult);
-    
-    // Cap price at reasonable levels
-    price = Math.min(price, 800 + level * 20);
-    
-    return Math.max(25, price);
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 function withTrainingStatus(char) {
     const now = Math.floor(Date.now() / 1000);
