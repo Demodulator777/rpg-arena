@@ -825,26 +825,28 @@ function generateBackendRandomItem(level, type) {
     const stats = {};
 
     function rollStat(cfg, lvl) {
-        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.2);
-        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.4);
+        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);
+        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);
         let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
-        v = Math.floor(v * (0.7 + Math.random() * 0.4));
+        v = Math.floor(v * (0.85 + Math.random() * 0.30));
         return Math.max(cfg.min, v);
     }
 
-    // Base stats (now with lower chance for some stats)
+    // Base stats
     if (generator.baseStats) {
         for (const [k, cfg] of Object.entries(generator.baseStats)) {
             let v = rollStat(cfg, level);
             if (k === 'dmg_min' && v < 1) v = 1;
             if (k === 'dmg_max' && v < 2) v = 2;
-            if (v > 0 && (Math.random() < 0.8)) stats[k] = v; // 20% chance to not get base stat
+            if (v > 0) stats[k] = v;
         }
     }
     
-    // Enforce dmg gap with lower requirement
-    if (stats.dmg_min && stats.dmg_max) {
-        const minGap = Math.max(4, Math.floor(stats.dmg_max * 0.15));
+    // Enforce dmg gap - weapons MUST have both min and max damage
+    if (type === 'weapon') {
+        if (!stats.dmg_min) stats.dmg_min = Math.max(1, rollStat(generator.baseStats.dmg_min, level));
+        if (!stats.dmg_max) stats.dmg_max = Math.max(2, rollStat(generator.baseStats.dmg_max, level));
+        const minGap = Math.max(8, Math.floor(stats.dmg_max * 0.25));
         if (stats.dmg_max < stats.dmg_min + minGap) {
             stats.dmg_max = stats.dmg_min + minGap;
         }
@@ -911,10 +913,10 @@ function generateBackendRandomItem(level, type) {
 
     // Lower chance for gem discount
     if (Math.random() < 0.12) {
-        const maxGems = Math.min(20, Math.max(1, Math.floor(tier * 2.5 + level * 0.08)));
+        const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
         const gemCost = 1 + Math.floor(Math.random() * maxGems);
         item.gemCost = gemCost;
-        item.price   = Math.max(1, Math.floor(item.price * (1 - Math.min(0.15, gemCost / 200))));
+        item.price   = Math.max(1, Math.floor(item.price * (1 - Math.min(0.20, gemCost / 150))));
         item.desc    = `✨ ${item.desc}`;
     }
 
@@ -924,6 +926,40 @@ function generateBackendRandomItem(level, type) {
         item.classes = [classes[Math.floor(Math.random() * classes.length)]];
     }
     return item;
+}
+
+function calculateBackendItemPrice(item, level) {
+    // Restored original base price
+    const basePrice = 35 + (level * 21);
+    
+    // Count stats and sum values like original
+    let statSum = 0;
+    let statCount = 0;
+    for (const val of Object.values(item.stats || {})) {
+        if (typeof val === 'number' && val > 0) {
+            statCount++;
+            statSum += val;
+        }
+    }
+    
+    // Original multiplier logic - higher multiplier for more/better stats
+    const statMultiplier = Math.max(1, statCount * 0.8 + statSum * 0.05);
+    
+    // Tier multiplier (original style)
+    const tierMult = item.tier === 5 ? 2.2 : item.tier === 4 ? 1.8 : item.tier === 3 ? 1.5 : item.tier === 2 ? 1.2 : 1;
+    
+    // Quality multiplier (original style)
+    const qualityMult = item.quality === 'legendary' ? 2.0 : item.quality === 'rare' ? 1.5 : 1;
+    
+    let price = Math.floor(basePrice * statMultiplier * tierMult * qualityMult);
+    
+    // Minimum price
+    price = Math.max(50, price);
+    
+    // Cap at reasonable maximum (around 500k for top tier)
+    price = Math.min(price, 500000);
+    
+    return price;
 }
 
 // ── 5. ADD generateItemLore (unchanged) ──────────────────────────────
