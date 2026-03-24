@@ -983,7 +983,7 @@ function generateBackendRandomItem(level, type) {
     return item;
 }
 
-// ── 5. ADD generateItemLore (unchanged) ──────────────────────────────
+// ── 5. ADD generateItemLore (fixed grammar) ──────────────────────────────
 function generateItemLore(name, type, prefix, suffix, quality) {
     const loreParts = {
         // Prefixes → lore fragments
@@ -1056,9 +1056,16 @@ function generateItemLore(name, type, prefix, suffix, quality) {
     // Quality suffix
     const qualityTag = quality === 'legendary' ? ' A true legend.' : quality === 'rare' ? ' Rarely seen.' : '';
 
-    return `A ${name.toLowerCase()} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
+    // Fix grammar - check if the name starts with a vowel sound
+    const firstChar = name[0].toLowerCase();
+    const vowels = ['a', 'e', 'i', 'o', 'u'];
+    const article = vowels.includes(firstChar) ? 'An' : 'A';
+    
+    // Capitalize the first word properly
+    const nameLower = name.toLowerCase();
+    
+    return `${article} ${nameLower} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
 }
-
 const POTION_CATALOGUE = [
     { id:'potion_minor_hp',    name:'Minor Health Potion',     emoji:'🧪', level:1,  price:80,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
     { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
