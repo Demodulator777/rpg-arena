@@ -1066,6 +1066,43 @@ function generateItemLore(name, type, prefix, suffix, quality) {
     
     return `${article} ${nameLower} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
 }
+
+// ── 6. calculateBackendItemPrice (ADJUSTED FOR LEVEL 29 TARGET ~100k) ─────────────────
+function calculateBackendItemPrice(item, level) {
+    // Base price
+    const basePrice = 20 + (level * 13);
+    
+    // Sum all positive stats
+    const statSum = Object.values(item.stats || {}).reduce((sum, val) => {
+        if (typeof val === 'number' && val > 0) {
+            return sum + val;
+        }
+        return sum;
+    }, 0);
+    
+    // Stat multiplier
+    const statMultiplier = Math.max(1, 1 + (statSum * 1.2));
+    
+    // Tier multiplier
+    const tierMultiplier = item.tier === 5 ? 2.0 : 
+                           item.tier === 4 ? 1.6 : 
+                           item.tier === 3 ? 1.3 : 
+                           item.tier === 2 ? 1.1 : 1.0;
+    
+    // Quality multiplier
+    const qualityMultiplier = item.quality === 'legendary' ? 1.35 : 
+                              item.quality === 'rare' ? 1.15 : 1.0;
+    
+    let price = Math.floor(basePrice * statMultiplier * tierMultiplier * qualityMultiplier);
+    
+    // Minimum prices to ensure value
+    if (item.quality === 'legendary') price = Math.max(price, 35000);
+    else if (item.quality === 'rare') price = Math.max(price, 10000);
+    else if (item.tier >= 3) price = Math.max(price, 3000);
+    
+    return price;
+}
+
 const POTION_CATALOGUE = [
     { id:'potion_minor_hp',    name:'Minor Health Potion',     emoji:'🧪', level:1,  price:80,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
     { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
