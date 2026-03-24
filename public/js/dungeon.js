@@ -182,7 +182,7 @@
   // ── Database Sync Functions ─────────────────────────────────
   async function loadDungeonDataFromDB() {
     try {
-      const response = await apiFetch('GET', '/game/dungeon/data');
+      const response = await apiFetch('GET', '/dungeon/data');
       if (response && response.success) {
         D.tokens = response.tokens || 0;
         D.floor = response.floor || 1;
@@ -210,7 +210,7 @@
 
   async function saveTokensToDB() {
     try {
-      await apiFetch('POST', '/game/dungeon/tokens', { tokens: D.tokens });
+      await apiFetch('POST', '/dungeon/tokens', { tokens: D.tokens });
       saveState();
     } catch (e) {
       console.error('Failed to save tokens to DB:', e);
@@ -221,7 +221,7 @@
     try {
       const progress = D.savedProgress[D.activeDungeon] || null;
       
-      await apiFetch('POST', '/game/dungeon/progress', {
+      await apiFetch('POST', '/dungeon/progress', {
         floor: D.floor,
         highestFloor: D.highestFloor || D.floor,
         progress: progress ? {
