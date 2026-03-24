@@ -927,51 +927,36 @@ function generateBackendRandomItem(level, type) {
 }
 
 // ── 6. UPDATE calculateBackendItemPrice (RESTORED HIGH PRICING) ─────────────────
+// ── 6. calculateBackendItemPrice (SCALING WITH LEVEL) ─────────────────
 function calculateBackendItemPrice(item, level) {
-    // Original base price from your working version
-    const basePrice = 35 + (level * 21);
+    // Base price scales with level
+    const basePrice = 25 + (level * 12);
     
-    // Count stats and sum values
-    let statSum = 0;
-    let statCount = 0;
-    for (const val of Object.values(item.stats || {})) {
+    // Sum stats with balanced multiplier
+    const statSum = Object.values(item.stats || {}).reduce((sum, val) => {
         if (typeof val === 'number' && val > 0) {
-            statCount++;
-            statSum += val;
+            return sum + val;
         }
-    }
+        return sum;
+    }, 1);
     
-    // MUCH HIGHER multiplier - similar to original working version
-    // Original had: sum of stats as multiplier, here we make it exponential
-    const statMultiplier = Math.max(1, (statCount * 12) + (statSum * 1.2));
+    // Tier multiplier - scales appropriately
+    const tierMultiplier = item.tier === 5 ? 2.2 : 
+                           item.tier === 4 ? 1.8 : 
+                           item.tier === 3 ? 1.4 : 
+                           item.tier === 2 ? 1.1 : 1.0;
     
-    // Tier multiplier - higher for better tiers
-    const tierMult = item.tier === 5 ? 8.0 : 
-                     item.tier === 4 ? 5.0 : 
-                     item.tier === 3 ? 3.0 : 
-                     item.tier === 2 ? 1.8 : 1.2;
+    // Quality multiplier
+    const qualityMultiplier = item.quality === 'legendary' ? 1.4 : 
+                              item.quality === 'rare' ? 1.2 : 1.0;
     
-    // Quality multiplier - huge for rare/legendary
-    const qualityMult = item.quality === 'legendary' ? 6.0 : 
-                        item.quality === 'rare' ? 3.0 : 1.0;
+    // Calculate price - stat multiplier is statSum divided by 2 to keep prices reasonable
+    let price = Math.floor(basePrice * (statSum / 2) * tierMultiplier * qualityMultiplier);
     
-    // Elemental stats add extra value
-    let elemBonus = 0;
-    for (const elem of ELEMENTS) {
-        if (item.stats[`${elem}_dmg`]) elemBonus += item.stats[`${elem}_dmg`] * 15;
-        if (item.stats[`${elem}_resist`]) elemBonus += item.stats[`${elem}_resist`] * 8;
-    }
-    
-    let price = Math.floor((basePrice * statMultiplier * tierMult * qualityMult) + elemBonus);
-    
-    // Ensure minimum prices based on tier and quality
-    if (item.quality === 'legendary') price = Math.max(price, 150000);
-    else if (item.quality === 'rare') price = Math.max(price, 50000);
-    else if (item.tier >= 3) price = Math.max(price, 15000);
-    else price = Math.max(price, 500);
-    
-    // Cap at reasonable maximum (1 million for top tier)
-    price = Math.min(price, 1000000);
+    // Ensure minimum based on tier/quality
+    if (item.quality === 'legendary') price = Math.max(price, 50000);
+    else if (item.quality === 'rare') price = Math.max(price, 15000);
+    else if (item.tier >= 3) price = Math.max(price, 5000);
     
     return price;
 }
