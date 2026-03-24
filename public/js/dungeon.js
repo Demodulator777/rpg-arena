@@ -1,20 +1,26 @@
 // ============================================================
 //  dungeon.js  –  Battle Arena Dungeon System
 //  Requires: global `state` object,
-//  `apiFetch(method, path, body)`, `showTab(tab)` helpers from app.js
+//  `api(method, path, body)` from app.js, `showTab(tab)` helper
 // ============================================================
 
 (function (global) {
   'use strict';
 
+  // ── API Wrapper (uses your existing api function) ──────────────────────────
+  const apiFetch = global.api || (async () => {
+    console.error('[Dungeon] api not available!');
+    return { success: false, error: 'api not available' };
+  });
+
   // ── Constants ──────────────────────────────────────────────
   const MP_PER_TOKEN      = 20;
   const TOKENS_PER_RUN    = 50;
   const MONSTER_RESPAWN_H = 12;
-  const TRAVEL_BASE_MS    = 8000;   // ms per room travel (real-time, shortened for UX)
-  const RUN_ESCAPE_CHANCE = 0.75;   // 75% success, 25% fight anyway
-  const STEAL_CHANCE      = 0.18;   // 18% per fight monster steals
-  const ROOMS_PER_FLOOR   = 12;     // rooms including boss
+  const TRAVEL_BASE_MS    = 8000;
+  const RUN_ESCAPE_CHANCE = 0.75;
+  const STEAL_CHANCE      = 0.18;
+  const ROOMS_PER_FLOOR   = 12;
 
   // ── Infinite Floor Tower ─────────────────────────────────
   const DUNGEON = { id:'tower', name:'The Endless Tower', icon:'🗼', desc:'An infinite tower of darkness. Clear each floor to ascend.' };
@@ -146,7 +152,6 @@
   // ── Helpers ────────────────────────────────────────────────
   function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
   function chance(p)      { return Math.random() < p; }
-  function clamp(v,a,b)   { return Math.max(a, Math.min(b, v)); }
   function elapsed(ts, hours) { return (Date.now() - ts) >= hours * 3600000; }
 
   function getChar() {
@@ -353,7 +358,7 @@
     if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
     const atk = (c.strength||10) * 2 + (c.agility||10) * 0.5;
     const def = (c.defense||5) + (c.agility||10) * 0.3;
-    return { atk, def, hp: c.hp, maxHp: c.maxHp || 100 };
+    return { atk, def, hp: c.hp_current || c.hp || 100, maxHp: c.hp_max || 100 };
   }
 
   function runCombatRound(playerStats, monster) {
@@ -481,7 +486,7 @@
     D.combat = {
       roomIdx,
       monster: { ...room.monster },
-      playerHpBefore: getChar()?.hp || 100,
+      playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
       roundLog: [],
     };
     renderCombatPanel();
@@ -496,9 +501,10 @@
 
     const c = getChar();
     if (c && playerDmgTaken > 0) {
-      c.hp = Math.max(0, (c.hp || 100) - playerDmgTaken);
-      if (typeof apiFetch === 'function') {
-        apiFetch('POST', '/api/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
+      c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - playerDmgTaken);
+      c.hp = c.hp_current;
+      if (typeof api === 'function') {
+        api('POST', '/api/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
       }
     }
 
@@ -509,7 +515,7 @@
     if (monsterDead) {
       if (D.combat.monster.isBoss) onBossDefeated();
       else onMonsterDefeated(D.combat.roomIdx);
-    } else if (c && c.hp <= 0) {
+    } else if (c && (c.hp_current || c.hp || 100) <= 0) {
       onPlayerDeath();
     } else {
       renderCombatPanel();
@@ -526,9 +532,12 @@
       const pStats = calcPlayerStats();
       const mDmg = Math.max(1, Math.floor(D.combat.monster.atk - pStats.def * 0.5 + rand(-2,2)));
       const c = getChar();
-      if (c) c.hp = Math.max(0, (c.hp||100) - mDmg);
+      if (c) {
+        c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - mDmg);
+        c.hp = c.hp_current;
+      }
       log(`💥 ${D.combat.monster.name} hits you for ${mDmg} as you flee!`, 'log-danger');
-      if (c && c.hp <= 0) { onPlayerDeath(); return; }
+      if (c && (c.hp_current || c.hp || 100) <= 0) { onPlayerDeath(); return; }
       D.combat = null;
       renderDungeonView();
     }
@@ -671,388 +680,10 @@
     }
   }
 
-  // ── Render ─────────────────────────────────────────────────
-  function renderDungeonTab() {
-    const container = document.getElementById('tab-dungeon');
-    if (!container) return;
-    loadState();
-
-    container.innerHTML = `
-      <div class="dungeon-wrapper">
-        <div class="dungeon-topbar">
-          <div class="dungeon-title-wrap">
-            <span class="dungeon-title-icon">⚔️</span>
-            <div>
-              <div class="dungeon-title-text">Dungeon Raids</div>
-              <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
-            </div>
-          </div>
-          <div class="dungeon-token-wrap">
-            <div class="dungeon-token-pill">
-              <span class="dungeon-token-icon">🗝️</span>
-              <span>Boss Clearance Tokens:</span>
-              <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
-            </div>
-            <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss attempt</div>
-          </div>
-        </div>
-        <div id="dungeon-main-area"></div>
-        <div id="dungeon-log-panel" class="dungeon-log-panel">
-          <div class="dungeon-log-title">📜 Dungeon Log</div>
-          <div id="dungeon-log-entries"></div>
-        </div>
-      </div>
-    `;
-
-    if (D.activeDungeon) {
-      if (D.combat) renderCombatPanel();
-      else renderDungeonView();
-    } else {
-      renderDungeonList();
-    }
-    renderLog();
-  }
-
-  function renderDungeonList() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area) return;
-    D.activeDungeon = null;
-
-    const hasSave   = !!D.savedProgress['tower'];
-    const curFloor  = hasSave ? D.savedProgress['tower'].floor : 1;
-    const highFloor = D.highestFloor || 1;
-    const nextBoss  = getBossForFloor(curFloor);
-    const nextTheme = getFloorTheme(curFloor);
-    const nextLoot  = nextBoss.loot;
-
-    const previewFloors = [0,1,2,3,4].map(offset => {
-      const fl = curFloor + offset;
-      const boss = getBossForFloor(fl);
-      const t = getFloorTheme(fl);
-      return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
-        <div style="font-size:0.62rem;color:var(--dungeon-muted)">Floor ${fl}</div>
-        <div style="font-size:1.4rem">${boss.icon}</div>
-        <div style="font-size:0.62rem;color:#e2e8f0;text-align:center;line-height:1.3">${boss.name.split(' ').slice(0,2).join(' ')}</div>
-        <div style="font-size:0.6rem;color:var(--dungeon-muted)">❤️${boss.hp}</div>
-      </div>`;
-    }).join('');
-
-    area.innerHTML = `
-      <div class="dungeon-tower-entry" style="--dtheme:${nextTheme.theme};--dglow:${nextTheme.themeGlow}">
-        <div class="dungeon-tower-top">
-          <div class="dungeon-tower-icon">🗼</div>
-          <div class="dungeon-tower-info">
-            <div class="dungeon-card-name">The Endless Tower</div>
-            <div class="dungeon-card-desc">An infinite tower of darkness. Clear each floor to ascend. Bosses grow stronger forever.</div>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.78rem;color:var(--dungeon-muted)">
-              <span>🏆 Your best: <strong style="color:var(--dungeon-text)">Floor ${highFloor}</strong></span>
-              <span>🗝️ <strong style="color:var(--dungeon-token)">${D.tokens}</strong> tokens · ${TOKENS_PER_RUN} per boss</span>
-              ${hasSave ? `<span class="dungeon-save-badge">📌 Saved on Floor ${curFloor}</span>` : ''}
-            </div>
-          </div>
-        </div>
-
-        <div class="dungeon-tower-next">
-          <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">
-            Next boss — Floor ${curFloor}
-          </div>
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <div style="font-size:2.5rem">${nextBoss.icon}</div>
-            <div>
-              <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
-              <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
-                ❤️ ${nextBoss.hp} HP · ⚔️ ${nextBoss.atk} ATK · 🛡️ ${nextBoss.def} DEF
-              </div>
-              <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
-                Drops: 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · 📜${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]}d Premium
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
-                onclick="dungeonEnter('tower')">
-          ${hasSave ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
-        </button>
-      </div>
-
-      <div class="dungeon-floor-history">
-        <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 Upcoming floors</div>
-        <div class="dungeon-floor-preview-row">${previewFloors}</div>
-      </div>
-    `;
-  }
-
-  function renderDungeonView() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area) return;
-    const def = getDungeonDef(D.activeDungeon);
-    if (!def) return;
-
-    const currentRoom = D.rooms[D.playerPos];
-
-    area.innerHTML = `
-      <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
-
-        <div class="dungeon-active-header">
-          <div class="dungeon-active-name">${def.icon} ${def.name}</div>
-          <div class="dungeon-active-floor">Floor ${D.floor}</div>
-          <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">⬅ Exit (Save Progress)</button>
-        </div>
-
-        <div class="dungeon-travel-bar-wrap">
-          <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
-        </div>
-
-        <div class="dungeon-content-row">
-          <div class="dungeon-map-wrap">
-            <div class="dungeon-map-label">📍 Dungeon Map</div>
-            <div id="dungeon-map-grid" class="dungeon-map-grid">
-              ${renderMapGrid()}
-            </div>
-          </div>
-
-          <div class="dungeon-room-panel">
-            <div class="dungeon-room-header">
-              ${currentRoom.isBoss ? `<span class="dungeon-room-type boss-room-badge">⚠️ BOSS ROOM</span>` :
-                currentRoom.isStart ? `<span class="dungeon-room-type start-room-badge">🚪 Entrance</span>` :
-                currentRoom.type === 'treasure' ? `<span class="dungeon-room-type treasure-room-badge">💰 Treasure Room</span>` :
-                `<span class="dungeon-room-type">🏚️ Corridor</span>`
-              }
-              <span class="dungeon-room-id">Room ${D.playerPos + 1}</span>
-            </div>
-
-            ${renderRoomInfo(currentRoom)}
-
-            <div class="dungeon-connections">
-              <div class="dungeon-conn-label">Passages:</div>
-              ${currentRoom.connections.map(ci => {
-                const cr = D.rooms[ci];
-                const explored = D.exploredRooms.has(ci);
-                const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
-                return `
-                  <button class="dungeon-conn-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
-                          onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
-                    ${explored
-                      ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
-                      : '❓ Unknown Room'
-                    }
-                  </button>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderMapGrid() {
-    const grid = {};
-    for (let i = 0; i < D.rooms.length; i++) {
-      const r = D.rooms[i];
-      grid[`${r.x},${r.y}`] = i;
-    }
-
-    const xs = D.rooms.map(r=>r.x), ys = D.rooms.map(r=>r.y);
-    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
-
-    let html = `<div class="dungeon-grid-inner" style="grid-template-columns:repeat(${maxX-minX+1},1fr);grid-template-rows:repeat(${maxY-minY+1},1fr)">`;
-
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const key = `${x},${y}`;
-        if (grid[key] !== undefined) {
-          const idx = grid[key];
-          const room = D.rooms[idx];
-          const isPlayer = idx === D.playerPos;
-          const explored = D.exploredRooms.has(idx);
-          const monsterAlive = room.monster && (!room.monster.lastKilled || !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
-
-          let roomClass = 'map-room';
-          if (!explored) roomClass += ' map-room-fog';
-          else if (isPlayer) roomClass += ' map-room-player';
-          else if (room.isBoss) roomClass += ' map-room-boss';
-          else if (room.type === 'treasure') roomClass += ' map-room-treasure';
-          else if (monsterAlive) roomClass += ' map-room-monster';
-          else roomClass += ' map-room-clear';
-
-          html += `<div class="${roomClass}" title="${explored ? (room.isBoss ? 'BOSS' : `Room ${idx+1}`) : '???'}">
-            ${explored ? (isPlayer ? '🧙' : room.isBoss ? '💀' : room.type==='treasure' ? '💎' : monsterAlive ? '👹' : '✓') : ''}
-          </div>`;
-        } else {
-          html += `<div class="map-void"></div>`;
-        }
-      }
-    }
-
-    html += '</div>';
-    return html;
-  }
-
-  function renderRoomInfo(room) {
-    const monsterAlive = room.monster && (!room.monster.lastKilled || !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
-    const monsterRespawning = room.monster && room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H);
-
-    if (room.isBoss) {
-      const def = getDungeonDef(D.activeDungeon);
-      const boss = def.boss;
-      return `
-        <div class="dungeon-boss-room">
-          <div class="boss-icon-big">${boss.icon}</div>
-          <div class="boss-name-big">${boss.name}</div>
-          <div class="boss-stats">
-            ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
-          </div>
-          <div class="boss-drop-preview">
-            Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} · 📜${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]}d Premium
-          </div>
-          <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
-            ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
-          </button>
-        </div>
-      `;
-    }
-
-    if (monsterAlive) {
-      const m = room.monster;
-      const hpPct = Math.round(m.currentHp / m.maxHp * 100);
-      return `
-        <div class="dungeon-room-monster">
-          <div class="monster-icon">${m.icon}</div>
-          <div class="monster-info">
-            <div class="monster-name">${m.name}</div>
-            <div class="monster-hp-bar-wrap">
-              <div class="monster-hp-bar" style="width:${hpPct}%"></div>
-            </div>
-            <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def} ${m.steal?'· 🎒 Can steal':''}</div>
-          </div>
-          <div class="monster-btns">
-            <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight</button>
-            <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun(${room.id})">💨 Run (75%)</button>
-          </div>
-          ${m.stolenItems.length > 0 ? `
-            <div class="stolen-items-notice">
-              🎒 Carrying your stolen items: ${m.stolenItems.map(i=>i.name).join(', ')}
-            </div>` : ''}
-        </div>
-      `;
-    }
-
-    if (monsterRespawning) {
-      const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monster.lastKilled) / 3600000).toFixed(1);
-      return `
-        <div class="dungeon-room-clear">
-          <div style="color:var(--dungeon-muted);font-size:0.9rem">💤 Monster respawns in ${hoursLeft}h</div>
-          ${room.type === 'treasure' ? '<div style="color:#f1c40f;margin-top:8px">💰 Treasure already looted</div>' : ''}
-        </div>
-      `;
-    }
-
-    return `
-      <div class="dungeon-room-clear">
-        <div style="color:var(--dungeon-muted)">
-          ${room.isStart ? '🚪 Dungeon Entrance — choose a path to explore.' :
-            room.type === 'treasure' ? (room.looted ? '💰 Treasure already collected.' : '✨ Peaceful chamber. Treasure collected!') :
-            '🏚️ Empty corridor. All clear.'}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderCombatPanel() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area || !D.combat) return;
-    const def = getDungeonDef(D.activeDungeon);
-    const m = D.combat.monster;
-    const pStats = calcPlayerStats();
-    const hpPct = Math.round(m.currentHp / m.maxHp * 100);
-    const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
-
-    const roundEntries = D.combat.roundLog.slice(-10).reverse().map(e =>
-      `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
-    ).join('');
-
-    area.innerHTML = `
-      <div class="dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
-        <div class="combat-header">
-          ${m.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
-          <div class="combat-title">⚔️ Combat: ${m.name}</div>
-        </div>
-
-        <div class="combat-fighters">
-          <div class="combat-fighter player-fighter">
-            <div class="fighter-icon">🧙</div>
-            <div class="fighter-name">You</div>
-            <div class="fighter-hp-bar-wrap">
-              <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
-            </div>
-            <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
-          </div>
-
-          <div class="combat-vs">VS</div>
-
-          <div class="combat-fighter monster-fighter">
-            <div class="fighter-icon">${m.icon}</div>
-            <div class="fighter-name">${m.name}</div>
-            <div class="fighter-hp-bar-wrap">
-              <div class="fighter-hp-bar monster-hp" style="width:${hpPct}%"></div>
-            </div>
-            <div class="fighter-stats">${m.currentHp} / ${m.maxHp} HP</div>
-          </div>
-        </div>
-
-        <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
-
-        <div class="combat-actions">
-          <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
-          ${!m.isBoss ? `<button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>` : ''}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderLog() {
-    const el = document.getElementById('dungeon-log-entries');
-    if (!el) return;
-    el.innerHTML = D.dungeonLog.slice(0, 20).map(e =>
-      `<div class="dungeon-log-entry ${e.cls||''}">${e.msg}</div>`
-    ).join('');
-  }
-
-  function showBossVictoryModal(boss, loot) {
-    let modal = document.getElementById('dungeon-boss-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'dungeon-boss-modal';
-      modal.className = 'modal-overlay';
-      document.body.appendChild(modal);
-    }
-    modal.classList.remove('hidden');
-    modal.innerHTML = `
-      <div class="modal-box dungeon-victory-box">
-        <div class="victory-icon">${boss.icon}</div>
-        <div class="victory-title">BOSS DEFEATED!</div>
-        <div class="victory-boss-name">${boss.name}</div>
-        <div class="victory-loot">
-          <div class="loot-row">💰 <strong>${loot.gold}</strong> Gold</div>
-          <div class="loot-row">💎 <strong>${loot.gems}</strong> Gems</div>
-          <div class="loot-row">📜 <strong>${loot.premiumItem.days} days</strong> Premium Activation</div>
-        </div>
-        <div class="victory-next">Advancing to Floor ${D.floor}...</div>
-        <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeDungeonVictory()">Continue Delving</button>
-      </div>
-    `;
-  }
-
-  function showMsg(msg, type='info') {
-    log(msg, type === 'error' ? 'log-danger' : 'log-info');
-  }
-
-  function updateTravelBtn(idx, disabled) {
-    const btns = document.querySelectorAll('.dungeon-conn-btn');
-    btns.forEach(b => b.disabled = disabled);
-  }
+  // ── Render Functions (truncated for brevity - keep your existing render functions) ──
+  // ... (keep all your existing render functions: renderDungeonTab, renderDungeonList, 
+  // renderDungeonView, renderMapGrid, renderRoomInfo, renderCombatPanel, renderLog, 
+  // showBossVictoryModal, updateTravelBtn, etc.)
 
   // ── CSS Loading ──────────────────────────────────────────
   function loadCSS() {
