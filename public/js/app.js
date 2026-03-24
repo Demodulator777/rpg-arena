@@ -1913,7 +1913,36 @@ function showEqTooltip(event, itemJson) {
 }
 
 function toggleEquipItem(invId, slot, isEquipped) { hideItemTooltip(); if(isEquipped) unequipSlot(slot); else equipItem(invId); }
-async function equipItem(invId) { try { await api('POST',`/game/equip/${invId}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Equipped!'); } catch(e) { showMsg('inv-msg',e.message,true); } }
+async function equipItem(invId) {
+    try {
+        // First, get the item details to check what slot it is
+        const invData = await api('GET', '/game/inventory');
+        const item = invData.items.find(i => i.id === invId);
+        if (!item) throw new Error('Item not found');
+        
+        const slot = item.item_data.slot;
+        
+        // If it's a ring or amulet, unequip the other jewelry slot first
+        if (slot === 'ring' || slot === 'amulet') {
+            const otherSlot = slot === 'ring' ? 'amulet' : 'ring';
+            const otherItem = character.equipped[otherSlot];
+            if (otherItem) {
+                // Unequip the other jewelry slot first
+                await api('POST', `/game/unequip/${otherSlot}`);
+                console.log(`🔄 Replaced ${otherItem.name} with new item`);
+            }
+        }
+        
+        // Now equip the new item
+        await api('POST', `/game/equip/${invId}`);
+        loadInventory();
+        character = await api('GET', '/game/character');
+        renderCharacter();
+        showMsg('inv-msg', 'Equipped!');
+    } catch(e) { 
+        showMsg('inv-msg', e.message, true); 
+    }
+}
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function sellItem(invId, name, price) {
     if (!confirm(`Sell ${name} for ${price} gold?`)) return;
