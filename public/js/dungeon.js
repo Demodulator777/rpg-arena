@@ -25,7 +25,6 @@
       desc: 'Ancient burial halls reeking of death. Skeletons patrol the corridors.',
       theme: '#7c3aed',
       themeGlow: 'rgba(124,58,237,0.35)',
-      minLevel: 1,
       monsters: [
         { id:'skeleton',    name:'Skeleton Warrior', icon:'💀', hp:80,  atk:12, def:5,  steal:true  },
         { id:'ghost',       name:'Wailing Ghost',    icon:'👻', hp:60,  atk:18, def:2,  steal:false },
@@ -42,7 +41,6 @@
       desc: 'Rivers of lava carve through obsidian halls. Heat warps reality itself.',
       theme: '#dc2626',
       themeGlow: 'rgba(220,38,38,0.35)',
-      minLevel: 5,
       monsters: [
         { id:'fire_imp',    name:'Fire Imp',         icon:'😈', hp:90,  atk:20, def:6,  steal:false },
         { id:'lava_golem',  name:'Lava Golem',       icon:'🗿', hp:180, atk:14, def:22, steal:false },
@@ -59,7 +57,6 @@
       desc: 'Where darkness is absolute and sanity frays at the edges of existence.',
       theme: '#0f172a',
       themeGlow: 'rgba(99,102,241,0.4)',
-      minLevel: 12,
       monsters: [
         { id:'void_wraith', name:'Void Wraith',      icon:'🌑', hp:130, atk:38, def:10, steal:true  },
         { id:'abyssal_eye', name:'Abyssal Eye',      icon:'👁️', hp:100, atk:45, def:5,  steal:false },
@@ -298,17 +295,9 @@
 
   // ── Core Actions ───────────────────────────────────────────
   function enterDungeon(dungeonId) {
-    if (D.tokens < TOKENS_PER_RUN) {
-      showMsg(`Need ${TOKENS_PER_RUN} tokens. You have ${D.tokens}.`, 'error');
-      return;
-    }
     const def = getDungeonDef(dungeonId);
     if (!def) return;
     const c = getChar();
-    if (c && def.minLevel > (c.level||1)) {
-      showMsg(`Requires Level ${def.minLevel}.`, 'error');
-      return;
-    }
 
     // Check for saved progress
     if (D.savedProgress[dungeonId]) {
@@ -323,7 +312,6 @@
       return;
     }
 
-    D.tokens -= TOKENS_PER_RUN;
     D.activeDungeon = dungeonId;
     D.floor = 1;
     D.rooms = generateFloor(dungeonId, 1);
@@ -500,7 +488,13 @@
   function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isBoss) return;
-    const dungeonDef = getDungeonDef(D.activeDungeon);
+    if (D.tokens < TOKENS_PER_RUN) {
+      log(`🗝️ Need ${TOKENS_PER_RUN} tokens to challenge the boss. You have ${D.tokens}.`, 'log-danger');
+      return;
+    }
+    D.tokens -= TOKENS_PER_RUN;
+    saveState();
+    updateTokenDisplay();
     const boss = dungeonDef.boss;
 
     D.combat = {
@@ -615,17 +609,14 @@
     D.activeDungeon = null;
 
     const cards = DUNGEONS.map(d => {
-      const c = getChar();
-      const locked = c && d.minLevel > (c.level||1);
       const hasSave = !!D.savedProgress[d.id];
       return `
-        <div class="dungeon-card ${locked ? 'dungeon-card-locked' : ''}" style="--dtheme:${d.theme};--dglow:${d.themeGlow}">
+        <div class="dungeon-card" style="--dtheme:${d.theme};--dglow:${d.themeGlow}">
           <div class="dungeon-card-icon">${d.icon}</div>
           <div class="dungeon-card-info">
             <div class="dungeon-card-name">${d.name}</div>
             <div class="dungeon-card-desc">${d.desc}</div>
             <div class="dungeon-card-meta">
-              <span>🎯 Min Level ${d.minLevel}</span>
               <span>🗝️ ${TOKENS_PER_RUN} Tokens</span>
               ${hasSave ? '<span class="dungeon-save-badge">📌 Saved Progress</span>' : ''}
             </div>
@@ -640,12 +631,9 @@
             </div>
           </div>
           <div class="dungeon-card-action">
-            ${locked
-              ? `<button class="dungeon-btn dungeon-btn-locked" disabled>🔒 Level ${d.minLevel}</button>`
-              : `<button class="dungeon-btn dungeon-btn-enter" onclick="dungeonEnter('${d.id}')">
-                   ${hasSave ? '🔮 Resume Delve' : '⚔️ Enter Dungeon'}
-                 </button>`
-            }
+            <button class="dungeon-btn dungeon-btn-enter" onclick="dungeonEnter('${d.id}')">
+              ${hasSave ? '🔮 Resume Delve' : '⚔️ Enter Dungeon'}
+            </button>
           </div>
         </div>
       `;
