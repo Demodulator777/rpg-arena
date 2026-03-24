@@ -149,6 +149,7 @@
                 <button class="nav-btn" onclick="showTab('forge')">🔨 Forge</button>
                 <button class="nav-btn" onclick="showTab('inventory')">🎒 Inventory</button>
                 <button class="nav-btn" onclick="showTab('shop')">🛒 Shop</button>
+                <button class="nav-btn" onclick="showTab('dungeon')">⚔️ Dungeons</button>
 
                 <div class="sidebar-section-label">Social</div>
                 <button class="nav-btn" onclick="showTab('leaderboard')">🏆 Leaderboard</button>
@@ -351,6 +352,10 @@
                     <div id="inbox-content"></div>
                 </div>
 
+                <div id="tab-dungeon" class="game-tab">
+  <!-- renderDungeonTab() populates this entirely -->
+</div>
+
             </main>
         </div><!-- /.game-body -->
 
@@ -410,5 +415,6 @@
     </div>
 </div>
 <script src="/js/app.js"></script>
+    <script src="/js/dungeon.js"></script>
 </body>
 </html>
