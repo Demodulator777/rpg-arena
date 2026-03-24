@@ -643,21 +643,21 @@ weapon: {
     nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
     emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
     baseStats: {
-        dmg_min:  { min:5,  max:12,  scale:2.8 },  // Restored original
-        dmg_max:  { min:10, max:25,  scale:5.5 },  // Restored original
-        strength: { min:0,  max:4,   scale:0.6 },
+        dmg_min:  { min:4,  max:10,  scale:2.0 },  // Lowered from 5,12,2.8
+        dmg_max:  { min:8,  max:20,  scale:4.0 },  // Lowered from 10,25,5.5
+        strength: { min:0,  max:3,   scale:0.5 },
     },
     tier2Stats: {
-        hit_chance: { min:1, max:4, scale:0.3, chance:0.4 },
+        hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
     },
     tier3Stats: {
-        agility:    { min:0, max:4, scale:0.5, chance:0.5 },
-        hit_chance: { min:2, max:6, scale:0.4, chance:0.5 },
-        magic:      { min:0, max:4, scale:0.35, chance:0.4 },
+        agility:    { min:0, max:3, scale:0.4, chance:0.5 },
+        hit_chance: { min:1, max:4, scale:0.3, chance:0.5 },
+        magic:      { min:0, max:3, scale:0.3, chance:0.4 },
     },
     tier5Stats: {
-        crit_chance: { min:3, max:10, scale:0.5, chance:0.5 },
-        strength:    { min:1, max:5,  scale:0.4, chance:0.5 },
+        crit_chance: { min:2, max:7, scale:0.4, chance:0.5 },
+        strength:    { min:1, max:4, scale:0.35, chance:0.5 },
     },
     elemDmg: true, elemResist: false,
 },
@@ -826,10 +826,10 @@ function generateBackendRandomItem(level, type) {
     const stats = {};
 
 function rollStat(cfg, lvl) {
-    const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.5);  // Was 0.3, original had 0.5
-    const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.8);  // Was 0.6, original had 0.8
+    const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);  // Back to 0.3
+    const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);  // Back to 0.6
     let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
-    v = Math.floor(v * (0.9 + Math.random() * 0.3));  // Was 0.85-1.15, original had 0.9-1.2
+    v = Math.floor(v * (0.85 + Math.random() * 0.30));  // 0.85-1.15 range
     return Math.max(cfg.min, v);
 }
 
