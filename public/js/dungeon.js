@@ -87,11 +87,29 @@
     }));
   }
   // getDungeonDef: returns live computed def for current floor
-  function getDungeonDef() {
-    const floor = D.floor || 1;
-    const t = getFloorTheme(floor);
-    return { id:'tower', name:DUNGEON.name, icon:DUNGEON.icon, theme:t.theme, themeGlow:t.themeGlow, themeName:t.name, monsters:getMonstersForFloor(floor), boss:getBossForFloor(floor) };
+function getDungeonDef(id) {
+  // Since we only have one dungeon (The Endless Tower), just return the tower
+  // But also support dynamic floor-based definitions if needed
+  if (id === 'tower' || !id) {
+    // If we need floor-specific data, call getDungeonDef() which should return computed data
+    if (D && D.floor) {
+      const floor = D.floor || 1;
+      const t = getFloorTheme(floor);
+      return { 
+        id: 'tower', 
+        name: DUNGEON.name, 
+        icon: DUNGEON.icon, 
+        theme: t.theme, 
+        themeGlow: t.themeGlow, 
+        themeName: t.name, 
+        monsters: getMonstersForFloor(floor), 
+        boss: getBossForFloor(floor) 
+      };
+    }
+    return DUNGEON;
   }
+  return DUNGEON; // Fallback
+}
 
   // ── Loot Tables ────────────────────────────────────────────
   const MINION_LOOT = [
@@ -133,8 +151,6 @@
   function getChar() {
     return (typeof state !== 'undefined' && state.character) ? state.character : null;
   }
-
-  function getDungeonDef(id) { return DUNGEONS.find(d => d.id === id); }
 
   function log(msg, cls='') {
     D.dungeonLog.unshift({ msg, cls, ts: Date.now() });
