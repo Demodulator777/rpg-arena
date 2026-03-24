@@ -928,8 +928,8 @@ function generateBackendRandomItem(level, type) {
 
 // ── 6. calculateBackendItemPrice (ADJUSTED FOR LEVEL 29 TARGET ~100k) ─────────────────
 function calculateBackendItemPrice(item, level) {
-    // Base price - increased to hit target
-    const basePrice = 30 + (level * 18);
+    // Base price - adjusted down by 30%
+    const basePrice = 21 + (level * 12.6);  // Reduced from 30 + (level * 18)
     
     // Sum all positive stats
     const statSum = Object.values(item.stats || {}).reduce((sum, val) => {
@@ -939,26 +939,27 @@ function calculateBackendItemPrice(item, level) {
         return sum;
     }, 0);
     
-    // Stat multiplier - formula that gives good scaling
-    // For level 29 with 150 stats: 150 * 2.5 = 375
-    const statMultiplier = Math.max(1, statSum * 2.2);
+    // Stat multiplier - reduced by 30%
+    const statMultiplier = Math.max(1, statSum * 1.54);  // Reduced from 2.2
     
-    // Tier multiplier
-    const tierMultiplier = item.tier === 5 ? 2.0 : 
-                           item.tier === 4 ? 1.6 : 
-                           item.tier === 3 ? 1.3 : 
-                           item.tier === 2 ? 1.1 : 1.0;
+    // Tier multiplier - reduced by 30%
+    const tierMultiplier = item.tier === 5 ? 1.4 :   // was 2.0
+                           item.tier === 4 ? 1.12 :  // was 1.6
+                           item.tier === 3 ? 0.91 :  // was 1.3
+                           item.tier === 2 ? 0.77 :  // was 1.1
+                           0.7;                      // was 1.0
     
-    // Quality multiplier
-    const qualityMultiplier = item.quality === 'legendary' ? 1.35 : 
-                              item.quality === 'rare' ? 1.15 : 1.0;
+    // Quality multiplier - reduced by 30%
+    const qualityMultiplier = item.quality === 'legendary' ? 0.945 :  // was 1.35
+                              item.quality === 'rare' ? 0.805 :       // was 1.15
+                              0.7;                                     // was 1.0
     
     let price = Math.floor(basePrice * statMultiplier * tierMultiplier * qualityMultiplier);
     
-    // Minimum prices to ensure value
-    if (item.quality === 'legendary') price = Math.max(price, 50000);
-    else if (item.quality === 'rare') price = Math.max(price, 15000);
-    else if (item.tier >= 3) price = Math.max(price, 5000);
+    // Minimum prices - also reduced by 30%
+    if (item.quality === 'legendary') price = Math.max(price, 35000);  // was 50000
+    else if (item.quality === 'rare') price = Math.max(price, 10500);  // was 15000
+    else if (item.tier >= 3) price = Math.max(price, 3500);            // was 5000
     
     return price;
 }
