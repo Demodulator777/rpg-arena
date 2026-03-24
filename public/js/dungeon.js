@@ -16,57 +16,82 @@
   const STEAL_CHANCE      = 0.18;   // 18% per fight monster steals
   const ROOMS_PER_FLOOR   = 12;     // rooms including boss
 
-  // ── Dungeon Definitions ────────────────────────────────────
-  const DUNGEONS = [
-    {
-      id: 'crypt',
-      name: 'Forgotten Crypt',
-      icon: '💀',
-      desc: 'Ancient burial halls reeking of death. Skeletons patrol the corridors.',
-      theme: '#7c3aed',
-      themeGlow: 'rgba(124,58,237,0.35)',
-      monsters: [
-        { id:'skeleton',    name:'Skeleton Warrior', icon:'💀', hp:80,  atk:12, def:5,  steal:true  },
-        { id:'ghost',       name:'Wailing Ghost',    icon:'👻', hp:60,  atk:18, def:2,  steal:false },
-        { id:'zombie',      name:'Rotting Zombie',   icon:'🧟', hp:120, atk:8,  def:8,  steal:true  },
-        { id:'lich',        name:'Lich Apprentice',  icon:'🧙', hp:70,  atk:22, def:3,  steal:false },
-      ],
-      boss: { id:'crypt_boss', name:'Death Knight Malachar', icon:'⚔️💀', hp:600, atk:45, def:20, steal:true,
-              loot: { gold:[200,500], gems:[1,4], premiumDays:[5,10], itemRarity:'rare' } },
-    },
-    {
-      id: 'volcano',
-      name: 'Volcanic Depths',
-      icon: '🌋',
-      desc: 'Rivers of lava carve through obsidian halls. Heat warps reality itself.',
-      theme: '#dc2626',
-      themeGlow: 'rgba(220,38,38,0.35)',
-      monsters: [
-        { id:'fire_imp',    name:'Fire Imp',         icon:'😈', hp:90,  atk:20, def:6,  steal:false },
-        { id:'lava_golem',  name:'Lava Golem',       icon:'🗿', hp:180, atk:14, def:22, steal:false },
-        { id:'salamander',  name:'Fire Salamander',  icon:'🦎', hp:110, atk:25, def:8,  steal:true  },
-        { id:'pyromancer',  name:'Pyromancer Shade', icon:'🔥', hp:85,  atk:32, def:4,  steal:false },
-      ],
-      boss: { id:'volcano_boss', name:'Ignarath the Eternal', icon:'🌋🔥', hp:900, atk:65, def:30, steal:false,
-              loot: { gold:[400,900], gems:[2,6], premiumDays:[7,14], itemRarity:'epic' } },
-    },
-    {
-      id: 'abyss',
-      name: 'Abyssal Void',
-      icon: '🌑',
-      desc: 'Where darkness is absolute and sanity frays at the edges of existence.',
-      theme: '#0f172a',
-      themeGlow: 'rgba(99,102,241,0.4)',
-      monsters: [
-        { id:'void_wraith', name:'Void Wraith',      icon:'🌑', hp:130, atk:38, def:10, steal:true  },
-        { id:'abyssal_eye', name:'Abyssal Eye',      icon:'👁️', hp:100, atk:45, def:5,  steal:false },
-        { id:'shadow_lord', name:'Shadow Lord',      icon:'🕷️', hp:200, atk:30, def:28, steal:true  },
-        { id:'void_titan',  name:'Void Titan',       icon:'💠', hp:250, atk:42, def:35, steal:true  },
-      ],
-      boss: { id:'abyss_boss', name:'Nyxaroth the Devourer', icon:'🌑👁️', hp:1400, atk:95, def:50, steal:true,
-              loot: { gold:[800,2000], gems:[4,12], premiumDays:[10,30], itemRarity:'legendary' } },
-    },
+  // ── Infinite Floor Tower ─────────────────────────────────
+  const DUNGEON = { id:'tower', name:'The Endless Tower', icon:'🗼', desc:'An infinite tower of darkness. Clear each floor to ascend.' };
+
+  const FLOOR_THEMES = [
+    { theme:'#7c3aed', themeGlow:'rgba(124,58,237,0.35)', name:'Crypt Depths'    },
+    { theme:'#dc2626', themeGlow:'rgba(220,38,38,0.35)',  name:'Volcanic Halls'  },
+    { theme:'#1e3a5f', themeGlow:'rgba(30,58,95,0.4)',    name:'Abyssal Void'    },
+    { theme:'#065f46', themeGlow:'rgba(6,95,70,0.4)',     name:'Cursed Jungle'   },
+    { theme:'#92400e', themeGlow:'rgba(146,64,14,0.4)',   name:'Celestial Ruins' },
   ];
+
+  const MONSTER_POOL = [
+    { id:'skeleton',    name:'Skeleton Warrior', icon:'💀', hp:80,  atk:12, def:5,  steal:true,  minFloor:1  },
+    { id:'ghost',       name:'Wailing Ghost',    icon:'👻', hp:60,  atk:18, def:2,  steal:false, minFloor:1  },
+    { id:'zombie',      name:'Rotting Zombie',   icon:'🧟', hp:120, atk:8,  def:8,  steal:true,  minFloor:1  },
+    { id:'lich',        name:'Lich Apprentice',  icon:'🧙', hp:70,  atk:22, def:3,  steal:false, minFloor:3  },
+    { id:'fire_imp',    name:'Fire Imp',         icon:'😈', hp:90,  atk:20, def:6,  steal:false, minFloor:3  },
+    { id:'lava_golem',  name:'Lava Golem',       icon:'🗿', hp:180, atk:14, def:22, steal:false, minFloor:5  },
+    { id:'salamander',  name:'Fire Salamander',  icon:'🦎', hp:110, atk:25, def:8,  steal:true,  minFloor:5  },
+    { id:'pyromancer',  name:'Pyromancer Shade', icon:'🔥', hp:85,  atk:32, def:4,  steal:false, minFloor:7  },
+    { id:'void_wraith', name:'Void Wraith',      icon:'🌑', hp:130, atk:38, def:10, steal:true,  minFloor:8  },
+    { id:'abyssal_eye', name:'Abyssal Eye',      icon:'👁️', hp:100, atk:45, def:5,  steal:false, minFloor:10 },
+    { id:'shadow_lord', name:'Shadow Lord',      icon:'🕷️', hp:200, atk:30, def:28, steal:true,  minFloor:12 },
+    { id:'void_titan',  name:'Void Titan',       icon:'💠', hp:250, atk:42, def:35, steal:true,  minFloor:15 },
+    { id:'dread_knight',name:'Dread Knight',     icon:'⚔️', hp:300, atk:50, def:40, steal:true,  minFloor:20 },
+    { id:'elder_lich',  name:'Elder Lich',       icon:'💜', hp:220, atk:60, def:20, steal:false, minFloor:25 },
+  ];
+
+  const BOSS_POOL = [
+    { name:'Death Knight Malachar', icon:'⚔️💀', baseHp:600,  baseAtk:45, baseDef:20, steal:true  },
+    { name:'Ignarath the Eternal',  icon:'🌋🔥', baseHp:700,  baseAtk:55, baseDef:25, steal:false },
+    { name:'Nyxaroth the Devourer', icon:'🌑👁️', baseHp:800,  baseAtk:65, baseDef:30, steal:true  },
+    { name:'The Hollow King',       icon:'👑💀', baseHp:900,  baseAtk:70, baseDef:35, steal:true  },
+    { name:'Voidborn Colossus',     icon:'💠🌑', baseHp:1000, baseAtk:80, baseDef:40, steal:false },
+    { name:'The Undying Empress',   icon:'👸🔥', baseHp:1100, baseAtk:90, baseDef:45, steal:true  },
+    { name:'Abyssal Sovereign',     icon:'🌊💀', baseHp:1200, baseAtk:95, baseDef:50, steal:true  },
+  ];
+  const ROMAN = ['','II','III','IV','V','VI','VII','VIII','IX','X'];
+
+  function getBossForFloor(floor) {
+    const idx  = (floor - 1) % BOSS_POOL.length;
+    const tier = Math.floor((floor - 1) / BOSS_POOL.length);
+    const b    = BOSS_POOL[idx];
+    const scale = 1 + (floor - 1) * 0.18 + tier * 0.5;
+    return {
+      name:  b.name + (tier > 0 ? ' ' + (ROMAN[Math.min(tier, ROMAN.length-1)] || 'X+') : ''),
+      icon:  b.icon,
+      hp:    Math.round(b.baseHp  * scale),
+      atk:   Math.round(b.baseAtk * scale),
+      def:   Math.round(b.baseDef * scale),
+      steal: b.steal,
+      loot: {
+        gold:        [100 + floor * 30,  300 + floor * 80],
+        gems:        [Math.max(1, floor), Math.max(2, floor * 2)],
+        premiumDays: floor <= 5 ? [5,10] : floor <= 15 ? [7,14] : [10,30],
+        itemRarity:  floor <= 5 ? 'rare' : floor <= 15 ? 'epic' : 'legendary',
+      },
+    };
+  }
+  function getFloorTheme(floor) {
+    return FLOOR_THEMES[Math.floor((floor - 1) / 10) % FLOOR_THEMES.length];
+  }
+  function getMonstersForFloor(floor) {
+    return MONSTER_POOL.filter(m => m.minFloor <= floor).map(m => ({
+      ...m,
+      hp:  Math.round(m.hp  + floor * 8),
+      atk: Math.round(m.atk + floor * 2.5),
+      def: Math.round(m.def + floor * 1.2),
+    }));
+  }
+  // getDungeonDef: returns live computed def for current floor
+  function getDungeonDef() {
+    const floor = D.floor || 1;
+    const t = getFloorTheme(floor);
+    return { id:'tower', name:DUNGEON.name, icon:DUNGEON.icon, theme:t.theme, themeGlow:t.themeGlow, themeName:t.name, monsters:getMonstersForFloor(floor), boss:getBossForFloor(floor) };
+  }
 
   // ── Loot Tables ────────────────────────────────────────────
   const MINION_LOOT = [
@@ -300,27 +325,27 @@
     const c = getChar();
 
     // Check for saved progress
-    if (D.savedProgress[dungeonId]) {
+    if (D.savedProgress['tower']) {
       const s = D.savedProgress[dungeonId];
-      D.activeDungeon = dungeonId;
+      D.activeDungeon = 'tower';
       D.floor = s.floor;
       D.rooms = s.rooms;
       D.playerPos = s.pos;
       D.exploredRooms = new Set(s.explored);
-      log(`🔮 Resuming ${def.name} – Floor ${D.floor}`, 'log-enter');
+      log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
       renderDungeonView();
       return;
     }
 
-    D.activeDungeon = dungeonId;
+    D.activeDungeon = 'tower';
     D.floor = 1;
-    D.rooms = generateFloor(dungeonId, 1);
+    D.rooms = generateFloor('tower', 1);
     D.playerPos = D.rooms.findIndex(r => r.isStart);
     D.exploredRooms = new Set([D.playerPos]);
     D.dungeonLog = [];
     saveState();
 
-    log(`⚔️ Entered ${def.name} – Floor 1`, 'log-enter');
+    log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
     renderDungeonView();
   }
 
@@ -473,7 +498,7 @@
   function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
     // Save progress
-    D.savedProgress[D.activeDungeon] = {
+    D.savedProgress['tower'] = {
       floor: D.floor,
       pos: D.playerPos,
       rooms: D.rooms,
@@ -495,7 +520,8 @@
     D.tokens -= TOKENS_PER_RUN;
     saveState();
     updateTokenDisplay();
-    const boss = dungeonDef.boss;
+    const _def = getDungeonDef();
+    const boss = _def.boss;
 
     D.combat = {
       roomIdx,
@@ -516,7 +542,7 @@
     const boss = dungeonDef.boss;
     const loot = rollBossLoot(boss);
 
-    log(`🏆 BOSS DEFEATED: ${boss.name}!`, 'log-boss');
+    log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
     log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | 📜 Premium ${loot.premiumItem.days} days`, 'log-success');
 
     // Apply to player
@@ -528,9 +554,10 @@
       c.inventory.push(loot.premiumItem);
     }
 
-    // Advance floor or complete dungeon
+    // Advance floor
     D.floor++;
-    delete D.savedProgress[D.activeDungeon];
+    if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
+    delete D.savedProgress['tower'];
     D.rooms = generateFloor(D.activeDungeon, D.floor);
     D.playerPos = D.rooms.findIndex(r => r.isStart);
     D.exploredRooms = new Set([D.playerPos]);
@@ -608,38 +635,69 @@
     if (!area) return;
     D.activeDungeon = null;
 
-    const cards = DUNGEONS.map(d => {
-      const hasSave = !!D.savedProgress[d.id];
-      return `
-        <div class="dungeon-card" style="--dtheme:${d.theme};--dglow:${d.themeGlow}">
-          <div class="dungeon-card-icon">${d.icon}</div>
-          <div class="dungeon-card-info">
-            <div class="dungeon-card-name">${d.name}</div>
-            <div class="dungeon-card-desc">${d.desc}</div>
-            <div class="dungeon-card-meta">
-              <span>🗝️ ${TOKENS_PER_RUN} Tokens</span>
-              ${hasSave ? '<span class="dungeon-save-badge">📌 Saved Progress</span>' : ''}
-            </div>
-            <div class="dungeon-boss-preview">
-              <span class="dungeon-boss-icon">${d.boss.icon}</span>
-              <span class="dungeon-boss-name">Boss: ${d.boss.name}</span>
-            </div>
-            <div class="dungeon-boss-drops">
-              💰 ${d.boss.loot.gold[0]}–${d.boss.loot.gold[1]} ·
-              💎 ${d.boss.loot.gems[0]}–${d.boss.loot.gems[1]} ·
-              📜 ${d.boss.loot.premiumDays[0]}–${d.boss.loot.premiumDays[1]} days Premium
-            </div>
-          </div>
-          <div class="dungeon-card-action">
-            <button class="dungeon-btn dungeon-btn-enter" onclick="dungeonEnter('${d.id}')">
-              ${hasSave ? '🔮 Resume Delve' : '⚔️ Enter Dungeon'}
-            </button>
-          </div>
-        </div>
-      `;
+    const hasSave   = !!D.savedProgress['tower'];
+    const curFloor  = hasSave ? D.savedProgress['tower'].floor : 1;
+    const highFloor = D.highestFloor || 1;
+    const nextBoss  = getBossForFloor(curFloor);
+    const nextTheme = getFloorTheme(curFloor);
+    const nextLoot  = nextBoss.loot;
+
+    const previewFloors = [0,1,2,3,4].map(offset => {
+      const fl = curFloor + offset;
+      const boss = getBossForFloor(fl);
+      const t = getFloorTheme(fl);
+      return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
+        <div style="font-size:0.62rem;color:var(--dungeon-muted)">Floor ${fl}</div>
+        <div style="font-size:1.4rem">${boss.icon}</div>
+        <div style="font-size:0.62rem;color:#e2e8f0;text-align:center;line-height:1.3">${boss.name.split(' ').slice(0,2).join(' ')}</div>
+        <div style="font-size:0.6rem;color:var(--dungeon-muted)">❤️${boss.hp}</div>
+      </div>`;
     }).join('');
 
-    area.innerHTML = `<div class="dungeon-list">${cards}</div>`;
+    area.innerHTML = `
+      <div class="dungeon-tower-entry" style="--dtheme:${nextTheme.theme};--dglow:${nextTheme.themeGlow}">
+        <div class="dungeon-tower-top">
+          <div class="dungeon-tower-icon">🗼</div>
+          <div class="dungeon-tower-info">
+            <div class="dungeon-card-name">The Endless Tower</div>
+            <div class="dungeon-card-desc">An infinite tower of darkness. Clear each floor to ascend. Bosses grow stronger forever.</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.78rem;color:var(--dungeon-muted)">
+              <span>🏆 Your best: <strong style="color:var(--dungeon-text)">Floor ${highFloor}</strong></span>
+              <span>🗝️ <strong style="color:var(--dungeon-token)">${D.tokens}</strong> tokens · ${TOKENS_PER_RUN} per boss</span>
+              ${hasSave ? `<span class="dungeon-save-badge">📌 Saved on Floor ${curFloor}</span>` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="dungeon-tower-next">
+          <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">
+            Next boss — Floor ${curFloor}
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="font-size:2.5rem">${nextBoss.icon}</div>
+            <div>
+              <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
+              <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
+                ❤️ ${nextBoss.hp} HP · ⚔️ ${nextBoss.atk} ATK · 🛡️ ${nextBoss.def} DEF
+              </div>
+              <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
+                Drops: 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · 📜${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]}d Premium
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
+                onclick="dungeonEnter('tower')">
+          ${hasSave ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
+        </button>
+      </div>
+
+      <div class="dungeon-floor-history">
+        <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 Upcoming floors</div>
+        <div class="dungeon-floor-preview-row">${previewFloors}</div>
+      </div>
+    `;
   }
 
   function renderDungeonView() {
@@ -994,6 +1052,31 @@
         --dungeon-token: #f39c12;
       }
 
+
+      /* ── Tower Entry ── */
+      .dungeon-tower-entry {
+        background: var(--dungeon-surface);
+        border: 1px solid var(--dtheme, #7c3aed);
+        border-radius: 16px; padding: 20px;
+        box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
+        margin-bottom: 16px;
+      }
+      .dungeon-tower-top { display:flex; gap:16px; align-items:flex-start; margin-bottom:16px; }
+      .dungeon-tower-icon { font-size:3rem; }
+      .dungeon-tower-info { flex:1; }
+      .dungeon-tower-next {
+        background: rgba(0,0,0,0.3); border:1px solid var(--dungeon-border);
+        border-radius:10px; padding:14px; margin-top:12px;
+      }
+      /* ── Floor Preview ── */
+      .dungeon-floor-history { margin-top:8px; }
+      .dungeon-floor-preview-row { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+      .dungeon-floor-preview-card {
+        flex:0 0 auto; width:90px; padding:10px 6px;
+        background: var(--dungeon-surface); border:1px solid;
+        border-radius:10px; text-align:center; display:flex;
+        flex-direction:column; align-items:center; gap:4px;
+      }
       /* ── Wrapper ── */
       .dungeon-wrapper {
         display: flex;
