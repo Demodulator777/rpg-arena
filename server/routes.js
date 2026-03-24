@@ -212,7 +212,7 @@ function hasUltimate(activePremium) {
 }
 
 // ── All equipment slots ───────────────────────────────────────────────────
-const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','amulet','ring','accessory'];
+const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','jewelry','accessory'];
 
 // ── Class Skills ──────────────────────────────────────────────────────────
 const CLASS_SKILLS = {
@@ -953,7 +953,7 @@ function generateBackendRandomItem(level, type) {
     const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
     
-    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'ring', ring:'ring', boots:'boots' };
+    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'jewelry', ring:'jewelry', boots:'boots' };
 
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
