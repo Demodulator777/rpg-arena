@@ -1943,7 +1943,6 @@ function showEqTooltip(event, itemJson) {
 function toggleEquipItem(invId, slot, isEquipped) { hideItemTooltip(); if(isEquipped) unequipSlot(slot); else equipItem(invId); }
 async function equipItem(invId) {
     try {
-        // First, get the item details to check what slot it is
         const invData = await api('GET', '/game/inventory');
         const item = invData.items.find(i => i.id === invId);
         if (!item) throw new Error('Item not found');
@@ -1953,8 +1952,9 @@ async function equipItem(invId) {
         // If it's a ring or amulet, unequip the other jewelry slot first
         if (slot === 'ring' || slot === 'amulet') {
             const otherSlot = slot === 'ring' ? 'amulet' : 'ring';
-            const otherItem = character.equipped[otherSlot];
-            if (otherItem) {
+            // Check if character.equipped exists and if the other slot has an item
+            if (character?.equipped && character.equipped[otherSlot]) {
+                const otherItem = character.equipped[otherSlot];
                 // Unequip the other jewelry slot first
                 await api('POST', `/game/unequip/${otherSlot}`);
                 console.log(`🔄 Replaced ${otherItem.name} with new item`);
@@ -1968,6 +1968,7 @@ async function equipItem(invId) {
         renderCharacter();
         showMsg('inv-msg', 'Equipped!');
     } catch(e) { 
+        console.error('Equip error:', e);
         showMsg('inv-msg', e.message, true); 
     }
 }
