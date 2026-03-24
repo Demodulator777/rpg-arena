@@ -1802,7 +1802,6 @@ function showItemTooltip(event, itemId) {
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
 
-// ── Shop Item Tooltip (with vs-equipped comparison) ───────────────────────
 function showShopItemTooltip(event, itemJson) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
@@ -1814,19 +1813,21 @@ function showShopItemTooltip(event, itemJson) {
     // Find currently equipped item in the same slot for comparison
     let slot = item.slot || item.category;
     let equipped = null;
+    let equippedSlotName = '';
     
     // FIX: For rings and amulets, treat them as the same slot
     if (slot === 'ring' || slot === 'amulet') {
-        // Check both slots, prefer the one that's actually equipped
-        equipped = character?.equipped?.ring || character?.equipped?.amulet || null;
-        // For display, show which one is currently equipped
-        const equippedSlot = character?.equipped?.ring ? 'ring' : (character?.equipped?.amulet ? 'amulet' : null);
-        if (equipped && equippedSlot) {
-            // Add a note about which slot is occupied
-            // We'll handle this in the UI below
+        // Check both slots for ANY jewelry
+        if (character?.equipped?.ring) {
+            equipped = character.equipped.ring;
+            equippedSlotName = 'ring';
+        } else if (character?.equipped?.amulet) {
+            equipped = character.equipped.amulet;
+            equippedSlotName = 'amulet';
         }
     } else {
         equipped = character?.equipped?.[slot] || null;
+        equippedSlotName = slot;
     }
     
     const allStats = new Set([
@@ -1863,12 +1864,11 @@ function showShopItemTooltip(event, itemJson) {
         ? `${statsHtml}${effectHtml}`
         : '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>';
 
-    // Add a note about which jewelry slot is currently occupied
+    // Build the comparison text
     let vsText = '';
     if (slot === 'ring' || slot === 'amulet') {
         if (equipped) {
-            const equippedSlot = character?.equipped?.ring ? 'ring' : (character?.equipped?.amulet ? 'amulet' : null);
-            vsText = `<div class="tt-vs">vs equipped ${equippedSlot}: <strong>${equipped.name}</strong></div>`;
+            vsText = `<div class="tt-vs">vs equipped ${equippedSlotName}: <strong>${equipped.name}</strong></div>`;
         } else {
             vsText = `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">No jewelry currently equipped</div>`;
         }
