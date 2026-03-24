@@ -212,7 +212,7 @@ function hasUltimate(activePremium) {
 }
 
 // ── All equipment slots ───────────────────────────────────────────────────
-const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','amulet', 'ring', 'accessory'];
+const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','jewelry', 'accessory'];
 
 // ── Class Skills ──────────────────────────────────────────────────────────
 const CLASS_SKILLS = {
