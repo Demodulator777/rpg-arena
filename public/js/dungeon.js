@@ -182,7 +182,7 @@
   // ── Database Sync Functions ─────────────────────────────────
   async function loadDungeonDataFromDB() {
     try {
-      const response = await apiFetch('GET', '/api/dungeon/data');
+      const response = await apiFetch('GET', '/dungeon/data');
       if (response && response.success) {
         D.tokens = response.tokens || 0;
         D.floor = response.floor || 1;
@@ -517,7 +517,7 @@
       
       // Sync back to server
       if (typeof api === 'function') {
-        api('POST', '/api/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
+        api('POST', '/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
       }
     }
 
