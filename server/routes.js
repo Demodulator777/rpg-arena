@@ -895,8 +895,21 @@ function rollStat(cfg, lvl) {
     // CRITICAL: Use the EXACT same slot mapping as your original code
     const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', amulet:'amulet', ring:'ring', boots:'boots' };
 
-    const quality = tier >= 5 ? (Math.random() > 0.45 ? 'legendary' : 'rare') :
-                    tier >= 3 ? (Math.random() > 0.65 ? 'rare' : 'common') : 'common';
+const quality = (() => {
+    // Legendary chance - 0.1% at all tiers
+    const legendaryChance = 0.001; // 0.1% (1 in 1000 items)
+    if (Math.random() < legendaryChance) return 'legendary';
+    
+    // Rare chance based on tier
+    let rareChance = 0;
+    if (tier >= 5) rareChance = 0.20;      // 20% at tier 5
+    else if (tier >= 4) rareChance = 0.12; // 12% at tier 4
+    else if (tier >= 3) rareChance = 0.07; // 7% at tier 3
+    else if (tier >= 2) rareChance = 0.03; // 3% at tier 2
+    else rareChance = 0.01;                // 1% at tier 1
+    
+    return Math.random() < rareChance ? 'rare' : 'common';
+})();
 
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
