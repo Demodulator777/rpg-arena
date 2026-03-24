@@ -416,34 +416,55 @@
   }
 
   // ── Core Actions ───────────────────────────────────────────
-  function enterDungeon(dungeonId) {
-    const def = getDungeonDef(dungeonId);
-    if (!def) return;
+function enterDungeon(dungeonId) {
+  const def = getDungeonDef(dungeonId);
+  if (!def) return;
 
-    if (D.savedProgress['tower']) {
-      const s = D.savedProgress[dungeonId];
-      D.activeDungeon = 'tower';
-      D.floor = s.floor;
-      D.rooms = s.rooms;
-      D.playerPos = s.pos;
-      D.exploredRooms = new Set(s.explored);
-      log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
-      renderDungeonView();
-      return;
-    }
-
+  // Check for saved progress
+  if (D.savedProgress['tower']) {
+    const s = D.savedProgress[dungeonId];
     D.activeDungeon = 'tower';
-    D.floor = 1;
-    D.rooms = generateFloor('tower', 1);
-    D.playerPos = D.rooms.findIndex(r => r.isStart);
-    D.exploredRooms = new Set([D.playerPos]);
-    D.dungeonLog = [];
-    saveState();
-    saveProgressToDB();
-
-    log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
+    D.floor = s.floor;
+    D.rooms = s.rooms;
+    D.playerPos = s.pos;
+    D.exploredRooms = new Set(s.explored);
+    
+    // Validate rooms after loading
+    if (!D.rooms || D.rooms.length === 0) {
+      console.error('Loaded rooms empty, regenerating...');
+      D.rooms = generateFloor('tower', D.floor);
+      D.playerPos = D.rooms.findIndex(r => r.isStart);
+      D.exploredRooms = new Set([D.playerPos]);
+    }
+    
+    log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
     renderDungeonView();
+    return;
   }
+
+  D.activeDungeon = 'tower';
+  D.floor = 1;
+  D.rooms = generateFloor('tower', 1);
+  
+  if (!D.rooms || D.rooms.length === 0) {
+    console.error('Failed to generate rooms');
+    log('Failed to generate dungeon. Please try again.', 'log-danger');
+    return;
+  }
+  
+  D.playerPos = D.rooms.findIndex(r => r.isStart);
+  if (D.playerPos === -1) {
+    D.playerPos = 0;
+  }
+  
+  D.exploredRooms = new Set([D.playerPos]);
+  D.dungeonLog = [];
+  saveState();
+  saveProgressToDB();
+
+  log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
+  renderDungeonView();
+}
 
   function travelToRoom(targetIdx) {
     if (D.isTraveling || D.combat) return;
@@ -815,13 +836,33 @@ function renderDungeonTab() {
     `;
   }
 
-  function renderDungeonView() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area) return;
-    const def = getDungeonDef(D.activeDungeon);
-    if (!def) return;
+function renderDungeonView() {
+  const area = document.getElementById('dungeon-main-area');
+  if (!area) return;
+  
+  // Safety checks
+  if (!D.rooms || D.rooms.length === 0) {
+    console.error('No rooms generated');
+    area.innerHTML = '<div class="error">Dungeon not generated. Please re-enter.</div>';
+    return;
+  }
+  
+  if (!D.rooms[D.playerPos]) {
+    console.error('Invalid player position:', D.playerPos, 'Rooms:', D.rooms.length);
+    // Reset to start position if possible
+    const startIndex = D.rooms.findIndex(r => r.isStart);
+    if (startIndex !== -1) {
+      D.playerPos = startIndex;
+    } else {
+      area.innerHTML = '<div class="error">Invalid dungeon state. Please re-enter.</div>';
+      return;
+    }
+  }
+  
+  const def = getDungeonDef(D.activeDungeon);
+  if (!def) return;
 
-    const currentRoom = D.rooms[D.playerPos];
+  const currentRoom = D.rooms[D.playerPos];
 
     area.innerHTML = `
       <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
