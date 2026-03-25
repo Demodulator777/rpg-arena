@@ -29,15 +29,15 @@
       description: "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones."
     },
     corridor: {
-      image: '/images/dungeon/corridor.jpg',
+      image: '/images/corridor.jpg',
       description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
     },
     treasure: {
-      image: '/images/dungeon/treasure.jpg',
+      image: '/images/treasure.jpg',
       description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
     },
     boss: {
-      image: '/images/dungeon/boss-chamber.jpg',
+      image: '/images/boss-chamber.jpg',
       description: "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master."
     }
   };
@@ -1307,7 +1307,7 @@ function fightRound() {
   if (!area) return;
   
   // Get current guild data
-  apiFetch('GET', '/dungeon/guild').then(guildData => {
+  apiFetch('GET', '/game/dungeon/guild').then(guildData => {
     const reputation = guildData.guildReputation || 0;
     const dungeonGold = guildData.dungeonGold || 0;
     
@@ -1417,7 +1417,7 @@ function closeGuild() {
 }
 
 function exchangeAtGuild(exchangeId) {
-  apiFetch('POST', '/dungeon/guild/exchange', { exchangeId })
+  apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId })
     .then(response => {
       if (response.success) {
         log(response.message, 'log-success');
