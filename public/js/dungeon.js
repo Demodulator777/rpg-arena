@@ -199,53 +199,66 @@
     } catch(e) {}
   }
 
-  // ── Refresh Character (Sync with server) ─────────────────────
-  async function refreshCharacter() {
-    try {
-      const updatedChar = await apiFetch('GET', '/game/character');
-      if (updatedChar) {
-        if (typeof character !== 'undefined') {
-          Object.assign(character, updatedChar);
-        }
-        if (typeof window.character !== 'undefined') {
-          window.character = updatedChar;
-        }
-        if (typeof renderTopBar === 'function') renderTopBar();
-        if (typeof renderCharacter === 'function') renderCharacter();
+async function refreshCharacter() {
+  try {
+    const updatedChar = await apiFetch('GET', '/game/character');
+    if (updatedChar) {
+      if (typeof character !== 'undefined') {
+        Object.assign(character, updatedChar);
       }
-    } catch(e) {
-      console.error('Failed to refresh character:', e);
+      if (typeof window.character !== 'undefined') {
+        window.character = updatedChar;
+      }
+      if (typeof renderTopBar === 'function') renderTopBar();
+      if (typeof renderCharacter === 'function') renderCharacter();
     }
+    
+    // Also refresh dungeon gold display
+    const goldRes = await apiFetch('GET', '/game/dungeon/gold');
+    if (goldRes && goldRes.success) {
+      const goldEl = document.getElementById('dungeon-gold-count');
+      if (goldEl) goldEl.textContent = goldRes.dungeonGold;
+    }
+  } catch(e) {
+    console.error('Failed to refresh character:', e);
   }
+}
 
-  // ── Database Sync Functions ─────────────────────────────────
   async function loadDungeonDataFromDB() {
-    try {
-      const response = await apiFetch('GET', '/game/dungeon/data');
-      if (response && response.success) {
-        D.tokens = response.tokens || 0;
-        D.floor = response.floor || 1;
-        D.highestFloor = response.highestFloor || 1;
-        
-        if (response.progress && response.progress.activeDungeon) {
-          D.savedProgress[response.progress.activeDungeon] = {
-            floor: response.progress.floor,
-            pos: response.progress.playerPos,
-            rooms: response.progress.rooms,
-            explored: response.progress.exploredRooms,
-            combat: response.progress.combat
-          };
-        }
-        
-        updateTokenDisplay();
-        return true;
+  try {
+    const response = await apiFetch('GET', '/game/dungeon/data');
+    if (response && response.success) {
+      D.tokens = response.tokens || 0;
+      D.floor = response.floor || 1;
+      D.highestFloor = response.highestFloor || 1;
+      
+      if (response.progress && response.progress.activeDungeon) {
+        D.savedProgress[response.progress.activeDungeon] = {
+          floor: response.progress.floor,
+          pos: response.progress.playerPos,
+          rooms: response.progress.rooms,
+          explored: response.progress.exploredRooms,
+          combat: response.progress.combat
+        };
       }
-    } catch (e) {
-      console.error('Failed to load dungeon data from DB:', e);
-      loadState();
+      
+      updateTokenDisplay();
+      
+      // Also load dungeon gold
+      const goldRes = await apiFetch('GET', '/game/dungeon/gold');
+      if (goldRes && goldRes.success) {
+        const goldEl = document.getElementById('dungeon-gold-count');
+        if (goldEl) goldEl.textContent = goldRes.dungeonGold;
+      }
+      
+      return true;
     }
-    return false;
+  } catch (e) {
+    console.error('Failed to load dungeon data from DB:', e);
+    loadState();
   }
+  return false;
+}
 
   async function saveTokensToDB() {
     try {
@@ -401,22 +414,22 @@
   }
 
   // ── Combat Engine ──────────────────────────────────────────
-  function calcPlayerStats() {
-    const c = getChar();
-    if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
-    
-    const atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
-    const def = (c.defense || 5) + (c.agility || 10) * 0.3;
-    const hp = c.hp_current || c.hp || 100;
-    const maxHp = c.hp_max || 100;
-    
-    return { 
-      atk: Math.floor(atk), 
-      def: Math.floor(def), 
-      hp: hp, 
-      maxHp: maxHp 
-    };
-  }
+function calcPlayerStats() {
+  const c = getChar();
+  if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
+  
+  const atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
+  const def = (c.defense || 5) + (c.agility || 10) * 0.3;
+  const hp = c.hp_current || c.hp || 100;
+  const maxHp = c.hp_max || 100;
+  
+  return { 
+    atk: Math.floor(atk), 
+    def: Math.floor(def), 
+    hp: hp, 
+    maxHp: maxHp 
+  };
+}
 
   function runCombatRound(playerStats, monster) {
     const log = [];
@@ -464,45 +477,60 @@
 
   // ── Apply Loot (Syncs with server) ──────────────────────────
   function applyLoot(loot) {
-    const c = getChar();
-    if (!c) return;
+  const c = getChar();
+  if (!c) return;
+  
+  if (loot.type === 'gold') {
+    // Add to dungeon gold (separate from main gold)
+    log(`💰 Found ${loot.amount} dungeon gold`, 'log-loot');
+    apiFetch('POST', '/game/dungeon/add-gold', { amount: loot.amount }).catch(e => console.error('Failed to sync dungeon gold:', e));
     
-    if (loot.type === 'gold') {
-      c.gold = (c.gold || 0) + loot.amount;
-      log(`💰 Found ${loot.amount} gold`, 'log-loot');
-      apiFetch('POST', '/game/dungeon/add-gold', { amount: loot.amount }).catch(e => console.error('Failed to sync gold:', e));
-    } 
-    else if (loot.type === 'potion_hp') {
-      const potion = { 
-        name: loot.name, 
-        icon: loot.icon, 
-        type: 'consumable', 
-        effect: { type: 'heal', value: loot.heal },
-        rarity: 'common',
-        qty: 1
-      };
-      apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
-      log(`🧪 Found ${loot.name}`, 'log-loot');
-    } 
-    else if (loot.type === 'potion_mp') {
-      const potion = { 
-        name: loot.name, 
-        icon: loot.icon, 
-        type: 'consumable', 
-        effect: { type: 'mp', value: loot.mp },
-        rarity: 'common',
-        qty: 1
-      };
-      apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
-      log(`💧 Found ${loot.name}`, 'log-loot');
-    } 
-    else if (loot.type === 'item') {
-      apiFetch('POST', '/game/inventory/add', { item: loot.item }).catch(e => console.error('Failed to add item:', e));
-      log(`📦 Found ${loot.item.icon} ${loot.item.name}`, 'log-loot');
-    }
-    
-    refreshCharacter();
+    // Also update local display if we have a dungeon gold display
+    updateDungeonGoldDisplay();
+  } 
+  else if (loot.type === 'potion_hp') {
+    const potion = { 
+      name: loot.name, 
+      icon: loot.icon, 
+      type: 'consumable', 
+      effect: { type: 'heal', value: loot.heal },
+      rarity: 'common',
+      qty: 1
+    };
+    apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
+    log(`🧪 Found ${loot.name}`, 'log-loot');
+  } 
+  else if (loot.type === 'potion_mp') {
+    const potion = { 
+      name: loot.name, 
+      icon: loot.icon, 
+      type: 'consumable', 
+      effect: { type: 'mp', value: loot.mp },
+      rarity: 'common',
+      qty: 1
+    };
+    apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
+    log(`💧 Found ${loot.name}`, 'log-loot');
+  } 
+  else if (loot.type === 'item') {
+    apiFetch('POST', '/game/inventory/add', { item: loot.item }).catch(e => console.error('Failed to add item:', e));
+    log(`📦 Found ${loot.item.icon} ${loot.item.name}`, 'log-loot');
   }
+  
+  // Refresh character to update UI
+  refreshCharacter();
+}
+
+function updateDungeonGoldDisplay() {
+  const el = document.getElementById('dungeon-gold-count');
+  if (el) {
+    apiFetch('GET', '/game/dungeon/gold').then(res => {
+      if (res && res.success) {
+        el.textContent = res.dungeonGold;
+      }
+    }).catch(() => {});
+  }
+}
 
   // ── Core Actions ───────────────────────────────────────────
   function enterDungeon(dungeonId) {
@@ -608,35 +636,56 @@
     renderCombatPanel();
   }
 
-  function fightRound() {
-    if (!D.combat) return;
-    const pStats = calcPlayerStats();
-    const { log: roundLog, playerDmgTaken, monsterDead } = runCombatRound(pStats, D.combat.monster);
-
-    D.combat.roundLog.push(...roundLog);
-
-    const c = getChar();
-    if (c && playerDmgTaken > 0) {
-      const newHp = Math.max(0, (c.hp_current || c.hp || 100) - playerDmgTaken);
-      c.hp_current = newHp;
-      c.hp = newHp;
-      
-      apiFetch('POST', '/game/dungeon/update-health', { hp: newHp }).catch(e => console.error('Failed to sync health:', e));
-    }
-
-    if (!monsterDead && D.combat.monster.steal && chance(STEAL_CHANCE)) {
-      tryStealFromPlayer(D.combat.roomIdx);
-    }
-
-    if (monsterDead) {
-      if (D.combat.monster.isBoss) onBossDefeated();
-      else onMonsterDefeated(D.combat.roomIdx);
-    } else if (c && (c.hp_current || c.hp || 100) <= 0) {
-      onPlayerDeath();
-    } else {
-      renderCombatPanel();
-    }
+function fightRound() {
+  if (!D.combat) return;
+  
+  // Get fresh character stats before combat round
+  const c = getChar();
+  if (!c) return;
+  
+  // Use current health from character
+  const currentHp = c.hp_current || c.hp || 100;
+  const pStats = { 
+    atk: calcPlayerStats().atk, 
+    def: calcPlayerStats().def, 
+    hp: currentHp, 
+    maxHp: c.hp_max || 100 
+  };
+  
+  const { log: roundLog, playerDmgTaken, monsterDead } = runCombatRound(pStats, D.combat.monster);
+  
+  D.combat.roundLog.push(...roundLog);
+  
+  if (playerDmgTaken > 0) {
+    const newHp = Math.max(0, currentHp - playerDmgTaken);
+    c.hp_current = newHp;
+    c.hp = newHp;
+    
+    // Sync health to server
+    apiFetch('POST', '/game/dungeon/update-health', { hp: newHp }).catch(e => console.error('Failed to sync health:', e));
+    
+    // Also update the top bar display
+    if (typeof renderTopBar === 'function') renderTopBar();
   }
+  
+  // Check for death
+  if (c.hp_current <= 0) {
+    onPlayerDeath();
+    return;
+  }
+  
+  // Monster steal attempt
+  if (!monsterDead && D.combat.monster.steal && chance(STEAL_CHANCE)) {
+    tryStealFromPlayer(D.combat.roomIdx);
+  }
+  
+  if (monsterDead) {
+    if (D.combat.monster.isBoss) onBossDefeated();
+    else onMonsterDefeated(D.combat.roomIdx);
+  } else {
+    renderCombatPanel();
+  }
+}
 
   function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
@@ -789,32 +838,36 @@
     }
 
     container.innerHTML = `
-      <div class="dungeon-wrapper">
-        <div class="dungeon-topbar">
-          <div class="dungeon-title-wrap">
-            <span class="dungeon-title-icon">⚔️</span>
-            <div>
-              <div class="dungeon-title-text">Dungeon Raids</div>
-              <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
-            </div>
-          </div>
-          <div class="dungeon-token-wrap">
-            <div class="dungeon-token-pill">
-              <span class="dungeon-token-icon">🗝️</span>
-              <span>Boss Clearance Tokens:</span>
-              <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
-            </div>
-            <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss attempt</div>
-          </div>
-        </div>
-        <div id="dungeon-main-area"></div>
-        <div id="dungeon-log-panel" class="dungeon-log-panel">
-          <div class="dungeon-log-title">📜 Dungeon Log</div>
-          <div id="dungeon-log-entries"></div>
+  <div class="dungeon-wrapper">
+    <div class="dungeon-topbar">
+      <div class="dungeon-title-wrap">
+        <span class="dungeon-title-icon">⚔️</span>
+        <div>
+          <div class="dungeon-title-text">Dungeon Raids</div>
+          <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
         </div>
       </div>
-    `;
-
+      <div class="dungeon-token-wrap" style="display: flex; gap: 12px;">
+        <div class="dungeon-token-pill">
+          <span class="dungeon-token-icon">🗝️</span>
+          <span>Boss Tokens:</span>
+          <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
+        </div>
+        <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
+          <span class="dungeon-token-icon">💰</span>
+          <span>Dungeon Gold:</span>
+          <span id="dungeon-gold-count" class="dungeon-token-num">0</span>
+        </div>
+      </div>
+      <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
+    </div>
+    <div id="dungeon-main-area"></div>
+    <div id="dungeon-log-panel" class="dungeon-log-panel">
+      <div class="dungeon-log-title">📜 Dungeon Log</div>
+      <div id="dungeon-log-entries"></div>
+    </div>
+  </div>
+`;
     if (D.activeDungeon) {
       if (D.combat) renderCombatPanel();
       else renderDungeonView();
