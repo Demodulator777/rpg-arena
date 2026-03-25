@@ -1442,6 +1442,9 @@ function exchangeAtGuild(exchangeId) {
   }
 
   // ── Global API (called from HTML onclick) ──────────────────
+  global.openGuild = openGuild;
+global.closeGuild = closeGuild;
+global.exchangeAtGuild = exchangeAtGuild;
   global.dungeonEnter        = enterDungeon;
   global.dungeonTravel       = travelToRoom;
   global.dungeonFight        = initiateFight;
