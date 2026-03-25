@@ -22,6 +22,26 @@
   const STEAL_CHANCE      = 0.18;
   const ROOMS_PER_FLOOR   = 12;
 
+  // ── Dungeon Visuals ─────────────────────────────────────────
+  const DUNGEON_VISUALS = {
+    start: {
+      image: '/images/dungeon/entrance.jpg',
+      description: "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones."
+    },
+    corridor: {
+      image: '/images/dungeon/corridor.jpg',
+      description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
+    },
+    treasure: {
+      image: '/images/dungeon/treasure.jpg',
+      description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
+    },
+    boss: {
+      image: '/images/dungeon/boss-chamber.jpg',
+      description: "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master."
+    }
+  };
+
   // ── Infinite Floor Tower ─────────────────────────────────
   const DUNGEON = { id:'tower', name:'The Endless Tower', icon:'🗼', desc:'An infinite tower of darkness. Clear each floor to ascend.' };
 
@@ -60,25 +80,6 @@
     { name:'Abyssal Sovereign',     icon:'🌊💀', baseHp:1200, baseAtk:95, baseDef:50, steal:true  },
   ];
   const ROMAN = ['','II','III','IV','V','VI','VII','VIII','IX','X'];
-
-  const DUNGEON_VISUALS = {
-  start: {
-    image: '/images/dungeon/entrance.jpg',
-    description: "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones."
-  },
-  corridor: {
-    image: '/images/dungeon/corridor.jpg',
-    description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
-  },
-  treasure: {
-    image: '/images/dungeon/treasure.jpg',
-    description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
-  },
-  boss: {
-    image: '/images/dungeon/boss-chamber.jpg',
-    description: "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master."
-  }
-};
 
   function getBossForFloor(floor) {
     const idx  = (floor - 1) % BOSS_POOL.length;
@@ -174,7 +175,7 @@
   function elapsed(ts, hours) { return (Date.now() - ts) >= hours * 3600000; }
 
   function getChar() {
-    return (typeof state !== 'undefined' && state.character) ? state.character : null;
+    return (typeof character !== 'undefined' && character) ? character : null;
   }
 
   function log(msg, cls='') {
@@ -196,6 +197,25 @@
         D = { ...D, ...parsed };
       }
     } catch(e) {}
+  }
+
+  // ── Refresh Character (Sync with server) ─────────────────────
+  async function refreshCharacter() {
+    try {
+      const updatedChar = await apiFetch('GET', '/game/character');
+      if (updatedChar) {
+        if (typeof character !== 'undefined') {
+          Object.assign(character, updatedChar);
+        }
+        if (typeof window.character !== 'undefined') {
+          window.character = updatedChar;
+        }
+        if (typeof renderTopBar === 'function') renderTopBar();
+        if (typeof renderCharacter === 'function') renderCharacter();
+      }
+    } catch(e) {
+      console.error('Failed to refresh character:', e);
+    }
   }
 
   // ── Database Sync Functions ─────────────────────────────────
@@ -290,104 +310,101 @@
   }
 
   // ── Map Generation ─────────────────────────────────────────
-function generateFloor(dungeonId, floor) {
-  const rooms = [];
-  const gridW = 5, gridH = 4;
-  const total = gridW * gridH;
+  function generateFloor(dungeonId, floor) {
+    const rooms = [];
+    const gridW = 5, gridH = 4;
+    const total = gridW * gridH;
 
-  const used = new Array(total).fill(false);
-  const chosen = [];
+    const used = new Array(total).fill(false);
+    const chosen = [];
 
-  chosen.push(gridH * gridW - gridW);
-  used[gridH * gridW - gridW] = true;
+    chosen.push(gridH * gridW - gridW);
+    used[gridH * gridW - gridW] = true;
 
-  while (chosen.length < ROOMS_PER_FLOOR - 1) {
-    const base = chosen[rand(0, chosen.length - 1)];
-    const bx = base % gridW, by = Math.floor(base / gridW);
-    const neighbors = [];
-    if (bx > 0 && !used[by*gridW+(bx-1)]) neighbors.push(by*gridW+(bx-1));
-    if (bx < gridW-1 && !used[by*gridW+(bx+1)]) neighbors.push(by*gridW+(bx+1));
-    if (by > 0 && !used[(by-1)*gridW+bx]) neighbors.push((by-1)*gridW+bx);
-    if (by < gridH-1 && !used[(by+1)*gridW+bx]) neighbors.push((by+1)*gridW+bx);
-    if (neighbors.length === 0) continue;
-    const pick = neighbors[rand(0, neighbors.length-1)];
-    used[pick] = true;
-    chosen.push(pick);
-  }
+    while (chosen.length < ROOMS_PER_FLOOR - 1) {
+      const base = chosen[rand(0, chosen.length - 1)];
+      const bx = base % gridW, by = Math.floor(base / gridW);
+      const neighbors = [];
+      if (bx > 0 && !used[by*gridW+(bx-1)]) neighbors.push(by*gridW+(bx-1));
+      if (bx < gridW-1 && !used[by*gridW+(bx+1)]) neighbors.push(by*gridW+(bx+1));
+      if (by > 0 && !used[(by-1)*gridW+bx]) neighbors.push((by-1)*gridW+bx);
+      if (by < gridH-1 && !used[(by+1)*gridW+bx]) neighbors.push((by+1)*gridW+bx);
+      if (neighbors.length === 0) continue;
+      const pick = neighbors[rand(0, neighbors.length-1)];
+      used[pick] = true;
+      chosen.push(pick);
+    }
 
-  const start = chosen[0];
-  let farthest = chosen[0], maxDist = 0;
-  for (const c of chosen) {
-    const cx = c % gridW, cy = Math.floor(c / gridW);
-    const sx = start % gridW, sy = Math.floor(start / gridW);
-    const d = Math.abs(cx-sx) + Math.abs(cy-sy);
-    if (d > maxDist) { maxDist = d; farthest = c; }
-  }
+    const start = chosen[0];
+    let farthest = chosen[0], maxDist = 0;
+    for (const c of chosen) {
+      const cx = c % gridW, cy = Math.floor(c / gridW);
+      const sx = start % gridW, sy = Math.floor(start / gridW);
+      const d = Math.abs(cx-sx) + Math.abs(cy-sy);
+      if (d > maxDist) { maxDist = d; farthest = c; }
+    }
 
-  const dungeonDef = getDungeonDef(dungeonId);
+    const dungeonDef = getDungeonDef(dungeonId);
 
-  for (let i = 0; i < chosen.length; i++) {
-    const idx = chosen[i];
-    const x = idx % gridW, y = Math.floor(idx / gridW);
-    const isBoss = (idx === farthest);
-    const isStart = (i === 0);
+    for (let i = 0; i < chosen.length; i++) {
+      const idx = chosen[i];
+      const x = idx % gridW, y = Math.floor(idx / gridW);
+      const isBoss = (idx === farthest);
+      const isStart = (i === 0);
 
-    const connections = [];
-    for (let j = 0; j < chosen.length; j++) {
-      if (i === j) continue;
-      const jx = chosen[j] % gridW, jy = Math.floor(chosen[j] / gridW);
-      if ((Math.abs(x-jx) === 1 && y === jy) || (Math.abs(y-jy) === 1 && x === jx)) {
-        connections.push(j);
+      const connections = [];
+      for (let j = 0; j < chosen.length; j++) {
+        if (i === j) continue;
+        const jx = chosen[j] % gridW, jy = Math.floor(chosen[j] / gridW);
+        if ((Math.abs(x-jx) === 1 && y === jy) || (Math.abs(y-jy) === 1 && x === jx)) {
+          connections.push(j);
+        }
       }
+
+      let monster = null;
+      if (!isStart && !isBoss && dungeonDef && chance(0.7)) {
+        const m = dungeonDef.monsters[rand(0, dungeonDef.monsters.length-1)];
+        monster = {
+          ...m,
+          currentHp: m.hp + floor * 5,
+          maxHp: m.hp + floor * 5,
+          atk: m.atk + floor * 2,
+          def: m.def + floor,
+          lastKilled: null,
+          stolenItems: [],
+        };
+      }
+
+      // Determine room type and visual
+      let roomType = isBoss ? 'boss' : isStart ? 'start' : (chance(0.15) ? 'treasure' : 'corridor');
+      let visualData = null;
+      if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
+      else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
+      else if (roomType === 'treasure') visualData = DUNGEON_VISUALS.treasure;
+      else visualData = DUNGEON_VISUALS.corridor;
+
+      rooms.push({
+        id: i,
+        gridIdx: idx,
+        x, y,
+        isBoss,
+        isStart,
+        connections,
+        monster,
+        looted: false,
+        type: roomType,
+        visual: visualData
+      });
     }
 
-    let monster = null;
-    if (!isStart && !isBoss && dungeonDef && chance(0.7)) {
-      const m = dungeonDef.monsters[rand(0, dungeonDef.monsters.length-1)];
-      monster = {
-        ...m,
-        currentHp: m.hp + floor * 5,
-        maxHp: m.hp + floor * 5,
-        atk: m.atk + floor * 2,
-        def: m.def + floor,
-        lastKilled: null,
-        stolenItems: [],
-      };
-    }
-
-    // Determine the room type
-    let roomType = isBoss ? 'boss' : isStart ? 'start' : (chance(0.15) ? 'treasure' : 'corridor');
-    
-    // Get visual data based on room type
-    let visualData = null;
-    if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
-    else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
-    else if (roomType === 'treasure') visualData = DUNGEON_VISUALS.treasure;
-    else visualData = DUNGEON_VISUALS.corridor;
-
-    rooms.push({
-      id: i,
-      gridIdx: idx,
-      x, y,
-      isBoss,
-      isStart,
-      connections,
-      monster,
-      looted: false,
-      type: roomType,
-      visual: visualData  // <-- ADD THIS LINE
-    });
+    return rooms;
   }
-
-  return rooms;
-}
 
   // ── Combat Engine ──────────────────────────────────────────
   function calcPlayerStats() {
     const c = getChar();
     if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
     
-    // Use actual character stats from the game
     const atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
     const def = (c.defense || 5) + (c.agility || 10) * 0.3;
     const hp = c.hp_current || c.hp || 100;
@@ -445,56 +462,94 @@ function generateFloor(dungeonId, floor) {
     };
   }
 
-  // ── Core Actions ───────────────────────────────────────────
-function enterDungeon(dungeonId) {
-  const def = getDungeonDef(dungeonId);
-  if (!def) return;
-
-  // Check for saved progress
-  if (D.savedProgress['tower']) {
-    const s = D.savedProgress[dungeonId];
-    D.activeDungeon = 'tower';
-    D.floor = s.floor;
-    D.rooms = s.rooms;
-    D.playerPos = s.pos;
-    D.exploredRooms = new Set(s.explored);
+  // ── Apply Loot (Syncs with server) ──────────────────────────
+  function applyLoot(loot) {
+    const c = getChar();
+    if (!c) return;
     
-    // Validate rooms after loading
-    if (!D.rooms || D.rooms.length === 0) {
-      console.error('Loaded rooms empty, regenerating...');
-      D.rooms = generateFloor('tower', D.floor);
-      D.playerPos = D.rooms.findIndex(r => r.isStart);
-      D.exploredRooms = new Set([D.playerPos]);
+    if (loot.type === 'gold') {
+      c.gold = (c.gold || 0) + loot.amount;
+      log(`💰 Found ${loot.amount} gold`, 'log-loot');
+      apiFetch('POST', '/game/dungeon/add-gold', { amount: loot.amount }).catch(e => console.error('Failed to sync gold:', e));
+    } 
+    else if (loot.type === 'potion_hp') {
+      const potion = { 
+        name: loot.name, 
+        icon: loot.icon, 
+        type: 'consumable', 
+        effect: { type: 'heal', value: loot.heal },
+        rarity: 'common',
+        qty: 1
+      };
+      apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
+      log(`🧪 Found ${loot.name}`, 'log-loot');
+    } 
+    else if (loot.type === 'potion_mp') {
+      const potion = { 
+        name: loot.name, 
+        icon: loot.icon, 
+        type: 'consumable', 
+        effect: { type: 'mp', value: loot.mp },
+        rarity: 'common',
+        qty: 1
+      };
+      apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
+      log(`💧 Found ${loot.name}`, 'log-loot');
+    } 
+    else if (loot.type === 'item') {
+      apiFetch('POST', '/game/inventory/add', { item: loot.item }).catch(e => console.error('Failed to add item:', e));
+      log(`📦 Found ${loot.item.icon} ${loot.item.name}`, 'log-loot');
     }
     
-    log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
+    refreshCharacter();
+  }
+
+  // ── Core Actions ───────────────────────────────────────────
+  function enterDungeon(dungeonId) {
+    const def = getDungeonDef(dungeonId);
+    if (!def) return;
+
+    if (D.savedProgress['tower']) {
+      const s = D.savedProgress[dungeonId];
+      D.activeDungeon = 'tower';
+      D.floor = s.floor;
+      D.rooms = s.rooms;
+      D.playerPos = s.pos;
+      D.exploredRooms = new Set(s.explored);
+      
+      if (!D.rooms || D.rooms.length === 0) {
+        console.error('Loaded rooms empty, regenerating...');
+        D.rooms = generateFloor('tower', D.floor);
+        D.playerPos = D.rooms.findIndex(r => r.isStart);
+        D.exploredRooms = new Set([D.playerPos]);
+      }
+      
+      log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
+      renderDungeonView();
+      return;
+    }
+
+    D.activeDungeon = 'tower';
+    D.floor = 1;
+    D.rooms = generateFloor('tower', 1);
+    
+    if (!D.rooms || D.rooms.length === 0) {
+      console.error('Failed to generate rooms');
+      log('Failed to generate dungeon. Please try again.', 'log-danger');
+      return;
+    }
+    
+    D.playerPos = D.rooms.findIndex(r => r.isStart);
+    if (D.playerPos === -1) D.playerPos = 0;
+    
+    D.exploredRooms = new Set([D.playerPos]);
+    D.dungeonLog = [];
+    saveState();
+    saveProgressToDB();
+
+    log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
     renderDungeonView();
-    return;
   }
-
-  D.activeDungeon = 'tower';
-  D.floor = 1;
-  D.rooms = generateFloor('tower', 1);
-  
-  if (!D.rooms || D.rooms.length === 0) {
-    console.error('Failed to generate rooms');
-    log('Failed to generate dungeon. Please try again.', 'log-danger');
-    return;
-  }
-  
-  D.playerPos = D.rooms.findIndex(r => r.isStart);
-  if (D.playerPos === -1) {
-    D.playerPos = 0;
-  }
-  
-  D.exploredRooms = new Set([D.playerPos]);
-  D.dungeonLog = [];
-  saveState();
-  saveProgressToDB();
-
-  log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
-  renderDungeonView();
-}
 
   function travelToRoom(targetIdx) {
     if (D.isTraveling || D.combat) return;
@@ -560,19 +615,15 @@ function enterDungeon(dungeonId) {
 
     D.combat.roundLog.push(...roundLog);
 
-    // Apply damage to player - using hp_current
     const c = getChar();
     if (c && playerDmgTaken > 0) {
-      c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - playerDmgTaken);
-      c.hp = c.hp_current;
+      const newHp = Math.max(0, (c.hp_current || c.hp || 100) - playerDmgTaken);
+      c.hp_current = newHp;
+      c.hp = newHp;
       
-      // Sync back to server
-      if (typeof api === 'function') {
-        api('POST', '/game/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
-      }
+      apiFetch('POST', '/game/dungeon/update-health', { hp: newHp }).catch(e => console.error('Failed to sync health:', e));
     }
 
-    // Monster steal attempt
     if (!monsterDead && D.combat.monster.steal && chance(STEAL_CHANCE)) {
       tryStealFromPlayer(D.combat.roomIdx);
     }
@@ -648,9 +699,7 @@ function enterDungeon(dungeonId) {
   function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
     const c = getChar();
-    if (c && c.hp_current !== undefined) {
-      c.hp = c.hp_current;
-    }
+    if (c && c.hp_current !== undefined) c.hp = c.hp_current;
     
     D.savedProgress['tower'] = {
       floor: D.floor,
@@ -729,36 +778,15 @@ function enterDungeon(dungeonId) {
     showBossVictoryModal(boss, loot);
   }
 
-  function applyLoot(loot) {
-    const c = getChar();
-    if (!c) return;
-    if (loot.type === 'gold') {
-      c.gold = (c.gold||0) + loot.amount;
-      log(`💰 Found ${loot.amount} gold`, 'log-loot');
-    } else if (loot.type === 'potion_hp') {
-      if (!c.inventory) c.inventory = [];
-      c.inventory.push({ name: loot.name, icon: loot.icon, type:'consumable', heal: loot.heal, rarity:'common' });
-      log(`🧪 Found ${loot.name}`, 'log-loot');
-    } else if (loot.type === 'potion_mp') {
-      if (!c.inventory) c.inventory = [];
-      c.inventory.push({ name: loot.name, icon: loot.icon, type:'consumable', mp: loot.mp, rarity:'common' });
-      log(`💧 Found ${loot.name}`, 'log-loot');
-    } else if (loot.type === 'item') {
-      if (!c.inventory) c.inventory = [];
-      c.inventory.push(loot.item);
-      log(`📦 Found ${loot.item.icon} ${loot.item.name}`, 'log-loot');
+  // ── Render Functions ─────────────────────────────────────────────────
+  function renderDungeonTab() {
+    const container = document.getElementById('tab-dungeon');
+    if (!container) return;
+    loadState();
+    
+    if (character) {
+      loadDungeonDataFromDB();
     }
-  }
-
-function renderDungeonTab() {
-  const container = document.getElementById('tab-dungeon');
-  if (!container) return;
-  loadState(); // Load local state first
-  
-  // Only load from DB if we have a character
-  if (character) {
-    loadDungeonDataFromDB();
-  }
 
     container.innerHTML = `
       <div class="dungeon-wrapper">
@@ -787,14 +815,14 @@ function renderDungeonTab() {
       </div>
     `;
 
-  if (D.activeDungeon) {
-    if (D.combat) renderCombatPanel();
-    else renderDungeonView();
-  } else {
-    renderDungeonList();
+    if (D.activeDungeon) {
+      if (D.combat) renderCombatPanel();
+      else renderDungeonView();
+    } else {
+      renderDungeonList();
+    }
+    renderLog();
   }
-  renderLog();
-}
 
   function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
@@ -866,90 +894,89 @@ function renderDungeonTab() {
     `;
   }
 
-function renderDungeonView() {
-  const area = document.getElementById('dungeon-main-area');
-  if (!area) return;
-  
-  // Safety checks
-  if (!D.rooms || D.rooms.length === 0) {
-    console.error('No rooms generated');
-    area.innerHTML = '<div class="error">Dungeon not generated. Please re-enter.</div>';
-    return;
-  }
-  
-  if (!D.rooms[D.playerPos]) {
-    console.error('Invalid player position:', D.playerPos, 'Rooms:', D.rooms.length);
-    const startIndex = D.rooms.findIndex(r => r.isStart);
-    if (startIndex !== -1) {
-      D.playerPos = startIndex;
-    } else {
-      area.innerHTML = '<div class="error">Invalid dungeon state. Please re-enter.</div>';
+  function renderDungeonView() {
+    const area = document.getElementById('dungeon-main-area');
+    if (!area) return;
+    
+    if (!D.rooms || D.rooms.length === 0) {
+      console.error('No rooms generated');
+      area.innerHTML = '<div class="error">Dungeon not generated. Please re-enter.</div>';
       return;
     }
-  }
-  
-  const def = getDungeonDef(D.activeDungeon);
-  if (!def) return;
+    
+    if (!D.rooms[D.playerPos]) {
+      console.error('Invalid player position:', D.playerPos, 'Rooms:', D.rooms.length);
+      const startIndex = D.rooms.findIndex(r => r.isStart);
+      if (startIndex !== -1) D.playerPos = startIndex;
+      else {
+        area.innerHTML = '<div class="error">Invalid dungeon state. Please re-enter.</div>';
+        return;
+      }
+    }
+    
+    const def = getDungeonDef(D.activeDungeon);
+    if (!def) return;
 
-  const currentRoom = D.rooms[D.playerPos];
+    const currentRoom = D.rooms[D.playerPos];
+    const visual = currentRoom.visual || (currentRoom.isBoss ? DUNGEON_VISUALS.boss : currentRoom.isStart ? DUNGEON_VISUALS.start : DUNGEON_VISUALS.corridor);
+    const roomImage = visual.image || '';
+    const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
 
-  // Get visual data - use defaults if not set
-  const visual = currentRoom.visual || (currentRoom.isBoss ? DUNGEON_VISUALS.boss : currentRoom.isStart ? DUNGEON_VISUALS.start : DUNGEON_VISUALS.corridor);
-  const roomImage = visual.image || '';
-  const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
+    area.innerHTML = `
+      <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
 
-  area.innerHTML = `
-    <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+        <div class="dungeon-active-header">
+          <div class="dungeon-active-name">${def.icon} ${def.name}</div>
+          <div class="dungeon-active-floor">Floor ${D.floor}</div>
+          <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">⬅ Exit (Save Progress)</button>
+        </div>
 
-      <div class="dungeon-active-header">
-        <div class="dungeon-active-name">${def.icon} ${def.name}</div>
-        <div class="dungeon-active-floor">Floor ${D.floor}</div>
-        <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">⬅ Exit (Save Progress)</button>
-      </div>
+        ${roomImage ? `
+        <div class="dungeon-image-container" style="margin: 12px 16px;">
+          <img class="dungeon-scene-image" src="${roomImage}" alt="Dungeon Scene" style="width:100%;height:200px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">
+        </div>
+        ` : ''}
+        
+        <div class="dungeon-description" style="margin: 0 16px 16px 16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+          <p style="margin:0; font-style:italic; color:var(--dungeon-text);">${roomDescription}</p>
+        </div>
 
-      <!-- Visual Image -->
-      ${roomImage ? `
-      <div class="dungeon-image-container" style="margin: 16px;">
-        <img class="dungeon-scene-image" src="${roomImage}" alt="Dungeon Scene" style="width:100%;height:200px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">
-      </div>
-      ` : ''}
-      
-      <!-- Room Description -->
-      <div class="dungeon-description" style="margin: 0 16px 16px 16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
-        <p style="margin:0; font-style:italic; color:var(--dungeon-text);">${roomDescription}</p>
-      </div>
+        <div class="dungeon-travel-bar-wrap">
+          <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
+        </div>
 
-      <div class="dungeon-travel-bar-wrap">
-        <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
-      </div>
-
-      <div class="dungeon-content-row" style="display:block; padding: 0 16px 16px 16px;">
-        <div class="dungeon-room-panel" style="width:100%;">
-          <div class="dungeon-room-header">
-            ${currentRoom.isBoss ? `<span class="dungeon-room-type boss-room-badge">⚠️ BOSS ROOM</span>` :
-              currentRoom.isStart ? `<span class="dungeon-room-type start-room-badge">🚪 Entrance</span>` :
-              currentRoom.type === 'treasure' ? `<span class="dungeon-room-type treasure-room-badge">💰 Treasure Room</span>` :
-              `<span class="dungeon-room-type">🏚️ Corridor</span>`
-            }
-            <span class="dungeon-room-id">Room ${D.playerPos + 1}</span>
+        <div class="dungeon-content-row">
+          <div class="dungeon-map-wrap">
+            <div class="dungeon-map-label">📍 Dungeon Map</div>
+            <div id="dungeon-map-grid" class="dungeon-map-grid">
+              ${renderMapGrid()}
+            </div>
           </div>
 
-          ${renderRoomInfo(currentRoom)}
+          <div class="dungeon-room-panel">
+            <div class="dungeon-room-header">
+              ${currentRoom.isBoss ? `<span class="dungeon-room-type boss-room-badge">⚠️ BOSS ROOM</span>` :
+                currentRoom.isStart ? `<span class="dungeon-room-type start-room-badge">🚪 Entrance</span>` :
+                currentRoom.type === 'treasure' ? `<span class="dungeon-room-type treasure-room-badge">💰 Treasure Room</span>` :
+                `<span class="dungeon-room-type">🏚️ Corridor</span>`
+              }
+              <span class="dungeon-room-id">Room ${D.playerPos + 1}</span>
+            </div>
 
-          <div class="dungeon-connections" style="margin-top: 16px;">
-            <div class="dungeon-conn-label">Where do you want to go?</div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+            ${renderRoomInfo(currentRoom)}
+
+            <div class="dungeon-connections">
+              <div class="dungeon-conn-label">Passages:</div>
               ${currentRoom.connections.map(ci => {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
                 const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
                 return `
                   <button class="dungeon-conn-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
-                          onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}
-                          style="padding: 10px 16px; font-size: 0.9rem;">
+                          onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
                     ${explored
-                      ? `${cr.isBoss ? '⚠️ BOSS' : cr.type === 'treasure' ? '💰 TREASURE' : monsterAlive ? `👹 ${cr.monster.name}` : '➡️ FORWARD'}`
-                      : '❓ UNKNOWN PATH'
+                      ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
+                      : '❓ Unknown Room'
                     }
                   </button>
                 `;
@@ -958,9 +985,8 @@ function renderDungeonView() {
           </div>
         </div>
       </div>
-    </div>
-  `;
-}
+    `;
+  }
 
   function renderMapGrid() {
     const grid = {};
@@ -1165,6 +1191,26 @@ function renderDungeonView() {
     btns.forEach(b => b.disabled = disabled);
   }
 
+  function dungeonExit() {
+    if (D.activeDungeon) {
+      D.savedProgress[D.activeDungeon] = {
+        floor: D.floor, pos: D.playerPos,
+        rooms: D.rooms, explored: [...D.exploredRooms],
+      };
+    }
+    D.activeDungeon = null;
+    D.combat = null;
+    saveState();
+    saveProgressToDB();
+    renderDungeonList();
+  }
+
+  function closeDungeonVictory() {
+    const m = document.getElementById('dungeon-boss-modal');
+    if (m) m.classList.add('hidden');
+    renderDungeonView();
+  }
+
   // ── CSS Loading ──────────────────────────────────────────
   function loadCSS() {
     if (document.getElementById('dungeon-css')) return;
@@ -1186,36 +1232,17 @@ function renderDungeonView() {
   global.dungeonAttack       = fightRound;
   global.dungeonRunCombat    = () => { if(D.combat) tryRun(D.combat.roomIdx); };
   global.dungeonFightBoss    = fightBoss;
-  global.dungeonExit         = () => {
-    if (D.activeDungeon) {
-      D.savedProgress[D.activeDungeon] = {
-        floor: D.floor, pos: D.playerPos,
-        rooms: D.rooms, explored: [...D.exploredRooms],
-      };
+  global.dungeonExit         = dungeonExit;
+  global.closeDungeonVictory = closeDungeonVictory;
+  global.renderDungeonTab    = function() {
+    renderDungeonTab();
+    if (character) {
+      loadDungeonDataFromDB();
     }
-    D.activeDungeon = null;
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-    renderDungeonList();
   };
-  global.closeDungeonVictory = () => {
-    const m = document.getElementById('dungeon-boss-modal');
-    if (m) m.classList.add('hidden');
-    renderDungeonView();
-  };
-  global.renderDungeonTab    = renderDungeonTab;
 
   // ── Init ───────────────────────────────────────────────────
   loadCSS();
   loadState();
-
-  global.renderDungeonTab = function() {
-  renderDungeonTab();
-  // Load fresh data when tab is opened
-  if (character) {
-    loadDungeonDataFromDB();
-  }
-};
 
 })(window);
