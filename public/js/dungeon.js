@@ -1,12 +1,13 @@
 // ============================================================
-//  dungeon.js  –  Battle Arena Dungeon System (Enhanced Visual)
-//  Maintains working structure with visual upgrades
+//  dungeon.js  –  Battle Arena Dungeon System
+//  Requires: global `state` object,
+//  `api(method, path, body)` from app.js, `showTab(tab)` helper
 // ============================================================
 
 (function (global) {
   'use strict';
 
-  // ── API Wrapper ──────────────────────────────────────────
+  // ── API Wrapper (uses your existing api function) ──────────────────────────
   const apiFetch = global.api || (async () => {
     console.error('[Dungeon] api not available!');
     return { success: false, error: 'api not available' };
@@ -15,81 +16,20 @@
   // ── Constants ──────────────────────────────────────────────
   const MP_PER_TOKEN      = 20;
   const TOKENS_PER_RUN    = 50;
-  const MONSTER_RESPAWN_DAYS = 7;
-  const MONSTER_RESPAWN_MS = MONSTER_RESPAWN_DAYS * 24 * 3600000;
-  const TRAVEL_BASE_MS    = 3000;
+  const MONSTER_RESPAWN_H = 12;
+  const TRAVEL_BASE_MS    = 8000;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
-  const ROOMS_PER_FLOOR   = 8;
-
-  // ── Dungeon Images ─────────────────────────────────────────
-  const DUNGEON_IMAGES = {
-    entrance: '/images/dungeon/entrance.jpg',
-    corridor: '/images/dungeon/corridor.jpg',
-    treasure: '/images/dungeon/treasure.jpg',
-    boss: '/images/dungeon/boss-chamber.jpg',
-    boss_cleared: '/images/dungeon/boss-cleared.jpg',
-    stairs: '/images/dungeon/stairs.jpg',
-  };
-
-  // ── Room Descriptions ──────────────────────────────────────
-  const ROOM_DESCRIPTIONS = {
-    start: [
-      "You stand at the entrance of a dark, foreboding tower. Ancient stone arches loom above you.",
-      "The entrance is carved with ancient runes that pulse with a faint, ominous light.",
-      "A massive iron door stands ajar, revealing a shadowy corridor beyond."
-    ],
-    corridor: [
-      "A narrow passage stretches before you. Torches flicker on the walls.",
-      "The corridor widens here, with alcoves carved into the walls.",
-      "You walk through a hall lined with ancient statues."
-    ],
-    treasure: [
-      "A glint of gold catches your eye! This chamber holds scattered treasures.",
-      "Piles of gold and gems lie scattered about.",
-      "An ornate chest sits in the center of the room."
-    ],
-    boss: [
-      "The air grows heavy. A massive chamber opens before you, and you sense a powerful presence.",
-      "Grand pillars rise to the ceiling. This is the throne room of the floor's master.",
-      "The temperature drops as you enter. Something ancient awaits."
-    ],
-    boss_cleared: [
-      "The chamber is silent now. The boss has been vanquished.",
-      "Victory! The oppressive presence is gone.",
-      "With the guardian defeated, the way forward is clear."
-    ]
-  };
-
-  // ── Dungeon Materials & Recipes ──────────────────────────────────────────
-  const DUNGEON_MATERIALS = [
-    { id: 'crypt_dust', name: 'Crypt Dust', icon: '💀', desc: 'Dust from ancient crypts', value: 5, floorMin: 1 },
-    { id: 'void_shard', name: 'Void Shard', icon: '🔮', desc: 'Shards of pure darkness', value: 10, floorMin: 3 },
-    { id: 'dragon_scale', name: 'Dragon Scale', icon: '🐉', desc: 'Gleaming dragon scales', value: 25, floorMin: 5 },
-    { id: 'soul_essence', name: 'Soul Essence', icon: '✨', desc: 'Captured soul energy', value: 50, floorMin: 8 },
-    { id: 'abyssal_core', name: 'Abyssal Core', icon: '🌑', desc: 'Core from void creatures', value: 100, floorMin: 12 },
-    { id: 'titan_heart', name: 'Titan Heart', icon: '💠', desc: 'Heart of a void titan', value: 200, floorMin: 15 },
-  ];
-
-  const DUNGEON_RECIPES = [
-    { id: 'health_potion', name: 'Health Potion', icon: '🧪', materials: { crypt_dust: 2 }, result: { type: 'consumable', heal: 100, name: 'Health Potion' } },
-    { id: 'mana_potion', name: 'Mana Potion', icon: '💧', materials: { crypt_dust: 2 }, result: { type: 'consumable', mp: 30, name: 'Mana Potion' } },
-    { id: 'strength_elixir', name: 'Strength Elixir', icon: '💪', materials: { void_shard: 3 }, result: { type: 'consumable', effect: { type: 'temp_stat', stat: 'strength', value: 5 }, name: 'Strength Elixir' } },
-    { id: 'defense_elixir', name: 'Defense Elixir', icon: '🛡️', materials: { void_shard: 3 }, result: { type: 'consumable', effect: { type: 'temp_stat', stat: 'defense', value: 5 }, name: 'Defense Elixir' } },
-    { id: 'dragon_scale_armor', name: 'Dragon Scale Armor', icon: '🛡️', materials: { dragon_scale: 5, void_shard: 2 }, result: { type: 'equipment', slot: 'armor', name: 'Dragon Scale Armor', quality: 'rare' } },
-    { id: 'soul_binding', name: 'Soul Binding', icon: '🔗', materials: { soul_essence: 3, crypt_dust: 5 }, result: { type: 'premium_scroll', days: 3, name: 'Soul Binding Scroll' } },
-    { id: 'abyssal_blade', name: 'Abyssal Blade', icon: '⚔️', materials: { abyssal_core: 2, dragon_scale: 3, void_shard: 5 }, result: { type: 'equipment', slot: 'weapon', name: 'Abyssal Blade', quality: 'legendary' } },
-    { id: 'titan_heart_ring', name: 'Titan Heart Ring', icon: '💍', materials: { titan_heart: 1, soul_essence: 5 }, result: { type: 'equipment', slot: 'ring', name: 'Titan Heart Ring', quality: 'legendary' } },
-  ];
+  const ROOMS_PER_FLOOR   = 12;
 
   // ── Infinite Floor Tower ─────────────────────────────────
-  const DUNGEON = { id:'tower', name:'The Endless Tower', icon:'🗼', desc:'An infinite tower of darkness.' };
+  const DUNGEON = { id:'tower', name:'The Endless Tower', icon:'🗼', desc:'An infinite tower of darkness. Clear each floor to ascend.' };
 
   const FLOOR_THEMES = [
-    { theme:'#7c3aed', themeGlow:'rgba(124,58,237,0.35)', name:'Crypt Depths' },
-    { theme:'#dc2626', themeGlow:'rgba(220,38,38,0.35)',  name:'Volcanic Halls' },
-    { theme:'#1e3a5f', themeGlow:'rgba(30,58,95,0.4)',    name:'Abyssal Void' },
-    { theme:'#065f46', themeGlow:'rgba(6,95,70,0.4)',     name:'Cursed Jungle' },
+    { theme:'#7c3aed', themeGlow:'rgba(124,58,237,0.35)', name:'Crypt Depths'    },
+    { theme:'#dc2626', themeGlow:'rgba(220,38,38,0.35)',  name:'Volcanic Halls'  },
+    { theme:'#1e3a5f', themeGlow:'rgba(30,58,95,0.4)',    name:'Abyssal Void'    },
+    { theme:'#065f46', themeGlow:'rgba(6,95,70,0.4)',     name:'Cursed Jungle'   },
     { theme:'#92400e', themeGlow:'rgba(146,64,14,0.4)',   name:'Celestial Ruins' },
   ];
 
@@ -120,6 +60,25 @@
     { name:'Abyssal Sovereign',     icon:'🌊💀', baseHp:1200, baseAtk:95, baseDef:50, steal:true  },
   ];
   const ROMAN = ['','II','III','IV','V','VI','VII','VIII','IX','X'];
+
+  const DUNGEON_VISUALS = {
+  start: {
+    image: '/images/dungeon/entrance.jpg',
+    description: "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones."
+  },
+  corridor: {
+    image: '/images/dungeon/corridor.jpg',
+    description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
+  },
+  treasure: {
+    image: '/images/dungeon/treasure.jpg',
+    description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
+  },
+  boss: {
+    image: '/images/dungeon/boss-chamber.jpg',
+    description: "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master."
+  }
+};
 
   function getBossForFloor(floor) {
     const idx  = (floor - 1) % BOSS_POOL.length;
@@ -155,6 +114,7 @@
     }));
   }
   
+  // getDungeonDef: returns live computed def for current floor
   function getDungeonDef(id) {
     if (id === 'tower' || !id) {
       if (D && D.floor) {
@@ -206,19 +166,15 @@
     isTraveling: false,
     dungeonLog: [],
     savedProgress: {},
-    dungeonInventory: [],
-    blacksmithUnlocked: false,
-    bossDefeated: false,
   };
 
   // ── Helpers ────────────────────────────────────────────────
   function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
   function chance(p)      { return Math.random() < p; }
-  function elapsed(ts, ms) { return (Date.now() - ts) >= ms; }
+  function elapsed(ts, hours) { return (Date.now() - ts) >= hours * 3600000; }
 
   function getChar() {
-    if (typeof character !== 'undefined' && character) return character;
-    return null;
+    return (typeof state !== 'undefined' && state.character) ? state.character : null;
   }
 
   function log(msg, cls='') {
@@ -242,106 +198,207 @@
     } catch(e) {}
   }
 
-  // ── Dungeon Inventory Functions ────────────────────────────
-  function addDungeonMaterial(materialId, qty = 1) {
-    const material = DUNGEON_MATERIALS.find(m => m.id === materialId);
-    if (!material) return;
-    const existing = D.dungeonInventory.find(i => i.id === materialId);
-    if (existing) {
-      existing.qty += qty;
-    } else {
-      D.dungeonInventory.push({ ...material, qty });
+  // ── Database Sync Functions ─────────────────────────────────
+  async function loadDungeonDataFromDB() {
+    try {
+      const response = await apiFetch('GET', '/game/dungeon/data');
+      if (response && response.success) {
+        D.tokens = response.tokens || 0;
+        D.floor = response.floor || 1;
+        D.highestFloor = response.highestFloor || 1;
+        
+        if (response.progress && response.progress.activeDungeon) {
+          D.savedProgress[response.progress.activeDungeon] = {
+            floor: response.progress.floor,
+            pos: response.progress.playerPos,
+            rooms: response.progress.rooms,
+            explored: response.progress.exploredRooms,
+            combat: response.progress.combat
+          };
+        }
+        
+        updateTokenDisplay();
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to load dungeon data from DB:', e);
+      loadState();
     }
-    saveState();
-    log(`📦 Found ${qty}x ${material.name}`, 'log-loot');
+    return false;
   }
 
-  function removeDungeonMaterial(materialId, qty) {
-    const index = D.dungeonInventory.findIndex(i => i.id === materialId);
-    if (index === -1) return false;
-    if (D.dungeonInventory[index].qty >= qty) {
-      D.dungeonInventory[index].qty -= qty;
-      if (D.dungeonInventory[index].qty <= 0) D.dungeonInventory.splice(index, 1);
+  async function saveTokensToDB() {
+    try {
+      await apiFetch('POST', '/game/dungeon/tokens', { tokens: D.tokens });
       saveState();
+    } catch (e) {
+      console.error('Failed to save tokens to DB:', e);
+    }
+  }
+
+  async function saveProgressToDB() {
+    try {
+      const progress = D.savedProgress[D.activeDungeon] || null;
+      
+      await apiFetch('POST', '/game/dungeon/progress', {
+        floor: D.floor,
+        highestFloor: D.highestFloor || D.floor,
+        progress: progress ? {
+          rooms: progress.rooms,
+          playerPos: progress.pos,
+          exploredRooms: [...progress.explored]
+        } : null,
+        activeDungeon: D.activeDungeon,
+        combat: D.combat
+      });
+    } catch (e) {
+      console.error('Failed to save progress to DB:', e);
+    }
+  }
+
+  async function spendTokens(amount) {
+    if (D.tokens >= amount) {
+      D.tokens -= amount;
+      updateTokenDisplay();
+      await saveTokensToDB();
       return true;
     }
     return false;
   }
 
-  function canCraftRecipe(recipe) {
-    for (const [materialId, qty] of Object.entries(recipe.materials)) {
-      const item = D.dungeonInventory.find(i => i.id === materialId);
-      if (!item || item.qty < qty) return false;
-    }
-    return true;
+  // ── Token Economy ──────────────────────────────────────────
+  function addTokensFromMP(mpSpent) {
+    apiFetch('POST', '/game/dungeon/mp-spent', { mpSpent })
+      .then(response => {
+        if (response && response.totalTokens !== undefined) {
+          D.tokens = response.totalTokens;
+          updateTokenDisplay();
+          saveState();
+          log(`⚗️ Gained ${response.tokensEarned} Boss Clearance Token${response.tokensEarned > 1 ? 's' : ''} from MP spent.`, 'log-token');
+        }
+      })
+      .catch(e => console.error('Failed to process MP:', e));
+    
+    return Math.floor(mpSpent / MP_PER_TOKEN);
+  }
+  
+  global.dungeonAddTokens = addTokensFromMP;
+
+  function updateTokenDisplay() {
+    const el = document.getElementById('dungeon-token-count');
+    if (el) el.textContent = D.tokens;
   }
 
-  // ── Map Generation (Simplified for visual mode) ────────────
-  function generateFloor(floor, bossDefeated = false) {
-    const rooms = [];
-    
-    // Start room
-    rooms.push({
-      id: 0,
-      type: 'start',
-      monster: null,
-      looted: true,
-      image: DUNGEON_IMAGES.entrance,
-      description: ROOM_DESCRIPTIONS.start[Math.floor(Math.random() * ROOM_DESCRIPTIONS.start.length)],
-    });
-    
-    // Generate intermediate rooms
-    for (let i = 0; i < ROOMS_PER_FLOOR - 2; i++) {
-      const type = chance(0.3) ? 'treasure' : 'corridor';
-      const hasMonster = !bossDefeated && type !== 'treasure' && chance(0.7);
-      let monster = null;
-      
-      if (hasMonster) {
-        const monsters = getMonstersForFloor(floor);
-        const m = monsters[Math.floor(Math.random() * monsters.length)];
-        monster = {
-          ...m,
-          currentHp: m.hp + floor * 5,
-          maxHp: m.hp + floor * 5,
-          atk: m.atk + floor * 2,
-          def: m.def + floor,
-          lastKilled: null,
-          stolenItems: [],
-        };
-      }
-      
-      rooms.push({
-        id: i + 1,
-        type: type,
-        monster: monster,
-        looted: false,
-        image: type === 'treasure' ? DUNGEON_IMAGES.treasure : DUNGEON_IMAGES.corridor,
-        description: type === 'treasure' ? ROOM_DESCRIPTIONS.treasure[Math.floor(Math.random() * ROOM_DESCRIPTIONS.treasure.length)] : ROOM_DESCRIPTIONS.corridor[Math.floor(Math.random() * ROOM_DESCRIPTIONS.corridor.length)],
-      });
-    }
-    
-    // Boss room
-    rooms.push({
-      id: ROOMS_PER_FLOOR - 1,
-      type: bossDefeated ? 'boss_cleared' : 'boss',
-      monster: bossDefeated ? null : getBossForFloor(floor),
-      looted: bossDefeated,
-      image: bossDefeated ? DUNGEON_IMAGES.boss_cleared : DUNGEON_IMAGES.boss,
-      description: bossDefeated ? ROOM_DESCRIPTIONS.boss_cleared[Math.floor(Math.random() * ROOM_DESCRIPTIONS.boss_cleared.length)] : ROOM_DESCRIPTIONS.boss[Math.floor(Math.random() * ROOM_DESCRIPTIONS.boss.length)],
-    });
-    
-    return rooms;
+  // ── Map Generation ─────────────────────────────────────────
+function generateFloor(dungeonId, floor) {
+  const rooms = [];
+  const gridW = 5, gridH = 4;
+  const total = gridW * gridH;
+
+  const used = new Array(total).fill(false);
+  const chosen = [];
+
+  chosen.push(gridH * gridW - gridW);
+  used[gridH * gridW - gridW] = true;
+
+  while (chosen.length < ROOMS_PER_FLOOR - 1) {
+    const base = chosen[rand(0, chosen.length - 1)];
+    const bx = base % gridW, by = Math.floor(base / gridW);
+    const neighbors = [];
+    if (bx > 0 && !used[by*gridW+(bx-1)]) neighbors.push(by*gridW+(bx-1));
+    if (bx < gridW-1 && !used[by*gridW+(bx+1)]) neighbors.push(by*gridW+(bx+1));
+    if (by > 0 && !used[(by-1)*gridW+bx]) neighbors.push((by-1)*gridW+bx);
+    if (by < gridH-1 && !used[(by+1)*gridW+bx]) neighbors.push((by+1)*gridW+bx);
+    if (neighbors.length === 0) continue;
+    const pick = neighbors[rand(0, neighbors.length-1)];
+    used[pick] = true;
+    chosen.push(pick);
   }
+
+  const start = chosen[0];
+  let farthest = chosen[0], maxDist = 0;
+  for (const c of chosen) {
+    const cx = c % gridW, cy = Math.floor(c / gridW);
+    const sx = start % gridW, sy = Math.floor(start / gridW);
+    const d = Math.abs(cx-sx) + Math.abs(cy-sy);
+    if (d > maxDist) { maxDist = d; farthest = c; }
+  }
+
+  const dungeonDef = getDungeonDef(dungeonId);
+
+  for (let i = 0; i < chosen.length; i++) {
+    const idx = chosen[i];
+    const x = idx % gridW, y = Math.floor(idx / gridW);
+    const isBoss = (idx === farthest);
+    const isStart = (i === 0);
+
+    const connections = [];
+    for (let j = 0; j < chosen.length; j++) {
+      if (i === j) continue;
+      const jx = chosen[j] % gridW, jy = Math.floor(chosen[j] / gridW);
+      if ((Math.abs(x-jx) === 1 && y === jy) || (Math.abs(y-jy) === 1 && x === jx)) {
+        connections.push(j);
+      }
+    }
+
+    let monster = null;
+    if (!isStart && !isBoss && dungeonDef && chance(0.7)) {
+      const m = dungeonDef.monsters[rand(0, dungeonDef.monsters.length-1)];
+      monster = {
+        ...m,
+        currentHp: m.hp + floor * 5,
+        maxHp: m.hp + floor * 5,
+        atk: m.atk + floor * 2,
+        def: m.def + floor,
+        lastKilled: null,
+        stolenItems: [],
+      };
+    }
+
+    // Determine the room type
+    let roomType = isBoss ? 'boss' : isStart ? 'start' : (chance(0.15) ? 'treasure' : 'corridor');
+    
+    // Get visual data based on room type
+    let visualData = null;
+    if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
+    else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
+    else if (roomType === 'treasure') visualData = DUNGEON_VISUALS.treasure;
+    else visualData = DUNGEON_VISUALS.corridor;
+
+    rooms.push({
+      id: i,
+      gridIdx: idx,
+      x, y,
+      isBoss,
+      isStart,
+      connections,
+      monster,
+      looted: false,
+      type: roomType,
+      visual: visualData  // <-- ADD THIS LINE
+    });
+  }
+
+  return rooms;
+}
 
   // ── Combat Engine ──────────────────────────────────────────
   function calcPlayerStats() {
     const c = getChar();
     if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
+    
+    // Use actual character stats from the game
     const atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
     const def = (c.defense || 5) + (c.agility || 10) * 0.3;
     const hp = c.hp_current || c.hp || 100;
     const maxHp = c.hp_max || 100;
-    return { atk: Math.floor(atk), def: Math.floor(def), hp: hp, maxHp: maxHp };
+    
+    return { 
+      atk: Math.floor(atk), 
+      def: Math.floor(def), 
+      hp: hp, 
+      maxHp: maxHp 
+    };
   }
 
   function runCombatRound(playerStats, monster) {
@@ -355,19 +412,11 @@
       log.push({ actor: 'monster', text: `${monster.name} hits you for ${mDmg}!`, dmg: mDmg });
       return { log, playerDmgTaken: mDmg, monsterDead: false };
     }
+
     return { log, playerDmgTaken: 0, monsterDead: true };
   }
 
-  function rollMinorLoot() {
-    const floor = D.floor || 1;
-    const availableMaterials = DUNGEON_MATERIALS.filter(m => floor >= m.floorMin);
-    
-    if (availableMaterials.length > 0 && chance(0.35)) {
-      const material = availableMaterials[Math.floor(Math.random() * availableMaterials.length)];
-      const qty = 1 + Math.floor(Math.random() * Math.min(3, Math.floor(floor / 5) + 1));
-      return { type: 'dungeon_material', materialId: material.id, qty };
-    }
-    
+  function rollMinorLoot(dungeonId) {
     const total = MINION_LOOT.reduce((s,l) => s+l.weight, 0);
     let r = rand(0, total-1);
     for (const entry of MINION_LOOT) {
@@ -396,192 +445,107 @@
     };
   }
 
-  function applyLoot(loot) {
-    const c = getChar();
-    if (!c) return;
+  // ── Core Actions ───────────────────────────────────────────
+function enterDungeon(dungeonId) {
+  const def = getDungeonDef(dungeonId);
+  if (!def) return;
+
+  // Check for saved progress
+  if (D.savedProgress['tower']) {
+    const s = D.savedProgress[dungeonId];
+    D.activeDungeon = 'tower';
+    D.floor = s.floor;
+    D.rooms = s.rooms;
+    D.playerPos = s.pos;
+    D.exploredRooms = new Set(s.explored);
     
-    if (loot.type === 'gold') {
-      c.gold = (c.gold||0) + loot.amount;
-      log(`💰 Found ${loot.amount} gold`, 'log-loot');
-      apiFetch('POST', '/game/dungeon/add-gold', { amount: loot.amount }).catch(()=>{});
-    } else if (loot.type === 'dungeon_material') {
-      addDungeonMaterial(loot.materialId, loot.qty);
-    } else {
-      addDungeonMaterial('crypt_dust', 1);
-      log(`📦 Found materials`, 'log-loot');
+    // Validate rooms after loading
+    if (!D.rooms || D.rooms.length === 0) {
+      console.error('Loaded rooms empty, regenerating...');
+      D.rooms = generateFloor('tower', D.floor);
+      D.playerPos = D.rooms.findIndex(r => r.isStart);
+      D.exploredRooms = new Set([D.playerPos]);
     }
-    refreshCharacter();
+    
+    log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
+    renderDungeonView();
+    return;
   }
 
-  async function refreshCharacter() {
-    try {
-      const updatedChar = await apiFetch('GET', '/game/character');
-      if (updatedChar && typeof character !== 'undefined') {
-        Object.assign(character, updatedChar);
-        if (typeof renderTopBar === 'function') renderTopBar();
-        if (typeof renderCharacter === 'function') renderCharacter();
-      }
-    } catch(e) { console.error('Failed to refresh character:', e); }
-  }
-
-  // ── Database Sync Functions ─────────────────────────────────
-  async function loadDungeonDataFromDB() {
-    try {
-      const response = await apiFetch('GET', '/game/dungeon/data');
-      if (response && response.success) {
-        D.tokens = response.tokens || 0;
-        D.floor = response.floor || 1;
-        D.highestFloor = response.highestFloor || 1;
-        if (response.progress && response.progress.activeDungeon) {
-          D.savedProgress[response.progress.activeDungeon] = response.progress;
-        }
-        updateTokenDisplay();
-        return true;
-      }
-    } catch (e) {
-      console.error('Failed to load dungeon data from DB:', e);
-      loadState();
-    }
-    return false;
-  }
-
-  async function saveTokensToDB() {
-    try {
-      await apiFetch('POST', '/game/dungeon/tokens', { tokens: D.tokens });
-      saveState();
-    } catch (e) { console.error('Failed to save tokens to DB:', e); }
-  }
-
-  async function saveProgressToDB() {
-    try {
-      await apiFetch('POST', '/game/dungeon/progress', {
-        floor: D.floor,
-        highestFloor: D.highestFloor,
-        progress: {
-          activeDungeon: D.activeDungeon,
-          pos: D.playerPos,
-          rooms: D.rooms,
-          exploredRooms: [...D.exploredRooms],
-          bossDefeated: D.bossDefeated,
-        }
-      });
-    } catch (e) { console.error('Failed to save progress to DB:', e); }
-  }
-
-  async function spendTokens(amount) {
-    if (D.tokens >= amount) {
-      D.tokens -= amount;
-      updateTokenDisplay();
-      await saveTokensToDB();
-      return true;
-    }
-    return false;
-  }
-
-  function addTokensFromMP(mpSpent) {
-    apiFetch('POST', '/game/dungeon/mp-spent', { mpSpent })
-      .then(response => {
-        if (response && response.totalTokens !== undefined) {
-          D.tokens = response.totalTokens;
-          updateTokenDisplay();
-          saveState();
-          log(`⚗️ Gained ${response.tokensEarned} Boss Clearance Token${response.tokensEarned > 1 ? 's' : ''} from MP spent.`, 'log-token');
-        }
-      })
-      .catch(e => console.error('Failed to process MP:', e));
-    return Math.floor(mpSpent / MP_PER_TOKEN);
+  D.activeDungeon = 'tower';
+  D.floor = 1;
+  D.rooms = generateFloor('tower', 1);
+  
+  if (!D.rooms || D.rooms.length === 0) {
+    console.error('Failed to generate rooms');
+    log('Failed to generate dungeon. Please try again.', 'log-danger');
+    return;
   }
   
-  global.dungeonAddTokens = addTokensFromMP;
-
-  function updateTokenDisplay() {
-    const el = document.getElementById('dungeon-token-count');
-    if (el) el.textContent = D.tokens;
-  }
-
-  // ── Core Actions ───────────────────────────────────────────
-  function enterDungeon(dungeonId) {
-    const def = getDungeonDef(dungeonId);
-    if (!def) return;
-
-    if (D.savedProgress['tower']) {
-      const s = D.savedProgress[dungeonId];
-      D.activeDungeon = 'tower';
-      D.floor = s.floor;
-      D.rooms = s.rooms;
-      D.playerPos = s.pos;
-      D.exploredRooms = new Set(s.exploredRooms || [s.pos]);
-      D.bossDefeated = s.bossDefeated || false;
-      log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
-      renderDungeonView();
-      return;
-    }
-
-    D.activeDungeon = 'tower';
-    D.floor = 1;
-    D.bossDefeated = false;
-    D.rooms = generateFloor(1, false);
+  D.playerPos = D.rooms.findIndex(r => r.isStart);
+  if (D.playerPos === -1) {
     D.playerPos = 0;
-    D.exploredRooms = new Set([0]);
-    D.dungeonLog = [];
-    saveState();
-    saveProgressToDB();
-
-    log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
-    renderDungeonView();
   }
+  
+  D.exploredRooms = new Set([D.playerPos]);
+  D.dungeonLog = [];
+  saveState();
+  saveProgressToDB();
+
+  log(`⚔️ Entered The Endless Tower – Floor 1`, 'log-enter');
+  renderDungeonView();
+}
 
   function travelToRoom(targetIdx) {
     if (D.isTraveling || D.combat) return;
-    if (targetIdx >= D.rooms.length) return;
-    
+    const current = D.rooms[D.playerPos];
+    if (!current.connections.includes(targetIdx)) return;
     const target = D.rooms[targetIdx];
-    
+
     D.isTraveling = true;
-    log(`🚶 Traveling deeper...`, 'log-travel');
-    
-    const travelMs = TRAVEL_BASE_MS + rand(0, 1500);
+    updateTravelBtn(targetIdx, true);
+    log(`🚶 Traveling to Room ${targetIdx + 1}...`, 'log-travel');
+
+    const travelMs = TRAVEL_BASE_MS + rand(0, 3000);
     const bar = document.getElementById('dungeon-travel-bar');
     if (bar) {
       bar.style.transition = `width ${travelMs}ms linear`;
       bar.style.width = '100%';
     }
-    
+
     D.travelTimer = setTimeout(() => {
       D.playerPos = targetIdx;
       D.exploredRooms.add(targetIdx);
       D.isTraveling = false;
       saveState();
       saveProgressToDB();
-      
+
       if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
-      
-      log(`📍 Arrived at ${target.type === 'boss' ? 'BOSS CHAMBER' : target.type === 'treasure' ? 'TREASURE ROOM' : 'a chamber'}`, 'log-arrive');
-      
+
+      log(`📍 Arrived at ${target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`}`, 'log-arrive');
+
       if (target.type === 'treasure' && !target.looted) {
         target.looted = true;
-        const loot = rollMinorLoot();
+        const loot = rollMinorLoot(D.activeDungeon);
         applyLoot(loot);
       }
-      
-      if (target.monster && (!target.monster.lastKilled || Date.now() >= target.monster.lastKilled + MONSTER_RESPAWN_MS)) {
-        initiateFight();
-      } else if (target.monster && target.monster.lastKilled) {
-        const daysLeft = Math.ceil((target.monster.lastKilled + MONSTER_RESPAWN_MS - Date.now()) / (24 * 3600000));
-        log(`💤 The ${target.monster.name} lies slain. It will respawn in ${daysLeft} days.`, 'log-info');
-        renderDungeonView();
-      } else {
-        renderDungeonView();
-      }
+
+      renderDungeonView();
     }, travelMs);
   }
 
-  function initiateFight() {
-    const room = D.rooms[D.playerPos];
+  function initiateFight(roomIdx) {
+    const room = D.rooms[roomIdx];
     if (!room || !room.monster) return;
-    
+
+    if (room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H)) {
+      const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monster.lastKilled) / 3600000).toFixed(1);
+      log(`💤 Monster respawns in ${hoursLeft}h`, 'log-info');
+      return;
+    }
+
     D.combat = {
-      roomIdx: D.playerPos,
+      roomIdx,
       monster: { ...room.monster },
       playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
       roundLog: [],
@@ -593,19 +557,29 @@
     if (!D.combat) return;
     const pStats = calcPlayerStats();
     const { log: roundLog, playerDmgTaken, monsterDead } = runCombatRound(pStats, D.combat.monster);
-    
+
     D.combat.roundLog.push(...roundLog);
-    
+
+    // Apply damage to player - using hp_current
     const c = getChar();
     if (c && playerDmgTaken > 0) {
       c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - playerDmgTaken);
       c.hp = c.hp_current;
-      apiFetch('POST', '/game/dungeon/update-health', { hp: c.hp_current }).catch(()=>{});
+      
+      // Sync back to server
+      if (typeof api === 'function') {
+        api('POST', '/game/dungeon/damage', { damage: playerDmgTaken }).catch(()=>{});
+      }
     }
-    
+
+    // Monster steal attempt
+    if (!monsterDead && D.combat.monster.steal && chance(STEAL_CHANCE)) {
+      tryStealFromPlayer(D.combat.roomIdx);
+    }
+
     if (monsterDead) {
-      if (D.rooms[D.combat.roomIdx].type === 'boss') onBossDefeated();
-      else onMonsterDefeated();
+      if (D.combat.monster.isBoss) onBossDefeated();
+      else onMonsterDefeated(D.combat.roomIdx);
     } else if (c && (c.hp_current || c.hp || 100) <= 0) {
       onPlayerDeath();
     } else {
@@ -613,7 +587,7 @@
     }
   }
 
-  function tryRun() {
+  function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
       log(`💨 Escaped successfully!`, 'log-success');
       D.combat = null;
@@ -634,13 +608,36 @@
     }
   }
 
-  function onMonsterDefeated() {
-    const room = D.rooms[D.combat.roomIdx];
+  function tryStealFromPlayer(roomIdx) {
+    const c = getChar();
+    if (!c || !c.inventory || c.inventory.length === 0) return;
+    const invItems = c.inventory.filter(i => !i.equipped);
+    if (invItems.length === 0) return;
+    const stolen = invItems[rand(0, invItems.length-1)];
+    c.inventory = c.inventory.filter(i => i !== stolen);
+    D.rooms[roomIdx].monster.stolenItems.push(stolen);
+    log(`💰 ${D.combat.monster.name} stole your ${stolen.name}!`, 'log-danger');
+  }
+
+  function onMonsterDefeated(roomIdx) {
+    const room = D.rooms[roomIdx];
     room.monster.lastKilled = Date.now();
-    
-    const loot = rollMinorLoot();
+
+    let recovered = [];
+    if (room.monster.stolenItems && room.monster.stolenItems.length > 0) {
+      recovered = room.monster.stolenItems;
+      const c = getChar();
+      if (c) {
+        if (!c.inventory) c.inventory = [];
+        c.inventory.push(...recovered);
+      }
+      room.monster.stolenItems = [];
+      log(`🎒 Recovered stolen items: ${recovered.map(i=>i.name).join(', ')}!`, 'log-success');
+    }
+
+    const loot = rollMinorLoot(D.activeDungeon);
     applyLoot(loot);
-    
+
     log(`✅ ${room.monster.name} defeated!`, 'log-success');
     D.combat = null;
     saveState();
@@ -648,61 +645,18 @@
     renderDungeonView();
   }
 
-  function onBossDefeated() {
-    const boss = D.rooms[D.combat.roomIdx].monster;
-    const loot = rollBossLoot(boss);
-    
-    log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
-    log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | 📜 Premium ${loot.premiumItem.days} days`, 'log-success');
-    
-    const c = getChar();
-    if (c) {
-      c.gold = (c.gold||0) + loot.gold;
-      c.gems = (c.gems||0) + loot.gems;
-      if (!c.inventory) c.inventory = [];
-      c.inventory.push(loot.premiumItem);
-    }
-    
-    D.bossDefeated = true;
-    D.rooms[D.combat.roomIdx].type = 'boss_cleared';
-    D.rooms[D.combat.roomIdx].monster = null;
-    D.rooms[D.combat.roomIdx].image = DUNGEON_IMAGES.boss_cleared;
-    D.rooms[D.combat.roomIdx].description = ROOM_DESCRIPTIONS.boss_cleared[Math.floor(Math.random() * ROOM_DESCRIPTIONS.boss_cleared.length)];
-    
-    if (D.floor === 5 && !D.blacksmithUnlocked) {
-      D.blacksmithUnlocked = true;
-      log('🔨 A traveling blacksmith has arrived!', 'log-success');
-    }
-    
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-    renderDungeonView();
-  }
-
-  function goToNextFloor() {
-    D.floor++;
-    if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
-    D.bossDefeated = false;
-    D.rooms = generateFloor(D.floor, false);
-    D.playerPos = 0;
-    D.exploredRooms = new Set([0]);
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-    
-    log(`⬆️ Ascending to Floor ${D.floor}...`, 'log-enter');
-    renderDungeonView();
-  }
-
   function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
+    const c = getChar();
+    if (c && c.hp_current !== undefined) {
+      c.hp = c.hp_current;
+    }
+    
     D.savedProgress['tower'] = {
       floor: D.floor,
       pos: D.playerPos,
       rooms: D.rooms,
-      exploredRooms: [...D.exploredRooms],
-      bossDefeated: D.bossDefeated,
+      explored: [...D.exploredRooms],
     };
     D.combat = null;
     D.activeDungeon = null;
@@ -711,9 +665,9 @@
     setTimeout(() => renderDungeonList(), 1500);
   }
 
-  async function fightBoss() {
-    const room = D.rooms[D.playerPos];
-    if (room.type !== 'boss' || !room.monster) return;
+  async function fightBoss(roomIdx) {
+    const room = D.rooms[roomIdx];
+    if (!room || !room.isBoss) return;
     
     const success = await spendTokens(TOKENS_PER_RUN);
     if (!success) {
@@ -721,60 +675,126 @@
       return;
     }
     
+    const _def = getDungeonDef();
+    const boss = _def.boss;
+
     D.combat = {
-      roomIdx: D.playerPos,
-      monster: { ...room.monster },
-      playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
+      roomIdx,
+      monster: {
+        ...boss,
+        currentHp: boss.hp,
+        maxHp: boss.hp,
+        stolenItems: [],
+        isBoss: true,
+      },
       roundLog: [],
     };
     renderCombatPanel();
   }
 
-  // ── Render Functions ─────────────────────────────────────────────────
-  function renderDungeonTab() {
-    const container = document.getElementById('tab-dungeon');
-    if (!container) return;
-    loadState();
-    
-    if (character) {
-      loadDungeonDataFromDB();
+  function onBossDefeated() {
+    const dungeonDef = getDungeonDef(D.activeDungeon);
+    const boss = dungeonDef.boss;
+    const loot = rollBossLoot(boss);
+
+    log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
+    log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | 📜 Premium ${loot.premiumItem.days} days`, 'log-success');
+
+    const c = getChar();
+    if (c) {
+      c.gold = (c.gold||0) + loot.gold;
+      c.gems = (c.gems||0) + loot.gems;
+      if (!c.inventory) c.inventory = [];
+      c.inventory.push(loot.premiumItem);
     }
+
+    D.floor++;
+    if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
+    
+    apiFetch('POST', '/game/dungeon/boss-defeated', {
+      newFloor: D.floor,
+      highestFloor: D.highestFloor,
+      tokens: D.tokens,
+      loot: loot
+    }).catch(e => console.error('Failed to save boss defeat:', e));
+    
+    delete D.savedProgress['tower'];
+    D.rooms = generateFloor(D.activeDungeon, D.floor);
+    D.playerPos = D.rooms.findIndex(r => r.isStart);
+    D.exploredRooms = new Set([D.playerPos]);
+    D.combat = null;
+    saveState();
+    saveProgressToDB();
+
+    showBossVictoryModal(boss, loot);
+  }
+
+  function applyLoot(loot) {
+    const c = getChar();
+    if (!c) return;
+    if (loot.type === 'gold') {
+      c.gold = (c.gold||0) + loot.amount;
+      log(`💰 Found ${loot.amount} gold`, 'log-loot');
+    } else if (loot.type === 'potion_hp') {
+      if (!c.inventory) c.inventory = [];
+      c.inventory.push({ name: loot.name, icon: loot.icon, type:'consumable', heal: loot.heal, rarity:'common' });
+      log(`🧪 Found ${loot.name}`, 'log-loot');
+    } else if (loot.type === 'potion_mp') {
+      if (!c.inventory) c.inventory = [];
+      c.inventory.push({ name: loot.name, icon: loot.icon, type:'consumable', mp: loot.mp, rarity:'common' });
+      log(`💧 Found ${loot.name}`, 'log-loot');
+    } else if (loot.type === 'item') {
+      if (!c.inventory) c.inventory = [];
+      c.inventory.push(loot.item);
+      log(`📦 Found ${loot.item.icon} ${loot.item.name}`, 'log-loot');
+    }
+  }
+
+function renderDungeonTab() {
+  const container = document.getElementById('tab-dungeon');
+  if (!container) return;
+  loadState(); // Load local state first
+  
+  // Only load from DB if we have a character
+  if (character) {
+    loadDungeonDataFromDB();
+  }
 
     container.innerHTML = `
       <div class="dungeon-wrapper">
         <div class="dungeon-topbar">
           <div class="dungeon-title-wrap">
-            <span class="dungeon-title-icon">🗼</span>
+            <span class="dungeon-title-icon">⚔️</span>
             <div>
-              <div class="dungeon-title-text">Endless Tower</div>
-              <div class="dungeon-title-sub">Ascend through darkness. Claim your glory.</div>
+              <div class="dungeon-title-text">Dungeon Raids</div>
+              <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
             </div>
           </div>
           <div class="dungeon-token-wrap">
             <div class="dungeon-token-pill">
               <span class="dungeon-token-icon">🗝️</span>
-              <span>Boss Tokens:</span>
+              <span>Boss Clearance Tokens:</span>
               <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
             </div>
-            <div class="dungeon-token-hint">20 MP = 1 Token · ${TOKENS_PER_RUN} per boss</div>
+            <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss attempt</div>
           </div>
         </div>
         <div id="dungeon-main-area"></div>
         <div id="dungeon-log-panel" class="dungeon-log-panel">
-          <div class="dungeon-log-title">📜 Journal</div>
+          <div class="dungeon-log-title">📜 Dungeon Log</div>
           <div id="dungeon-log-entries"></div>
         </div>
       </div>
     `;
 
-    if (D.activeDungeon) {
-      if (D.combat) renderCombatPanel();
-      else renderDungeonView();
-    } else {
-      renderDungeonList();
-    }
-    renderLog();
+  if (D.activeDungeon) {
+    if (D.combat) renderCombatPanel();
+    else renderDungeonView();
+  } else {
+    renderDungeonList();
   }
+  renderLog();
+}
 
   function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
@@ -788,6 +808,18 @@
     const nextTheme = getFloorTheme(curFloor);
     const nextLoot  = nextBoss.loot;
 
+    const previewFloors = [0,1,2,3,4].map(offset => {
+      const fl = curFloor + offset;
+      const boss = getBossForFloor(fl);
+      const t = getFloorTheme(fl);
+      return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
+        <div style="font-size:0.62rem;color:var(--dungeon-muted)">Floor ${fl}</div>
+        <div style="font-size:1.4rem">${boss.icon}</div>
+        <div style="font-size:0.62rem;color:#e2e8f0;text-align:center;line-height:1.3">${boss.name.split(' ').slice(0,2).join(' ')}</div>
+        <div style="font-size:0.6rem;color:var(--dungeon-muted)">❤️${boss.hp}</div>
+      </div>`;
+    }).join('');
+
     area.innerHTML = `
       <div class="dungeon-tower-entry" style="--dtheme:${nextTheme.theme};--dglow:${nextTheme.themeGlow}">
         <div class="dungeon-tower-top">
@@ -795,132 +827,248 @@
           <div class="dungeon-tower-info">
             <div class="dungeon-card-name">The Endless Tower</div>
             <div class="dungeon-card-desc">An infinite tower of darkness. Clear each floor to ascend. Bosses grow stronger forever.</div>
-            <div class="dungeon-card-meta">
-              <span>🏆 Best: Floor ${highFloor}</span>
-              <span>🗝️ ${D.tokens} tokens</span>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.78rem;color:var(--dungeon-muted)">
+              <span>🏆 Your best: <strong style="color:var(--dungeon-text)">Floor ${highFloor}</strong></span>
+              <span>🗝️ <strong style="color:var(--dungeon-token)">${D.tokens}</strong> tokens · ${TOKENS_PER_RUN} per boss</span>
               ${hasSave ? `<span class="dungeon-save-badge">📌 Saved on Floor ${curFloor}</span>` : ''}
-              ${D.blacksmithUnlocked ? `<span class="dungeon-save-badge" style="background:rgba(241,196,15,0.1);color:var(--dungeon-gold)">🔨 Blacksmith Available</span>` : ''}
             </div>
           </div>
         </div>
+
         <div class="dungeon-tower-next">
-          <div class="next-boss-label">Next Boss — Floor ${curFloor}</div>
-          <div class="next-boss-content">
-            <div class="next-boss-icon">${nextBoss.icon}</div>
-            <div class="next-boss-info">
-              <div class="next-boss-name">${nextBoss.name}</div>
-              <div class="next-boss-stats">❤️ ${nextBoss.hp} · ⚔️ ${nextBoss.atk} · 🛡️ ${nextBoss.def}</div>
-              <div class="next-boss-drops">💎 ${nextLoot.gems[0]}–${nextLoot.gems[1]} gems · 📜 Premium Scroll</div>
+          <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">
+            Next boss — Floor ${curFloor}
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="font-size:2.5rem">${nextBoss.icon}</div>
+            <div>
+              <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
+              <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
+                ❤️ ${nextBoss.hp} HP · ⚔️ ${nextBoss.atk} ATK · 🛡️ ${nextBoss.def} DEF
+              </div>
+              <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
+                Drops: 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · 📜${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]}d Premium
+              </div>
             </div>
           </div>
         </div>
-        <button class="dungeon-btn dungeon-btn-enter" onclick="dungeonEnter('tower')">
-          ${hasSave ? '🔮 Resume Delve' : '⚔️ Begin the Ascent'}
+
+        <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
+                onclick="dungeonEnter('tower')">
+          ${hasSave ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
         </button>
+      </div>
+
+      <div class="dungeon-floor-history">
+        <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 Upcoming floors</div>
+        <div class="dungeon-floor-preview-row">${previewFloors}</div>
       </div>
     `;
   }
 
-  function renderDungeonView() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area) return;
-    if (!D.rooms || D.rooms.length === 0) {
-      area.innerHTML = '<div class="error">Dungeon not generated. Please re-enter.</div>';
+function renderDungeonView() {
+  const area = document.getElementById('dungeon-main-area');
+  if (!area) return;
+  
+  // Safety checks
+  if (!D.rooms || D.rooms.length === 0) {
+    console.error('No rooms generated');
+    area.innerHTML = '<div class="error">Dungeon not generated. Please re-enter.</div>';
+    return;
+  }
+  
+  if (!D.rooms[D.playerPos]) {
+    console.error('Invalid player position:', D.playerPos, 'Rooms:', D.rooms.length);
+    const startIndex = D.rooms.findIndex(r => r.isStart);
+    if (startIndex !== -1) {
+      D.playerPos = startIndex;
+    } else {
+      area.innerHTML = '<div class="error">Invalid dungeon state. Please re-enter.</div>';
       return;
     }
-    
-    const room = D.rooms[D.playerPos];
-    if (!room) return;
-    
-    const def = getDungeonDef(D.activeDungeon);
-    const floorTheme = getFloorTheme(D.floor);
-    const hasNextRoom = D.playerPos + 1 < D.rooms.length;
-    const hasMonster = room.monster && (!room.monster.lastKilled || Date.now() >= room.monster.lastKilled + MONSTER_RESPAWN_MS);
-    const isBossRoom = room.type === 'boss';
-    const isBossCleared = room.type === 'boss_cleared';
-    const isTreasure = room.type === 'treasure';
-    const isStart = room.type === 'start';
-    
-    area.innerHTML = `
-      <div class="dungeon-view" style="--dtheme:${floorTheme.theme};--dglow:${floorTheme.themeGlow}">
-        <div class="dungeon-header">
-          <div class="dungeon-floor-info">
-            <span class="dungeon-floor-badge">Floor ${D.floor}</span>
-            <span class="dungeon-room-type">${isBossRoom ? 'BOSS CHAMBER' : isBossCleared ? 'CLEARED' : isTreasure ? 'TREASURE' : isStart ? 'ENTRANCE' : 'CHAMBER'}</span>
+  }
+  
+  const def = getDungeonDef(D.activeDungeon);
+  if (!def) return;
+
+  const currentRoom = D.rooms[D.playerPos];
+
+  area.innerHTML = `
+    <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+
+      <div class="dungeon-active-header">
+        <div class="dungeon-active-name">${def.icon} ${def.name}</div>
+        <div class="dungeon-active-floor">Floor ${D.floor}</div>
+        <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">⬅ Exit (Save Progress)</button>
+      </div>
+
+      ${currentRoom.visual && currentRoom.visual.image ? `
+      <div class="dungeon-image-container" style="margin: 12px 16px;">
+        <img class="dungeon-scene-image" src="${currentRoom.visual.image}" alt="Dungeon Scene" style="width:100%;height:180px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">
+      </div>
+      ` : ''}
+      
+      ${currentRoom.visual && currentRoom.visual.description ? `
+      <div class="dungeon-description" style="margin: 0 16px 12px 16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+        <p style="margin:0; font-style:italic; color:var(--dungeon-text);">${currentRoom.visual.description}</p>
+      </div>
+      ` : ''}
+
+      <div class="dungeon-travel-bar-wrap">
+        <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
+      </div>
+
+      <div class="dungeon-content-row">
+        <div class="dungeon-map-wrap">
+          <div class="dungeon-map-label">📍 Dungeon Map</div>
+          <div id="dungeon-map-grid" class="dungeon-map-grid">
+            ${renderMapGrid()}
           </div>
-          <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">Exit</button>
         </div>
-        
-        <div class="dungeon-image-container">
-          <img class="dungeon-scene-image" src="${room.image}" alt="Dungeon Scene" onerror="this.style.display='none'">
-          <div class="dungeon-image-overlay"></div>
+
+        <div class="dungeon-room-panel">
+          <div class="dungeon-room-header">
+            ${currentRoom.isBoss ? `<span class="dungeon-room-type boss-room-badge">⚠️ BOSS ROOM</span>` :
+              currentRoom.isStart ? `<span class="dungeon-room-type start-room-badge">🚪 Entrance</span>` :
+              currentRoom.type === 'treasure' ? `<span class="dungeon-room-type treasure-room-badge">💰 Treasure Room</span>` :
+              `<span class="dungeon-room-type">🏚️ Corridor</span>`
+            }
+            <span class="dungeon-room-id">Room ${D.playerPos + 1}</span>
+          </div>
+
+          ${renderRoomInfo(currentRoom)}
+
+          <div class="dungeon-connections">
+            <div class="dungeon-conn-label">Passages:</div>
+            ${currentRoom.connections.map(ci => {
+              const cr = D.rooms[ci];
+              const explored = D.exploredRooms.has(ci);
+              const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
+              return `
+                <button class="dungeon-conn-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
+                        onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
+                  ${explored
+                    ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
+                    : '❓ Unknown Room'
+                  }
+                </button>
+              `;
+            }).join('')}
+          </div>
         </div>
-        
-        <div class="dungeon-description">
-          <p>${room.description}</p>
+      </div>
+    </div>
+  `;
+}
+
+  function renderMapGrid() {
+    const grid = {};
+    for (let i = 0; i < D.rooms.length; i++) {
+      const r = D.rooms[i];
+      grid[`${r.x},${r.y}`] = i;
+    }
+
+    const xs = D.rooms.map(r=>r.x), ys = D.rooms.map(r=>r.y);
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+
+    let html = `<div class="dungeon-grid-inner" style="grid-template-columns:repeat(${maxX-minX+1},1fr);grid-template-rows:repeat(${maxY-minY+1},1fr)">`;
+
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        const key = `${x},${y}`;
+        if (grid[key] !== undefined) {
+          const idx = grid[key];
+          const room = D.rooms[idx];
+          const isPlayer = idx === D.playerPos;
+          const explored = D.exploredRooms.has(idx);
+          const monsterAlive = room.monster && (!room.monster.lastKilled || !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
+
+          let roomClass = 'map-room';
+          if (!explored) roomClass += ' map-room-fog';
+          else if (isPlayer) roomClass += ' map-room-player';
+          else if (room.isBoss) roomClass += ' map-room-boss';
+          else if (room.type === 'treasure') roomClass += ' map-room-treasure';
+          else if (monsterAlive) roomClass += ' map-room-monster';
+          else roomClass += ' map-room-clear';
+
+          html += `<div class="${roomClass}" title="${explored ? (room.isBoss ? 'BOSS' : `Room ${idx+1}`) : '???'}">
+            ${explored ? (isPlayer ? '🧙' : room.isBoss ? '💀' : room.type==='treasure' ? '💎' : monsterAlive ? '👹' : '✓') : ''}
+          </div>`;
+        } else {
+          html += `<div class="map-void"></div>`;
+        }
+      }
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderRoomInfo(room) {
+    const monsterAlive = room.monster && (!room.monster.lastKilled || !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
+    const monsterRespawning = room.monster && room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H);
+
+    if (room.isBoss) {
+      const def = getDungeonDef(D.activeDungeon);
+      const boss = def.boss;
+      return `
+        <div class="dungeon-boss-room">
+          <div class="boss-icon-big">${boss.icon}</div>
+          <div class="boss-name-big">${boss.name}</div>
+          <div class="boss-stats">
+            ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
+          </div>
+          <div class="boss-drop-preview">
+            Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} · 📜${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]}d Premium
+          </div>
+          <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
+            ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
+          </button>
         </div>
-        
-        <div class="dungeon-travel-bar-wrap">
-          <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
+      `;
+    }
+
+    if (monsterAlive) {
+      const m = room.monster;
+      const hpPct = Math.round(m.currentHp / m.maxHp * 100);
+      return `
+        <div class="dungeon-room-monster">
+          <div class="monster-icon">${m.icon}</div>
+          <div class="monster-info">
+            <div class="monster-name">${m.name}</div>
+            <div class="monster-hp-bar-wrap">
+              <div class="monster-hp-bar" style="width:${hpPct}%"></div>
+            </div>
+            <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def} ${m.steal?'· 🎒 Can steal':''}</div>
+          </div>
+          <div class="monster-btns">
+            <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight</button>
+            <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun(${room.id})">💨 Run (75%)</button>
+          </div>
+          ${m.stolenItems.length > 0 ? `
+            <div class="stolen-items-notice">
+              🎒 Carrying your stolen items: ${m.stolenItems.map(i=>i.name).join(', ')}
+            </div>` : ''}
         </div>
-        
-        <div class="dungeon-actions">
-          ${hasMonster ? `
-            <div class="monster-preview">
-              <div class="monster-preview-icon">${room.monster.icon}</div>
-              <div class="monster-preview-info">
-                <div class="monster-preview-name">${room.monster.name}</div>
-                <div class="monster-preview-stats">❤️ ${room.monster.currentHp}/${room.monster.maxHp} HP · ⚔️ ${room.monster.atk} ATK</div>
-              </div>
-              <div class="monster-preview-buttons">
-                <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight()">⚔️ Fight</button>
-                <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun()">💨 Run (75%)</button>
-              </div>
-            </div>
-          ` : isBossRoom ? `
-            <div class="boss-preview">
-              <div class="boss-preview-icon">${room.monster.icon}</div>
-              <div class="boss-preview-info">
-                <div class="boss-preview-name">${room.monster.name}</div>
-                <div class="boss-preview-stats">❤️ ${room.monster.hp} HP · ⚔️ ${room.monster.atk} ATK · 🛡️ ${room.monster.def} DEF</div>
-                <div class="boss-preview-loot">Drops: 💎 ${room.monster.loot.gems[0]}–${room.monster.loot.gems[1]} gems · 📜 Premium Scroll</div>
-              </div>
-              <button class="dungeon-btn dungeon-btn-boss" onclick="dungeonFightBoss()">
-                ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens)
-              </button>
-            </div>
-          ` : isBossCleared ? `
-            <div class="cleared-preview">
-              <div class="cleared-icon">🏆</div>
-              <div class="cleared-text">The boss has been defeated.</div>
-              ${hasNextRoom ? `<button class="dungeon-btn dungeon-btn-stairs" onclick="goToNextFloor()">⬆️ Ascend to Floor ${D.floor + 1}</button>` : ''}
-            </div>
-          ` : isTreasure && room.looted ? `
-            <div class="treasure-preview">
-              <div class="treasure-icon">💰</div>
-              <div class="treasure-text">You've already looted this treasure room.</div>
-            </div>
-          ` : null}
-          
-          ${hasNextRoom && !isBossRoom && !isBossCleared ? `
-            <div class="dungeon-directions">
-              <button class="dungeon-direction-btn" onclick="travelToRoom(${D.playerPos + 1})" ${D.isTraveling ? 'disabled' : ''}>
-                ➡️ Continue Forward
-              </button>
-            </div>
-          ` : isBossCleared && hasNextRoom ? `
-            <div class="dungeon-directions">
-              <button class="dungeon-direction-btn" onclick="travelToRoom(${D.playerPos + 1})" ${D.isTraveling ? 'disabled' : ''}>
-                ➡️ Continue to Next Area
-              </button>
-            </div>
-          ` : null}
-          
-          ${D.blacksmithUnlocked && !hasMonster && !isBossRoom && !isStart && D.playerPos > 0 ? `
-            <button class="dungeon-btn dungeon-btn-blacksmith" onclick="openBlacksmith()">
-              🔨 Visit Blacksmith
-            </button>
-          ` : ''}
+      `;
+    }
+
+    if (monsterRespawning) {
+      const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monster.lastKilled) / 3600000).toFixed(1);
+      return `
+        <div class="dungeon-room-clear">
+          <div style="color:var(--dungeon-muted);font-size:0.9rem">💤 Monster respawns in ${hoursLeft}h</div>
+          ${room.type === 'treasure' ? '<div style="color:#f1c40f;margin-top:8px">💰 Treasure already looted</div>' : ''}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="dungeon-room-clear">
+        <div style="color:var(--dungeon-muted)">
+          ${room.isStart ? '🚪 Dungeon Entrance — choose a path to explore.' :
+            room.type === 'treasure' ? (room.looted ? '💰 Treasure already collected.' : '✨ Peaceful chamber. Treasure collected!') :
+            '🏚️ Empty corridor. All clear.'}
         </div>
       </div>
     `;
@@ -934,31 +1082,30 @@
     const pStats = calcPlayerStats();
     const hpPct = Math.round(m.currentHp / m.maxHp * 100);
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
-    const floorTheme = getFloorTheme(D.floor);
 
     const roundEntries = D.combat.roundLog.slice(-10).reverse().map(e =>
       `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
     ).join('');
 
     area.innerHTML = `
-      <div class="dungeon-combat-panel" style="--dtheme:${floorTheme.theme};--dglow:${floorTheme.themeGlow}">
+      <div class="dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
         <div class="combat-header">
-          ${m.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE ⚠️</div>` : ''}
+          ${m.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
           <div class="combat-title">⚔️ Combat: ${m.name}</div>
         </div>
-        
+
         <div class="combat-fighters">
           <div class="combat-fighter player-fighter">
             <div class="fighter-icon">🧙</div>
-            <div class="fighter-name">${getChar()?.name || 'You'}</div>
+            <div class="fighter-name">You</div>
             <div class="fighter-hp-bar-wrap">
               <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
             </div>
             <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
           </div>
-          
+
           <div class="combat-vs">VS</div>
-          
+
           <div class="combat-fighter monster-fighter">
             <div class="fighter-icon">${m.icon}</div>
             <div class="fighter-name">${m.name}</div>
@@ -968,78 +1115,13 @@
             <div class="fighter-stats">${m.currentHp} / ${m.maxHp} HP</div>
           </div>
         </div>
-        
-        <div class="combat-log">${roundEntries || '<div class="combat-log-entry">Battle begins...</div>'}</div>
-        
+
+        <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
+
         <div class="combat-actions">
           <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
           ${!m.isBoss ? `<button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>` : ''}
         </div>
-      </div>
-    `;
-  }
-
-  function renderBlacksmith() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area) return;
-    const floorTheme = getFloorTheme(D.floor);
-    
-    area.innerHTML = `
-      <div class="dungeon-blacksmith" style="--dtheme:${floorTheme.theme};--dglow:${floorTheme.themeGlow}">
-        <div class="blacksmith-header">
-          <span class="blacksmith-icon">🔨</span>
-          <div>
-            <div class="blacksmith-title">Dungeon Blacksmith</div>
-            <div class="blacksmith-desc">Trade your dungeon materials for powerful items</div>
-          </div>
-          <button class="dungeon-btn dungeon-btn-exit" onclick="closeBlacksmith()">← Back</button>
-        </div>
-        
-        <div class="blacksmith-inventory">
-          <div class="inventory-title">📦 Dungeon Materials</div>
-          <div class="materials-grid">
-            ${D.dungeonInventory.length === 0 ? '<div class="empty-mats">No materials yet. Defeat monsters to find them!</div>' :
-              D.dungeonInventory.map(mat => `
-                <div class="material-card">
-                  <div class="material-icon">${mat.icon}</div>
-                  <div class="material-info">
-                    <div class="material-name">${mat.name}</div>
-                    <div class="material-desc">${mat.desc}</div>
-                    <div class="material-qty">x${mat.qty}</div>
-                  </div>
-                </div>
-              `).join('')}
-          </div>
-        </div>
-        
-        <div class="blacksmith-recipes">
-          <div class="recipes-title">⚒️ Crafting Recipes</div>
-          <div class="recipes-grid">
-            ${DUNGEON_RECIPES.map(recipe => {
-              const canCraft = canCraftRecipe(recipe);
-              const materialsNeeded = Object.entries(recipe.materials).map(([id, qty]) => {
-                const mat = DUNGEON_MATERIALS.find(m => m.id === id);
-                const have = D.dungeonInventory.find(i => i.id === id)?.qty || 0;
-                return `<span class="material-needed ${have >= qty ? 'has' : 'needs'}">${mat?.icon || '📦'} ${qty}x ${mat?.name || id}</span>`;
-              }).join(' + ');
-              
-              return `
-                <div class="recipe-card ${canCraft ? 'craftable' : 'uncraftable'}">
-                  <div class="recipe-icon">${recipe.icon}</div>
-                  <div class="recipe-info">
-                    <div class="recipe-name">${recipe.name}</div>
-                    <div class="recipe-materials">${materialsNeeded}</div>
-                    <button class="craft-btn" onclick="craftRecipeFromBlacksmith('${recipe.id}')" ${!canCraft ? 'disabled' : ''}>
-                      ${canCraft ? '🔨 Craft' : '❌ Missing Materials'}
-                    </button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        </div>
-        
-        <button class="dungeon-btn" onclick="continueDungeon()" style="width:100%;margin-top:16px">Continue Exploring</button>
       </div>
     `;
   }
@@ -1050,43 +1132,6 @@
     el.innerHTML = D.dungeonLog.slice(0, 20).map(e =>
       `<div class="dungeon-log-entry ${e.cls||''}">${e.msg}</div>`
     ).join('');
-  }
-
-  function openBlacksmith() {
-    renderBlacksmith();
-  }
-
-  function closeBlacksmith() {
-    renderDungeonView();
-  }
-
-  function continueDungeon() {
-    renderDungeonView();
-  }
-
-  function craftRecipeFromBlacksmith(recipeId) {
-    const recipe = DUNGEON_RECIPES.find(r => r.id === recipeId);
-    if (!recipe) return;
-    if (!canCraftRecipe(recipe)) {
-      log('Missing materials!', 'log-danger');
-      return;
-    }
-    
-    for (const [materialId, qty] of Object.entries(recipe.materials)) {
-      removeDungeonMaterial(materialId, qty);
-    }
-    
-    const c = getChar();
-    if (c) {
-      if (!c.inventory) c.inventory = [];
-      const resultItem = { ...recipe.result, qty: 1 };
-      c.inventory.push(resultItem);
-      log(`🔨 Crafted: ${recipe.result.name}!`, 'log-success');
-    }
-    
-    saveState();
-    renderBlacksmith();
-    refreshCharacter();
   }
 
   function showBossVictoryModal(boss, loot) {
@@ -1106,39 +1151,16 @@
         <div class="victory-loot">
           <div class="loot-row">💰 <strong>${loot.gold}</strong> Gold</div>
           <div class="loot-row">💎 <strong>${loot.gems}</strong> Gems</div>
-          <div class="loot-row">📜 <strong>${loot.premiumItem.days} days</strong> Premium</div>
+          <div class="loot-row">📜 <strong>${loot.premiumItem.days} days</strong> Premium Activation</div>
         </div>
         <div class="victory-next">Advancing to Floor ${D.floor}...</div>
-        <button class="btn-primary" onclick="closeDungeonVictory()">Continue</button>
+        <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeDungeonVictory()">Continue Delving</button>
       </div>
     `;
   }
 
-  function closeDungeonVictory() {
-    const m = document.getElementById('dungeon-boss-modal');
-    if (m) m.classList.add('hidden');
-    renderDungeonView();
-  }
-
-  function dungeonExit() {
-    if (D.activeDungeon) {
-      D.savedProgress[D.activeDungeon] = {
-        floor: D.floor,
-        pos: D.playerPos,
-        rooms: D.rooms,
-        exploredRooms: [...D.exploredRooms],
-        bossDefeated: D.bossDefeated,
-      };
-    }
-    D.activeDungeon = null;
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-    renderDungeonList();
-  }
-
   function updateTravelBtn(idx, disabled) {
-    const btns = document.querySelectorAll('.dungeon-direction-btn, .dungeon-conn-btn');
+    const btns = document.querySelectorAll('.dungeon-conn-btn');
     btns.forEach(b => b.disabled = disabled);
   }
 
@@ -1152,28 +1174,47 @@
     document.head.appendChild(link);
   }
 
-  // ── Global API ────────────────────────────────────────────
-  global.dungeonEnter = enterDungeon;
-  global.dungeonTravel = travelToRoom;
-  global.dungeonFight = initiateFight;
-  global.dungeonRun = tryRun;
-  global.dungeonAttack = fightRound;
-  global.dungeonRunCombat = tryRun;
-  global.dungeonFightBoss = fightBoss;
-  global.goToNextFloor = goToNextFloor;
-  global.dungeonExit = dungeonExit;
-  global.closeDungeonVictory = closeDungeonVictory;
-  global.openBlacksmith = openBlacksmith;
-  global.closeBlacksmith = closeBlacksmith;
-  global.continueDungeon = continueDungeon;
-  global.craftRecipeFromBlacksmith = craftRecipeFromBlacksmith;
-  global.renderDungeonTab = function() {
-    renderDungeonTab();
-    if (character) loadDungeonDataFromDB();
+  // ── Global API (called from HTML onclick) ──────────────────
+  global.dungeonEnter        = enterDungeon;
+  global.dungeonTravel       = travelToRoom;
+  global.dungeonFight        = initiateFight;
+  global.dungeonRun          = (roomIdx) => {
+    D.combat = { roomIdx, monster: { ...D.rooms[roomIdx].monster }, roundLog: [] };
+    tryRun(roomIdx);
   };
+  global.dungeonAttack       = fightRound;
+  global.dungeonRunCombat    = () => { if(D.combat) tryRun(D.combat.roomIdx); };
+  global.dungeonFightBoss    = fightBoss;
+  global.dungeonExit         = () => {
+    if (D.activeDungeon) {
+      D.savedProgress[D.activeDungeon] = {
+        floor: D.floor, pos: D.playerPos,
+        rooms: D.rooms, explored: [...D.exploredRooms],
+      };
+    }
+    D.activeDungeon = null;
+    D.combat = null;
+    saveState();
+    saveProgressToDB();
+    renderDungeonList();
+  };
+  global.closeDungeonVictory = () => {
+    const m = document.getElementById('dungeon-boss-modal');
+    if (m) m.classList.add('hidden');
+    renderDungeonView();
+  };
+  global.renderDungeonTab    = renderDungeonTab;
 
   // ── Init ───────────────────────────────────────────────────
   loadCSS();
   loadState();
+
+  global.renderDungeonTab = function() {
+  renderDungeonTab();
+  // Load fresh data when tab is opened
+  if (character) {
+    loadDungeonDataFromDB();
+  }
+};
 
 })(window);
