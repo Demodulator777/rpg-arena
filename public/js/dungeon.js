@@ -1012,11 +1012,15 @@ function fightRound() {
     area.innerHTML = `
       <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
 
-        <div class="dungeon-active-header">
-          <div class="dungeon-active-name">${def.icon} ${def.name}</div>
-          <div class="dungeon-active-floor">Floor ${D.floor}</div>
-          <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">⬅ Exit (Save Progress)</button>
-        </div>
+// In renderDungeonView, add the Guild button to the header:
+<div class="dungeon-active-header">
+  <div class="dungeon-active-name">${def.icon} ${def.name}</div>
+  <div class="dungeon-active-floor">Floor ${D.floor}</div>
+  <div style="display: flex; gap: 8px;">
+    <button class="dungeon-btn" onclick="openGuild()">🏛️ Guild</button>
+    <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">Exit</button>
+  </div>
+</div>
 
         ${roomImage ? `
         <div class="dungeon-image-container" style="margin: 12px 16px;">
@@ -1297,6 +1301,135 @@ function fightRound() {
     if (m) m.classList.add('hidden');
     renderDungeonView();
   }
+
+  function renderGuild() {
+  const area = document.getElementById('dungeon-main-area');
+  if (!area) return;
+  
+  // Get current guild data
+  apiFetch('GET', '/dungeon/guild').then(guildData => {
+    const reputation = guildData.guildReputation || 0;
+    const dungeonGold = guildData.dungeonGold || 0;
+    
+    // Calculate current rank
+    let currentRank = GUILD_RANKS[0];
+    for (let i = GUILD_RANKS.length - 1; i >= 0; i--) {
+      if (reputation >= GUILD_RANKS[i].reputationNeeded) {
+        currentRank = GUILD_RANKS[i];
+        break;
+      }
+    }
+    
+    const nextRank = GUILD_RANKS[Math.min(currentRank.rank + 1, GUILD_RANKS.length - 1)];
+    const repNeeded = nextRank.reputationNeeded - reputation;
+    const repProgress = nextRank.rank > currentRank.rank ? (reputation / nextRank.reputationNeeded) * 100 : 100;
+    
+    area.innerHTML = `
+      <div class="guild-container">
+        <div class="guild-header">
+          <span class="guild-icon">🏛️</span>
+          <div>
+            <div class="guild-title">Adventurer's Guild</div>
+            <div class="guild-subtitle">Exchange dungeon spoils for real rewards</div>
+          </div>
+          <button class="dungeon-btn dungeon-btn-exit" onclick="closeGuild()">← Back to Dungeon</button>
+        </div>
+        
+        <div class="guild-stats">
+          <div class="guild-stat-card">
+            <div class="guild-stat-icon">💰</div>
+            <div class="guild-stat-info">
+              <div class="guild-stat-label">Dungeon Gold</div>
+              <div class="guild-stat-value">${dungeonGold.toLocaleString()}</div>
+            </div>
+          </div>
+          <div class="guild-stat-card">
+            <div class="guild-stat-icon">⭐</div>
+            <div class="guild-stat-info">
+              <div class="guild-stat-label">Reputation</div>
+              <div class="guild-stat-value">${reputation}</div>
+              <div class="guild-stat-rank">${currentRank.name}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="guild-reputation-bar">
+          <div class="rep-bar-label">Progress to ${nextRank.name}</div>
+          <div class="rep-bar-track">
+            <div class="rep-bar-fill" style="width: ${repProgress}%"></div>
+          </div>
+          <div class="rep-bar-text">${repNeeded > 0 ? repNeeded + ' reputation needed' : 'MAX RANK'}</div>
+        </div>
+        
+        <div class="guild-exchanges">
+          <div class="guild-section-title">📜 Available Exchanges</div>
+          <div class="exchanges-grid">
+            ${GUILD_EXCHANGES.map(exchange => {
+              const hasDungeonGold = !exchange.cost.dungeonGold || dungeonGold >= exchange.cost.dungeonGold;
+              const hasMaterials = exchange.cost.crypt_dust ? (D.dungeonInventory.find(i => i.id === 'crypt_dust')?.qty || 0) >= exchange.cost.crypt_dust : true;
+              const canExchange = hasDungeonGold && hasMaterials;
+              const discount = currentRank.discount / 100;
+              const discountedGold = exchange.reward.gold ? Math.floor(exchange.reward.gold * (1 + discount)) : exchange.reward.gold;
+              
+              return `
+                <div class="exchange-card ${canExchange ? 'exchange-available' : 'exchange-unavailable'}">
+                  <div class="exchange-icon">${exchange.icon}</div>
+                  <div class="exchange-info">
+                    <div class="exchange-name">${exchange.name}</div>
+                    <div class="exchange-desc">${exchange.desc}</div>
+                    <div class="exchange-cost">
+                      ${exchange.cost.dungeonGold ? `<span class="cost-item">💰 ${exchange.cost.dungeonGold} Dungeon Gold</span>` : ''}
+                      ${exchange.cost.crypt_dust ? `<span class="cost-item">💀 ${exchange.cost.crypt_dust}x Crypt Dust</span>` : ''}
+                      ${exchange.cost.void_shard ? `<span class="cost-item">🔮 ${exchange.cost.void_shard}x Void Shard</span>` : ''}
+                      ${exchange.cost.dragon_scale ? `<span class="cost-item">🐉 ${exchange.cost.dragon_scale}x Dragon Scale</span>` : ''}
+                      ${exchange.cost.soul_essence ? `<span class="cost-item">✨ ${exchange.cost.soul_essence}x Soul Essence</span>` : ''}
+                      ${exchange.cost.abyssal_core ? `<span class="cost-item">🌑 ${exchange.cost.abyssal_core}x Abyssal Core</span>` : ''}
+                      ${exchange.cost.titan_heart ? `<span class="cost-item">💠 ${exchange.cost.titan_heart}x Titan Heart</span>` : ''}
+                    </div>
+                    <div class="exchange-reward">
+                      <span class="reward-gold">💰 ${discountedGold.toLocaleString()} Gold</span>
+                      ${exchange.reward.reputation ? `<span class="reward-rep">⭐ +${exchange.reward.reputation} Reputation</span>` : ''}
+                      ${exchange.reward.item ? `<span class="reward-item">📦 ${exchange.reward.item}</span>` : ''}
+                      ${currentRank.discount > 0 ? `<span class="reward-discount">✨ +${currentRank.discount}% Gold Bonus (${currentRank.name})</span>` : ''}
+                    </div>
+                    <button class="exchange-btn" onclick="exchangeAtGuild('${exchange.id}')" ${!canExchange ? 'disabled' : ''}>
+                      ${canExchange ? 'Exchange' : 'Missing Requirements'}
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        
+        <button class="dungeon-btn" onclick="continueDungeon()" style="width:100%;margin-top:20px">Continue Exploring</button>
+      </div>
+    `;
+  }).catch(e => console.error('Failed to load guild data:', e));
+}
+
+function openGuild() {
+  renderGuild();
+}
+
+function closeGuild() {
+  renderDungeonView();
+}
+
+function exchangeAtGuild(exchangeId) {
+  apiFetch('POST', '/dungeon/guild/exchange', { exchangeId })
+    .then(response => {
+      if (response.success) {
+        log(response.message, 'log-success');
+        // Refresh dungeon gold and reputation
+        const goldEl = document.getElementById('dungeon-gold-count');
+        if (goldEl) goldEl.textContent = response.dungeonGold;
+        renderGuild(); // Refresh guild view
+        refreshCharacter(); // Refresh main character
+      }
+    })
+    .catch(e => console.error('Exchange failed:', e));
+}
 
   // ── CSS Loading ──────────────────────────────────────────
   function loadCSS() {
