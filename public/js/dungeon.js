@@ -1308,7 +1308,9 @@ function fightRound() {
   const area = document.getElementById('dungeon-main-area');
   if (!area) return;
   
-  // Get current guild data
+  // Make sure D.dungeonInventory exists
+  if (!D.dungeonInventory) D.dungeonInventory = [];
+  
   apiFetch('GET', '/game/dungeon/guild').then(guildData => {
     const reputation = guildData.guildReputation || 0;
     const dungeonGold = guildData.dungeonGold || 0;
@@ -1323,7 +1325,7 @@ function fightRound() {
     }
     
     const nextRank = GUILD_RANKS[Math.min(currentRank.rank + 1, GUILD_RANKS.length - 1)];
-    const repNeeded = nextRank.reputationNeeded - reputation;
+    const repNeeded = nextRank.rank > currentRank.rank ? nextRank.reputationNeeded - reputation : 0;
     const repProgress = nextRank.rank > currentRank.rank ? (reputation / nextRank.reputationNeeded) * 100 : 100;
     
     area.innerHTML = `
@@ -1367,9 +1369,47 @@ function fightRound() {
           <div class="guild-section-title">📜 Available Exchanges</div>
           <div class="exchanges-grid">
             ${GUILD_EXCHANGES.map(exchange => {
-              const hasDungeonGold = !exchange.cost.dungeonGold || dungeonGold >= exchange.cost.dungeonGold;
-              const hasMaterials = exchange.cost.crypt_dust ? (D.dungeonInventory.find(i => i.id === 'crypt_dust')?.qty || 0) >= exchange.cost.crypt_dust : true;
-              const canExchange = hasDungeonGold && hasMaterials;
+              // Check if player can afford this exchange
+              let canExchange = true;
+              let missingReason = '';
+              
+              if (exchange.cost.dungeonGold && dungeonGold < exchange.cost.dungeonGold) {
+                canExchange = false;
+                missingReason = `Need ${exchange.cost.dungeonGold} dungeon gold`;
+              }
+              
+              // Check material costs
+              if (exchange.cost.crypt_dust) {
+                const have = D.dungeonInventory.find(i => i.id === 'crypt_dust')?.qty || 0;
+                if (have < exchange.cost.crypt_dust) {
+                  canExchange = false;
+                  missingReason = `Need ${exchange.cost.crypt_dust - have} more Crypt Dust`;
+                }
+              }
+              if (exchange.cost.void_shard) {
+                const have = D.dungeonInventory.find(i => i.id === 'void_shard')?.qty || 0;
+                if (have < exchange.cost.void_shard) {
+                  canExchange = false;
+                  missingReason = `Need ${exchange.cost.void_shard - have} more Void Shards`;
+                }
+              }
+              if (exchange.cost.dragon_scale) {
+                const have = D.dungeonInventory.find(i => i.id === 'dragon_scale')?.qty || 0;
+                if (have < exchange.cost.dragon_scale) canExchange = false;
+              }
+              if (exchange.cost.soul_essence) {
+                const have = D.dungeonInventory.find(i => i.id === 'soul_essence')?.qty || 0;
+                if (have < exchange.cost.soul_essence) canExchange = false;
+              }
+              if (exchange.cost.abyssal_core) {
+                const have = D.dungeonInventory.find(i => i.id === 'abyssal_core')?.qty || 0;
+                if (have < exchange.cost.abyssal_core) canExchange = false;
+              }
+              if (exchange.cost.titan_heart) {
+                const have = D.dungeonInventory.find(i => i.id === 'titan_heart')?.qty || 0;
+                if (have < exchange.cost.titan_heart) canExchange = false;
+              }
+              
               const discount = currentRank.discount / 100;
               const discountedGold = exchange.reward.gold ? Math.floor(exchange.reward.gold * (1 + discount)) : exchange.reward.gold;
               
@@ -1395,7 +1435,7 @@ function fightRound() {
                       ${currentRank.discount > 0 ? `<span class="reward-discount">✨ +${currentRank.discount}% Gold Bonus (${currentRank.name})</span>` : ''}
                     </div>
                     <button class="exchange-btn" onclick="exchangeAtGuild('${exchange.id}')" ${!canExchange ? 'disabled' : ''}>
-                      ${canExchange ? 'Exchange' : 'Missing Requirements'}
+                      ${canExchange ? 'Exchange' : missingReason || 'Missing Requirements'}
                     </button>
                   </div>
                 </div>
