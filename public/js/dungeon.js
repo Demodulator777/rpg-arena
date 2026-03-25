@@ -730,9 +730,11 @@
     renderLog();
   }
   
-  function renderDungeonList() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area) return;
+function renderDungeonList() {
+  console.log('[Dungeon] renderDungeonList called');
+  const area = document.getElementById('dungeon-main-area');
+  console.log('[Dungeon] area found:', area);
+  if (!area) return;
     D.activeDungeon = null;
     
     const hasSave = !!D.savedProgress['tower'];
