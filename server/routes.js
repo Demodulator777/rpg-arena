@@ -2392,6 +2392,42 @@ router.post('/dungeon/mp-spent', auth, async (req, res) => {
   }
 });
 
+// Add dungeon gold (separate from main gold)
+router.post('/dungeon/add-gold', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { amount } = req.body;
+    await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold + ? WHERE user_id = ?', 
+      [amount, req.user.userId]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update health from dungeon
+router.post('/dungeon/update-health', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { hp } = req.body;
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE user_id = ?', [hp, req.user.userId]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get dungeon gold (optional - for display)
+router.get('/dungeon/gold', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await dbGet(db, 'SELECT dungeon_gold FROM characters WHERE user_id = ?', [req.user.userId]);
+    res.json({ success: true, dungeonGold: char?.dungeon_gold || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Class Skills ──────────────────────────────────────────────────────────
 router.post('/skills/activate', auth, async (req, res) => {
     try {
