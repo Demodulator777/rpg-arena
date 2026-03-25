@@ -154,9 +154,13 @@
   function chance(p)      { return Math.random() < p; }
   function elapsed(ts, hours) { return (Date.now() - ts) >= hours * 3600000; }
 
-  function getChar() {
-    return (typeof state !== 'undefined' && state.character) ? state.character : null;
+function getChar() {
+  // Access the global character variable from app.js
+  if (typeof character !== 'undefined' && character) {
+    return character;
   }
+  return null;
+}
 
   function log(msg, cls='') {
     D.dungeonLog.unshift({ msg, cls, ts: Date.now() });
