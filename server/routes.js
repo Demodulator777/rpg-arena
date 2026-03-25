@@ -2525,6 +2525,79 @@ router.post('/premium/activate', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Get guild data (reputation, exchange rates)
+router.get('/dungeon/guild', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    res.json({ 
+      success: true, 
+      dungeonGold: char?.dungeon_gold || 0,
+      guildReputation: char?.guild_reputation || 0 
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Exchange at guild
+router.post('/dungeon/guild/exchange', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { exchangeId } = req.body;
+    const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
+    if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
+    
+    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    
+    // Check costs
+    if (exchange.cost.dungeonGold && (char.dungeon_gold || 0) < exchange.cost.dungeonGold) {
+      return res.status(400).json({ error: `Need ${exchange.cost.dungeonGold} dungeon gold` });
+    }
+    
+    // Apply costs
+    if (exchange.cost.dungeonGold) {
+      await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE user_id = ?', 
+        [exchange.cost.dungeonGold, req.user.userId]);
+    }
+    
+    // Apply rewards
+    if (exchange.reward.gold) {
+      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
+        [exchange.reward.gold, req.user.userId]);
+    }
+    
+    if (exchange.reward.reputation) {
+      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE user_id = ?', 
+        [exchange.reward.reputation, req.user.userId]);
+    }
+    
+    // Add item reward if any
+    if (exchange.reward.item) {
+      const item = { 
+        name: exchange.reward.item, 
+        type: 'chest', 
+        quality: exchange.id.includes('legendary') ? 'legendary' : 'rare',
+        qty: 1 
+      };
+      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+        [char.id, 'consumable', JSON.stringify(item)]);
+    }
+    
+    // Get updated data
+    const updated = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    
+    res.json({ 
+      success: true, 
+      message: `Exchanged for ${exchange.reward.gold ? exchange.reward.gold + ' gold' : ''}${exchange.reward.reputation ? ' + ' + exchange.reward.reputation + ' reputation' : ''}!`,
+      dungeonGold: updated.dungeon_gold,
+      guildReputation: updated.guild_reputation
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Shop reroll ────────────────────────────────────────────────────────────
 router.post('/shop/reroll', auth, async (req, res) => {
     try {
