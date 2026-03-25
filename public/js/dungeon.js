@@ -893,6 +893,11 @@ function renderDungeonView() {
 
   const currentRoom = D.rooms[D.playerPos];
 
+  // Get visual data - use defaults if not set
+  const visual = currentRoom.visual || (currentRoom.isBoss ? DUNGEON_VISUALS.boss : currentRoom.isStart ? DUNGEON_VISUALS.start : DUNGEON_VISUALS.corridor);
+  const roomImage = visual.image || '';
+  const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
+
   area.innerHTML = `
     <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
 
@@ -902,31 +907,24 @@ function renderDungeonView() {
         <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">⬅ Exit (Save Progress)</button>
       </div>
 
-      ${currentRoom.visual && currentRoom.visual.image ? `
-      <div class="dungeon-image-container" style="margin: 12px 16px;">
-        <img class="dungeon-scene-image" src="${currentRoom.visual.image}" alt="Dungeon Scene" style="width:100%;height:180px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">
+      <!-- Visual Image -->
+      ${roomImage ? `
+      <div class="dungeon-image-container" style="margin: 16px;">
+        <img class="dungeon-scene-image" src="${roomImage}" alt="Dungeon Scene" style="width:100%;height:200px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">
       </div>
       ` : ''}
       
-      ${currentRoom.visual && currentRoom.visual.description ? `
-      <div class="dungeon-description" style="margin: 0 16px 12px 16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
-        <p style="margin:0; font-style:italic; color:var(--dungeon-text);">${currentRoom.visual.description}</p>
+      <!-- Room Description -->
+      <div class="dungeon-description" style="margin: 0 16px 16px 16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
+        <p style="margin:0; font-style:italic; color:var(--dungeon-text);">${roomDescription}</p>
       </div>
-      ` : ''}
 
       <div class="dungeon-travel-bar-wrap">
         <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
       </div>
 
-      <div class="dungeon-content-row">
-        <div class="dungeon-map-wrap">
-          <div class="dungeon-map-label">📍 Dungeon Map</div>
-          <div id="dungeon-map-grid" class="dungeon-map-grid">
-            ${renderMapGrid()}
-          </div>
-        </div>
-
-        <div class="dungeon-room-panel">
+      <div class="dungeon-content-row" style="display:block; padding: 0 16px 16px 16px;">
+        <div class="dungeon-room-panel" style="width:100%;">
           <div class="dungeon-room-header">
             ${currentRoom.isBoss ? `<span class="dungeon-room-type boss-room-badge">⚠️ BOSS ROOM</span>` :
               currentRoom.isStart ? `<span class="dungeon-room-type start-room-badge">🚪 Entrance</span>` :
@@ -938,22 +936,25 @@ function renderDungeonView() {
 
           ${renderRoomInfo(currentRoom)}
 
-          <div class="dungeon-connections">
-            <div class="dungeon-conn-label">Passages:</div>
-            ${currentRoom.connections.map(ci => {
-              const cr = D.rooms[ci];
-              const explored = D.exploredRooms.has(ci);
-              const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
-              return `
-                <button class="dungeon-conn-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
-                        onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
-                  ${explored
-                    ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
-                    : '❓ Unknown Room'
-                  }
-                </button>
-              `;
-            }).join('')}
+          <div class="dungeon-connections" style="margin-top: 16px;">
+            <div class="dungeon-conn-label">Where do you want to go?</div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+              ${currentRoom.connections.map(ci => {
+                const cr = D.rooms[ci];
+                const explored = D.exploredRooms.has(ci);
+                const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
+                return `
+                  <button class="dungeon-conn-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
+                          onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}
+                          style="padding: 10px 16px; font-size: 0.9rem;">
+                    ${explored
+                      ? `${cr.isBoss ? '⚠️ BOSS' : cr.type === 'treasure' ? '💰 TREASURE' : monsterAlive ? `👹 ${cr.monster.name}` : '➡️ FORWARD'}`
+                      : '❓ UNKNOWN PATH'
+                    }
+                  </button>
+                `;
+              }).join('')}
+            </div>
           </div>
         </div>
       </div>
