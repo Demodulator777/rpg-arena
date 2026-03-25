@@ -42,6 +42,39 @@
     }
   };
 
+  // ── Adventurer's Guild ─────────────────────────────────────────
+const GUILD_EXCHANGES = [
+  { id: 'exchange_gold', name: 'Exchange Dungeon Gold', icon: '💰', 
+    cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 },
+    desc: 'Convert 100 dungeon gold into 80 real gold + 1 reputation point' },
+  
+  { id: 'exchange_materials', name: 'Material Bounty', icon: '📦', 
+    cost: { crypt_dust: 10, void_shard: 5 }, reward: { gold: 200, reputation: 2 },
+    desc: 'Trade 10 Crypt Dust and 5 Void Shards for 200 gold' },
+  
+  { id: 'exchange_rare', name: 'Rare Material Bounty', icon: '✨', 
+    cost: { dragon_scale: 3, soul_essence: 2 }, reward: { gold: 500, reputation: 5, item: 'Rare Item Chest' },
+    desc: 'Trade rare materials for a Rare Item Chest + reputation' },
+  
+  { id: 'exchange_legendary', name: 'Legendary Exchange', icon: '👑', 
+    cost: { abyssal_core: 2, titan_heart: 1 }, reward: { gold: 2000, reputation: 20, item: 'Legendary Item Chest' },
+    desc: 'Trade legendary materials for a Legendary Item Chest + major reputation' },
+];
+
+// Guild reputation levels
+const GUILD_RANKS = [
+  { rank: 0, name: 'Novice', reputationNeeded: 0, discount: 0 },
+  { rank: 1, name: 'Apprentice', reputationNeeded: 10, discount: 5 },
+  { rank: 2, name: 'Journeyman', reputationNeeded: 50, discount: 10 },
+  { rank: 3, name: 'Expert', reputationNeeded: 200, discount: 15 },
+  { rank: 4, name: 'Master', reputationNeeded: 500, discount: 20 },
+  { rank: 5, name: 'Grand Master', reputationNeeded: 1000, discount: 25 },
+];
+
+// Add to state
+// Add to D object:
+// guildReputation: 0,
+
   // ── Infinite Floor Tower ─────────────────────────────────
   const DUNGEON = { id:'tower', name:'The Endless Tower', icon:'🗼', desc:'An infinite tower of darkness. Clear each floor to ascend.' };
 
@@ -167,6 +200,7 @@
     isTraveling: false,
     dungeonLog: [],
     savedProgress: {},
+    guildReputation: 0,
   };
 
   // ── Helpers ────────────────────────────────────────────────
