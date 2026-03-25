@@ -187,21 +187,23 @@ const GUILD_RANKS = [
   ];
 
   // ── State ──────────────────────────────────────────────────
-  let D = {
-    tokens: 0,
-    activeDungeon: null,
-    floor: 1,
-    highestFloor: 1,
-    rooms: [],
-    playerPos: 0,
-    exploredRooms: new Set(),
-    combat: null,
-    travelTimer: null,
-    isTraveling: false,
-    dungeonLog: [],
-    savedProgress: {},
-    guildReputation: 0,
-  };
+let D = {
+  tokens: 0,
+  activeDungeon: null,
+  floor: 1,
+  highestFloor: 1,
+  rooms: [],
+  playerPos: 0,
+  exploredRooms: new Set(),
+  combat: null,
+  travelTimer: null,
+  isTraveling: false,
+  dungeonLog: [],
+  savedProgress: {},
+  dungeonInventory: [],  // Make sure this exists
+  blacksmithUnlocked: false,
+  guildReputation: 0,    // Add this
+};
 
   // ── Helpers ────────────────────────────────────────────────
   function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
