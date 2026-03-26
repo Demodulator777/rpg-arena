@@ -1821,3 +1821,80 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Responsive HUD (game-window style) ───────────────────────────── */
+@media (max-width: 520px) {
+  .dungeon-game-screen {
+    height: min(72vh, 620px);
+  }
+
+  .dungeon-hud-top {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    padding: 8px 10px;
+  }
+
+  .dungeon-hud-title {
+    max-width: 45%;
+  }
+
+  .dungeon-hud-log {
+    top: 60px;
+    left: 10px;
+    width: min(220px, 52vw);
+    max-height: 32%;
+    padding: 9px 9px;
+  }
+
+  .dungeon-hud-minimap {
+    left: 10px;
+    bottom: 10px;
+    width: 170px;
+    padding: 8px;
+  }
+
+  .dungeon-minimap .map-room,
+  .dungeon-minimap .map-void {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+  }
+
+  .dungeon-hud-center {
+    top: 58%;
+    width: 92vw;
+  }
+
+  .dungeon-hud-room {
+    padding: 12px;
+  }
+
+  .dungeon-hud-bottom {
+    bottom: 10px;
+    width: 96vw;
+  }
+
+  .dungeon-travel-bar-wrap-hud {
+    width: 92vw;
+  }
+
+  .dungeon-path-options {
+    width: 96vw;
+    max-width: 96vw;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 10px;
+  }
+
+  .dungeon-path-btn {
+    white-space: nowrap;
+    padding: 9px 12px;
+  }
+
+  .dungeon-overlay-card {
+    width: min(720px, 94vw);
+  }
+}
