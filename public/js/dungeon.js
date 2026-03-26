@@ -898,15 +898,11 @@ function fightRound() {
       <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
     </div>
     <div id="dungeon-main-area"></div>
-    <div id="dungeon-log-panel" class="dungeon-log-panel">
-      <div class="dungeon-log-title">📜 Dungeon Log</div>
-      <div id="dungeon-log-entries"></div>
-    </div>
   </div>
 `;
     if (D.activeDungeon) {
+      renderDungeonView();
       if (D.combat) renderCombatPanel();
-      else renderDungeonView();
     } else {
       renderDungeonList();
     }
@@ -1012,70 +1008,71 @@ function fightRound() {
     const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
 
     area.innerHTML = `
-      <div class="dungeon-active" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+      <div class="dungeon-game" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+        <div class="dungeon-game-screen">
+          ${roomImage ? `
+            <img class="dungeon-game-scene" src="${roomImage}" alt="Dungeon Scene" onerror="this.style.display='none'">
+          ` : `<div class="dungeon-game-scene dungeon-game-scene-fallback"></div>`}
+          <div class="dungeon-game-vignette"></div>
 
-// In renderDungeonView, add the Guild button to the header:
-<div class="dungeon-active-header">
-  <div class="dungeon-active-name">${def.icon} ${def.name}</div>
-  <div class="dungeon-active-floor">Floor ${D.floor}</div>
-  <div style="display: flex; gap: 8px;">
-    <button class="dungeon-btn" onclick="openGuild()">🏛️ Guild</button>
-    <button class="dungeon-btn dungeon-btn-exit" onclick="dungeonExit()">Exit</button>
-  </div>
-</div>
-
-        ${roomImage ? `
-        <div class="dungeon-image-container" style="margin: 12px 16px;">
-          <img class="dungeon-scene-image" src="${roomImage}" alt="Dungeon Scene" style="width:100%;height:200px;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">
-        </div>
-        ` : ''}
-        
-        <div class="dungeon-description" style="margin: 0 16px 16px 16px; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 8px;">
-          <p style="margin:0; font-style:italic; color:var(--dungeon-text);">${roomDescription}</p>
-        </div>
-
-        <div class="dungeon-travel-bar-wrap">
-          <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
-        </div>
-
-        <div class="dungeon-content-row">
-          <div class="dungeon-map-wrap">
-            <div class="dungeon-map-label">📍 Dungeon Map</div>
-            <div id="dungeon-map-grid" class="dungeon-map-grid">
-              ${renderMapGrid()}
+          <div class="dungeon-hud-top">
+            <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
+            <div class="dungeon-hud-floor">Floor ${D.floor}</div>
+            <div class="dungeon-hud-actions">
+              <button class="dungeon-btn dungeon-btn-hud" onclick="openGuild()">🏛️ Guild</button>
+              <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" onclick="dungeonExit()">Exit</button>
             </div>
           </div>
 
-          <div class="dungeon-room-panel">
-            <div class="dungeon-room-header">
-              ${currentRoom.isBoss ? `<span class="dungeon-room-type boss-room-badge">⚠️ BOSS ROOM</span>` :
-                currentRoom.isStart ? `<span class="dungeon-room-type start-room-badge">🚪 Entrance</span>` :
-                currentRoom.type === 'treasure' ? `<span class="dungeon-room-type treasure-room-badge">💰 Treasure Room</span>` :
-                `<span class="dungeon-room-type">🏚️ Corridor</span>`
-              }
-              <span class="dungeon-room-id">Room ${D.playerPos + 1}</span>
+          <div class="dungeon-hud-log">
+            <div class="dungeon-hud-log-title">Log</div>
+            <div id="dungeon-log-entries" class="dungeon-hud-log-entries"></div>
+          </div>
+
+          <div class="dungeon-hud-minimap">
+            <div class="dungeon-hud-minimap-title">Map</div>
+            <div id="dungeon-minimap" class="dungeon-minimap">${renderMapGrid()}</div>
+          </div>
+
+          <div class="dungeon-hud-center">
+            <div class="dungeon-hud-room">
+              <div class="dungeon-hud-room-title">
+                ${currentRoom.isBoss ? `⚠️ Boss Room` :
+                  currentRoom.isStart ? `🚪 Entrance` :
+                  currentRoom.type === 'treasure' ? `💰 Treasure Room` :
+                  `🏚️ Corridor`}
+                <span class="dungeon-hud-room-id"> · Room ${D.playerPos + 1}</span>
+              </div>
+              <div class="dungeon-hud-room-desc">${roomDescription}</div>
+              <div class="dungeon-hud-room-info">
+                ${renderRoomInfo(currentRoom)}
+              </div>
             </div>
+          </div>
 
-            ${renderRoomInfo(currentRoom)}
-
-            <div class="dungeon-connections">
-              <div class="dungeon-conn-label">Passages:</div>
+          <div class="dungeon-hud-bottom">
+            <div class="dungeon-travel-bar-wrap dungeon-travel-bar-wrap-hud">
+              <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
+            </div>
+            <div class="dungeon-path-options">
               ${currentRoom.connections.map(ci => {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
                 const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
+                const label = explored
+                  ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
+                  : '❓ Unknown';
                 return `
-                  <button class="dungeon-conn-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
+                  <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
                           onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
-                    ${explored
-                      ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
-                      : '❓ Unknown Room'
-                    }
+                    ${label}
                   </button>
                 `;
               }).join('')}
             </div>
           </div>
+
+          <div id="dungeon-overlay" class="dungeon-overlay"></div>
         </div>
       </div>
     `;
@@ -1195,8 +1192,8 @@ function fightRound() {
   }
 
   function renderCombatPanel() {
-    const area = document.getElementById('dungeon-main-area');
-    if (!area || !D.combat) return;
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay || !D.combat) return;
     const def = getDungeonDef(D.activeDungeon);
     const m = D.combat.monster;
     const pStats = calcPlayerStats();
@@ -1207,41 +1204,42 @@ function fightRound() {
       `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
     ).join('');
 
-    area.innerHTML = `
-      <div class="dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
-        <div class="combat-header">
-          ${m.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
-          <div class="combat-title">⚔️ Combat: ${m.name}</div>
-        </div>
-
-        <div class="combat-fighters">
-          <div class="combat-fighter player-fighter">
-            <div class="fighter-icon">🧙</div>
-            <div class="fighter-name">You</div>
-            <div class="fighter-hp-bar-wrap">
-              <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
-            </div>
-            <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
+    overlay.innerHTML = `
+      <div class="dungeon-overlay-backdrop"></div>
+      <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+          <div class="combat-header">
+            ${m.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
+            <div class="combat-title">⚔️ Combat: ${m.name}</div>
           </div>
 
-          <div class="combat-vs">VS</div>
-
-          <div class="combat-fighter monster-fighter">
-            <div class="fighter-icon">${m.icon}</div>
-            <div class="fighter-name">${m.name}</div>
-            <div class="fighter-hp-bar-wrap">
-              <div class="fighter-hp-bar monster-hp" style="width:${hpPct}%"></div>
+          <div class="combat-fighters">
+            <div class="combat-fighter player-fighter">
+              <div class="fighter-icon">🧙</div>
+              <div class="fighter-name">You</div>
+              <div class="fighter-hp-bar-wrap">
+                <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
+              </div>
+              <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
             </div>
-            <div class="fighter-stats">${m.currentHp} / ${m.maxHp} HP</div>
+
+            <div class="combat-vs">VS</div>
+
+            <div class="combat-fighter monster-fighter">
+              <div class="fighter-icon">${m.icon}</div>
+              <div class="fighter-name">${m.name}</div>
+              <div class="fighter-hp-bar-wrap">
+                <div class="fighter-hp-bar monster-hp" style="width:${hpPct}%"></div>
+              </div>
+              <div class="fighter-stats">${m.currentHp} / ${m.maxHp} HP</div>
+            </div>
           </div>
-        </div>
 
-        <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
+          <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
 
-        <div class="combat-actions">
-          <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
-          ${!m.isBoss ? `<button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>` : ''}
-        </div>
+          <div class="combat-actions">
+            <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
+            ${!m.isBoss ? `<button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>` : ''}
+          </div>
       </div>
     `;
   }
@@ -1305,8 +1303,9 @@ function fightRound() {
   }
 
   function renderGuild() {
+  const overlay = document.getElementById('dungeon-overlay');
   const area = document.getElementById('dungeon-main-area');
-  if (!area) return;
+  if (!overlay && !area) return;
   
   // Make sure D.dungeonInventory exists
   if (!D.dungeonInventory) D.dungeonInventory = [];
@@ -1328,7 +1327,7 @@ function fightRound() {
     const repNeeded = nextRank.rank > currentRank.rank ? nextRank.reputationNeeded - reputation : 0;
     const repProgress = nextRank.rank > currentRank.rank ? (reputation / nextRank.reputationNeeded) * 100 : 100;
     
-    area.innerHTML = `
+    const guildHtml = `
       <div class="guild-container">
         <div class="guild-header">
           <span class="guild-icon">🏛️</span>
@@ -1447,6 +1446,17 @@ function fightRound() {
         <button class="dungeon-btn" onclick="continueDungeon()" style="width:100%;margin-top:20px">Continue Exploring</button>
       </div>
     `;
+
+    if (overlay) {
+      overlay.innerHTML = `
+        <div class="dungeon-overlay-backdrop" onclick="closeGuild()"></div>
+        <div class="dungeon-overlay-card guild-overlay-card">
+          ${guildHtml}
+        </div>
+      `;
+    } else if (area) {
+      area.innerHTML = guildHtml;
+    }
   }).catch(e => console.error('Failed to load guild data:', e));
 }
 
@@ -1455,6 +1465,8 @@ function openGuild() {
 }
 
 function closeGuild() {
+  const overlay = document.getElementById('dungeon-overlay');
+  if (overlay) overlay.innerHTML = '';
   renderDungeonView();
 }
 
