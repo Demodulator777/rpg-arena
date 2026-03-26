@@ -872,7 +872,16 @@ function fightRound() {
     loadState();
     
     if (character) {
-      loadDungeonDataFromDB();
+      // Load persisted dungeon data, then rerender the list so resume works reliably.
+      loadDungeonDataFromDB().then(() => {
+        if (!D.activeDungeon) {
+          renderDungeonList();
+        } else {
+          // In case something resumes with an active dungeon
+          if (D.combat) renderCombatPanel();
+          else renderDungeonView();
+        }
+      });
     }
 
     container.innerHTML = `
@@ -984,6 +993,10 @@ function fightRound() {
   function renderDungeonView() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
+
+    // Combat overlay is separate from the main HUD; clear it whenever we re-render the room.
+    const overlay = document.getElementById('dungeon-overlay');
+    if (overlay) overlay.innerHTML = '';
     
     if (!D.rooms || D.rooms.length === 0) {
       console.error('No rooms generated');
@@ -1061,13 +1074,15 @@ function fightRound() {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
                 const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
-                const label = explored
-                  ? `${cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️'} Room ${ci+1}`
-                  : '❓ Unknown';
+                const icon = explored
+                  ? (cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️')
+                  : '❓';
+                const text = explored ? `Room ${ci+1}` : 'Unknown';
                 return `
                   <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
                           onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
-                    ${label}
+                    <span class="dungeon-path-btn-icon">${icon}</span>
+                    <span class="dungeon-path-btn-text">${text}</span>
                   </button>
                 `;
               }).join('')}
