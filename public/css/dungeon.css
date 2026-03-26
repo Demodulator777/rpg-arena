@@ -326,6 +326,15 @@
   font-family: 'Cinzel', serif;
 }
 
+.dungeon-path-btn-icon {
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.dungeon-path-btn-text {
+  line-height: 1;
+}
+
 .dungeon-path-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   background: rgba(255,255,255,0.08);
@@ -1892,6 +1901,10 @@
   .dungeon-path-btn {
     white-space: nowrap;
     padding: 9px 12px;
+  }
+
+  .dungeon-path-btn-text {
+    display: none;
   }
 
   .dungeon-overlay-card {
