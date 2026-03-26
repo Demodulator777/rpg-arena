@@ -8,6 +8,15 @@ BigInt.prototype.toJSON = function() { return Number(this); };
 const router = express.Router();
 const _missionStartLock = new Set();
 
+// ── Adventurer's Guild Exchanges ─────────────────────────────────────
+// Client-side uses the same IDs; server keeps this list to validate exchanges.
+const GUILD_EXCHANGES = [
+    { id: 'exchange_gold', name: 'Exchange Dungeon Gold', cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 } },
+    { id: 'exchange_materials', name: 'Material Bounty', cost: { crypt_dust: 10, void_shard: 5 }, reward: { gold: 200, reputation: 2 } },
+    { id: 'exchange_rare', name: 'Rare Material Bounty', cost: { dragon_scale: 3, soul_essence: 2 }, reward: { gold: 500, reputation: 5, item: 'Rare Item Chest' } },
+    { id: 'exchange_legendary', name: 'Legendary Exchange', cost: { abyssal_core: 2, titan_heart: 1 }, reward: { gold: 2000, reputation: 20, item: 'Legendary Item Chest' } },
+];
+
 // ── DB Migrations ─────────────────────────────────────────────────────────
 (async () => {
     try {
@@ -1607,6 +1616,92 @@ router.get('/inventory', auth, async (req, res) => {
         const equippedIds = Object.values(equipped).map(e => e.inventoryId).filter(Boolean);
         res.json({ items: items.map(i => ({ ...i, item_data: JSON.parse(i.item_data), equipped: equippedIds.includes(i.id) })), equipped });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Add item (used by dungeon loot) ──────────────────────────────────
+router.post('/inventory/add', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { item } = req.body || {};
+        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        if (!item || typeof item !== 'object') return res.status(400).json({ error: 'Invalid item data' });
+
+        const slugify = (s) => String(s || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+        const qty = Math.max(1, Number(item.qty || 1));
+        const dataBase = { ...item, qty };
+
+        // Consumables: store into inventory.item_type = 'consumable'
+        const isConsumable = item.type === 'consumable' || item.effect || item.consumable;
+        if (isConsumable) {
+            const d = { ...dataBase };
+            d.id = d.id || slugify(d.name) || `consumable_${Date.now()}`;
+            d.effect = d.effect || item.effect;
+
+            const existing = await dbGet(
+                db,
+                `SELECT * FROM inventory WHERE char_id=? AND item_type='consumable' AND json_extract(item_data,'$.id')=?`,
+                [char.id, d.id]
+            );
+
+            if (existing) {
+                const merged = JSON.parse(existing.item_data);
+                merged.qty = (merged.qty || 1) + qty;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(merged), existing.id]);
+            } else {
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'consumable',?)`, [
+                    char.id,
+                    JSON.stringify(d)
+                ]);
+            }
+
+            return res.json({ success: true });
+        }
+
+        // Materials: store into inventory.item_type = 'raw_mat'
+        if (item.type === 'material') {
+            const d = { ...dataBase };
+            d.id = d.id || slugify(d.name) || `mat_${Date.now()}`;
+            d.emoji = d.emoji || d.icon; // dungeon.js uses `icon`
+            d.rarity = d.rarity || 'common';
+
+            const existing = await dbGet(
+                db,
+                `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`,
+                [char.id, d.id]
+            );
+
+            if (existing) {
+                const merged = JSON.parse(existing.item_data);
+                merged.qty = (merged.qty || 1) + qty;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(merged), existing.id]);
+            } else {
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'raw_mat',?)`, [
+                    char.id,
+                    JSON.stringify(d)
+                ]);
+            }
+
+            return res.json({ success: true });
+        }
+
+        // Fallback: treat unknown items as equipment-like entries (server already supports this item_type).
+        await dbRun(
+            db,
+            `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?, 'equipment', ?)`,
+            [char.id, JSON.stringify(dataBase)]
+        );
+
+        return res.json({ success: true });
+    } catch (e) {
+        console.error('inventory/add error:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // ── Forge ─────────────────────────────────────────────────────────────────
