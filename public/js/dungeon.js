@@ -852,6 +852,9 @@ function fightRound() {
       highestFloor: D.highestFloor,
       tokens: D.tokens,
       loot: loot
+    }).then(() => {
+      // Ensure gold/gems/premium item are reflected in the rest of UI.
+      refreshCharacter();
     }).catch(e => console.error('Failed to save boss defeat:', e));
     
     delete D.savedProgress['tower'];
@@ -1073,7 +1076,8 @@ function fightRound() {
               ${currentRoom.connections.map(ci => {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
-                const monsterAlive = cr.monster && (!cr.monster.lastKilled || !elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
+                // Monster is considered "alive" only if it has never been killed, or the respawn cooldown has elapsed.
+                const monsterAlive = cr.monster && (!cr.monster.lastKilled || elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
                 const icon = explored
                   ? (cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️')
                   : '❓';
@@ -1093,6 +1097,9 @@ function fightRound() {
         </div>
       </div>
     `;
+
+    // After rebuilding HUD DOM, repopulate the log entries.
+    renderLog();
   }
 
   function renderMapGrid() {
@@ -1115,7 +1122,7 @@ function fightRound() {
           const room = D.rooms[idx];
           const isPlayer = idx === D.playerPos;
           const explored = D.exploredRooms.has(idx);
-          const monsterAlive = room.monster && (!room.monster.lastKilled || !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
+          const monsterAlive = room.monster && (!room.monster.lastKilled || elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
 
           let roomClass = 'map-room';
           if (!explored) roomClass += ' map-room-fog';
@@ -1139,7 +1146,7 @@ function fightRound() {
   }
 
   function renderRoomInfo(room) {
-    const monsterAlive = room.monster && (!room.monster.lastKilled || !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
+    const monsterAlive = room.monster && (!room.monster.lastKilled || elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
     const monsterRespawning = room.monster && room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H);
 
     if (room.isBoss) {
