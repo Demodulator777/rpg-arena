@@ -307,16 +307,15 @@ async function refreshCharacter() {
 
   async function saveProgressToDB() {
     try {
-      const progress = D.savedProgress[D.activeDungeon] || null;
-      
       await apiFetch('POST', '/game/dungeon/progress', {
         floor: D.floor,
         highestFloor: D.highestFloor || D.floor,
-        progress: progress ? {
-          rooms: progress.rooms,
-          playerPos: progress.pos,
-          exploredRooms: [...progress.explored]
-        } : null,
+        // Persist the *current runtime* dungeon state so rooms don't come back empty on resume.
+        progress: {
+          rooms: D.rooms || [],
+          playerPos: D.playerPos || 0,
+          exploredRooms: [...(D.exploredRooms || [])]
+        },
         activeDungeon: D.activeDungeon,
         combat: D.combat
       });
@@ -586,6 +585,9 @@ function updateDungeonGoldDisplay() {
         D.rooms = generateFloor('tower', D.floor);
         D.playerPos = D.rooms.findIndex(r => r.isStart);
         D.exploredRooms = new Set([D.playerPos]);
+        // Persist regenerated rooms so the next resume doesn't come back empty.
+        saveState();
+        saveProgressToDB();
       }
       
       log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
