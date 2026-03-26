@@ -2512,6 +2512,50 @@ router.post('/dungeon/update-health', auth, async (req, res) => {
   }
 });
 
+// Persist boss loot + floor progression
+router.post('/dungeon/boss-defeated', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { loot, newFloor, highestFloor } = req.body || {};
+
+    const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    if (loot && typeof loot === 'object') {
+      if (loot.gold) {
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', [loot.gold, req.user.userId]);
+      }
+      if (loot.gems) {
+        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE user_id = ?', [loot.gems, req.user.userId]);
+      }
+
+      if (loot.premiumItem) {
+        const itemData = { ...loot.premiumItem, qty: 1 };
+        // Store as consumable so it appears in generic inventory
+        await dbRun(
+          db,
+          'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+          [char.id, 'consumable', JSON.stringify(itemData)]
+        );
+      }
+    }
+
+    if (newFloor) {
+      const hf = highestFloor || newFloor;
+      await dbRun(
+        db,
+        'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE user_id = ?',
+        [newFloor, hf, req.user.userId]
+      );
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Get dungeon gold (optional - for display)
 router.get('/dungeon/gold', auth, async (req, res) => {
   try {
