@@ -48,11 +48,11 @@ golden-staff
 golden-hammer
 golden-spear
 golden-mace
-golden-scythe = currently added up to this point, including golden-scythe
+golden-scythe 
 crystal-sword
 crystal-blade
 crystal-axe
-crystal-dagger
+crystal-dagger = currently added up to this point, including crystal-dagger
 crystal-bow
 crystal-staff
 crystal-hammer
