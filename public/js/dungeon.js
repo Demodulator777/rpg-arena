@@ -1469,6 +1469,7 @@ function fightRound() {
       </div>
     `;
 
+    // Fix: Ensure the overlay is properly positioned relative to body
     if (overlay) {
       overlay.innerHTML = `
         <div class="dungeon-overlay-backdrop" onclick="closeGuild()"></div>
@@ -1476,6 +1477,14 @@ function fightRound() {
           ${guildHtml}
         </div>
       `;
+      
+      // Force scroll to top when opening
+      setTimeout(() => {
+        const container = overlay.querySelector('.guild-container');
+        if (container) {
+          container.scrollTop = 0;
+        }
+      }, 50);
     } else if (area) {
       area.innerHTML = guildHtml;
     }
