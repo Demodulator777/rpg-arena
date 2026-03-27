@@ -2067,6 +2067,7 @@
     min-height: 36px;
   }
 }
+
 @media (max-width: 768px) {
   .dungeon-overlay-card {
     width: min(720px, 96vw);
@@ -2076,18 +2077,5 @@
 
   .guild-overlay-card {
     width: min(880px, 96vw);
-    max-height: 85vh;
-  }
-}
-
-@media (max-width: 480px) {
-  .dungeon-overlay-card,
-  .guild-overlay-card {
-    max-height: 92vh;
-    margin: 4vh auto;
-  }
-  
-  .guild-container {
-    max-height: calc(92vh - 40px);
   }
 }
