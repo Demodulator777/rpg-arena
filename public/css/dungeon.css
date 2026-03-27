@@ -355,12 +355,18 @@
 }
 
 .dungeon-overlay {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 30;
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .dungeon-overlay:has(.dungeon-overlay-card) {
@@ -368,30 +374,34 @@
 }
 
 .dungeon-overlay-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(4px);
+  z-index: 29;
 }
 
 .dungeon-overlay-card {
   position: relative;
   z-index: 31;
   width: min(720px, 92vw);
+  margin: auto;
 }
 
 .guild-overlay-card {
-  display: flex;
-  flex-direction: column;
-  padding: 0 !important; /* Remove padding from the card itself */
-  background: transparent !important; /* Make background transparent since container has its own */
+  position: relative;
+  z-index: 31;
+  width: min(880px, 94vw);
+  margin: auto;
 }
 
-.guild-overlay-card .guild-container {
-  margin: 0;
-  border-radius: 16px;
+.guild-container {
+  max-height: 80vh;
   overflow-y: auto;
-  max-height: calc(78vh - 40px); /* Adjust based on your needs */
+  padding: 18px;
+  background: var(--dungeon-surface);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
 }
 
 .guild-header {
@@ -2069,19 +2079,17 @@
 }
 
 @media (max-width: 768px) {
-  .dungeon-overlay-card {
-    width: min(720px, 96vw);
-    max-height: 85vh;
-    overflow-y: auto;
+  .dungeon-overlay {
+    padding: 10px;
   }
-
-  .guild-overlay-card .guild-container {
-    max-height: calc(85vh - 40px);
+  
+  .guild-container {
+    max-height: 85vh;
   }
 }
 
 @media (max-width: 480px) {
-  .guild-overlay-card .guild-container {
-    max-height: calc(90vh - 40px);
+  .guild-container {
+    max-height: 90vh;
   }
 }
