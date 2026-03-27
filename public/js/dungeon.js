@@ -29,15 +29,15 @@
       description: "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones."
     },
     corridor: {
-      image: '/images/corridor.jpg',
+      image: '/images/dungeon/corridor.jpg',
       description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
     },
     treasure: {
-      image: '/images/treasure.jpg',
+      image: '/images/dungeon/treasure.jpg',
       description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
     },
     boss: {
-      image: '/images/boss-chamber.jpg',
+      image: '/images/dungeon/boss-chamber.jpg',
       description: "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master."
     }
   };
