@@ -2101,7 +2101,7 @@
 /* Make sure the guild container scrolls to show all content */
 .guild-container {
   scroll-margin: 0;
-  margin-top: 45px;
+  margin-top: 75px;
   scroll-padding: 20px 0;
 }
 
