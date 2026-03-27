@@ -1030,14 +1030,15 @@ function fightRound() {
           ` : `<div class="dungeon-game-scene dungeon-game-scene-fallback"></div>`}
           <div class="dungeon-game-vignette"></div>
 
-          <div class="dungeon-hud-top">
-            <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
-            <div class="dungeon-hud-floor">Floor ${D.floor}</div>
-            <div class="dungeon-hud-actions">
-              <button class="dungeon-btn dungeon-btn-hud" onclick="openGuild()">🏛️ Guild</button>
-              <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" onclick="dungeonExit()">Exit</button>
-            </div>
-          </div>
+<div class="dungeon-hud-top">
+  <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
+  <div id="dungeon-log-entries" class="dungeon-hud-log-inline"></div>
+  <div class="dungeon-hud-floor">Floor ${D.floor}</div>
+  <div class="dungeon-hud-actions">
+    <button class="dungeon-btn dungeon-btn-hud" onclick="openGuild()">🏛️ Guild</button>
+    <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" onclick="dungeonExit()">Exit</button>
+  </div>
+</div>
 
           <div class="dungeon-hud-log">
             <div class="dungeon-hud-log-title">Log</div>
