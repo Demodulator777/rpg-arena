@@ -2093,3 +2093,51 @@
     max-height: 90vh;
   }
 }
+/* Fix modal button cutoff - ensure proper scrolling to edges */
+.dungeon-overlay {
+  scroll-padding: 20px;
+}
+
+/* Make sure the guild container scrolls to show all content */
+.guild-container {
+  scroll-margin: 0;
+  scroll-padding: 20px 0;
+}
+
+/* Add padding inside the scrollable area to ensure content isn't cut off */
+.guild-container > *:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.guild-container > *:last-child {
+  margin-bottom: 0;
+  padding-bottom: 4px;
+}
+
+/* Ensure the backdrop doesn't interfere with scrolling */
+.dungeon-overlay-backdrop {
+  pointer-events: none;
+}
+
+/* Make the modal card itself have some margin to ensure it doesn't touch edges */
+.guild-overlay-card {
+  margin: 20px auto;
+}
+
+/* For mobile, reduce margins to allow more space */
+@media (max-width: 768px) {
+  .guild-overlay-card {
+    margin: 10px auto;
+  }
+  
+  .dungeon-overlay {
+    scroll-padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .guild-overlay-card {
+    margin: 8px auto;
+  }
+}
