@@ -1464,7 +1464,7 @@ function fightRound() {
           </div>
         </div>
         
-        <button class="dungeon-btn" onclick="continueDungeon()" style="width:100%;margin-top:20px">Continue Exploring</button>
+        <button class="dungeon-btn" onclick="closeGuild()" style="width:100%;margin-top:20px">Continue Exploring</button>
       </div>
     `;
 
