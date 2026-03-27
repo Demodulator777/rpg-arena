@@ -171,31 +171,25 @@
   color: #e2e8f0;
 }
 
-.dungeon-hud-log {
-  position: absolute;
-  top: 68px;
-  left: 12px;
-  width: clamp(160px, 38vw, 320px);
-  max-height: clamp(80px, 28dvh, 180px);
-  padding: 10px 10px;
-  border-radius: 12px;
-  background: rgba(6, 10, 18, 0.55);
-  border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
+.dungeon-hud-log-inline {
+  flex: 1;
+  font-size: 0.75rem;
+  color: rgba(200, 212, 232, 0.55);
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+  min-width: 0; /* important for flex truncation to work */
 }
 
-.dungeon-hud-log-title {
-  font-size: 0.7rem;
-  color: rgba(200,212,232,0.6);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
+.dungeon-hud-log-inline .dungeon-log-entry {
+  display: none;
 }
 
-.dungeon-hud-log-entries {
-  max-height: 100%;
-  overflow: auto;
+.dungeon-hud-log-inline .dungeon-log-entry:first-child {
+  display: block;
+  border: none;
+  padding: 0;
 }
 
 .dungeon-hud-minimap {
