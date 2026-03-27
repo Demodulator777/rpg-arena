@@ -2090,3 +2090,49 @@
     max-height: 90vh;
   }
 }
+
+/* ================================================
+   MODAL / OVERLAY FIXES - Mobile Scroll & Cutoff
+   Put this at the VERY BOTTOM of dungeon.css
+   ================================================ */
+
+.dungeon-overlay-card,
+.guild-overlay-card {
+  max-height: 90dvh !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  padding: 16px !important;
+  margin: 12px auto !important;
+  width: min(720px, 96vw) !important;
+  border-radius: 16px !important;
+}
+
+/* Make inner content scrollable properly */
+.guild-container,
+.dungeon-overlay-card > div,           /* most common wrapper */
+.dungeon-overlay-card > .guild-container {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;             /* THIS IS VERY IMPORTANT */
+}
+
+/* Stronger mobile overrides */
+@media (max-width: 768px) {
+  .dungeon-overlay-card,
+  .guild-overlay-card {
+    max-height: 92dvh !important;
+    width: 96vw !important;
+    margin: 8px auto !important;
+    border-radius: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .dungeon-overlay-card,
+  .guild-overlay-card {
+    max-height: 95dvh !important;
+    margin: 6px auto !important;
+  }
+}
