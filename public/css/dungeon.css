@@ -383,15 +383,18 @@
 .guild-overlay-card {
   width: min(880px, 94vw);
   max-height: min(78vh, 760px);
-  overflow: auto;
+  overflow-y: auto;  /* Change from overflow: auto to overflow-y: auto */
+  display: flex;
+  flex-direction: column;
 }
 
-/* Minimal Guild panel styling (overlay-friendly) */
 .guild-container {
   background: var(--dungeon-surface);
   border: 1px solid rgba(255,255,255,0.10);
   border-radius: 16px;
   padding: 18px;
+  flex: 1;
+  overflow-y: auto;  /* Add this */
 }
 
 .guild-header {
@@ -2077,5 +2080,13 @@
 
   .guild-overlay-card {
     width: min(880px, 96vw);
+    max-height: 85vh;  /* Add this back - but as max-height, not overriding the main one */
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .guild-overlay-card {
+    max-height: 90vh;
   }
 }
