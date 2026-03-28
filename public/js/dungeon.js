@@ -495,20 +495,35 @@ function calcPlayerStats() {
     return { type:'gold', amount: rand(5,20) };
   }
 
-  function rollBossLoot(bossDef) {
-    const l = bossDef.loot;
-    return {
-      gold: rand(l.gold[0], l.gold[1]),
-      gems: rand(l.gems[0], l.gems[1]),
-      premiumItem: {
-        name: 'Premium Activation Scroll',
-        icon: '📜',
-        days: rand(l.premiumDays[0], l.premiumDays[1]),
-        type: 'premium_scroll',
-        rarity: l.itemRarity,
-      }
-    };
-  }
+function rollBossLoot(bossDef) {
+  const l = bossDef.loot;
+  
+  // Generate premium feature (5-10 days)
+  const premiumFeatures = [
+    { id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', desc: '2× max MP and 2× MP regen' },
+    { id: 'warlord', name: 'Warlord', emoji: '⚔️', desc: '+15% damage and +10% hit chance' },
+    { id: 'iron_fortress', name: 'Iron Fortress', emoji: '🏰', desc: '+10% agility and +15% armor' },
+    { id: 'apprentice', name: 'Apprentice', emoji: '📚', desc: 'All upgrade costs reduced by 20%' },
+    { id: 'vault_keeper', name: 'Vault Keeper', emoji: '🏦', desc: 'Lose only 5% gold on PvP defeat' },
+    { id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', desc: '+30% gold from missions, cooldowns 50% shorter' }
+  ];
+  
+  const randomFeature = premiumFeatures[Math.floor(Math.random() * premiumFeatures.length)];
+  const durationDays = rand(l.premiumDays[0], l.premiumDays[1]); // 5-10 days
+  
+  return {
+    gold: rand(l.gold[0], l.gold[1]),
+    gems: Math.min(15, rand(l.gems[0], l.gems[1])), // Cap gems at 15
+    premium: {
+      id: randomFeature.id,
+      name: randomFeature.name,
+      emoji: randomFeature.emoji,
+      days: durationDays,
+      seconds: durationDays * 24 * 3600,
+      desc: randomFeature.desc
+    }
+  };
+}
 
   // ── Apply Loot (Syncs with server) ──────────────────────────
   function applyLoot(loot) {
@@ -825,45 +840,47 @@ function fightRound() {
     renderCombatPanel();
   }
 
-  function onBossDefeated() {
-    const dungeonDef = getDungeonDef(D.activeDungeon);
-    const boss = dungeonDef.boss;
-    const loot = rollBossLoot(boss);
+function onBossDefeated() {
+  const dungeonDef = getDungeonDef(D.activeDungeon);
+  const boss = dungeonDef.boss;
+  const loot = rollBossLoot(boss);
 
-    log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
-    log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | 📜 Premium ${loot.premiumItem.days} days`, 'log-success');
+  log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
+  log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | ✨ ${loot.premium.name} (${loot.premium.days} days)`, 'log-success');
 
-    const c = getChar();
-    if (c) {
-      c.gold = (c.gold||0) + loot.gold;
-      c.gems = (c.gems||0) + loot.gems;
-      if (!c.inventory) c.inventory = [];
-      c.inventory.push(loot.premiumItem);
-    }
-
-    D.floor++;
-    if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
-    
-    apiFetch('POST', '/game/dungeon/boss-defeated', {
-      newFloor: D.floor,
-      highestFloor: D.highestFloor,
-      tokens: D.tokens,
-      loot: loot
-    }).then(() => {
-      // Ensure gold/gems/premium item are reflected in the rest of UI.
-      refreshCharacter();
-    }).catch(e => console.error('Failed to save boss defeat:', e));
-    
-    delete D.savedProgress['tower'];
-    D.rooms = generateFloor(D.activeDungeon, D.floor);
-    D.playerPos = D.rooms.findIndex(r => r.isStart);
-    D.exploredRooms = new Set([D.playerPos]);
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-
-    showBossVictoryModal(boss, loot);
+  const c = getChar();
+  if (c) {
+    c.gold = (c.gold||0) + loot.gold;
+    c.gems = (c.gems||0) + loot.gems;
   }
+
+  D.floor++;
+  if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
+  
+  // Send to backend with proper premium data
+  apiFetch('POST', '/game/dungeon/boss-defeated', {
+    newFloor: D.floor,
+    highestFloor: D.highestFloor,
+    tokens: D.tokens,
+    loot: {
+      gold: loot.gold,
+      gems: loot.gems,
+      premium: loot.premium  // Send full premium object
+    }
+  }).then(() => {
+    refreshCharacter();
+  }).catch(e => console.error('Failed to save boss defeat:', e));
+  
+  delete D.savedProgress['tower'];
+  D.rooms = generateFloor(D.activeDungeon, D.floor);
+  D.playerPos = D.rooms.findIndex(r => r.isStart);
+  D.exploredRooms = new Set([D.playerPos]);
+  D.combat = null;
+  saveState();
+  saveProgressToDB();
+
+  showBossVictoryModal(boss, loot);
+}
 
   // ── Render Functions ─────────────────────────────────────────────────
   function renderDungeonTab() {
@@ -1275,29 +1292,32 @@ function fightRound() {
   }
 
   function showBossVictoryModal(boss, loot) {
-    let modal = document.getElementById('dungeon-boss-modal');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'dungeon-boss-modal';
-      modal.className = 'modal-overlay';
-      document.body.appendChild(modal);
-    }
-    modal.classList.remove('hidden');
-    modal.innerHTML = `
-      <div class="modal-box dungeon-victory-box">
-        <div class="victory-icon">${boss.icon}</div>
-        <div class="victory-title">BOSS DEFEATED!</div>
-        <div class="victory-boss-name">${boss.name}</div>
-        <div class="victory-loot">
-          <div class="loot-row">💰 <strong>${loot.gold}</strong> Gold</div>
-          <div class="loot-row">💎 <strong>${loot.gems}</strong> Gems</div>
-          <div class="loot-row">📜 <strong>${loot.premiumItem.days} days</strong> Premium Activation</div>
-        </div>
-        <div class="victory-next">Advancing to Floor ${D.floor}...</div>
-        <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeDungeonVictory()">Continue Delving</button>
-      </div>
-    `;
+  let modal = document.getElementById('dungeon-boss-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'dungeon-boss-modal';
+    modal.className = 'modal-overlay';
+    document.body.appendChild(modal);
   }
+  modal.classList.remove('hidden');
+  modal.innerHTML = `
+    <div class="modal-box dungeon-victory-box">
+      <div class="victory-icon">${boss.icon}</div>
+      <div class="victory-title">BOSS DEFEATED!</div>
+      <div class="victory-boss-name">${boss.name}</div>
+      <div class="victory-loot">
+        <div class="loot-row">💰 <strong>${loot.gold.toLocaleString()}</strong> Gold</div>
+        <div class="loot-row">💎 <strong>${loot.gems}</strong> Gems</div>
+        <div class="loot-row premium-reward">
+          ✨ <strong>${loot.premium.emoji} ${loot.premium.name}</strong> (${loot.premium.days} days)
+          <div class="premium-desc">${loot.premium.desc}</div>
+        </div>
+      </div>
+      <div class="victory-next">Advancing to Floor ${D.floor}...</div>
+      <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeDungeonVictory()">Continue Delving</button>
+    </div>
+  `;
+}
 
   function updateTravelBtn(idx, disabled) {
     const btns = document.querySelectorAll('.dungeon-conn-btn');
