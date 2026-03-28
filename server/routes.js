@@ -2938,7 +2938,7 @@ router.post('/shop/reroll', auth, async (req, res) => {
 const fs = require('fs');
 const path = require('path');
 
-// ── Bug Report to Database ────────────────────────────────────────────────
+// ── Bug Report to Database with Images ────────────────────────────────────
 router.post('/bug-report', async (req, res) => {
     try {
         const db = await getDb();
@@ -2946,56 +2946,36 @@ router.post('/bug-report', async (req, res) => {
         const reportId = Date.now();
         const timestamp = new Date().toISOString();
         
-        // Save screenshot if exists
-        let screenshotFilename = null;
+        // First, insert the report
+        await dbRun(db, `
+            INSERT INTO bug_reports (
+                report_id, timestamp, username, character_name, character_level, character_class,
+                category, title, description, steps_to_reproduce, browser,
+                game_location, game_hp, game_gold, game_level,
+                has_screenshot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            reportId, timestamp,
+            report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
+            report.report.category, report.report.title, report.report.description, 
+            report.report.steps_to_reproduce || null, report.report.browser || null,
+            report.game_state.location, report.game_state.hp, report.game_state.gold, report.game_state.level,
+            report.screenshot ? 1 : 0
+        ]);
+        
+        // Then insert screenshot if exists (no foreign key constraint)
         if (report.screenshot) {
-            const base64Data = report.screenshot.replace(/^data:image\/\w+;base64,/, '');
-            const ext = report.screenshot.match(/^data:image\/(\w+);base64,/)?.[1] || 'png';
-            screenshotFilename = `bug_${reportId}.${ext}`;
-            
-            // Store screenshot in database as BLOB
+            const base64Data = report.screenshot.split(',')[1];
+            const mimeMatch = report.screenshot.match(/^data:image\/(\w+);base64,/);
+            const mimeType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png';
+            const ext = mimeMatch?.[1] || 'png';
             const screenshotBuffer = Buffer.from(base64Data, 'base64');
+            const filename = `bug_${reportId}.${ext}`;
             
             await dbRun(db, `
-                INSERT INTO bug_reports (
-                    report_id, timestamp, username, character_name, character_level, character_class,
-                    category, title, description, steps_to_reproduce, browser,
-                    game_location, game_hp, game_gold, game_level,
-                    screenshot_file, has_screenshot
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                reportId, timestamp,
-                report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
-                report.report.category, report.report.title, report.report.description, 
-                report.report.steps_to_reproduce || null, report.report.browser || null,
-                report.game_state.location, report.game_state.hp, report.game_state.gold, report.game_state.level,
-                screenshotFilename, screenshotFilename ? 1 : 0
-            ]);
-            
-            // Store screenshot separately if you want (optional - you could store in a separate table)
-            if (screenshotFilename) {
-                const screenshotBuffer = Buffer.from(base64Data, 'base64');
-                await dbRun(db, `
-                    INSERT INTO bug_screenshots (report_id, filename, image_data, mime_type)
-                    VALUES (?, ?, ?, ?)
-                `, [reportId, screenshotFilename, screenshotBuffer, `image/${ext}`]);
-            }
-        } else {
-            await dbRun(db, `
-                INSERT INTO bug_reports (
-                    report_id, timestamp, username, character_name, character_level, character_class,
-                    category, title, description, steps_to_reproduce, browser,
-                    game_location, game_hp, game_gold, game_level,
-                    has_screenshot
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                reportId, timestamp,
-                report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
-                report.report.category, report.report.title, report.report.description,
-                report.report.steps_to_reproduce || null, report.report.browser || null,
-                report.game_state.location, report.game_state.hp, report.game_state.gold, report.game_state.level,
-                0
-            ]);
+                INSERT INTO bug_screenshots (report_id, filename, image_data, mime_type)
+                VALUES (?, ?, ?, ?)
+            `, [reportId, filename, screenshotBuffer, mimeType]);
         }
         
         console.log(`🐛 Bug report #${reportId} saved to database from ${report.user.username}`);
