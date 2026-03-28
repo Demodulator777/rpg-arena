@@ -225,6 +225,46 @@ function hasUltimate(activePremium) {
     return Object.keys(PREMIUM_FEATURES).every(id => hasPremium(activePremium, id));
 }
 
+// ── Dungeon Premium Rewards ────────────────────────────────────────────────
+const PREMIUM_FEATURE_IDS = Object.keys(PREMIUM_FEATURES);
+
+function getRandomPremiumFeature(days = null) {
+    // Randomly select one of the available premium features
+    const featureId = PREMIUM_FEATURE_IDS[Math.floor(Math.random() * PREMIUM_FEATURE_IDS.length)];
+    const feature = PREMIUM_FEATURES[featureId];
+    
+    // Random duration between 5-10 days (in seconds)
+    const durationDays = days || (5 + Math.floor(Math.random() * 6)); // 5-10 days
+    const durationSeconds = durationDays * 24 * 3600;
+    
+    return {
+        id: featureId,
+        name: feature.name,
+        emoji: feature.emoji,
+        durationDays: durationDays,
+        durationSeconds: durationSeconds,
+        description: feature.desc
+    };
+}
+
+function applyPremiumFeatureToCharacter(char, featureId, durationSeconds) {
+    const now = Math.floor(Date.now() / 1000);
+    let activePrem = {};
+    
+    try {
+        if (char.premium_features) {
+            activePrem = JSON.parse(char.premium_features);
+        }
+    } catch {}
+    
+    // Add or extend the premium feature
+    const currentExpiry = activePrem[featureId] || 0;
+    const newExpiry = Math.max(currentExpiry, now) + durationSeconds;
+    activePrem[featureId] = newExpiry;
+    
+    return activePrem;
+}
+
 // ── All equipment slots ───────────────────────────────────────────────────
 const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','ring', 'amulet', 'accessory'];
 
@@ -2566,27 +2606,51 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
     const db = await getDb();
     const { loot, newFloor, highestFloor } = req.body || {};
 
-    const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+    const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
+    let message = '';
+    
     if (loot && typeof loot === 'object') {
+      // Gold reward
       if (loot.gold) {
-        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', [loot.gold, req.user.userId]);
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
+          [loot.gold, req.user.userId]);
+        message += `💰 +${loot.gold} gold! `;
       }
+      
+      // Gem reward (capped at 15)
       if (loot.gems) {
-        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE user_id = ?', [loot.gems, req.user.userId]);
+        const cappedGems = Math.min(15, loot.gems);
+        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE user_id = ?', 
+          [cappedGems, req.user.userId]);
+        message += `💎 +${cappedGems} gems! `;
       }
-
-      if (loot.premiumItem) {
-        const itemData = { ...loot.premiumItem, qty: 1 };
-        await dbRun(
-          db,
-          'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
-          [char.id, 'consumable', JSON.stringify(itemData)]
-        );
+      
+      // Premium feature reward
+      if (loot.premium) {
+        const now = Math.floor(Date.now() / 1000);
+        let activePrem = {};
+        
+        try {
+          if (char.premium_features) {
+            activePrem = JSON.parse(char.premium_features);
+          }
+        } catch {}
+        
+        // Add or extend the premium feature
+        const currentExpiry = activePrem[loot.premium.id] || 0;
+        const newExpiry = Math.max(currentExpiry, now) + (loot.premium.days * 24 * 3600);
+        activePrem[loot.premium.id] = newExpiry;
+        
+        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE user_id = ?', 
+          [JSON.stringify(activePrem), req.user.userId]);
+        
+        message += `✨ ${loot.premium.emoji} ${loot.premium.name} activated for ${loot.premium.days} days! `;
       }
     }
 
+    // Update floor progression
     if (newFloor) {
       const hf = highestFloor || newFloor;
       await dbRun(
@@ -2595,8 +2659,24 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
         [newFloor, hf, req.user.userId]
       );
     }
+    
+    // Send notification about premium reward
+    if (loot?.premium) {
+      try {
+        const subject = `🎉 Dungeon Boss Defeated - Premium Reward!`;
+        const body = `You defeated the boss on floor ${newFloor} and received ${loot.premium.emoji} ${loot.premium.name} for ${loot.premium.days} days! Check the Premium tab to see your new feature.\n\n${loot.premium.desc}`;
+        await dbRun(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?, ?, ?, ?)',
+          [char.id, char.id, subject, body]);
+      } catch (e) { console.error('Failed to send premium notification:', e); }
+    }
 
-    res.json({ success: true });
+    const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+    
+    res.json({ 
+      success: true, 
+      message: message.trim(),
+      character: await buildCharacterResponse(updatedChar, db)
+    });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
