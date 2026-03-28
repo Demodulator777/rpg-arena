@@ -290,7 +290,7 @@ mythril-aegis
 mythril-bulwark
 mythril-barrier
 mythril-wall
-mythril-guard
+mythril-guard = generated up to this point, not added, work in progress
 crystal-shield
 crystal-buckler
 crystal-aegis
