@@ -1412,7 +1412,6 @@ router.get('/character', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Upgrade ───────────────────────────────────────────────────────────────
 router.post('/upgrade', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -1433,9 +1432,25 @@ router.post('/upgrade', auth, async (req, res) => {
             const fresh = await dbGet(db, 'SELECT gold FROM characters WHERE user_id=?', [req.user.userId]);
             return res.status(400).json({ error: `Need ${cost} gold, have ${fresh?.gold ?? 0}.` });
         }
+        
+        // FIX: When upgrading vitality, properly update HP
         if (stat === 'vitality') {
-            await dbRun(db, 'UPDATE characters SET hp_current=hp_current+25 WHERE user_id=?', [req.user.userId]);
+            // Get equipped items to calculate the new max HP
+            const equippedArray = await getEquippedItemsArray(db, char.id);
+            
+            // First get the updated character after the stat increase
+            const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+            
+            // Calculate old max HP and new max HP
+            const oldMaxHp = calcHpMax(char, equippedArray);
+            const newMaxHp = calcHpMax(updatedChar, equippedArray);
+            const hpIncrease = newMaxHp - oldMaxHp;
+            
+            // Increase current HP by the same amount as max HP increased
+            await dbRun(db, 'UPDATE characters SET hp_current = hp_current + ? WHERE id = ?', 
+                [hpIncrease, char.id]);
         }
+        
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         res.json({ message: `+1 ${stat}! Spent ${cost} gold.`, character: await buildCharacterResponse(updated, db) });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -1600,9 +1615,9 @@ router.post('/missions/collect', auth, async (req, res) => {
         const isEvent = eventHas('grand_festival');
         const activePremCollect = getActivePremium(freshChar);
         const hasUlt = hasUltimate(activePremCollect);
-        const equippedArray = await getEquippedItemsArray(db, freshChar.id);
-        const hpMax     = calcHpMax(freshChar, equippedArray);
-        const hpCurrent = freshChar.hp_current ?? hpMax;
+const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+const hpMax = calcHpMax(freshChar, equippedArray);
+const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
         const playerFighter = {
@@ -2042,29 +2057,57 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         if (!item || item.item_type !== 'consumable') return res.status(400).json({ error: 'Item not found' });
         const data = JSON.parse(item.item_data);
         if (!data.effect) return res.status(400).json({ error: 'No effect' });
+        
+        // Get equipped items to calculate true max HP
         const equippedArray = await getEquippedItemsArray(db, char.id);
-        const hpMax = calcHpMax(char, equippedArray);
+        const trueHpMax = calcHpMax(char, equippedArray);
+        
         let message = '';
+        let updated = false;
+        
         if (data.effect.type === 'heal') {
-            const newHp = Math.min(hpMax, (char.hp_current ?? hpMax) + data.effect.value);
+            const currentHp = char.hp_current ?? trueHpMax;
+            const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
             await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, char.id]);
-            message = `Restored ${data.effect.value} HP.`;
+            message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
+            updated = true;
         } else if (data.effect.type === 'heal_full') {
-            await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [hpMax, char.id]);
-            message = `Fully restored HP!`;
+            await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [trueHpMax, char.id]);
+            message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
+            updated = true;
         } else if (data.effect.type === 'temp_stat') {
+            // Store temporary stat boost in session or character state
             message = `+${data.effect.value} ${data.effect.stat} for session.`;
+            updated = true;
         } else if (data.effect.type === 'xp') {
             let newXp = (char.xp || 0) + data.effect.value, newLevel = char.level;
             while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; }
             await dbRun(db, 'UPDATE characters SET xp=?,level=? WHERE id=?', [newXp, newLevel, char.id]);
             message = `Gained ${data.effect.value} XP!`;
+            updated = true;
+        } else if (data.effect.type === 'mp') {
+            const activePrem = getActivePremium(char);
+            const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
+            const currentMp = char.mission_points ?? 0;
+            const newMp = Math.min(mpMax, currentMp + data.effect.value);
+            await dbRun(db, 'UPDATE characters SET mission_points=? WHERE id=?', [newMp, char.id]);
+            message = `Restored ${data.effect.value} MP. (${newMp}/${mpMax})`;
+            updated = true;
         }
-        const d = JSON.parse(item.item_data); d.qty = (d.qty || 1) - 1;
-        if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
-        else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), item.id]);
-        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
-        res.json({ message, character: await buildCharacterResponse(updated, db) });
+        
+        // Remove one use of the consumable
+        if (updated) {
+            const d = JSON.parse(item.item_data);
+            d.qty = (d.qty || 1) - 1;
+            if (d.qty <= 0) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+            } else {
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), item.id]);
+            }
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ message, character: await buildCharacterResponse(updatedChar, db) });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
