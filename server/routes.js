@@ -2938,57 +2938,151 @@ router.post('/shop/reroll', auth, async (req, res) => {
 const fs = require('fs');
 const path = require('path');
 
-// ── Bug Report ─────────────────────────────────────────────────────────────
+// ── Bug Report to Database ────────────────────────────────────────────────
 router.post('/bug-report', async (req, res) => {
     try {
+        const db = await getDb();
         const report = req.body;
-        report.id = Date.now();
-        report.timestamp = new Date().toISOString();
-        
-        // Create reports directory
-        const reportsDir = path.join(__dirname, 'bug_reports');
-        if (!fs.existsSync(reportsDir)) {
-            fs.mkdirSync(reportsDir, { recursive: true });
-        }
+        const reportId = Date.now();
+        const timestamp = new Date().toISOString();
         
         // Save screenshot if exists
         let screenshotFilename = null;
         if (report.screenshot) {
             const base64Data = report.screenshot.replace(/^data:image\/\w+;base64,/, '');
             const ext = report.screenshot.match(/^data:image\/(\w+);base64,/)?.[1] || 'png';
-            screenshotFilename = `bug_${report.id}.${ext}`;
-            const screenshotPath = path.join(reportsDir, screenshotFilename);
-            fs.writeFileSync(screenshotPath, base64Data, 'base64');
-            report.screenshot = null;
-            report.has_screenshot = true;
-            report.screenshot_file = screenshotFilename;
+            screenshotFilename = `bug_${reportId}.${ext}`;
+            
+            // Store screenshot in database as BLOB
+            const screenshotBuffer = Buffer.from(base64Data, 'base64');
+            
+            await dbRun(db, `
+                INSERT INTO bug_reports (
+                    report_id, timestamp, username, character_name, character_level, character_class,
+                    category, title, description, steps_to_reproduce, browser,
+                    game_location, game_hp, game_gold, game_level,
+                    screenshot_file, has_screenshot
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                reportId, timestamp,
+                report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
+                report.report.category, report.report.title, report.report.description, 
+                report.report.steps_to_reproduce || null, report.report.browser || null,
+                report.game_state.location, report.game_state.hp, report.game_state.gold, report.game_state.level,
+                screenshotFilename, screenshotFilename ? 1 : 0
+            ]);
+            
+            // Store screenshot separately if you want (optional - you could store in a separate table)
+            if (screenshotFilename) {
+                const screenshotBuffer = Buffer.from(base64Data, 'base64');
+                await dbRun(db, `
+                    INSERT INTO bug_screenshots (report_id, filename, image_data, mime_type)
+                    VALUES (?, ?, ?, ?)
+                `, [reportId, screenshotFilename, screenshotBuffer, `image/${ext}`]);
+            }
         } else {
-            report.has_screenshot = false;
-            report.screenshot_file = null;
+            await dbRun(db, `
+                INSERT INTO bug_reports (
+                    report_id, timestamp, username, character_name, character_level, character_class,
+                    category, title, description, steps_to_reproduce, browser,
+                    game_location, game_hp, game_gold, game_level,
+                    has_screenshot
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                reportId, timestamp,
+                report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
+                report.report.category, report.report.title, report.report.description,
+                report.report.steps_to_reproduce || null, report.report.browser || null,
+                report.game_state.location, report.game_state.hp, report.game_state.gold, report.game_state.level,
+                0
+            ]);
         }
         
-        // Save individual report
-        const reportFile = path.join(reportsDir, `bug_${report.id}.json`);
-        fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
+        console.log(`🐛 Bug report #${reportId} saved to database from ${report.user.username}`);
         
-        // Update master log
-        const logFile = path.join(reportsDir, 'all_reports.json');
-        let allReports = [];
-        if (fs.existsSync(logFile)) {
-            try {
-                allReports = JSON.parse(fs.readFileSync(logFile, 'utf8'));
-            } catch (e) {}
-        }
-        allReports.unshift(report);
-        if (allReports.length > 500) allReports = allReports.slice(0, 500);
-        fs.writeFileSync(logFile, JSON.stringify(allReports, null, 2));
-        
-        console.log(`🐛 Bug report #${report.id} from ${report.user?.username || 'guest'}: ${report.report?.title || 'test'}`);
-        
-        res.json({ success: true, id: report.id, message: 'Report submitted successfully' });
+        res.json({ 
+            success: true, 
+            id: reportId,
+            message: 'Report submitted successfully!'
+        });
     } catch (error) {
         console.error('Bug report error:', error);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ── View Bug Reports (simple admin view) ─────────────────────────────────
+router.get('/bug-reports/list', async (req, res) => {
+    try {
+        const db = await getDb();
+        const reports = await dbAll(db, `
+            SELECT id, report_id, timestamp, username, character_name, character_level, 
+                   character_class, category, title, description, game_location, game_hp, 
+                   game_gold, game_level, has_screenshot
+            FROM bug_reports 
+            ORDER BY id DESC 
+            LIMIT 50
+        `, []);
+        
+        // Simple HTML view
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Bug Reports</title>
+                <style>
+                    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
+                    .report { border: 1px solid #333; margin: 20px 0; padding: 15px; border-radius: 8px; background: #16213e; }
+                    .header { color: #ffd700; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+                    .field { margin: 8px 0; }
+                    .label { color: #9b59b6; font-weight: bold; display: inline-block; min-width: 120px; }
+                    pre { background: #0f0f1a; padding: 10px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
+                </style>
+            </head>
+            <body>
+                <h1>🐛 Bug Reports (${reports.length} total)</h1>
+        `;
+        
+        for (const r of reports) {
+            html += `
+                <div class="report">
+                    <div class="header">#${r.report_id} - ${r.timestamp}</div>
+                    <div class="field"><span class="label">From:</span> ${r.username || 'guest'} (${r.character_name}, Lv.${r.character_level} ${r.character_class})</div>
+                    <div class="field"><span class="label">Category:</span> ${r.category}</div>
+                    <div class="field"><span class="label">Title:</span> ${r.title}</div>
+                    <div class="field"><span class="label">Description:</span> <pre>${r.description}</pre></div>
+                    ${r.has_screenshot ? `<div class="field"><span class="label">Screenshot:</span> <a href="/api/game/bug-report/screenshot/${r.report_id}" target="_blank">View Screenshot</a></div>` : ''}
+                </div>
+            `;
+        }
+        
+        html += `</body></html>`;
+        res.send(html);
+    } catch (error) {
+        res.status(500).send('Error: ' + error.message);
+    }
+});
+
+// View screenshot endpoint
+router.get('/bug-report/screenshot/:reportId', async (req, res) => {
+        const password = req.query.password;
+    if (password !== 'battlearenaisbetterthanbk') {
+        return res.status(403).send('Unauthorized');
+    }
+    try {
+        const db = await getDb();
+        const screenshot = await dbGet(db, `
+            SELECT image_data, mime_type FROM bug_screenshots WHERE report_id = ?
+        `, [req.params.reportId]);
+        
+        if (screenshot) {
+            res.setHeader('Content-Type', screenshot.mime_type);
+            res.send(screenshot.image_data);
+        } else {
+            res.status(404).send('Screenshot not found');
+        }
+    } catch (error) {
+        res.status(500).send('Error: ' + error.message);
     }
 });
 
