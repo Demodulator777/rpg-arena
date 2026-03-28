@@ -52,7 +52,7 @@ golden-scythe
 crystal-sword
 crystal-blade
 crystal-axe
-crystal-dagger = currently added up to this point, including crystal-dagger
+crystal-dagger
 crystal-bow
 crystal-staff
 crystal-hammer
@@ -128,7 +128,7 @@ scale-cuirass
 scale-breastplate
 scale-hauberk
 scale-mail
-scale-plate
+scale-plate  = currently added up to this point, including this one
 crystal-armor
 crystal-vest
 crystal-cuirass
