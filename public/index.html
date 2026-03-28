@@ -412,6 +412,78 @@
             </div>
         </div>
 
+        <!-- Floating Bug Report Button -->
+<button id="bug-report-btn" class="bug-report-floating-btn" title="Report a Bug">
+  <span>🐛</span>
+</button>
+
+<!-- Bug Report Modal -->
+<div id="bug-report-modal" class="modal-overlay hidden">
+  <div class="modal-box bug-report-modal">
+    <div class="modal-header">
+      <h2>🐛 Report a Bug</h2>
+      <button class="modal-close" onclick="closeBugReport()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="bug-report-intro">
+        <p>Found something broken? Let us know and we'll fix it!</p>
+        <p class="bug-report-note">Your username and character info will be included automatically.</p>
+      </div>
+      <form id="bug-report-form">
+        <div class="form-group">
+          <label for="bug-category">Category *</label>
+          <select id="bug-category" required>
+            <option value="">Select category</option>
+            <option value="combat">Combat/Battle Issue</option>
+            <option value="ui">UI/Display Issue</option>
+            <option value="mission">Mission Problem</option>
+            <option value="shop">Shop/Inventory Issue</option>
+            <option value="dungeon">Dungeon Problem</option>
+            <option value="performance">Performance/Lag</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="bug-title">Short Title *</label>
+          <input type="text" id="bug-title" placeholder="Brief description of the issue" required maxlength="100">
+        </div>
+        <div class="form-group">
+          <label for="bug-description">Description *</label>
+          <textarea id="bug-description" rows="5" placeholder="What happened? What did you expect to happen?" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="bug-steps">Steps to Reproduce</label>
+          <textarea id="bug-steps" rows="3" placeholder="1. Clicked on...&#10;2. Selected...&#10;3. Then it happened..."></textarea>
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" id="include-screenshot" onchange="toggleScreenshotUpload()">
+            Include screenshot (paste image or drag & drop)
+          </label>
+        </div>
+        <div id="screenshot-upload-area" class="screenshot-upload-area hidden">
+          <div class="upload-dropzone" id="screenshot-dropzone" onclick="document.getElementById('screenshot-file').click()">
+            <span>📸</span>
+            <span>Click or drag image here</span>
+            <span class="upload-hint">PNG, JPG up to 5MB</span>
+          </div>
+          <input type="file" id="screenshot-file" accept="image/*" style="display: none">
+          <div id="screenshot-preview" class="screenshot-preview hidden"></div>
+        </div>
+        <div class="form-group">
+          <label for="bug-browser">Browser</label>
+          <input type="text" id="bug-browser" placeholder="e.g., Chrome 120, Firefox 121">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeBugReport()">Cancel</button>
+          <button type="submit" class="btn-primary">Submit Report</button>
+        </div>
+      </form>
+    </div>
+    <div id="bug-report-status" class="bug-report-status hidden"></div>
+  </div>
+</div>
+
     </div>
 </div>
 <script src="/js/app.js"></script>
