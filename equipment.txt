@@ -98,7 +98,7 @@ adamant-staff
 adamant-hammer
 adamant-spear
 adamant-mace
-adamant-scythe
+adamant-scythe = all weapons added
 
 === ARMOR (63) ===
 leather-armor
