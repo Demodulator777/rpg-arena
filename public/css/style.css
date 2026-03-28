@@ -1303,7 +1303,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 /* Bug Report Floating Button */
 .bug-report-floating-btn {
   position: fixed;
-  bottom: 20px;
+  bottom: 65px;
   right: 20px;
   width: 56px;
   height: 56px;
