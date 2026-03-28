@@ -3063,27 +3063,285 @@ router.get('/bug-reports/list', async (req, res) => {
     }
 });
 
-// View screenshot endpoint
-router.get('/bug-report/screenshot/:reportId', async (req, res) => {
+// ── View All Bug Reports (Admin View) ─────────────────────────────────────
+router.get('/bug-reports/list', async (req, res) => {
+    try {
+        const db = await getDb();
+        
+        // Optional: Add simple password protection
         const password = req.query.password;
-    if (password !== 'battlearenaisbetterthanbk') {
-        return res.status(403).send('Unauthorized');
+        if (password !== 'baisbetterthanbk') {
+            return res.status(403).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Bug Reports - Login</title>
+                    <style>
+                        body { background: #1a1a2e; color: #eee; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
+                        .login-box { background: #16213e; padding: 30px; border-radius: 10px; border: 1px solid #9b59b6; }
+                        input, button { padding: 10px; margin: 10px 0; background: #0f0f1a; border: 1px solid #333; color: #eee; border-radius: 5px; }
+                        button { background: #9b59b6; cursor: pointer; }
+                    </style>
+                </head>
+                <body>
+                    <div class="login-box">
+                        <h2>🔒 Bug Reports Access</h2>
+                        <form method="GET">
+                            <input type="password" name="password" placeholder="Enter password" style="width: 100%">
+                            <button type="submit">View Reports</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+        
+        const reports = await dbAll(db, `
+            SELECT id, report_id, timestamp, username, character_name, character_level, 
+                   character_class, category, title, description, steps_to_reproduce, browser,
+                   game_location, game_hp, game_gold, game_level, has_screenshot
+            FROM bug_reports 
+            ORDER BY id DESC 
+            LIMIT 200
+        `, []);
+        
+        // Simple HTML view
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Bug Reports - Admin</title>
+                <meta charset="UTF-8">
+                <style>
+                    * { box-sizing: border-box; }
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; 
+                        background: #0a0a0f; 
+                        color: #e2e8f0; 
+                        padding: 20px; 
+                        margin: 0;
+                    }
+                    .container { max-width: 1200px; margin: 0 auto; }
+                    h1 { color: #f1c40f; border-bottom: 2px solid #9b59b6; padding-bottom: 10px; display: inline-block; }
+                    .stats { background: #16213e; padding: 15px; border-radius: 8px; margin: 20px 0; display: flex; gap: 20px; }
+                    .stat { flex: 1; text-align: center; }
+                    .stat-number { font-size: 28px; font-weight: bold; color: #9b59b6; }
+                    .stat-label { font-size: 12px; color: #94a3b8; }
+                    .report { 
+                        border: 1px solid #2d2d3a; 
+                        margin: 20px 0; 
+                        padding: 20px; 
+                        border-radius: 12px; 
+                        background: #16213e;
+                        transition: transform 0.2s;
+                    }
+                    .report:hover { transform: translateX(5px); border-color: #9b59b6; }
+                    .header { 
+                        color: #f1c40f; 
+                        font-size: 14px; 
+                        margin-bottom: 15px; 
+                        border-bottom: 1px solid #2d2d3a; 
+                        padding-bottom: 8px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .report-id { font-size: 18px; font-weight: bold; color: #9b59b6; }
+                    .timestamp { color: #64748b; font-size: 12px; }
+                    .field { margin: 12px 0; }
+                    .label { 
+                        color: #9b59b6; 
+                        font-weight: bold; 
+                        display: inline-block; 
+                        min-width: 130px;
+                        font-size: 13px;
+                    }
+                    .value { color: #e2e8f0; word-break: break-word; }
+                    pre { 
+                        background: #0f0f1a; 
+                        padding: 12px; 
+                        border-radius: 8px; 
+                        overflow-x: auto; 
+                        white-space: pre-wrap;
+                        font-family: monospace;
+                        font-size: 13px;
+                        margin: 5px 0;
+                        border-left: 3px solid #9b59b6;
+                    }
+                    .screenshot-link {
+                        display: inline-block;
+                        background: #9b59b6;
+                        color: white;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        text-decoration: none;
+                        font-size: 13px;
+                        margin-top: 10px;
+                        transition: background 0.2s;
+                    }
+                    .screenshot-link:hover { background: #8e44ad; }
+                    .badge {
+                        display: inline-block;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        margin-left: 10px;
+                    }
+                    .badge-bug { background: #e74c3c; color: white; }
+                    .badge-ui { background: #3498db; color: white; }
+                    .badge-mission { background: #2ecc71; color: white; }
+                    .badge-dungeon { background: #9b59b6; color: white; }
+                    .badge-other { background: #95a5a6; color: white; }
+                    .game-state {
+                        background: #0f0f1a;
+                        padding: 10px;
+                        border-radius: 6px;
+                        margin-top: 10px;
+                        font-family: monospace;
+                        font-size: 12px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🐛 Bug Reports</h1>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-number">${reports.length}</div>
+                            <div class="stat-label">Total Reports</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">${reports.filter(r => r.has_screenshot).length}</div>
+                            <div class="stat-label">With Screenshots</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">${new Set(reports.map(r => r.username)).size}</div>
+                            <div class="stat-label">Unique Reporters</div>
+                        </div>
+                    </div>
+        `;
+        
+        for (const r of reports) {
+            const categoryBadge = {
+                combat: 'badge-bug',
+                ui: 'badge-ui',
+                mission: 'badge-mission',
+                dungeon: 'badge-dungeon',
+                other: 'badge-other'
+            }[r.category] || 'badge-other';
+            
+            html += `
+                <div class="report">
+                    <div class="header">
+                        <div>
+                            <span class="report-id">#${r.report_id}</span>
+                            <span class="badge ${categoryBadge}">${r.category}</span>
+                        </div>
+                        <div class="timestamp">${new Date(r.timestamp).toLocaleString()}</div>
+                    </div>
+                    
+                    <div class="field">
+                        <span class="label">👤 From:</span>
+                        <span class="value">${r.username || 'guest'} (${r.character_name}, Lv.${r.character_level} ${r.character_class})</span>
+                    </div>
+                    
+                    <div class="field">
+                        <span class="label">📝 Title:</span>
+                        <span class="value"><strong>${escapeHtml(r.title)}</strong></span>
+                    </div>
+                    
+                    <div class="field">
+                        <span class="label">📄 Description:</span>
+                        <pre>${escapeHtml(r.description)}</pre>
+                    </div>
+                    
+                    ${r.steps_to_reproduce ? `
+                    <div class="field">
+                        <span class="label">🔁 Steps to Reproduce:</span>
+                        <pre>${escapeHtml(r.steps_to_reproduce)}</pre>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="field">
+                        <span class="label">🎮 Game State:</span>
+                        <div class="game-state">
+                            Location: ${r.game_location || 'unknown'} | 
+                            HP: ${r.game_hp} | 
+                            Gold: ${r.game_gold} | 
+                            Level: ${r.game_level}
+                        </div>
+                    </div>
+                    
+                    ${r.browser ? `
+                    <div class="field">
+                        <span class="label">🌐 Browser:</span>
+                        <span class="value">${escapeHtml(r.browser)}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${r.has_screenshot ? `
+                    <div class="field">
+                        <a class="screenshot-link" href="/api/game/bug-report/screenshot/${r.report_id}" target="_blank">
+                            📸 View Screenshot
+                        </a>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </body>
+            </html>
+        `;
+        
+        res.send(html);
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        res.status(500).send('Error: ' + error.message);
     }
+});
+
+// ── View Single Screenshot ────────────────────────────────────────────────
+router.get('/bug-report/screenshot/:reportId', async (req, res) => {
     try {
         const db = await getDb();
         const screenshot = await dbGet(db, `
             SELECT image_data, mime_type FROM bug_screenshots WHERE report_id = ?
         `, [req.params.reportId]);
         
-        if (screenshot) {
+        if (screenshot && screenshot.image_data) {
             res.setHeader('Content-Type', screenshot.mime_type);
+            res.setHeader('Cache-Control', 'public, max-age=86400');
             res.send(screenshot.image_data);
         } else {
-            res.status(404).send('Screenshot not found');
+            res.status(404).send(`
+                <html>
+                <body style="background: #1a1a2e; color: white; text-align: center; padding: 50px;">
+                    <h1>📸 Screenshot Not Found</h1>
+                    <p>No screenshot was attached to this report.</p>
+                    <a href="/api/game/bug-reports/list?password=your-secret-password" style="color: #9b59b6;">← Back to Reports</a>
+                </body>
+                </html>
+            `);
         }
     } catch (error) {
-        res.status(500).send('Error: ' + error.message);
+        console.error('Error loading screenshot:', error);
+        res.status(500).send('Error loading screenshot');
     }
 });
+
+// Helper function for escaping HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 module.exports = router;
