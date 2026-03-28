@@ -172,10 +172,10 @@ const GUILD_RANKS = [
 
   // ── Loot Tables ────────────────────────────────────────────
   const MINION_LOOT = [
-    { type:'gold',       weight:40, min:5,  max:40  },
-    { type:'potion_hp',  weight:25, name:'Health Potion',  icon:'🧪', heal:50  },
-    { type:'potion_mp',  weight:15, name:'Mana Potion',    icon:'💧', mp:30    },
-    { type:'item_common',weight:20 },
+    { type:'gold',       weight:75, min:5,  max:40  },
+    { type:'potion_hp',  weight:15, name:'Health Potion',  icon:'🧪', heal:50  },
+    { type:'potion_mp',  weight:5, name:'Mana Potion',    icon:'💧', mp:30    },
+    { type:'item_common',weight:5 },
   ];
 
   const COMMON_ITEMS = [
