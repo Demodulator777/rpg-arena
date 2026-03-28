@@ -450,7 +450,6 @@ function applyMagicDamageModifiers(attacker, defender) {
     return { damageBonus, resistance };
 }
 
-// ── Updated simulateRound with Magic Shield ─────────────────────────────────
 function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty, attackerShield, defenderShield) {
     const hit = HIT_ZONES[atkZone]  || HIT_ZONES.chest;
     const blk = BLOCK_ZONES[blkZone] || BLOCK_ZONES.cross_guard;
@@ -508,8 +507,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             finalDmg = Math.max(0, Math.floor(rawDmg * (1 - reduction)));
             const critTag = isCrit ? ' ⚡CRIT' : '';
             logLine = finalDmg === 0
-                ? `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED (${rawDmg} absorbed)`
-                : `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED partially — ${finalDmg} slips through`;
+                ? `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`
+                : `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED partially — ${finalDmg} damage`;
         } else {
             finalDmg = rawDmg;
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${isCrit ? ' ⚡ CRITICAL HIT!' : ''} — ${finalDmg} damage`;
@@ -522,30 +521,28 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             defenderShield.remaining -= absorbed;
             defenderShield.usedInBattle = true;
             
-            logLine += ` ✨ MAGIC SHIELD absorbed ${absorbed} damage!`;
-            
             if (finalDmg <= 0) {
-                logLine += ` (Completely blocked)`;
+                logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ MAGIC SHIELD absorbed all damage!`;
+            } else {
+                logLine = logLine.replace(/(\d+) damage/, `${finalDmg} damage ✨ (shield absorbed ${absorbed})`);
             }
             
             if (defenderShield.remaining <= 0) {
-                defenderShield.active = false;
-                logLine += ` 💔 The magic shield shatters!`;
+                logLine += ` 💔 Shield shatters!`;
             }
         }
 
-        // Armor reduction
+        // Apply armor reduction (silently, without log)
         if (finalDmg > 0 && (defender.armor || 0) > 0) {
             const physReduction = Math.min(finalDmg - 1, defender.armor);
-            finalDmg -= physReduction;
-            if (physReduction > 0) {
-                logLine = logLine.replace(/— (\d+) (damage|slips through)/, `— ${finalDmg} $2 (${physReduction} absorbed by armor)`);
-            }
+            finalDmg = Math.max(1, finalDmg - physReduction);
+            // No log line for armor reduction - just update damage
         }
 
         // Elemental damage with magic resistance
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
+        let elemBreakdown = [];
         for (const elem of ELEMENTS) {
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
@@ -558,17 +555,24 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const totalResist = elemResist + magicResist;
             
             ed = Math.max(0, ed - totalResist);
-            totalElemDmg += ed;
+            if (ed > 0) {
+                totalElemDmg += ed;
+                elemBreakdown.push(`${ed}${elem === 'pyro' ? '🔥' : elem === 'water' ? '💧' : elem === 'wind' ? '🌀' : '⚡'}`);
+            }
         }
         
         if (totalElemDmg > 0) {
             finalDmg += totalElemDmg;
-            logLine += ` ✨+${totalElemDmg} elemental`;
+            logLine += ` ✨ +${totalElemDmg} elemental (${elemBreakdown.join(' + ')})`;
         }
 
-        if (hasSkill(atkSkills, 'venomfang')) { finalDmg += 5; logLine += ' ☠️+5 poison'; }
+        if (hasSkill(atkSkills, 'venomfang')) { 
+            finalDmg += 5; 
+            logLine += ' ☠️ +5 poison'; 
+        }
         if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
-            healBack = Math.floor(finalDmg * 0.10); logLine += ` 💚+${healBack} heal`;
+            healBack = Math.floor(finalDmg * 0.10); 
+            logLine += ` 💚 +${healBack} heal`;
         }
         if (hasSkill(defSkills, 'consecrate') && finalDmg > 0) {
             const reflect = Math.floor(finalDmg * 0.15);
