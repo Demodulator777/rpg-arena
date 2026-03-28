@@ -2939,23 +2939,23 @@ const fs = require('fs');
 const path = require('path');
 
 // ── Bug Report to Database with Images ────────────────────────────────────
+// ── Bug Report to Database with Images ────────────────────────────────────
 router.post('/bug-report', async (req, res) => {
     try {
         const db = await getDb();
         const report = req.body;
-        const reportId = Date.now();
         const timestamp = new Date().toISOString();
         
-        // First, insert the report
-        await dbRun(db, `
+        // Insert the report and get the auto-generated ID
+        const result = await dbRun(db, `
             INSERT INTO bug_reports (
-                report_id, timestamp, username, character_name, character_level, character_class,
+                report_timestamp, username, character_name, character_level, character_class,
                 category, title, description, steps_to_reproduce, browser,
                 game_location, game_hp, game_gold, game_level,
                 has_screenshot
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
-            reportId, timestamp,
+            timestamp,
             report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
             report.report.category, report.report.title, report.report.description, 
             report.report.steps_to_reproduce || null, report.report.browser || null,
@@ -2963,26 +2963,29 @@ router.post('/bug-report', async (req, res) => {
             report.screenshot ? 1 : 0
         ]);
         
-        // Then insert screenshot if exists (no foreign key constraint)
+        // Get the auto-generated ID
+        const bugReportId = result.lastInsertRowid;
+        
+        // Save screenshot if exists
         if (report.screenshot) {
             const base64Data = report.screenshot.split(',')[1];
             const mimeMatch = report.screenshot.match(/^data:image\/(\w+);base64,/);
             const mimeType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png';
             const ext = mimeMatch?.[1] || 'png';
             const screenshotBuffer = Buffer.from(base64Data, 'base64');
-            const filename = `bug_${reportId}.${ext}`;
+            const filename = `bug_${bugReportId}.${ext}`;
             
             await dbRun(db, `
-                INSERT INTO bug_screenshots (report_id, filename, image_data, mime_type)
+                INSERT INTO bug_screenshots (bug_report_id, filename, image_data, mime_type)
                 VALUES (?, ?, ?, ?)
-            `, [reportId, filename, screenshotBuffer, mimeType]);
+            `, [bugReportId, filename, screenshotBuffer, mimeType]);
         }
         
-        console.log(`🐛 Bug report #${reportId} saved to database from ${report.user.username}`);
+        console.log(`🐛 Bug report #${bugReportId} saved from ${report.user.username}`);
         
         res.json({ 
             success: true, 
-            id: reportId,
+            id: bugReportId,
             message: 'Report submitted successfully!'
         });
     } catch (error) {
@@ -2991,55 +2994,25 @@ router.post('/bug-report', async (req, res) => {
     }
 });
 
-// ── View Bug Reports (simple admin view) ─────────────────────────────────
-router.get('/bug-reports/list', async (req, res) => {
+// ── View Single Screenshot ────────────────────────────────────────────────
+router.get('/bug-report/screenshot/:bugReportId', async (req, res) => {
     try {
         const db = await getDb();
-        const reports = await dbAll(db, `
-            SELECT id, report_id, timestamp, username, character_name, character_level, 
-                   character_class, category, title, description, game_location, game_hp, 
-                   game_gold, game_level, has_screenshot
-            FROM bug_reports 
-            ORDER BY id DESC 
-            LIMIT 50
-        `, []);
+        const screenshot = await dbGet(db, `
+            SELECT image_data, mime_type FROM bug_screenshots WHERE bug_report_id = ?
+        `, [req.params.bugReportId]);
         
-        // Simple HTML view
-        let html = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Bug Reports</title>
-                <style>
-                    body { font-family: monospace; background: #1a1a2e; color: #eee; padding: 20px; }
-                    .report { border: 1px solid #333; margin: 20px 0; padding: 15px; border-radius: 8px; background: #16213e; }
-                    .header { color: #ffd700; font-size: 16px; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
-                    .field { margin: 8px 0; }
-                    .label { color: #9b59b6; font-weight: bold; display: inline-block; min-width: 120px; }
-                    pre { background: #0f0f1a; padding: 10px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
-                </style>
-            </head>
-            <body>
-                <h1>🐛 Bug Reports (${reports.length} total)</h1>
-        `;
-        
-        for (const r of reports) {
-            html += `
-                <div class="report">
-                    <div class="header">#${r.report_id} - ${r.timestamp}</div>
-                    <div class="field"><span class="label">From:</span> ${r.username || 'guest'} (${r.character_name}, Lv.${r.character_level} ${r.character_class})</div>
-                    <div class="field"><span class="label">Category:</span> ${r.category}</div>
-                    <div class="field"><span class="label">Title:</span> ${r.title}</div>
-                    <div class="field"><span class="label">Description:</span> <pre>${r.description}</pre></div>
-                    ${r.has_screenshot ? `<div class="field"><span class="label">Screenshot:</span> <a href="/api/game/bug-report/screenshot/${r.report_id}" target="_blank">View Screenshot</a></div>` : ''}
-                </div>
-            `;
+        if (screenshot && screenshot.image_data) {
+            res.setHeader('Content-Type', screenshot.mime_type);
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.send(Buffer.from(screenshot.image_data));
+        } else {
+            res.status(404).send('Screenshot not found');
         }
-        
-        html += `</body></html>`;
-        res.send(html);
     } catch (error) {
-        res.status(500).send('Error: ' + error.message);
+        console.error('Error loading screenshot:', error);
+        res.status(500).send('Error loading screenshot');
     }
 });
 
@@ -3077,7 +3050,7 @@ router.get('/bug-reports/list', async (req, res) => {
         }
         
         const reports = await dbAll(db, `
-            SELECT id, report_id, timestamp, username, character_name, character_level, 
+            SELECT id, report_timestamp as timestamp, username, character_name, character_level, 
                    character_class, category, title, description, steps_to_reproduce, browser,
                    game_location, game_hp, game_gold, game_level, has_screenshot
             FROM bug_reports 
@@ -3215,7 +3188,7 @@ router.get('/bug-reports/list', async (req, res) => {
                 <div class="report">
                     <div class="header">
                         <div>
-                            <span class="report-id">#${r.report_id}</span>
+                            <span class="report-id">#${r.id}</span>
                             <span class="badge ${categoryBadge}">${r.category}</span>
                         </div>
                         <div class="timestamp">${new Date(r.timestamp).toLocaleString()}</div>
@@ -3223,7 +3196,7 @@ router.get('/bug-reports/list', async (req, res) => {
                     
                     <div class="field">
                         <span class="label">👤 From:</span>
-                        <span class="value">${r.username || 'guest'} (${r.character_name}, Lv.${r.character_level} ${r.character_class})</span>
+                        <span class="value">${escapeHtml(r.username || 'guest')} (${r.character_name}, Lv.${r.character_level} ${r.character_class})</span>
                     </div>
                     
                     <div class="field">
@@ -3262,7 +3235,7 @@ router.get('/bug-reports/list', async (req, res) => {
                     
                     ${r.has_screenshot ? `
                     <div class="field">
-                        <a class="screenshot-link" href="/api/game/bug-report/screenshot/${r.report_id}" target="_blank">
+                        <a class="screenshot-link" href="/api/game/bug-report/screenshot/${r.id}" target="_blank">
                             📸 View Screenshot
                         </a>
                     </div>
