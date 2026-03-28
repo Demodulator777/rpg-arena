@@ -9,7 +9,6 @@ const router = express.Router();
 const _missionStartLock = new Set();
 
 // ── Adventurer's Guild Exchanges ─────────────────────────────────────
-// Client-side uses the same IDs; server keeps this list to validate exchanges.
 const GUILD_EXCHANGES = [
     { id: 'exchange_gold', name: 'Exchange Dungeon Gold', cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 } },
     { id: 'exchange_materials', name: 'Material Bounty', cost: { crypt_dust: 10, void_shard: 5 }, reward: { gold: 200, reputation: 2 } },
@@ -42,6 +41,12 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN active_skills TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN skill_last_used TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN premium_features TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN dungeon_tokens INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN dungeon_floor INTEGER DEFAULT 1',
+            'ALTER TABLE characters ADD COLUMN dungeon_highest_floor INTEGER DEFAULT 1',
+            'ALTER TABLE characters ADD COLUMN dungeon_progress TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN dungeon_gold INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -402,8 +407,51 @@ function getEquippedWeaponData(equippedItems) {
     return null;
 }
 
-// ── Battle logic ──────────────────────────────────────────────────────────
-function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty) {
+// ── Magic Shield & Elemental Damage Functions ─────────────────────────────────
+function calculateMagicShield(attacker, defender) {
+    const attackerCrit = attacker.crit_chance || 0;
+    const defenderMagic = defender.magic || 0;
+    
+    // Shield created from magic advantage over opponent's crit
+    if (defenderMagic > attackerCrit) {
+        const magicAdvantage = defenderMagic - attackerCrit;
+        const shieldValue = Math.floor(magicAdvantage / 4);
+        
+        return {
+            active: true,
+            value: shieldValue,
+            remaining: shieldValue,
+            usedInBattle: false
+        };
+    }
+    
+    return {
+        active: false,
+        value: 0,
+        remaining: 0,
+        usedInBattle: false
+    };
+}
+
+function applyMagicDamageModifiers(attacker, defender) {
+    let damageBonus = 0;
+    let resistance = 0;
+    
+    // Magic increases damage dealt (applies to all damage types)
+    if (attacker.magic) {
+        damageBonus = Math.floor(attacker.magic * 0.1); // 10% of magic as bonus damage
+    }
+    
+    // Magic reduces damage taken
+    if (defender.magic) {
+        resistance = Math.floor(defender.magic * 0.05); // 5% of magic as damage reduction
+    }
+    
+    return { damageBonus, resistance };
+}
+
+// ── Updated simulateRound with Magic Shield ─────────────────────────────────
+function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty, attackerShield, defenderShield) {
     const hit = HIT_ZONES[atkZone]  || HIT_ZONES.chest;
     const blk = BLOCK_ZONES[blkZone] || BLOCK_ZONES.cross_guard;
     const atkSkills = attacker.activeSkills || {};
@@ -447,8 +495,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
 
+        // Apply magic damage bonus
+        const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
+        rawDmg += damageBonus;
+
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
         const blockFails  = Math.random() < 0.001;
+        
         if (blockCovers && !blockFails) {
             let reduction = blk.reduction;
             if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
@@ -462,12 +515,35 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${isCrit ? ' ⚡ CRITICAL HIT!' : ''} — ${finalDmg} damage`;
         }
 
+        // Magic Shield Absorption (only once per battle)
+        if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
+            const absorbed = Math.min(defenderShield.remaining, finalDmg);
+            finalDmg -= absorbed;
+            defenderShield.remaining -= absorbed;
+            defenderShield.usedInBattle = true;
+            
+            logLine += ` ✨ MAGIC SHIELD absorbed ${absorbed} damage!`;
+            
+            if (finalDmg <= 0) {
+                logLine += ` (Completely blocked)`;
+            }
+            
+            if (defenderShield.remaining <= 0) {
+                defenderShield.active = false;
+                logLine += ` 💔 The magic shield shatters!`;
+            }
+        }
+
+        // Armor reduction
         if (finalDmg > 0 && (defender.armor || 0) > 0) {
             const physReduction = Math.min(finalDmg - 1, defender.armor);
             finalDmg -= physReduction;
-            logLine = logLine.replace(/— (\d+) (damage|slips through)/, `— ${finalDmg} $2`);
+            if (physReduction > 0) {
+                logLine = logLine.replace(/— (\d+) (damage|slips through)/, `— ${finalDmg} $2 (${physReduction} absorbed by armor)`);
+            }
         }
 
+        // Elemental damage with magic resistance
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
@@ -475,14 +551,16 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (ed <= 0) continue;
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-            if (blockCovers && !blockFails) {
-                let reduction = blk.reduction;
-                if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
-                ed = Math.max(0, Math.floor(ed * (1 - reduction)));
-            }
-            const resist = (defender.elem_resist || {})[elem] || 0;
-            totalElemDmg += Math.max(0, ed - resist);
+            
+            // Magic resistance reduces elemental damage
+            const elemResist = (defender.elem_resist || {})[elem] || 0;
+            const magicResist = Math.floor((defender.magic || 0) * 0.05);
+            const totalResist = elemResist + magicResist;
+            
+            ed = Math.max(0, ed - totalResist);
+            totalElemDmg += ed;
         }
+        
         if (totalElemDmg > 0) {
             finalDmg += totalElemDmg;
             logLine += ` ✨+${totalElemDmg} elemental`;
@@ -507,17 +585,32 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty, healBack };
 }
 
+// ── Updated runBattle with Magic Shields ─────────────────────────────────
 function runBattle(fighterA, fighterB) {
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
     let penaltyA = false, penaltyB = false;
     let totalDmgToA = 0, totalDmgToB = 0;
+    
+    // Initialize magic shields at battle start
+    let shieldA = calculateMagicShield(fighterB, fighterA);
+    let shieldB = calculateMagicShield(fighterA, fighterB);
+    shieldA.usedInBattle = false;
+    shieldB.usedInBattle = false;
 
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
     const skA = Object.keys(fighterA.activeSkills || {});
     const skB = Object.keys(fighterB.activeSkills || {});
     if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
     if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+    
+    // Log shield creation
+    if (shieldA.active) {
+        log.push(`✨ ${fighterA.name}'s magic creates a shield worth ${shieldA.value} damage!`);
+    }
+    if (shieldB.active) {
+        log.push(`✨ ${fighterB.name}'s magic creates a shield worth ${shieldB.value} damage!`);
+    }
     log.push('---');
 
     for (let round = 1; round <= 10; round++) {
@@ -525,8 +618,10 @@ function runBattle(fighterA, fighterB) {
         const blkZoneA = fighterA.blockZones[round-1]  || 'cross_guard';
         const atkZoneB = fighterB.attackZones[round-1] || 'chest';
         const blkZoneB = fighterB.blockZones[round-1]  || 'cross_guard';
-        const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA);
-        const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB);
+        
+        const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
+        const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+        
         const dmgToB = resA.damageDealt;
         const dmgToA = resB.damageDealt + resA.damageCounter + resB.damageCounter;
         totalDmgToA += dmgToA;
@@ -537,6 +632,7 @@ function runBattle(fighterA, fighterB) {
         log.push(resB.logLine);
         penaltyA = resB.nextAtkPenalty;
         penaltyB = resA.nextAtkPenalty;
+        
         if (hpA <= 0 || hpB <= 0) {
             if (hpA <= 0 && hpB <= 0) log.push(`Round ${round}: Both fighters fall simultaneously!`);
             else if (hpA <= 0) log.push(`Round ${round}: ${fighterA.name} has fallen!`);
@@ -560,9 +656,9 @@ function runBattle(fighterA, fighterB) {
 
 function buildNpc(difficulty, playerLevel) {
     const configs = {
-        easy:   { hpBase:40, hpScale:3,  atkMin:3,  atkMax:7,  agi:5,  name:'Weak Foe' },
-        medium: { hpBase:60, hpScale:5,  atkMin:6,  atkMax:12, agi:10, name:'Seasoned Foe' },
-        hard:   { hpBase:80, hpScale:8,  atkMin:10, atkMax:18, agi:15, name:'Elite Foe' },
+        easy:   { hpBase:40, hpScale:3,  atkMin:3,  atkMax:7,  agi:5,  magic:5,  name:'Weak Foe' },
+        medium: { hpBase:60, hpScale:5,  atkMin:6,  atkMax:12, agi:10, magic:10, name:'Seasoned Foe' },
+        hard:   { hpBase:80, hpScale:8,  atkMin:10, atkMax:18, agi:15, magic:15, name:'Elite Foe' },
     };
     const cfg = configs[difficulty] || configs.easy;
     const npcAttack = {
@@ -578,7 +674,7 @@ function buildNpc(difficulty, playerLevel) {
     return {
         id: -1, name: cfg.name,
         hp: cfg.hpBase + (playerLevel * cfg.hpScale),
-        dmgMin: cfg.atkMin, dmgMax: cfg.atkMax, agility: cfg.agi,
+        dmgMin: cfg.atkMin, dmgMax: cfg.atkMax, agility: cfg.agi, magic: cfg.magic,
         armor: 0, elem_dmg: { pyro:0, water:0, wind:0, electro:0 }, elem_resist: { pyro:0, water:0, wind:0, electro:0 },
         attackZones: npcAttack[difficulty] || npcAttack.easy,
         blockZones:  npcBlock[difficulty]  || npcBlock.easy,
@@ -586,27 +682,23 @@ function buildNpc(difficulty, playerLevel) {
     };
 }
 
-// ── Item Generators (UPDATED) ───────────────────────────────────────────
+// ── Item Generators ─────────────────────────────────────────────────────────
 const ELEMENTS = ['pyro','water','wind','electro'];
 
-// ── 1. REPLACE maxElemStats ───────────────────────────────────────────
 function maxElemStats(level) {
     if (level >= 86) return 6;
     if (level >= 71) return 5;
     if (level >= 51) return 4;
-    if (level >= 25) return 3;  // was 31 — now get 3 elems at level 25
-    if (level >= 10) return 2;  // was 11
+    if (level >= 25) return 3;
+    if (level >= 10) return 2;
     return 1;
 }
 
-// ── 2. REPLACE rollElemStats ──────────────────────────────────────────
 function rollElemStats(stats, level, tier, canDmg, canResist) {
-    // Lower chance to roll elems overall
     const baseChance = tier >= 5 ? 0.75 : tier >= 3 ? 0.55 : tier >= 2 ? 0.35 : 0.15;
     if (Math.random() > baseChance) return;
 
     const maxStats = maxElemStats(level);
-    // Lower minimum counts - make elems rarer
     const minCount = level >= 45 ? 2 : level >= 30 ? 1 : 0;
     const maxRoll  = Math.max(minCount, Math.min(maxStats, Math.ceil(level / 20)));
     const count    = minCount + Math.floor(Math.random() * Math.max(1, maxRoll - minCount + 1));
@@ -624,7 +716,6 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
         const resistKey = `${elem}_resist`;
 
         if (doDmg && !stats[dmgKey]) {
-            // Lower damage values
             const base   = 1 + Math.floor(level * 0.12);
             const range  = Math.floor(level * 0.08);
             const dmgVal = base + Math.floor(Math.random() * Math.max(1, range));
@@ -645,8 +736,6 @@ function rollElemStats(stats, level, tier, canDmg, canResist) {
     }
 }
 
-// ── 3. REPLACE ITEM_GENERATORS ───────────────────────────────────────
-// ── 3. REPLACE ITEM_GENERATORS ───────────────────────────────────────
 const ITEM_GENERATORS = {
     weapon: {
         namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
@@ -835,7 +924,6 @@ const ITEM_GENERATORS = {
     },
 };
 
-// ── 4. REPLACE generateBackendRandomItem ─────────────────────────────
 function generateBackendRandomItem(level, type) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
@@ -850,9 +938,8 @@ function generateBackendRandomItem(level, type) {
         return Math.max(cfg.min, v);
     }
 
-    // First determine quality to affect stat chances
     const quality = (() => {
-        const legendaryChance = 0.001; // 0.1%
+        const legendaryChance = 0.001;
         if (Math.random() < legendaryChance) return 'legendary';
         
         let rareChance = 0;
@@ -865,18 +952,14 @@ function generateBackendRandomItem(level, type) {
         return Math.random() < rareChance ? 'rare' : 'common';
     })();
 
-    // Helper function to get stat chance based on quality
     function getStatChance(baseChance) {
         if (quality === 'legendary') return Math.min(0.95, baseChance + 0.35);
         if (quality === 'rare') return Math.min(0.85, baseChance + 0.20);
         return baseChance;
     }
 
-    // Base stats
     if (generator.baseStats) {
         for (const [k, cfg] of Object.entries(generator.baseStats)) {
-            // Hit chance and agility have 50% base chance
-            // Crit chance has 35% base chance (rarer)
             let shouldRoll = true;
             if (k === 'hit_chance' || k === 'agility') {
                 shouldRoll = Math.random() < getStatChance(0.5);
@@ -892,7 +975,6 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Enforce dmg gap
     if (stats.dmg_min && stats.dmg_max) {
         const minGap = Math.max(8, Math.floor(stats.dmg_max * 0.25));
         if (stats.dmg_max < stats.dmg_min + minGap) {
@@ -900,11 +982,9 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Tier 2+ extra stats
     if (tier >= 2 && generator.tier2Stats) {
         for (const [k, cfg] of Object.entries(generator.tier2Stats)) {
             let baseChance = cfg.chance || 0.45;
-            // Adjust chances for specific stats
             if (k === 'hit_chance' || k === 'agility') {
                 baseChance = 0.5;
             } else if (k === 'crit_chance') {
@@ -918,11 +998,9 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Tier 3+ stats
     if (tier >= 3 && generator.tier3Stats) {
         for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
             let baseChance = cfg.chance || 0.5;
-            // Adjust chances for specific stats
             if (k === 'hit_chance' || k === 'agility') {
                 baseChance = 0.5;
             } else if (k === 'crit_chance') {
@@ -936,11 +1014,9 @@ function generateBackendRandomItem(level, type) {
         }
     }
     
-    // Tier 5 stats
     if (tier >= 5 && generator.tier5Stats) {
         for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
             let baseChance = cfg.chance || 0.45;
-            // Adjust chances for specific stats
             if (k === 'hit_chance' || k === 'agility') {
                 baseChance = 0.5;
             } else if (k === 'crit_chance') {
@@ -962,7 +1038,7 @@ function generateBackendRandomItem(level, type) {
     const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
     const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
     
-    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', jewelry:'amulet', jewelry:'ring', boots:'boots' };
+    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', jewelry:'amulet', ring:'ring', amulet:'amulet', boots:'boots' };
 
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
@@ -992,10 +1068,8 @@ function generateBackendRandomItem(level, type) {
     return item;
 }
 
-// ── 5. ADD generateItemLore (fixed grammar) ──────────────────────────────
 function generateItemLore(name, type, prefix, suffix, quality) {
     const loreParts = {
-        // Prefixes → lore fragments
         prefix: {
             'Dragon':   ['forged from dragon scales', 'tempered in dragon fire', 'etched with draconic runes'],
             'Mythril':  ['woven from mythril veins', 'lighter than air yet unyielding', 'mined from the deepest seams'],
@@ -1025,7 +1099,6 @@ function generateItemLore(name, type, prefix, suffix, quality) {
             'Diamond':  ['encrusted with the hardest gem known', 'refracting light into rainbows', 'beyond the price of most kings'],
             'Enchanted':['bound with a permanent enchantment', 'glowing faintly in the dark', 'responding to its wielder\'s will'],
         },
-        // Suffixes → lore fragments
         suffix: {
             'Sword':      ['its edge never seems to dull', 'balanced for both slash and thrust'],
             'Blade':      ['thin enough to slip between ribs', 'honed to an impossible edge'],
@@ -1062,26 +1135,20 @@ function generateItemLore(name, type, prefix, suffix, quality) {
     const chosenPre   = prefixLore[Math.floor(Math.random() * prefixLore.length)];
     const chosenSuf   = suffixLore[Math.floor(Math.random() * suffixLore.length)];
 
-    // Quality suffix
     const qualityTag = quality === 'legendary' ? ' A true legend.' : quality === 'rare' ? ' Rarely seen.' : '';
 
-    // Fix grammar - check if the name starts with a vowel sound
     const firstChar = name[0].toLowerCase();
     const vowels = ['a', 'e', 'i', 'o', 'u'];
     const article = vowels.includes(firstChar) ? 'An' : 'A';
     
-    // Capitalize the first word properly
     const nameLower = name.toLowerCase();
     
     return `${article} ${nameLower} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
 }
 
-// ── 6. calculateBackendItemPrice (ADJUSTED FOR LEVEL 29 TARGET ~100k) ─────────────────
 function calculateBackendItemPrice(item, level) {
-    // Base price
     const basePrice = 20 + (level * 13);
     
-    // Sum all positive stats
     const statSum = Object.values(item.stats || {}).reduce((sum, val) => {
         if (typeof val === 'number' && val > 0) {
             return sum + val;
@@ -1089,22 +1156,18 @@ function calculateBackendItemPrice(item, level) {
         return sum;
     }, 0);
     
-    // Stat multiplier
     const statMultiplier = Math.max(1, 1 + (statSum * 1.2));
     
-    // Tier multiplier
     const tierMultiplier = item.tier === 5 ? 2.0 : 
                            item.tier === 4 ? 1.6 : 
                            item.tier === 3 ? 1.3 : 
                            item.tier === 2 ? 1.1 : 1.0;
     
-    // Quality multiplier
     const qualityMultiplier = item.quality === 'legendary' ? 1.35 : 
                               item.quality === 'rare' ? 1.15 : 1.0;
     
     let price = Math.floor(basePrice * statMultiplier * tierMultiplier * qualityMultiplier);
     
-    // Minimum prices to ensure value
     if (item.quality === 'legendary') price = Math.max(price, 35000);
     else if (item.quality === 'rare') price = Math.max(price, 10000);
     else if (item.tier >= 3) price = Math.max(price, 3000);
@@ -1130,7 +1193,6 @@ const POTION_CATALOGUE = [
     { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP.',    effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
 ];
 
-// ADD THIS FUNCTION - it was missing:
 function getPotionsForLevel(playerLevel) { 
     return POTION_CATALOGUE.filter(p => playerLevel >= p.level); 
 }
@@ -1504,6 +1566,7 @@ router.post('/missions/collect', auth, async (req, res) => {
             hp: hpCurrent, dmgMin, dmgMax, agility: freshChar.agility || 0,
             hit_chance:  freshChar.hit_chance  || 0,
             crit_chance: freshChar.crit_chance || 0,
+            magic: freshChar.magic || 0,
             armor:       calcArmorValue(freshChar, equippedArray),
             elem_dmg:    calcElemDmg(equippedArray),
             elem_resist: calcElemResist(freshChar, equippedArray),
@@ -1598,7 +1661,6 @@ router.post('/battle/recover', auth, async (req, res) => {
         const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
         const cooldownEnds = (char.last_battle_at || 0) + pvpCd;
         if (cooldownEnds <= now) return res.status(400).json({ error: 'No active battle cooldown to clear' });
-        // Clear cooldown by setting last_battle_at far enough in the past
         await dbRun(db, 'UPDATE characters SET last_battle_at = 0, gems = gems - 1 WHERE id = ?', [char.id]);
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json({ success: true, message: '⚡ Battle cooldown cleared!', character: await buildCharacterResponse(updated, db) });
@@ -1636,7 +1698,6 @@ router.post('/inventory/add', auth, async (req, res) => {
         const qty = Math.max(1, Number(item.qty || 1));
         const dataBase = { ...item, qty };
 
-        // Consumables: store into inventory.item_type = 'consumable'
         const isConsumable = item.type === 'consumable' || item.effect || item.consumable;
         if (isConsumable) {
             const d = { ...dataBase };
@@ -1663,11 +1724,10 @@ router.post('/inventory/add', auth, async (req, res) => {
             return res.json({ success: true });
         }
 
-        // Materials: store into inventory.item_type = 'raw_mat'
         if (item.type === 'material') {
             const d = { ...dataBase };
             d.id = d.id || slugify(d.name) || `mat_${Date.now()}`;
-            d.emoji = d.emoji || d.icon; // dungeon.js uses `icon`
+            d.emoji = d.emoji || d.icon;
             d.rarity = d.rarity || 'common';
 
             const existing = await dbGet(
@@ -1690,7 +1750,6 @@ router.post('/inventory/add', auth, async (req, res) => {
             return res.json({ success: true });
         }
 
-        // Fallback: treat unknown items as equipment-like entries (server already supports this item_type).
         await dbRun(
             db,
             `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?, 'equipment', ?)`,
@@ -2082,8 +2141,6 @@ function shouldResetShop(lastGenerationDate) {
 }
 
 // ── Matchmaking ───────────────────────────────────────────────────────────
-// FIX: Run applyHpRegen on all candidates before filtering by HP,
-// so inactive players who have regenerated are correctly included.
 router.get('/matchmaking', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -2093,8 +2150,6 @@ router.get('/matchmaking', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
 
-        // Step 1: Fetch all candidates not under global protection cooldown,
-        // WITHOUT the hp_current filter yet — we need to regen first.
         let candidates = await dbAll(db, `
             SELECT c.*, u.username,
                    (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
@@ -2103,10 +2158,8 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
         `, [me.id, now]);
 
-        // Step 2: Apply HP regen to all candidates so inactive players are up to date.
         await Promise.all(candidates.map(c => applyHpRegen(db, c.id)));
 
-        // Step 3: Re-fetch candidates with fresh HP, now applying the HP filter.
         candidates = await dbAll(db, `
             SELECT c.*, u.username,
                    (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
@@ -2116,7 +2169,6 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
         `, [me.id, now]);
 
-        // Step 4: Filter out targets the attacker is on a per-target cooldown for.
         const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
         const myCooldowns = myCooldownRows.map(r => r.defender_id);
         candidates = candidates.filter(c => !myCooldowns.includes(c.id));
@@ -2189,6 +2241,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             hp: hpA, dmgMin: dmgMinA, dmgMax: dmgMaxA, agility: freshA.agility || 0,
             hit_chance:  freshA.hit_chance  || 0,
             crit_chance: (freshA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
+            magic: freshA.magic || 0,
             armor:       armorA + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
             agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus:   hasPremium(premA, 'warlord') ? 0.15 : 0,
@@ -2204,6 +2257,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             hp: freshD.hp_current ?? hpMaxD, dmgMin: dmgMinD, dmgMax: dmgMaxD, agility: freshD.agility || 0,
             hit_chance:  freshD.hit_chance  || 0,
             crit_chance: (freshD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
+            magic: freshD.magic || 0,
             armor:       armorD + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.01)) : 0),
             agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus:   hasPremium(premD, 'warlord') ? 0.15 : 0,
@@ -2275,17 +2329,13 @@ router.get('/leaderboard', auth, async (req, res) => {
 });
 
 // ── Player profile ────────────────────────────────────────────────────────
-// FIX: Apply HP regen before reading the target player's HP,
-// so viewers see accurate current HP and the attackability check is correct.
 router.get('/player/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
         const me = await dbGet(db, 'SELECT id FROM characters WHERE user_id=?', [req.user.userId]);
 
-        // Run HP regen for the viewed player before reading their data
         await applyHpRegen(db, req.params.id);
 
-        // Re-fetch with fresh HP after regen
         const player = await dbGet(db, 'SELECT c.*,u.username FROM characters c JOIN users u ON c.user_id=u.id WHERE c.id=?', [req.params.id]);
         if (!player) return res.status(404).json({ error: 'Not found' });
 
@@ -2301,7 +2351,6 @@ router.get('/player/:id', auth, async (req, res) => {
         const equippedArray = await getEquippedItemsArray(db, player.id);
         const hpMax = calcHpMax(player, equippedArray);
 
-        // hpLow now reflects the regenerated HP value, not a stale one
         const hpLow = (player.hp_current ?? hpMax) < 10;
 
         const equipped = await getEquippedItems(db, player.id);
@@ -2388,14 +2437,13 @@ router.delete('/messages/:id', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Add to your backend router (in the file you showed earlier)
+// ── Dungeon endpoints ─────────────────────────────────────────────────────
 router.get('/dungeon/data', auth, async (req, res) => {
   try {
     const db = await getDb();
     const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
     if (!char) return res.status(404).json({ error: 'Character not found' });
     
-    // Get tokens from your new dungeon_tokens column
     const tokens = char.dungeon_tokens || 0;
     const floor = char.dungeon_floor || 1;
     const highestFloor = char.dungeon_highest_floor || 1;
@@ -2475,7 +2523,6 @@ router.post('/dungeon/mp-spent', auth, async (req, res) => {
         RETURNING dungeon_tokens
       `, [tokensEarned, req.user.userId]);
       
-      // For SQLite without RETURNING, do a separate select
       const char = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE user_id = ?', [req.user.userId]);
       res.json({ success: true, tokensEarned, totalTokens: char.dungeon_tokens });
     } else {
@@ -2487,7 +2534,6 @@ router.post('/dungeon/mp-spent', auth, async (req, res) => {
   }
 });
 
-// Add dungeon gold (separate from main gold)
 router.post('/dungeon/add-gold', auth, async (req, res) => {
   try {
     const db = await getDb();
@@ -2500,7 +2546,6 @@ router.post('/dungeon/add-gold', auth, async (req, res) => {
   }
 });
 
-// Update health from dungeon
 router.post('/dungeon/update-health', auth, async (req, res) => {
   try {
     const db = await getDb();
@@ -2512,7 +2557,6 @@ router.post('/dungeon/update-health', auth, async (req, res) => {
   }
 });
 
-// Persist boss loot + floor progression
 router.post('/dungeon/boss-defeated', auth, async (req, res) => {
   try {
     const db = await getDb();
@@ -2531,7 +2575,6 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
 
       if (loot.premiumItem) {
         const itemData = { ...loot.premiumItem, qty: 1 };
-        // Store as consumable so it appears in generic inventory
         await dbRun(
           db,
           'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
@@ -2556,12 +2599,77 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
   }
 });
 
-// Get dungeon gold (optional - for display)
 router.get('/dungeon/gold', auth, async (req, res) => {
   try {
     const db = await getDb();
     const char = await dbGet(db, 'SELECT dungeon_gold FROM characters WHERE user_id = ?', [req.user.userId]);
     res.json({ success: true, dungeonGold: char?.dungeon_gold || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/dungeon/guild', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    res.json({ 
+      success: true, 
+      dungeonGold: char?.dungeon_gold || 0,
+      guildReputation: char?.guild_reputation || 0 
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/exchange', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { exchangeId } = req.body;
+    const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
+    if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
+    
+    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    
+    if (exchange.cost.dungeonGold && (char.dungeon_gold || 0) < exchange.cost.dungeonGold) {
+      return res.status(400).json({ error: `Need ${exchange.cost.dungeonGold} dungeon gold` });
+    }
+    
+    if (exchange.cost.dungeonGold) {
+      await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE user_id = ?', 
+        [exchange.cost.dungeonGold, req.user.userId]);
+    }
+    
+    if (exchange.reward.gold) {
+      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
+        [exchange.reward.gold, req.user.userId]);
+    }
+    
+    if (exchange.reward.reputation) {
+      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE user_id = ?', 
+        [exchange.reward.reputation, req.user.userId]);
+    }
+    
+    if (exchange.reward.item) {
+      const item = { 
+        name: exchange.reward.item, 
+        type: 'chest', 
+        quality: exchange.id.includes('legendary') ? 'legendary' : 'rare',
+        qty: 1 
+      };
+      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+        [char.id, 'consumable', JSON.stringify(item)]);
+    }
+    
+    const updated = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    
+    res.json({ 
+      success: true, 
+      message: `Exchanged for ${exchange.reward.gold ? exchange.reward.gold + ' gold' : ''}${exchange.reward.reputation ? ' + ' + exchange.reward.reputation + ' reputation' : ''}!`,
+      dungeonGold: updated.dungeon_gold,
+      guildReputation: updated.guild_reputation
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -2662,79 +2770,6 @@ router.post('/premium/activate', auth, async (req, res) => {
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
         res.json({ message: `${feature.emoji} ${feature.name} activated for 30 days!`, character: await buildCharacterResponse(updated, db) });
     } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Get guild data (reputation, exchange rates)
-router.get('/dungeon/guild', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
-    res.json({ 
-      success: true, 
-      dungeonGold: char?.dungeon_gold || 0,
-      guildReputation: char?.guild_reputation || 0 
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Exchange at guild
-router.post('/dungeon/guild/exchange', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { exchangeId } = req.body;
-    const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
-    if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
-    
-    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
-    
-    // Check costs
-    if (exchange.cost.dungeonGold && (char.dungeon_gold || 0) < exchange.cost.dungeonGold) {
-      return res.status(400).json({ error: `Need ${exchange.cost.dungeonGold} dungeon gold` });
-    }
-    
-    // Apply costs
-    if (exchange.cost.dungeonGold) {
-      await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE user_id = ?', 
-        [exchange.cost.dungeonGold, req.user.userId]);
-    }
-    
-    // Apply rewards
-    if (exchange.reward.gold) {
-      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
-        [exchange.reward.gold, req.user.userId]);
-    }
-    
-    if (exchange.reward.reputation) {
-      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE user_id = ?', 
-        [exchange.reward.reputation, req.user.userId]);
-    }
-    
-    // Add item reward if any
-    if (exchange.reward.item) {
-      const item = { 
-        name: exchange.reward.item, 
-        type: 'chest', 
-        quality: exchange.id.includes('legendary') ? 'legendary' : 'rare',
-        qty: 1 
-      };
-      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
-        [char.id, 'consumable', JSON.stringify(item)]);
-    }
-    
-    // Get updated data
-    const updated = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
-    
-    res.json({ 
-      success: true, 
-      message: `Exchanged for ${exchange.reward.gold ? exchange.reward.gold + ' gold' : ''}${exchange.reward.reputation ? ' + ' + exchange.reward.reputation + ' reputation' : ''}!`,
-      dungeonGold: updated.dungeon_gold,
-      guildReputation: updated.guild_reputation
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
 });
 
 // ── Shop reroll ────────────────────────────────────────────────────────────
