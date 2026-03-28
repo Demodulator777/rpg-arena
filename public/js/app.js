@@ -2052,8 +2052,12 @@ function renderShop() {
         })():'';
 
         const shopItemData = escHtml(JSON.stringify(item));
-        return `<div class="${cardClass}" onmouseenter="showShopItemTooltip(event,this.dataset.shopitem)" onmouseleave="scheduleHideTooltip()" data-shopitem="${shopItemData}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
-            <div class="shop-card-header"><span class="shop-card-icon">${itemIcon(item,'2rem')}</span><span class="shop-card-name">${item.name}</span><span class="shop-card-tier">Lv.${item.level||1}</span></div>
+        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
+            <div class="shop-card-header" onmouseenter="showShopItemTooltip(event,this.dataset.shopitem)" onmouseleave="scheduleHideTooltip()" data-shopitem="${shopItemData}">
+                <span class="shop-card-icon">${itemIcon(item,'2rem')}</span>
+                <span class="shop-card-name">${item.name}</span>
+                <span class="shop-card-tier">Lv.${item.level||1}</span>
+            </div>
             <div class="shop-card-desc">${item.desc}</div>
             <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
