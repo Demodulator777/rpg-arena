@@ -3293,13 +3293,17 @@ router.get('/bug-report/screenshot/:reportId', async (req, res) => {
         `, [req.params.reportId]);
         
         if (screenshot && screenshot.image_data) {
+            // Set proper headers for image display
             res.setHeader('Content-Type', screenshot.mime_type);
+            res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Cache-Control', 'public, max-age=86400');
-            res.send(screenshot.image_data);
+            
+            // Send the image data as buffer
+            res.send(Buffer.from(screenshot.image_data));
         } else {
             res.status(404).send(`
                 <html>
-                <body style="background: #1a1a2e; color: white; text-align: center; padding: 50px;">
+                <body style="background: #1a1a2e; color: white; text-align: center; padding: 50px; font-family: monospace;">
                     <h1>📸 Screenshot Not Found</h1>
                     <p>No screenshot was attached to this report.</p>
                     <a href="/api/game/bug-reports/list?password=your-secret-password" style="color: #9b59b6;">← Back to Reports</a>
