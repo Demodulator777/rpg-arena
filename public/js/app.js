@@ -2539,3 +2539,228 @@ function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.
 function showMsg(id,msg,isError=false){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.background=isError?'rgba(192,57,43,0.1)':'';el.style.borderColor=isError?'rgba(192,57,43,0.4)':'';el.style.color=isError?'var(--red-light)':'';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+
+// ── Bug Report System ─────────────────────────────────────────────────────
+
+let bugReportScreenshot = null;
+
+function initBugReport() {
+    const btn = document.getElementById('bug-report-btn');
+    if (btn) {
+        btn.addEventListener('click', openBugReport);
+    }
+    
+    // Close modal when clicking outside
+    const modal = document.getElementById('bug-report-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeBugReport();
+        });
+    }
+    
+    // Handle form submission
+    const form = document.getElementById('bug-report-form');
+    if (form) {
+        form.addEventListener('submit', submitBugReport);
+    }
+    
+    // Handle file upload
+    const fileInput = document.getElementById('screenshot-file');
+    if (fileInput) {
+        fileInput.addEventListener('change', handleScreenshotUpload);
+    }
+    
+    // Handle drag & drop
+    const dropzone = document.getElementById('screenshot-dropzone');
+    if (dropzone) {
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = '#9b59b6';
+            dropzone.style.background = 'rgba(155, 89, 182, 0.1)';
+        });
+        
+        dropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--border)';
+            dropzone.style.background = 'var(--bg3)';
+        });
+        
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.style.borderColor = 'var(--border)';
+            dropzone.style.background = 'var(--bg3)';
+            
+            const files = e.dataTransfer.files;
+            if (files && files[0] && files[0].type.startsWith('image/')) {
+                handleFile(files[0]);
+            } else {
+                showBugReportStatus('Please drop an image file (PNG, JPG)', 'error');
+            }
+        });
+    }
+}
+
+function openBugReport() {
+    const modal = document.getElementById('bug-report-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.getElementById('bug-report-form').reset();
+        document.getElementById('bug-report-status').classList.add('hidden');
+        bugReportScreenshot = null;
+        const preview = document.getElementById('screenshot-preview');
+        if (preview) preview.classList.add('hidden');
+        const uploadArea = document.getElementById('screenshot-upload-area');
+        if (uploadArea) uploadArea.classList.add('hidden');
+        
+        // Auto-fill browser info
+        const browserInput = document.getElementById('bug-browser');
+        if (browserInput && !browserInput.value) {
+            browserInput.value = getBrowserInfo();
+        }
+    }
+}
+
+function closeBugReport() {
+    const modal = document.getElementById('bug-report-modal');
+    if (modal) modal.classList.add('hidden');
+    bugReportScreenshot = null;
+}
+
+function toggleScreenshotUpload() {
+    const checkbox = document.getElementById('include-screenshot');
+    const uploadArea = document.getElementById('screenshot-upload-area');
+    if (uploadArea) {
+        uploadArea.classList.toggle('hidden', !checkbox.checked);
+        if (!checkbox.checked) {
+            bugReportScreenshot = null;
+            const preview = document.getElementById('screenshot-preview');
+            if (preview) preview.classList.add('hidden');
+        }
+    }
+}
+
+function handleScreenshotUpload(event) {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+        handleFile(file);
+    }
+}
+
+function handleFile(file) {
+    if (file.size > 5 * 1024 * 1024) {
+        showBugReportStatus('Image too large! Maximum 5MB.', 'error');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        bugReportScreenshot = e.target.result;
+        showScreenshotPreview(bugReportScreenshot);
+    };
+    reader.readAsDataURL(file);
+}
+
+function showScreenshotPreview(dataUrl) {
+    const preview = document.getElementById('screenshot-preview');
+    if (preview) {
+        preview.innerHTML = `
+            <img src="${dataUrl}" alt="Screenshot preview">
+            <button onclick="removeScreenshot()">✕</button>
+        `;
+        preview.classList.remove('hidden');
+    }
+}
+
+function removeScreenshot() {
+    bugReportScreenshot = null;
+    const preview = document.getElementById('screenshot-preview');
+    if (preview) preview.classList.add('hidden');
+    const fileInput = document.getElementById('screenshot-file');
+    if (fileInput) fileInput.value = '';
+}
+
+function getBrowserInfo() {
+    const ua = navigator.userAgent;
+    if (ua.includes('Chrome')) return `Chrome ${ua.match(/Chrome\/(\d+)/)?.[1] || ''}`;
+    if (ua.includes('Firefox')) return `Firefox ${ua.match(/Firefox\/(\d+)/)?.[1] || ''}`;
+    if (ua.includes('Safari')) return `Safari ${ua.match(/Version\/(\d+)/)?.[1] || ''}`;
+    if (ua.includes('Edge')) return `Edge ${ua.match(/Edg\/(\d+)/)?.[1] || ''}`;
+    return navigator.userAgent;
+}
+
+async function submitBugReport(event) {
+    event.preventDefault();
+    
+    const category = document.getElementById('bug-category').value;
+    const title = document.getElementById('bug-title').value.trim();
+    const description = document.getElementById('bug-description').value.trim();
+    const steps = document.getElementById('bug-steps').value.trim();
+    const browser = document.getElementById('bug-browser').value.trim();
+    
+    if (!category || !title || !description) {
+        showBugReportStatus('Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    showBugReportStatus('Submitting report...', 'info');
+    
+    const report = {
+        timestamp: new Date().toISOString(),
+        user: {
+            username: username || 'guest',
+            character_name: character?.name || 'unknown',
+            character_level: character?.level || 0,
+            character_class: character?.class || 'unknown'
+        },
+        report: {
+            category,
+            title,
+            description,
+            steps_to_reproduce: steps || 'Not provided',
+            browser
+        },
+        screenshot: bugReportScreenshot || null,
+        game_state: {
+            location: character?.location || 'unknown',
+            hp: character?.hp_current || 0,
+            gold: character?.gold || 0,
+            level: character?.level || 0
+        }
+    };
+    
+    try {
+        const response = await fetch('/api/bug-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(report)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showBugReportStatus('✅ Report submitted successfully! Thank you for helping improve the game.', 'success');
+            setTimeout(() => closeBugReport(), 2000);
+        } else {
+            showBugReportStatus(`Failed to submit: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Bug report error:', error);
+        showBugReportStatus('Failed to submit report. Please try again.', 'error');
+    }
+}
+
+function showBugReportStatus(message, type) {
+    const statusDiv = document.getElementById('bug-report-status');
+    if (statusDiv) {
+        statusDiv.textContent = message;
+        statusDiv.className = `bug-report-status ${type}`;
+        statusDiv.classList.remove('hidden');
+    }
+}
+
+// Initialize bug report system when DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+    initBugReport();
+});
