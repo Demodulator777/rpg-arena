@@ -2925,4 +2925,71 @@ router.post('/shop/reroll', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+const fs = require('fs');
+const path = require('path');
+
+// Bug report endpoint
+router.post('/bug-report', async (req, res) => {
+    try {
+        const report = req.body;
+        
+        // Add unique ID
+        report.id = Date.now();
+        report.ip = req.ip || req.connection.remoteAddress;
+        
+        // Remove screenshot from report for storage (save separately)
+        const screenshot = report.screenshot;
+        const reportWithoutScreenshot = { ...report, screenshot: screenshot ? '[IMAGE_ATTACHED]' : null };
+        
+        // Create reports directory if it doesn't exist
+        const reportsDir = path.join(__dirname, '..', 'bug_reports');
+        if (!fs.existsSync(reportsDir)) {
+            fs.mkdirSync(reportsDir, { recursive: true });
+        }
+        
+        // Save screenshot as separate file if exists
+        let screenshotFilename = null;
+        if (screenshot) {
+            const base64Data = screenshot.replace(/^data:image\/\w+;base64,/, '');
+            const ext = screenshot.match(/^data:image\/(\w+);base64,/)?.[1] || 'png';
+            screenshotFilename = `bug_${report.id}.${ext}`;
+            const screenshotPath = path.join(reportsDir, screenshotFilename);
+            fs.writeFileSync(screenshotPath, base64Data, 'base64');
+        }
+        
+        // Save report to JSON file
+        const reportFile = path.join(reportsDir, `bug_${report.id}.json`);
+        const finalReport = {
+            ...reportWithoutScreenshot,
+            screenshot_file: screenshotFilename
+        };
+        
+        fs.writeFileSync(reportFile, JSON.stringify(finalReport, null, 2));
+        
+        // Also append to master log
+        const logFile = path.join(reportsDir, 'all_reports.json');
+        let allReports = [];
+        if (fs.existsSync(logFile)) {
+            try {
+                allReports = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+            } catch (e) {}
+        }
+        allReports.unshift(finalReport); // Add to beginning (newest first)
+        
+        // Keep only last 1000 reports
+        if (allReports.length > 1000) {
+            allReports = allReports.slice(0, 1000);
+        }
+        
+        fs.writeFileSync(logFile, JSON.stringify(allReports, null, 2));
+        
+        console.log(`🐛 Bug report received: ${finalReport.id} - ${finalReport.report.title}`);
+        
+        res.json({ success: true, id: finalReport.id });
+    } catch (error) {
+        console.error('Bug report error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
