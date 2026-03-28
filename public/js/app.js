@@ -2626,6 +2626,42 @@ function closeBugReport() {
     bugReportScreenshot = null;
 }
 
+// Add this new function for image compression
+async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                
+                // Calculate new dimensions
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width = Math.floor(width * ratio);
+                    height = Math.floor(height * ratio);
+                }
+                
+                // Create canvas and resize
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Compress and convert to base64
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                resolve(compressedDataUrl);
+            };
+            img.onerror = reject;
+        };
+        reader.onerror = reject;
+    });
+}
+
 function toggleScreenshotUpload() {
     const checkbox = document.getElementById('include-screenshot');
     const uploadArea = document.getElementById('screenshot-upload-area');
@@ -2646,26 +2682,60 @@ function handleScreenshotUpload(event) {
     }
 }
 
-function handleFile(file) {
+// REPLACE this function with the async version
+async function handleFile(file) {
+    // Check file size first (limit to 5MB before compression)
     if (file.size > 5 * 1024 * 1024) {
-        showBugReportStatus('Image too large! Maximum 5MB.', 'error');
+        showBugReportStatus('Image too large! Maximum 5MB. Please choose a smaller image.', 'error');
         return;
     }
     
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        bugReportScreenshot = e.target.result;
-        showScreenshotPreview(bugReportScreenshot);
-    };
-    reader.readAsDataURL(file);
+    showBugReportStatus('Compressing image...', 'info');
+    
+    try {
+        // Compress and resize the image
+        const compressedImage = await compressImage(file, 800, 800, 0.7);
+        bugReportScreenshot = compressedImage;
+        
+        // Show compressed size in preview
+        const compressedSizeKB = Math.round(compressedImage.length / 1024);
+        showScreenshotPreview(bugReportScreenshot, compressedSizeKB);
+        
+        if (compressedSizeKB > 500) {
+            showBugReportStatus(`Image compressed to ${compressedSizeKB}KB. This is still large but should work.`, 'info');
+            setTimeout(() => {
+                const statusDiv = document.getElementById('bug-report-status');
+                if (statusDiv && statusDiv.classList.contains('info')) {
+                    statusDiv.classList.add('hidden');
+                }
+            }, 3000);
+        } else {
+            showBugReportStatus('Screenshot ready!', 'success');
+            setTimeout(() => {
+                const statusDiv = document.getElementById('bug-report-status');
+                if (statusDiv && statusDiv.classList.contains('success')) {
+                    statusDiv.classList.add('hidden');
+                }
+            }, 2000);
+        }
+    } catch (error) {
+        console.error('Error compressing image:', error);
+        showBugReportStatus('Failed to compress image. Please try a different image.', 'error');
+        bugReportScreenshot = null;
+    }
 }
 
-function showScreenshotPreview(dataUrl) {
+// UPDATE this function to show compressed size
+function showScreenshotPreview(dataUrl, sizeKB = null) {
     const preview = document.getElementById('screenshot-preview');
     if (preview) {
+        const sizeText = sizeKB ? `<div style="font-size: 10px; color: #9b59b6; margin-top: 4px; text-align: center;">📸 ${sizeKB}KB</div>` : '';
         preview.innerHTML = `
-            <img src="${dataUrl}" alt="Screenshot preview">
-            <button onclick="removeScreenshot()">✕</button>
+            <div style="position: relative; display: inline-block;">
+                <img src="${dataUrl}" alt="Screenshot preview" style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid var(--border);">
+                <button onclick="removeScreenshot()" style="position: absolute; top: -8px; right: -8px; background: #e74c3c; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; color: white; font-size: 14px; display: flex; align-items: center; justify-content: center;">✕</button>
+                ${sizeText}
+            </div>
         `;
         preview.classList.remove('hidden');
     }
