@@ -2729,7 +2729,7 @@ async function submitBugReport(event) {
     };
     
     try {
-        const response = await fetch('/api/bug-report', {
+        const response = await fetch('/api/game/bug-report', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
