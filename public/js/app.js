@@ -412,17 +412,16 @@ function buildEqSlotSmall(slot, eq, icon, label) {
     </div>`;
 }
 
-// ── Character Sheet ───────────────────────────────────────────────────────
 function renderCharacter() {
     if (!character) return;
-    const c=character;
-    const eq=c.equipped||{};
-    const lxp=c.level*25;
-    const xpPct=Math.min(100,(c.xp/lxp)*100);
-    const hpCur=c.hp_current??c.hp_max;
-    const hpPct=Math.min(100,(hpCur/c.hp_max)*100);
-    const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
-    const maxStat=Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
+    const c = character;
+    const eq = c.equipped||{};
+    const lxp = c.level*25;
+    const xpPct = Math.min(100,(c.xp/lxp)*100);
+    const hpCur = c.hp_current??c.hp_max;
+    const hpPct = Math.min(100,(hpCur/c.hp_max)*100);
+    const hpColor = hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
+    const maxStat = Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
 
     const STAT_KEYS = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance','hp_max','armor'];
     const itemBonus = {};
@@ -515,9 +514,14 @@ function renderCharacter() {
         <div class="eq-accessory-hint">Small trinket slot</div>
     </div>`;
 
-    const charSheet=document.getElementById('char-sheet');
+    // FIX: Use c.mp_max from backend response (already includes premium bonus)
+    const mpCurrent = c.mission_points || 0;
+    const mpMax = c.mp_max || 240;  // This should already include Arcane Reservoir 2x bonus
+    const mpPct = Math.min(100, Math.round((mpCurrent / mpMax) * 100));
+
+    const charSheet = document.getElementById('char-sheet');
     if (!charSheet) return;
-    charSheet.innerHTML=`
+    charSheet.innerHTML = `
     <div class="char-panel full char-hero-panel">
       <div class="char-hero-bg" style="background-image:url('/images/class/${c.class}-bg.jpg')"></div>
       <div class="char-hero-content">
@@ -542,15 +546,15 @@ function renderCharacter() {
           </div>
           <div class="char-hp-row">
             <span class="char-hp-label" style="color:#9b59b6">MP</span>
-            <div class="char-hp-track"><div class="char-hp-fill" style="width:${Math.round((c.mission_points||0)/240*100)}%;background:#9b59b6"></div></div>
-            <span class="char-hp-text" style="color:#9b59b6">${c.mission_points||0} / 240</span>
+            <div class="char-hp-track"><div class="char-hp-fill" style="width:${mpPct}%;background:#9b59b6"></div></div>
+            <span class="char-hp-text" style="color:#9b59b6">${mpCurrent} / ${mpMax}</span>
           </div>
         </div>
       </div>
     </div>
     <div class="char-panel">
       <h3>STATS</h3>
-      ${statRowBreakdown('💪','Strength', baseStr,  itemBonus.strength||0, maxStat,'str')}
+      ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
       ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
       ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
       ${statRowBreakdown('✨','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
