@@ -1175,25 +1175,26 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const monsterAlive = room.monster && (!room.monster.lastKilled || elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
     const monsterRespawning = room.monster && room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H);
 
-    if (room.isBoss) {
-      const def = getDungeonDef(D.activeDungeon);
-      const boss = def.boss;
-      return `
+if (room.isBoss) {
+    const def = getDungeonDef(D.activeDungeon);
+    const boss = def.boss;
+    return `
         <div class="dungeon-boss-room">
-          <div class="boss-icon-big">${boss.icon}</div>
-          <div class="boss-name-big">${boss.name}</div>
-          <div class="boss-stats">
-            ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
-          </div>
-          <div class="boss-drop-preview">
-            Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} · 📜${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]}d Premium
-          </div>
-          <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
-            ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
-          </button>
+            <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+            <div style="display:none;font-size:3rem">${boss.icon}</div>
+            <div class="boss-name-big">${boss.name}</div>
+            <div class="boss-stats">
+                ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
+            </div>
+            <div class="boss-drop-preview">
+                Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} gold · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} gems · ✨ Random Premium Feature (${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]} days)
+            </div>
+            <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
+                ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
+            </button>
         </div>
-      `;
-    }
+    `;
+}
 
     if (monsterAlive) {
       const m = room.monster;
