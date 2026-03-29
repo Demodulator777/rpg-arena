@@ -114,26 +114,34 @@ const GUILD_RANKS = [
   ];
   const ROMAN = ['','II','III','IV','V','VI','VII','VIII','IX','X'];
 
-  function getBossForFloor(floor) {
+function getBossForFloor(floor) {
     const idx  = (floor - 1) % BOSS_POOL.length;
     const tier = Math.floor((floor - 1) / BOSS_POOL.length);
     const b    = BOSS_POOL[idx];
     const scale = 1 + (floor - 1) * 0.18 + tier * 0.5;
+    
+    // Calculate gems with cap at 15
+    let gemMin = Math.max(1, floor);
+    let gemMax = Math.max(2, floor * 2);
+    // Cap both at 15 maximum
+    gemMin = Math.min(15, gemMin);
+    gemMax = Math.min(15, gemMax);
+    
     return {
-      name:  b.name + (tier > 0 ? ' ' + (ROMAN[Math.min(tier, ROMAN.length-1)] || 'X+') : ''),
-      icon:  b.icon,
-      hp:    Math.round(b.baseHp  * scale),
-      atk:   Math.round(b.baseAtk * scale),
-      def:   Math.round(b.baseDef * scale),
-      steal: b.steal,
-      loot: {
-        gold:        [100 + floor * 30,  300 + floor * 80],
-        gems:        [Math.max(1, floor), Math.max(2, floor * 2)],
-        premiumDays: floor <= 5 ? [5,10] : floor <= 15 ? [7,14] : [10,30],
-        itemRarity:  floor <= 5 ? 'rare' : floor <= 15 ? 'epic' : 'legendary',
-      },
+        name:  b.name + (tier > 0 ? ' ' + (ROMAN[Math.min(tier, ROMAN.length-1)] || 'X+') : ''),
+        icon:  b.icon,
+        hp:    Math.round(b.baseHp  * scale),
+        atk:   Math.round(b.baseAtk * scale),
+        def:   Math.round(b.baseDef * scale),
+        steal: b.steal,
+        loot: {
+            gold:        [100 + floor * 30,  300 + floor * 80],
+            gems:        [gemMin, gemMax],  // Now capped at 15
+            premiumDays: floor <= 5 ? [5,10] : floor <= 15 ? [7,14] : [10,30],
+            itemRarity:  floor <= 5 ? 'rare' : floor <= 15 ? 'epic' : 'legendary',
+        },
     };
-  }
+}
   
   function getFloorTheme(floor) {
     return FLOOR_THEMES[Math.floor((floor - 1) / 10) % FLOOR_THEMES.length];
