@@ -957,17 +957,18 @@ function onBossDefeated() {
     const nextTheme = getFloorTheme(curFloor);
     const nextLoot  = nextBoss.loot;
 
-    const previewFloors = [0,1,2,3,4].map(offset => {
-      const fl = curFloor + offset;
-      const boss = getBossForFloor(fl);
-      const t = getFloorTheme(fl);
-      return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
+const previewFloors = [0,1,2,3,4].map(offset => {
+    const fl = curFloor + offset;
+    const boss = getBossForFloor(fl);
+    const t = getFloorTheme(fl);
+    return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
         <div style="font-size:0.62rem;color:var(--dungeon-muted)">Floor ${fl}</div>
-        <div style="font-size:1.4rem">${boss.icon}</div>
+        <img src="${boss.image}" alt="${boss.name}" style="width:48px;height:48px;object-fit:cover;border-radius:50%;margin:5px 0;border:1px solid ${t.theme}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <div style="display:none;font-size:1.4rem">${boss.icon}</div>
         <div style="font-size:0.62rem;color:#e2e8f0;text-align:center;line-height:1.3">${boss.name.split(' ').slice(0,2).join(' ')}</div>
         <div style="font-size:0.6rem;color:var(--dungeon-muted)">❤️${boss.hp}</div>
-      </div>`;
-    }).join('');
+    </div>`;
+}).join('');
 
     area.innerHTML = `
       <div class="dungeon-tower-entry" style="--dtheme:${nextTheme.theme};--dglow:${nextTheme.themeGlow}">
