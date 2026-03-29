@@ -891,60 +891,84 @@ function onBossDefeated() {
   showBossVictoryModal(boss, loot);
 }
 
-  // ── Render Functions ─────────────────────────────────────────────────
-  function renderDungeonTab() {
+function renderDungeonTab() {
     const container = document.getElementById('tab-dungeon');
     if (!container) return;
     loadState();
     
     if (character) {
-      // Load persisted dungeon data, then rerender the list so resume works reliably.
-      loadDungeonDataFromDB().then(() => {
-        if (!D.activeDungeon) {
-          renderDungeonList();
-        } else {
-          // In case something resumes with an active dungeon
-          if (D.combat) renderCombatPanel();
-          else renderDungeonView();
-        }
-      });
-    }
-
-    container.innerHTML = `
-  <div class="dungeon-wrapper">
-    <div class="dungeon-topbar">
-      <div class="dungeon-title-wrap">
-        <span class="dungeon-title-icon">⚔️</span>
-        <div>
-          <div class="dungeon-title-text">Dungeon Raids</div>
-          <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
-        </div>
-      </div>
-      <div class="dungeon-token-wrap" style="display: flex; gap: 12px;">
-        <div class="dungeon-token-pill">
-          <span class="dungeon-token-icon">🗝️</span>
-          <span>Boss Tokens:</span>
-          <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
-        </div>
-        <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
-          <span class="dungeon-token-icon">💰</span>
-          <span>Dungeon Gold:</span>
-          <span id="dungeon-gold-count" class="dungeon-token-num">0</span>
-        </div>
-      </div>
-      <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
-    </div>
-    <div id="dungeon-main-area"></div>
-  </div>
-`;
-    if (D.activeDungeon) {
-      renderDungeonView();
-      if (D.combat) renderCombatPanel();
+        // Load persisted dungeon data, then rerender the list so resume works reliably.
+        loadDungeonDataFromDB().then(() => {
+            // Move HTML rendering INSIDE here, after data is loaded
+            container.innerHTML = `
+                <div class="dungeon-wrapper">
+                    <div class="dungeon-topbar">
+                        <div class="dungeon-title-wrap">
+                            <span class="dungeon-title-icon">⚔️</span>
+                            <div>
+                                <div class="dungeon-title-text">Dungeon Raids</div>
+                                <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
+                            </div>
+                        </div>
+                        <div class="dungeon-token-wrap" style="display: flex; gap: 12px;">
+                            <div class="dungeon-token-pill">
+                                <span class="dungeon-token-icon">🗝️</span>
+                                <span>Boss Tokens:</span>
+                                <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
+                            </div>
+                            <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
+                                <span class="dungeon-token-icon">💰</span>
+                                <span>Dungeon Gold:</span>
+                                <span id="dungeon-gold-count" class="dungeon-token-num">0</span>
+                            </div>
+                        </div>
+                        <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
+                    </div>
+                    <div id="dungeon-main-area"></div>
+                </div>
+            `;
+            
+            if (!D.activeDungeon) {
+                renderDungeonList();
+            } else {
+                if (D.combat) renderCombatPanel();
+                else renderDungeonView();
+            }
+            renderLog();
+        });
     } else {
-      renderDungeonList();
+        // If no character, just render basic HTML
+        container.innerHTML = `
+            <div class="dungeon-wrapper">
+                <div class="dungeon-topbar">
+                    <div class="dungeon-title-wrap">
+                        <span class="dungeon-title-icon">⚔️</span>
+                        <div>
+                            <div class="dungeon-title-text">Dungeon Raids</div>
+                            <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
+                        </div>
+                    </div>
+                    <div class="dungeon-token-wrap" style="display: flex; gap: 12px;">
+                        <div class="dungeon-token-pill">
+                            <span class="dungeon-token-icon">🗝️</span>
+                            <span>Boss Tokens:</span>
+                            <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
+                        </div>
+                        <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
+                            <span class="dungeon-token-icon">💰</span>
+                            <span>Dungeon Gold:</span>
+                            <span id="dungeon-gold-count" class="dungeon-token-num">0</span>
+                        </div>
+                    </div>
+                    <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
+                </div>
+                <div id="dungeon-main-area"></div>
+            </div>
+        `;
+        renderDungeonList();
+        renderLog();
     }
-    renderLog();
-  }
+}
 
   function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
