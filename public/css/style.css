@@ -1581,3 +1581,109 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         font-size: 0.55rem !important;
     }
 }
+/* Leaderboard - Fixed columns */
+.lb-row {
+    display: grid;
+    grid-template-columns: 50px 40px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.lb-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.lb-rank {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.lb-rank.gold-rank { color: #ffd700; }
+.lb-rank.silver-rank { color: #c0c0c0; }
+.lb-rank.bronze-rank { color: #cd7f32; }
+
+.lb-row img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+.lb-info {
+    overflow: hidden;
+}
+
+.lb-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lb-sub {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.lb-stats {
+    display: grid;
+    grid-template-columns: 50px 50px 100px;
+    gap: 8px;
+    text-align: center;
+}
+
+.lb-stat {
+    text-align: center;
+}
+
+.lb-stat-val {
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.lb-stat-lbl {
+    font-size: 0.6rem;
+    color: var(--text-dim);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .lb-row {
+        grid-template-columns: 40px 32px 1fr;
+        gap: 8px;
+    }
+    
+    .lb-stats {
+        grid-column: 1 / -1;
+        grid-template-columns: 1fr 1fr 1fr;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .lb-stat-val {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .lb-row {
+        grid-template-columns: 35px 28px 1fr;
+        padding: 8px;
+    }
+    
+    .lb-name {
+        font-size: 0.75rem;
+    }
+    
+    .lb-sub {
+        font-size: 0.6rem;
+    }
+}
