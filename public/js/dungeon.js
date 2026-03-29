@@ -104,13 +104,13 @@ const GUILD_RANKS = [
   ];
 
 const BOSS_POOL = [
-    { name:'Death Knight Malachar', icon:'⚔️💀', image:'/images/boss/malachar.png', baseHp:600,  baseAtk:45, baseDef:20, steal:true  },
-    { name:'Ignarath the Eternal',  icon:'🌋🔥', image:'/images/boss/ignarath.png',  baseHp:700,  baseAtk:55, baseDef:25, steal:false },
-    { name:'Nyxaroth the Devourer', icon:'🌑👁️', image:'/images/boss/nyxaroth.png',  baseHp:800,  baseAtk:65, baseDef:30, steal:true  },
-    { name:'The Hollow King',       icon:'👑💀', image:'/images/boss/hollowking.png', baseHp:900,  baseAtk:70, baseDef:35, steal:true  },
-    { name:'Voidborn Colossus',     icon:'💠🌑', image:'/images/boss/voidborn.png',   baseHp:1000, baseAtk:80, baseDef:40, steal:false },
-    { name:'The Undying Empress',   icon:'👸🔥', image:'/images/boss/empress.png',    baseHp:1100, baseAtk:90, baseDef:45, steal:true  },
-    { name:'Abyssal Sovereign',     icon:'🌊💀', image:'/images/boss/sovereign.png',  baseHp:1200, baseAtk:95, baseDef:50, steal:true  },
+    { name:'Death Knight Malachar', icon:'⚔️💀', image:'/images/boss/malachar.jpg', baseHp:600,  baseAtk:45, baseDef:20, steal:true  },
+    { name:'Ignarath the Eternal',  icon:'🌋🔥', image:'/images/boss/ignarath.jpg',  baseHp:700,  baseAtk:55, baseDef:25, steal:false },
+    { name:'Nyxaroth the Devourer', icon:'🌑👁️', image:'/images/boss/nyxaroth.jpg',  baseHp:800,  baseAtk:65, baseDef:30, steal:true  },
+    { name:'The Hollow King',       icon:'👑💀', image:'/images/boss/hollowking.jpg', baseHp:900,  baseAtk:70, baseDef:35, steal:true  },
+    { name:'Voidborn Colossus',     icon:'💠🌑', image:'/images/boss/voidborn.jpg',   baseHp:1000, baseAtk:80, baseDef:40, steal:false },
+    { name:'The Undying Empress',   icon:'👸🔥', image:'/images/boss/empress.jpg',    baseHp:1100, baseAtk:90, baseDef:45, steal:true  },
+    { name:'Abyssal Sovereign',     icon:'🌊💀', image:'/images/boss/sovereign.jpg',  baseHp:1200, baseAtk:95, baseDef:50, steal:true  },
 ];
   const ROMAN = ['','II','III','IV','V','VI','VII','VIII','IX','X'];
 
