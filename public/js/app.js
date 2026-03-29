@@ -2092,13 +2092,26 @@ async function buyItem(itemId) {
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
     try {
-        const result=await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item});
-        character=result.character;
+        await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item});
+        
+        // Refresh character properly from the game endpoint instead of using result.character
+        const refreshedChar = await api('GET','/game/character');
+        character = refreshedChar;
+        
         shopInventory=shopInventory.filter(i=>i.id!==itemId);
         showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
-        renderShop(); renderTopBar();
-        if (item.consumable) { invTab='consumables'; loadInventory(); }
-    } catch(e) { item._buying=false; showMsg('shop-msg',e.message,true); }
+        renderShop(); 
+        renderTopBar();
+        renderCharacter(); // Force re-render character sheet with correct HP
+        
+        if (item.consumable) { 
+            invTab='consumables'; 
+            loadInventory(); 
+        }
+    } catch(e) { 
+        item._buying=false; 
+        showMsg('shop-msg',e.message,true); 
+    }
 }
 function setShopCategory(category, btn) {
     currentShopCategory = category;
