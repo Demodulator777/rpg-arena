@@ -1534,3 +1534,50 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
   border: 1px solid #3498db;
   color: #3498db;
 }
+/* Leaderboard Responsive */
+@media (max-width: 768px) {
+    .lb-row {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    
+    .lb-info {
+        min-width: 120px !important;
+    }
+    
+    .lb-stats {
+        width: 100%;
+        justify-content: space-around !important;
+        margin-left: 0 !important;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .lb-stat-val {
+        font-size: 0.75rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .lb-rank {
+        min-width: 35px !important;
+        font-size: 0.8rem;
+    }
+    
+    .lb-name {
+        font-size: 0.75rem !important;
+    }
+    
+    .lb-sub {
+        font-size: 0.6rem !important;
+    }
+    
+    .lb-stat-val {
+        font-size: 0.7rem !important;
+    }
+    
+    .lb-stat-lbl {
+        font-size: 0.55rem !important;
+    }
+}
