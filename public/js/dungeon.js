@@ -989,18 +989,19 @@ const previewFloors = [0,1,2,3,4].map(offset => {
           <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">
             Next boss — Floor ${curFloor}
           </div>
-          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-            <div style="font-size:2.5rem">${nextBoss.icon}</div>
-            <div>
-              <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
-              <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
-                ❤️ ${nextBoss.hp} HP · ⚔️ ${nextBoss.atk} ATK · 🛡️ ${nextBoss.def} DEF
-              </div>
-              <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
-                Drops: 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · ✨ Random Premium (${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]} days)
-              </div>
-            </div>
-          </div>
+<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <img src="${nextBoss.image}" alt="${nextBoss.name}" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid ${nextTheme.theme}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div style="display:none;font-size:2.5rem">${nextBoss.icon}</div>
+    <div>
+        <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
+        <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
+            ❤️ ${nextBoss.hp} HP · ⚔️ ${nextBoss.atk} ATK · 🛡️ ${nextBoss.def} DEF
+        </div>
+        <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
+            Drops: 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · ✨ Random Premium (${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]} days)
+        </div>
+    </div>
+</div>
         </div>
 
         <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
