@@ -130,7 +130,6 @@ function getBossForFloor(floor) {
     return {
         name:  b.name + (tier > 0 ? ' ' + (ROMAN[Math.min(tier, ROMAN.length-1)] || 'X+') : ''),
         icon:  b.icon,
-        image: b.image,
         hp:    Math.round(b.baseHp  * scale),
         atk:   Math.round(b.baseAtk * scale),
         def:   Math.round(b.baseDef * scale),
