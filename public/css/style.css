@@ -1582,3 +1582,34 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .char-hero-content { padding: 16px; gap: 12px; }
     .char-avatar-ring { width: 78px; height: 78px; }
 }
+/* Left side decoration - at the edge */
+.sidebar::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background-image: url('/images/leftsidedone.png');
+    background-repeat: repeat-y;
+    background-position: left center;
+    background-size: auto 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Right side decoration - at the edge */
+.sidebar::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background-image: url('/images/rightside.png');
+    background-repeat: repeat-y;
+    background-position: right center;
+    background-size: auto 100%;
+    pointer-events: none;
+    z-index: 1;
+}
