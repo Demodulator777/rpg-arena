@@ -970,17 +970,23 @@ function renderDungeonTab() {
     }
 }
 
-  function renderDungeonList() {
+function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
     D.activeDungeon = null;
 
-    const hasSave   = !!D.savedProgress['tower'];
-    const curFloor  = hasSave ? D.savedProgress['tower'].floor : 1;
+    // Check BOTH saved progress AND database floor value
+    const hasSave = !!D.savedProgress['tower'];
+    const hasDatabaseProgress = (D.floor > 1) || (D.highestFloor > 1);
+    const hasAnyProgress = hasSave || hasDatabaseProgress;
+    
+    // Use the highest floor from either saved progress or database
+    const savedFloor = hasSave ? D.savedProgress['tower'].floor : 1;
+    const curFloor = Math.max(savedFloor, D.floor || 1);
     const highFloor = D.highestFloor || 1;
-    const nextBoss  = getBossForFloor(curFloor);
+    const nextBoss = getBossForFloor(curFloor);
     const nextTheme = getFloorTheme(curFloor);
-    const nextLoot  = nextBoss.loot;
+    const nextLoot = nextBoss.loot;
 
 const previewFloors = [0,1,2,3,4].map(offset => {
     const fl = curFloor + offset;
@@ -1030,9 +1036,9 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         </div>
 
         <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
-                onclick="dungeonEnter('tower')">
-          ${hasSave ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
-        </button>
+            onclick="dungeonEnter('tower')">
+        ${hasAnyProgress ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
+    </button>
       </div>
 
       <div class="dungeon-floor-history">
