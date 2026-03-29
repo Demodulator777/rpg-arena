@@ -1336,19 +1336,25 @@ if (room.isBoss) {
     btns.forEach(b => b.disabled = disabled);
   }
 
-  function dungeonExit() {
+function dungeonExit() {
     if (D.activeDungeon) {
-      D.savedProgress[D.activeDungeon] = {
-        floor: D.floor, pos: D.playerPos,
-        rooms: D.rooms, explored: [...D.exploredRooms],
-      };
+        D.savedProgress[D.activeDungeon] = {
+            floor: D.floor, 
+            pos: D.playerPos,
+            rooms: D.rooms, 
+            explored: [...D.exploredRooms],
+        };
     }
+    
+    // Save to database FIRST (while D.activeDungeon still has the value)
+    saveProgressToDB();
+    
+    // THEN clear the active dungeon
     D.activeDungeon = null;
     D.combat = null;
     saveState();
-    saveProgressToDB();
     renderDungeonList();
-  }
+}
 
   function closeDungeonVictory() {
     const m = document.getElementById('dungeon-boss-modal');
