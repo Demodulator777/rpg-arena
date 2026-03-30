@@ -2642,7 +2642,6 @@ function showBattleReportModal(log, won, summary) {
     modal.classList.remove('hidden');
 }
 
-
 function closeBattle() { document.getElementById('battle-result-modal').classList.add('hidden'); renderCharacter(); }
 
 // ── History ───────────────────────────────────────────────────────────────
