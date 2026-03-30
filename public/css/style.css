@@ -570,7 +570,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     
     .sidebar-inner {
-        height: 40px;  /* 2x smaller than desktop 63px */
+        height: 40px;
     }
     
     .sidebar-left,
@@ -598,8 +598,27 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         padding: 1px 3px;
     }
     
+    /* FIX: Ensure tab content area is visible and scrollable */
+    .game-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    
     .tab-content-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
         padding-bottom: 16px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Ensure active tab content is visible */
+    .game-tab.active {
+        display: block;
+        width: 100%;
     }
 }
 /* ════════════════════════════════════════════════════════════════════════
