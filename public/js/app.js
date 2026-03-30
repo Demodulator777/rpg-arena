@@ -2518,7 +2518,18 @@ function showBattleReportModal(log, won, summary) {
     const out = document.getElementById('battle-outcome');
     const logEl = document.getElementById('battle-log');
     
-    // Get enemy name FIRST before using it
+    // Extract values directly from summary string
+    let goldAmount = 0;
+    let xpAmount = 0;
+    
+    // Parse summary - it already contains the correct numbers
+    const goldMatch = summary.match(/💰 (\d+)/);
+    if (goldMatch) goldAmount = parseInt(goldMatch[1]);
+    
+    const xpMatch = summary.match(/⭐ (\d+)/);
+    if (xpMatch) xpAmount = parseInt(xpMatch[1]);
+    
+    // Get enemy name from log
     let enemyName = 'Enemy';
     const vsLine = log.find(l => l.includes('vs'));
     if (vsLine) {
@@ -2526,32 +2537,7 @@ function showBattleReportModal(log, won, summary) {
         if (parts[1]) enemyName = parts[1].trim();
     }
     
-    // Now parse summary and damage
-    let goldAmount = 0;
-    let xpAmount = 0;
-    let damageDealt = 0;
-    let damageTaken = 0;
-    
-    const goldMatch = summary.match(/💰 (\d+)/);
-    if (goldMatch) goldAmount = parseInt(goldMatch[1]);
-    
-    const xpMatch = summary.match(/⭐ (\d+)/);
-    if (xpMatch) xpAmount = parseInt(xpMatch[1]);
-    
     const yourName = character?.name || 'You';
-    
-    log.forEach(line => {
-        // Player damage
-        if (line.includes(yourName) && line.includes('strikes for')) {
-            const dmgMatch = line.match(/strikes for (\d+) damage/);
-            if (dmgMatch) damageDealt += parseInt(dmgMatch[1]);
-        }
-        // Enemy damage
-        if (line.includes(enemyName) && line.includes('strikes for')) {
-            const dmgMatch = line.match(/strikes for (\d+) damage/);
-            if (dmgMatch) damageTaken += parseInt(dmgMatch[1]);
-        }
-    });
     
     // Populate fighters
     if (fighters && character) {
@@ -2574,40 +2560,14 @@ function showBattleReportModal(log, won, summary) {
         `;
     }
     
-    const summaryHtml = `
-        <div class="battle-summary">
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <span class="summary-label">⚔️ Damage Dealt</span>
-                    <span class="summary-value ${damageDealt > damageTaken ? 'win' : 'loss'}">${damageDealt}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">💔 Damage Taken</span>
-                    <span class="summary-value">${damageTaken}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">⭐ XP Gained</span>
-                    <span class="summary-value win">+${xpAmount}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">💰 Gold</span>
-                    <span class="summary-value ${won ? 'win' : 'loss'}">${won ? '+' : ''}${goldAmount}</span>
-                </div>
-            </div>
-        </div>
-    `;
-    
+    // Use the summary string directly for the battle outcome
     if (out) {
         out.className = won ? 'won' : 'lost';
         out.innerHTML = won ? '🏆 VICTORY!' : '💀 DEFEATED';
     }
     
     if (logEl) {
-        const existingSummary = document.querySelector('.battle-summary');
-        if (existingSummary) existingSummary.remove();
-        
-        logEl.insertAdjacentHTML('beforebegin', summaryHtml);
-        
+        // Format and display the battle log
         logEl.innerHTML = log.map(l => {
             if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
             
@@ -2627,6 +2587,25 @@ function showBattleReportModal(log, won, summary) {
             
             return `<div class="battle-log-line ${className}">${formattedLine}</div>`;
         }).join('');
+        
+        // Add summary AFTER the log
+        const summaryHtml = `
+            <div class="battle-summary">
+                <div class="summary-stats">
+                    <div class="summary-stat">
+                        <span class="summary-label">⭐ XP Gained</span>
+                        <span class="summary-value win">+${xpAmount}</span>
+                    </div>
+                    <div class="summary-stat">
+                        <span class="summary-label">💰 Gold</span>
+                        <span class="summary-value ${won ? 'win' : 'loss'}">${won ? '+' : ''}${goldAmount}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insert summary after log
+        logEl.insertAdjacentHTML('afterend', summaryHtml);
     }
     
     modal.classList.remove('hidden');
