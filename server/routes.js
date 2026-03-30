@@ -2419,7 +2419,7 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.gold,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,u.username
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,u.username
             FROM characters c JOIN users u ON c.user_id=u.id ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         res.json(players.map((p,i) => ({ ...p, rank:i+1 })));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
