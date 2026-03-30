@@ -2577,11 +2577,13 @@ function showBattleReportModal(log, won, summary) {
             </div>
             <div class="fighter-vs">VS</div>
             <div class="fighter-card">
-                <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:rgba(0,0,0,0.3)">👾</div>
-                <div class="fighter-name">${enemyName}</div>
-                <div class="fighter-class">Enemy</div>
-                <div class="fighter-stats"></div>
-            </div>
+    <div class="fighter-avatar enemy-avatar">
+        <span>👾</span>
+    </div>
+    <div class="fighter-name">${enemyName}</div>
+    <div class="fighter-class">Enemy</div>
+    <div class="fighter-stats"></div>
+</div>
         `;
     }
     
