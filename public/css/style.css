@@ -482,6 +482,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 /* Desktop styles (min-width: 641px) */
+/* Desktop styles (min-width: 641px) */
 @media (min-width: 641px) {
     .game-body { flex-direction: column; overflow: hidden; }
     .sidebar {
@@ -500,31 +501,29 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 48px !important;
-        height: 48px !important;
-        min-height: 48px !important;
+        width: 124px !important;  /* Half of 248 to maintain aspect ratio */
+        height: 63px !important;   /* Half of 127 to maintain aspect ratio */
+        min-height: 63px !important;
         padding: 0 !important;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
+        background: transparent;
+        border: none;
+        border-radius: 0;
         cursor: pointer;
         transition: all 0.2s;
+        overflow: hidden;
     }
     .nav-btn img {
-        width: 32px;
-        height: 32px;
+        width: 100%;
+        height: 100%;
         object-fit: contain;
         display: block;
     }
     .nav-btn:hover {
-        background: rgba(201,146,42,0.1);
-        border-color: rgba(201,146,42,0.4);
-        transform: translateY(-2px);
+        transform: scale(1.02);
+        filter: brightness(1.1);
     }
     .nav-btn.active {
-        background: rgba(52,152,219,0.15);
-        border-color: rgba(52,152,219,0.5);
-        box-shadow: 0 0 10px rgba(52,152,219,0.3);
+        filter: drop-shadow(0 0 8px rgba(52,152,219,0.5));
     }
     .nav-edge { display: none !important; }
     .tab-content-area { flex: 1; min-height: 0; overflow-y: auto; }
