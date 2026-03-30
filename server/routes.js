@@ -655,9 +655,23 @@ function runBattle(fighterA, fighterB) {
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
     const skA = Object.keys(fighterA.activeSkills || {});
     const skB = Object.keys(fighterB.activeSkills || {});
-   if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
-if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
-    
+   const skillNames = {
+    'magic_circle': 'Magic Circle',
+    'arcane_surge': 'Arcane Surge',
+    'hex': 'Hex',
+    'berserker_rage': 'Berserker Rage',
+    'iron_wall': 'Iron Wall',
+    'war_cry': 'War Cry',
+    'shadow_step': 'Shadow Step',
+    'expose': 'Expose',
+    'venomfang': 'Venomfang',
+    'divine_shield': 'Divine Shield',
+    'holy_strike': 'Holy Strike',
+    'consecrate': 'Consecrate'
+};
+
+const skillNamesList = skA.map(id => skillNames[id] || id);
+if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skillNamesList.join(', ')}`);
     // Log shield creation
     if (shieldA.active) {
         log.push(`✨ ${fighterA.name}'s magic creates a shield worth ${shieldA.value} damage!`);
