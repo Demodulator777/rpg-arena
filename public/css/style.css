@@ -1820,3 +1820,83 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .game-footer {
     margin-top: auto;
 }
+/* Add to your existing CSS */
+
+/* Footer */
+.game-footer {
+    margin-top: 40px;
+    padding: 24px 20px 32px;
+    border-top: 1px solid rgba(201,146,42,0.15);
+    background: linear-gradient(180deg, rgba(8,12,22,0.6), rgba(5,8,14,0.8));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    text-align: center;
+}
+
+.footer-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.footer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.footer-btn:hover {
+    transform: translateY(-2px);
+}
+
+.bug-report-btn:hover {
+    background: rgba(155,89,182,0.15);
+    border-color: rgba(155,89,182,0.5);
+    color: #9b59b6;
+}
+
+.footer-donate-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.footer-donate-btn:hover {
+    transform: translateY(-2px);
+}
+
+.footer-donate-btn iframe {
+    height: 42px !important;
+    border-radius: var(--radius-sm);
+}
+
+.footer-btn-icon {
+    font-size: 1.2rem;
+}
+
+.footer-btn-text {
+    font-size: 0.85rem;
+}
+
+.footer-copyright {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    letter-spacing: 0.03em;
+}
+
+/* Remove floating buttons */
+.bug-report-floating-btn {
+    display: none;
+}
