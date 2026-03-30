@@ -1803,3 +1803,20 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 #donate-topbar-btn, #bug-report-topbar-btn {
     display: none;
 }
+.tab-content-area {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 22px 24px;
+    background:
+        linear-gradient(rgba(5,8,14,0.82), rgba(5,8,14,0.82)),
+        url('/images/logo/arena.png') center center / cover no-repeat fixed;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Make sure the footer stays at bottom of scrollable content */
+.game-footer {
+    margin-top: auto;
+}
