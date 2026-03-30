@@ -1318,8 +1318,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: fixed;
     bottom: 65px;
     right: 20px;
-    width: 56px;
-    height: 56px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: linear-gradient(135deg, #9b59b6, #8e44ad);
     border: none;
