@@ -2231,16 +2231,24 @@ async function loadLeaderboard() {
 }
 function filterLeaderboard() { renderLeaderboard(); }
 function renderLeaderboard() {
-    const q=(document.getElementById('lb-search')?.value||'').toLowerCase();
-    const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)||p.username.toLowerCase().includes(q)):lbData;
-    if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
+    const q = (document.getElementById('lb-search')?.value || '').toLowerCase();
+    const filtered = q ? lbData.filter(p => p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)) : lbData;
+    if (!filtered.length) {
+        document.getElementById('leaderboard-list').innerHTML = '<p class="empty">No players found.</p>';
+        return;
+    }
     
-    document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>{
-        const rank=p.rank||(i+1), rc=rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
-        const rs=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
+    document.getElementById('leaderboard-list').innerHTML = filtered.map((p, i) => {
+        const rank = p.rank || (i + 1);
+        const rc = rank === 1 ? 'gold-rank' : rank === 2 ? 'silver-rank' : rank === 3 ? 'bronze-rank' : '';
+        const rs = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
         
-        // Truncate long names for mobile
-        const displayName = p.name.length > 12 ? p.name.substring(0,10)+'...' : p.name;
+        const displayName = p.name.length > 12 ? p.name.substring(0, 10) + '...' : p.name;
+        
+        // Use total_gold_earned, fallback to gold for new players
+        const goldValue = p.total_gold_earned !== undefined && p.total_gold_earned > 0 
+            ? p.total_gold_earned 
+            : p.gold || 0;
         
         return `<div class="lb-row" onclick="openProfile(${p.id})">
             <div class="lb-rank ${rc}">${rs}</div>
@@ -2259,14 +2267,13 @@ function renderLeaderboard() {
                     <div class="lb-stat-lbl">L</div>
                 </div>
                 <div class="lb-stat">
-                    <div class="lb-stat-val" style="color:var(--gold)">${(p.total_gold_earned || p.gold).toLocaleString()}</div>
+                    <div class="lb-stat-val" style="color:var(--gold)">💰 ${goldValue.toLocaleString()}</div>
                     <div class="lb-stat-lbl">Gold</div>
                 </div>
             </div>
         </div>`;
     }).join('');
 }
-
 // ── Profile ───────────────────────────────────────────────────────────────
 async function openProfile(id) {
     const modal=document.getElementById('profile-modal'), content=document.getElementById('profile-content');
