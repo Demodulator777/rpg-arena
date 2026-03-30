@@ -1213,7 +1213,7 @@ function openSpotMissions(zoneId, spotId) {
                 </div>`;
     }).join('')}
         </div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / 240</strong> · MP regenerates +10/hr</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 240}</strong> · MP regenerates +10/hr</div>
         <div class="mz-section-label">Choose a mission</div>
         <div class="mz-missions-grid" id="spot-missions-list">
             ${spot.missions.map((m,idx)=>`
