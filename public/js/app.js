@@ -2408,15 +2408,90 @@ async function attack(targetId,targetName) {
     try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName); }
     catch(e) { alert(e.message); }
 }
-function showBattleResult(r,targetName) {
-    const out=document.getElementById('battle-outcome'), log=document.getElementById('battle-log');
-    if (!out||!log) return;
-    out.className=r.won?'won':'lost';
-    out.innerHTML=r.won
-        ?`🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${r.xpGained > 0 ? `+${r.xpGained} XP` : r.xpGained < 0 ? `${r.xpGained} XP` : '0 XP'} · +${r.goldGained} Gold${r.leveledUp?' · 🎉 LEVEL UP!':''}</small>`
-        :`💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">+${r.xpGained} XP${r.goldLost ? ` · -${r.goldLost} Gold` : ''}</small>`;
-    log.innerHTML=r.log.map(l=>`<div class="battle-log-line${l==='---'?' separator':''}">${l==='---'?'───────────────────':l}</div>`).join('');
-    document.getElementById('battle-result-modal').classList.remove('hidden');
+function showBattleResult(r, targetName) {
+    const modal = document.getElementById('battle-result-modal');
+    const out = document.getElementById('battle-outcome');
+    const log = document.getElementById('battle-log');
+    if (!modal || !out || !log) return;
+    
+    out.className = r.won ? 'won' : 'lost';
+    out.innerHTML = r.won
+        ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${r.xpGained > 0 ? `+${r.xpGained} XP` : r.xpGained < 0 ? `${r.xpGained} XP` : '0 XP'} · +${r.goldGained} Gold${r.leveledUp ? ' · 🎉 LEVEL UP!' : ''}</small>`
+        : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">+${r.xpGained} XP${r.goldLost ? ` · -${r.goldLost} Gold` : ''}</small>`;
+    
+    log.innerHTML = r.log.map(l => {
+        if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
+        
+        // Check if this is an attack line (contains damage numbers)
+        const yourName = character?.name || 'You';
+        const opponentName = targetName;
+        
+        let className = '';
+        if (l.includes(yourName) && l.includes('strikes')) className = 'battle-log-player';
+        if (l.includes(opponentName) && l.includes('strikes')) className = 'battle-log-opponent';
+        
+        // Format the log line - extract damage and elemental info
+        let formattedLine = l;
+        
+        // Replace "hits for X damage" with cleaner format
+        if (l.includes('damage')) {
+            // Remove extra text and clean up
+            formattedLine = l.replace(/hits — /g, 'strikes for ');
+            formattedLine = formattedLine.replace(/lands a hit — /g, 'strikes for ');
+            formattedLine = formattedLine.replace(/ hits /g, ' strikes ');
+            
+            // Ensure elemental damage is shown clearly
+            if (formattedLine.includes('✨')) {
+                formattedLine = formattedLine.replace('✨ +', ' +');
+            }
+        }
+        
+        return `<div class="battle-log-line ${className}">${formattedLine}</div>`;
+    }).join('');
+    
+    modal.classList.remove('hidden');
+}
+
+function showBattleReportModal(log, won, summary) {
+    const modal = document.getElementById('battle-result-modal');
+    if (!modal) { showMissionModal(summary); return; }
+    
+    const out = document.getElementById('battle-outcome');
+    const logEl = document.getElementById('battle-log');
+    
+    if (out) {
+        out.className = won ? 'won' : 'lost';
+        out.innerHTML = won 
+            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary}</small>`
+            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary}</small>`;
+    }
+    
+    if (logEl) {
+        const yourName = character?.name || 'You';
+        const opponentName = log[0]?.includes('vs') ? log[0].split('vs')[1]?.trim() : 'Opponent';
+        
+        logEl.innerHTML = log.map(l => {
+            if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
+            
+            let className = '';
+            if (l.includes(yourName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-player';
+            if (l.includes(opponentName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-opponent';
+            
+            let formattedLine = l;
+            if (l.includes('damage') || l.includes('hits')) {
+                formattedLine = formattedLine.replace(/hits — /g, 'strikes for ');
+                formattedLine = formattedLine.replace(/lands a hit — /g, 'strikes for ');
+                formattedLine = formattedLine.replace(/ hits /g, ' strikes ');
+                if (formattedLine.includes('✨')) {
+                    formattedLine = formattedLine.replace('✨ +', ' +');
+                }
+            }
+            
+            return `<div class="battle-log-line ${className}">${formattedLine}</div>`;
+        }).join('');
+    }
+    
+    modal.classList.remove('hidden');
 }
 function closeBattle() { document.getElementById('battle-result-modal').classList.add('hidden'); renderCharacter(); }
 
