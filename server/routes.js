@@ -1567,31 +1567,9 @@ router.post('/missions/start', auth, async (req, res) => {
         if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
         const difficulty = spot.difficulty;
         const [minGold, maxGold] = zone.payoutBase[difficulty];
-        
-        // NEW XP REWARD SYSTEM - Fixed values, no random range
-        let baseXp = 0;
-        if (difficulty === 'easy') {
-            baseXp = 2;   // Easy base XP
-        } else if (difficulty === 'medium') {
-            baseXp = 3;   // Medium base XP
-        } else { // hard
-            baseXp = 4;   // Hard base XP
-        }
-        
-        // Apply size multiplier
-        let xpReward = Math.floor(baseXp * sizeConf.rewardMult);
-        
-        // Cap XP rewards to desired max values
-        if (difficulty === 'easy') {
-            xpReward = Math.min(5, xpReward);  // Max 5 XP for easy
-        } else if (difficulty === 'medium') {
-            xpReward = Math.min(9, xpReward);  // Max 9 XP for medium
-        } else { // hard
-            xpReward = Math.min(12, xpReward); // Max 12 XP for hard
-        }
-        
+        const [minXp, maxXp] = zone.xpBase[difficulty];
         const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
-        
+        const xpReward = Math.floor((Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp) * sizeConf.rewardMult);
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (sentName && missionList.includes(sentName)) ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
         const baseDuration = sizeConf.duration;
@@ -1647,9 +1625,9 @@ router.post('/missions/collect', auth, async (req, res) => {
         const isEvent = eventHas('grand_festival');
         const activePremCollect = getActivePremium(freshChar);
         const hasUlt = hasUltimate(activePremCollect);
-        const equippedArray = await getEquippedItemsArray(db, freshChar.id);
-        const hpMax = calcHpMax(freshChar, equippedArray);
-        const hpCurrent = freshChar.hp_current ?? hpMax;
+const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+const hpMax = calcHpMax(freshChar, equippedArray);
+const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
         const playerFighter = {
@@ -1669,38 +1647,24 @@ router.post('/missions/collect', auth, async (req, res) => {
         const battle = runBattle(playerFighter, npc);
         const playerWon = battle.winnerId === freshChar.id;
         let goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
-        let xpEarned = playerWon ? mission.xp_reward : Math.floor(mission.xp_reward * 0.30);
-        
-        // REMOVED player level scaling from XP (comment out or delete these lines)
-        // goldEarned = Math.floor(goldEarned * (1 + freshChar.level * 0.05));
-        // xpEarned = Math.floor(xpEarned * (1 + freshChar.level * 0.10));
-        
-        // Only apply event and premium bonuses to XP
-        if (isEvent) {
-            goldEarned *= 2;
-            xpEarned *= 2;
-        }
-        if (hasPremium(activePremCollect, 'fortune_hunter')) {
-            goldEarned = Math.floor(goldEarned * 1.30);
-        }
-        if (hasUlt) {
-            xpEarned = Math.floor(xpEarned * 1.50);
-        }
-        
+        let xpEarned   = playerWon ? mission.xp_reward   : Math.floor(mission.xp_reward   * 0.30);
+        goldEarned = Math.floor(goldEarned * (1 + freshChar.level * 0.05));
+        xpEarned   = Math.floor(xpEarned   * (1 + freshChar.level * 0.10));
+        if (isEvent) goldEarned *= 2;
+        if (isEvent) xpEarned   *= 2;
+        if (hasPremium(activePremCollect, 'fortune_hunter')) goldEarned = Math.floor(goldEarned * 1.30);
+        if (hasUlt) xpEarned = Math.floor(xpEarned * 1.50);
         const gemChance = isEvent ? 0.15 : 0.05;
         let gemsFound = 0;
         if (playerWon && Math.random() < gemChance) gemsFound = 1;
         const newHp = Math.max(0, battle.hpRemainingA);
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
-        const newWins = freshChar.wins + (playerWon ? 1 : 0);
+        const newWins   = freshChar.wins   + (playerWon ? 1 : 0);
         const newLosses = freshChar.losses + (playerWon ? 0 : 1);
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+? WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id]);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
-        
-        // ... rest of the function remains the same (drops, battles, messages, etc.)
-        
         const drops = [];
         const matsByZone = {
             forest:    [{id:'rough_wood',emoji:'🪵',name:'Rough Wood'},{id:'wolf_pelt',emoji:'🐺',name:'Wolf Pelt'}],
