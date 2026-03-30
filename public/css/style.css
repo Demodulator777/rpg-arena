@@ -1530,3 +1530,37 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .char-hero-content { padding: 16px; gap: 12px; }
     .char-avatar-ring { width: 78px; height: 78px; }
 }
+/* Fix for desktop game screen */
+@media (min-width: 641px) {
+    /* Ensure game body takes full height */
+    #screen-game.active {
+        height: 100vh;
+        overflow: hidden;
+    }
+    
+    .game-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    
+    /* Make sure tab content area is visible */
+    .tab-content-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 22px 24px;
+    }
+    
+    /* Ensure sidebar doesn't overflow */
+    .sidebar {
+        flex-shrink: 0;
+        max-width: 100%;
+    }
+    
+    .sidebar-inner {
+        width: fit-content;
+        margin: 0 auto;
+    }
+}
