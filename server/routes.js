@@ -1245,6 +1245,7 @@ const POTION_CATALOGUE = [
     { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:2800, priceType:'gold', desc:'+15 Strength for session.', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
     { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:2800, priceType:'gold', desc:'+15 Magic for session.',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
     { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP.',    effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
+    { id:'potion_mana',        name:'Mana Potion',             emoji:'💧', level:1,  price:5,    priceType:'gems', desc:'Restores 100 MP.',          effect:{ type:'mp', value:100 }, consumable:true, category:'consumable' },
 ];
 
 function getPotionsForLevel(playerLevel) { 
