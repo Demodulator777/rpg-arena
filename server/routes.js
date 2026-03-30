@@ -655,8 +655,8 @@ function runBattle(fighterA, fighterB) {
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
     const skA = Object.keys(fighterA.activeSkills || {});
     const skB = Object.keys(fighterB.activeSkills || {});
-    if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
-    if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+   if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
+if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
     
     // Log shield creation
     if (shieldA.active) {
