@@ -1707,3 +1707,27 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .summary-value.loss {
     color: var(--red-light);
 }
+/* Donate Button */
+.donate-button-container {
+    position: fixed;
+    bottom: 130px;  /* Position above bug report button (65px + spacing) */
+    right: 20px;
+    z-index: 1000;
+}
+
+.donate-button-container iframe {
+    width: auto !important;
+    height: auto !important;
+}
+
+/* On mobile, adjust position to not overlap with navigation */
+@media (max-width: 640px) {
+    .donate-button-container {
+        bottom: 80px;  /* Above mobile navigation */
+        right: 20px;
+    }
+    
+    .bug-report-floating-btn {
+        bottom: 130px;  /* Move bug report button above donate button */
+    }
+}
