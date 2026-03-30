@@ -1681,41 +1681,43 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (min-width: 641px) {
     .game-body { flex-direction: column; overflow: hidden; }
     
-    .sidebar {
+    /* Sidebar wrapper - handles centering */
+    .sidebar-wrapper {
         width: 100%;
-        min-width: 0;
-        height: auto;
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        flex-direction: row;
-        padding: 0;
         overflow-x: auto;
         overflow-y: hidden;
-        scrollbar-width: thin;
-        border-right: none;
-        border-bottom: 1px solid rgba(201,146,42,0.15);
         background: linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98));
+        border-bottom: 1px solid rgba(201,146,42,0.15);
         flex-shrink: 0;
+        scrollbar-width: thin;
     }
     
-    .sidebar::-webkit-scrollbar {
+    .sidebar-wrapper::-webkit-scrollbar {
         height: 4px;
     }
     
-    .sidebar::-webkit-scrollbar-track {
+    .sidebar-wrapper::-webkit-scrollbar-track {
         background: rgba(255,255,255,0.05);
         border-radius: 2px;
     }
     
-    .sidebar::-webkit-scrollbar-thumb {
+    .sidebar-wrapper::-webkit-scrollbar-thumb {
         background: rgba(201,146,42,0.3);
         border-radius: 2px;
     }
     
-    .sidebar-section-label { display: none; }
+    /* Sidebar container - stays centered */
+    .sidebar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: min-content;
+        width: fit-content;
+        margin: 0 auto;
+        padding: 0;
+    }
     
-    /* Container for the whole bar including side images */
+    /* Inner container with actual buttons and side images */
     .sidebar-inner {
         display: flex;
         flex-direction: row;
@@ -1728,7 +1730,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: 63px;
     }
     
-    /* Left side image - attaches directly to first button */
     .sidebar-left {
         flex-shrink: 0;
         height: 63px;
@@ -1742,7 +1743,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         display: block;
     }
     
-    /* Button container */
     .sidebar-buttons {
         display: flex;
         flex-direction: row;
@@ -1787,7 +1787,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         filter: drop-shadow(0 0 8px rgba(52,152,219,0.5));
     }
     
-    /* Right side image - attaches directly to last button */
     .sidebar-right {
         flex-shrink: 0;
         height: 63px;
