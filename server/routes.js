@@ -534,55 +534,23 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
 
-        // Apply magic damage bonus
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
         rawDmg += damageBonus;
 
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
-        const blockFails  = Math.random() < 0.001;
+        // Block fail chance - only 0.1% chance to fail (partial block)
+        const blockFails = Math.random() < 0.001;
         
-        // Calculate elemental damage first (so it can be reduced by block)
-        const elemDmgs = attacker.elem_dmg || {};
-        let totalElemDmg = 0;
-        for (const elem of ELEMENTS) {
-            let ed = elemDmgs[elem] || 0;
-            if (ed <= 0) continue;
-            if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
-            if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-            
-            // Apply block reduction to elemental damage (same as physical)
-            if (blockCovers && !blockFails) {
-                let reduction = blk.reduction;
-                if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
-                ed = Math.max(0, Math.floor(ed * (1 - reduction)));
-            }
-            
-            // Apply elemental resistance and magic resistance
-            const elemResist = (defender.elem_resist || {})[elem] || 0;
-            const magicResist = Math.floor((defender.magic || 0) * 0.05);
-            ed = Math.max(0, ed - elemResist - magicResist);
-            totalElemDmg += ed;
-        }
-        
-        // Apply physical damage with block
-        let physicalDmg = 0;
         if (blockCovers && !blockFails) {
-            let reduction = blk.reduction;
-            if (hasSkill(defSkills, 'iron_wall')) reduction = Math.min(0.99, reduction + 0.30);
-            physicalDmg = Math.max(0, Math.floor(rawDmg * (1 - reduction)));
+            // FULL BLOCK - damage is completely absorbed
+            finalDmg = 0;
             const critTag = isCrit ? ' ⚡CRIT' : '';
-            
-            if (physicalDmg === 0 && totalElemDmg === 0) {
-                logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
-                finalDmg = 0;
-            } else {
-                finalDmg = physicalDmg;
-                logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED partially — ${finalDmg} damage`;
-            }
+            logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
         } else {
-            physicalDmg = rawDmg;
-            finalDmg = physicalDmg;
-            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${isCrit ? ' ⚡ CRITICAL HIT!' : ''} — ${finalDmg} damage`;
+            // NO BLOCK or BLOCK FAILED - full damage goes through
+            finalDmg = rawDmg;
+            const critTag = isCrit ? ' ⚡CRITICAL HIT!' : '';
+            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
         }
 
         // Magic Shield Absorption (only once per battle)
@@ -592,9 +560,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             defenderShield.remaining -= absorbed;
             defenderShield.usedInBattle = true;
             
-            if (finalDmg <= 0 && totalElemDmg === 0) {
+            if (finalDmg <= 0) {
                 logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ MAGIC SHIELD absorbed all damage!`;
-            } else if (absorbed > 0) {
+            } else {
                 logLine = logLine.replace(/(\d+) damage/, `${finalDmg} damage ✨ (shield absorbed ${absorbed})`);
             }
             
@@ -603,16 +571,29 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
         }
 
-        // Apply armor reduction (silently)
+        // Armor reduction
         if (finalDmg > 0 && (defender.armor || 0) > 0) {
             const physReduction = Math.min(finalDmg - 1, defender.armor);
             finalDmg = Math.max(1, finalDmg - physReduction);
         }
+
+        // Elemental damage
+        const elemDmgs = attacker.elem_dmg || {};
+        let totalElemDmg = 0;
+        for (const elem of ELEMENTS) {
+            let ed = elemDmgs[elem] || 0;
+            if (ed <= 0) continue;
+            if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+            if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            
+            const elemResist = (defender.elem_resist || {})[elem] || 0;
+            const magicResist = Math.floor((defender.magic || 0) * 0.05);
+            ed = Math.max(0, ed - elemResist - magicResist);
+            totalElemDmg += ed;
+        }
         
-        // Add elemental damage to final damage (after all reductions)
         if (totalElemDmg > 0) {
             finalDmg += totalElemDmg;
-            // Simple elemental display - just total, no breakdown
             logLine += ` ✨ +${totalElemDmg} elemental`;
         }
 
