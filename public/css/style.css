@@ -1900,3 +1900,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .bug-report-floating-btn {
     display: none;
 }
+/* Make tab-content-area scrollable and push footer to bottom */
+.tab-content-area {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Footer stays at bottom of scrollable content */
+.game-footer {
+    margin-top: auto;
+}
