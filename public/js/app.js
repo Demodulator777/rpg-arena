@@ -2231,45 +2231,22 @@ async function loadLeaderboard() {
 }
 function filterLeaderboard() { renderLeaderboard(); }
 function renderLeaderboard() {
-    const q = (document.getElementById('lb-search')?.value || '').toLowerCase();
-    const filtered = q ? lbData.filter(p => p.name.toLowerCase().includes(q) || p.username.toLowerCase().includes(q)) : lbData;
-    if (!filtered.length) {
-        document.getElementById('leaderboard-list').innerHTML = '<p class="empty">No players found.</p>';
-        return;
-    }
-    
-    document.getElementById('leaderboard-list').innerHTML = filtered.map((p, i) => {
-        const rank = p.rank || (i + 1);
-        const rc = rank === 1 ? 'gold-rank' : rank === 2 ? 'silver-rank' : rank === 3 ? 'bronze-rank' : '';
-        const rs = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
-        
-        const displayName = p.name.length > 12 ? p.name.substring(0, 10) + '...' : p.name;
-        
-        // Use total_gold_earned, fallback to gold for new players
-        const goldValue = p.total_gold_earned !== undefined && p.total_gold_earned > 0 
-            ? p.total_gold_earned 
-            : p.gold || 0;
-        
+    const q=(document.getElementById('lb-search')?.value||'').toLowerCase();
+    const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)||p.username.toLowerCase().includes(q)):lbData;
+    if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
+    document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>{
+        const rank=p.rank||(i+1), rc=rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
+        const rs=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
+        // REMOVE the fallback - only use total_gold_earned
+        const totalEarned = p.total_gold_earned || 0;
         return `<div class="lb-row" onclick="openProfile(${p.id})">
             <div class="lb-rank ${rc}">${rs}</div>
-            <img src="/images/class/${p.class}.png" alt="${p.class}" onerror="this.style.display='none'">
-            <div class="lb-info">
-                <div class="lb-name">${displayName}</div>
-                <div class="lb-sub">Lv.${p.level} ${capitalize(p.class)}</div>
-            </div>
+            <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" onerror="this.style.display='none'">
+            <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · @${p.username}</div></div>
             <div class="lb-stats">
-                <div class="lb-stat">
-                    <div class="lb-stat-val" style="color:var(--green)">${p.wins}</div>
-                    <div class="lb-stat-lbl">W</div>
-                </div>
-                <div class="lb-stat">
-                    <div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div>
-                    <div class="lb-stat-lbl">L</div>
-                </div>
-                <div class="lb-stat">
-                    <div class="lb-stat-val" style="color:var(--gold)">💰 ${goldValue.toLocaleString()}</div>
-                    <div class="lb-stat-lbl">Gold</div>
-                </div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
             </div>
         </div>`;
     }).join('');
