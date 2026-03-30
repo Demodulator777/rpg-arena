@@ -709,29 +709,91 @@ function runBattle(fighterA, fighterB) {
 }
 
 function buildNpc(difficulty, playerLevel) {
+    // Much stronger base stats to challenge players
     const configs = {
-        easy:   { hpBase:40, hpScale:3,  atkMin:3,  atkMax:7,  agi:5,  magic:5,  name:'Weak Foe' },
-        medium: { hpBase:60, hpScale:5,  atkMin:6,  atkMax:12, agi:10, magic:10, name:'Seasoned Foe' },
-        hard:   { hpBase:80, hpScale:8,  atkMin:10, atkMax:18, agi:15, magic:15, name:'Elite Foe' },
+        easy: { 
+            hpBase: 80, hpScale: 8, 
+            atkMin: 10, atkMax: 18, 
+            defBase: 15, defScale: 2.5,
+            agi: 12, magic: 10, 
+            armor: 5,
+            name: 'Weak Foe' 
+        },
+        medium: { 
+            hpBase: 150, hpScale: 12, 
+            atkMin: 20, atkMax: 35, 
+            defBase: 25, defScale: 4,
+            agi: 25, magic: 20, 
+            armor: 12,
+            name: 'Seasoned Foe' 
+        },
+        hard: { 
+            hpBase: 250, hpScale: 18, 
+            atkMin: 35, atkMax: 60, 
+            defBase: 40, defScale: 6,
+            agi: 40, magic: 35, 
+            armor: 20,
+            name: 'Elite Foe' 
+        },
     };
+    
     const cfg = configs[difficulty] || configs.easy;
+    
+    // Calculate scaled values
+    const hp = cfg.hpBase + (playerLevel * cfg.hpScale);
+    const dmgMin = cfg.atkMin + Math.floor(playerLevel * 0.8);
+    const dmgMax = cfg.atkMax + Math.floor(playerLevel * 1.2);
+    const defense = cfg.defBase + (playerLevel * cfg.defScale);
+    const armor = cfg.armor + Math.floor(playerLevel * 0.5);
+    const agility = cfg.agi + Math.floor(playerLevel * 0.6);
+    const magic = cfg.magic + Math.floor(playerLevel * 0.7);
+    
+    // Add elemental damage and resistance based on difficulty
+    const elemDmg = {};
+    const elemResist = {};
+    
+    if (difficulty === 'medium') {
+        // Medium enemies have one elemental damage type
+        const elements = ['pyro', 'water', 'wind', 'electro'];
+        const randomElem = elements[Math.floor(Math.random() * elements.length)];
+        elemDmg[randomElem] = 5 + Math.floor(playerLevel * 0.3);
+        elemResist[randomElem] = 3 + Math.floor(playerLevel * 0.2);
+    } else if (difficulty === 'hard') {
+        // Hard enemies have two elemental damage types and resistances
+        const elements = ['pyro', 'water', 'wind', 'electro'];
+        const shuffled = [...elements].sort(() => Math.random() - 0.5);
+        elemDmg[shuffled[0]] = 10 + Math.floor(playerLevel * 0.5);
+        elemDmg[shuffled[1]] = 8 + Math.floor(playerLevel * 0.4);
+        elemResist[shuffled[0]] = 6 + Math.floor(playerLevel * 0.3);
+        elemResist[shuffled[1]] = 5 + Math.floor(playerLevel * 0.25);
+    }
+    
     const npcAttack = {
         easy:   ['chest','chest','chest','solar_plexus','chest','chest','stomach','chest','solar_plexus','chest'],
         medium: ['chest','solar_plexus','head','chest','solar_plexus','chest','throat','solar_plexus','chest','head'],
         hard:   ['head','solar_plexus','chest','heart','head','solar_plexus','throat','chest','heart','solar_plexus'],
     };
+    
     const npcBlock = {
         easy:   ['cross_guard','cross_guard','cross_guard','mid_guard','cross_guard','cross_guard','mid_guard','cross_guard','cross_guard','mid_guard'],
         medium: ['cross_guard','high_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','high_guard','mid_guard'],
         hard:   ['cross_guard','high_guard','counter_stance','cross_guard','weave_left','high_guard','counter_stance','mid_guard','cross_guard','weave_right'],
     };
+    
     return {
-        id: -1, name: cfg.name,
-        hp: cfg.hpBase + (playerLevel * cfg.hpScale),
-        dmgMin: cfg.atkMin, dmgMax: cfg.atkMax, agility: cfg.agi, magic: cfg.magic,
-        armor: 0, elem_dmg: { pyro:0, water:0, wind:0, electro:0 }, elem_resist: { pyro:0, water:0, wind:0, electro:0 },
+        id: -1, 
+        name: cfg.name,
+        hp: hp,
+        dmgMin: dmgMin,
+        dmgMax: dmgMax,
+        defense: defense,
+        armor: armor,
+        agility: agility,
+        magic: magic,
+        elem_dmg: elemDmg,
+        elem_resist: elemResist,
         attackZones: npcAttack[difficulty] || npcAttack.easy,
-        blockZones:  npcBlock[difficulty]  || npcBlock.easy,
+        blockZones: npcBlock[difficulty] || npcBlock.easy,
         activeSkills: {},
     };
 }
