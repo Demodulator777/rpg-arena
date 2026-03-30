@@ -435,27 +435,21 @@
                 <button class="btn-primary" onclick="sendMessage()" style="width:100%">Send</button>
             </div>
         </div>
-<!-- PayPal Donate Button -->
-<div id="donate-button-container" class="donate-button-container">
-    <div id="donate-button"></div>
-</div>
-
-<script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
-<script>
-    PayPal.Donation.Button({
-        env: 'production',
-        hosted_button_id: 'P2S5ZTFQUZNKC',
-        image: {
-            src: 'https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif',
-            alt: 'Donate with PayPal button',
-            title: 'PayPal - The safer, easier way to pay online!',
-        }
-    }).render('#donate-button');
-</script>
-        <!-- Floating Bug Report Button -->
-<button id="bug-report-btn" class="bug-report-floating-btn" title="Report a Bug">
-  <span>🐛</span>
-</button>
+    <footer class="game-footer">
+        <div class="footer-buttons">
+            <button class="footer-btn" onclick="openBugReport()">
+                <span class="footer-btn-icon">🐛</span>
+                <span class="footer-btn-text">Report Bug</span>
+            </button>
+            <button class="footer-btn" onclick="openDonateModal()">
+                <span class="footer-btn-icon">💝</span>
+                <span class="footer-btn-text">Support the Game</span>
+            </button>
+        </div>
+        <div class="footer-copyright">
+            © ${new Date().getFullYear()} Battle Arena — All rights reserved
+        </div>
+    </footer>
 
 <!-- Bug Report Modal -->
 <div id="bug-report-modal" class="modal-overlay hidden">
