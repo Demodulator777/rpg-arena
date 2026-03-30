@@ -435,7 +435,23 @@
                 <button class="btn-primary" onclick="sendMessage()" style="width:100%">Send</button>
             </div>
         </div>
+<!-- PayPal Donate Button -->
+<div id="donate-button-container" class="donate-button-container">
+    <div id="donate-button"></div>
+</div>
 
+<script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
+<script>
+    PayPal.Donation.Button({
+        env: 'production',
+        hosted_button_id: 'P2S5ZTFQUZNKC',
+        image: {
+            src: 'https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif',
+            alt: 'Donate with PayPal button',
+            title: 'PayPal - The safer, easier way to pay online!',
+        }
+    }).render('#donate-button');
+</script>
         <!-- Floating Bug Report Button -->
 <button id="bug-report-btn" class="bug-report-floating-btn" title="Report a Bug">
   <span>🐛</span>
