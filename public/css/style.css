@@ -451,111 +451,188 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .topbar-logout:hover { background: rgba(224,82,82,0.1); color: var(--red-light); border-color: rgba(224,82,82,0.3); }
 
 /* ════════════════════════════════════════════════════════════════════════
-   GAME LAYOUT - MOBILE FIRST
+   GAME LAYOUT
    ════════════════════════════════════════════════════════════════════════ */
 .game-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
-/* Mobile sidebar (default) */
 .sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: auto;
-    background: rgba(5,8,14,0.97);
-    border-top: 1px solid rgba(201,146,42,0.2);
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 5px 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    z-index: 200;
-    flex-shrink: 0;
+    width: var(--sidebar-w); min-width: var(--sidebar-w);
+    background: linear-gradient(180deg, var(--bg2) 0%, rgba(8,13,23,0.98) 100%);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 1px;
+    padding: 8px 6px 16px;
+    overflow-y: auto; overflow-x: hidden; flex-shrink: 0; position: relative;
+}
+.sidebar::after {
+    content: '';
+    position: absolute; top: 0; right: -1px; bottom: 0; width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(201,146,42,0.12) 30%, rgba(201,146,42,0.08) 70%, transparent);
+    pointer-events: none;
 }
 
-.sidebar::-webkit-scrollbar { display: none; }
+.sidebar-section-label {
+    font-size: 0.56rem; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: rgba(255,255,255,0.18);
+    padding: 8px 10px 4px; margin-top: 2px;
+    display: flex; align-items: center; gap: 8px;
+}
+.sidebar-section-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, rgba(201,146,42,0.2), transparent);
+}
 
+/* Desktop styles (min-width: 641px) */
+@media (min-width: 641px) {
+    .game-body { flex-direction: column; overflow: hidden; }
+    
+    /* Sidebar container */
+    .sidebar {
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center; /* Center the entire content */
+        flex-direction: row;
+        padding: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        border-right: none;
+        border-bottom: 1px solid rgba(201,146,42,0.15);
+        background: linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98));
+        flex-shrink: 0;
+        position: relative;
+    }
+    
+    .sidebar::-webkit-scrollbar { display: none; }
+    .sidebar-section-label { display: none; }
+    
+    /* Inner wrapper to contain the left panel + buttons + right panel */
+    .sidebar-inner {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        /* Let it shrink to fit content */
+        flex: 0 1 auto;
+    }
+    
+    /* Button container */
+    .sidebar-buttons {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .nav-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: auto;
+        height: 63px;
+        padding: 0 !important;
+        margin: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        transition: all 0.2s;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    
+    .nav-btn img {
+        display: block;
+        height: 63px;
+        width: auto;
+        object-fit: cover;
+    }
+    
+    .nav-btn:hover {
+        filter: brightness(1.1);
+    }
+    
+    .nav-btn.active {
+        filter: drop-shadow(0 0 8px rgba(52,152,219,0.5));
+    }
+    
+    /* Left side panel */
+    .sidebar-left {
+        flex-shrink: 0;
+        height: 63px;
+        width: auto;
+        background-image: url('/images/leftside.png');
+        background-repeat: no-repeat;
+        background-position: left center;
+        background-size: auto 63px;
+        pointer-events: none;
+    }
+    
+    /* Right side panel */
+    .sidebar-right {
+        flex-shrink: 0;
+        height: 63px;
+        width: auto;
+        background-image: url('/images/rightside.png');
+        background-repeat: no-repeat;
+        background-position: right center;
+        background-size: auto 63px;
+        pointer-events: none;
+    }
+    
+    .tab-content-area { flex: 1; min-height: 0; overflow-y: auto; }
+}
+
+/* Base nav button styles (for mobile) */
 .nav-btn {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
-    padding: 7px 6px;
-    min-width: 52px;
-    width: 52px;
     background: transparent;
     border: none;
-    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s;
     position: relative;
 }
-
-.nav-btn img {
+.nav-btn::before {
     display: none;
 }
 
-.nav-btn::after {
-    font-size: 1.3rem;
-    line-height: 1;
-    display: block;
+.nav-edge {
+    flex-shrink: 0; width: 4px; height: 32px;
+    background-image: url('/images/logo/button.png');
+    background-size: auto 32px; background-repeat: no-repeat;
+    pointer-events: none; display: none;
 }
-
-.nav-btn:nth-of-type(1)::after  { content: '👤'; }
-.nav-btn:nth-of-type(2)::after  { content: '💎'; }
-.nav-btn:nth-of-type(3)::after  { content: '⚔️'; }
-.nav-btn:nth-of-type(4)::after  { content: '✨'; }
-.nav-btn:nth-of-type(5)::after  { content: '💪'; }
-.nav-btn:nth-of-type(6)::after  { content: '⬆️'; }
-.nav-btn:nth-of-type(7)::after  { content: '🗺️'; }
-.nav-btn:nth-of-type(8)::after  { content: '🔨'; }
-.nav-btn:nth-of-type(9)::after  { content: '🎒'; }
-.nav-btn:nth-of-type(10)::after { content: '🛒'; }
-.nav-btn:nth-of-type(11)::after { content: '🏆'; }
-.nav-btn:nth-of-type(12)::after { content: '✉️'; }
-.nav-btn:nth-of-type(13)::after { content: '🗼'; }
-
-.nav-btn.active {
-    background: rgba(52,143,209,0.18);
+@media (min-width: 641px) {
+    .nav-edge { display: block; }
+    .nav-edge-left  { background-position: left center; }
+    .nav-edge-right { background-position: right center; }
 }
 
 .unread-badge {
-    font-size: 0.55rem;
-    padding: 1px 4px;
-    min-width: 14px;
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    background: var(--red-light);
-    color: #fff;
-    border-radius: 10px;
-    text-align: center;
-    box-shadow: 0 0 8px rgba(224,82,82,0.5);
+    margin-left: auto; background: var(--red-light); color: #fff;
+    font-size: 0.6rem; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+    min-width: 18px; text-align: center; box-shadow: 0 0 8px rgba(224,82,82,0.5);
 }
 .unread-badge.hidden { display: none; }
 
-/* Hide side images on mobile */
-.sidebar-left, .sidebar-right {
-    display: none;
-}
-
 .tab-content-area {
-    flex: 1;
-    min-width: 0;
-    overflow-y: auto;
-    padding: 14px;
-    padding-bottom: 70px;
+    flex: 1; min-width: 0; overflow-y: auto; padding: 22px 24px;
     background:
         linear-gradient(rgba(5,8,14,0.82), rgba(5,8,14,0.82)),
         url('/images/logo/arena.png') center center / cover no-repeat fixed;
     position: relative;
 }
-
 .tab-content-area::before {
     content: '';
     position: fixed; inset: 0;
@@ -1518,7 +1595,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: auto !important; min-height: unset !important;
         flex-shrink: 0; text-align: center; justify-content: center; border-radius: 8px;
     }
-    .nav-btn::after { font-size: 1.3rem; line-height: 1; }
+    /* Hide images on mobile */
+    .nav-btn img {
+        display: none;
+    }
+    /* Show emoji via pseudo-element */
+    .nav-btn::after {
+        font-size: 1.3rem;
+        line-height: 1;
+        display: block;
+    }
+    /* Assign emojis by order */
     .nav-btn:nth-of-type(1)::after  { content: '👤'; }
     .nav-btn:nth-of-type(2)::after  { content: '💎'; }
     .nav-btn:nth-of-type(3)::after  { content: '⚔️'; }
@@ -1532,8 +1619,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .nav-btn:nth-of-type(11)::after { content: '🏆'; }
     .nav-btn:nth-of-type(12)::after { content: '✉️'; }
     .nav-btn:nth-of-type(13)::after { content: '🗼'; }
-    .nav-btn .unread-badge { font-size: 0.55rem; padding: 1px 4px; min-width: 14px; }
-    .nav-btn.active::before { display: none; }
+    
+    .nav-btn .unread-badge { 
+        font-size: 0.55rem; 
+        padding: 1px 4px; 
+        min-width: 14px;
+        position: absolute;
+        top: 2px;
+        right: 2px;
+    }
     .nav-btn.active { background: rgba(52,143,209,0.18); }
     .tab-content-area { padding: 14px; padding-bottom: 70px; }
     .mission-overlay, .travel-overlay { position: fixed; inset: 0; z-index: 500; padding: 20px; }
@@ -1584,154 +1678,105 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .char-avatar-ring { width: 78px; height: 78px; }
 }
 
-/* Left side decoration - at the edge */
-.sidebar::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    background-image: url('/images/leftsidedone.png');
-    background-repeat: repeat-y;
-    background-position: left center;
-    background-size: auto 100%;
-    pointer-events: none;
-    z-index: 1;
-}
-
-/* Right side decoration - at the edge */
-.sidebar::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 8px;
-    background-image: url('/images/rightside.png');
-    background-repeat: repeat-y;
-    background-position: right center;
-    background-size: auto 100%;
-    pointer-events: none;
-    z-index: 1;
-}
-
-/* ============================================
-   DESKTOP NAVIGATION OVERRIDES
-   ============================================ */
 @media (min-width: 641px) {
-    /* Make sidebar horizontal with scrolling */
+    .game-body { flex-direction: column; overflow: hidden; }
+    
     .sidebar {
-        position: relative !important;
-        bottom: auto !important;
-        left: auto !important;
-        right: auto !important;
-        width: 100% !important;
-        min-width: 0 !important;
-        height: auto !important;
-        background: linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98)) !important;
-        border-right: none !important;
-        border-top: none !important;
-        border-bottom: 1px solid rgba(201,146,42,0.15) !important;
-        padding: 4px 0 !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        flex-direction: row !important;
-        justify-content: flex-start !important;
-        gap: 2px !important;
-        margin: 0 !important;
+        width: 100%;
+        min-width: 0;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: row;
+        padding: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        border-right: none;
+        border-bottom: 1px solid rgba(201,146,42,0.15);
+        background: linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98));
         flex-shrink: 0;
-    }
-    
-    .sidebar::-webkit-scrollbar {
-        height: 4px;
-    }
-    
-    .sidebar::-webkit-scrollbar-track {
-        background: rgba(255,255,255,0.05);
-        border-radius: 2px;
-    }
-    
-    .sidebar::-webkit-scrollbar-thumb {
-        background: rgba(201,146,42,0.3);
-        border-radius: 2px;
-    }
-    
-    /* Hide section labels on desktop */
-    .sidebar-section-label {
-        display: none !important;
-    }
-    
-    /* Hide the original ::after pseudo-elements */
-    .sidebar::before, .sidebar::after {
-        display: none !important;
-    }
-    
-    /* Style nav buttons for desktop - show images */
-    .nav-btn {
-        display: inline-flex !important;
-        flex-direction: row !important;
-        width: auto !important;
-        min-width: 80px !important;
-        height: 56px !important;
-        padding: 8px 12px !important;
-        margin: 0 !important;
-        background: transparent !important;
-        border: none !important;
-        border-radius: 0 !important;
-        cursor: pointer;
-        transition: all 0.2s;
         position: relative;
     }
     
+    .sidebar::-webkit-scrollbar { display: none; }
+    .sidebar-section-label { display: none; }
+    
+    /* Left side decoration - only on desktop */
+    .sidebar::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        background-image: url('/images/leftside.png');
+        background-repeat: repeat-y;
+        background-position: left center;
+        background-size: auto 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    /* Right side decoration - only on desktop */
+    .sidebar::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        background-image: url('/images/rightside.png');
+        background-repeat: repeat-y;
+        background-position: right center;
+        background-size: auto 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+    
+    .sidebar-buttons {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .nav-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: auto;
+        height: 63px;
+        padding: 0 !important;
+        margin: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        transition: all 0.2s;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    
     .nav-btn img {
-        display: block !important;
-        height: 40px !important;
-        width: auto !important;
-    }
-    
-    /* Hide the emoji pseudo-elements and spans on desktop */
-    .nav-btn::after {
-        display: none !important;
-    }
-    
-    .nav-btn span {
-        display: none !important;
+        display: block;
+        height: 63px;
+        width: auto;
+        object-fit: cover;
     }
     
     .nav-btn:hover {
-        background: rgba(201,146,42,0.1) !important;
-        transform: translateY(-2px);
+        filter: brightness(1.1);
     }
     
     .nav-btn.active {
-        background: rgba(52,152,219,0.15) !important;
-        border-bottom: 2px solid #3498db !important;
+        filter: drop-shadow(0 0 8px rgba(52,152,219,0.5));
     }
     
-    /* Style nav edges (the decorative side pieces) */
-    .nav-edge {
-        display: block !important;
-        width: 32px !important;
-        height: 56px !important;
-        background-size: contain !important;
-        background-repeat: no-repeat !important;
-        background-position: center !important;
-        flex-shrink: 0 !important;
-    }
-    
-    .nav-edge-left {
-        background-image: url('/images/leftside.png') !important;
-        background-position: right center !important;
-    }
-    
-    .nav-edge-right {
-        background-image: url('/images/rightside.png') !important;
-        background-position: left center !important;
-    }
-    
-    /* Adjust tab content area to not have extra bottom padding on desktop */
-    .tab-content-area {
-        padding-bottom: 22px !important;
-    }
+    .tab-content-area { flex: 1; min-height: 0; overflow-y: auto; }
 }
