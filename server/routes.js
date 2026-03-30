@@ -1400,7 +1400,7 @@ router.post('/character', auth, async (req, res) => {
                 location, travel_target, travel_end_time,
                 elem_resist_pyro, elem_resist_water, elem_resist_wind, elem_resist_electro
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [userId, name, characterClass, 1, 0, 50000, 10, 10, 10, 10, 10, 100, 100, 0, 0, null, null, 0, 0, 50000, 0, 0, 'forest', null, 0, 0, 0, 0, 0]);
+        `, [userId, name, characterClass, 1, 0, 5000, 10, 10, 10, 10, 10, 100, 100, 0, 0, null, null, 0, 0, 500, 0, 0, 'forest', null, 0, 0, 0, 0, 0]);
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
         res.json(character);
     } catch (e) {
