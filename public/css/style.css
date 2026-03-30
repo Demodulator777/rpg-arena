@@ -485,14 +485,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (min-width: 641px) {
     .game-body { flex-direction: column; overflow: hidden; }
     
-    /* Sidebar container with side panels */
+    /* Sidebar container */
     .sidebar {
         width: 100%;
         min-width: 0;
         height: auto;
         display: flex;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: center; /* Center the entire content */
         flex-direction: row;
         padding: 0;
         overflow-x: auto;
@@ -508,7 +508,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .sidebar::-webkit-scrollbar { display: none; }
     .sidebar-section-label { display: none; }
     
-    /* Button container - no padding, buttons sit flush */
+    /* Inner wrapper to contain the left panel + buttons + right panel */
+    .sidebar-inner {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        gap: 0;
+        margin: 0;
+        padding: 0;
+        /* Let it shrink to fit content */
+        flex: 0 1 auto;
+    }
+    
+    /* Button container */
     .sidebar-buttons {
         display: flex;
         flex-direction: row;
@@ -518,7 +532,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         gap: 0;
         margin: 0;
         padding: 0;
-        flex: 1;
     }
     
     .nav-btn {
@@ -553,7 +566,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         filter: drop-shadow(0 0 8px rgba(52,152,219,0.5));
     }
     
-    /* Left side panel - attaches to left edge */
+    /* Left side panel */
     .sidebar-left {
         flex-shrink: 0;
         height: 63px;
@@ -565,7 +578,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         pointer-events: none;
     }
     
-    /* Right side panel - attaches to right edge */
+    /* Right side panel */
     .sidebar-right {
         flex-shrink: 0;
         height: 63px;
