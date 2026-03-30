@@ -2518,40 +2518,40 @@ function showBattleReportModal(log, won, summary) {
     const out = document.getElementById('battle-outcome');
     const logEl = document.getElementById('battle-log');
     
-let damageDealt = 0;
-let damageTaken = 0;
-let goldAmount = 0;
-let xpAmount = 0;
-
-// Parse summary for gold and XP
-const goldMatch = summary.match(/💰 (\d+)/);
-if (goldMatch) goldAmount = parseInt(goldMatch[1]);
-
-const xpMatch = summary.match(/⭐ (\d+)/);
-if (xpMatch) xpAmount = parseInt(xpMatch[1]);
-
-// Parse battle log for damage totals - look for final damage numbers
-const yourName = character?.name || 'You';
-log.forEach(line => {
-    // Player damage - look for "strikes for X damage" where X is the number
-    if (line.includes(yourName) && line.includes('strikes for')) {
-        const dmgMatch = line.match(/strikes for (\d+) damage/);
-        if (dmgMatch) damageDealt += parseInt(dmgMatch[1]);
-    }
-    // Enemy damage
-    if (line.includes(enemyName) && line.includes('strikes for')) {
-        const dmgMatch = line.match(/strikes for (\d+) damage/);
-        if (dmgMatch) damageTaken += parseInt(dmgMatch[1]);
-    }
-});
-    
-    // Get enemy name from log
+    // Get enemy name FIRST before using it
     let enemyName = 'Enemy';
     const vsLine = log.find(l => l.includes('vs'));
     if (vsLine) {
         const parts = vsLine.split('vs');
         if (parts[1]) enemyName = parts[1].trim();
     }
+    
+    // Now parse summary and damage
+    let goldAmount = 0;
+    let xpAmount = 0;
+    let damageDealt = 0;
+    let damageTaken = 0;
+    
+    const goldMatch = summary.match(/💰 (\d+)/);
+    if (goldMatch) goldAmount = parseInt(goldMatch[1]);
+    
+    const xpMatch = summary.match(/⭐ (\d+)/);
+    if (xpMatch) xpAmount = parseInt(xpMatch[1]);
+    
+    const yourName = character?.name || 'You';
+    
+    log.forEach(line => {
+        // Player damage
+        if (line.includes(yourName) && line.includes('strikes for')) {
+            const dmgMatch = line.match(/strikes for (\d+) damage/);
+            if (dmgMatch) damageDealt += parseInt(dmgMatch[1]);
+        }
+        // Enemy damage
+        if (line.includes(enemyName) && line.includes('strikes for')) {
+            const dmgMatch = line.match(/strikes for (\d+) damage/);
+            if (dmgMatch) damageTaken += parseInt(dmgMatch[1]);
+        }
+    });
     
     // Populate fighters
     if (fighters && character) {
@@ -2564,17 +2564,16 @@ log.forEach(line => {
             </div>
             <div class="fighter-vs">VS</div>
             <div class="fighter-card">
-    <div class="fighter-avatar enemy-avatar">
-        <span>👾</span>
-    </div>
-    <div class="fighter-name">${enemyName}</div>
-    <div class="fighter-class">Enemy</div>
-    <div class="fighter-stats"></div>
-</div>
+                <div class="fighter-avatar enemy-avatar">
+                    <span>👾</span>
+                </div>
+                <div class="fighter-name">${enemyName}</div>
+                <div class="fighter-class">Enemy</div>
+                <div class="fighter-stats"></div>
+            </div>
         `;
     }
     
-    // Create summary with actual numbers
     const summaryHtml = `
         <div class="battle-summary">
             <div class="summary-stats">
@@ -2604,14 +2603,11 @@ log.forEach(line => {
     }
     
     if (logEl) {
-        // Remove existing summary
         const existingSummary = document.querySelector('.battle-summary');
         if (existingSummary) existingSummary.remove();
         
-        // Add new summary
         logEl.insertAdjacentHTML('beforebegin', summaryHtml);
         
-        // Format battle log
         logEl.innerHTML = log.map(l => {
             if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
             
@@ -2621,9 +2617,9 @@ log.forEach(line => {
             
             let formattedLine = l;
             if (l.includes('damage') || l.includes('hits')) {
-                formattedLine = formattedLine.replace(/hits — /g, 'strikes for ');
-                formattedLine = formattedLine.replace(/lands a hit — /g, 'strikes for ');
-                formattedLine = formattedLine.replace(/ hits /g, ' strikes ');
+                formattedLine = formattedLine.replace(/hits — /g, 'hit — ');
+                formattedLine = formattedLine.replace(/lands a hit — /g, 'hit — ');
+                formattedLine = formattedLine.replace(/ strikes for /g, ' hits for ');
                 if (formattedLine.includes('✨')) {
                     formattedLine = formattedLine.replace('✨ +', ' +');
                 }
@@ -2635,6 +2631,7 @@ log.forEach(line => {
     
     modal.classList.remove('hidden');
 }
+
 function closeBattle() { document.getElementById('battle-result-modal').classList.add('hidden'); renderCharacter(); }
 
 // ── History ───────────────────────────────────────────────────────────────
