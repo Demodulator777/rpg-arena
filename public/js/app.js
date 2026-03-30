@@ -408,7 +408,6 @@ function buildEqSlotSmall(slot, eq, icon, label) {
     return `<div class="eq-slot-small filled" style="border-color:${qc}44"
         onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()" data-item="${itemData}">
         <span style="font-size:1.1rem;line-height:1">${itemIcon(item,'slot')}</span>
-        <span class="eq-slot-label" style="color:${qc};font-size:0.55rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">${item.name}</span>
     </div>`;
 }
 
@@ -483,36 +482,33 @@ function renderCharacter() {
         {slot:'boots',  icon:'👢', label:'Boots'},
     ];
     const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
-    const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
-        const avatarDiv = idx === 3 ? `
-            <div class="eq-avatar-center">
-                <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
-            </div>` : '';
-        const item = resolvedEq[slot];
-        if (!item) return avatarDiv + `
-            <div class="eq-slot empty">
-                <span class="eq-slot-icon">${icon}</span>
-                <span class="eq-slot-label">${label}</span>
-            </div>`;
-        const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
-        const itemData = escHtml(JSON.stringify(item));
-        return avatarDiv + `
-            <div class="eq-slot filled" style="border-color:${qc}44"
-                onmouseenter="showEqTooltip(event,this.dataset.item)"
-                onmouseleave="scheduleHideTooltip()"
-                data-item="${itemData}">
-                <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
-                <span class="eq-slot-label" style="color:${qc}">${item.name}</span>
-                ${item.quality&&item.quality!=='common'?`<span style="position:absolute;top:3px;right:4px;font-size:0.44rem;color:${qc};text-transform:uppercase">${item.quality}</span>`:''}
-            </div>`;
-    }).join('');
+const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
+    const avatarDiv = idx === 3 ? `
+        <div class="eq-avatar-center">
+            <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
+        </div>` : '';
+    const item = resolvedEq[slot];
+    if (!item) return avatarDiv + `
+        <div class="eq-slot empty">
+            <span class="eq-slot-icon">${icon}</span>
+            <span class="eq-slot-label">${label}</span>
+        </div>`;
+    const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+    const itemData = escHtml(JSON.stringify(item));
+    return avatarDiv + `
+        <div class="eq-slot filled" style="border-color:${qc}44"
+            onmouseenter="showEqTooltip(event,this.dataset.item)"
+            onmouseleave="scheduleHideTooltip()"
+            data-item="${itemData}">
+            <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
+        </div>`;
+}).join('');
 
-    const eqGrid = `
-    <div class="eq-grid">${mainEqGrid}</div>
-    <div class="eq-accessory-row">
-        ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
-        <div class="eq-accessory-hint">Small trinket slot</div>
-    </div>`;
+const eqGrid = `
+<div class="eq-grid">${mainEqGrid}</div>
+<div class="eq-accessory-row">
+    ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
+</div>`;
 
     // FIX: Use c.mp_max from backend response (already includes premium bonus)
     const mpCurrent = c.mission_points || 0;
