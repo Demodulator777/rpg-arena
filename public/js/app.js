@@ -2274,7 +2274,7 @@ async function openProfile(id) {
         ];
 const profileEqHtml =
     `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
-        <img src="/images/class/${p.class}.png" style="width:140px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
+        <img src="/images/class/${p.class}.png" style="width:240px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
     </div>`
     + profileSlots.map(({slot,icon,col,row}) => {
         const item = profileResolvedEq[slot];
