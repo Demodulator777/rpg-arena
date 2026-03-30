@@ -2518,21 +2518,6 @@ function showBattleReportModal(log, won, summary) {
     const out = document.getElementById('battle-outcome');
     const logEl = document.getElementById('battle-log');
     
-    // Extract values from summary
-    let goldAmount = 0;
-    let xpAmount = 0;
-    
-    const goldMatch = summary.match(/💰 (\d+)/);
-    if (goldMatch) goldAmount = parseInt(goldMatch[1]);
-    
-    const xpMatch = summary.match(/⭐ (\d+)/);
-    if (xpMatch) xpAmount = parseInt(xpMatch[1]);
-    
-    // Calculate damage dealt and taken from log
-    let damageDealt = 0;
-    let damageTaken = 0;
-    const yourName = character?.name || 'You';
-    
     // Get enemy name
     let enemyName = 'Enemy';
     const vsLine = log.find(l => l.includes('vs'));
@@ -2541,101 +2526,53 @@ function showBattleReportModal(log, won, summary) {
         if (parts[1]) enemyName = parts[1].trim();
     }
     
-    // Parse damage from log
+    // Calculate damage
+    let damageDealt = 0;
+    let damageTaken = 0;
+    const yourName = character?.name || 'You';
+    
     log.forEach(line => {
-        // Player damage - look for "X damage" in player lines
-        if (line.includes(yourName)) {
-            const dmgMatches = line.match(/(\d+) damage/);
-            if (dmgMatches && dmgMatches[1]) {
-                damageDealt += parseInt(dmgMatches[1]);
-            }
-        }
-        // Enemy damage
-        if (line.includes(enemyName)) {
-            const dmgMatches = line.match(/(\d+) damage/);
-            if (dmgMatches && dmgMatches[1]) {
-                damageTaken += parseInt(dmgMatches[1]);
-            }
+        const dmgMatch = line.match(/(\d+) damage/);
+        if (dmgMatch) {
+            if (line.includes(yourName)) damageDealt += parseInt(dmgMatch[1]);
+            if (line.includes(enemyName)) damageTaken += parseInt(dmgMatch[1]);
         }
     });
     
-    // Populate fighters
+    // Add fighters
     if (fighters && character) {
         fighters.innerHTML = `
             <div class="fighter-card">
-                <img src="/images/class/${character.class}.png" alt="${character.name}" class="fighter-avatar" onerror="this.style.display='none'">
+                <img src="/images/class/${character.class}.png" class="fighter-avatar" onerror="this.style.display='none'">
                 <div class="fighter-name">${character.name}</div>
                 <div class="fighter-class">${capitalize(character.class)} Lv.${character.level}</div>
-                <div class="fighter-stats">❤️ ${character.hp_current}/${character.hp_max} HP</div>
             </div>
             <div class="fighter-vs">VS</div>
             <div class="fighter-card">
-                <div class="fighter-avatar enemy-avatar">
-                    <span>👾</span>
-                </div>
+                <div class="fighter-avatar enemy-avatar">👾</div>
                 <div class="fighter-name">${enemyName}</div>
                 <div class="fighter-class">Enemy</div>
-                <div class="fighter-stats"></div>
             </div>
         `;
     }
     
-    // Create summary HTML with all stats
-    const summaryHtml = `
-        <div class="battle-summary">
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <span class="summary-label">⚔️ Damage Dealt</span>
-                    <span class="summary-value ${damageDealt > damageTaken ? 'win' : 'loss'}">${damageDealt}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">💔 Damage Taken</span>
-                    <span class="summary-value">${damageTaken}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">⭐ XP Gained</span>
-                    <span class="summary-value win">+${xpAmount}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">💰 Gold</span>
-                    <span class="summary-value ${won ? 'win' : 'loss'}">${won ? '+' : ''}${goldAmount}</span>
-                </div>
-            </div>
-        </div>
-    `;
-    
+    // Show outcome with summary + damage stats
     if (out) {
         out.className = won ? 'won' : 'lost';
-        out.innerHTML = won ? '🏆 VICTORY!' : '💀 DEFEATED';
+        out.innerHTML = won 
+            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${damageDealt} dmg dealt · 💔 ${damageTaken} dmg taken</small>`
+            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${damageDealt} dmg dealt · 💔 ${damageTaken} dmg taken</small>`;
     }
     
+    // Battle log
     if (logEl) {
-        // Remove any existing summary
-        const existingSummary = document.querySelector('.battle-summary');
-        if (existingSummary) existingSummary.remove();
-        
-        // Add summary at the top
-        logEl.insertAdjacentHTML('beforebegin', summaryHtml);
-        
-        // Show battle log
         logEl.innerHTML = log.map(l => {
             if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
-            
             let className = '';
-            if (l.includes(yourName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-player';
-            if (l.includes(enemyName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-opponent';
-            
-            let formattedLine = l;
-            if (l.includes('damage') || l.includes('hits')) {
-                formattedLine = formattedLine.replace(/hits — /g, 'hit — ');
-                formattedLine = formattedLine.replace(/lands a hit — /g, 'hit — ');
-                formattedLine = formattedLine.replace(/ strikes for /g, ' hits for ');
-                if (formattedLine.includes('✨')) {
-                    formattedLine = formattedLine.replace('✨ +', ' +');
-                }
-            }
-            
-            return `<div class="battle-log-line ${className}">${formattedLine}</div>`;
+            if (l.includes(character?.name || 'You')) className = 'battle-log-player';
+            if (l.includes(enemyName)) className = 'battle-log-opponent';
+            let line = l.replace(/hits — /g, 'hit — ').replace(/lands a hit — /g, 'hit — ').replace(/ strikes for /g, ' hits for ');
+            return `<div class="battle-log-line ${className}">${line}</div>`;
         }).join('');
     }
     
