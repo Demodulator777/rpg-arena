@@ -2518,17 +2518,6 @@ function showBattleReportModal(log, won, summary) {
     const out = document.getElementById('battle-outcome');
     const logEl = document.getElementById('battle-log');
     
-    // Extract values directly from summary string
-    let goldAmount = 0;
-    let xpAmount = 0;
-    
-    // Parse summary - it already contains the correct numbers
-    const goldMatch = summary.match(/💰 (\d+)/);
-    if (goldMatch) goldAmount = parseInt(goldMatch[1]);
-    
-    const xpMatch = summary.match(/⭐ (\d+)/);
-    if (xpMatch) xpAmount = parseInt(xpMatch[1]);
-    
     // Get enemy name from log
     let enemyName = 'Enemy';
     const vsLine = log.find(l => l.includes('vs'));
@@ -2536,8 +2525,6 @@ function showBattleReportModal(log, won, summary) {
         const parts = vsLine.split('vs');
         if (parts[1]) enemyName = parts[1].trim();
     }
-    
-    const yourName = character?.name || 'You';
     
     // Populate fighters
     if (fighters && character) {
@@ -2560,21 +2547,23 @@ function showBattleReportModal(log, won, summary) {
         `;
     }
     
-    // Use the summary string directly for the battle outcome
+    // Use the original working display for outcome and log
     if (out) {
         out.className = won ? 'won' : 'lost';
-        out.innerHTML = won ? '🏆 VICTORY!' : '💀 DEFEATED';
+        out.innerHTML = won ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary}</small>` : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary}</small>`;
     }
     
     if (logEl) {
-        // Format and display the battle log
         logEl.innerHTML = log.map(l => {
             if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
             
+            // Add styling to differentiate player and enemy hits
             let className = '';
+            const yourName = character?.name || 'You';
             if (l.includes(yourName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-player';
             if (l.includes(enemyName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-opponent';
             
+            // Clean up the text
             let formattedLine = l;
             if (l.includes('damage') || l.includes('hits')) {
                 formattedLine = formattedLine.replace(/hits — /g, 'hit — ');
@@ -2587,25 +2576,6 @@ function showBattleReportModal(log, won, summary) {
             
             return `<div class="battle-log-line ${className}">${formattedLine}</div>`;
         }).join('');
-        
-        // Add summary AFTER the log
-        const summaryHtml = `
-            <div class="battle-summary">
-                <div class="summary-stats">
-                    <div class="summary-stat">
-                        <span class="summary-label">⭐ XP Gained</span>
-                        <span class="summary-value win">+${xpAmount}</span>
-                    </div>
-                    <div class="summary-stat">
-                        <span class="summary-label">💰 Gold</span>
-                        <span class="summary-value ${won ? 'win' : 'loss'}">${won ? '+' : ''}${goldAmount}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Insert summary after log
-        logEl.insertAdjacentHTML('afterend', summaryHtml);
     }
     
     modal.classList.remove('hidden');
