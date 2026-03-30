@@ -1653,27 +1653,23 @@ router.post('/missions/collect', auth, async (req, res) => {
         const playerFighter = {
             id: freshChar.id, name: freshChar.name,
             hp: hpCurrent, dmgMin, dmgMax, agility: freshChar.agility || 0,
-            hit_chance:  freshChar.hit_chance  || 0,
+            hit_chance: freshChar.hit_chance || 0,
             crit_chance: freshChar.crit_chance || 0,
             magic: freshChar.magic || 0,
-            armor:       calcArmorValue(freshChar, equippedArray),
-            elem_dmg:    calcElemDmg(equippedArray),
+            armor: calcArmorValue(freshChar, equippedArray),
+            elem_dmg: calcElemDmg(equippedArray),
             elem_resist: calcElemResist(freshChar, equippedArray),
             activeSkills: charActiveSkills,
             attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
-            blockZones:  JSON.parse(freshChar.block_zones  || 'null') || DEFAULT_BLOCK_ZONES,
+            blockZones: JSON.parse(freshChar.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
         };
         const npc = buildNpc(mission.difficulty, freshChar.level);
         const battle = runBattle(playerFighter, npc);
         const playerWon = battle.winnerId === freshChar.id;
+        
         let goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
-        let xpEarned = playerWon ? mission.xp_reward : Math.floor(mission.xp_reward * 0.30);
+        let xpEarned = playerWon ? mission.xp_reward : 0;
         
-        // REMOVED player level scaling from XP (comment out or delete these lines)
-        // goldEarned = Math.floor(goldEarned * (1 + freshChar.level * 0.05));
-        // xpEarned = Math.floor(xpEarned * (1 + freshChar.level * 0.10));
-        
-        // Only apply event and premium bonuses to XP
         if (isEvent) {
             goldEarned *= 2;
             xpEarned *= 2;
@@ -1697,8 +1693,6 @@ router.post('/missions/collect', auth, async (req, res) => {
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id]);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
         
-        // ... rest of the function remains the same (drops, battles, messages, etc.)
-        
         const drops = [];
         const matsByZone = {
             forest:    [{id:'rough_wood',emoji:'🪵',name:'Rough Wood'},{id:'wolf_pelt',emoji:'🐺',name:'Wolf Pelt'}],
@@ -1714,7 +1708,8 @@ router.post('/missions/collect', auth, async (req, res) => {
                 const qty = 1 + Math.floor(Math.random() * 3);
                 const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [freshChar.id, mat.id]);
                 if (existing) {
-                    const d = JSON.parse(existing.item_data); d.qty = (d.qty || 1) + qty;
+                    const d = JSON.parse(existing.item_data);
+                    d.qty = (d.qty || 1) + qty;
                     await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existing.id]);
                 } else {
                     await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)`, [freshChar.id, 'raw_mat', JSON.stringify({ ...mat, qty })]);
@@ -1722,15 +1717,18 @@ router.post('/missions/collect', auth, async (req, res) => {
                 drops.push({ mat: mat.id, qty });
             }
         }
+        
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
                 [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, npc.name, JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned]);
         } catch {}
+        
         try {
             const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`;
             const payload = JSON.stringify({ log: battle.log, won: playerWon, goldEarned, xpEarned, type: 'mission', npcName: npc.name });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
         } catch {}
+        
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
         res.json({
             success: true, won: playerWon, battleLog: battle.log,
@@ -1740,7 +1738,10 @@ router.post('/missions/collect', auth, async (req, res) => {
             activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
             character: await buildCharacterResponse(updatedChar, db),
         });
-    } catch (e) { console.error('Mission collect error:', e); res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('Mission collect error:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.get('/missions/active', auth, async (req, res) => {
