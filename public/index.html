@@ -508,28 +508,4 @@
 <script src="/js/app.js"></script>
     <script src="/js/dungeon.js"></script>
 </body>
-            <footer class="game-footer">
-    <div class="footer-buttons">
-        <button class="footer-btn bug-report-btn" onclick="openBugReport()">
-            <span class="footer-btn-icon">🐛</span>
-            <span class="footer-btn-text">Report Bug</span>
-        </button>
-        <div id="donate-button-container" class="footer-donate-btn">
-            <div id="donate-button"></div>
-        </div>
-    </div>
-</footer>
-
-<script src="https://www.paypalobjects.com/donate/sdk/donate-sdk.js" charset="UTF-8"></script>
-<script>
-    PayPal.Donation.Button({
-        env: 'production',
-        hosted_button_id: 'P2S5ZTFQUZNKC',
-        image: {
-            src: 'https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif',
-            alt: 'Donate with PayPal button',
-            title: 'PayPal - The safer, easier way to pay online!',
-        }
-    }).render('#donate-button');
-</script>
 </html>
