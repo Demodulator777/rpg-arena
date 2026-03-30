@@ -1637,6 +1637,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border: 2px solid var(--gold);
     background: var(--bg3);
     margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* For enemy avatar (emoji fallback) */
+.fighter-card .fighter-avatar:not(img) {
+    font-size: 2.5rem;
+    background: rgba(0,0,0,0.3);
 }
 
 .fighter-name {
