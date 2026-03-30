@@ -1732,14 +1732,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 }
 /* Footer Styles */
-.game-footer {
-    margin-top: 40px;
-    padding: 24px 20px 32px;
-    border-top: 1px solid rgba(201,146,42,0.15);
-    background: linear-gradient(180deg, rgba(8,12,22,0.6), rgba(5,8,14,0.8));
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    text-align: center;
-}
 
 .footer-buttons {
     display: flex;
@@ -1820,17 +1812,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .game-footer {
     margin-top: auto;
 }
-/* Add to your existing CSS */
-
-/* Footer */
-.game-footer {
-    margin-top: 40px;
-    padding: 24px 20px 32px;
-    border-top: 1px solid rgba(201,146,42,0.15);
-    background: linear-gradient(180deg, rgba(8,12,22,0.6), rgba(5,8,14,0.8));
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    text-align: center;
-}
 
 .footer-buttons {
     display: flex;
@@ -1906,9 +1887,4 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-}
-
-/* Footer stays at bottom of scrollable content */
-.game-footer {
-    margin-top: auto;
 }
