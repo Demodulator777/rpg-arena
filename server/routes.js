@@ -1566,31 +1566,29 @@ router.post('/missions/start', auth, async (req, res) => {
         const spot = zone?.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
         const difficulty = spot.difficulty;
-        const [minGold, maxGold] = zone.payoutBase[difficulty];
-        
-        // NEW XP REWARD SYSTEM - Fixed values, no random range
-        let baseXp = 0;
-        if (difficulty === 'easy') {
-            baseXp = 2;   // Easy base XP
-        } else if (difficulty === 'medium') {
-            baseXp = 3;   // Medium base XP
-        } else { // hard
-            baseXp = 4;   // Hard base XP
-        }
-        
-        // Apply size multiplier
-        let xpReward = Math.floor(baseXp * sizeConf.rewardMult);
-        
-        // Cap XP rewards to desired max values
-        if (difficulty === 'easy') {
-            xpReward = Math.min(5, xpReward);  // Max 5 XP for easy
-        } else if (difficulty === 'medium') {
-            xpReward = Math.min(9, xpReward);  // Max 9 XP for medium
-        } else { // hard
-            xpReward = Math.min(12, xpReward); // Max 12 XP for hard
-        }
-        
-        const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
+const [minGold, maxGold] = zone.payoutBase[difficulty];
+
+// XP scales with MP cost (mission size), NOT difficulty
+let minXp = 0, maxXp = 0;
+
+if (sizeKey === 'small') {      // 20 MP
+    minXp = 0;
+    maxXp = 6;
+} else if (sizeKey === 'medium') { // 40 MP
+    minXp = 0;
+    maxXp = 9;
+} else { // large - 60 MP
+    minXp = 0;
+    maxXp = 12;
+}
+
+// Randomize within range
+let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
+
+// Ensure minimum 1? Or keep 0 possible?
+xpReward = Math.max(0, xpReward);
+
+const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
         
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (sentName && missionList.includes(sentName)) ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
