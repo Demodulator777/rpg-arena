@@ -1515,17 +1515,6 @@ function showMissionModal(message) {
 function closeMissionModal() { const m=document.getElementById('mission-rewards-modal'); if(m) m.classList.add('hidden'); }
 
 // ── Battle Report Modal ───────────────────────────────────────────────────
-function showBattleReportModal(log, won, summary) {
-    const modal=document.getElementById('battle-result-modal');
-    if (!modal) { showMissionModal(summary); return; }
-    const out=document.getElementById('battle-outcome'), logEl=document.getElementById('battle-log');
-    if (out) {
-        out.className=won?'won':'lost';
-        out.innerHTML=won?`🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary}</small>`:`💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary}</small>`;
-    }
-    if (logEl) logEl.innerHTML=log.map(l=>`<div class="battle-log-line${l==='---'?' separator':''}">${l==='---'?'───────────────────':l}</div>`).join('');
-    modal.classList.remove('hidden');
-}
 
 // ── Forge ─────────────────────────────────────────────────────────────────
 async function loadForge() {
@@ -2529,34 +2518,32 @@ function showBattleReportModal(log, won, summary) {
     const out = document.getElementById('battle-outcome');
     const logEl = document.getElementById('battle-log');
     
-    // Parse summary to get actual numbers
-    let goldAmount = 0;
-    let xpAmount = 0;
-    let damageDealt = 0;
-    let damageTaken = 0;
-    
-    // Extract gold from summary
-    const goldMatch = summary.match(/💰 (\d+)/);
-    if (goldMatch) goldAmount = parseInt(goldMatch[1]);
-    
-    // Extract XP from summary
-    const xpMatch = summary.match(/⭐ (\d+)/);
-    if (xpMatch) xpAmount = parseInt(xpMatch[1]);
-    
-    // Parse battle log for damage totals
-    const yourName = character?.name || 'You';
-    log.forEach(line => {
-        // Player damage (when your name is in the line and contains damage)
-        if (line.includes(yourName) && line.includes('damage')) {
-            const dmgMatch = line.match(/(\d+) damage/);
-            if (dmgMatch) damageDealt += parseInt(dmgMatch[1]);
-        }
-        // Enemy damage (when line doesn't have your name but has damage and vs or enemy)
-        if (!line.includes(yourName) && line.includes('damage') && (line.includes('vs') || line.includes('strikes'))) {
-            const dmgMatch = line.match(/(\d+) damage/);
-            if (dmgMatch) damageTaken += parseInt(dmgMatch[1]);
-        }
-    });
+let damageDealt = 0;
+let damageTaken = 0;
+let goldAmount = 0;
+let xpAmount = 0;
+
+// Parse summary for gold and XP
+const goldMatch = summary.match(/💰 (\d+)/);
+if (goldMatch) goldAmount = parseInt(goldMatch[1]);
+
+const xpMatch = summary.match(/⭐ (\d+)/);
+if (xpMatch) xpAmount = parseInt(xpMatch[1]);
+
+// Parse battle log for damage totals - look for final damage numbers
+const yourName = character?.name || 'You';
+log.forEach(line => {
+    // Player damage - look for "strikes for X damage" where X is the number
+    if (line.includes(yourName) && line.includes('strikes for')) {
+        const dmgMatch = line.match(/strikes for (\d+) damage/);
+        if (dmgMatch) damageDealt += parseInt(dmgMatch[1]);
+    }
+    // Enemy damage
+    if (line.includes(enemyName) && line.includes('strikes for')) {
+        const dmgMatch = line.match(/strikes for (\d+) damage/);
+        if (dmgMatch) damageTaken += parseInt(dmgMatch[1]);
+    }
+});
     
     // Get enemy name from log
     let enemyName = 'Enemy';
