@@ -1707,7 +1707,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .char-avatar-ring { width: 88px; height: 88px; }
     .char-hero-name { font-size: 1.45rem; }
 
-    .mission-overlay, .travel-overlay { position: fixed; inset: 0; z-index: 500; padding: 20px; }
+    .mission-overlay, .travel-overlay { position: absolute; inset: 0; z-index: 500; padding: 20px; }
     .mission-overlay-inner, .travel-overlay-inner { padding: 28px 24px; min-width: unset; width: 90%; max-width: 340px; }
     .mission-overlay-timer { font-size: 2rem; }
 
