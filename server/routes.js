@@ -534,14 +534,17 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
 
+        // Apply magic damage bonus
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
         rawDmg += damageBonus;
+        
+        // Track magic bonus separately for display
+        const magicBonus = damageBonus;
 
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
-        // Block fail chance - only 0.1% chance to fail (partial block)
         const blockFails = Math.random() < 0.001;
         
-        // Calculate elemental damage BEFORE block decision
+        // Calculate elemental damage
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
@@ -557,19 +560,22 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         }
         
         if (blockCovers && !blockFails) {
-            // FULL BLOCK - both physical AND elemental damage are completely absorbed
+            // FULL BLOCK
             finalDmg = 0;
-            totalElemDmg = 0;  // Elemental also blocked
+            totalElemDmg = 0;
             const critTag = isCrit ? ' ⚡CRIT' : '';
-            logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
+            // Show the damage that would have been dealt (including magic bonus)
+            const wouldBeDmg = rawDmg;
+            logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED (would be ${wouldBeDmg} damage)`;
         } else {
-            // NO BLOCK or BLOCK FAILED - full damage goes through
+            // NO BLOCK - full damage goes through
             finalDmg = rawDmg;
             const critTag = isCrit ? ' ⚡CRITICAL HIT!' : '';
+            // Include magic bonus in the displayed damage
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
         }
 
-        // Magic Shield Absorption (only once per battle)
+        // Magic Shield Absorption
         if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
             const absorbed = Math.min(defenderShield.remaining, finalDmg);
             finalDmg -= absorbed;
@@ -587,13 +593,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
         }
 
-        // Armor reduction (only physical damage)
+        // Armor reduction
         if (finalDmg > 0 && (defender.armor || 0) > 0) {
             const physReduction = Math.min(finalDmg - 1, defender.armor);
             finalDmg = Math.max(1, finalDmg - physReduction);
         }
         
-        // Add elemental damage AFTER block and shield
+        // Add elemental damage
         if (totalElemDmg > 0) {
             finalDmg += totalElemDmg;
             logLine += ` ✨ +${totalElemDmg} elemental`;
@@ -657,10 +663,10 @@ const skillNamesList = skA.map(id => skillNames[id] || id);
 if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skillNamesList.join(', ')}`);
     // Log shield creation
     if (shieldA.active) {
-        log.push(`✨ ${fighterA.name}'s magic creates a shield worth ${shieldA.value} damage!`);
+        log.push(`✨ ${fighterA.name}'s magic creates a force field`);
     }
     if (shieldB.active) {
-        log.push(`✨ ${fighterB.name}'s magic creates a shield worth ${shieldB.value} damage!`);
+        log.push(`✨ ${fighterB.name}'s magic creates a force field`);
     }
     log.push('---');
 
@@ -699,7 +705,7 @@ if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skillNamesList
     else if (hpB <= 0) winnerId = fighterA.id;
     else {
         winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-        log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} · ${fighterB.name} dealt ${totalDmgToA}`);
+        //log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} · ${fighterB.name} dealt ${totalDmgToA}`);
     }
     log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins!`);
     return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
@@ -707,10 +713,35 @@ if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skillNamesList
 
 function buildNpc(difficulty, playerLevel) {
     const configs = {
-        easy:   { hpBase:40, hpScale:3,  atkMin:3,  atkMax:7,  agi:5,  magic:5,  name:'Weak Foe' },
-        medium: { hpBase:60, hpScale:5,  atkMin:6,  atkMax:12, agi:10, magic:10, name:'Seasoned Foe' },
-        hard:   { hpBase:80, hpScale:8,  atkMin:10, atkMax:18, agi:15, magic:15, name:'Elite Foe' },
+        easy: { 
+            hpBase: 40, hpScale: 3, 
+            atkMin: 3, atkMax: 7, 
+            agi: 5, magic: 5,
+            vitality: 8,  // NPC vitality
+            hit_chance: 80,  // Base hit chance %
+            crit_chance: 5,  // Base crit chance %
+            name: 'Weak Foe' 
+        },
+        medium: { 
+            hpBase: 60, hpScale: 5, 
+            atkMin: 6, atkMax: 12, 
+            agi: 10, magic: 10,
+            vitality: 12,
+            hit_chance: 85,
+            crit_chance: 8,
+            name: 'Seasoned Foe' 
+        },
+        hard: { 
+            hpBase: 80, hpScale: 8, 
+            atkMin: 10, atkMax: 18, 
+            agi: 15, magic: 15,
+            vitality: 16,
+            hit_chance: 90,
+            crit_chance: 12,
+            name: 'Elite Foe' 
+        },
     };
+    
     const cfg = configs[difficulty] || configs.easy;
     const npcAttack = {
         easy:   ['chest','chest','chest','solar_plexus','chest','chest','stomach','chest','solar_plexus','chest'],
@@ -722,13 +753,23 @@ function buildNpc(difficulty, playerLevel) {
         medium: ['cross_guard','high_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','high_guard','mid_guard'],
         hard:   ['cross_guard','high_guard','counter_stance','cross_guard','weave_left','high_guard','counter_stance','mid_guard','cross_guard','weave_right'],
     };
+    
     return {
-        id: -1, name: cfg.name,
+        id: -1, 
+        name: cfg.name,
         hp: cfg.hpBase + (playerLevel * cfg.hpScale),
-        dmgMin: cfg.atkMin, dmgMax: cfg.atkMax, agility: cfg.agi, magic: cfg.magic,
-        armor: 0, elem_dmg: { pyro:0, water:0, wind:0, electro:0 }, elem_resist: { pyro:0, water:0, wind:0, electro:0 },
+        dmgMin: cfg.atkMin + Math.floor(playerLevel * 0.5),
+        dmgMax: cfg.atkMax + Math.floor(playerLevel * 0.8),
+        agility: cfg.agi + Math.floor(playerLevel * 0.3),
+        magic: cfg.magic + Math.floor(playerLevel * 0.4),
+        vitality: cfg.vitality + Math.floor(playerLevel * 0.3),
+        hit_chance: Math.min(95, cfg.hit_chance + Math.floor(playerLevel * 0.5)),
+        crit_chance: Math.min(30, cfg.crit_chance + Math.floor(playerLevel * 0.3)),
+        armor: 0,
+        elem_dmg: { pyro:0, water:0, wind:0, electro:0 },
+        elem_resist: { pyro:0, water:0, wind:0, electro:0 },
         attackZones: npcAttack[difficulty] || npcAttack.easy,
-        blockZones:  npcBlock[difficulty]  || npcBlock.easy,
+        blockZones: npcBlock[difficulty] || npcBlock.easy,
         activeSkills: {},
     };
 }
