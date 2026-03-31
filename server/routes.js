@@ -539,7 +539,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
         const blockFails = Math.random() < 0.001;
-        
+
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
@@ -547,73 +547,75 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (ed <= 0) continue;
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-            
             const elemResist = (defender.elem_resist || {})[elem] || 0;
             const magicResist = Math.floor((defender.magic || 0) * 0.05);
             ed = Math.max(0, ed - elemResist - magicResist);
             totalElemDmg += ed;
         }
-        
+
+        const critTag = isCrit ? ' ⚡CRIT' : '';
+
         if (blockCovers && !blockFails) {
             // FULL BLOCK - no damage
             finalDmg = 0;
             totalElemDmg = 0;
-            const critTag = isCrit ? ' ⚡CRIT' : '';
             logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
         } else {
             // HIT - damage goes through
             finalDmg = rawDmg;
-            const critTag = isCrit ? ' ⚡CRITICAL HIT!' : '';
+
+            // Force Field Absorption
+            if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
+                const absorbed = Math.min(defenderShield.remaining, finalDmg);
+                finalDmg -= absorbed;
+                defenderShield.remaining -= absorbed;
+                defenderShield.usedInBattle = true;
+            }
+
+            // Armor reduction
+            if (finalDmg > 0 && (defender.armor || 0) > 0) {
+                const physReduction = Math.min(finalDmg - 1, defender.armor);
+                finalDmg = Math.max(1, finalDmg - physReduction);
+            }
+
+            // Add elemental after armor
+            if (totalElemDmg > 0) finalDmg += totalElemDmg;
+
+            // Log set AFTER all reductions so number matches damageDealt
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
-        }
+            if (totalElemDmg > 0) logLine += ` ✨ +${totalElemDmg} elemental`;
 
-        // Force Field Absorption (formerly Magic Shield)
-        if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
-            const absorbed = Math.min(defenderShield.remaining, finalDmg);
-            finalDmg -= absorbed;
-            defenderShield.remaining -= absorbed;
-            defenderShield.usedInBattle = true;
-            
-            if (finalDmg <= 0 && totalElemDmg === 0) {
-                logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage!`;
-            } else if (absorbed > 0) {
-                logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage! ${finalDmg} gets through`;
+            // Force field log note
+            if (defenderShield && defenderShield.usedInBattle) {
+                const absorbed = rawDmg - (finalDmg - totalElemDmg);
+                if (finalDmg - totalElemDmg <= 0) {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage!`;
+                } else if (absorbed > 0) {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage! ${finalDmg - totalElemDmg} gets through`;
+                    if (totalElemDmg > 0) logLine += ` ✨ +${totalElemDmg} elemental`;
+                }
+                if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
             }
-            
-            if (defenderShield.remaining <= 0) {
-                logLine += ` 💔 Force field shatters!`;
+
+            if (hasSkill(atkSkills, 'venomfang')) {
+                finalDmg += 5;
+                logLine += ' ☠️ +5 poison';
             }
-        }
-
-        // Armor reduction
-        if (finalDmg > 0 && (defender.armor || 0) > 0) {
-            const physReduction = Math.min(finalDmg - 1, defender.armor);
-            finalDmg = Math.max(1, finalDmg - physReduction);
-        }
-        
-        if (totalElemDmg > 0) {
-            finalDmg += totalElemDmg;
-            logLine += ` ✨ +${totalElemDmg} elemental`;
-        }
-
-        if (hasSkill(atkSkills, 'venomfang')) { 
-            finalDmg += 5; 
-            logLine += ' ☠️ +5 poison'; 
-        }
-        if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
-            healBack = Math.floor(finalDmg * 0.10); 
-            logLine += ` 💚 +${healBack} heal`;
-        }
-        if (hasSkill(defSkills, 'consecrate') && finalDmg > 0) {
-            const reflect = Math.floor(finalDmg * 0.15);
-            logLine += ` 🌿 ${reflect} reflected`;
-            return { logLine, damageDealt: finalDmg, damageCounter: reflect, nextAtkPenalty, healBack };
-        }
-        if (blk.special === 'next_round_hit_penalty') nextAtkPenalty = true;
-        if (blk.special === 'counter_25' && Math.random() < 0.25) {
-            const counterDmg = Math.floor(finalDmg * 0.50);
-            logLine += ` — COUNTERED for ${counterDmg}`;
-            return { logLine, damageDealt: finalDmg, damageCounter: counterDmg, nextAtkPenalty, healBack };
+            if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
+                healBack = Math.floor(finalDmg * 0.10);
+                logLine += ` 💚 +${healBack} heal`;
+            }
+            if (hasSkill(defSkills, 'consecrate') && finalDmg > 0) {
+                const reflect = Math.floor(finalDmg * 0.15);
+                logLine += ` 🌿 ${reflect} reflected`;
+                return { logLine, damageDealt: finalDmg, damageCounter: reflect, nextAtkPenalty, healBack };
+            }
+            if (blk.special === 'next_round_hit_penalty') nextAtkPenalty = true;
+            if (blk.special === 'counter_25' && Math.random() < 0.25) {
+                const counterDmg = Math.floor(finalDmg * 0.50);
+                logLine += ` — COUNTERED for ${counterDmg}`;
+                return { logLine, damageDealt: finalDmg, damageCounter: counterDmg, nextAtkPenalty, healBack };
+            }
         }
     }
     return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty, healBack };
