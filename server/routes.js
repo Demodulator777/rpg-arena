@@ -619,7 +619,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty, healBack };
 }
 
-// ── Updated runBattle with Magic Shields ─────────────────────────────────
 function runBattle(fighterA, fighterB) {
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
@@ -635,29 +634,14 @@ function runBattle(fighterA, fighterB) {
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
     const skA = Object.keys(fighterA.activeSkills || {});
     const skB = Object.keys(fighterB.activeSkills || {});
-   const skillNames = {
-    'magic_circle': 'Magic Circle',
-    'arcane_surge': 'Arcane Surge',
-    'hex': 'Hex',
-    'berserker_rage': 'Berserker Rage',
-    'iron_wall': 'Iron Wall',
-    'war_cry': 'War Cry',
-    'shadow_step': 'Shadow Step',
-    'expose': 'Expose',
-    'venomfang': 'Venomfang',
-    'divine_shield': 'Divine Shield',
-    'holy_strike': 'Holy Strike',
-    'consecrate': 'Consecrate'
-};
-
-const skillNamesList = skA.map(id => skillNames[id] || id);
-if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skillNamesList.join(', ')}`);
-    // Log shield creation
+    if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
+    if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+    
     if (shieldA.active) {
-        log.push(`✨ ${fighterA.name}'s magic creates a force field`);
+        log.push(`✨ ${fighterA.name}'s magic creates a force field worth ${shieldA.value} damage!`);
     }
     if (shieldB.active) {
-        log.push(`✨ ${fighterB.name}'s magic creates a force field`);
+        log.push(`✨ ${fighterB.name}'s magic creates a force field worth ${shieldB.value} damage!`);
     }
     log.push('---');
 
@@ -681,24 +665,40 @@ if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skillNamesList
         penaltyA = resB.nextAtkPenalty;
         penaltyB = resA.nextAtkPenalty;
         
+        // Check if someone died during the round
         if (hpA <= 0 || hpB <= 0) {
-            if (hpA <= 0 && hpB <= 0) log.push(`Round ${round}: Both fighters fall simultaneously!`);
-            else if (hpA <= 0) log.push(`Round ${round}: ${fighterA.name} has fallen!`);
-            else log.push(`Round ${round}: ${fighterB.name} has fallen!`);
-            break;
+            if (hpA <= 0 && hpB <= 0) {
+                log.push(`Round ${round}: Both fighters fall simultaneously!`);
+                // Both died, compare damage dealt
+                const winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+                log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins by dealing more damage!`);
+                return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+            } else if (hpA <= 0) {
+                log.push(`Round ${round}: ${fighterA.name} has fallen!`);
+                log.push(`🏆 ${fighterB.name} wins!`);
+                return { log, winnerId: fighterB.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+            } else {
+                log.push(`Round ${round}: ${fighterB.name} has fallen!`);
+                log.push(`🏆 ${fighterA.name} wins!`);
+                return { log, winnerId: fighterA.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+            }
         }
         if (round < 10) log.push('---');
     }
+    
+    // After 10 rounds, compare TOTAL DAMAGE DEALT (not remaining HP)
     log.push('---');
     let winnerId;
-    if (hpA <= 0 && hpB <= 0) winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-    else if (hpA <= 0) winnerId = fighterB.id;
-    else if (hpB <= 0) winnerId = fighterA.id;
-    else {
-        winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-        //log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} · ${fighterB.name} dealt ${totalDmgToA}`);
+    if (totalDmgToB >= totalDmgToA) {
+        winnerId = fighterA.id;
+        log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
+        log.push(`🏆 ${fighterA.name} wins by dealing more damage!`);
+    } else {
+        winnerId = fighterB.id;
+        log.push(`After 10 rounds: ${fighterB.name} dealt ${totalDmgToA} damage, ${fighterA.name} dealt ${totalDmgToB} damage`);
+        log.push(`🏆 ${fighterB.name} wins by dealing more damage!`);
     }
-    log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins!`);
+    
     return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
 }
 
