@@ -245,7 +245,6 @@
   pointer-events: auto;
   padding: 14px 14px;
   border-radius: 14px;
-  background: rgba(6, 10, 18, 0.85);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
 }
@@ -1929,7 +1928,7 @@
   }
 
   .dungeon-hud-room-desc {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     line-height: 1.4;
     margin-bottom: 8px;
   }
