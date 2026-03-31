@@ -1581,7 +1581,7 @@ router.post('/missions/start', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const lastBattle = character.last_battle_at || 0;
         if (lastBattle + 600 > now) {
-            const secs = (lastBattle + 600) - now;
+            const secs = (lastBattle + pvpCd) - now;
             return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'}.` });
         }
         const sizeKey = ['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small';
