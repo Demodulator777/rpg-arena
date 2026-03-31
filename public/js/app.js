@@ -518,36 +518,6 @@ const eqGrid = `
     const charSheet = document.getElementById('char-sheet');
     if (!charSheet) return;
     charSheet.innerHTML = `
-    <div class="char-panel full char-hero-panel">
-      <div class="char-hero-bg" style="background-image:url('/images/class/${c.class}-bg.jpg')"></div>
-      <div class="char-hero-content">
-        <div class="char-hero-left">
-          <div class="char-avatar-ring">
-            <img src="/images/class/${c.class}.png" alt="${c.class}" class="char-avatar-img" onerror="this.style.display='none'">
-          </div>
-          <div class="char-hero-badge">${capitalize(c.class)}</div>
-        </div>
-        <div class="char-hero-right">
-          <div class="char-hero-name">${c.name}</div>
-          <div class="char-hero-sub">Level ${c.level} · <span style="color:var(--gold)">💰 ${c.gold.toLocaleString()}</span> · <span style="color:var(--purple)">💎 ${(c.gems||0).toLocaleString()}</span></div>
-          <div class="char-hp-row">
-            <span class="char-hp-label">HP</span>
-            <div class="char-hp-track"><div class="char-hp-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
-            <span class="char-hp-text" style="color:${hpColor}">${hpCur} / ${c.hp_max}</span>
-          </div>
-          <div class="char-xp-row">
-            <span class="char-hp-label">XP</span>
-            <div class="char-hp-track"><div class="char-hp-fill" style="width:${xpPct}%;background:#3498db"></div></div>
-            <span class="char-hp-text">${c.xp} / ${lxp}</span>
-          </div>
-          <div class="char-hp-row">
-            <span class="char-hp-label" style="color:#9b59b6">MP</span>
-            <div class="char-hp-track"><div class="char-hp-fill" style="width:${mpPct}%;background:#9b59b6"></div></div>
-            <span class="char-hp-text" style="color:#9b59b6">${mpCurrent} / ${mpMax}</span>
-          </div>
-        </div>
-      </div>
-    </div>
     <div class="char-panel">
       <h3>STATS</h3>
       ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
