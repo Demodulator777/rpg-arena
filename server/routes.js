@@ -594,7 +594,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
                 } else {
                     logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${finalDmg - totalElemDmg} gets through`;
-                    if (totalElemDmg > 0) logLine += ` ✨ +${totalElemDmg} elemental`;
+                    if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
             }
