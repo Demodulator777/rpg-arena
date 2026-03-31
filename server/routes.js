@@ -560,16 +560,19 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             finalDmg = 0;
             totalElemDmg = 0;
             logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
-        } else {
+} else {
             // HIT - damage goes through
             finalDmg = rawDmg;
 
             // Force Field Absorption
+            let justAbsorbed = false;
+            let absorbedAmount = 0;
             if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
-                const absorbed = Math.min(defenderShield.remaining, finalDmg);
-                finalDmg -= absorbed;
-                defenderShield.remaining -= absorbed;
+                absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
+                finalDmg -= absorbedAmount;
+                defenderShield.remaining -= absorbedAmount;
                 defenderShield.usedInBattle = true;
+                justAbsorbed = true;
             }
 
             // Armor reduction
@@ -585,13 +588,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
             if (totalElemDmg > 0) logLine += ` ✨ +${totalElemDmg} elemental`;
 
-            // Force field log note
-            if (defenderShield && defenderShield.usedInBattle) {
-                const absorbed = rawDmg - (finalDmg - totalElemDmg);
-                if (finalDmg - totalElemDmg <= 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage!`;
-                } else if (absorbed > 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage! ${finalDmg - totalElemDmg} gets through`;
+            // Override log if force field triggered THIS round only
+            if (justAbsorbed) {
+                if (finalDmg <= 0 && totalElemDmg === 0) {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
+                } else {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${finalDmg - totalElemDmg} gets through`;
                     if (totalElemDmg > 0) logLine += ` ✨ +${totalElemDmg} elemental`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
