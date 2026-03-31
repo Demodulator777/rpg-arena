@@ -712,9 +712,9 @@ function buildNpc(difficulty, playerLevel) {
             hpBase: 40, hpScale: 3, 
             atkMin: 3, atkMax: 7, 
             agi: 5, magic: 5,
-            vitality: 8,  // NPC vitality
-            hit_chance: 80,  // Base hit chance %
-            crit_chance: 5,  // Base crit chance %
+            vitality: 8,
+            hit_chance: 80,
+            crit_chance: 5,
             name: 'Weak Foe' 
         },
         medium: { 
@@ -738,16 +738,62 @@ function buildNpc(difficulty, playerLevel) {
     };
     
     const cfg = configs[difficulty] || configs.easy;
-    const npcAttack = {
-        easy:   ['chest','chest','chest','solar_plexus','chest','chest','stomach','chest','solar_plexus','chest'],
-        medium: ['chest','solar_plexus','head','chest','solar_plexus','chest','throat','solar_plexus','chest','head'],
-        hard:   ['head','solar_plexus','chest','heart','head','solar_plexus','throat','chest','heart','solar_plexus'],
-    };
-    const npcBlock = {
-        easy:   ['cross_guard','cross_guard','cross_guard','mid_guard','cross_guard','cross_guard','mid_guard','cross_guard','cross_guard','mid_guard'],
-        medium: ['cross_guard','high_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','high_guard','mid_guard'],
-        hard:   ['cross_guard','high_guard','counter_stance','cross_guard','weave_left','high_guard','counter_stance','mid_guard','cross_guard','weave_right'],
-    };
+    
+    // Available attack zones
+    const allAttackZones = ['head', 'throat', 'chest', 'heart', 'solar_plexus', 'stomach', 'left_arm', 'right_arm', 'left_leg', 'right_leg'];
+    
+    // Available block zones
+    const allBlockZones = ['high_guard', 'cross_guard', 'mid_guard', 'left_guard', 'right_guard', 'full_turtle', 'weave_left', 'weave_right', 'counter_stance', 'no_block'];
+    
+    // Generate random attack zones based on difficulty
+    let attackZones = [];
+    let blockZones = [];
+    
+    if (difficulty === 'easy') {
+        // Easy NPC: more predictable, favors chest and stomach
+        const easyFavored = ['chest', 'stomach', 'solar_plexus'];
+        for (let i = 0; i < 10; i++) {
+            if (Math.random() < 0.7) {
+                attackZones.push(easyFavored[Math.floor(Math.random() * easyFavored.length)]);
+            } else {
+                attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
+            }
+        }
+        // Easy block: favors cross_guard and mid_guard
+        const easyBlocks = ['cross_guard', 'mid_guard'];
+        for (let i = 0; i < 10; i++) {
+            if (Math.random() < 0.7) {
+                blockZones.push(easyBlocks[Math.floor(Math.random() * easyBlocks.length)]);
+            } else {
+                blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
+            }
+        }
+    } else if (difficulty === 'medium') {
+        // Medium NPC: more varied
+        for (let i = 0; i < 10; i++) {
+            attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
+            blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
+        }
+    } else {
+        // Hard NPC: aggressive, targets head and heart more often
+        const hardFavored = ['head', 'heart', 'throat'];
+        for (let i = 0; i < 10; i++) {
+            if (Math.random() < 0.6) {
+                attackZones.push(hardFavored[Math.floor(Math.random() * hardFavored.length)]);
+            } else {
+                attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
+            }
+        }
+        // Hard block: uses more counter_stance and weave
+        const hardBlocks = ['counter_stance', 'weave_left', 'weave_right', 'high_guard'];
+        for (let i = 0; i < 10; i++) {
+            if (Math.random() < 0.6) {
+                blockZones.push(hardBlocks[Math.floor(Math.random() * hardBlocks.length)]);
+            } else {
+                blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
+            }
+        }
+    }
     
     return {
         id: -1, 
@@ -763,8 +809,8 @@ function buildNpc(difficulty, playerLevel) {
         armor: 0,
         elem_dmg: { pyro:0, water:0, wind:0, electro:0 },
         elem_resist: { pyro:0, water:0, wind:0, electro:0 },
-        attackZones: npcAttack[difficulty] || npcAttack.easy,
-        blockZones: npcBlock[difficulty] || npcBlock.easy,
+        attackZones: attackZones,
+        blockZones: blockZones,
         activeSkills: {},
     };
 }
