@@ -1310,7 +1310,7 @@ async function collectMission() {
         if (d.won===false) msg=`💀 Defeated · ${msg}`;
         if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
-        if (d.battleLog) showBattleReportModal(d.battleLog,d.won,msg);
+        if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken);
         else showMissionModal(msg);
         renderWorldMap(); renderCharacter();
     } catch(e) { alert(e.message); }
@@ -2398,119 +2398,13 @@ async function attack(targetId,targetName) {
     catch(e) { alert(e.message); }
 }
 function showBattleResult(r, targetName) {
-    const modal = document.getElementById('battle-result-modal');
-    const fighters = document.getElementById('battle-fighters');
-    const out = document.getElementById('battle-outcome');
-    const log = document.getElementById('battle-log');
-    if (!modal || !out || !log) return;
-    
-    // Calculate totals from battle log
-    let playerDamage = 0;
-    let opponentDamage = 0;
-    const yourName = character?.name || 'You';
-    const opponentName = targetName;
-    
-    // Parse the battle log for damage numbers
-    r.log.forEach(line => {
-        // Extract player damage
-        if (line.includes(yourName) && line.match(/(\d+) damage/)) {
-            const match = line.match(/(\d+) damage/);
-            if (match) playerDamage += parseInt(match[1]);
-        }
-        // Extract opponent damage
-        if (line.includes(opponentName) && line.match(/(\d+) damage/)) {
-            const match = line.match(/(\d+) damage/);
-            if (match) opponentDamage += parseInt(match[1]);
-        }
-    });
-    
-    // Populate fighters
-    if (fighters && character) {
-        const opponent = {
-            name: targetName,
-            class: r.opponentClass || 'warrior',
-            level: r.opponentLevel || character.level,
-            dmgMin: r.opponentDmgMin || 10,
-            dmgMax: r.opponentDmgMax || 15,
-            armor: r.opponentArmor || 0
-        };
-        
-        fighters.innerHTML = `
-            <div class="fighter-card">
-                <img src="/images/class/${character.class}.png" alt="${character.name}" class="fighter-avatar" onerror="this.style.display='none'">
-                <div class="fighter-name">${character.name}</div>
-                <div class="fighter-class">${capitalize(character.class)} Lv.${character.level}</div>
-                <div class="fighter-stats">⚔️ ${character.dmg_min || character.dmgMin || 0}-${character.dmg_max || character.dmgMax || 0} · 🛡️ ${character.armor_value || character.armor || 0}</div>
-            </div>
-            <div class="fighter-vs">VS</div>
-            <div class="fighter-card">
-                <img src="/images/class/${opponent.class}.png" alt="${opponent.name}" class="fighter-avatar" onerror="this.style.display='none'">
-                <div class="fighter-name">${opponent.name}</div>
-                <div class="fighter-class">${capitalize(opponent.class)} Lv.${opponent.level}</div>
-                <div class="fighter-stats">⚔️ ${opponent.dmgMin}-${opponent.dmgMax} · 🛡️ ${opponent.armor}</div>
-            </div>
-        `;
-    }
-    
-    // Create summary HTML
-    const summaryHtml = `
-        <div class="battle-summary">
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <span class="summary-label">⚔️ Damage Dealt</span>
-                    <span class="summary-value ${playerDamage > opponentDamage ? 'win' : 'loss'}">${playerDamage}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">💔 Damage Taken</span>
-                    <span class="summary-value">${opponentDamage}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">⭐ XP Gained</span>
-                    <span class="summary-value win">+${r.xpGained || 0}</span>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">💰 Gold</span>
-                    <span class="summary-value ${r.goldGained > 0 ? 'win' : 'loss'}">${r.goldGained > 0 ? `+${r.goldGained}` : r.goldLost ? `-${r.goldLost}` : '0'}</span>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    out.className = r.won ? 'won' : 'lost';
-    out.innerHTML = r.won
-        ? `🏆 VICTORY!`
-        : `💀 DEFEATED`;
-    
-    // Insert summary before the battle log
-    const existingSummary = document.querySelector('.battle-summary');
-    if (existingSummary) existingSummary.remove();
-    
-    log.insertAdjacentHTML('beforebegin', summaryHtml);
-    
-    log.innerHTML = r.log.map(l => {
-        if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
-        
-        let className = '';
-        if (l.includes(yourName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-player';
-        if (l.includes(opponentName) && (l.includes('strikes') || l.includes('hits'))) className = 'battle-log-opponent';
-        
-        let formattedLine = l;
-        if (l.includes('damage') || l.includes('hits')) {
-            formattedLine = formattedLine.replace(/hits — /g, 'strikes for ');
-            formattedLine = formattedLine.replace(/lands a hit — /g, 'strikes for ');
-            formattedLine = formattedLine.replace(/ hits /g, ' strikes ');
-            if (formattedLine.includes('✨')) {
-                formattedLine = formattedLine.replace('✨ +', ' +');
-            }
-        }
-        
-        return `<div class="battle-log-line ${className}">${formattedLine}</div>`;
-    }).join('');
-    
-    modal.classList.remove('hidden');
+    const summary = r.won
+        ? `+${r.goldGained} gold · +${r.xpGained} XP`
+        : `-${r.goldLost} gold`;
+    showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken);
 }
 
-function showBattleReportModal(log, won, summary) {
+function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
     const modal = document.getElementById('battle-result-modal');
     if (!modal) { showMissionModal(summary); return; }
     
@@ -2518,28 +2412,13 @@ function showBattleReportModal(log, won, summary) {
     const out = document.getElementById('battle-outcome');
     const logEl = document.getElementById('battle-log');
     
-    // Get enemy name
     let enemyName = 'Enemy';
-    const vsLine = log.find(l => l.includes('vs'));
+    const vsLine = log.find(l => l.includes(' vs '));
     if (vsLine) {
-        const parts = vsLine.split('vs');
+        const parts = vsLine.split(' vs ');
         if (parts[1]) enemyName = parts[1].trim();
     }
     
-    // Calculate damage
-    let damageDealt = 0;
-    let damageTaken = 0;
-    const yourName = character?.name || 'You';
-    
-    log.forEach(line => {
-        const dmgMatch = line.match(/(\d+) damage/);
-        if (dmgMatch) {
-            if (line.includes(yourName)) damageDealt += parseInt(dmgMatch[1]);
-            if (line.includes(enemyName)) damageTaken += parseInt(dmgMatch[1]);
-        }
-    });
-    
-    // Add fighters
     if (fighters && character) {
         fighters.innerHTML = `
             <div class="fighter-card">
@@ -2549,30 +2428,26 @@ function showBattleReportModal(log, won, summary) {
             </div>
             <div class="fighter-vs">VS</div>
             <div class="fighter-card">
-                <div class="fighter-avatar enemy-avatar">👾</div>
+                <div class="fighter-avatar" style="font-size:2rem">👾</div>
                 <div class="fighter-name">${enemyName}</div>
                 <div class="fighter-class">Enemy</div>
-            </div>
-        `;
+            </div>`;
     }
     
-    // Show outcome with summary + damage stats
     if (out) {
         out.className = won ? 'won' : 'lost';
-        out.innerHTML = won 
-            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${damageDealt} dmg dealt · 💔 ${damageTaken} dmg taken</small>`
-            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${damageDealt} dmg dealt · 💔 ${damageTaken} dmg taken</small>`;
+        out.innerHTML = won
+            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
+            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
     }
     
-    // Battle log
     if (logEl) {
         logEl.innerHTML = log.map(l => {
             if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
             let className = '';
-            if (l.includes(character?.name || 'You')) className = 'battle-log-player';
-            if (l.includes(enemyName)) className = 'battle-log-opponent';
-            let line = l.replace(/hits — /g, 'hit — ').replace(/lands a hit — /g, 'hit — ').replace(/ strikes for /g, ' hits for ');
-            return `<div class="battle-log-line ${className}">${line}</div>`;
+            if (l.startsWith(character?.name)) className = 'battle-log-player';
+            else if (l.startsWith(enemyName)) className = 'battle-log-opponent';
+            return `<div class="battle-log-line ${className}">${l}</div>`;
         }).join('');
     }
     
