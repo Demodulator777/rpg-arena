@@ -586,7 +586,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
             // Log set AFTER all reductions so number matches damageDealt
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
-            if (totalElemDmg > 0) logLine += ` ✨ +${totalElemDmg} elemental`;
+            if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
 
             // Override log if force field triggered THIS round only
             if (justAbsorbed) {
