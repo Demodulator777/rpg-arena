@@ -1760,14 +1760,16 @@ router.post('/missions/collect', auth, async (req, res) => {
         } catch {}
         
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
-        res.json({
-            success: true, won: playerWon, battleLog: battle.log,
-            message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
-            goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
-            drops, hpRemaining: newHp,
-            activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
-            character: await buildCharacterResponse(updatedChar, db),
-        });
+res.json({
+    success: true, won: playerWon, battleLog: battle.log,
+    message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
+    goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
+    drops, hpRemaining: newHp,
+    activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
+    character: await buildCharacterResponse(updatedChar, db),
+    totalDmgDealt: battle.totalDmgToB,  // ADD
+    totalDmgTaken: battle.totalDmgToA,  // ADD
+});
     } catch (e) {
         console.error('Mission collect error:', e);
         res.status(500).json({ error: e.message });
@@ -2474,7 +2476,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshA.id, atkSubject, `BATTLE_REPORT:${atkPayload}`]);
         } catch (e) { console.error('Failed to send attacker report:', e); }
         const updatedAttacker = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [freshA.id]);
-        res.json({ won:attackerWon, log:battle.log, xpGained, goldGained:goldGained>0?goldGained:0, goldLost:goldGained<0?-goldGained:0, leveledUp, character:await buildCharacterResponse(updatedAttacker, db) });
+        res.json({ 
+    won: attackerWon, log: battle.log, xpGained, 
+    goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, 
+    leveledUp, character: await buildCharacterResponse(updatedAttacker, db),
+    totalDmgDealt: battle.totalDmgToB,  // ADD
+    totalDmgTaken: battle.totalDmgToA,  // ADD
+});
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
