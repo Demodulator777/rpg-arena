@@ -654,8 +654,8 @@ function runBattle(fighterA, fighterB) {
         const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
         const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
         
-        const dmgToB = resA.damageDealt;
-        const dmgToA = resB.damageDealt + resA.damageCounter + resB.damageCounter;
+        const dmgToB = resA.damageDealt + resB.damageCounter;
+const dmgToA = resB.damageDealt + resA.damageCounter;
         totalDmgToA += dmgToA;
         totalDmgToB += dmgToB;
         hpA = Math.max(0, hpA - dmgToA + (resA.healBack || 0));
