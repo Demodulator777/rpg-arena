@@ -1574,6 +1574,7 @@ router.post('/missions/start', auth, async (req, res) => {
         const db = await getDb();
         const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
+        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
         if (!character) return res.status(404).json({ error: 'Character not found' });
         if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
         const hpCurrent = character.hp_current ?? character.hp_max;
