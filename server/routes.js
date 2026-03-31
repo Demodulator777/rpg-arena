@@ -534,17 +534,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
         rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
 
-        // Apply magic damage bonus
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
         rawDmg += damageBonus;
-        
-        // Track magic bonus separately for display
-        const magicBonus = damageBonus;
 
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
         const blockFails = Math.random() < 0.001;
         
-        // Calculate elemental damage
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
@@ -560,22 +555,19 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         }
         
         if (blockCovers && !blockFails) {
-            // FULL BLOCK
+            // FULL BLOCK - no damage
             finalDmg = 0;
             totalElemDmg = 0;
             const critTag = isCrit ? ' ⚡CRIT' : '';
-            // Show the damage that would have been dealt (including magic bonus)
-            const wouldBeDmg = rawDmg;
-            logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED (would be ${wouldBeDmg} damage)`;
+            logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
         } else {
-            // NO BLOCK - full damage goes through
+            // HIT - damage goes through
             finalDmg = rawDmg;
             const critTag = isCrit ? ' ⚡CRITICAL HIT!' : '';
-            // Include magic bonus in the displayed damage
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
         }
 
-        // Magic Shield Absorption
+        // Force Field Absorption (formerly Magic Shield)
         if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
             const absorbed = Math.min(defenderShield.remaining, finalDmg);
             finalDmg -= absorbed;
@@ -583,13 +575,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             defenderShield.usedInBattle = true;
             
             if (finalDmg <= 0 && totalElemDmg === 0) {
-                logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ MAGIC SHIELD absorbed all damage!`;
+                logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage!`;
             } else if (absorbed > 0) {
-                logLine = logLine.replace(/(\d+) damage/, `${finalDmg} damage ✨ (shield absorbed ${absorbed})`);
+                logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbed} damage! ${finalDmg} gets through`;
             }
             
             if (defenderShield.remaining <= 0) {
-                logLine += ` 💔 Shield shatters!`;
+                logLine += ` 💔 Force field shatters!`;
             }
         }
 
@@ -599,7 +591,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             finalDmg = Math.max(1, finalDmg - physReduction);
         }
         
-        // Add elemental damage
         if (totalElemDmg > 0) {
             finalDmg += totalElemDmg;
             logLine += ` ✨ +${totalElemDmg} elemental`;
