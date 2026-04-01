@@ -3415,6 +3415,88 @@ router.get('/bug-report/screenshot/:reportId', async (req, res) => {
     }
 });
 
+// ── Convert MP to Special Mana Potion ─────────────────────────────────────
+router.post('/convert-mp-to-potion', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        // Apply MP regen first to ensure fresh MP
+        await applyMpRegen(db, character.id);
+        
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        const currentMp = freshChar.mission_points ?? 0;
+        const activePrem = getActivePremium(freshChar);
+        const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
+        
+        // Check if player has enough MP (need 60)
+        if (currentMp < 60) {
+            return res.status(400).json({ error: `Need 60 MP to create a potion. You have ${currentMp}/${mpMax} MP.` });
+        }
+        
+        // Check inventory for existing Special Mana Potions
+        const existingPotions = await dbAll(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? 
+            AND item_type = 'consumable' 
+            AND json_extract(item_data, '$.id') = 'special_mana_potion'
+        `, [freshChar.id]);
+        
+        // Calculate total quantity of potions
+        let totalPotionQty = 0;
+        for (const potion of existingPotions) {
+            const data = JSON.parse(potion.item_data);
+            totalPotionQty += data.qty || 1;
+        }
+        
+        // Max 5 potions
+        if (totalPotionQty >= 5) {
+            return res.status(400).json({ error: `You already have ${totalPotionQty}/5 Special Mana Potions. Use some before creating more.` });
+        }
+        
+        // Deduct 60 MP
+        await dbRun(db, 'UPDATE characters SET mission_points = mission_points - 60 WHERE id = ?', [freshChar.id]);
+        
+        // Add or update potion
+        const potionData = {
+            id: 'special_mana_potion',
+            name: 'Special Mana Potion',
+            emoji: '💎',
+            desc: 'Restores 60 MP. Crafted from your own MP reserve.',
+            effect: { type: 'mp', value: 60 },
+            consumable: true,
+            category: 'consumable',
+            qty: 1
+        };
+        
+        if (existingPotions.length > 0) {
+            // Update existing potion stack
+            const existing = existingPotions[0];
+            const data = JSON.parse(existing.item_data);
+            data.qty = (data.qty || 1) + 1;
+            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(data), existing.id]);
+        } else {
+            // Create new potion
+            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', 
+                [freshChar.id, 'consumable', JSON.stringify(potionData)]);
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
+        const newTotalPotions = totalPotionQty + 1;
+        
+        res.json({
+            success: true,
+            message: `✨ Converted 60 MP into a Special Mana Potion! (${newTotalPotions}/5)`,
+            character: await buildCharacterResponse(updatedChar, db),
+            potionCount: newTotalPotions
+        });
+    } catch (e) {
+        console.error('MP to Potion conversion error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Helper function for escaping HTML
 function escapeHtml(str) {
     if (!str) return '';
