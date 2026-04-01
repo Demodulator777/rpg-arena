@@ -368,6 +368,7 @@ function renderTopBar() {
         if (ev) { evEl.textContent=ev.name||''; evEl.classList.remove('hidden'); }
         else evEl.classList.add('hidden');
     }
+    updatePotionBadge();
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────
@@ -2851,3 +2852,82 @@ function showBugReportStatus(message, type) {
 document.addEventListener('DOMContentLoaded', () => {
     initBugReport();
 });
+
+// ── Convert MP to Special Mana Potion ─────────────────────────────────────
+let _convertingMp = false;
+
+async function convertMpToPotion() {
+    if (_convertingMp) return;
+    _convertingMp = true;
+    
+    const btn = document.getElementById('convert-mp-btn');
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+        btn.innerHTML = '⏳ Converting...';
+    }
+    
+    try {
+        const response = await api('POST', '/game/convert-mp-to-potion');
+        
+        if (response.success) {
+            // Update character data
+            character = response.character;
+            
+            // Update displays
+            renderTopBar();
+            updatePotionBadge();
+            
+            // Show success message
+            showMsg('convert-mp-status', response.message);
+        } else {
+            showMsg('convert-mp-status', response.error || 'Failed to convert MP', true);
+        }
+    } catch (error) {
+        console.error('MP conversion error:', error);
+        showMsg('convert-mp-status', error.message || 'Failed to convert MP', true);
+    } finally {
+        _convertingMp = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = '💎✨ Convert MP';
+        }
+        
+        // Auto-hide status message after 3 seconds
+        setTimeout(() => {
+            const status = document.getElementById('convert-mp-status');
+            if (status) status.classList.add('hidden');
+        }, 3000);
+    }
+}
+
+async function updatePotionBadge() {
+    try {
+        const inv = await api('GET', '/game/inventory');
+        let total = 0;
+        for (const item of inv.items) {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data.id === 'special_mana_potion') {
+                total += data.qty || 1;
+            }
+        }
+        
+        const badge = document.getElementById('potion-badge');
+        if (badge) {
+            if (total > 0) {
+                badge.textContent = total;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to update potion badge:', e);
+    }
+}
+
+// Add a small status message div somewhere (maybe near topbar)
+// Add this to your HTML, perhaps after topbar:
+<div id="convert-mp-status" class="msg-bar hidden" style="position:fixed;top:80px;right:20px;z-index:1001;max-width:300px;"></div>
