@@ -246,7 +246,7 @@ adamant-hood
 adamant-cowl
 adamant-crown
 adamant-circlet
-adamant-headguard
+adamant-headguard = all helmets added
 
 === SHIELDS (63) ===
 wooden-shield
