@@ -128,7 +128,7 @@ scale-cuirass
 scale-breastplate
 scale-hauberk
 scale-mail
-scale-plate  = currently added up to this point, including this one
+scale-plate
 crystal-armor
 crystal-vest
 crystal-cuirass
@@ -163,7 +163,7 @@ adamant-cuirass
 adamant-breastplate
 adamant-hauberk
 adamant-mail
-adamant-plate
+adamant-plate = all armor added
 
 === HELMETS (81) ===
 leather-helm
