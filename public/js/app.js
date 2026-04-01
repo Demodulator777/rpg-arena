@@ -2927,7 +2927,3 @@ async function updatePotionBadge() {
         console.error('Failed to update potion badge:', e);
     }
 }
-
-// Add a small status message div somewhere (maybe near topbar)
-// Add this to your HTML, perhaps after topbar:
-<div id="convert-mp-status" class="msg-bar hidden" style="position:fixed;top:80px;right:20px;z-index:1001;max-width:300px;"></div>
