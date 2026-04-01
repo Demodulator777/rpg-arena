@@ -2046,3 +2046,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .bug-report-floating-btn {
     display: none;
 }
+.potion-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #9b59b6;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 0 6px rgba(155,89,182,0.5);
+}
