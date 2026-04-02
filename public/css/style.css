@@ -2075,3 +2075,98 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 5px rgba(155,89,182,0.5);
     z-index: 2;
 }
+.upgrade-item-info {
+    text-align: center;
+    padding: 12px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.upgrade-item-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.upgrade-item-current, .upgrade-item-next {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.upgrade-section-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-bright);
+    margin-bottom: 12px;
+}
+
+.upgrade-components-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+}
+
+.upgrade-component-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upgrade-component-card:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: var(--border-mid);
+}
+
+.upgrade-component-card.selected {
+    background: rgba(155,89,182,0.15);
+    border-color: #9b59b6;
+}
+
+.component-icon {
+    font-size: 1.8rem;
+}
+
+.component-info {
+    flex: 1;
+}
+
+.component-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-bright);
+}
+
+.component-qty {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+}
+
+.upgrade-selected-info {
+    padding: 12px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    margin-top: 12px;
+}
+
+.upgrade-selected-title {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+.selected-component-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #9b59b6;
+}
