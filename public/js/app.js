@@ -1732,7 +1732,40 @@ function renderInventory(data) {
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
-
+// ── Open Loot Box ─────────────────────────────────────────────────────────
+async function openLootBox(itemId, itemName) {
+    if (!confirm(`Open ${itemName}?`)) return;
+    
+    try {
+        const result = await api('POST', `/game/lootbox/open/${itemId}`);
+        
+        if (result.success) {
+            let message = `🎁 Opened ${itemName}!\n\n`;
+            if (result.goldFound > 0) message += `💰 Gold: +${result.goldFound}\n`;
+            if (result.gemsFound > 0) message += `💎 Gems: +${result.gemsFound}\n`;
+            if (result.loot.length > 0) {
+                message += `\n📦 Items:\n`;
+                result.loot.forEach(item => {
+                    message += `- ${item.emoji || '📦'} ${item.name}`;
+                    if (item.qty) message += ` x${item.qty}`;
+                    message += `\n`;
+                });
+            }
+            
+            alert(message);
+            
+            // Refresh inventory and character data
+            loadInventory();
+            renderTopBar();
+            renderCharacter();
+        } else {
+            alert('Failed to open loot box: ' + (result.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Loot box error:', error);
+        alert('Failed to open loot box: ' + error.message);
+    }
+}
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
