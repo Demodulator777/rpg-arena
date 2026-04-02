@@ -1635,17 +1635,46 @@ function renderGearGrid(el, gear, equipped) {
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
+        const upgradeLevel = i.upgrade_level || 0;
         const qc = d.quality==='legendary'?'inv-legendary':d.quality==='rare'?'inv-rare':'';
-        return '<div class="inv-item-cell '+(isEquipped?'inv-item-equipped ':'')+qc+'"'
-            +' onmouseenter="showItemTooltip(event,'+i.id+')"'
-            +' onmouseleave="scheduleHideTooltip()"'
-            +' onclick="toggleEquipItem('+i.id+',\''+d.slot+'\',' +(isEquipped?'true':'false')+')">'
-            +'<div class="inv-item-icon">'+itemIcon(d,'64px')+'</div>'
-            +(isEquipped?'<div class="inv-item-equipped-dot"></div>':'')
-            +'<div class="inv-item-name-label">'+(d.name||'').split(' ').slice(-1)[0]+'</div>'
-            +'</div>';
+        const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
+        
+        return `
+        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;">
+            <div class="inv-item-icon" onmouseenter="showItemTooltip(event,${i.id})" onmouseleave="scheduleHideTooltip()">${itemIcon(d,'64px')}</div>
+            ${upgradeBadge}
+            ${isEquipped ? '<div class="inv-item-equipped-dot"></div>' : ''}
+            <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
+            <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
+                <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" onclick="event.stopPropagation(); toggleEquipItem(${i.id},'${d.slot}',${isEquipped})">${isEquipped ? 'Unequip' : 'Equip'}</button>
+                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" onclick="event.stopPropagation(); upgradeItem(${i.id})">⬆️ Upgrade</button>` : ''}
+            </div>
+        </div>`;
     }).join('')}</div>
     <div id="inv-msg" class="msg-bar hidden" style="margin-top:12px"></div>`;
+}
+
+async function upgradeItem(inventoryId) {
+    const upgradeLevels = ['+1', '+2', '+3', '+4', '+5'];
+    
+    if (!confirm(`Upgrade this item to ${upgradeLevels[currentUpgrade]}? This consumes materials and may fail at higher levels!`)) return;
+    
+    try {
+        const result = await api('POST', `/game/equipment/upgrade/${inventoryId}`);
+        
+        if (result.success) {
+            showMsg('inv-msg', result.message);
+            loadInventory(); // Refresh inventory
+            renderCharacter(); // Refresh character stats
+        } else if (result.destroyed) {
+            showMsg('inv-msg', result.message, true);
+            loadInventory();
+        } else {
+            showMsg('inv-msg', result.message, true);
+        }
+    } catch (error) {
+        showMsg('inv-msg', error.message, true);
+    }
 }
 
 function renderInventory(data) {
