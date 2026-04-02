@@ -1777,12 +1777,12 @@ router.post('/missions/collect', auth, async (req, res) => {
         
         const drops = [];
         const matsByZone = {
-            forest:    [{id:'rough_wood',emoji:'🪵',name:'Rough Wood'},{id:'wolf_pelt',emoji:'🐺',name:'Wolf Pelt'}],
-            swamp:     [{id:'swamp_crystal',emoji:'💎',name:'Swamp Crystal'},{id:'poison_gland',emoji:'🐸',name:'Poison Gland'}],
-            mountains: [{id:'iron_ore',emoji:'⛏️',name:'Iron Ore'},{id:'frost_herb',emoji:'❄️',name:'Frost Herb'}],
-            ruins:     [{id:'ancient_rune',emoji:'🔮',name:'Ancient Rune'},{id:'bone_dust',emoji:'💀',name:'Bone Dust'}],
-            dark_city: [{id:'shadow_essence',emoji:'🌑',name:'Shadow Essence'},{id:'dark_shard',emoji:'🖤',name:'Dark Shard'}],
-        };
+    forest:    [{id:'wood', emoji:'🪵', name:'Wood'}, {id:'leather', emoji:'🧵', name:'Leather'}],
+    swamp:     [{id:'iron_ore', emoji:'⛏️', name:'Iron Ore'}, {id:'poison_sac', emoji:'🧪', name:'Poison Sac'}],
+    mountains: [{id:'mithril_ore', emoji:'✨', name:'Mithril Ore'}, {id:'frost_core', emoji:'❄️', name:'Frost Core'}],
+    ruins:     [{id:'ancient_rune', emoji:'🔮', name:'Ancient Rune'}, {id:'crystal_shard', emoji:'💎', name:'Crystal Shard'}],
+    dark_city: [{id:'shadow_essence', emoji:'🌑', name:'Shadow Essence'}, {id:'dark_steel', emoji:'⚙️', name:'Dark Steel'}],
+};
         const mats = matsByZone[mission.zone] || matsByZone.forest;
         const dropChance = playerWon ? 0.6 : 0.2;
         for (const mat of mats) {
