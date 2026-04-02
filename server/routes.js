@@ -4014,14 +4014,6 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
         }
         
-        // Check gold
-        if (char.gold < upgradeValue.goldCost) {
-            return res.status(400).json({ error: `Need ${upgradeValue.goldCost.toLocaleString()} gold` });
-        }
-        
-        // Deduct gold
-        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id=?', [upgradeValue.goldCost, char.id]);
-        
         // Deduct component
         if (componentQty <= 1) {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
