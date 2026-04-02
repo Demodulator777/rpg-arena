@@ -282,6 +282,69 @@ const CRAFTING_SETS = {
     },
 };
 
+const LOOT_BOXES = [
+    {
+        id: 'lootbox_common',
+        name: 'Common Loot Box',
+        emoji: '📦',
+        desc: 'Contains 5 items: materials, common gear, or gold. 1% chance for a gem!',
+        price: 5000,
+        priceType: 'gold',
+        rarity: 'common',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'common'
+    },
+    {
+        id: 'lootbox_novice',
+        name: 'Novice Loot Box',
+        emoji: '📦✨',
+        desc: 'Better loot! Contains 5 items: uncommon materials, occasional rare gear. 3% chance for a gem!',
+        price: 20000,
+        priceType: 'gold',
+        rarity: 'uncommon',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'novice'
+    },
+    {
+        id: 'lootbox_rare',
+        name: 'Rare Loot Box',
+        emoji: '🎁✨',
+        desc: 'Premium loot! Contains 5 items: rare materials, good chance for rare/epic gear. 5% chance for a gem!',
+        price: 50000,
+        priceType: 'gold',
+        rarity: 'rare',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'rare'
+    },
+    {
+        id: 'lootbox_epic',
+        name: 'Epic Loot Box',
+        emoji: '💎✨',
+        desc: 'Epic loot! Contains 5 items: epic materials, high chance for epic/legendary gear. 10% chance for a gem!',
+        price: 5,
+        priceType: 'gems',
+        rarity: 'epic',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'epic'
+    },
+    {
+        id: 'lootbox_legendary',
+        name: 'Legendary Loot Box',
+        emoji: '👑✨',
+        desc: 'Guaranteed legendary item! Plus 4 additional epic/legendary items. 25% chance for a gem!',
+        price: 100,
+        priceType: 'gems',
+        rarity: 'legendary',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'legendary'
+    }
+];
+
 // ── Mission generation ────────────────────────────────────────────────────
 function randBetween(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
