@@ -123,7 +123,7 @@ const TIER_LABELS = {
 const EQUIPMENT_RECIPES = [
 
     // ══════════════════════════════════════════════
-    //  SET 1 — IRONCLAD  (Swamp)
+    //  SET 1 — IRONCLAD  (No zone requirement)
     //  Tank — max physical defence, armor, HP
     // ══════════════════════════════════════════════
     {
@@ -132,7 +132,7 @@ const EQUIPMENT_RECIPES = [
         slot:'weapon',
         desc:'A heavy warhammer that shatters shields and bones alike.',
         stats:{ dmg_min:8, dmg_max:18, strength:6, armor:2 },
-        components:{ iron_ingot:4, tanned_hide:2 }, goldCost:800, requiredZone:'swamp',
+        components:{ iron_ingot:4, tanned_hide:2 }, goldCost:800,
     },
     {
         id:'ironclad_armor', setId:'ironclad', setPiece:'armor',
@@ -140,7 +140,7 @@ const EQUIPMENT_RECIPES = [
         slot:'armor',
         desc:'Heavy iron plate armour, nearly impenetrable by physical blows.',
         stats:{ defense:14, armor:8, hp_max:60, vitality:3 },
-        components:{ iron_ingot:5, tanned_hide:2 }, goldCost:1000, requiredZone:'swamp',
+        components:{ iron_ingot:5, tanned_hide:2 }, goldCost:1000,
     },
     {
         id:'ironclad_helmet', setId:'ironclad', setPiece:'helmet',
@@ -148,7 +148,7 @@ const EQUIPMENT_RECIPES = [
         slot:'helmet',
         desc:'Full-face iron helm with reinforced cheekguards.',
         stats:{ defense:8, armor:5, hp_max:30, hit_chance:4 },
-        components:{ iron_ingot:3, tanned_hide:2 }, goldCost:700, requiredZone:'swamp',
+        components:{ iron_ingot:3, tanned_hide:2 }, goldCost:700,
     },
     {
         id:'ironclad_shield', setId:'ironclad', setPiece:'shield',
@@ -156,7 +156,7 @@ const EQUIPMENT_RECIPES = [
         slot:'shield',
         desc:'A massive iron tower shield — almost nothing gets through.',
         stats:{ defense:16, armor:10, hp_max:40 },
-        components:{ iron_ingot:6, hardwood_plank:2 }, goldCost:900, requiredZone:'swamp',
+        components:{ iron_ingot:6, hardwood_plank:2 }, goldCost:900,
     },
     {
         id:'ironclad_boots', setId:'ironclad', setPiece:'boots',
@@ -164,11 +164,11 @@ const EQUIPMENT_RECIPES = [
         slot:'boots',
         desc:'Heavy iron boots that anchor you in place during battle.',
         stats:{ defense:6, armor:4, agility:3, hp_max:20 },
-        components:{ iron_ingot:2, tanned_hide:3 }, goldCost:600, requiredZone:'swamp',
+        components:{ iron_ingot:2, tanned_hide:3 }, goldCost:600,
     },
 
     // ══════════════════════════════════════════════
-    //  SET 2 — SENTINEL  (Mountains)
+    //  SET 2 — SENTINEL  (No zone requirement)
     //  Balanced — hit/crit chance, elemental resist
     // ══════════════════════════════════════════════
     {
@@ -177,7 +177,7 @@ const EQUIPMENT_RECIPES = [
         slot:'weapon',
         desc:'A razor-sharp mithril spear etched with sentinel runes.',
         stats:{ dmg_min:14, dmg_max:26, strength:8, hit_chance:8, crit_chance:5, wind_dmg:6, wind_resist:10 },
-        components:{ mithril_ingot:4, frost_core:1 }, goldCost:4000, requiredZone:'mountains',
+        components:{ mithril_ingot:4, frost_core:1 }, goldCost:4000,
     },
     {
         id:'sentinel_armor', setId:'sentinel', setPiece:'armor',
@@ -185,7 +185,7 @@ const EQUIPMENT_RECIPES = [
         slot:'armor',
         desc:'Mithril chain links woven tight — flexible yet impenetrable.',
         stats:{ defense:20, armor:12, hp_max:90, vitality:5, water_resist:14 },
-        components:{ mithril_ingot:4, dragon_plate:1 }, goldCost:5000, requiredZone:'mountains',
+        components:{ mithril_ingot:4, dragon_plate:1 }, goldCost:5000,
     },
     {
         id:'sentinel_helmet', setId:'sentinel', setPiece:'helmet',
@@ -193,7 +193,7 @@ const EQUIPMENT_RECIPES = [
         slot:'helmet',
         desc:'A sleek mithril helm with a full visor. Clarity in combat.',
         stats:{ defense:12, armor:7, hp_max:50, hit_chance:10, crit_chance:6 },
-        components:{ mithril_ingot:3, arcane_shard:1 }, goldCost:3500, requiredZone:'mountains',
+        components:{ mithril_ingot:3, arcane_shard:1 }, goldCost:3500,
     },
     {
         id:'sentinel_shield', setId:'sentinel', setPiece:'shield',
@@ -201,7 +201,7 @@ const EQUIPMENT_RECIPES = [
         slot:'shield',
         desc:'Mithril shield engraved with sentinel ward runes.',
         stats:{ defense:22, armor:14, hp_max:60, wind_resist:18, water_resist:12 },
-        components:{ mithril_ingot:5, dragon_plate:1 }, goldCost:5500, requiredZone:'mountains',
+        components:{ mithril_ingot:5, dragon_plate:1 }, goldCost:5500,
     },
     {
         id:'sentinel_boots', setId:'sentinel', setPiece:'boots',
@@ -209,11 +209,11 @@ const EQUIPMENT_RECIPES = [
         slot:'boots',
         desc:'Light mithril greaves that boost footwork without slowing you.',
         stats:{ defense:10, armor:6, agility:10, hit_chance:6, crit_chance:4 },
-        components:{ mithril_ingot:2, frost_core:1, tanned_hide:1 }, goldCost:3000, requiredZone:'mountains',
+        components:{ mithril_ingot:2, frost_core:1, tanned_hide:1 }, goldCost:3000,
     },
 
     // ══════════════════════════════════════════════
-    //  SET 3 — VOIDBORN  (Ruins/Dark City)
+    //  SET 3 — VOIDBORN  (No zone requirement)
     //  Magic attacker — elemental devastation + all-resist
     // ══════════════════════════════════════════════
     {
@@ -223,7 +223,7 @@ const EQUIPMENT_RECIPES = [
         desc:'A scythe wreathed in void energy, harvesting souls with each swing.',
         stats:{ dmg_min:22, dmg_max:42, magic:14, crit_chance:12, hit_chance:8,
                 pyro_dmg:18, electro_dmg:12, pyro_resist:28, electro_resist:22 },
-        components:{ void_crystal:3, shadow_weave:2, demon_alloy:1 }, goldCost:18000, requiredZone:'dark_city',
+        components:{ void_crystal:3, shadow_weave:2, demon_alloy:1 }, goldCost:18000,
     },
     {
         id:'voidborn_armor', setId:'voidborn', setPiece:'armor',
@@ -232,7 +232,7 @@ const EQUIPMENT_RECIPES = [
         desc:'Robes threaded with void crystal fibers. Reality warps around the wearer.',
         stats:{ defense:28, armor:16, hp_max:130, magic:12, vitality:8,
                 pyro_resist:22, water_resist:22, wind_resist:22, electro_resist:22 },
-        components:{ void_crystal:2, shadow_weave:4, arcane_shard:2 }, goldCost:22000, requiredZone:'dark_city',
+        components:{ void_crystal:2, shadow_weave:4, arcane_shard:2 }, goldCost:22000,
     },
     {
         id:'voidborn_helmet', setId:'voidborn', setPiece:'helmet',
@@ -241,7 +241,7 @@ const EQUIPMENT_RECIPES = [
         desc:'A crown forged from void alloy. The wearer sees through all illusions.',
         stats:{ defense:18, armor:10, hp_max:80, magic:10, crit_chance:14, hit_chance:10,
                 electro_dmg:10, electro_resist:24 },
-        components:{ void_crystal:2, shadow_weave:2, arcane_shard:2 }, goldCost:16000, requiredZone:'ruins',
+        components:{ void_crystal:2, shadow_weave:2, arcane_shard:2 }, goldCost:16000,
     },
     {
         id:'voidborn_shield', setId:'voidborn', setPiece:'shield',
@@ -250,7 +250,7 @@ const EQUIPMENT_RECIPES = [
         desc:'A pulsing void shield that absorbs energy attacks entirely.',
         stats:{ defense:32, armor:20, hp_max:100, magic:8,
                 pyro_resist:30, water_resist:28, wind_resist:26, electro_resist:30 },
-        components:{ void_crystal:4, demon_alloy:2 }, goldCost:24000, requiredZone:'dark_city',
+        components:{ void_crystal:4, demon_alloy:2 }, goldCost:24000,
     },
     {
         id:'voidborn_boots', setId:'voidborn', setPiece:'boots',
@@ -259,7 +259,7 @@ const EQUIPMENT_RECIPES = [
         desc:'Boots that phase partially into the void, allowing impossible movement.',
         stats:{ defense:16, armor:9, agility:16, crit_chance:10, hit_chance:8,
                 wind_dmg:8, wind_resist:20 },
-        components:{ void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:14000, requiredZone:'ruins',
+        components:{ void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:14000,
     },
 ];
 
