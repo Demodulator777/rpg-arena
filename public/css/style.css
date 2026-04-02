@@ -1057,7 +1057,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     
     .eq-avatar-center img {
-        max-width: 85px;
+        max-width: 160px;
     }
     
     /* Hide labels on very small screens */
