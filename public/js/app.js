@@ -194,6 +194,28 @@ const ZONE_ROUTES = {
     dark_city: { swamp:90, ruins:60 }
 };
 
+// ── Component Upgrade Values (for frontend) ────────────────────────────────
+const COMPONENT_UPGRADE_VALUES = {
+    iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot' },
+    hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank' },
+    tanned_hide: { bonus: 2, goldCost: 5000, name: 'Tanned Hide' },
+    poison_extract: { bonus: 3, goldCost: 8000, name: 'Poison Extract' },
+    frost_core: { bonus: 3, goldCost: 8000, name: 'Frost Core' },
+    mithril_ingot: { bonus: 4, goldCost: 12000, name: 'Mithril Ingot' },
+    arcane_shard: { bonus: 4, goldCost: 12000, name: 'Arcane Shard' },
+    dragon_plate: { bonus: 6, goldCost: 20000, name: 'Dragon Plate' },
+    void_crystal: { bonus: 6, goldCost: 20000, name: 'Void Crystal' },
+    shadow_weave: { bonus: 8, goldCost: 30000, name: 'Shadow Weave' },
+    demon_alloy: { bonus: 10, goldCost: 50000, name: 'Demon Alloy' }
+};
+
+const POSSIBLE_STATS = [
+    'strength', 'defense', 'agility', 'magic', 'vitality',
+    'hit_chance', 'crit_chance', 'armor', 'hp_max',
+    'pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg',
+    'pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'
+];
+
 function getShortestPath(from, to) {
     if (from === to) return { path:[from], time:0 };
     const dist={}, prev={}, unvisited=new Set(Object.keys(ZONES));
