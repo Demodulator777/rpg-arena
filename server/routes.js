@@ -90,26 +90,17 @@ function upgradeCost(stat, currentVal, charClass) {
 
 // ── Component Upgrade Values ─────────────────────────────────────────────
 const COMPONENT_UPGRADE_VALUES = {
-    // Common components (from early zones)
-    iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot' },
-    hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank' },
-    tanned_hide: { bonus: 2, goldCost: 5000, name: 'Tanned Hide' },
-    
-    // Uncommon components
-    poison_extract: { bonus: 3, goldCost: 8000, name: 'Poison Extract' },
-    frost_core: { bonus: 3, goldCost: 8000, name: 'Frost Core' },
-    
-    // Rare components
-    mithril_ingot: { bonus: 4, goldCost: 12000, name: 'Mithril Ingot' },
-    arcane_shard: { bonus: 4, goldCost: 12000, name: 'Arcane Shard' },
-    
-    // Epic components
-    dragon_plate: { bonus: 6, goldCost: 20000, name: 'Dragon Plate' },
-    void_crystal: { bonus: 6, goldCost: 20000, name: 'Void Crystal' },
-    
-    // Legendary components
-    shadow_weave: { bonus: 8, goldCost: 30000, name: 'Shadow Weave' },
-    demon_alloy: { bonus: 10, goldCost: 50000, name: 'Demon Alloy' }
+    iron_ingot: { bonus: 2, name: 'Iron Ingot' },
+    hardwood_plank: { bonus: 2, name: 'Hardwood Plank' },
+    tanned_hide: { bonus: 2, name: 'Tanned Hide' },
+    poison_extract: { bonus: 3, name: 'Poison Extract' },
+    frost_core: { bonus: 3, name: 'Frost Core' },
+    mithril_ingot: { bonus: 4, name: 'Mithril Ingot' },
+    arcane_shard: { bonus: 4, name: 'Arcane Shard' },
+    dragon_plate: { bonus: 6, name: 'Dragon Plate' },
+    void_crystal: { bonus: 6, name: 'Void Crystal' },
+    shadow_weave: { bonus: 8, name: 'Shadow Weave' },
+    demon_alloy: { bonus: 10, name: 'Demon Alloy' }
 };
 
 // Also define POSSIBLE_STATS if not already defined
