@@ -1631,7 +1631,7 @@ function renderGearGrid(el, gear, equipped) {
         window._invGearData[i.id] = { ...i, equippedInSlot: equipped?.[d.slot] };
     });
     const equippedIds = Object.values(equipped || {}).map(e => e.inventoryId).filter(Boolean);
-    el.innerHTML = `<div class="inv-hint">Hover to inspect &nbsp;·&nbsp; Click to equip / unequip</div>
+    el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
@@ -1641,7 +1641,10 @@ function renderGearGrid(el, gear, equipped) {
         
         return `
         <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;">
-            <div class="inv-item-icon" onmouseenter="showItemTooltip(event,${i.id})" onmouseleave="scheduleHideTooltip()">${itemIcon(d,'64px')}</div>
+            <div class="inv-item-icon" 
+                 onmouseenter="showItemTooltip(event, ${i.id})" 
+                 onmouseleave="scheduleHideTooltip()"
+                 onclick="showItemTooltip(event, ${i.id})">${itemIcon(d,'64px')}</div>
             ${upgradeBadge}
             ${isEquipped ? '<div class="inv-item-equipped-dot"></div>' : ''}
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
