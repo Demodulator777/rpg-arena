@@ -3617,6 +3617,297 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
     }
 });
 
+// ── Open Loot Box ─────────────────────────────────────────────────────────
+router.post('/lootbox/open/:boxId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { boxId } = req.params;
+        const box = LOOT_BOXES.find(b => b.id === boxId);
+        if (!box) return res.status(400).json({ error: 'Invalid loot box' });
+        
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        // Check if player has the loot box in inventory
+        const inventoryItem = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? 
+            AND item_type = 'consumable' 
+            AND json_extract(item_data, '$.id') = ?
+        `, [char.id, boxId]);
+        
+        if (!inventoryItem) {
+            return res.status(400).json({ error: 'You don\'t have this loot box!' });
+        }
+        
+        const itemData = JSON.parse(inventoryItem.item_data);
+        const currentQty = itemData.qty || 1;
+        
+        if (currentQty < 1) {
+            return res.status(400).json({ error: 'You don\'t have any of this loot box!' });
+        }
+        
+        // Generate loot based on box type
+        const loot = generateLootFromBox(box.lootType, char.level);
+        
+        // Remove one loot box from inventory
+        if (currentQty <= 1) {
+            await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [inventoryItem.id]);
+        } else {
+            itemData.qty = currentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(itemData), inventoryItem.id]);
+        }
+        
+        // Add loot to inventory
+        const addedItems = [];
+        for (const lootItem of loot.items) {
+            // Check if item already exists (for stackable items like materials)
+            if (lootItem.stackable) {
+                const existing = await dbGet(db, `
+                    SELECT * FROM inventory 
+                    WHERE char_id = ? 
+                    AND item_type = ? 
+                    AND json_extract(item_data, '$.id') = ?
+                `, [char.id, lootItem.type, lootItem.id]);
+                
+                if (existing) {
+                    const existingData = JSON.parse(existing.item_data);
+                    existingData.qty = (existingData.qty || 1) + lootItem.qty;
+                    await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(existingData), existing.id]);
+                } else {
+                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+                        [char.id, lootItem.type, JSON.stringify(lootItem)]);
+                }
+            } else {
+                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+                    [char.id, lootItem.type, JSON.stringify(lootItem)]);
+            }
+            addedItems.push(lootItem);
+        }
+        
+        // Add gems if found
+        let gemsFound = 0;
+        if (loot.gems > 0) {
+            gemsFound = loot.gems;
+            await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', [gemsFound, char.id]);
+        }
+        
+        // Add gold if found
+        let goldFound = 0;
+        if (loot.gold > 0) {
+            goldFound = loot.gold;
+            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [goldFound, char.id]);
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        
+        res.json({
+            success: true,
+            message: `🎁 Opened ${box.name}!`,
+            loot: addedItems,
+            gemsFound,
+            goldFound,
+            character: await buildCharacterResponse(updatedChar, db)
+        });
+        
+    } catch (e) {
+        console.error('Loot box error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Generate loot based on box type
+function generateLootFromBox(boxType, playerLevel) {
+    const result = {
+        items: [],
+        gems: 0,
+        gold: 0
+    };
+    
+    // Define possible drops per box type
+    const drops = {
+        common: {
+            itemsCount: 5,
+            materials: [
+                { id: 'wood', name: 'Wood', emoji: '🪵', weight: 30, qty: [1, 3] },
+                { id: 'iron_ore', name: 'Iron Ore', emoji: '⛏️', weight: 25, qty: [1, 2] },
+                { id: 'wolf_pelt', name: 'Wolf Pelt', emoji: '🐺', weight: 20, qty: [1, 2] },
+                { id: 'herbs', name: 'Herbs', emoji: '🌿', weight: 25, qty: [1, 3] }
+            ],
+            gear: [
+                { quality: 'common', chance: 0.15, level: playerLevel },
+                { quality: 'rare', chance: 0.03, level: playerLevel }
+            ],
+            goldRange: [50, 200],
+            gemChance: 0.01,
+            gemRange: [1, 1]
+        },
+        novice: {
+            itemsCount: 5,
+            materials: [
+                { id: 'iron_ore', name: 'Iron Ore', emoji: '⛏️', weight: 25, qty: [2, 4] },
+                { id: 'mithril_ore', name: 'Mithril Ore', emoji: '✨', weight: 15, qty: [1, 2] },
+                { id: 'poison_gland', name: 'Poison Gland', emoji: '🧪', weight: 20, qty: [1, 2] },
+                { id: 'swamp_crystal', name: 'Swamp Crystal', emoji: '💎', weight: 15, qty: [1, 2] },
+                { id: 'frost_essence', name: 'Frost Essence', emoji: '❄️', weight: 10, qty: [1, 2] }
+            ],
+            gear: [
+                { quality: 'common', chance: 0.20, level: playerLevel },
+                { quality: 'rare', chance: 0.08, level: playerLevel },
+                { quality: 'epic', chance: 0.02, level: playerLevel }
+            ],
+            goldRange: [200, 500],
+            gemChance: 0.03,
+            gemRange: [1, 2]
+        },
+        rare: {
+            itemsCount: 5,
+            materials: [
+                { id: 'mithril_ore', name: 'Mithril Ore', emoji: '✨', weight: 25, qty: [2, 4] },
+                { id: 'dragon_scale_shard', name: 'Dragon Scale Shard', emoji: '🐉', weight: 20, qty: [1, 2] },
+                { id: 'arcane_dust', name: 'Arcane Dust', emoji: '🌟', weight: 20, qty: [2, 4] },
+                { id: 'void_shard', name: 'Void Shard', emoji: '🔮', weight: 15, qty: [1, 2] },
+                { id: 'shadow_essence', name: 'Shadow Essence', emoji: '👁️', weight: 10, qty: [1, 2] }
+            ],
+            gear: [
+                { quality: 'rare', chance: 0.30, level: playerLevel },
+                { quality: 'epic', chance: 0.10, level: playerLevel },
+                { quality: 'legendary', chance: 0.02, level: playerLevel }
+            ],
+            goldRange: [500, 1500],
+            gemChance: 0.05,
+            gemRange: [1, 3]
+        },
+        epic: {
+            itemsCount: 5,
+            materials: [
+                { id: 'void_shard', name: 'Void Shard', emoji: '🔮', weight: 30, qty: [2, 4] },
+                { id: 'shadow_essence', name: 'Shadow Essence', emoji: '👁️', weight: 25, qty: [2, 4] },
+                { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 20, qty: [1, 2] },
+                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 15, qty: [1, 2] }
+            ],
+            gear: [
+                { quality: 'epic', chance: 0.40, level: playerLevel },
+                { quality: 'legendary', chance: 0.08, level: playerLevel }
+            ],
+            goldRange: [1000, 3000],
+            gemChance: 0.10,
+            gemRange: [1, 5]
+        },
+        legendary: {
+            itemsCount: 5,
+            materials: [
+                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 50, qty: [2, 5] },
+                { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 30, qty: [2, 4] }
+            ],
+            gear: [
+                { quality: 'epic', chance: 0.50, level: playerLevel },
+                { quality: 'legendary', chance: 0.50, level: playerLevel } // Guaranteed legendary
+            ],
+            goldRange: [2000, 5000],
+            gemChance: 0.25,
+            gemRange: [2, 10]
+        }
+    };
+    
+    const boxDrops = drops[boxType];
+    
+    // Add gold
+    if (Math.random() < 0.6) { // 60% chance for gold
+        const goldAmount = Math.floor(Math.random() * (boxDrops.goldRange[1] - boxDrops.goldRange[0] + 1) + boxDrops.goldRange[0]);
+        result.gold = goldAmount;
+    }
+    
+    // Add gems
+    if (Math.random() < boxDrops.gemChance) {
+        const gemAmount = Math.floor(Math.random() * (boxDrops.gemRange[1] - boxDrops.gemRange[0] + 1) + boxDrops.gemRange[0]);
+        result.gems = gemAmount;
+    }
+    
+    // Generate items
+    for (let i = 0; i < boxDrops.itemsCount; i++) {
+        // Decide if item is material or gear
+        const isMaterial = Math.random() < 0.6; // 60% material, 40% gear
+        
+        if (isMaterial) {
+            // Roll material
+            const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
+            let roll = Math.random() * totalWeight;
+            let selected = boxDrops.materials[0];
+            for (const mat of boxDrops.materials) {
+                if (roll < mat.weight) {
+                    selected = mat;
+                    break;
+                }
+                roll -= mat.weight;
+            }
+            
+            const qty = Math.floor(Math.random() * (selected.qty[1] - selected.qty[0] + 1) + selected.qty[0]);
+            result.items.push({
+                id: selected.id,
+                name: selected.name,
+                emoji: selected.emoji,
+                type: 'raw_mat',
+                qty: qty,
+                stackable: true,
+                rarity: 'common'
+            });
+        } else {
+            // Roll gear
+            let roll = Math.random();
+            let selectedQuality = null;
+            for (const gear of boxDrops.gear) {
+                if (roll < gear.chance) {
+                    selectedQuality = gear.quality;
+                    break;
+                }
+                roll -= gear.chance;
+            }
+            
+            if (selectedQuality) {
+                // Generate random item of that quality
+                const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+                const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                const item = generateBackendRandomItem(playerLevel, randomType);
+                item.quality = selectedQuality;
+                item.desc = `✨ ${item.desc}`;
+                result.items.push({
+                    ...item,
+                    type: 'equipment',
+                    stackable: false,
+                    qty: 1
+                });
+            }
+        }
+    }
+    
+    // For legendary box, guarantee at least one legendary item
+    if (boxType === 'legendary') {
+        const hasLegendary = result.items.some(item => item.quality === 'legendary');
+        if (!hasLegendary) {
+            // Replace a random item with a legendary
+            const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            const legendaryItem = generateBackendRandomItem(playerLevel, randomType);
+            legendaryItem.quality = 'legendary';
+            legendaryItem.desc = `👑 ${legendaryItem.desc}`;
+            
+            // Replace the first non-legendary item
+            const index = result.items.findIndex(i => i.quality !== 'legendary');
+            if (index !== -1) {
+                result.items[index] = {
+                    ...legendaryItem,
+                    type: 'equipment',
+                    stackable: false,
+                    qty: 1
+                };
+            }
+        }
+    }
+    
+    return result;
+}
+
 // Helper function for escaping HTML
 function escapeHtml(str) {
     if (!str) return '';
