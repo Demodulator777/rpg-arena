@@ -1,7 +1,7 @@
 const express = require('express');
 const { getDb } = require('./db');
 const auth = require('./middleware');
-const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS } = require('./gamedata');
+const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 
 BigInt.prototype.toJSON = function() { return Number(this); };
 
