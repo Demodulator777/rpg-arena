@@ -124,119 +124,112 @@ const UPGRADE_MATERIALS = {
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
+        const { componentId } = req.body; // The component to use for upgrade
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Get the item
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
         if (!item) return res.status(404).json({ error: 'Item not found' });
         
         const itemData = JSON.parse(item.item_data);
         
-        // Check if item is equipment
         if (item.item_type !== 'equipment') {
             return res.status(400).json({ error: 'Only equipment can be upgraded!' });
         }
         
         const currentUpgrade = item.upgrade_level || 0;
         
-        // Check if already max upgraded
         if (currentUpgrade >= 5) {
-            return res.status(400).json({ error: 'This item is already at max upgrade level (+5)!' });
+            return res.status(400).json({ error: 'Item already at max upgrade level (+5)!' });
         }
         
-        const nextUpgrade = currentUpgrade + 1;
-        const upgradeConfig = UPGRADE_MATERIALS[nextUpgrade];
+        // Check if player has the component
+        const component = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id=? AND item_type='component' 
+            AND json_extract(item_data, '$.id')=?
+        `, [char.id, componentId]);
         
-        if (!upgradeConfig) {
-            return res.status(400).json({ error: 'Invalid upgrade level' });
+        if (!component) {
+            return res.status(400).json({ error: `You don't have this component!` });
         }
         
-        // Check materials
-        const inventory = await dbAll(db, 'SELECT * FROM inventory WHERE char_id=?', [char.id]);
+        const componentData = JSON.parse(component.item_data);
+        const componentQty = componentData.qty || 1;
         
-        for (const [materialId, requiredQty] of Object.entries(upgradeConfig.materials)) {
-            const materialItem = inventory.find(i => {
-                const data = JSON.parse(i.item_data);
-                return data.id === materialId;
-            });
-            
-            const currentQty = materialItem ? (JSON.parse(materialItem.item_data).qty || 1) : 0;
-            if (currentQty < requiredQty) {
-                return res.status(400).json({ error: `Need ${requiredQty}x ${materialId.replace(/_/g, ' ')}` });
-            }
+        if (componentQty < 1) {
+            return res.status(400).json({ error: `You don't have this component!` });
+        }
+        
+        const upgradeValue = COMPONENT_UPGRADE_VALUES[componentId];
+        if (!upgradeValue) {
+            return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
         }
         
         // Check gold
-        if (char.gold < upgradeConfig.goldCost) {
-            return res.status(400).json({ error: `Need ${upgradeConfig.goldCost} gold` });
+        if (char.gold < upgradeValue.goldCost) {
+            return res.status(400).json({ error: `Need ${upgradeValue.goldCost.toLocaleString()} gold` });
         }
         
         // Deduct gold
-        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id=?', [upgradeConfig.goldCost, char.id]);
+        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id=?', [upgradeValue.goldCost, char.id]);
         
-        // Deduct materials
-        for (const [materialId, requiredQty] of Object.entries(upgradeConfig.materials)) {
-            const materialItem = inventory.find(i => {
-                const data = JSON.parse(i.item_data);
-                return data.id === materialId;
-            });
-            
-            if (materialItem) {
-                const materialData = JSON.parse(materialItem.item_data);
-                const newQty = (materialData.qty || 1) - requiredQty;
-                
-                if (newQty <= 0) {
-                    await dbRun(db, 'DELETE FROM inventory WHERE id=?', [materialItem.id]);
-                } else {
-                    materialData.qty = newQty;
-                    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(materialData), materialItem.id]);
-                }
-            }
+        // Deduct component
+        if (componentQty <= 1) {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
+        } else {
+            componentData.qty = componentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
         }
         
-        // Check success rate
-        const success = Math.random() < upgradeConfig.successRate;
+        // Apply upgrades
+        const upgradedStats = { ...itemData.stats };
+        const bonusValue = upgradeValue.bonus;
         
-        if (!success) {
-            // Failed upgrade - item is destroyed
-            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
-            return res.json({
-                success: false,
-                message: `💥 Upgrade failed! Your ${itemData.name} was destroyed.`,
-                destroyed: true
-            });
+        // Determine which stats to upgrade (1-3 random stats)
+        let numStatsToUpgrade = Math.floor(Math.random() * 3) + 1;
+        const upgradedStatsList = [];
+        let statPool = [...POSSIBLE_STATS];
+        
+        // Randomly select stats
+        for (let i = 0; i < numStatsToUpgrade && statPool.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * statPool.length);
+            const stat = statPool[randomIndex];
+            upgradedStatsList.push(stat);
+            statPool.splice(randomIndex, 1);
         }
         
-        // Success - upgrade the item
-        const newUpgradeLevel = currentUpgrade + 1;
-        
-        // Calculate stat bonuses (10% per upgrade level)
-        const bonusMultiplier = 1 + (newUpgradeLevel * 0.1);
-        const upgradedStats = {};
-        
-        for (const [stat, value] of Object.entries(itemData.stats || {})) {
-            upgradedStats[stat] = Math.floor(value * bonusMultiplier);
+        // Apply bonus values
+        for (const stat of upgradedStatsList) {
+            const currentValue = upgradedStats[stat] || 0;
+            upgradedStats[stat] = currentValue + bonusValue;
         }
         
-        // Update item data
+        const nextUpgrade = currentUpgrade + 1;
+        
+        // Update item
         const upgradedItemData = {
             ...itemData,
             stats: upgradedStats,
-            upgradeLevel: newUpgradeLevel,
-            upgradeBonus: `${newUpgradeLevel * 10}%`,
-            name: `${itemData.name} +${newUpgradeLevel}`,
-            desc: `${itemData.desc} [Upgraded +${newUpgradeLevel}]`
+            upgradeLevel: nextUpgrade,
+            name: `${itemData.name.split(' +')[0]} +${nextUpgrade}`,
+            desc: `${itemData.desc} [Upgraded +${nextUpgrade} using ${componentData.name}]`
         };
         
         await dbRun(db, 'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=?', 
-            [JSON.stringify(upgradedItemData), newUpgradeLevel, item.id]);
+            [JSON.stringify(upgradedItemData), nextUpgrade, item.id]);
         
         res.json({
             success: true,
-            message: `✨ Success! ${itemData.name} upgraded to +${newUpgradeLevel}!`,
-            newUpgradeLevel,
-            stats: upgradedStats,
+            message: `✨ ${itemData.name} upgraded to +${nextUpgrade} using ${componentData.name}! (+${bonusValue} to ${upgradedStatsList.length} stats)`,
+            newUpgradeLevel: nextUpgrade,
+            upgradedStats: upgradedStatsList.map(stat => ({
+                stat,
+                oldValue: itemData.stats?.[stat] || 0,
+                newValue: upgradedStats[stat],
+                increase: bonusValue
+            })),
+            componentUsed: componentData.name,
             character: await buildCharacterResponse(char, db)
         });
         
@@ -466,6 +459,29 @@ function eventHas(bonus) {
     if (!ev) return false;
     return ev.event_key === 'grand_festival';
 }
+
+const COMPONENT_UPGRADE_VALUES = {
+    // Common components (from early zones)
+    iron_ingot: { bonus: 2, goldCost: 5000 },
+    hardwood_plank: { bonus: 2, goldCost: 5000 },
+    tanned_hide: { bonus: 2, goldCost: 5000 },
+    
+    // Uncommon components
+    poison_extract: { bonus: 3, goldCost: 8000 },
+    frost_core: { bonus: 3, goldCost: 8000 },
+    
+    // Rare components
+    mithril_ingot: { bonus: 4, goldCost: 12000 },
+    arcane_shard: { bonus: 4, goldCost: 12000 },
+    
+    // Epic components
+    dragon_plate: { bonus: 6, goldCost: 20000 },
+    void_crystal: { bonus: 6, goldCost: 20000 },
+    
+    // Legendary components
+    shadow_weave: { bonus: 8, goldCost: 30000 },
+    demon_alloy: { bonus: 10, goldCost: 50000 }
+};
 
 // ── DB helpers ────────────────────────────────────────────────────────────
 async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
