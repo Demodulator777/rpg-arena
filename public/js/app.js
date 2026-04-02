@@ -1655,6 +1655,9 @@ function renderInventory(data) {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         return d.slot || '';
     }
+    
+    // Helper to check if item is a loot box
+    const isLootBox = (item) => item.item_data?.category === 'lootbox';
 
     const gearTab = (slots, emptyMsg) => {
         const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
@@ -1669,8 +1672,34 @@ function renderInventory(data) {
     else if (invTab === 'boots')      gearTab(['boots'],           'No boots yet.');
     else if (invTab === 'jewelry')    gearTab(['ring','amulet'],   'No rings or amulets yet.');
     else if (invTab === 'accessory')  gearTab(['accessory'],       'No accessories yet.');
+    else if (invTab === 'lootboxes') {
+        // NEW: Loot boxes tab
+        const lootBoxes = data.items.filter(i => i.item_type === 'consumable' && isLootBox(i));
+        if (!lootBoxes.length) {
+            el.innerHTML = '<p class="empty">No loot boxes. Buy them from the shop!</p>';
+            return;
+        }
+        el.innerHTML = '<div class="inv-grid">' + lootBoxes.map(i => {
+            const d = i.item_data;
+            const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
+            return `<div class="inv-card">
+                <div class="inv-card-header">
+                    <span style="font-size:1.4rem">${d.emoji || '🎁'}</span>
+                    <span class="inv-card-name">${d.name}</span>
+                    <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×${d.qty || 1}</span>
+                </div>
+                <div class="inv-stat-str">${d.desc}</div>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                    <button class="btn-primary" style="flex:1" onclick="openLootBox(${i.id}, '${d.name}')">🎁 Open</button>
+                    <button class="btn-sm danger" onclick="sellItem(${i.id}, '${d.name}', ${sp})">Sell ${sp}g</button>
+                </div>
+            </div>`;
+        }).join('') + '</div>';
+        return;
+    }
     else if (invTab === 'consumables') {
-        const cons = data.items.filter(i => i.item_type === 'consumable');
+        // UPDATED: Exclude loot boxes from consumables
+        const cons = data.items.filter(i => i.item_type === 'consumable' && !isLootBox(i));
         if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
         el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
             const d = i.item_data;
@@ -1700,7 +1729,6 @@ function renderInventory(data) {
         }).join('') + '</div>';
     }
 }
-
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
