@@ -2174,6 +2174,15 @@ router.get('/shop/items', auth, async (req, res) => {
         const userId = req.user.userId;
         const userLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE user_id=?', [userId]);
         const lastDate = userLastGenRow?.last_date;
+        
+        // Always include loot boxes (available regardless of reset)
+        const lootBoxes = LOOT_BOXES.map(box => ({
+            ...box,
+            alwaysAvailable: true
+        }));
+        
+        let equipmentItems = [];
+        
         if (!lastDate || shouldResetShop(lastDate)) {
             await dbRun(db, 'DELETE FROM shop_items WHERE user_id=?', [userId]);
             const newItems = generateBackendInventory(character.level);
@@ -2181,15 +2190,23 @@ router.get('/shop/items', auth, async (req, res) => {
             for (const item of equipOnly) {
                 await dbRun(db, 'INSERT INTO shop_items (user_id,item_data,generation_date) VALUES (?,?,?)', [userId, JSON.stringify(item), now]);
             }
-            const potions = getPotionsForLevel(character.level);
-            res.json({ items: [...potions, ...equipOnly], resetTime: getNextMidnight() });
+            equipmentItems = equipOnly;
         } else {
             const rows = await dbAll(db, 'SELECT item_data,sold FROM shop_items WHERE user_id=? ORDER BY id', [userId]);
-            const equipItems = rows.filter(r => !r.sold).map(row => JSON.parse(row.item_data));
-            const potions = getPotionsForLevel(character.level);
-            res.json({ items: [...potions, ...equipItems], resetTime: getNextMidnight(lastDate) });
+            equipmentItems = rows.filter(r => !r.sold).map(row => JSON.parse(row.item_data));
         }
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+        
+        const potions = getPotionsForLevel(character.level);
+        
+        // Combine: potions + loot boxes + equipment
+        res.json({ 
+            items: [...potions, ...lootBoxes, ...equipmentItems], 
+            resetTime: getNextMidnight(lastDate) 
+        });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 function generateBackendInventory(playerLevel) {
