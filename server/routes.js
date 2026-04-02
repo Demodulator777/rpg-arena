@@ -81,7 +81,7 @@ const CLASS_DISCOUNTS = {
     paladin:  { strength:0.10, defense:0.25, agility:0,    magic:0.20, vitality:0.15 },
 };
 const UPGRADE_BASE = 5;
-const UPGRADE_EXPONENT = 1.7;
+const UPGRADE_EXPONENT = 1.705;
 function upgradeCost(stat, currentVal, charClass) {
     const raw = Math.floor(UPGRADE_BASE * Math.pow(currentVal, UPGRADE_EXPONENT));
     const discount = CLASS_DISCOUNTS[charClass]?.[stat] || 0;
