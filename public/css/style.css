@@ -2060,3 +2060,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     text-align: center;
     box-shadow: 0 0 6px rgba(155,89,182,0.5);
 }
+.upgrade-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 10px;
+    min-width: 24px;
+    text-align: center;
+    box-shadow: 0 0 5px rgba(155,89,182,0.5);
+    z-index: 2;
+}
