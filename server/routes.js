@@ -92,6 +92,160 @@ const TRAINING_DURATION_SEC = 6000;
 const TRAINING_GAIN = 1;
 const LEVEL_XP = (l) => l * 25;
 
+// ── Upgrade Equipment ─────────────────────────────────────────────────────
+const UPGRADE_MATERIALS = {
+    1: {  // +1 upgrade
+        materials: { legendary_fragment: 1 },
+        goldCost: 10000,
+        successRate: 1.0  // 100%
+    },
+    2: {  // +2 upgrade
+        materials: { legendary_fragment: 2 },
+        goldCost: 25000,
+        successRate: 0.9  // 90%
+    },
+    3: {  // +3 upgrade
+        materials: { legendary_fragment: 3, demon_core: 1 },
+        goldCost: 50000,
+        successRate: 0.7  // 70%
+    },
+    4: {  // +4 upgrade
+        materials: { legendary_fragment: 5, demon_core: 2, void_crystal: 1 },
+        goldCost: 100000,
+        successRate: 0.5  // 50%
+    },
+    5: {  // +5 upgrade (max)
+        materials: { legendary_fragment: 8, demon_core: 3, void_crystal: 2, shadow_weave: 1 },
+        goldCost: 200000,
+        successRate: 0.3  // 30%
+    }
+};
+
+router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        // Get the item
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!item) return res.status(404).json({ error: 'Item not found' });
+        
+        const itemData = JSON.parse(item.item_data);
+        
+        // Check if item is equipment
+        if (item.item_type !== 'equipment') {
+            return res.status(400).json({ error: 'Only equipment can be upgraded!' });
+        }
+        
+        const currentUpgrade = item.upgrade_level || 0;
+        
+        // Check if already max upgraded
+        if (currentUpgrade >= 5) {
+            return res.status(400).json({ error: 'This item is already at max upgrade level (+5)!' });
+        }
+        
+        const nextUpgrade = currentUpgrade + 1;
+        const upgradeConfig = UPGRADE_MATERIALS[nextUpgrade];
+        
+        if (!upgradeConfig) {
+            return res.status(400).json({ error: 'Invalid upgrade level' });
+        }
+        
+        // Check materials
+        const inventory = await dbAll(db, 'SELECT * FROM inventory WHERE char_id=?', [char.id]);
+        
+        for (const [materialId, requiredQty] of Object.entries(upgradeConfig.materials)) {
+            const materialItem = inventory.find(i => {
+                const data = JSON.parse(i.item_data);
+                return data.id === materialId;
+            });
+            
+            const currentQty = materialItem ? (JSON.parse(materialItem.item_data).qty || 1) : 0;
+            if (currentQty < requiredQty) {
+                return res.status(400).json({ error: `Need ${requiredQty}x ${materialId.replace(/_/g, ' ')}` });
+            }
+        }
+        
+        // Check gold
+        if (char.gold < upgradeConfig.goldCost) {
+            return res.status(400).json({ error: `Need ${upgradeConfig.goldCost} gold` });
+        }
+        
+        // Deduct gold
+        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id=?', [upgradeConfig.goldCost, char.id]);
+        
+        // Deduct materials
+        for (const [materialId, requiredQty] of Object.entries(upgradeConfig.materials)) {
+            const materialItem = inventory.find(i => {
+                const data = JSON.parse(i.item_data);
+                return data.id === materialId;
+            });
+            
+            if (materialItem) {
+                const materialData = JSON.parse(materialItem.item_data);
+                const newQty = (materialData.qty || 1) - requiredQty;
+                
+                if (newQty <= 0) {
+                    await dbRun(db, 'DELETE FROM inventory WHERE id=?', [materialItem.id]);
+                } else {
+                    materialData.qty = newQty;
+                    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(materialData), materialItem.id]);
+                }
+            }
+        }
+        
+        // Check success rate
+        const success = Math.random() < upgradeConfig.successRate;
+        
+        if (!success) {
+            // Failed upgrade - item is destroyed
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+            return res.json({
+                success: false,
+                message: `💥 Upgrade failed! Your ${itemData.name} was destroyed.`,
+                destroyed: true
+            });
+        }
+        
+        // Success - upgrade the item
+        const newUpgradeLevel = currentUpgrade + 1;
+        
+        // Calculate stat bonuses (10% per upgrade level)
+        const bonusMultiplier = 1 + (newUpgradeLevel * 0.1);
+        const upgradedStats = {};
+        
+        for (const [stat, value] of Object.entries(itemData.stats || {})) {
+            upgradedStats[stat] = Math.floor(value * bonusMultiplier);
+        }
+        
+        // Update item data
+        const upgradedItemData = {
+            ...itemData,
+            stats: upgradedStats,
+            upgradeLevel: newUpgradeLevel,
+            upgradeBonus: `${newUpgradeLevel * 10}%`,
+            name: `${itemData.name} +${newUpgradeLevel}`,
+            desc: `${itemData.desc} [Upgraded +${newUpgradeLevel}]`
+        };
+        
+        await dbRun(db, 'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=?', 
+            [JSON.stringify(upgradedItemData), newUpgradeLevel, item.id]);
+        
+        res.json({
+            success: true,
+            message: `✨ Success! ${itemData.name} upgraded to +${newUpgradeLevel}!`,
+            newUpgradeLevel,
+            stats: upgradedStats,
+            character: await buildCharacterResponse(char, db)
+        });
+        
+    } catch (e) {
+        console.error('Upgrade error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ── Zone-based battle constants ───────────────────────────────────────────
 const HIT_ZONES = {
     head:         { dmgMult: 1.50, hitChance: 0.60 },
