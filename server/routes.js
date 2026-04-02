@@ -3635,7 +3635,7 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
 });
 
 // ── Open Loot Box ─────────────────────────────────────────────────────────
-router.post('/lootbox/open/:boxId', auth, async (req, res) => {
+router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { boxId } = req.params;
