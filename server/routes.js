@@ -4026,24 +4026,20 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         const upgradedStats = { ...itemData.stats };
         const bonusValue = upgradeValue.bonus;
         
-// Get previously upgraded stats from the item
-let upgradedStatsList = itemData.upgradedStats || [];
+// Always pick 5 random stats (no tracking)
+let upgradedStatsList = [];
+let statPool = [...POSSIBLE_STATS];
 
-// If this is the first upgrade (no upgraded stats yet), pick random stats
-if (upgradedStatsList.length === 0) {
-    let numStatsToUpgrade = Math.floor(Math.random() * 3) + 1; // 1-3 stats
-    let statPool = [...POSSIBLE_STATS];
-    
-    // Pick random stats
-    for (let i = 0; i < numStatsToUpgrade && statPool.length > 0; i++) {
-        const randomIndex = Math.floor(Math.random() * statPool.length);
-        const stat = statPool[randomIndex];
-        upgradedStatsList.push(stat);
-        statPool.splice(randomIndex, 1);
-    }
+// Shuffle
+for (let i = statPool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
 }
 
-// Apply bonus to the SAME stats each time (stacking)
+// Pick first 5 stats
+upgradedStatsList = statPool.slice(0, 5);
+
+// Apply bonus
 for (const stat of upgradedStatsList) {
     const currentValue = upgradedStats[stat] || 0;
     upgradedStats[stat] = currentValue + bonusValue;
