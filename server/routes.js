@@ -99,6 +99,8 @@ const COMPONENT_UPGRADE_VALUES = {
     arcane_shard: { bonus: 4, name: 'Arcane Shard' },
     dragon_plate: { bonus: 6, name: 'Dragon Plate' },
     void_crystal: { bonus: 6, name: 'Void Crystal' },
+    legendary_fragment: { bonus: 5, name: 'Legendary Fragment' },
+    demon_core: { bonus: 7, name: 'Demon Core' },
     shadow_weave: { bonus: 8, name: 'Shadow Weave' },
     demon_alloy: { bonus: 10, name: 'Demon Alloy' }
 };
