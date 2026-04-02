@@ -2046,6 +2046,11 @@ router.post('/forge/craft', auth, async (req, res) => {
         const recipe = EQUIPMENT_RECIPES.find(r => r.id === recipeId);
         if (!recipe) return res.status(400).json({ error: 'Unknown recipe' });
         
+        // Check minimum level requirement
+        if (char.level < (recipe.minLevel || 1)) {
+            return res.status(400).json({ error: `Requires level ${recipe.minLevel} to craft this item.` });
+        }
+        
         // Check gold
         if (char.gold < recipe.goldCost) return res.status(400).json({ error: `Need ${recipe.goldCost} gold` });
         
@@ -2075,16 +2080,65 @@ router.post('/forge/craft', auth, async (req, res) => {
         // Deduct gold
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
         
-        // CREATE SCALED ITEM BASED ON PLAYER LEVEL
+        // SCALE ITEM BASED ON PLAYER LEVEL
         const scaledItem = scaleItemToLevel(recipe, char.level);
         
         // Add to inventory
         await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
             [char.id, 'equipment', JSON.stringify(scaledItem)]);
         
-        res.json({ message: `⚒️ Crafted: ${recipe.name}!` });
+        res.json({ message: `⚒️ Crafted: ${recipe.name} (Level ${char.level})!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
+
+// Helper function to scale item stats based on level
+function scaleItemToLevel(recipe, playerLevel) {
+    const level = Math.max(recipe.minLevel || 1, playerLevel);
+    const item = { ...recipe };
+    
+    // Remove baseStats and use as template
+    const baseStats = { ...recipe.baseStats };
+    delete item.baseStats;
+    
+    item.level = level;
+    
+    // Calculate tier based on level
+    item.tier = Math.min(5, Math.ceil(level / 15) + 1);
+    
+    // Scale stats based on level difference
+    const levelDiff = Math.max(0, level - (recipe.minLevel || 1));
+    const scaleFactor = 1 + (levelDiff * 0.03); // 3% per level above minimum
+    
+    const scaledStats = {};
+    for (const [stat, value] of Object.entries(baseStats)) {
+        let scaledValue = Math.floor(value * scaleFactor);
+        
+        // Cap stats to prevent insane values
+        if (stat === 'dmg_min') scaledValue = Math.min(200, scaledValue);
+        if (stat === 'dmg_max') scaledValue = Math.min(350, scaledValue);
+        if (stat === 'strength' || stat === 'agility' || stat === 'magic') scaledValue = Math.min(80, scaledValue);
+        if (stat === 'defense') scaledValue = Math.min(120, scaledValue);
+        if (stat === 'armor') scaledValue = Math.min(60, scaledValue);
+        if (stat === 'hp_max') scaledValue = Math.min(400, scaledValue);
+        if (stat === 'hit_chance' || stat === 'crit_chance') scaledValue = Math.min(25, scaledValue);
+        if (stat.includes('_dmg')) scaledValue = Math.min(50, scaledValue);
+        if (stat.includes('_resist')) scaledValue = Math.min(80, scaledValue);
+        
+        if (scaledValue > 0) scaledStats[stat] = scaledValue;
+    }
+    
+    item.stats = scaledStats;
+    
+    // Scale price based on level
+    const priceScale = 1 + (levelDiff * 0.05);
+    item.price = Math.floor(recipe.goldCost * priceScale);
+    item.goldCost = item.price;
+    
+    // Update description
+    item.desc = `${recipe.desc} (Crafted at level ${level})`;
+    
+    return item;
+}
 
 // Helper function to scale item stats based on level
 function scaleItemToLevel(baseItem, playerLevel) {
