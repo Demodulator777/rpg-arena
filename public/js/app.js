@@ -1972,6 +1972,7 @@ function renderShop() {
         if (currentShopCategory === 'accessory') return slot === 'accessory';
         if (currentShopCategory === 'consumables') return !!(item.consumable || cat === 'consumable');
         if (currentShopCategory === 'premium')   return item.priceType === 'gems' || cat === 'premium';
+        if (currentShopCategory === 'lootboxes') return item.category === 'lootbox';
         return false;
     });
 
