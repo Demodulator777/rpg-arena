@@ -1245,6 +1245,13 @@ const POTION_CATALOGUE = [
     { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:2800, priceType:'gold', desc:'+15 Strength for session.', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
     { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:2800, priceType:'gold', desc:'+15 Magic for session.',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
     { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP.',    effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
+    
+    // ── Loot Boxes ─────────────────────────────────────────────────────────
+    { id:'lootbox_common',     name:'Common Loot Box',         emoji:'📦',   level:1,  price:5000,  priceType:'gold', desc:'Contains 5 items: materials, common gear, or gold. 1% chance for a gem!', consumable:true, category:'lootbox', lootType:'common' },
+    { id:'lootbox_novice',     name:'Novice Loot Box',         emoji:'📦✨',  level:1,  price:20000, priceType:'gold', desc:'Better loot! Contains 5 items: uncommon materials, occasional rare gear. 3% chance for a gem!', consumable:true, category:'lootbox', lootType:'novice' },
+    { id:'lootbox_rare',       name:'Rare Loot Box',           emoji:'🎁✨',  level:1,  price:50000, priceType:'gold', desc:'Premium loot! Contains 5 items: rare materials, good chance for rare/epic gear. 5% chance for a gem!', consumable:true, category:'lootbox', lootType:'rare' },
+    { id:'lootbox_epic',       name:'Epic Loot Box',           emoji:'💎✨',  level:1,  price:5,     priceType:'gems', desc:'Epic loot! Contains 5 items: epic materials, high chance for epic/legendary gear. 10% chance for a gem!', consumable:true, category:'lootbox', lootType:'epic' },
+    { id:'lootbox_legendary',  name:'Legendary Loot Box',      emoji:'👑✨',  level:1,  price:100,   priceType:'gems', desc:'Guaranteed legendary item! Plus 4 additional epic/legendary items. 25% chance for a gem!', consumable:true, category:'lootbox', lootType:'legendary' },
 ];
 
 function getPotionsForLevel(playerLevel) { 
