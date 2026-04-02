@@ -3084,3 +3084,141 @@ async function updatePotionBadge() {
         console.error('Failed to update potion badge:', e);
     }
 }
+let currentUpgradeItemId = null;
+
+async function openUpgradeModal(inventoryId) {
+    currentUpgradeItemId = inventoryId;
+    
+    try {
+        const invData = await api('GET', '/game/inventory');
+        const item = invData.items.find(i => i.id === inventoryId);
+        if (!item) return;
+        
+        const itemData = item.item_data;
+        const currentUpgrade = item.upgrade_level || 0;
+        
+        if (currentUpgrade >= 5) {
+            showMsg('inv-msg', 'Item already at max upgrade level (+5)!', true);
+            return;
+        }
+        
+        // Get available components
+        const components = invData.items.filter(i => i.item_type === 'component');
+        
+        if (components.length === 0) {
+            showMsg('inv-msg', 'You need components to upgrade! Craft them in the forge.', true);
+            return;
+        }
+        
+        // Build component list HTML
+        let componentsHtml = '';
+        components.forEach(comp => {
+            const compData = comp.item_data;
+            const qty = compData.qty || 1;
+            componentsHtml += `
+                <div class="upgrade-component-card" onclick="selectComponent('${compData.id}', '${compData.name}', ${qty})">
+                    <div class="component-icon">${compData.emoji || '🔧'}</div>
+                    <div class="component-info">
+                        <div class="component-name">${compData.name}</div>
+                        <div class="component-qty">Owned: ${qty}</div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        const modalContent = document.getElementById('upgrade-modal-content');
+        modalContent.innerHTML = `
+            <div class="upgrade-item-info">
+                <div class="upgrade-item-name">${itemData.name}</div>
+                <div class="upgrade-item-current">Current Level: +${currentUpgrade}</div>
+                <div class="upgrade-item-next">Next Level: +${currentUpgrade + 1}</div>
+            </div>
+            <div class="upgrade-section-title">Select a component to use:</div>
+            <div class="upgrade-components-grid">
+                ${componentsHtml}
+            </div>
+            <div id="upgrade-selected-info" class="upgrade-selected-info hidden">
+                <div class="upgrade-selected-title">Selected Component:</div>
+                <div id="selected-component-details"></div>
+                <button class="btn-primary" onclick="confirmUpgrade()" style="margin-top: 16px;">Confirm Upgrade</button>
+            </div>
+        `;
+        
+        document.getElementById('upgrade-modal').classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error opening upgrade modal:', error);
+        showMsg('inv-msg', error.message, true);
+    }
+}
+
+let selectedComponentId = null;
+let selectedComponentName = null;
+
+function selectComponent(componentId, componentName, qty) {
+    if (qty < 1) {
+        showMsg('inv-msg', `You don't have any ${componentName}!`, true);
+        return;
+    }
+    
+    selectedComponentId = componentId;
+    selectedComponentName = componentName;
+    
+    // Highlight selected card
+    document.querySelectorAll('.upgrade-component-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+    
+    // Show selected info
+    const selectedInfo = document.getElementById('upgrade-selected-info');
+    const detailsDiv = document.getElementById('selected-component-details');
+    
+    // Get upgrade info from backend (or estimate)
+    detailsDiv.innerHTML = `
+        <div class="selected-component-name">${componentName}</div>
+        <div class="selected-component-bonus">Bonus: +? stats</div>
+        <div class="selected-component-cost">Gold Cost: ?</div>
+    `;
+    
+    selectedInfo.classList.remove('hidden');
+}
+
+async function confirmUpgrade() {
+    if (!selectedComponentId) {
+        showMsg('inv-msg', 'Please select a component first!', true);
+        return;
+    }
+    
+    try {
+        const result = await api('POST', `/game/equipment/upgrade/${currentUpgradeItemId}`, { 
+            componentId: selectedComponentId 
+        });
+        
+        if (result.success) {
+            let message = result.message;
+            if (result.upgradedStats && result.upgradedStats.length > 0) {
+                message += `\n\nStats improved:\n`;
+                result.upgradedStats.forEach(s => {
+                    const statName = s.stat.replace(/_/g, ' ');
+                    message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
+                });
+            }
+            showMsg('inv-msg', message);
+            closeUpgradeModal();
+            loadInventory();
+            if (typeof renderCharacter === 'function') renderCharacter();
+        } else {
+            showMsg('inv-msg', result.message, true);
+        }
+    } catch (error) {
+        showMsg('inv-msg', error.message, true);
+    }
+}
+
+function closeUpgradeModal() {
+    document.getElementById('upgrade-modal').classList.add('hidden');
+    currentUpgradeItemId = null;
+    selectedComponentId = null;
+    selectedComponentName = null;
+}
