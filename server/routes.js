@@ -154,123 +154,6 @@ const UPGRADE_MATERIALS = {
 };
 console.log('COMPONENT_UPGRADE_VALUES defined?', typeof COMPONENT_UPGRADE_VALUES);
 console.log('Keys:', Object.keys(COMPONENT_UPGRADE_VALUES || {}));
-router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const { componentId } = req.body; // The component to use for upgrade
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
-        if (!char) return res.status(404).json({ error: 'Character not found' });
-        
-        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
-        if (!item) return res.status(404).json({ error: 'Item not found' });
-        
-        const itemData = JSON.parse(item.item_data);
-        
-        if (item.item_type !== 'equipment') {
-            return res.status(400).json({ error: 'Only equipment can be upgraded!' });
-        }
-        
-        const currentUpgrade = item.upgrade_level || 0;
-        
-        if (currentUpgrade >= 5) {
-            return res.status(400).json({ error: 'Item already at max upgrade level (+5)!' });
-        }
-        
-        // Check if player has the component
-        const component = await dbGet(db, `
-            SELECT * FROM inventory 
-            WHERE char_id=? AND item_type='component' 
-            AND json_extract(item_data, '$.id')=?
-        `, [char.id, componentId]);
-        
-        if (!component) {
-            return res.status(400).json({ error: `You don't have this component!` });
-        }
-        
-        const componentData = JSON.parse(component.item_data);
-        const componentQty = componentData.qty || 1;
-        
-        if (componentQty < 1) {
-            return res.status(400).json({ error: `You don't have this component!` });
-        }
-        
-        const upgradeValue = COMPONENT_UPGRADE_VALUES[componentId];
-        if (!upgradeValue) {
-            return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
-        }
-        
-        // Check gold
-        if (char.gold < upgradeValue.goldCost) {
-            return res.status(400).json({ error: `Need ${upgradeValue.goldCost.toLocaleString()} gold` });
-        }
-        
-        // Deduct gold
-        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id=?', [upgradeValue.goldCost, char.id]);
-        
-        // Deduct component
-        if (componentQty <= 1) {
-            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
-        } else {
-            componentData.qty = componentQty - 1;
-            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
-        }
-        
-        // Apply upgrades
-        const upgradedStats = { ...itemData.stats };
-        const bonusValue = upgradeValue.bonus;
-        
-        // Determine which stats to upgrade (1-3 random stats)
-        let numStatsToUpgrade = Math.floor(Math.random() * 3) + 1;
-        const upgradedStatsList = [];
-        let statPool = [...POSSIBLE_STATS];
-        
-        // Randomly select stats
-        for (let i = 0; i < numStatsToUpgrade && statPool.length > 0; i++) {
-            const randomIndex = Math.floor(Math.random() * statPool.length);
-            const stat = statPool[randomIndex];
-            upgradedStatsList.push(stat);
-            statPool.splice(randomIndex, 1);
-        }
-        
-        // Apply bonus values
-        for (const stat of upgradedStatsList) {
-            const currentValue = upgradedStats[stat] || 0;
-            upgradedStats[stat] = currentValue + bonusValue;
-        }
-        
-        const nextUpgrade = currentUpgrade + 1;
-        
-        // Update item
-        const upgradedItemData = {
-            ...itemData,
-            stats: upgradedStats,
-            upgradeLevel: nextUpgrade,
-            name: `${itemData.name.split(' +')[0]} +${nextUpgrade}`,
-            desc: `${itemData.desc} [Upgraded +${nextUpgrade} using ${componentData.name}]`
-        };
-        
-        await dbRun(db, 'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=?', 
-            [JSON.stringify(upgradedItemData), nextUpgrade, item.id]);
-        
-        res.json({
-            success: true,
-            message: `✨ ${itemData.name} upgraded to +${nextUpgrade} using ${componentData.name}! (+${bonusValue} to ${upgradedStatsList.length} stats)`,
-            newUpgradeLevel: nextUpgrade,
-            upgradedStats: upgradedStatsList.map(stat => ({
-                stat,
-                oldValue: itemData.stats?.[stat] || 0,
-                newValue: upgradedStats[stat],
-                increase: bonusValue
-            })),
-            componentUsed: componentData.name,
-            character: await buildCharacterResponse(char, db)
-        });
-        
-    } catch (e) {
-        console.error('Upgrade error:', e);
-        res.status(500).json({ error: e.message });
-    }
-});
 
 // ── Zone-based battle constants ───────────────────────────────────────────
 const HIT_ZONES = {
@@ -4094,6 +3977,125 @@ function generateLootFromBox(boxType, playerLevel) {
     
     return result;
 }
+
+router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { componentId } = req.body; // The component to use for upgrade
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!item) return res.status(404).json({ error: 'Item not found' });
+        
+        const itemData = JSON.parse(item.item_data);
+        
+        if (item.item_type !== 'equipment') {
+            return res.status(400).json({ error: 'Only equipment can be upgraded!' });
+        }
+        
+        const currentUpgrade = item.upgrade_level || 0;
+        
+        if (currentUpgrade >= 5) {
+            return res.status(400).json({ error: 'Item already at max upgrade level (+5)!' });
+        }
+        
+        // Check if player has the component
+        const component = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id=? AND item_type='component' 
+            AND json_extract(item_data, '$.id')=?
+        `, [char.id, componentId]);
+        
+        if (!component) {
+            return res.status(400).json({ error: `You don't have this component!` });
+        }
+        
+        const componentData = JSON.parse(component.item_data);
+        const componentQty = componentData.qty || 1;
+        
+        if (componentQty < 1) {
+            return res.status(400).json({ error: `You don't have this component!` });
+        }
+        
+        const upgradeValue = COMPONENT_UPGRADE_VALUES[componentId];
+        if (!upgradeValue) {
+            return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
+        }
+        
+        // Check gold
+        if (char.gold < upgradeValue.goldCost) {
+            return res.status(400).json({ error: `Need ${upgradeValue.goldCost.toLocaleString()} gold` });
+        }
+        
+        // Deduct gold
+        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id=?', [upgradeValue.goldCost, char.id]);
+        
+        // Deduct component
+        if (componentQty <= 1) {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
+        } else {
+            componentData.qty = componentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
+        }
+        
+        // Apply upgrades
+        const upgradedStats = { ...itemData.stats };
+        const bonusValue = upgradeValue.bonus;
+        
+        // Determine which stats to upgrade (1-3 random stats)
+        let numStatsToUpgrade = Math.floor(Math.random() * 3) + 1;
+        const upgradedStatsList = [];
+        let statPool = [...POSSIBLE_STATS];
+        
+        // Randomly select stats
+        for (let i = 0; i < numStatsToUpgrade && statPool.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * statPool.length);
+            const stat = statPool[randomIndex];
+            upgradedStatsList.push(stat);
+            statPool.splice(randomIndex, 1);
+        }
+        
+        // Apply bonus values
+        for (const stat of upgradedStatsList) {
+            const currentValue = upgradedStats[stat] || 0;
+            upgradedStats[stat] = currentValue + bonusValue;
+        }
+        
+        const nextUpgrade = currentUpgrade + 1;
+        
+        // Update item
+        const upgradedItemData = {
+            ...itemData,
+            stats: upgradedStats,
+            upgradeLevel: nextUpgrade,
+            name: `${itemData.name.split(' +')[0]} +${nextUpgrade}`,
+            desc: `${itemData.desc} [Upgraded +${nextUpgrade} using ${componentData.name}]`
+        };
+        
+        await dbRun(db, 'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=?', 
+            [JSON.stringify(upgradedItemData), nextUpgrade, item.id]);
+        
+        res.json({
+            success: true,
+            message: `✨ ${itemData.name} upgraded to +${nextUpgrade} using ${componentData.name}! (+${bonusValue} to ${upgradedStatsList.length} stats)`,
+            newUpgradeLevel: nextUpgrade,
+            upgradedStats: upgradedStatsList.map(stat => ({
+                stat,
+                oldValue: itemData.stats?.[stat] || 0,
+                newValue: upgradedStats[stat],
+                increase: bonusValue
+            })),
+            componentUsed: componentData.name,
+            character: await buildCharacterResponse(char, db)
+        });
+        
+    } catch (e) {
+        console.error('Upgrade error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 // Helper function for escaping HTML
 function escapeHtml(str) {
