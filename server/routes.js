@@ -2054,12 +2054,6 @@ router.post('/forge/craft', auth, async (req, res) => {
         // Check gold
         if (char.gold < recipe.goldCost) return res.status(400).json({ error: `Need ${recipe.goldCost} gold` });
         
-        // Check zone unlocked
-        const completedRows = await dbAll(db, 'SELECT DISTINCT zone FROM missions WHERE char_id=? AND collected=1', [char.id]);
-        const completedZones = new Set(completedRows.map(r => r.zone));
-        if (!completedZones.has(recipe.requiredZone) && char.level < (ZONES[recipe.requiredZone]?.minLevel || 1))
-            return res.status(400).json({ error: `Complete a mission in ${ZONES[recipe.requiredZone]?.name} first.` });
-        
         // Check materials
         const mats = await getInventoryMaterials(db, char.id);
         for (const [comp, qty] of Object.entries(recipe.components)) {
