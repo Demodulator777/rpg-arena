@@ -152,7 +152,8 @@ const UPGRADE_MATERIALS = {
         successRate: 0.3  // 30%
     }
 };
-
+console.log('COMPONENT_UPGRADE_VALUES defined?', typeof COMPONENT_UPGRADE_VALUES);
+console.log('Keys:', Object.keys(COMPONENT_UPGRADE_VALUES || {}));
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
