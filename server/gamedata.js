@@ -381,5 +381,5 @@ function generateMission(zoneId, spotId, charLevel) {
 
 module.exports = {
     ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS,
-    generateMission, TIER_COLORS, TIER_LABELS, randBetween,
+    generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES
 };
