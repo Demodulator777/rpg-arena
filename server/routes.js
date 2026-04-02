@@ -88,6 +88,38 @@ function upgradeCost(stat, currentVal, charClass) {
     return Math.max(10, Math.floor(raw * (1 - discount)));
 }
 
+// ── Component Upgrade Values ─────────────────────────────────────────────
+const COMPONENT_UPGRADE_VALUES = {
+    // Common components (from early zones)
+    iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot' },
+    hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank' },
+    tanned_hide: { bonus: 2, goldCost: 5000, name: 'Tanned Hide' },
+    
+    // Uncommon components
+    poison_extract: { bonus: 3, goldCost: 8000, name: 'Poison Extract' },
+    frost_core: { bonus: 3, goldCost: 8000, name: 'Frost Core' },
+    
+    // Rare components
+    mithril_ingot: { bonus: 4, goldCost: 12000, name: 'Mithril Ingot' },
+    arcane_shard: { bonus: 4, goldCost: 12000, name: 'Arcane Shard' },
+    
+    // Epic components
+    dragon_plate: { bonus: 6, goldCost: 20000, name: 'Dragon Plate' },
+    void_crystal: { bonus: 6, goldCost: 20000, name: 'Void Crystal' },
+    
+    // Legendary components
+    shadow_weave: { bonus: 8, goldCost: 30000, name: 'Shadow Weave' },
+    demon_alloy: { bonus: 10, goldCost: 50000, name: 'Demon Alloy' }
+};
+
+// Also define POSSIBLE_STATS if not already defined
+const POSSIBLE_STATS = [
+    'strength', 'defense', 'agility', 'magic', 'vitality',
+    'hit_chance', 'crit_chance', 'armor', 'hp_max',
+    'pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg',
+    'pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'
+];
+
 const TRAINING_DURATION_SEC = 6000;
 const TRAINING_GAIN = 1;
 const LEVEL_XP = (l) => l * 25;
@@ -459,29 +491,6 @@ function eventHas(bonus) {
     if (!ev) return false;
     return ev.event_key === 'grand_festival';
 }
-
-const COMPONENT_UPGRADE_VALUES = {
-    // Common components (from early zones)
-    iron_ingot: { bonus: 2, goldCost: 5000 },
-    hardwood_plank: { bonus: 2, goldCost: 5000 },
-    tanned_hide: { bonus: 2, goldCost: 5000 },
-    
-    // Uncommon components
-    poison_extract: { bonus: 3, goldCost: 8000 },
-    frost_core: { bonus: 3, goldCost: 8000 },
-    
-    // Rare components
-    mithril_ingot: { bonus: 4, goldCost: 12000 },
-    arcane_shard: { bonus: 4, goldCost: 12000 },
-    
-    // Epic components
-    dragon_plate: { bonus: 6, goldCost: 20000 },
-    void_crystal: { bonus: 6, goldCost: 20000 },
-    
-    // Legendary components
-    shadow_weave: { bonus: 8, goldCost: 30000 },
-    demon_alloy: { bonus: 10, goldCost: 50000 }
-};
 
 // ── DB helpers ────────────────────────────────────────────────────────────
 async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
