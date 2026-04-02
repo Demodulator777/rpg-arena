@@ -1618,7 +1618,7 @@ function setInvTab(tab, btn) {
 }
 
 function syncInvTabButtons() {
-    const tabs = ['weapons', 'armor', 'helmets', 'shields', 'boots', 'jewelry', 'accessory', 'consumables', 'materials'];
+    const tabs = ['weapons', 'armor', 'helmets', 'shields', 'boots', 'jewelry', 'accessory', 'consumables', 'materials', 'lootboxes'];
     document.querySelectorAll('#tab-inventory .filter-btn').forEach((btn, i) => {
         btn.classList.toggle('active', tabs[i] === invTab);
     });
