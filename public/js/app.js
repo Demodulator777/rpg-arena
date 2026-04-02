@@ -1658,20 +1658,63 @@ function renderGearGrid(el, gear, equipped) {
 }
 
 async function upgradeItem(inventoryId) {
-    const upgradeLevels = ['+1', '+2', '+3', '+4', '+5'];
-    
-    if (!confirm(`Upgrade this item to ${upgradeLevels[currentUpgrade]}? This consumes materials and may fail at higher levels!`)) return;
-    
     try {
-        const result = await api('POST', `/game/equipment/upgrade/${inventoryId}`);
+        const invData = await api('GET', '/game/inventory');
+        const item = invData.items.find(i => i.id === inventoryId);
+        if (!item) return;
+        
+        const itemData = item.item_data;
+        const currentUpgrade = item.upgrade_level || 0;
+        
+        if (currentUpgrade >= 5) {
+            showMsg('inv-msg', 'Item already at max upgrade level (+5)!', true);
+            return;
+        }
+        
+        // Get available components for upgrade
+        const components = invData.items.filter(i => 
+            i.item_type === 'component' && 
+            COMPONENT_UPGRADE_VALUES[i.item_data?.id]
+        );
+        
+        if (components.length === 0) {
+            showMsg('inv-msg', 'You need components to upgrade! Craft them in the forge.', true);
+            return;
+        }
+        
+        // Build component selection message
+        let componentList = '';
+        const componentOptions = {};
+        components.forEach((comp, idx) => {
+            const compData = comp.item_data;
+            const upgradeInfo = COMPONENT_UPGRADE_VALUES[compData.id];
+            componentList += `${idx + 1}. ${compData.name} (+${upgradeInfo.bonus} stats, ${upgradeInfo.goldCost.toLocaleString()} gold)\n`;
+            componentOptions[idx + 1] = compData.id;
+        });
+        
+        const choice = prompt(`Select a component to upgrade ${itemData.name}:\n\n${componentList}\n\nEnter number (1-${components.length}):`);
+        if (!choice) return;
+        
+        const selectedComponentId = componentOptions[parseInt(choice)];
+        if (!selectedComponentId) {
+            showMsg('inv-msg', 'Invalid selection!', true);
+            return;
+        }
+        
+        const result = await api('POST', `/game/equipment/upgrade/${inventoryId}`, { componentId: selectedComponentId });
         
         if (result.success) {
-            showMsg('inv-msg', result.message);
-            loadInventory(); // Refresh inventory
-            renderCharacter(); // Refresh character stats
-        } else if (result.destroyed) {
-            showMsg('inv-msg', result.message, true);
+            let message = result.message;
+            if (result.upgradedStats && result.upgradedStats.length > 0) {
+                message += `\n\nStats improved:\n`;
+                result.upgradedStats.forEach(s => {
+                    const statName = s.stat.replace(/_/g, ' ');
+                    message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
+                });
+            }
+            showMsg('inv-msg', message);
             loadInventory();
+            if (typeof renderCharacter === 'function') renderCharacter();
         } else {
             showMsg('inv-msg', result.message, true);
         }
