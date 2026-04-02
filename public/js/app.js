@@ -1672,7 +1672,7 @@ function renderGearGrid(el, gear, equipped) {
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
                 <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" onclick="event.stopPropagation(); toggleEquipItem(${i.id},'${d.slot}',${isEquipped})">${isEquipped ? 'Unequip' : 'Equip'}</button>
-                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" onclick="event.stopPropagation(); upgradeItem(${i.id})">⬆️ Upgrade</button>` : ''}
+                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" onclick="event.stopPropagation(); openUpgradeModal(${i.id})">⬆️ Upgrade</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
