@@ -2045,35 +2045,88 @@ router.post('/forge/craft', auth, async (req, res) => {
         const { recipeId } = req.body;
         const recipe = EQUIPMENT_RECIPES.find(r => r.id === recipeId);
         if (!recipe) return res.status(400).json({ error: 'Unknown recipe' });
+        
+        // Check gold
         if (char.gold < recipe.goldCost) return res.status(400).json({ error: `Need ${recipe.goldCost} gold` });
+        
+        // Check zone unlocked
         const completedRows = await dbAll(db, 'SELECT DISTINCT zone FROM missions WHERE char_id=? AND collected=1', [char.id]);
         const completedZones = new Set(completedRows.map(r => r.zone));
         if (!completedZones.has(recipe.requiredZone) && char.level < (ZONES[recipe.requiredZone]?.minLevel || 1))
             return res.status(400).json({ error: `Complete a mission in ${ZONES[recipe.requiredZone]?.name} first.` });
+        
+        // Check materials
         const mats = await getInventoryMaterials(db, char.id);
         for (const [comp, qty] of Object.entries(recipe.components)) {
             if ((mats[comp]?.qty || 0) < qty) return res.status(400).json({ error: `Need ${qty}x ${COMPONENTS[comp]?.name || comp}` });
         }
+        
+        // Deduct materials
         for (const [comp, qty] of Object.entries(recipe.components)) {
             const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
             if (inv) {
-                const d = JSON.parse(inv.item_data); d.qty = (d.qty || 1) - qty;
+                const d = JSON.parse(inv.item_data);
+                d.qty = (d.qty || 1) - qty;
                 if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inv.id]);
                 else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), inv.id]);
             }
         }
+        
+        // Deduct gold
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
-        const craftedItem = {
-            ...recipe,
-            price: recipe.goldCost,
-            priceType: 'gold',
-            category: recipe.slot,
-            crafted: true,
-        };
-        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [char.id, 'equipment', JSON.stringify(craftedItem)]);
-        res.json({ message:`⚒️ Crafted: ${recipe.name}!` });
+        
+        // CREATE SCALED ITEM BASED ON PLAYER LEVEL
+        const scaledItem = scaleItemToLevel(recipe, char.level);
+        
+        // Add to inventory
+        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
+            [char.id, 'equipment', JSON.stringify(scaledItem)]);
+        
+        res.json({ message: `⚒️ Crafted: ${recipe.name}!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
+
+// Helper function to scale item stats based on level
+function scaleItemToLevel(baseItem, playerLevel) {
+    const item = { ...baseItem };
+    const level = Math.max(1, playerLevel);
+    const tier = Math.min(5, Math.ceil(level / 20) + 1);
+    
+    item.level = level;
+    item.tier = tier;
+    
+    // Scale stats based on level
+    const scaledStats = {};
+    for (const [stat, value] of Object.entries(item.stats || {})) {
+        // Base scaling factor: 1 + (level / 50) for moderate growth
+        // Or use exponential: Math.pow(1.02, level) for slower growth
+        const scale = 1 + (level * 0.03); // 3% per level, capped
+        let scaledValue = Math.floor(value * Math.min(3, scale));
+        
+        // Ensure minimum stats
+        if (stat === 'dmg_min' || stat === 'dmg_max') {
+            scaledValue = Math.max(value, scaledValue);
+        }
+        
+        // Cap at reasonable values
+        if (stat === 'dmg_min') scaledValue = Math.min(300, scaledValue);
+        if (stat === 'dmg_max') scaledValue = Math.min(500, scaledValue);
+        if (stat === 'strength' || stat === 'agility' || stat === 'magic') scaledValue = Math.min(100, scaledValue);
+        if (stat === 'defense') scaledValue = Math.min(80, scaledValue);
+        if (stat === 'armor') scaledValue = Math.min(50, scaledValue);
+        if (stat === 'hp_max') scaledValue = Math.min(500, scaledValue);
+        
+        scaledStats[stat] = scaledValue;
+    }
+    
+    item.stats = scaledStats;
+    
+    // Update price based on level
+    item.price = Math.floor(baseItem.goldCost * (1 + level * 0.05));
+    item.desc = `${baseItem.desc} (Crafted at level ${level})`;
+    
+    return item;
+}
 
 // ── Equipment ─────────────────────────────────────────────────────────────
 router.post('/equip/:inventoryId', auth, async (req, res) => {
