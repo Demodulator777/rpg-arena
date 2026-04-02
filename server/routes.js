@@ -3635,68 +3635,59 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
 });
 
 // ── Open Loot Box ─────────────────────────────────────────────────────────
+// ── Open Loot Box (by inventory item ID) ───────────────────────────────────
 router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const { boxId } = req.params;
-        const box = LOOT_BOXES.find(b => b.id === boxId);
-        if (!box) return res.status(400).json({ error: 'Invalid loot box' });
-        
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Check if player has the loot box in inventory
-        const inventoryItem = await dbGet(db, `
-            SELECT * FROM inventory 
-            WHERE char_id = ? 
-            AND item_type = 'consumable' 
-            AND json_extract(item_data, '$.id') = ?
-        `, [char.id, boxId]);
-        
-        if (!inventoryItem) {
-            return res.status(400).json({ error: 'You don\'t have this loot box!' });
-        }
+        // Get the inventory item
+        const inventoryItem = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!inventoryItem) return res.status(404).json({ error: 'Item not found' });
         
         const itemData = JSON.parse(inventoryItem.item_data);
-        const currentQty = itemData.qty || 1;
         
+        // Check if it's a loot box
+        if (itemData.category !== 'lootbox') {
+            return res.status(400).json({ error: 'This item is not a loot box!' });
+        }
+        
+        const currentQty = itemData.qty || 1;
         if (currentQty < 1) {
             return res.status(400).json({ error: 'You don\'t have any of this loot box!' });
         }
         
         // Generate loot based on box type
-        const loot = generateLootFromBox(box.lootType, char.level);
+        const loot = generateLootFromBox(itemData.lootType, char.level);
         
         // Remove one loot box from inventory
         if (currentQty <= 1) {
-            await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [inventoryItem.id]);
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inventoryItem.id]);
         } else {
             itemData.qty = currentQty - 1;
-            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(itemData), inventoryItem.id]);
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), inventoryItem.id]);
         }
         
         // Add loot to inventory
         const addedItems = [];
         for (const lootItem of loot.items) {
-            // Check if item already exists (for stackable items like materials)
             if (lootItem.stackable) {
                 const existing = await dbGet(db, `
                     SELECT * FROM inventory 
-                    WHERE char_id = ? 
-                    AND item_type = ? 
-                    AND json_extract(item_data, '$.id') = ?
+                    WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?
                 `, [char.id, lootItem.type, lootItem.id]);
                 
                 if (existing) {
                     const existingData = JSON.parse(existing.item_data);
                     existingData.qty = (existingData.qty || 1) + lootItem.qty;
-                    await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(existingData), existing.id]);
+                    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(existingData), existing.id]);
                 } else {
-                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
                         [char.id, lootItem.type, JSON.stringify(lootItem)]);
                 }
             } else {
-                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
                     [char.id, lootItem.type, JSON.stringify(lootItem)]);
             }
             addedItems.push(lootItem);
@@ -3706,21 +3697,21 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
         let gemsFound = 0;
         if (loot.gems > 0) {
             gemsFound = loot.gems;
-            await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', [gemsFound, char.id]);
+            await dbRun(db, 'UPDATE characters SET gems=gems+? WHERE id=?', [gemsFound, char.id]);
         }
         
         // Add gold if found
         let goldFound = 0;
         if (loot.gold > 0) {
             goldFound = loot.gold;
-            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [goldFound, char.id]);
+            await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [goldFound, char.id]);
         }
         
-        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
         
         res.json({
             success: true,
-            message: `🎁 Opened ${box.name}!`,
+            message: `🎁 Opened ${itemData.name}!`,
             loot: addedItems,
             gemsFound,
             goldFound,
@@ -3732,7 +3723,6 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-
 // Generate loot based on box type
 function generateLootFromBox(boxType, playerLevel) {
     const result = {
