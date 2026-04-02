@@ -4026,24 +4026,28 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         const upgradedStats = { ...itemData.stats };
         const bonusValue = upgradeValue.bonus;
         
-        // Determine which stats to upgrade (1-3 random stats)
-        let numStatsToUpgrade = Math.floor(Math.random() * 3) + 1;
-        const upgradedStatsList = [];
-        let statPool = [...POSSIBLE_STATS];
-        
-        // Randomly select stats
-        for (let i = 0; i < numStatsToUpgrade && statPool.length > 0; i++) {
-            const randomIndex = Math.floor(Math.random() * statPool.length);
-            const stat = statPool[randomIndex];
-            upgradedStatsList.push(stat);
-            statPool.splice(randomIndex, 1);
-        }
-        
-        // Apply bonus values
-        for (const stat of upgradedStatsList) {
-            const currentValue = upgradedStats[stat] || 0;
-            upgradedStats[stat] = currentValue + bonusValue;
-        }
+// Get previously upgraded stats from the item
+let upgradedStatsList = itemData.upgradedStats || [];
+
+// If this is the first upgrade (no upgraded stats yet), pick random stats
+if (upgradedStatsList.length === 0) {
+    let numStatsToUpgrade = Math.floor(Math.random() * 3) + 1; // 1-3 stats
+    let statPool = [...POSSIBLE_STATS];
+    
+    // Pick random stats
+    for (let i = 0; i < numStatsToUpgrade && statPool.length > 0; i++) {
+        const randomIndex = Math.floor(Math.random() * statPool.length);
+        const stat = statPool[randomIndex];
+        upgradedStatsList.push(stat);
+        statPool.splice(randomIndex, 1);
+    }
+}
+
+// Apply bonus to the SAME stats each time (stacking)
+for (const stat of upgradedStatsList) {
+    const currentValue = upgradedStats[stat] || 0;
+    upgradedStats[stat] = currentValue + bonusValue;
+}
         
         const nextUpgrade = currentUpgrade + 1;
         
@@ -4051,6 +4055,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         const upgradedItemData = {
             ...itemData,
             stats: upgradedStats,
+            upgradedStats: upgradedStatsList,
             upgradeLevel: nextUpgrade,
             name: `${itemData.name.split(' +')[0]} +${nextUpgrade}`,
             desc: `${itemData.desc} [Upgraded +${nextUpgrade} using ${componentData.name}]`
