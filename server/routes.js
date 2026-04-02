@@ -1776,12 +1776,31 @@ router.post('/missions/collect', auth, async (req, res) => {
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
         
         const drops = [];
-        const matsByZone = {
-    forest:    [{id:'wood', emoji:'🪵', name:'Wood'}, {id:'leather', emoji:'🧵', name:'Leather'}],
-    swamp:     [{id:'iron_ore', emoji:'⛏️', name:'Iron Ore'}, {id:'poison_sac', emoji:'🧪', name:'Poison Sac'}],
-    mountains: [{id:'mithril_ore', emoji:'✨', name:'Mithril Ore'}, {id:'frost_core', emoji:'❄️', name:'Frost Core'}],
-    ruins:     [{id:'ancient_rune', emoji:'🔮', name:'Ancient Rune'}, {id:'crystal_shard', emoji:'💎', name:'Crystal Shard'}],
-    dark_city: [{id:'shadow_essence', emoji:'🌑', name:'Shadow Essence'}, {id:'dark_steel', emoji:'⚙️', name:'Dark Steel'}],
+const matsByZone = {
+    forest: [
+        { id:'wood', emoji:'🪵', name:'Wood' },
+        { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
+        { id:'herbs', emoji:'🌿', name:'Herbs' }
+    ],
+    swamp: [
+        { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' },
+        { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
+        { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
+    ],
+    mountains: [
+        { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
+        { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
+        { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
+    ],
+    ruins: [
+        { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
+        { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' },
+        { id:'void_shard', emoji:'🌑', name:'Void Shard' }
+    ],
+    dark_city: [
+        { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+        { id:'demon_core', emoji:'👹', name:'Demon Core' }
+    ],
 };
         const mats = matsByZone[mission.zone] || matsByZone.forest;
         const dropChance = playerWon ? 0.6 : 0.2;
