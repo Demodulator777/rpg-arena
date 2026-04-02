@@ -1681,6 +1681,7 @@ function renderGearGrid(el, gear, equipped) {
 
 async function upgradeItem(inventoryId) {
     try {
+        // First, get available components from inventory
         const invData = await api('GET', '/game/inventory');
         const item = invData.items.find(i => i.id === inventoryId);
         if (!item) return;
@@ -1693,24 +1694,20 @@ async function upgradeItem(inventoryId) {
             return;
         }
         
-        // Get available components for upgrade
-        const components = invData.items.filter(i => 
-            i.item_type === 'component' && 
-            COMPONENT_UPGRADE_VALUES[i.item_data?.id]
-        );
+        // Get all components
+        const components = invData.items.filter(i => i.item_type === 'component');
         
         if (components.length === 0) {
             showMsg('inv-msg', 'You need components to upgrade! Craft them in the forge.', true);
             return;
         }
         
-        // Build component selection message
+        // Build simple component selection
         let componentList = '';
         const componentOptions = {};
         components.forEach((comp, idx) => {
             const compData = comp.item_data;
-            const upgradeInfo = COMPONENT_UPGRADE_VALUES[compData.id];
-            componentList += `${idx + 1}. ${compData.name} (+${upgradeInfo.bonus} stats, ${upgradeInfo.goldCost.toLocaleString()} gold)\n`;
+            componentList += `${idx + 1}. ${compData.name} (x${compData.qty || 1})\n`;
             componentOptions[idx + 1] = compData.id;
         });
         
@@ -1723,6 +1720,7 @@ async function upgradeItem(inventoryId) {
             return;
         }
         
+        // Let backend handle everything
         const result = await api('POST', `/game/equipment/upgrade/${inventoryId}`, { componentId: selectedComponentId });
         
         if (result.success) {
@@ -1741,10 +1739,10 @@ async function upgradeItem(inventoryId) {
             showMsg('inv-msg', result.message, true);
         }
     } catch (error) {
+        console.error('Upgrade error:', error);
         showMsg('inv-msg', error.message, true);
     }
 }
-
 function renderInventory(data) {
     const el = document.getElementById('inventory-content');
 
