@@ -1753,6 +1753,13 @@ function renderInventory(data) {
     
     // Helper to check if item is a loot box
     const isLootBox = (item) => item.item_data?.category === 'lootbox';
+    
+    // Helper to get item image path - CORRECTED: /images/assets/item-name.png
+    const getItemImage = (itemName) => {
+        if (!itemName) return '';
+        const imageName = itemName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+        return `/images/assets/${imageName}.png`;
+    };
 
     const gearTab = (slots, emptyMsg) => {
         const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
@@ -1768,7 +1775,7 @@ function renderInventory(data) {
     else if (invTab === 'jewelry')    gearTab(['ring','amulet'],   'No rings or amulets yet.');
     else if (invTab === 'accessory')  gearTab(['accessory'],       'No accessories yet.');
     else if (invTab === 'lootboxes') {
-        // NEW: Loot boxes tab
+        // LOOT BOXES TAB with image support
         const lootBoxes = data.items.filter(i => i.item_type === 'consumable' && isLootBox(i));
         if (!lootBoxes.length) {
             el.innerHTML = '<p class="empty">No loot boxes. Buy them from the shop!</p>';
@@ -1777,23 +1784,25 @@ function renderInventory(data) {
         el.innerHTML = '<div class="inv-grid">' + lootBoxes.map(i => {
             const d = i.item_data;
             const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
+            const itemImage = d.image || getItemImage(d.name);
             return `<div class="inv-card">
                 <div class="inv-card-header">
-                    <span style="font-size:1.4rem">${d.emoji || '🎁'}</span>
+                    <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display='none';this.nextSibling.style.display='inline'">
+                    <span style="font-size:1.4rem;display:none">${d.emoji || '🎁'}</span>
                     <span class="inv-card-name">${d.name}</span>
                     <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×${d.qty || 1}</span>
                 </div>
                 <div class="inv-stat-str">${d.desc}</div>
                 <div style="display:flex;gap:8px;margin-top:10px">
-                    <button class="btn-primary" style="flex:1" onclick="openLootBox(${i.id}, '${d.name}')">🎁 Open</button>
-                    <button class="btn-sm danger" onclick="sellItem(${i.id}, '${d.name}', ${sp})">Sell ${sp}g</button>
+                    <button class="btn-primary" style="flex:1" onclick="openLootBox(${i.id}, '${d.name.replace(/'/g, "\\'")}')">🎁 Open</button>
+                    <button class="btn-sm danger" onclick="sellItem(${i.id}, '${d.name.replace(/'/g, "\\'")}', ${sp})">Sell ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
         return;
     }
     else if (invTab === 'consumables') {
-        // UPDATED: Exclude loot boxes from consumables
+        // CONSUMABLES TAB with image support (excluding loot boxes)
         const cons = data.items.filter(i => i.item_type === 'consumable' && !isLootBox(i));
         if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
         el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
@@ -1806,8 +1815,14 @@ function renderInventory(data) {
             ) : '';
             const sp = Math.max(1, Math.floor((d.price||0)*0.3));
             const sn = (d.name||'').replace(/'/g,"\\'");
+            const itemImage = d.image || getItemImage(d.name);
             return '<div class="inv-card">'
-                +'<div class="inv-card-header"><span style="font-size:1.4rem">'+(d.emoji||'🧪')+'</span><span class="inv-card-name">'+(d.name||'')+'</span><span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×'+(d.qty||1)+'</span></div>'
+                +'<div class="inv-card-header">'
+                +'<img src="'+itemImage+'" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline\'">'
+                +'<span style="font-size:1.4rem;display:none">'+(d.emoji||'🧪')+'</span>'
+                +'<span class="inv-card-name">'+(d.name||'')+'</span>'
+                +'<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×'+(d.qty||1)+'</span>'
+                +'</div>'
                 +'<div class="inv-stat-str">'+eff+'</div>'
                 +'<div class="inv-slot" style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 10px">'+(d.desc||'')+'</div>'
                 +'<div style="display:flex;gap:8px">'
@@ -1816,11 +1831,19 @@ function renderInventory(data) {
                 +'</div></div>';
         }).join('') + '</div>';
     } else {
+        // MATERIALS TAB with image support
         const mats = data.items.filter(i => i.item_type==='raw_mat' || i.item_type==='component');
         if (!mats.length) { el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; return; }
         el.innerHTML = '<div class="mat-grid">' + mats.map(i => {
             const d = i.item_data;
-            return '<div class="mat-card"><div style="font-size:1.6rem">'+(d.emoji||'📦')+'</div><div class="mat-name">'+(d.name||d.id)+'</div><div class="mat-qty">× '+(d.qty||1)+'</div><div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">'+(i.item_type==='component'?'Component':'Raw Material')+'</div></div>';
+            const itemImage = d.image || getItemImage(d.name);
+            return '<div class="mat-card">'
+                +'<img src="'+itemImage+'" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'block\'">'
+                +'<div style="font-size:1.6rem;display:none">'+(d.emoji||'📦')+'</div>'
+                +'<div class="mat-name">'+(d.name||d.id)+'</div>'
+                +'<div class="mat-qty">× '+(d.qty||1)+'</div>'
+                +'<div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">'+(i.item_type==='component'?'Component':'Raw Material')+'</div>'
+                +'</div>';
         }).join('') + '</div>';
     }
 }
@@ -1828,39 +1851,6 @@ let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
 // ── Open Loot Box ─────────────────────────────────────────────────────────
-async function openLootBox(itemId, itemName) {
-    if (!confirm(`Open ${itemName}?`)) return;
-    
-    try {
-        const result = await api('POST', `/game/lootbox/open/${itemId}`);
-        
-        if (result.success) {
-            let message = `🎁 Opened ${itemName}!\n\n`;
-            if (result.goldFound > 0) message += `💰 Gold: +${result.goldFound}\n`;
-            if (result.gemsFound > 0) message += `💎 Gems: +${result.gemsFound}\n`;
-            if (result.loot.length > 0) {
-                message += `\n📦 Items:\n`;
-                result.loot.forEach(item => {
-                    message += `- ${item.emoji || '📦'} ${item.name}`;
-                    if (item.qty) message += ` x${item.qty}`;
-                    message += `\n`;
-                });
-            }
-            
-            alert(message);
-            
-            // Refresh inventory and character data
-            loadInventory();
-            renderTopBar();
-            renderCharacter();
-        } else {
-            alert('Failed to open loot box: ' + (result.error || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Loot box error:', error);
-        alert('Failed to open loot box: ' + error.message);
-    }
-}
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
