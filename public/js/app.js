@@ -2563,72 +2563,75 @@ async function openLootBox(itemId, itemName) {
             
             let currentIndex = 0;
             let skipRequested = false;
+            let currentItemCallback = null;
             
             // Open modal
-            lootboxModalState.isOpen = true;
             modal.classList.add('active');
             closeBtn.style.display = 'none';
             skipBtn.style.display = 'inline-flex';
             
+            // Clear any existing content
+            stage.innerHTML = '';
+            
+            // Function to show summary (skip or complete)
+            function showSummary() {
+                stage.innerHTML = renderLootboxSummary(result, itemName);
+                skipBtn.style.display = 'none';
+                closeBtn.style.display = 'block';
+            }
+            
             // Function to show current item
             function showCurrentItem() {
-                if (skipRequested || currentIndex >= queue.length) {
-                    // Show summary when done
-                    stage.innerHTML = renderLootboxSummary(result, itemName);
-                    skipBtn.style.display = 'none';
-                    closeBtn.style.display = 'block';
+                if (skipRequested) {
+                    showSummary();
+                    return;
+                }
+                
+                if (currentIndex >= queue.length) {
+                    showSummary();
                     return;
                 }
                 
                 const item = queue[currentIndex];
-                stage.innerHTML = renderSingleLootboxItem(item);
+                const isLastItem = (currentIndex === queue.length - 1);
                 
-                // Add "Next" button if not last item
-                if (currentIndex < queue.length - 1) {
-                    const nextBtn = document.createElement('button');
-                    nextBtn.textContent = '▶ Next Item';
-                    nextBtn.className = 'lootbox-next-btn';
-                    nextBtn.style.cssText = 'margin-top:20px;padding:10px 24px;background:rgba(155,89,182,0.3);border:1px solid #9b59b6;border-radius:40px;color:#9b59b6;font-weight:bold;cursor:pointer;transition:all 0.2s';
-                    nextBtn.onmouseenter = () => nextBtn.style.background = 'rgba(155,89,182,0.5)';
-                    nextBtn.onmouseleave = () => nextBtn.style.background = 'rgba(155,89,182,0.3)';
-                    nextBtn.onclick = () => {
+                // Create item display with button
+                const itemHtml = renderSingleLootboxItem(item);
+                const buttonText = isLastItem ? '✨ COMPLETE ✨' : '▶ NEXT ITEM ▶';
+                
+                stage.innerHTML = `
+                    <div style="width:100%">
+                        ${itemHtml}
+                        <div style="display:flex; justify-content:center; margin-top:24px">
+                            <button id="lootbox-action-btn" class="lootbox-action-btn" style="padding:12px 28px; background:linear-gradient(135deg,#e4a022,#b46f10); border:none; border-radius:60px; color:white; font-weight:bold; font-size:1rem; cursor:pointer; transition:transform 0.1s">${buttonText}</button>
+                        </div>
+                    </div>
+                `;
+                
+                const actionBtn = document.getElementById('lootbox-action-btn');
+                if (actionBtn) {
+                    actionBtn.onclick = () => {
                         currentIndex++;
                         showCurrentItem();
                     };
-                    stage.appendChild(nextBtn);
-                } else {
-                    // Last item - show "Complete" button
-                    const completeBtn = document.createElement('button');
-                    completeBtn.textContent = '✨ Complete ✨';
-                    completeBtn.className = 'lootbox-complete-btn';
-                    completeBtn.style.cssText = 'margin-top:20px;padding:10px 24px;background:linear-gradient(135deg,#e4a022,#b46f10);border:none;border-radius:40px;color:white;font-weight:bold;cursor:pointer;transition:all 0.2s';
-                    completeBtn.onclick = () => {
-                        stage.innerHTML = renderLootboxSummary(result, itemName);
-                        skipBtn.style.display = 'none';
-                        closeBtn.style.display = 'block';
-                    };
-                    stage.appendChild(completeBtn);
+                    actionBtn.onmouseenter = () => actionBtn.style.transform = 'scale(0.97)';
+                    actionBtn.onmouseleave = () => actionBtn.style.transform = 'scale(1)';
                 }
             }
             
             // Skip button handler
-            const skipHandler = () => {
-                if (!skipRequested && lootboxModalState.isOpen) {
+            skipBtn.onclick = () => {
+                if (!skipRequested) {
                     skipRequested = true;
-                    stage.innerHTML = renderLootboxSummary(result, itemName);
-                    skipBtn.style.display = 'none';
-                    closeBtn.style.display = 'block';
+                    showSummary();
                 }
             };
-            skipBtn.onclick = skipHandler;
             
-            // Close button handler
+            // Close button handler (initially hidden, set up for later)
             const closeHandler = () => {
                 modal.classList.remove('active');
-                lootboxModalState.isOpen = false;
                 closeBtn.removeEventListener('click', closeHandler);
-                
-                // Refresh inventory and character data
+                // Refresh inventory
                 loadInventory();
                 renderTopBar();
                 renderCharacter();
@@ -2645,7 +2648,6 @@ async function openLootBox(itemId, itemName) {
         console.error('Loot box error:', error);
         alert('Failed to open loot box: ' + error.message);
         if (modal) modal.classList.remove('active');
-        lootboxModalState.isOpen = false;
     }
 }
 // ============================================
