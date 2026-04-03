@@ -2379,7 +2379,7 @@ function escapeHtml(str) {
 function renderSingleLootboxItem(item) {
     const itemName = item.name || 'Unknown Item';
     const qtyText = (item.qty && item.qty > 1) ? ` x${item.qty}` : '';
-    const imagePath = getItemImagePath(itemName);
+    const imagePath = `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
     const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
     
     return `
