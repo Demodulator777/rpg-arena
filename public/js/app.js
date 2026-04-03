@@ -1788,7 +1788,7 @@ function renderInventory(data) {
             const itemImage = d.image || getItemImage(d.name);
             return `<div class="inv-card">
                 <div class="inv-card-header">
-                    <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display='none';this.nextSibling.style.display='inline'">
+                    <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline'">
                     <span style="font-size:1.4rem;display:none">${d.emoji || '🎁'}</span>
                     <span class="inv-card-name">${d.name}</span>
                     <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×${d.qty || 1}</span>
