@@ -2516,6 +2516,25 @@ function startSequentialReveal(result, boxName, onComplete) {
     showNextItem();
 }
 
+
+// ============================================
+// UPDATED RENDER INVENTORY FUNCTION
+// (Modified to work with the new lootbox system)
+// ============================================
+
+
+// ============================================
+// EXPOSE FUNCTIONS GLOBALLY
+// ============================================
+window.openLootBox = openLootBox;
+window.getItemImagePath = getItemImagePath;
+
+// Call createModal on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createLootboxModal);
+} else {
+    createLootboxModal();
+}
 // ── OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION ───────────────────────────────
 async function openLootBox(itemId, itemName) {
     if (!confirm(`Open ${itemName}?`)) return;
@@ -2650,152 +2669,6 @@ async function openLootBox(itemId, itemName) {
         if (modal) modal.classList.remove('active');
     }
 }
-// ============================================
-// UPDATED RENDER INVENTORY FUNCTION
-// (Modified to work with the new lootbox system)
-// ============================================
-
-
-// ============================================
-// EXPOSE FUNCTIONS GLOBALLY
-// ============================================
-window.openLootBox = openLootBox;
-window.getItemImagePath = getItemImagePath;
-
-// Call createModal on page load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createLootboxModal);
-} else {
-    createLootboxModal();
-}
-async function openLootBox(itemId, itemName) {
-    if (!confirm(`Open ${itemName}?`)) return;
-    
-    // Create modal if not exists
-    if (!document.getElementById('lootbox-exclusive-modal')) {
-        createLootboxModal();
-    }
-    
-    const modal = document.getElementById('lootbox-exclusive-modal');
-    const stage = document.getElementById('lootbox-stage-content');
-    const skipBtn = document.getElementById('lootbox-skip-all-btn');
-    const closeBtn = document.getElementById('lootbox-close-btn');
-    
-    if (!modal) return;
-    
-    try {
-        const result = await api('POST', `/game/lootbox/open/${itemId}`);
-        
-        if (result.success) {
-            // Update character data (gold, gems)
-            if (result.goldFound > 0 && character) {
-                character.gold = (character.gold || 0) + result.goldFound;
-            }
-            if (result.gemsFound > 0 && character) {
-                character.gems = (character.gems || 0) + result.gemsFound;
-            }
-            
-            // Open modal
-            lootboxModalState.isOpen = true;
-            modal.classList.add('active');
-            stage.innerHTML = `<div class="lootbox-loader-spinner"><div class="lootbox-spinner"></div><p>Unlocking ${escapeHtml(itemName)}...</p></div>`;
-            closeBtn.style.display = 'none';
-            skipBtn.style.display = 'inline-flex';
-            lootboxModalState.skipRequested = false;
-            
-            // Build queue of items to show
-            const queue = [];
-            if (result.goldFound > 0) {
-                queue.push({ type: 'gold', name: `${result.goldFound} Gold`, amount: result.goldFound, desc: `Found ${result.goldFound} gold!` });
-            }
-            if (result.gemsFound > 0) {
-                queue.push({ type: 'gem', name: `${result.gemsFound} Gems`, amount: result.gemsFound, desc: `Found ${result.gemsFound} gems!` });
-            }
-            for (const lootItem of result.loot || []) {
-                queue.push({
-                    name: lootItem.name,
-                    qty: lootItem.qty || 1,
-                    desc: lootItem.desc || `You obtained ${lootItem.name}`,
-                    type: 'item'
-                });
-            }
-            
-            lootboxModalState.currentQueue = queue;
-            lootboxModalState.currentIndex = 0;
-            lootboxModalState.currentResult = result;
-            lootboxModalState.currentBoxName = itemName;
-            
-            // Skip button handler
-            const skipHandler = () => {
-                if (!lootboxModalState.skipRequested && lootboxModalState.isOpen) {
-                    lootboxModalState.skipRequested = true;
-                    stopLootboxReveal();
-                    stage.innerHTML = renderLootboxSummary(result, itemName);
-                    skipBtn.style.display = 'none';
-                    closeBtn.style.display = 'block';
-                }
-            };
-            skipBtn.onclick = skipHandler;
-            
-            // Start sequential reveal
-            function showNextItem() {
-                if (lootboxModalState.skipRequested || lootboxModalState.currentIndex >= lootboxModalState.currentQueue.length) {
-                    if (lootboxModalState.skipRequested) {
-                        stage.innerHTML = renderLootboxSummary(result, itemName);
-                    } else {
-                        stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">✨ All items collected! ✨</div>`;
-                    }
-                    skipBtn.style.display = 'none';
-                    closeBtn.style.display = 'block';
-                    return;
-                }
-                
-                const item = lootboxModalState.currentQueue[lootboxModalState.currentIndex];
-                stage.innerHTML = renderSingleLootboxItem(item);
-                lootboxModalState.currentIndex++;
-                
-                if (!lootboxModalState.skipRequested && lootboxModalState.currentIndex < lootboxModalState.currentQueue.length) {
-                    lootboxModalState.revealTimer = setTimeout(showNextItem, 700);
-                } else if (!lootboxModalState.skipRequested && lootboxModalState.currentIndex >= lootboxModalState.currentQueue.length) {
-                    lootboxModalState.revealTimer = setTimeout(() => {
-                        if (!lootboxModalState.skipRequested) {
-                            stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">✅ Loot secured!</div>`;
-                            skipBtn.style.display = 'none';
-                            closeBtn.style.display = 'block';
-                        }
-                    }, 500);
-                }
-            }
-            
-            showNextItem();
-            
-            // Close button handler
-            const closeHandler = () => {
-                modal.classList.remove('active');
-                lootboxModalState.isOpen = false;
-                lootboxModalState.currentQueue = [];
-                lootboxModalState.currentIndex = 0;
-                stopLootboxReveal();
-                closeBtn.removeEventListener('click', closeHandler);
-                
-                // Refresh inventory and character data
-                loadInventory();
-                renderTopBar();
-                renderCharacter();
-            };
-            closeBtn.onclick = closeHandler;
-            
-        } else {
-            alert('Failed to open loot box: ' + (result.error || 'Unknown error'));
-        }
-    } catch (error) {
-        console.error('Loot box error:', error);
-        alert('Failed to open loot box: ' + error.message);
-        if (modal) modal.classList.remove('active');
-        lootboxModalState.isOpen = false;
-    }
-}
-
 function toggleEquipItem(invId, slot, isEquipped) { hideItemTooltip(); if(isEquipped) unequipSlot(slot); else equipItem(invId); }
 async function equipItem(invId) {
     try {
