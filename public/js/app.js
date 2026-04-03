@@ -2410,7 +2410,7 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <img class="lootbox-summary-img" src="/images/assets/gold-coin.png" onerror="this.src='/images/assets/prize.png'" alt="Gold">
-                <div><strong>${goldAmount} Gold</strong><br><span style="font-size:0.7rem;">Shimmering coins</span></div>
+                <div><strong>${goldAmount} Gold</strong></div>
             </div>
         `;
     }
@@ -2419,19 +2419,21 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <img class="lootbox-summary-img" src="/images/assets/gem.png" onerror="this.src='/images/assets/prize.png'" alt="Gems">
-                <div><strong>${gemsAmount} Gems</strong><br><span style="font-size:0.7rem;">Precious crystals</span></div>
+                <div><strong>${gemsAmount} Gems</strong></div>
             </div>
         `;
     }
     
     for (const item of lootItems) {
-        const itemImage = getItemImagePath(item.name);
+        // USE EXACT SAME LOGIC as single view
+        const imageName = item.name.toLowerCase().replace(/\s+/g, '-');
+        const imagePath = `/images/assets/${imageName}.png`;
+        
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="${itemImage}" onerror="this.src='/images/assets/prize.png'" alt="${escapeHtml(item.name)}">
+                <img class="lootbox-summary-img" src="${imagePath}" onerror="this.src='/images/assets/prize.png'" alt="${escapeHtml(item.name)}">
                 <div>
                     <strong>${escapeHtml(item.name)}</strong> ${item.qty ? `x${item.qty}` : ''}
-                    <br><span style="font-size:0.7rem;">${escapeHtml(item.desc || 'Loot item')}</span>
                 </div>
             </div>
         `;
