@@ -2356,7 +2356,7 @@ function createLootboxModal() {
 
 // Helper: Get item image path based on item name (converts "Steel Sword" -> "steel-sword.png")
 function getItemImagePath(itemName) {
-    if (!itemName) return 'https://via.placeholder.com/64?text=Item';
+    if (!itemName) return '/images/assets/prize.png';
     // Convert to lowercase, replace spaces with hyphens, remove special chars
     let imageName = itemName.toLowerCase()
         .replace(/[^\w\s-]/g, '')
@@ -2410,7 +2410,7 @@ function renderLootboxSummary(result, boxName) {
     if (goldAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/assets/items/gold-coin.png" onerror="this.src='https://via.placeholder.com/48?text=💰'" alt="Gold">
+                <img class="lootbox-summary-img" src="/assets/items/gold-coin.png" onerror="this.src='/images/assets/prize.png'" alt="Gold">
                 <div><strong>${goldAmount} Gold</strong><br><span style="font-size:0.7rem;">Shimmering coins</span></div>
             </div>
         `;
@@ -2419,7 +2419,7 @@ function renderLootboxSummary(result, boxName) {
     if (gemsAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/assets/items/gem.png" onerror="this.src='https://via.placeholder.com/48?text=💎'" alt="Gems">
+                <img class="lootbox-summary-img" src="/assets/items/gem.png" onerror="this.src='/images/assets/prize.png'" alt="Gems">
                 <div><strong>${gemsAmount} Gems</strong><br><span style="font-size:0.7rem;">Precious crystals</span></div>
             </div>
         `;
@@ -2429,7 +2429,7 @@ function renderLootboxSummary(result, boxName) {
         const itemImage = getItemImagePath(item.name);
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="${itemImage}" onerror="this.src='https://via.placeholder.com/48?text=📦'" alt="${escapeHtml(item.name)}">
+                <img class="lootbox-summary-img" src="${itemImage}" onerror="this.src='/images/assets/prize.png'" alt="${escapeHtml(item.name)}">
                 <div>
                     <strong>${escapeHtml(item.name)}</strong> ${item.qty ? `x${item.qty}` : ''}
                     <br><span style="font-size:0.7rem;">${escapeHtml(item.desc || 'Loot item')}</span>
