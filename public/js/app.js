@@ -2384,7 +2384,7 @@ function renderSingleLootboxItem(item) {
     
     return `
         <div class="lootbox-item-card">
-            <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" onerror="this.src='https://via.placeholder.com/64?text=🎁'">
+            <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" onerror="this.src='/images/assets/prize.png'">
             <div class="lootbox-item-info">
                 <div class="lootbox-item-title">${escapeHtml(itemName)}${qtyText}</div>
                 <div class="lootbox-item-sub">${escapeHtml(descText)}</div>
