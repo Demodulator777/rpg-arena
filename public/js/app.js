@@ -2394,7 +2394,6 @@ function renderSingleLootboxItem(item) {
     `;
 }
 
-// Render summary (skip mode) with all items + images
 function renderLootboxSummary(result, boxName) {
     const goldAmount = result.goldFound || 0;
     const gemsAmount = result.gemsFound || 0;
@@ -2410,7 +2409,7 @@ function renderLootboxSummary(result, boxName) {
     if (goldAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/assets/items/gold-coin.png" onerror="this.src='/images/assets/prize.png'" alt="Gold">
+                <img class="lootbox-summary-img" src="/images/assets/gold-coin.png" onerror="this.src='/images/assets/prize.png'" alt="Gold">
                 <div><strong>${goldAmount} Gold</strong><br><span style="font-size:0.7rem;">Shimmering coins</span></div>
             </div>
         `;
@@ -2419,7 +2418,7 @@ function renderLootboxSummary(result, boxName) {
     if (gemsAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/assets/items/gem.png" onerror="this.src='/images/assets/prize.png'" alt="Gems">
+                <img class="lootbox-summary-img" src="/images/assets/gem.png" onerror="this.src='/images/assets/prize.png'" alt="Gems">
                 <div><strong>${gemsAmount} Gems</strong><br><span style="font-size:0.7rem;">Precious crystals</span></div>
             </div>
         `;
