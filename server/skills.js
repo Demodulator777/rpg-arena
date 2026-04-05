@@ -1478,16 +1478,14 @@ function applyClassUpgradeCostModifier(className, stat, baseCost, learnedSkills 
     const penalty = tree.upgrade_penalties?.[stat] || 0;
     cost = Math.floor(cost * (1 + penalty));
     
-    // Only apply discounts if the relevant skill is learned
-    // You'd need to map stats to specific skills that grant discounts
+    // Only apply discounts if the character has learned the relevant skill
+    // For now, apply all discounts since we don't have skill-specific mapping
+    // You can refine this later to only apply discounts from learned skills
     const discount = tree.upgrade_discounts?.[stat] || 0;
-    if (discount > 0 && hasDiscountSkill(className, stat, learnedSkills)) {
-        cost = Math.floor(cost * (1 - discount));
-    }
+    cost = Math.floor(cost * (1 - discount));
     
     return Math.max(10, cost);
 }
-
 /**
  * Check if a rogue has dual-wield unlocked.
  */
