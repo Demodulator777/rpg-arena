@@ -1327,7 +1327,7 @@ function meetsUnlockCondition(char, condId, stats = {}) {
  * @param {Object} learnedMap - { skillId: true } of already-learned skills
  * @param {Object} extraStats - additional computed values for unlock checks
  */
-function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}) {
+function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, hasActiveTraining = false) {
     const tree = SKILL_TREES[className];
     if (!tree) return null;
 
@@ -1358,7 +1358,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}) 
             hasVisibleSkill = true;
             
             // Check if trainable (not learned, prereqs met, cond met, no active training)
-            const trainable = !learned && prereqsMet && condMet;
+            const trainable = !learned && prereqsMet && condMet && !hasActiveTraining;
             
             // For locked future skills, don't show what the requirement is
             const isLocked = !learned && !trainable;
@@ -1366,7 +1366,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}) 
             enrichedSkills[skId] = {
                 ...sk,
                 learned,
-                trainable: trainable && !hasActiveTraining,
+                trainable: trainable,
                 locked: isLocked,
                 // Don't reveal unlock conditions or prerequisites for locked skills
                 hiddenPrereqs: isLocked,
