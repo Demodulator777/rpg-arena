@@ -339,24 +339,30 @@ function showScreen(name) {
 }
 const TAB_ORDER=['character','premium','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox', 'dungeon'];
 function showTab(name) {
-    document.querySelectorAll('.game-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
-    const idx=TAB_ORDER.indexOf(name);
-    if (idx>=0) document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
-    if (name==='character')   renderCharacter();
-    if (name==='premium')     loadPremium();
-    if (name==='loadout')     renderLoadout();
-    if (name==='train')       renderTraining();
-    if (name==='upgrade')     renderUpgrade();
-    if (name==='skills')      renderSkills();
-    if (name==='missions')    loadMissions();
-    if (name==='forge')       loadForge();
-    if (name==='inventory')   { syncInvTabButtons(); loadInventory(); }
-    if (name==='leaderboard') loadLeaderboard();
-    if (name==='shop')        loadShop();
-    if (name==='inbox')       loadInbox();
-    if (name==='dungeon')     renderDungeonTab();
+    const idx = TAB_ORDER.indexOf(name);
+    if (idx >= 0) document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
+    
+    if (name === 'character')   renderCharacter();
+    if (name === 'premium')     loadPremium();
+    if (name === 'loadout')     renderLoadout();
+    if (name === 'train') {
+        // The skill tree handles its own rendering
+        if (typeof renderSkillTreeTab === 'function') {
+            renderSkillTreeTab();
+        }
+    }
+    if (name === 'upgrade')     renderUpgrade();
+    if (name === 'skills')      renderSkills();
+    if (name === 'missions')    loadMissions();
+    if (name === 'forge')       loadForge();
+    if (name === 'inventory')   { syncInvTabButtons(); loadInventory(); }
+    if (name === 'leaderboard') loadLeaderboard();
+    if (name === 'shop')        loadShop();
+    if (name === 'inbox')       loadInbox();
+    if (name === 'dungeon')     renderDungeonTab();
 }
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
@@ -872,24 +878,47 @@ async function saveLoadout() {
 // ── Training ──────────────────────────────────────────────────────────────
 function renderTraining() {
     if (!character) return;
-    const c=character,statusEl=document.getElementById('train-status');
-    const allBtns=document.querySelectorAll('.btn-train'),oldBtn=document.getElementById('collect-btn');
+    
+    // Check if we're on the train tab - if not, don't render
+    const trainTab = document.getElementById('tab-train');
+    if (!trainTab || !trainTab.classList.contains('active')) return;
+    
+    const c = character;
+    const statusEl = document.getElementById('train-status');
+    const allBtns = document.querySelectorAll('.btn-train');
+    const oldBtn = document.getElementById('collect-btn');
+    
+    // Only try to update elements if they exist (old training UI)
+    // The skill tree uses its own UI now
     if (c.trainingDone) {
-        statusEl.className='train-status-bar ready'; statusEl.textContent=`✅ ${capitalize(c.training_stat)} training complete!`; statusEl.classList.remove('hidden');
-        allBtns.forEach(b=>b.disabled=true);
-        if (!oldBtn) { const btn=document.createElement('button'); btn.id='collect-btn'; btn.className='btn-primary'; btn.style.cssText='grid-column:1/-1;margin-top:8px'; btn.textContent=`⚡ Collect +1 ${capitalize(c.training_stat)}`; btn.onclick=collectTraining; document.getElementById('train-grid').after(btn); }
+        if (statusEl) {
+            statusEl.className = 'train-status-bar ready';
+            statusEl.textContent = `✅ ${capitalize(c.training_stat)} training complete!`;
+            statusEl.classList.remove('hidden');
+        }
+        if (allBtns.length) allBtns.forEach(b => b.disabled = true);
+        if (!oldBtn && document.getElementById('train-grid')) {
+            const btn = document.createElement('button');
+            btn.id = 'collect-btn';
+            btn.className = 'btn-primary';
+            btn.style.cssText = 'grid-column:1/-1;margin-top:8px';
+            btn.textContent = `⚡ Collect +1 ${capitalize(c.training_stat)}`;
+            btn.onclick = collectTraining;
+            document.getElementById('train-grid').after(btn);
+        }
     } else if (c.trainingActive) {
-        statusEl.className='train-status-bar'; statusEl.textContent=`⏳ Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`; statusEl.classList.remove('hidden');
-        allBtns.forEach(b=>b.disabled=true); if(oldBtn)oldBtn.remove();
-    } else { statusEl.classList.add('hidden'); allBtns.forEach(b=>b.disabled=false); if(oldBtn)oldBtn.remove(); }
-}
-async function startTrain(stat) {
-    try { await api('POST','/game/train',{stat}); character=await api('GET','/game/character'); renderTraining(); showMsg('train-msg',`Training ${stat}!`); }
-    catch(e) { showMsg('train-msg',e.message,true); }
-}
-async function collectTraining() {
-    try { const d=await api('POST','/game/train/collect'); character=d.character; renderTraining(); renderCharacter(); showMsg('train-msg',d.message); }
-    catch(e) { showMsg('train-msg',e.message,true); }
+        if (statusEl) {
+            statusEl.className = 'train-status-bar';
+            statusEl.textContent = `⏳ Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`;
+            statusEl.classList.remove('hidden');
+        }
+        if (allBtns.length) allBtns.forEach(b => b.disabled = true);
+        if (oldBtn) oldBtn.remove();
+    } else {
+        if (statusEl) statusEl.classList.add('hidden');
+        if (allBtns.length) allBtns.forEach(b => b.disabled = false);
+        if (oldBtn) oldBtn.remove();
+    }
 }
 
 // ── Upgrade ───────────────────────────────────────────────────────────────
