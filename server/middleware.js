@@ -1,14 +1,35 @@
 const jwt = require('jsonwebtoken');
+const { getDb } = require('./db');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'rpg-arena-secret-change-in-prod';
 
-module.exports = (req, res, next) => {
+module.exports = async (req, res, next) => {
     const header = req.headers.authorization;
     if (!header) return res.status(401).json({ error: 'No token' });
+    
     const token = header.split(' ')[1];
     try {
-        req.user = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Get the user from database to ensure they still exist
+        const db = await getDb();
+        const user = await db.execute({
+            sql: 'SELECT id, username FROM users WHERE id = ?',
+            args: [decoded.userId]
+        });
+        
+        if (!user.rows[0]) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+        
+        // Set req.user with both userId and username
+        req.user = { 
+            userId: user.rows[0].id, 
+            username: user.rows[0].username 
+        };
         next();
-    } catch {
+    } catch (error) {
+        console.error('Auth error:', error);
         res.status(401).json({ error: 'Invalid token' });
     }
 };
