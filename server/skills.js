@@ -1576,21 +1576,24 @@ router.get('/tree', async (req, res) => {
             dungeon_no_death_run: char.dungeon_no_death_runs         || 0,
         };
 
-        const tree     = getVisibleSkillTree(char.class, char, learnedMap, extraStats);
-        const passives = computePassiveBonuses(char.class, learned);
-        const mods     = computeClassModifiers(char.class, learned);
-        const dualWield = char.class === 'rogue' && rogueHasDualWield(learned);
-        const mPath     = char.class === 'mage'  ? magePath(learned) : null;
-
-        // Current training session
+        // Check if there's an active training session
         const trainingRow = await db.execute({
             sql: 'SELECT * FROM skill_training WHERE char_id=?', args: [char.id]
         });
+        const hasActiveTraining = trainingRow.rows.length > 0 && trainingRow.rows[0].ends_at > Math.floor(Date.now() / 1000);
+
+        const tree = getVisibleSkillTree(char.class, char, learnedMap, extraStats, hasActiveTraining);
+        const passives = computePassiveBonuses(char.class, learned);
+        const mods = computeClassModifiers(char.class, learned);
+        const dualWield = char.class === 'rogue' && rogueHasDualWield(learned);
+        const mPath = char.class === 'mage' ? magePath(learned) : null;
+
+        // Current training session
         const activeTraining = trainingRow.rows[0] || null;
         if (activeTraining) {
             const now = Math.floor(Date.now() / 1000);
             activeTraining.timeLeft = Math.max(0, activeTraining.ends_at - now);
-            activeTraining.done     = now >= activeTraining.ends_at;
+            activeTraining.done = now >= activeTraining.ends_at;
         }
 
         res.json({
