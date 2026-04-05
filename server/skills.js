@@ -1454,14 +1454,23 @@ function computeClassModifiers(className, learnedSkillIds) {
  * @param {number} baseCost - already-computed base gold cost
  * @returns {number} adjusted cost
  */
-function applyClassUpgradeCostModifier(className, stat, baseCost) {
+function applyClassUpgradeCostModifier(className, stat, baseCost, learnedSkills = []) {
     const tree = SKILL_TREES[className];
     if (!tree) return baseCost;
+    
     let cost = baseCost;
-    const penalty   = tree.upgrade_penalties?.[stat]  || 0;
-    const discount  = tree.upgrade_discounts?.[stat]   || 0;
+    
+    // ALWAYS apply class penalties (no skill needed)
+    const penalty = tree.upgrade_penalties?.[stat] || 0;
     cost = Math.floor(cost * (1 + penalty));
-    cost = Math.floor(cost * (1 - discount));
+    
+    // Only apply discounts if the relevant skill is learned
+    // You'd need to map stats to specific skills that grant discounts
+    const discount = tree.upgrade_discounts?.[stat] || 0;
+    if (discount > 0 && hasDiscountSkill(className, stat, learnedSkills)) {
+        cost = Math.floor(cost * (1 - discount));
+    }
+    
     return Math.max(10, cost);
 }
 
