@@ -2,13 +2,24 @@ const express = require('express');
 const { getDb } = require('./db');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-app.use('/skills', auth, skillsModule.router);
 const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+
+// Import skill tree functions
+const { 
+    applyClassUpgradeCostModifier, 
+    computePassiveBonuses, 
+    computeActiveCombatEffects, 
+    computeClassModifiers, 
+    rogueHasDualWield 
+} = require('./skills');
 
 BigInt.prototype.toJSON = function() { return Number(this); };
 
 const router = express.Router();
 const _missionStartLock = new Set();
+
+// Define ELEMENTS array (was missing!)
+const ELEMENTS = ['pyro', 'water', 'wind', 'electro'];
 
 // ── Adventurer's Guild Exchanges ─────────────────────────────────────
 const GUILD_EXCHANGES = [
@@ -65,10 +76,13 @@ const GUILD_EXCHANGES = [
             expires_at INTEGER,
             PRIMARY KEY (attacker_id, defender_id)
         )`, args: [] });
+        
+        // Skill tree migrations
         const { SKILL_TREE_MIGRATIONS } = require('./skills');
-for (const sql of SKILL_TREE_MIGRATIONS) {
-    try { await db.execute({ sql, args: [] }); } catch {}
-}
+        for (const sql of SKILL_TREE_MIGRATIONS) {
+            try { await db.execute({ sql, args: [] }); } catch {}
+        }
+        
         console.log('✅ DB migrations applied');
     } catch (e) { console.error('Migration error:', e.message); }
 })();
@@ -690,6 +704,7 @@ function runBattle(fighterA, fighterB) {
     let hpA = fighterA.hp, hpB = fighterB.hp;
     let penaltyA = false, penaltyB = false;
     let totalDmgToA = 0, totalDmgToB = 0;
+    let totalElemDmgDealt = 0; // Track elemental damage for skill unlocks
     
     // Initialize magic shields at battle start
     let shieldA = calculateMagicShield(fighterB, fighterA);
@@ -721,7 +736,18 @@ function runBattle(fighterA, fighterB) {
         const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
         
         const dmgToB = resA.damageDealt + resB.damageCounter;
-const dmgToA = resB.damageDealt + resA.damageCounter;
+        const dmgToA = resB.damageDealt + resA.damageCounter;
+        
+        // Track elemental damage for skill unlocks
+        if (fighterA.elem_dmg) {
+            const elemTotal = Object.values(fighterA.elem_dmg).reduce((a,b) => a + b, 0);
+            if (elemTotal > 0 && dmgToB > 0) totalElemDmgDealt += Math.min(dmgToB, elemTotal);
+        }
+        if (fighterB.elem_dmg) {
+            const elemTotal = Object.values(fighterB.elem_dmg).reduce((a,b) => a + b, 0);
+            if (elemTotal > 0 && dmgToA > 0) totalElemDmgDealt += Math.min(dmgToA, elemTotal);
+        }
+        
         totalDmgToA += dmgToA;
         totalDmgToB += dmgToB;
         hpA = Math.max(0, hpA - dmgToA + (resA.healBack || 0));
@@ -738,15 +764,15 @@ const dmgToA = resB.damageDealt + resA.damageCounter;
                 // Both died, compare damage dealt
                 const winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
                 log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins by dealing more damage!`);
-                return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+                return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
             } else if (hpA <= 0) {
                 log.push(`Round ${round}: ${fighterA.name} has fallen!`);
                 log.push(`🏆 ${fighterB.name} wins!`);
-                return { log, winnerId: fighterB.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+                return { log, winnerId: fighterB.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
             } else {
                 log.push(`Round ${round}: ${fighterB.name} has fallen!`);
                 log.push(`🏆 ${fighterA.name} wins!`);
-                return { log, winnerId: fighterA.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+                return { log, winnerId: fighterA.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
             }
         }
         if (round < 10) log.push('---');
@@ -765,7 +791,7 @@ const dmgToA = resB.damageDealt + resA.damageCounter;
         log.push(`🏆 ${fighterB.name} wins by dealing more damage!`);
     }
     
-    return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB };
+    return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
 }
 
 function buildNpc(difficulty, playerLevel) {
@@ -878,7 +904,7 @@ function buildNpc(difficulty, playerLevel) {
 }
 
 // ── Item Generators ─────────────────────────────────────────────────────────
-const ELEMENTS = ['pyro','water','wind','electro'];
+// ELEMENTS already defined at top
 
 function maxElemStats(level) {
     if (level >= 86) return 6;
@@ -1408,14 +1434,40 @@ function withUpgradeCosts(char) {
 }
 
 async function getEquippedItems(db, charId) {
+    const char = await dbGet(db, 'SELECT class FROM characters WHERE id=?', [charId]);
     const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id = ?', [charId]);
     if (!eq) return {};
+
+    // Check if rogue has dual-wield unlocked
+    let dualWield = false;
+    if (char?.class === 'rogue') {
+        const dwRow = await dbGet(db,
+            `SELECT 1 FROM character_skill_tree WHERE char_id=? AND skill_id='off_hand_training'`, [charId]);
+        dualWield = !!dwRow;
+    }
+
     const slots = {};
     for (const slot of EQUIPMENT_SLOTS) {
-        const itemId = eq[`${slot}_id`];
-        if (itemId) {
-            const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
-            if (inv) slots[slot] = { ...JSON.parse(inv.item_data), inventoryId: inv.id };
+        if (slot === 'shield' && dualWield) {
+            // Shield slot is now "off-hand weapon" for dual-wielders
+            const itemId = eq[`shield_id`];
+            if (itemId) {
+                const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
+                if (inv) {
+                    const data = JSON.parse(inv.item_data);
+                    if (data.slot === 'weapon') {
+                        slots['off_hand'] = { ...data, inventoryId: inv.id };
+                    } else {
+                        slots[slot] = { ...data, inventoryId: inv.id };
+                    }
+                }
+            }
+        } else {
+            const itemId = eq[`${slot}_id`];
+            if (itemId) {
+                const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
+                if (inv) slots[slot] = { ...JSON.parse(inv.item_data), inventoryId: inv.id };
+            }
         }
     }
     return slots;
@@ -1484,6 +1536,13 @@ async function buildCharacterResponse(char, db) {
     const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
+    
+    // Rogue no-shield agility bonus
+    let noShieldAgiBonus = 0;
+    if (char.class === 'rogue') {
+        const hasShield = !!equippedObj.shield;
+        if (!hasShield) noShieldAgiBonus = 5;
+    }
 
     return {
         ...withTrain,
@@ -1493,7 +1552,7 @@ async function buildCharacterResponse(char, db) {
         hp_current:   hpCurrent,
         strength:     Math.floor((char.strength    || 0)  * ultMult),
         defense:      Math.floor((char.defense     || 0)  * ultMult),
-        agility:      Math.floor((char.agility     || 0)  * ultMult),
+        agility:      Math.floor((char.agility     || 0)  * ultMult) + noShieldAgiBonus,
         magic:        Math.floor((char.magic       || 0)  * ultMult),
         hit_chance:   Math.floor((char.hit_chance  || 0)  * ultMult),
         crit_chance:  Math.floor((char.crit_chance || 0)  * ultMult),
@@ -1518,6 +1577,7 @@ async function buildCharacterResponse(char, db) {
         premium_synergies: activeSynergies,
         premium_ultimate:  ultimateActive,
         upgrade_discount:  upgradeDiscount,
+        no_shield_agi_bonus: noShieldAgiBonus,
     };
 }
 
@@ -1564,6 +1624,7 @@ router.get('/character', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Upgrade (UPDATED with skill tree cost modifier) ───────────────────────
 router.post('/upgrade', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -1572,10 +1633,15 @@ router.post('/upgrade', auth, async (req, res) => {
         const { stat } = req.body;
         if (!['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].includes(stat))
             return res.status(400).json({ error: 'Invalid stat' });
+        
+        // Apply class upgrade cost modifier from skill tree
         let cost = upgradeCost(stat, char[stat] || 0, char.class);
+        cost = applyClassUpgradeCostModifier(char.class, stat, cost);
+        
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
         const activePrem = getActivePremium(char);
         if (hasPremium(activePrem, 'apprentice')) cost = Math.max(1, Math.floor(cost * 0.80));
+        
         const result = await dbRun(db,
             `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE user_id=? AND gold>=?`,
             [cost, req.user.userId, cost]
@@ -1587,20 +1653,12 @@ router.post('/upgrade', auth, async (req, res) => {
         
         // FIX: When upgrading vitality, properly update HP
         if (stat === 'vitality') {
-            // Get equipped items to calculate the new max HP
             const equippedArray = await getEquippedItemsArray(db, char.id);
-            
-            // First get the updated character after the stat increase
             const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
-            
-            // Calculate old max HP and new max HP
             const oldMaxHp = calcHpMax(char, equippedArray);
             const newMaxHp = calcHpMax(updatedChar, equippedArray);
             const hpIncrease = newMaxHp - oldMaxHp;
-            
-            // Increase current HP by the same amount as max HP increased
-            await dbRun(db, 'UPDATE characters SET hp_current = hp_current + ? WHERE id = ?', 
-                [hpIncrease, char.id]);
+            await dbRun(db, 'UPDATE characters SET hp_current = hp_current + ? WHERE id = ?', [hpIncrease, char.id]);
         }
         
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
@@ -1608,7 +1666,7 @@ router.post('/upgrade', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// ── Training ──────────────────────────────────────────────────────────────
+// ── Training (old stat training, keep as is) ──────────────────────────────
 router.post('/train', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -1712,24 +1770,20 @@ router.post('/missions/start', auth, async (req, res) => {
         const difficulty = spot.difficulty;
 const [minGold, maxGold] = zone.payoutBase[difficulty];
 
-// XP scales with MP cost (mission size), NOT difficulty
 let minXp = 0, maxXp = 0;
 
-if (sizeKey === 'small') {      // 20 MP
+if (sizeKey === 'small') {
     minXp = 0;
     maxXp = 6;
-} else if (sizeKey === 'medium') { // 40 MP
+} else if (sizeKey === 'medium') {
     minXp = 0;
     maxXp = 9;
-} else { // large - 60 MP
+} else {
     minXp = 0;
     maxXp = 12;
 }
 
-// Randomize within range
 let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
-
-// Ensure minimum 1? Or keep 0 possible?
 xpReward = Math.max(0, xpReward);
 
 const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
@@ -1774,6 +1828,7 @@ const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1
     }
 });
 
+// ── Missions Collect (UPDATED with skill tree passive bonuses) ────────────
 router.post('/missions/collect', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -1794,19 +1849,54 @@ router.post('/missions/collect', auth, async (req, res) => {
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
+        
+        // ── Skill tree passive bonuses ──────────────────────────────────────
+        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshChar.id]);
+        const learnedIds = learnedRows.map(r => r.skill_id);
+        const skillPassives = computePassiveBonuses(freshChar.class, learnedIds);
+        const skillActives  = computeActiveCombatEffects(freshChar.class, learnedIds);
+        const skillMods     = computeClassModifiers(freshChar.class, learnedIds);
+        
+        // Rogue no-shield agility bonus
+        let noShieldAgiBonus = 0;
+        if (freshChar.class === 'rogue') {
+            const equipped = await getEquippedItems(db, freshChar.id);
+            const hasShield = !!equipped.shield;
+            if (!hasShield) noShieldAgiBonus = 5;
+        }
+        
         const playerFighter = {
             id: freshChar.id, name: freshChar.name,
-            hp: hpCurrent, dmgMin, dmgMax, agility: freshChar.agility || 0,
-            hit_chance: freshChar.hit_chance || 0,
-            crit_chance: freshChar.crit_chance || 0,
-            magic: freshChar.magic || 0,
-            armor: calcArmorValue(freshChar, equippedArray),
-            elem_dmg: calcElemDmg(equippedArray),
-            elem_resist: calcElemResist(freshChar, equippedArray),
+            hp: hpCurrent,
+            dmgMin: dmgMin + (skillPassives.dmg_min || 0),
+            dmgMax: dmgMax + (skillPassives.dmg_max || 0),
+            strength: (freshChar.strength || 0) + (skillPassives.strength || 0),
+            agility: (freshChar.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
+            magic: (freshChar.magic || 0) + (skillPassives.magic || 0),
+            defense: (freshChar.defense || 0) + (skillPassives.defense || 0),
+            hit_chance: (freshChar.hit_chance || 0) + (skillPassives.hit_chance || 0),
+            crit_chance: (freshChar.crit_chance || 0) + (skillPassives.crit_chance || 0),
+            armor: calcArmorValue(freshChar, equippedArray) + (skillPassives.armor || 0),
+            elem_dmg: {
+                pyro:    (calcElemDmg(equippedArray).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedArray).water   || 0) + (skillPassives.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedArray).wind    || 0) + (skillPassives.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedArray).electro || 0) + (skillPassives.electro_dmg || 0),
+            },
+            elem_resist: {
+                pyro:    (calcElemResist(freshChar, equippedArray).pyro    || 0) + (skillPassives.pyro_resist    || 0),
+                water:   (calcElemResist(freshChar, equippedArray).water   || 0) + (skillPassives.water_resist   || 0),
+                wind:    (calcElemResist(freshChar, equippedArray).wind    || 0) + (skillPassives.wind_resist    || 0),
+                electro: (calcElemResist(freshChar, equippedArray).electro || 0) + (skillPassives.electro_resist || 0),
+            },
+            skillEffects: skillActives,
+            skillMods: skillMods,
             activeSkills: charActiveSkills,
             attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshChar.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+            dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
         };
+        
         const npc = buildNpc(mission.difficulty, freshChar.level);
         const battle = runBattle(playerFighter, npc);
         const playerWon = battle.winnerId === freshChar.id;
@@ -1836,6 +1926,17 @@ router.post('/missions/collect', auth, async (req, res) => {
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+? WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id]);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
+        
+        // ── Skill tree stat tracking ───────────────────────────────────────
+        if (playerWon && mission.difficulty === 'hard') {
+            await dbRun(db, 'UPDATE characters SET hard_missions_completed = hard_missions_completed + 1 WHERE id=?', [freshChar.id]);
+        }
+        if (playerWon) {
+            await dbRun(db, 'UPDATE characters SET total_missions_completed = total_missions_completed + 1 WHERE id=?', [freshChar.id]);
+        }
+        if (playerWon && battle.totalElemDmgDealt > 0) {
+            await dbRun(db, 'UPDATE characters SET elemental_kills = elemental_kills + 1 WHERE id=?', [freshChar.id]);
+        }
         
         const drops = [];
 const matsByZone = {
@@ -1900,8 +2001,8 @@ res.json({
     drops, hpRemaining: newHp,
     activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
     character: await buildCharacterResponse(updatedChar, db),
-    totalDmgDealt: battle.totalDmgToB,  // ADD
-    totalDmgTaken: battle.totalDmgToA,  // ADD
+    totalDmgDealt: battle.totalDmgToB,
+    totalDmgTaken: battle.totalDmgToA,
 });
     } catch (e) {
         console.error('Mission collect error:', e);
@@ -2108,21 +2209,17 @@ router.post('/forge/craft', auth, async (req, res) => {
         const recipe = EQUIPMENT_RECIPES.find(r => r.id === recipeId);
         if (!recipe) return res.status(400).json({ error: 'Unknown recipe' });
         
-        // Check minimum level requirement
         if (char.level < (recipe.minLevel || 1)) {
             return res.status(400).json({ error: `Requires level ${recipe.minLevel} to craft this item.` });
         }
         
-        // Check gold
         if (char.gold < recipe.goldCost) return res.status(400).json({ error: `Need ${recipe.goldCost} gold` });
         
-        // Check materials
         const mats = await getInventoryMaterials(db, char.id);
         for (const [comp, qty] of Object.entries(recipe.components)) {
             if ((mats[comp]?.qty || 0) < qty) return res.status(400).json({ error: `Need ${qty}x ${COMPONENTS[comp]?.name || comp}` });
         }
         
-        // Deduct materials
         for (const [comp, qty] of Object.entries(recipe.components)) {
             const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
             if (inv) {
@@ -2133,13 +2230,10 @@ router.post('/forge/craft', auth, async (req, res) => {
             }
         }
         
-        // Deduct gold
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
         
-        // SCALE ITEM BASED ON PLAYER LEVEL
         const scaledItem = scaleItemToLevel(recipe, char.level);
         
-        // Add to inventory
         await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
             [char.id, 'equipment', JSON.stringify(scaledItem)]);
         
@@ -2147,29 +2241,23 @@ router.post('/forge/craft', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// Helper function to scale item stats based on level
 function scaleItemToLevel(recipe, playerLevel) {
     const level = Math.max(recipe.minLevel || 1, playerLevel);
     const item = { ...recipe };
     
-    // Remove baseStats and use as template
     const baseStats = { ...recipe.baseStats };
     delete item.baseStats;
     
     item.level = level;
-    
-    // Calculate tier based on level
     item.tier = Math.min(5, Math.ceil(level / 15) + 1);
     
-    // Scale stats based on level difference
     const levelDiff = Math.max(0, level - (recipe.minLevel || 1));
-    const scaleFactor = 1 + (levelDiff * 0.03); // 3% per level above minimum
+    const scaleFactor = 1 + (levelDiff * 0.03);
     
     const scaledStats = {};
     for (const [stat, value] of Object.entries(baseStats)) {
         let scaledValue = Math.floor(value * scaleFactor);
         
-        // Cap stats to prevent insane values
         if (stat === 'dmg_min') scaledValue = Math.min(200, scaledValue);
         if (stat === 'dmg_max') scaledValue = Math.min(350, scaledValue);
         if (stat === 'strength' || stat === 'agility' || stat === 'magic') scaledValue = Math.min(80, scaledValue);
@@ -2185,55 +2273,11 @@ function scaleItemToLevel(recipe, playerLevel) {
     
     item.stats = scaledStats;
     
-    // Scale price based on level
     const priceScale = 1 + (levelDiff * 0.05);
     item.price = Math.floor(recipe.goldCost * priceScale);
     item.goldCost = item.price;
     
-    // Update description
     item.desc = `${recipe.desc} (Crafted at level ${level})`;
-    
-    return item;
-}
-
-// Helper function to scale item stats based on level
-function scaleItemToLevel(baseItem, playerLevel) {
-    const item = { ...baseItem };
-    const level = Math.max(1, playerLevel);
-    const tier = Math.min(5, Math.ceil(level / 20) + 1);
-    
-    item.level = level;
-    item.tier = tier;
-    
-    // Scale stats based on level
-    const scaledStats = {};
-    for (const [stat, value] of Object.entries(item.stats || {})) {
-        // Base scaling factor: 1 + (level / 50) for moderate growth
-        // Or use exponential: Math.pow(1.02, level) for slower growth
-        const scale = 1 + (level * 0.03); // 3% per level, capped
-        let scaledValue = Math.floor(value * Math.min(3, scale));
-        
-        // Ensure minimum stats
-        if (stat === 'dmg_min' || stat === 'dmg_max') {
-            scaledValue = Math.max(value, scaledValue);
-        }
-        
-        // Cap at reasonable values
-        if (stat === 'dmg_min') scaledValue = Math.min(300, scaledValue);
-        if (stat === 'dmg_max') scaledValue = Math.min(500, scaledValue);
-        if (stat === 'strength' || stat === 'agility' || stat === 'magic') scaledValue = Math.min(100, scaledValue);
-        if (stat === 'defense') scaledValue = Math.min(80, scaledValue);
-        if (stat === 'armor') scaledValue = Math.min(50, scaledValue);
-        if (stat === 'hp_max') scaledValue = Math.min(500, scaledValue);
-        
-        scaledStats[stat] = scaledValue;
-    }
-    
-    item.stats = scaledStats;
-    
-    // Update price based on level
-    item.price = Math.floor(baseItem.goldCost * (1 + level * 0.05));
-    item.desc = `${baseItem.desc} (Crafted at level ${level})`;
     
     return item;
 }
@@ -2369,7 +2413,6 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         const data = JSON.parse(item.item_data);
         if (!data.effect) return res.status(400).json({ error: 'No effect' });
         
-        // Get equipped items to calculate true max HP
         const equippedArray = await getEquippedItemsArray(db, char.id);
         const trueHpMax = calcHpMax(char, equippedArray);
         
@@ -2387,7 +2430,6 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
             message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
             updated = true;
         } else if (data.effect.type === 'temp_stat') {
-            // Store temporary stat boost in session or character state
             message = `+${data.effect.value} ${data.effect.stat} for session.`;
             updated = true;
         } else if (data.effect.type === 'xp') {
@@ -2406,7 +2448,6 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
             updated = true;
         }
         
-        // Remove one use of the consumable
         if (updated) {
             const d = JSON.parse(item.item_data);
             d.qty = (d.qty || 1) - 1;
@@ -2476,7 +2517,6 @@ router.get('/shop/items', auth, async (req, res) => {
         const userLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE user_id=?', [userId]);
         const lastDate = userLastGenRow?.last_date;
         
-        // Always include loot boxes (available regardless of reset)
         const lootBoxes = LOOT_BOXES.map(box => ({
             ...box,
             alwaysAvailable: true
@@ -2499,7 +2539,6 @@ router.get('/shop/items', auth, async (req, res) => {
         
         const potions = getPotionsForLevel(character.level);
         
-        // Combine: potions + loot boxes + equipment
         res.json({ 
             items: [...potions, ...lootBoxes, ...equipmentItems], 
             resetTime: getNextMidnight(lastDate) 
@@ -2597,7 +2636,7 @@ router.get('/matchmaking', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
-// ── Attack ────────────────────────────────────────────────────────────────
+// ── Attack (UPDATED with skill tree passive bonuses) ─────────────────────
 router.post('/attack/:targetId', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -2650,41 +2689,123 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const veteranD = hasPremium(premD, 'warlord') && hasPremium(premD, 'iron_fortress');
         const armorA = calcArmorValue(freshA, equippedA);
         const armorD = calcArmorValue(freshD, equippedD);
+        
+        // ── Skill tree passive bonuses for attacker ─────────────────────────
+        const learnedRowsA = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshA.id]);
+        const learnedIdsA = learnedRowsA.map(r => r.skill_id);
+        const skillPassivesA = computePassiveBonuses(freshA.class, learnedIdsA);
+        const skillActivesA  = computeActiveCombatEffects(freshA.class, learnedIdsA);
+        const skillModsA     = computeClassModifiers(freshA.class, learnedIdsA);
+        
+        // Rogue no-shield agility bonus for attacker
+        let noShieldAgiBonusA = 0;
+        if (freshA.class === 'rogue') {
+            const hasShield = equippedA.some(i => {
+                try { return JSON.parse(i.item_data).slot === 'shield'; } 
+                catch { return false; }
+            });
+            if (!hasShield) noShieldAgiBonusA = 5;
+        }
+        
+        // ── Skill tree passive bonuses for defender ─────────────────────────
+        const learnedRowsD = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshD.id]);
+        const learnedIdsD = learnedRowsD.map(r => r.skill_id);
+        const skillPassivesD = computePassiveBonuses(freshD.class, learnedIdsD);
+        const skillActivesD  = computeActiveCombatEffects(freshD.class, learnedIdsD);
+        const skillModsD     = computeClassModifiers(freshD.class, learnedIdsD);
+        
+        // Rogue no-shield agility bonus for defender
+        let noShieldAgiBonusD = 0;
+        if (freshD.class === 'rogue') {
+            const hasShield = equippedD.some(i => {
+                try { return JSON.parse(i.item_data).slot === 'shield'; } 
+                catch { return false; }
+            });
+            if (!hasShield) noShieldAgiBonusD = 5;
+        }
 
         const fighterA = {
             id: freshA.id, name: freshA.name,
-            hp: hpA, dmgMin: dmgMinA, dmgMax: dmgMaxA, agility: freshA.agility || 0,
-            hit_chance:  freshA.hit_chance  || 0,
-            crit_chance: (freshA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
-            magic: freshA.magic || 0,
-            armor:       armorA + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
+            hp: hpA,
+            dmgMin: dmgMinA + (skillPassivesA.dmg_min || 0),
+            dmgMax: dmgMaxA + (skillPassivesA.dmg_max || 0),
+            strength: (freshA.strength || 0) + (skillPassivesA.strength || 0),
+            agility: (freshA.agility || 0) + (skillPassivesA.agility || 0) + noShieldAgiBonusA,
+            magic: (freshA.magic || 0) + (skillPassivesA.magic || 0),
+            defense: (freshA.defense || 0) + (skillPassivesA.defense || 0),
+            hit_chance: (freshA.hit_chance || 0) + (skillPassivesA.hit_chance || 0) + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
+            crit_chance: (freshA.crit_chance || 0) + (skillPassivesA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
+            armor: armorA + (skillPassivesA.armor || 0) + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
             agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
-            dmg_bonus:   hasPremium(premA, 'warlord') ? 0.15 : 0,
-            hit_bonus:   hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0,
-            elem_dmg:    calcElemDmg(equippedA),
-            elem_resist: calcElemResist(freshA, equippedA),
+            dmg_bonus: (hasPremium(premA, 'warlord') ? 0.15 : 0) + (skillPassivesA.dmg_bonus || 0),
+            elem_dmg: {
+                pyro:    (calcElemDmg(equippedA).pyro    || 0) + (skillPassivesA.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedA).water   || 0) + (skillPassivesA.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedA).wind    || 0) + (skillPassivesA.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedA).electro || 0) + (skillPassivesA.electro_dmg || 0),
+            },
+            elem_resist: {
+                pyro:    (calcElemResist(freshA, equippedA).pyro    || 0) + (skillPassivesA.pyro_resist    || 0),
+                water:   (calcElemResist(freshA, equippedA).water   || 0) + (skillPassivesA.water_resist   || 0),
+                wind:    (calcElemResist(freshA, equippedA).wind    || 0) + (skillPassivesA.wind_resist    || 0),
+                electro: (calcElemResist(freshA, equippedA).electro || 0) + (skillPassivesA.electro_resist || 0),
+            },
+            skillEffects: skillActivesA,
+            skillMods: skillModsA,
             activeSkills: getActiveSkills(freshA),
             attackZones: JSON.parse(freshA.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
-            blockZones:  JSON.parse(freshA.block_zones  || 'null') || DEFAULT_BLOCK_ZONES,
+            blockZones: JSON.parse(freshA.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+            dualWield: freshA.class === 'rogue' && rogueHasDualWield(learnedIdsA),
         };
+        
         const fighterB = {
             id: freshD.id, name: freshD.name,
-            hp: freshD.hp_current ?? hpMaxD, dmgMin: dmgMinD, dmgMax: dmgMaxD, agility: freshD.agility || 0,
-            hit_chance:  freshD.hit_chance  || 0,
-            crit_chance: (freshD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
-            magic: freshD.magic || 0,
-            armor:       armorD + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.01)) : 0),
+            hp: freshD.hp_current ?? hpMaxD,
+            dmgMin: dmgMinD + (skillPassivesD.dmg_min || 0),
+            dmgMax: dmgMaxD + (skillPassivesD.dmg_max || 0),
+            strength: (freshD.strength || 0) + (skillPassivesD.strength || 0),
+            agility: (freshD.agility || 0) + (skillPassivesD.agility || 0) + noShieldAgiBonusD,
+            magic: (freshD.magic || 0) + (skillPassivesD.magic || 0),
+            defense: (freshD.defense || 0) + (skillPassivesD.defense || 0),
+            hit_chance: (freshD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + (hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0),
+            crit_chance: (freshD.crit_chance || 0) + (skillPassivesD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
+            armor: armorD + (skillPassivesD.armor || 0) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.01)) : 0),
             agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.10 : 0,
-            dmg_bonus:   hasPremium(premD, 'warlord') ? 0.15 : 0,
-            hit_bonus:   hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0,
-            elem_dmg:    calcElemDmg(equippedD),
-            elem_resist: calcElemResist(freshD, equippedD),
+            dmg_bonus: (hasPremium(premD, 'warlord') ? 0.15 : 0) + (skillPassivesD.dmg_bonus || 0),
+            elem_dmg: {
+                pyro:    (calcElemDmg(equippedD).pyro    || 0) + (skillPassivesD.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedD).water   || 0) + (skillPassivesD.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedD).wind    || 0) + (skillPassivesD.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedD).electro || 0) + (skillPassivesD.electro_dmg || 0),
+            },
+            elem_resist: {
+                pyro:    (calcElemResist(freshD, equippedD).pyro    || 0) + (skillPassivesD.pyro_resist    || 0),
+                water:   (calcElemResist(freshD, equippedD).water   || 0) + (skillPassivesD.water_resist   || 0),
+                wind:    (calcElemResist(freshD, equippedD).wind    || 0) + (skillPassivesD.wind_resist    || 0),
+                electro: (calcElemResist(freshD, equippedD).electro || 0) + (skillPassivesD.electro_resist || 0),
+            },
+            skillEffects: skillActivesD,
+            skillMods: skillModsD,
             activeSkills: getActiveSkills(freshD),
             attackZones: JSON.parse(freshD.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
-            blockZones:  JSON.parse(freshD.block_zones  || 'null') || DEFAULT_BLOCK_ZONES,
+            blockZones: JSON.parse(freshD.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+            dualWield: freshD.class === 'rogue' && rogueHasDualWield(learnedIdsD),
         };
+        
         const battle = runBattle(fighterA, fighterB);
         const attackerWon = battle.winnerId === freshA.id;
+        
+        // ── Track wins without shield for rogue dual-wield unlock ────────────
+        if (attackerWon && freshA.class === 'rogue') {
+            const hasShield = equippedA.some(i => {
+                try { return JSON.parse(i.item_data).slot === 'shield'; } 
+                catch { return false; }
+            });
+            if (!hasShield) {
+                await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [freshA.id]);
+            }
+        }
+        
         function calculateBattleXP(winnerLevel, loserLevel) {
             const d = loserLevel - winnerLevel;
             if (d <= -5) return -3; if (d <= -3) return -2; if (d <= -2) return -1;
@@ -2728,12 +2849,12 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         } catch (e) { console.error('Failed to send attacker report:', e); }
         const updatedAttacker = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [freshA.id]);
         res.json({ 
-    won: attackerWon, log: battle.log, xpGained, 
-    goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, 
-    leveledUp, character: await buildCharacterResponse(updatedAttacker, db),
-    totalDmgDealt: battle.totalDmgToB,  // ADD
-    totalDmgTaken: battle.totalDmgToA,  // ADD
-});
+            won: attackerWon, log: battle.log, xpGained, 
+            goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, 
+            leveledUp, character: await buildCharacterResponse(updatedAttacker, db),
+            totalDmgDealt: battle.totalDmgToB,
+            totalDmgTaken: battle.totalDmgToA,
+        });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -2858,7 +2979,7 @@ router.delete('/messages/:id', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Dungeon endpoints ─────────────────────────────────────────────────────
+// ── Dungeon endpoints (unchanged, keep as is) ─────────────────────────────
 router.get('/dungeon/data', auth, async (req, res) => {
   try {
     const db = await getDb();
@@ -2989,14 +3110,12 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
     let message = '';
     
     if (loot && typeof loot === 'object') {
-      // Gold reward
       if (loot.gold) {
         await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
           [loot.gold, req.user.userId]);
         message += `💰 +${loot.gold} gold! `;
       }
       
-      // Gem reward (capped at 15)
       if (loot.gems) {
         const cappedGems = Math.min(15, loot.gems);
         await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE user_id = ?', 
@@ -3004,7 +3123,6 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
         message += `💎 +${cappedGems} gems! `;
       }
       
-      // Premium feature reward
       if (loot.premium) {
         const now = Math.floor(Date.now() / 1000);
         let activePrem = {};
@@ -3015,7 +3133,6 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
           }
         } catch {}
         
-        // Add or extend the premium feature
         const currentExpiry = activePrem[loot.premium.id] || 0;
         const newExpiry = Math.max(currentExpiry, now) + (loot.premium.days * 24 * 3600);
         activePrem[loot.premium.id] = newExpiry;
@@ -3027,7 +3144,6 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
       }
     }
 
-    // Update floor progression
     if (newFloor) {
       const hf = highestFloor || newFloor;
       await dbRun(
@@ -3037,7 +3153,6 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
       );
     }
     
-    // Send notification about premium reward
     if (loot?.premium) {
       try {
         const subject = `🎉 Dungeon Boss Defeated - Premium Reward!`;
@@ -3136,7 +3251,7 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
   }
 });
 
-// ── Class Skills ──────────────────────────────────────────────────────────
+// ── Class Skills (the old 5h skills, keep as is) ─────────────────────────
 router.post('/skills/activate', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -3263,14 +3378,12 @@ const fs = require('fs');
 const path = require('path');
 
 // ── Bug Report to Database with Images ────────────────────────────────────
-// ── Bug Report to Database with Images ────────────────────────────────────
 router.post('/bug-report', async (req, res) => {
     try {
         const db = await getDb();
         const report = req.body;
         const timestamp = new Date().toISOString();
         
-        // Insert the report and get the auto-generated ID
         const result = await dbRun(db, `
             INSERT INTO bug_reports (
                 report_timestamp, username, character_name, character_level, character_class,
@@ -3287,10 +3400,8 @@ router.post('/bug-report', async (req, res) => {
             report.screenshot ? 1 : 0
         ]);
         
-        // Get the auto-generated ID
         const bugReportId = result.lastInsertRowid;
         
-        // Save screenshot if exists
         if (report.screenshot) {
             const base64Data = report.screenshot.split(',')[1];
             const mimeMatch = report.screenshot.match(/^data:image\/(\w+);base64,/);
@@ -3318,7 +3429,6 @@ router.post('/bug-report', async (req, res) => {
     }
 });
 
-// ── View Single Screenshot ────────────────────────────────────────────────
 router.get('/bug-report/screenshot/:bugReportId', async (req, res) => {
     try {
         const db = await getDb();
@@ -3340,12 +3450,10 @@ router.get('/bug-report/screenshot/:bugReportId', async (req, res) => {
     }
 });
 
-// ── View All Bug Reports (Admin View) ─────────────────────────────────────
 router.get('/bug-reports/list', async (req, res) => {
     try {
         const db = await getDb();
         
-        // Optional: Add simple password protection
         const password = req.query.password;
         if (password !== 'baisbetterthanbk') {
             return res.status(403).send(`
@@ -3382,7 +3490,6 @@ router.get('/bug-reports/list', async (req, res) => {
             LIMIT 200
         `, []);
         
-        // Simple HTML view
         let html = `
             <!DOCTYPE html>
             <html>
@@ -3581,7 +3688,6 @@ router.get('/bug-reports/list', async (req, res) => {
     }
 });
 
-// ── View Single Screenshot ────────────────────────────────────────────────
 router.get('/bug-report/screenshot/:reportId', async (req, res) => {
     try {
         const db = await getDb();
@@ -3590,12 +3696,9 @@ router.get('/bug-report/screenshot/:reportId', async (req, res) => {
         `, [req.params.reportId]);
         
         if (screenshot && screenshot.image_data) {
-            // Set proper headers for image display
             res.setHeader('Content-Type', screenshot.mime_type);
             res.setHeader('Content-Disposition', 'inline');
             res.setHeader('Cache-Control', 'public, max-age=86400');
-            
-            // Send the image data as buffer
             res.send(Buffer.from(screenshot.image_data));
         } else {
             res.status(404).send(`
@@ -3621,7 +3724,6 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
-        // Apply MP regen first to ensure fresh MP
         await applyMpRegen(db, character.id);
         
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
@@ -3629,12 +3731,10 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
         const activePrem = getActivePremium(freshChar);
         const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
         
-        // Check if player has enough MP (need 60)
         if (currentMp < 60) {
             return res.status(400).json({ error: `Need 60 MP to create a potion. You have ${currentMp}/${mpMax} MP.` });
         }
         
-        // Check inventory for existing Special Mana Potions
         const existingPotions = await dbAll(db, `
             SELECT * FROM inventory 
             WHERE char_id = ? 
@@ -3642,22 +3742,18 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
             AND json_extract(item_data, '$.id') = 'special_mana_potion'
         `, [freshChar.id]);
         
-        // Calculate total quantity of potions
         let totalPotionQty = 0;
         for (const potion of existingPotions) {
             const data = JSON.parse(potion.item_data);
             totalPotionQty += data.qty || 1;
         }
         
-        // Max 5 potions
         if (totalPotionQty >= 5) {
             return res.status(400).json({ error: `You already have ${totalPotionQty}/5 Special Mana Potions. Use some before creating more.` });
         }
         
-        // Deduct 60 MP
         await dbRun(db, 'UPDATE characters SET mission_points = mission_points - 60 WHERE id = ?', [freshChar.id]);
         
-        // Add or update potion
         const potionData = {
             id: 'special_mana_potion',
             name: 'Special Mana Potion',
@@ -3670,13 +3766,11 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
         };
         
         if (existingPotions.length > 0) {
-            // Update existing potion stack
             const existing = existingPotions[0];
             const data = JSON.parse(existing.item_data);
             data.qty = (data.qty || 1) + 1;
             await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(data), existing.id]);
         } else {
-            // Create new potion
             await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', 
                 [freshChar.id, 'consumable', JSON.stringify(potionData)]);
         }
@@ -3697,20 +3791,17 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
 });
 
 // ── Open Loot Box ─────────────────────────────────────────────────────────
-// ── Open Loot Box (by inventory item ID) ───────────────────────────────────
 router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Get the inventory item
         const inventoryItem = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
         if (!inventoryItem) return res.status(404).json({ error: 'Item not found' });
         
         const itemData = JSON.parse(inventoryItem.item_data);
         
-        // Check if it's a loot box
         if (itemData.category !== 'lootbox') {
             return res.status(400).json({ error: 'This item is not a loot box!' });
         }
@@ -3720,10 +3811,8 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
             return res.status(400).json({ error: 'You don\'t have any of this loot box!' });
         }
         
-        // Generate loot based on box type
         const loot = generateLootFromBox(itemData.lootType, char.level);
         
-        // Remove one loot box from inventory
         if (currentQty <= 1) {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inventoryItem.id]);
         } else {
@@ -3731,7 +3820,6 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
             await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), inventoryItem.id]);
         }
         
-        // Add loot to inventory
         const addedItems = [];
         for (const lootItem of loot.items) {
             if (lootItem.stackable) {
@@ -3755,14 +3843,12 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
             addedItems.push(lootItem);
         }
         
-        // Add gems if found
         let gemsFound = 0;
         if (loot.gems > 0) {
             gemsFound = loot.gems;
             await dbRun(db, 'UPDATE characters SET gems=gems+? WHERE id=?', [gemsFound, char.id]);
         }
         
-        // Add gold if found
         let goldFound = 0;
         if (loot.gold > 0) {
             goldFound = loot.gold;
@@ -3785,7 +3871,7 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-// Generate loot based on box type
+
 function generateLootFromBox(boxType, playerLevel) {
     const result = {
         items: [],
@@ -3793,7 +3879,6 @@ function generateLootFromBox(boxType, playerLevel) {
         gold: 0
     };
     
-    // Define possible drops per box type
     const drops = {
         common: {
             itemsCount: 5,
@@ -3871,7 +3956,7 @@ function generateLootFromBox(boxType, playerLevel) {
             ],
             gear: [
                 { quality: 'epic', chance: 0.50, level: playerLevel },
-                { quality: 'legendary', chance: 0.50, level: playerLevel } // Guaranteed legendary
+                { quality: 'legendary', chance: 0.50, level: playerLevel }
             ],
             goldRange: [2000, 5000],
             gemChance: 0.25,
@@ -3881,25 +3966,20 @@ function generateLootFromBox(boxType, playerLevel) {
     
     const boxDrops = drops[boxType];
     
-    // Add gold
-    if (Math.random() < 0.6) { // 60% chance for gold
+    if (Math.random() < 0.6) {
         const goldAmount = Math.floor(Math.random() * (boxDrops.goldRange[1] - boxDrops.goldRange[0] + 1) + boxDrops.goldRange[0]);
         result.gold = goldAmount;
     }
     
-    // Add gems
     if (Math.random() < boxDrops.gemChance) {
         const gemAmount = Math.floor(Math.random() * (boxDrops.gemRange[1] - boxDrops.gemRange[0] + 1) + boxDrops.gemRange[0]);
         result.gems = gemAmount;
     }
     
-    // Generate items
     for (let i = 0; i < boxDrops.itemsCount; i++) {
-        // Decide if item is material or gear
-        const isMaterial = Math.random() < 0.6; // 60% material, 40% gear
+        const isMaterial = Math.random() < 0.6;
         
         if (isMaterial) {
-            // Roll material
             const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
             let roll = Math.random() * totalWeight;
             let selected = boxDrops.materials[0];
@@ -3922,7 +4002,6 @@ function generateLootFromBox(boxType, playerLevel) {
                 rarity: 'common'
             });
         } else {
-            // Roll gear
             let roll = Math.random();
             let selectedQuality = null;
             for (const gear of boxDrops.gear) {
@@ -3934,7 +4013,6 @@ function generateLootFromBox(boxType, playerLevel) {
             }
             
             if (selectedQuality) {
-                // Generate random item of that quality
                 const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
                 const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
                 const item = generateBackendRandomItem(playerLevel, randomType);
@@ -3950,18 +4028,15 @@ function generateLootFromBox(boxType, playerLevel) {
         }
     }
     
-    // For legendary box, guarantee at least one legendary item
     if (boxType === 'legendary') {
         const hasLegendary = result.items.some(item => item.quality === 'legendary');
         if (!hasLegendary) {
-            // Replace a random item with a legendary
             const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
             const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
             const legendaryItem = generateBackendRandomItem(playerLevel, randomType);
             legendaryItem.quality = 'legendary';
             legendaryItem.desc = `👑 ${legendaryItem.desc}`;
             
-            // Replace the first non-legendary item
             const index = result.items.findIndex(i => i.quality !== 'legendary');
             if (index !== -1) {
                 result.items[index] = {
@@ -3980,7 +4055,7 @@ function generateLootFromBox(boxType, playerLevel) {
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const { componentId } = req.body; // The component to use for upgrade
+        const { componentId } = req.body;
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
@@ -3999,7 +4074,6 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             return res.status(400).json({ error: 'Item already at max upgrade level (+5)!' });
         }
         
-        // Check if player has the component
         const component = await dbGet(db, `
             SELECT * FROM inventory 
             WHERE char_id=? AND item_type='component' 
@@ -4022,7 +4096,6 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
         }
         
-        // Deduct component
         if (componentQty <= 1) {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
         } else {
@@ -4030,32 +4103,26 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
         }
         
-        // Apply upgrades
         const upgradedStats = { ...itemData.stats };
         const bonusValue = upgradeValue.bonus;
         
-// Always pick 5 random stats (no tracking)
-let upgradedStatsList = [];
-let statPool = [...POSSIBLE_STATS];
-
-// Shuffle
-for (let i = statPool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
-}
-
-// Pick first 5 stats
-upgradedStatsList = statPool.slice(0, 5);
-
-// Apply bonus
-for (const stat of upgradedStatsList) {
-    const currentValue = upgradedStats[stat] || 0;
-    upgradedStats[stat] = currentValue + bonusValue;
-}
+        let upgradedStatsList = [];
+        let statPool = [...POSSIBLE_STATS];
+        
+        for (let i = statPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
+        }
+        
+        upgradedStatsList = statPool.slice(0, 5);
+        
+        for (const stat of upgradedStatsList) {
+            const currentValue = upgradedStats[stat] || 0;
+            upgradedStats[stat] = currentValue + bonusValue;
+        }
         
         const nextUpgrade = currentUpgrade + 1;
         
-        // Update item
         const upgradedItemData = {
             ...itemData,
             stats: upgradedStats,
@@ -4088,8 +4155,6 @@ for (const stat of upgradedStatsList) {
     }
 });
 
-
-// Helper function for escaping HTML
 function escapeHtml(str) {
     if (!str) return '';
     return str
