@@ -1636,9 +1636,15 @@ router.post('/upgrade', auth, async (req, res) => {
         if (!['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].includes(stat))
             return res.status(400).json({ error: 'Invalid stat' });
         
-        // Apply class upgrade cost modifier from skill tree
+        // Get learned skills for this character
+        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+        const learnedIds = learnedRows.map(r => r.skill_id);
+        
+        // Get base cost
         let cost = upgradeCost(stat, char[stat] || 0, char.class);
-        cost = applyClassUpgradeCostModifier(char.class, stat, cost);
+        
+        // Apply class upgrade cost modifier from skill tree with learned skills
+        cost = applyClassUpgradeCostModifier(char.class, stat, cost, learnedIds);
         
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
         const activePrem = getActivePremium(char);
