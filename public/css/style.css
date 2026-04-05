@@ -1013,7 +1013,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-avatar-center img {
     width: 100%;
     max-width: 180px;
-    height: 240;
+    height: 240px;
     object-fit: contain;
 }
 
