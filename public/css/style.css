@@ -2239,3 +2239,23 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-weight: 600;
     color: #9b59b6;
 }
+/* Skill tree horizontal scroll */
+#skill-tree-root {
+    padding: 16px 0;
+}
+
+#skill-tree-root [style*="overflow-x:auto"] {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+#skill-tree-root [style*="overflow-x:auto"]::-webkit-scrollbar {
+    height: 4px;
+}
+#skill-tree-root [style*="overflow-x:auto"]::-webkit-scrollbar-track {
+    background: transparent;
+}
+#skill-tree-root [style*="overflow-x:auto"]::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+}
