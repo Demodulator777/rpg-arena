@@ -236,26 +236,35 @@ function getShortestPath(from, to) {
 
 // ── API ───────────────────────────────────────────────────────────────────
 async function api(method, path, body=null) {
-    const fullUrl=`/api${path}`;
-    const opts={ method, headers:{'Content-Type':'application/json'} };
-    const storedToken=localStorage.getItem('rpg_token');
-    if (storedToken) opts.headers['Authorization']=`Bearer ${storedToken}`;
-    if (body) opts.body=JSON.stringify(body);
-    console.log(`[API] ${method} ${fullUrl}`, body?body:'');
+    // Don't add /api prefix for skills routes
+    let fullUrl;
+    if (path.startsWith('/skills')) {
+        fullUrl = path;
+    } else {
+        fullUrl = `/api${path}`;
+    }
+    
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const storedToken = localStorage.getItem('rpg_token');
+    if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
+    if (body) opts.body = JSON.stringify(body);
+    console.log(`[API] ${method} ${fullUrl}`, body ? body : '');
+    
     try {
-        const res=await fetch(fullUrl,opts);
+        const res = await fetch(fullUrl, opts);
         console.log(`[API] ${method} ${fullUrl} → ${res.status}`);
-        const text=await res.text();
+        const text = await res.text();
         if (!res.ok) {
-            console.error('[API ERROR]',res.status,text.substring(0,300));
+            console.error('[API ERROR]', res.status, text.substring(0, 300));
             let errMsg;
-            try { const ed=JSON.parse(text); errMsg=ed.error||`HTTP ${res.status}`; } catch { errMsg=text.trim()||`Request failed (${res.status})`; }
+            try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; } 
+            catch { errMsg = text.trim() || `Request failed (${res.status})`; }
             throw new Error(errMsg);
         }
         if (!text.trim()) { console.warn('[API] Empty response body'); return {}; }
-        try { const data=JSON.parse(text); console.log('[API] Response parsed:',data); return data; }
-        catch (pe) { console.error('[API] JSON parse failed:',pe,'Raw:',text.substring(0,200)); throw new Error('Invalid response from server'); }
-    } catch (err) { console.error('[API FAIL]',method,fullUrl,err); throw err; }
+        try { const data = JSON.parse(text); console.log('[API] Response parsed:', data); return data; }
+        catch (pe) { console.error('[API] JSON parse failed:', pe, 'Raw:', text.substring(0, 200)); throw new Error('Invalid response from server'); }
+    } catch (err) { console.error('[API FAIL]', method, fullUrl, err); throw err; }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
