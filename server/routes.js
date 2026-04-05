@@ -95,17 +95,19 @@ const CLASSES = {
     paladin:  { strength:12, defense:16, agility:8,  magic:12, hp_max:120 },
 };
 const CLASS_DISCOUNTS = {
+    // Positive = discount (benefit), Negative = penalty
     warrior:  { strength:0.30, defense:0.15, agility:0,    magic:0,    vitality:0.10 },
-    mage:     { strength:0,    defense:0,    agility:0.10, magic:0.35, vitality:0    },
-    rogue:    { strength:0.10, defense:0,    agility:0.35, magic:0,    vitality:0    },
-    paladin:  { strength:0.10, defense:0.25, agility:0,    magic:0.20, vitality:0.15 },
+    mage:     { strength:-0.50, defense:-0.30, agility:0.10, magic:0.35, vitality:0    },  // -50% = +50% cost
+    rogue:    { strength:0.10, defense:-0.30, agility:0.35, magic:-0.20, vitality:0    },  // -30% defense cost penalty
+    paladin:  { strength:-0.20, defense:0.25, agility:-0.60, magic:0.20, vitality:0.15 },  // -60% agility cost penalty
 };
 const UPGRADE_BASE = 5;
 const UPGRADE_EXPONENT = 1.705;
 function upgradeCost(stat, currentVal, charClass) {
     const raw = Math.floor(UPGRADE_BASE * Math.pow(currentVal, UPGRADE_EXPONENT));
-    const discount = CLASS_DISCOUNTS[charClass]?.[stat] || 0;
-    return Math.max(10, Math.floor(raw * (1 - discount)));
+    let modifier = CLASS_DISCOUNTS[charClass]?.[stat] || 0;
+    // modifier can be negative (penalty) or positive (discount)
+    return Math.max(10, Math.floor(raw * (1 - modifier)));
 }
 
 // ── Component Upgrade Values ─────────────────────────────────────────────
