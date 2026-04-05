@@ -1013,7 +1013,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-avatar-center img {
     width: 100%;
     max-width: 180px;
-    height: auto;
+    height: 240;
     object-fit: contain;
 }
 
@@ -1034,7 +1034,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     
     .eq-avatar-center img {
-        max-width: 110px;
+        max-width: 180px;
     }
     
     .eq-slot-label {
@@ -1057,7 +1057,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     
     .eq-avatar-center img {
-        max-width: 160px;
+        max-width: 180px;
     }
     
     /* Hide labels on very small screens */
