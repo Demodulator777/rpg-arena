@@ -59,6 +59,14 @@ function renderSkillTreeUI(root) {
                 <div><span style="color:var(--gold)">💰 ${(character.gold||0).toLocaleString()}</span></div>
                 <div style="margin-top:3px">${learned.length} skill${learned.length!==1?'s':''} learned</div>
             </div>
+        </div>
+        
+        <!-- DISCOVERY MESSAGE - ADD THIS HERE -->
+        <div style="padding:8px 14px;border-radius:8px;background:rgba(155,89,182,0.08);
+                  border:1px solid rgba(155,89,182,0.25);margin-bottom:14px;font-size:0.72rem;
+                  color:rgba(255,255,255,0.5);text-align:center">
+            🔍 <strong>Discovery-based skill tree</strong> — Only trainable skills are visible. 
+            Experiment to uncover hidden paths!
         </div>`;
 
     // ── Class stat modifier notice ─────────────────────────────────────────────
@@ -197,43 +205,50 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass) {
 
 // ── Skill card ────────────────────────────────────────────────────────────────
 function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
-    const learned  = sk.learned;
-    const locked   = sk.locked;
+    const learned = sk.learned;
+    const trainable = sk.trainable;
+    const locked = sk.locked;
     const training = activeTraining?.skill_id === sk.id;
-    const canTrain = !learned && !locked && !activeTraining;
-
+    
     let borderColor, bgColor, labelColor;
-    if (learned)       { borderColor = branchColor;                    bgColor = `${branchColor}18`; labelColor = branchColor; }
-    else if (training) { borderColor = '#f1c40f';                      bgColor = 'rgba(241,196,15,0.08)'; labelColor = '#f1c40f'; }
-    else if (locked)   { borderColor = 'rgba(255,255,255,0.06)';       bgColor = 'rgba(255,255,255,0.02)'; labelColor = 'rgba(255,255,255,0.2)'; }
-    else               { borderColor = `${branchColor}55`;             bgColor = `${branchColor}08`; labelColor = 'rgba(255,255,255,0.75)'; }
+    if (learned) {
+        borderColor = branchColor;
+        bgColor = `${branchColor}18`;
+        labelColor = branchColor;
+    } else if (training) {
+        borderColor = '#f1c40f';
+        bgColor = 'rgba(241,196,15,0.08)';
+        labelColor = '#f1c40f';
+    } else if (trainable) {
+        borderColor = `${branchColor}88`;
+        bgColor = `${branchColor}08`;
+        labelColor = 'rgba(255,255,255,0.75)';
+    } else {
+        // Locked/unknown skill - show as mystery
+        borderColor = 'rgba(255,255,255,0.06)';
+        bgColor = 'rgba(255,255,255,0.02)';
+        labelColor = 'rgba(255,255,255,0.2)';
+    }
 
-    // Effect summary line
-    const effectSummary = stEffectSummary(sk.effects || []);
+    // For locked/unseen skills, show mystery text
+    const displayName = locked && !learned ? '???' : sk.name;
+    const displayDesc = locked && !learned ? 'Unknown skill. Train previous skills to discover.' : sk.desc;
+    const displayEmoji = locked && !learned ? '❓' : (sk.emoji || '⚔️');
 
-    // Cost display
+    // Effect summary - hide for locked skills
+    const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) : '';
+
+    // Cost display - hide for locked skills
     let costHtml = '';
-    if (!learned && !training) {
+    if (!learned && !training && trainable) {
         costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
-            💰 ${(sk.goldCost||0).toLocaleString()}`;
+            💰 ${(sk.goldCost || 0).toLocaleString()}`;
         const mats = sk.materials || {};
-        const matStrs = Object.entries(mats).filter(([,v])=>v).map(([k,v]) => `${v}× ${k.replace(/_/g,' ')}`);
+        const matStrs = Object.entries(mats).filter(([, v]) => v).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
         if (matStrs.length) costHtml += ` · ${matStrs.join(', ')}`;
         costHtml += `</div>`;
-    }
-
-    // Train duration
-    let durStr = '';
-    if (!learned && !training && sk.trainDuration) {
-        durStr = `<div style="font-size:0.6rem;color:rgba(255,255,255,0.25);margin-top:2px">⏱ ${stFormatTime(sk.trainDuration)}</div>`;
-    }
-
-    // Unlock condition hint
-    let condHtml = '';
-    if (!learned && sk.unlockConditionDesc && !sk.condMet) {
-        condHtml = `<div style="font-size:0.6rem;color:#e74c3c;margin-top:4px">🔒 ${sk.unlockConditionDesc}</div>`;
-    } else if (!learned && sk.unlockConditionDesc && sk.condMet) {
-        condHtml = `<div style="font-size:0.6rem;color:#2ecc71;margin-top:4px">✅ ${sk.unlockConditionDesc}</div>`;
+    } else if (locked) {
+        costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.15);margin-top:3px">???</div>`;
     }
 
     // Button
@@ -242,16 +257,7 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
     } else if (training) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:#f1c40f;margin-top:8px">⏳ TRAINING…</div>`;
-    } else if (sk.exclusiveLocked) {
-        btnHtml = `<div style="text-align:center;font-size:0.6rem;color:rgba(255,255,255,0.25);margin-top:8px">Path locked</div>`;
-    } else if (!sk.prereqsMet) {
-        const missing = (sk.requires||[]).join(', ').replace(/_/g,' ');
-        btnHtml = `<div style="text-align:center;font-size:0.6rem;color:rgba(255,255,255,0.25);margin-top:8px">Requires: ${missing}</div>`;
-    } else if (!sk.condMet) {
-        btnHtml = `<div style="text-align:center;font-size:0.6rem;color:#e74c3c;margin-top:8px">Condition not met</div>`;
-    } else if (activeTraining && !training) {
-        btnHtml = `<div style="text-align:center;font-size:0.6rem;color:rgba(255,255,255,0.25);margin-top:8px">Finish current training first</div>`;
-    } else {
+    } else if (trainable) {
         btnHtml = `<button onclick="stStartTrain('${sk.id}','${branchId}')"
             style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid ${branchColor}66;
                    background:${branchColor}18;color:${branchColor};font-size:0.68rem;font-weight:700;
@@ -260,27 +266,23 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
             onmouseleave="this.style.background='${branchColor}18'">
             ⚔️ Train
         </button>`;
+    } else {
+        btnHtml = `<div style="text-align:center;font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:8px">???</div>`;
     }
 
     return `
     <div style="min-width:150px;max-width:170px;flex-shrink:0;
                 border:1px solid ${borderColor};border-radius:10px;
-                background:${bgColor};padding:12px;
-                opacity:${locked&&!learned?'0.55':'1'};transition:opacity 0.2s;
-                position:relative">
-        <div style="text-align:center;font-size:2rem;margin-bottom:6px;line-height:1">${sk.emoji||'⚔️'}</div>
-        <div style="font-size:0.74rem;font-weight:700;color:${labelColor};text-align:center;line-height:1.2;margin-bottom:5px">${sk.name}</div>
-        <div style="font-size:0.64rem;color:rgba(255,255,255,0.4);line-height:1.35;margin-bottom:4px">${sk.desc}</div>
+                background:${bgColor};padding:12px;position:relative">
+        <div style="text-align:center;font-size:2rem;margin-bottom:6px;line-height:1">${displayEmoji}</div>
+        <div style="font-size:0.74rem;font-weight:700;color:${labelColor};text-align:center;line-height:1.2;margin-bottom:5px">${displayName}</div>
+        <div style="font-size:0.64rem;color:rgba(255,255,255,0.4);line-height:1.35;margin-bottom:4px">${displayDesc}</div>
         ${effectSummary ? `<div style="font-size:0.6rem;color:${branchColor};margin-top:4px;font-weight:600">${effectSummary}</div>` : ''}
         ${costHtml}
-        ${durStr}
-        ${condHtml}
         ${btnHtml}
-        <div style="position:absolute;top:6px;right:6px;font-size:0.55rem;
-                    color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>
+        ${!locked && sk.tier ? `<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>` : ''}
     </div>`;
 }
-
 // ── Arrow connector ───────────────────────────────────────────────────────────
 function renderConnector(prevSk, nextSk) {
     const bothLearned = prevSk.learned && nextSk.learned;
