@@ -1334,8 +1334,8 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}) 
     const result = { ...tree, branches: {} };
 
     for (const [branchId, branch] of Object.entries(tree.branches)) {
+        // Skip completely hidden branches (like dual_wielder) until unlocked
         if (branch.hidden) {
-            // Only reveal if any skill in the branch is unlockable
             const anyVisible = Object.values(branch.skills).some(sk =>
                 meetsUnlockCondition(char, sk.unlockCondition, extraStats)
             );
@@ -1343,38 +1343,52 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}) 
         }
 
         const enrichedSkills = {};
+        let hasVisibleSkill = false;
+
         for (const [skId, sk] of Object.entries(branch.skills)) {
-            const learned     = !!learnedMap[skId];
-            const prereqsMet  = sk.requires.every(r => !!learnedMap[r]);
-            const condMet     = meetsUnlockCondition(char, sk.unlockCondition, extraStats);
-            const locked      = !prereqsMet || !condMet;
-
-            // Exclusive branch check
-            let exclusiveLocked = false;
-            if (branch.exclusive_with && learnedMap) {
-                const oppBranch = tree.branches[branch.exclusive_with];
-                if (oppBranch) {
-                    exclusiveLocked = Object.keys(oppBranch.skills).some(s => !!learnedMap[s]);
-                }
-            }
-
+            const learned = !!learnedMap[skId];
+            const prereqsMet = sk.requires.every(r => !!learnedMap[r]);
+            const condMet = meetsUnlockCondition(char, sk.unlockCondition, extraStats);
+            
+            // Only show if: learned OR (prereqsMet AND condMet)
+            const isVisible = learned || (prereqsMet && condMet);
+            
+            if (!isVisible) continue; // Skip hidden skills completely
+            
+            hasVisibleSkill = true;
+            
+            // Check if trainable (not learned, prereqs met, cond met, no active training)
+            const trainable = !learned && prereqsMet && condMet;
+            
+            // For locked future skills, don't show what the requirement is
+            const isLocked = !learned && !trainable;
+            
             enrichedSkills[skId] = {
                 ...sk,
                 learned,
-                locked: locked || exclusiveLocked,
+                trainable: trainable && !hasActiveTraining,
+                locked: isLocked,
+                // Don't reveal unlock conditions or prerequisites for locked skills
+                hiddenPrereqs: isLocked,
                 prereqsMet,
                 condMet,
-                exclusiveLocked,
-                unlockConditionDesc: sk.unlockCondition ? (UNLOCK_CONDITIONS[sk.unlockCondition]?.desc ?? '') : null,
+                unlockConditionDesc: isLocked ? '???' : (sk.unlockConditionDesc || null),
             };
         }
 
-        result.branches[branchId] = { ...branch, skills: enrichedSkills };
+        // Only show branch if it has at least one visible skill
+        if (hasVisibleSkill) {
+            result.branches[branchId] = { 
+                ...branch, 
+                skills: enrichedSkills,
+                // Hide branch description until first skill is learned
+                description: learnedMap[Object.keys(branch.skills)[0]] ? branch.description : '???'
+            };
+        }
     }
 
     return result;
 }
-
 /**
  * Aggregate all passive bonuses from a character's learned skills.
  * Returns an object of stat→bonus suitable for adding to the character sheet.
