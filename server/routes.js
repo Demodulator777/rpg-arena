@@ -1,6 +1,8 @@
 const express = require('express');
 const { getDb } = require('./db');
 const auth = require('./middleware');
+const skillsModule = require('./skills');
+app.use('/skills', auth, skillsModule.router);
 const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 
 BigInt.prototype.toJSON = function() { return Number(this); };
@@ -63,6 +65,10 @@ const GUILD_EXCHANGES = [
             expires_at INTEGER,
             PRIMARY KEY (attacker_id, defender_id)
         )`, args: [] });
+        const { SKILL_TREE_MIGRATIONS } = require('./skills');
+for (const sql of SKILL_TREE_MIGRATIONS) {
+    try { await db.execute({ sql, args: [] }); } catch {}
+}
         console.log('✅ DB migrations applied');
     } catch (e) { console.error('Migration error:', e.message); }
 })();
