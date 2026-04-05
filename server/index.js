@@ -9,28 +9,24 @@ const { getDb } = require('./db');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
 
-// Import the skills module
+// Import middleware and modules
+const auth = require('./middleware');  // This is your middleware
 const skillsModule = require('./skills');
-const auth = require('./auth');  // Make sure auth is exported from auth.js
 
 // Init DB first, then start server
 getDb().then(() => {
-  // Mount routes in correct order - API routes FIRST
+  // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes'));
   
-  // Mount skills router - this is CRITICAL and must be BEFORE the catch-all
-  // Note: auth middleware needs to be properly imported
+  // Mount skills router with auth middleware
   app.use('/skills', auth, skillsModule.router);
   
-  // Optional: Add a test route to verify skills router is working
-  app.get('/skills-test', (req, res) => {
-    res.json({ message: 'Skills router test - if you see this, server is working' });
-  });
-
-  // Catch-all route for SPA - must be LAST
+  // Static files - AFTER API routes
+  app.use(express.static(path.join(__dirname, '../public')));
+  
+  // Catch-all route for SPA - MUST BE LAST
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
   });
