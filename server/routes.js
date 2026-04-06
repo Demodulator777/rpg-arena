@@ -1899,7 +1899,9 @@ router.post('/missions/collect', auth, async (req, res) => {
         }
         
         const playerFighter = {
-            id: freshChar.id, name: freshChar.name,
+            id: freshChar.id,
+            name: freshChar.name,
+            class: freshChar.class,  // ADD CLASS FOR MAGE PENALTY
             hp: hpCurrent,
             dmgMin: dmgMin + (skillPassives.dmg_min || 0),
             dmgMax: dmgMax + (skillPassives.dmg_max || 0),
@@ -1930,7 +1932,11 @@ router.post('/missions/collect', auth, async (req, res) => {
             dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
         };
         
+        // Build NPC and override its name with the mission name
         const npc = buildNpc(mission.difficulty, freshChar.level);
+        npc.name = mission.mission_name;  // OVERRIDE WITH MISSION NAME
+        npc.class = 'npc';  // Add class for mage penalty check (not a mage)
+        
         const battle = runBattle(playerFighter, npc);
         const playerWon = battle.winnerId === freshChar.id;
         
@@ -1972,32 +1978,32 @@ router.post('/missions/collect', auth, async (req, res) => {
         }
         
         const drops = [];
-const matsByZone = {
-    forest: [
-        { id:'wood', emoji:'🪵', name:'Wood' },
-        { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
-        { id:'herbs', emoji:'🌿', name:'Herbs' }
-    ],
-    swamp: [
-        { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' },
-        { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
-        { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
-    ],
-    mountains: [
-        { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
-        { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
-        { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
-    ],
-    ruins: [
-        { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
-        { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' },
-        { id:'void_shard', emoji:'🌑', name:'Void Shard' }
-    ],
-    dark_city: [
-        { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
-        { id:'demon_core', emoji:'👹', name:'Demon Core' }
-    ],
-};
+        const matsByZone = {
+            forest: [
+                { id:'wood', emoji:'🪵', name:'Wood' },
+                { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
+                { id:'herbs', emoji:'🌿', name:'Herbs' }
+            ],
+            swamp: [
+                { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' },
+                { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
+                { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
+            ],
+            mountains: [
+                { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
+                { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
+                { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
+            ],
+            ruins: [
+                { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
+                { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' },
+                { id:'void_shard', emoji:'🌑', name:'Void Shard' }
+            ],
+            dark_city: [
+                { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+                { id:'demon_core', emoji:'👹', name:'Demon Core' }
+            ],
+        };
         const mats = matsByZone[mission.zone] || matsByZone.forest;
         const dropChance = playerWon ? 0.6 : 0.2;
         for (const mat of mats) {
@@ -2017,26 +2023,35 @@ const matsByZone = {
         
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, npc.name, JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned]);
+                [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, mission.mission_name, JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned]);
         } catch {}
         
         try {
             const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`;
-            const payload = JSON.stringify({ log: battle.log, won: playerWon, goldEarned, xpEarned, type: 'mission', npcName: npc.name });
+            const payload = JSON.stringify({ 
+                log: battle.log, 
+                won: playerWon, 
+                goldEarned, 
+                xpEarned, 
+                type: 'mission', 
+                npcName: mission.mission_name,
+                missionName: mission.mission_name
+            });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
         } catch {}
         
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
-res.json({
-    success: true, won: playerWon, battleLog: battle.log,
-    message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
-    goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
-    drops, hpRemaining: newHp,
-    activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
-    character: await buildCharacterResponse(updatedChar, db),
-    totalDmgDealt: battle.totalDmgToB,
-    totalDmgTaken: battle.totalDmgToA,
-});
+        res.json({
+            success: true, won: playerWon, battleLog: battle.log,
+            message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
+            goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
+            drops, hpRemaining: newHp,
+            activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
+            character: await buildCharacterResponse(updatedChar, db),
+            totalDmgDealt: battle.totalDmgToB,
+            totalDmgTaken: battle.totalDmgToA,
+            missionName: mission.mission_name,  // ADD MISSION NAME TO RESPONSE
+        });
     } catch (e) {
         console.error('Mission collect error:', e);
         res.status(500).json({ error: e.message });
