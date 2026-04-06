@@ -982,6 +982,25 @@ function renderUpgrade() {
     }).join('');
 }
 
+let _upgradingStats = {};
+async function upgradestat(stat) {
+    if (_upgradingStats[stat]) return;
+    _upgradingStats[stat] = true;
+    document.querySelectorAll('.btn-upgrade').forEach(b => b.disabled = true);
+    try {
+        const d = await api('POST', '/game/upgrade', { stat });
+        character = d.character;
+        renderUpgrade();
+        renderCharacter();
+        showMsg('upgrade-msg', d.message);
+    } catch(e) {
+        showMsg('upgrade-msg', e.message, true);
+        renderUpgrade();
+    } finally {
+        _upgradingStats[stat] = false;
+    }
+}
+
 // ── Event Banner Helper ───────────────────────────────────────────────────
 function renderEventBanner(containerId) {
     const el=document.getElementById(containerId); if(!el) return;
