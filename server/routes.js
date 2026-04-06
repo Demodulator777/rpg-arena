@@ -4159,6 +4159,171 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     }
 });
 
+// ── Exchange Legendary Fragments for Materials ─────────────────────────────
+const MATERIAL_EXCHANGES = {
+    // Common materials (tier 1)
+    wood: { name: 'Wood', emoji: '🪵', rarity: 1, fragmentCost: 5 },
+    iron_ore: { name: 'Iron Ore', emoji: '⛏️', rarity: 1, fragmentCost: 5 },
+    wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', rarity: 1, fragmentCost: 5 },
+    herbs: { name: 'Herbs', emoji: '🌿', rarity: 1, fragmentCost: 5 },
+    
+    // Uncommon materials (tier 2)
+    poison_gland: { name: 'Poison Gland', emoji: '🧪', rarity: 2, fragmentCost: 10 },
+    swamp_crystal: { name: 'Swamp Crystal', emoji: '💎', rarity: 2, fragmentCost: 10 },
+    frost_essence: { name: 'Frost Essence', emoji: '❄️', rarity: 2, fragmentCost: 10 },
+    mithril_ore: { name: 'Mithril Ore', emoji: '✨', rarity: 2, fragmentCost: 10 },
+    
+    // Rare materials (tier 3)
+    dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: '🐉', rarity: 3, fragmentCost: 15 },
+    arcane_dust: { name: 'Arcane Dust', emoji: '🌟', rarity: 3, fragmentCost: 15 },
+    rune_fragment: { name: 'Rune Fragment', emoji: '🔮', rarity: 3, fragmentCost: 15 },
+    void_shard: { name: 'Void Shard', emoji: '🌑', rarity: 3, fragmentCost: 15 },
+    
+    // Epic materials (tier 4)
+    shadow_essence: { name: 'Shadow Essence', emoji: '👁️', rarity: 4, fragmentCost: 20 },
+    demon_core: { name: 'Demon Core', emoji: '💀', rarity: 4, fragmentCost: 20 },
+    legendary_fragment: { name: 'Legendary Fragment', emoji: '⭐', rarity: 4, fragmentCost: 20 }, // Exchange fragments for more fragments? No, skip this
+    
+    // Legendary materials (tier 5)
+    void_crystal: { name: 'Void Crystal', emoji: '🔮', rarity: 5, fragmentCost: 25 },
+    shadow_weave: { name: 'Shadow Weave', emoji: '🌙', rarity: 5, fragmentCost: 25 },
+    demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', rarity: 5, fragmentCost: 25 },
+};
+
+router.post('/exchange/fragments', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { materialId, quantity = 1 } = req.body;
+        
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const exchange = MATERIAL_EXCHANGES[materialId];
+        if (!exchange) return res.status(400).json({ error: 'Invalid material for exchange' });
+        
+        // Calculate total fragment cost
+        const totalFragmentsNeeded = exchange.fragmentCost * quantity;
+        
+        // Check if player has enough legendary fragments
+        const fragmentItem = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? AND item_type = 'component' 
+            AND json_extract(item_data, '$.id') = 'legendary_fragment'
+        `, [char.id]);
+        
+        let availableFragments = 0;
+        if (fragmentItem) {
+            const fragmentData = JSON.parse(fragmentItem.item_data);
+            availableFragments = fragmentData.qty || 1;
+        }
+        
+        if (availableFragments < totalFragmentsNeeded) {
+            return res.status(400).json({ 
+                error: `Need ${totalFragmentsNeeded} Legendary Fragments, you have ${availableFragments}` 
+            });
+        }
+        
+        // Deduct legendary fragments
+        if (fragmentItem) {
+            const fragmentData = JSON.parse(fragmentItem.item_data);
+            const newQty = (fragmentData.qty || 1) - totalFragmentsNeeded;
+            
+            if (newQty <= 0) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [fragmentItem.id]);
+            } else {
+                fragmentData.qty = newQty;
+                await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', 
+                    [JSON.stringify(fragmentData), fragmentItem.id]);
+            }
+        }
+        
+        // Add the requested material
+        const existingMat = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? AND item_type = 'raw_mat' 
+            AND json_extract(item_data, '$.id') = ?
+        `, [char.id, materialId]);
+        
+        if (existingMat) {
+            const matData = JSON.parse(existingMat.item_data);
+            matData.qty = (matData.qty || 1) + quantity;
+            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', 
+                [JSON.stringify(matData), existingMat.id]);
+        } else {
+            const newMaterial = {
+                id: materialId,
+                name: exchange.name,
+                emoji: exchange.emoji,
+                qty: quantity,
+                rarity: exchange.rarity === 1 ? 'common' : exchange.rarity === 2 ? 'uncommon' : exchange.rarity === 3 ? 'rare' : exchange.rarity === 4 ? 'epic' : 'legendary'
+            };
+            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', 
+                [char.id, 'raw_mat', JSON.stringify(newMaterial)]);
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        
+        res.json({
+            success: true,
+            message: `Exchanged ${totalFragmentsNeeded} Legendary Fragments for ${quantity}x ${exchange.name}!`,
+            character: await buildCharacterResponse(updatedChar, db),
+            materialId,
+            quantity,
+            fragmentsSpent: totalFragmentsNeeded
+        });
+        
+    } catch (e) {
+        console.error('Exchange error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Get available exchanges
+router.get('/exchange/fragments/list', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        // Get player's legendary fragment count
+        const fragmentItem = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? AND item_type = 'component' 
+            AND json_extract(item_data, '$.id') = 'legendary_fragment'
+        `, [char.id]);
+        
+        let fragmentCount = 0;
+        if (fragmentItem) {
+            const fragmentData = JSON.parse(fragmentItem.item_data);
+            fragmentCount = fragmentData.qty || 1;
+        }
+        
+        // Group materials by rarity
+        const exchanges = {};
+        for (const [id, data] of Object.entries(MATERIAL_EXCHANGES)) {
+            if (id === 'legendary_fragment') continue; // Skip self-exchange
+            const rarity = data.rarity;
+            if (!exchanges[rarity]) exchanges[rarity] = [];
+            exchanges[rarity].push({
+                id,
+                name: data.name,
+                emoji: data.emoji,
+                fragmentCost: data.fragmentCost,
+                canAfford: fragmentCount >= data.fragmentCost
+            });
+        }
+        
+        res.json({
+            success: true,
+            fragmentCount,
+            exchanges
+        });
+    } catch (e) {
+        console.error('Exchange list error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 function escapeHtml(str) {
     if (!str) return '';
     return str
