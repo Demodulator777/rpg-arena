@@ -796,115 +796,115 @@ function runBattle(fighterA, fighterB) {
 }
 
 function buildNpc(difficulty, playerLevel) {
-    // Base configs scaled for actual player power
+    // Base configs - NPCs need to be MUCH stronger
     const configs = {
         easy: { 
-            // Easy: Should be beatable but not trivial (player should win ~80% of the time)
-            hpBase: 80, hpScale: 15,           // Level 10 = 230 HP, Level 50 = 830 HP
-            atkMin: 15, atkMax: 25,            // Level 10 = 15-25, Level 50 = 45-65
-            agiBase: 10, agiScale: 0.5,        // Level 10 = 15, Level 50 = 35
-            magicBase: 8, magicScale: 0.4,
-            vitalityBase: 8, vitalityScale: 0.4,
-            hit_chance_base: 75, hit_chance_scale: 0.3,
-            crit_chance_base: 5, crit_chance_scale: 0.15,
-            name: 'Marauder',
-            elem_dmg_chance: 0.1,
-            elem_resist_chance: 0.1,
-            armor_base: 5, armor_scale: 0.3,    // Level 10 = 8 armor, Level 50 = 20 armor
-        },
-        medium: { 
-            // Medium: Challenging, requires decent gear (player ~50% win rate)
-            hpBase: 150, hpScale: 25,          // Level 10 = 400 HP, Level 50 = 1400 HP
-            atkMin: 25, atkMax: 40,            // Level 10 = 25-40, Level 50 = 65-90
-            agiBase: 15, agiScale: 0.8,        // Level 10 = 23, Level 50 = 55
+            // Easy: Still beatable, but can hurt if player isn't careful
+            hpBase: 100, hpScale: 20,           // Level 10 = 300 HP
+            atkMin: 25, atkMax: 40,             // Level 10 = 25-40 damage
+            agiBase: 15, agiScale: 0.8,         
             magicBase: 12, magicScale: 0.6,
             vitalityBase: 12, vitalityScale: 0.6,
-            hit_chance_base: 82, hit_chance_scale: 0.4,
-            crit_chance_base: 8, crit_chance_scale: 0.25,
-            name: 'Warlord',
-            elem_dmg_chance: 0.25,
-            elem_resist_chance: 0.25,
-            armor_base: 12, armor_scale: 0.5,   // Level 10 = 17 armor, Level 50 = 37 armor
+            hit_chance_base: 85, hit_chance_scale: 0.5,
+            crit_chance_base: 10, crit_chance_scale: 0.3,
+            name: 'Brute',
+            elem_dmg_chance: 0.2,
+            elem_resist_chance: 0.2,
+            armor_base: 10, armor_scale: 0.5,
         },
-        hard: { 
-            // Hard: Very difficult, requires optimized build (player ~30% win rate)
-            hpBase: 250, hpScale: 40,          // Level 10 = 650 HP, Level 50 = 2250 HP
-            atkMin: 40, atkMax: 60,            // Level 10 = 40-60, Level 50 = 80-110
-            agiBase: 20, agiScale: 1.0,        // Level 10 = 30, Level 50 = 70
+        medium: { 
+            // Medium: Significant threat
+            hpBase: 200, hpScale: 35,           // Level 10 = 550 HP
+            atkMin: 40, atkMax: 65,             // Level 10 = 40-65 damage
+            agiBase: 20, agiScale: 1.0,         
             magicBase: 18, magicScale: 0.8,
             vitalityBase: 18, vitalityScale: 0.8,
-            hit_chance_base: 88, hit_chance_scale: 0.5,
-            crit_chance_base: 12, crit_chance_scale: 0.35,
+            hit_chance_base: 90, hit_chance_scale: 0.6,
+            crit_chance_base: 15, crit_chance_scale: 0.4,
+            name: 'Overlord',
+            elem_dmg_chance: 0.35,
+            elem_resist_chance: 0.35,
+            armor_base: 20, armor_scale: 0.8,
+        },
+        hard: { 
+            // Hard: Very dangerous - requires strategy and good gear
+            hpBase: 350, hpScale: 55,           // Level 10 = 900 HP
+            atkMin: 60, atkMax: 95,             // Level 10 = 60-95 damage
+            agiBase: 25, agiScale: 1.2,         
+            magicBase: 25, magicScale: 1.0,
+            vitalityBase: 25, vitalityScale: 1.0,
+            hit_chance_base: 95, hit_chance_scale: 0.7,
+            crit_chance_base: 20, crit_chance_scale: 0.5,
             name: 'Legion Commander',
-            elem_dmg_chance: 0.4,
-            elem_resist_chance: 0.4,
-            armor_base: 20, armor_scale: 0.8,   // Level 10 = 28 armor, Level 50 = 60 armor
+            elem_dmg_chance: 0.5,
+            elem_resist_chance: 0.5,
+            armor_base: 30, armor_scale: 1.0,
         },
     };
     
     const cfg = configs[difficulty] || configs.easy;
     
-    // Calculate stats with aggressive scaling
+    // Calculate stats
     const hp = Math.floor(cfg.hpBase + (playerLevel * cfg.hpScale));
-    const dmgMin = Math.floor(cfg.atkMin + (playerLevel * 0.8));
-    const dmgMax = Math.floor(cfg.atkMax + (playerLevel * 1.2));
+    const dmgMin = Math.floor(cfg.atkMin + (playerLevel * 1.2));
+    const dmgMax = Math.floor(cfg.atkMax + (playerLevel * 1.8));
     const agility = Math.floor(cfg.agiBase + (playerLevel * cfg.agiScale));
     const magic = Math.floor(cfg.magicBase + (playerLevel * cfg.magicScale));
     const vitality = Math.floor(cfg.vitalityBase + (playerLevel * cfg.vitalityScale));
-    const hit_chance = Math.min(95, Math.floor(cfg.hit_chance_base + (playerLevel * cfg.hit_chance_scale)));
-    const crit_chance = Math.min(35, Math.floor(cfg.crit_chance_base + (playerLevel * cfg.crit_chance_scale)));
+    const hit_chance = Math.min(98, Math.floor(cfg.hit_chance_base + (playerLevel * cfg.hit_chance_scale)));
+    const crit_chance = Math.min(45, Math.floor(cfg.crit_chance_base + (playerLevel * cfg.crit_chance_scale)));
     const armor = Math.floor(cfg.armor_base + (playerLevel * cfg.armor_scale));
     
-    // Generate random attack zones - completely random
+    // Generate random attack zones
     const allAttackZones = ['head', 'throat', 'chest', 'heart', 'solar_plexus', 'stomach', 'left_arm', 'right_arm', 'left_leg', 'right_leg'];
     const attackZones = [];
     for (let i = 0; i < 10; i++) {
         attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
     }
     
-    // Generate random block zones - completely random
+    // Generate random block zones
     const allBlockZones = ['high_guard', 'cross_guard', 'mid_guard', 'left_guard', 'right_guard', 'full_turtle', 'weave_left', 'weave_right', 'counter_stance', 'no_block'];
     const blockZones = [];
     for (let i = 0; i < 10; i++) {
         blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
     }
     
-    // Add elemental damage and resistances
+    // Add elemental damage - MUCH higher values
     const elemTypes = ['pyro', 'water', 'wind', 'electro'];
     const elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
     const elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
     
-    // Random elemental damage
+    // Hard NPCs get SIGNIFICANT elemental damage
     if (Math.random() < cfg.elem_dmg_chance) {
-        const numElem = Math.min(difficulty === 'hard' ? 3 : 2, Math.floor(Math.random() * 3) + 1);
+        const numElem = difficulty === 'hard' ? 3 : (difficulty === 'medium' ? 2 : 1);
         const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
         for (let i = 0; i < numElem; i++) {
             const elem = shuffled[i];
             let dmg = 0;
             if (difficulty === 'hard') {
-                dmg = Math.floor(20 + (playerLevel * 0.8));
+                dmg = Math.floor(30 + (playerLevel * 1.5));  // Level 10 = 45 elemental dmg
             } else if (difficulty === 'medium') {
-                dmg = Math.floor(12 + (playerLevel * 0.5));
+                dmg = Math.floor(20 + (playerLevel * 1.0));  // Level 10 = 30 elemental dmg
             } else {
-                dmg = Math.floor(6 + (playerLevel * 0.3));
+                dmg = Math.floor(10 + (playerLevel * 0.6));  // Level 10 = 16 elemental dmg
             }
             elem_dmg[elem] = Math.max(1, dmg);
         }
     }
     
-    // Random elemental resistances
+    // High elemental resistances
     if (Math.random() < cfg.elem_resist_chance) {
-        const numResist = Math.min(difficulty === 'hard' ? 3 : 2, Math.floor(Math.random() * 3) + 1);
+        const numResist = difficulty === 'hard' ? 3 : (difficulty === 'medium' ? 2 : 1);
         const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
         for (let i = 0; i < numResist; i++) {
             const elem = shuffled[i];
             let resist = 0;
             if (difficulty === 'hard') {
-                resist = Math.floor(25 + (playerLevel * 0.6));
+                resist = Math.floor(40 + (playerLevel * 1.2));  // Level 10 = 52 resist
             } else if (difficulty === 'medium') {
-                resist = Math.floor(15 + (playerLevel * 0.4));
+                resist = Math.floor(25 + (playerLevel * 0.8));  // Level 10 = 33 resist
             } else {
-                resist = Math.floor(8 + (playerLevel * 0.2));
+                resist = Math.floor(15 + (playerLevel * 0.5));  // Level 10 = 20 resist
             }
             elem_resist[elem] = Math.max(1, resist);
         }
