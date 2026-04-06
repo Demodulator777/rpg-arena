@@ -1898,6 +1898,86 @@ function renderInventory(data) {
                 +'</div>';
         }).join('') + '</div>';
     }
+    else if (invTab === 'materials') {
+    // MATERIALS TAB with exchange options
+    const mats = data.items.filter(i => i.item_type === 'raw_mat' || i.item_type === 'component');
+    if (!mats.length) { 
+        el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; 
+        return; 
+    }
+    
+    // Get legendary fragment count for exchange
+    let fragmentCount = 0;
+    const fragmentItem = mats.find(i => i.item_data?.id === 'legendary_fragment');
+    if (fragmentItem) {
+        fragmentCount = fragmentItem.item_data?.qty || 1;
+    }
+    
+    // Define exchange rates
+    const exchangeRates = {
+        wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
+        iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
+        wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
+        herbs: { name: 'Herbs', emoji: '🌿', fragmentCost: 5 },
+        poison_gland: { name: 'Poison Gland', emoji: '🧪', fragmentCost: 10 },
+        swamp_crystal: { name: 'Swamp Crystal', emoji: '💎', fragmentCost: 10 },
+        frost_essence: { name: 'Frost Essence', emoji: '❄️', fragmentCost: 10 },
+        mithril_ore: { name: 'Mithril Ore', emoji: '✨', fragmentCost: 10 },
+        dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: '🐉', fragmentCost: 15 },
+        arcane_dust: { name: 'Arcane Dust', emoji: '🌟', fragmentCost: 15 },
+        void_shard: { name: 'Void Shard', emoji: '🌑', fragmentCost: 15 },
+        shadow_essence: { name: 'Shadow Essence', emoji: '👁️', fragmentCost: 20 },
+        demon_core: { name: 'Demon Core', emoji: '💀', fragmentCost: 20 },
+        void_crystal: { name: 'Void Crystal', emoji: '🔮', fragmentCost: 25 },
+        shadow_weave: { name: 'Shadow Weave', emoji: '🌙', fragmentCost: 25 },
+        demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', fragmentCost: 25 },
+    };
+    
+    // Group materials by type (owned vs exchangeable)
+    const ownedMaterials = mats.filter(m => m.item_type === 'raw_mat');
+    const exchangeableMaterials = Object.entries(exchangeRates).filter(([id]) => !mats.some(m => m.item_data?.id === id));
+    
+    el.innerHTML = `
+        <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <span style="font-size: 1.2rem;">⭐</span>
+                <strong>Legendary Fragments: ${fragmentCount}</strong>
+            </div>
+            <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials below</div>
+        </div>
+        
+        <div class="section-title">📦 Your Materials</div>
+        <div class="mat-grid">
+            ${ownedMaterials.map(i => {
+                const d = i.item_data;
+                const itemImage = d.image || getItemImagePath(d.name);
+                return `<div class="mat-card">
+                    <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" onerror="this.style.display='none';this.nextSibling.style.display='block'">
+                    <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
+                    <div class="mat-name">${d.name || d.id}</div>
+                    <div class="mat-qty">× ${d.qty || 1}</div>
+                    <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
+                </div>`;
+            }).join('')}
+        </div>
+        
+        <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
+        <div class="mat-grid">
+            ${exchangeableMaterials.map(([id, rate]) => {
+                const canAfford = fragmentCount >= rate.fragmentCost;
+                return `<div class="mat-card" style="position: relative;">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
+                    <div class="mat-name">${rate.name}</div>
+                    <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
+                    <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 1)" ${!canAfford ? 'disabled' : ''} 
+                        style="margin-top: 8px; width: 100%;">Exchange x1</button>
+                    <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 5)" ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
+                        style="margin-top: 4px; width: 100%;">Exchange x5</button>
+                </div>`;
+            }).join('')}
+        </div>
+    `;
+}
 }
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
@@ -3886,4 +3966,89 @@ function closeUpgradeModal() {
     currentUpgradeItemId = null;
     selectedComponentId = null;
     selectedComponentName = null;
+}
+
+async function openExchangeModal() {
+    const modal = document.getElementById('exchange-modal');
+    const content = document.getElementById('exchange-content');
+    
+    modal.classList.remove('hidden');
+    content.innerHTML = '<p class="loading">Loading exchanges...</p>';
+    
+    try {
+        const data = await api('GET', '/exchange/fragments/list');
+        
+        let html = `
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px;">
+                <div style="font-size: 1.2rem; font-weight: bold; color: #f1c40f;">⭐ Legendary Fragments: ${data.fragmentCount}</div>
+                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials</div>
+            </div>
+        `;
+        
+        const rarityNames = { 1: 'Common', 2: 'Uncommon', 3: 'Rare', 4: 'Epic', 5: 'Legendary' };
+        const rarityColors = { 1: '#95a5a6', 2: '#2ecc71', 3: '#3498db', 4: '#9b59b6', 5: '#f1c40f' };
+        
+        for (const [rarity, materials] of Object.entries(data.exchanges)) {
+            html += `
+                <div style="margin-top: 16px;">
+                    <div style="font-size: 0.8rem; font-weight: bold; color: ${rarityColors[rarity]}; margin-bottom: 8px;">
+                        ${rarityNames[rarity]} Materials
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
+            `;
+            
+            for (const mat of materials) {
+                html += `
+                    <div style="padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 1.3rem;">${mat.emoji}</span>
+                            <span style="font-weight: bold;">${mat.name}</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #f1c40f;">Cost: ${mat.fragmentCost} ⭐</div>
+                        <div style="display: flex; gap: 4px; margin-top: 8px;">
+                            <button class="btn-sm" onclick="exchangeFragments('${mat.id}', 1)" ${!mat.canAfford ? 'disabled' : ''}>x1</button>
+                            <button class="btn-sm" onclick="exchangeFragments('${mat.id}', 5)" ${data.fragmentCount < mat.fragmentCost * 5 ? 'disabled' : ''}>x5</button>
+                            <button class="btn-sm" onclick="exchangeFragments('${mat.id}', 10)" ${data.fragmentCount < mat.fragmentCost * 10 ? 'disabled' : ''}>x10</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `</div></div>`;
+        }
+        
+        content.innerHTML = html;
+    } catch (e) {
+        content.innerHTML = `<p class="error">${e.message}</p>`;
+    }
+}
+
+async function exchangeFragments(materialId, quantity) {
+    try {
+        const result = await api('POST', '/exchange/fragments', { materialId, quantity });
+        showMsg('exchange-msg', result.message);
+        openExchangeModal(); // Refresh the modal
+        renderTopBar();
+        if (document.getElementById('tab-inventory')?.classList.contains('active')) {
+            loadInventory();
+        }
+    } catch (e) {
+        showMsg('exchange-msg', e.message, true);
+    }
+}
+
+function closeExchangeModal() {
+    document.getElementById('exchange-modal').classList.add('hidden');
+}
+
+async function exchangeFragmentForMaterial(materialId, quantity) {
+    try {
+        const result = await api('POST', '/exchange/fragments', { materialId, quantity });
+        showMsg('inv-msg', result.message);
+        loadInventory(); // Refresh inventory
+        renderTopBar();
+        if (typeof renderCharacter === 'function') renderCharacter();
+    } catch (e) {
+        showMsg('inv-msg', e.message, true);
+    }
 }
