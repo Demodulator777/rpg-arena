@@ -105,9 +105,8 @@ const UPGRADE_BASE = 5;
 const UPGRADE_EXPONENT = 1.705;
 function upgradeCost(stat, currentVal, charClass) {
     const raw = Math.floor(UPGRADE_BASE * Math.pow(currentVal, UPGRADE_EXPONENT));
-    let modifier = CLASS_DISCOUNTS[charClass]?.[stat] || 0;
-    // modifier can be negative (penalty) or positive (discount)
-    return Math.max(10, Math.floor(raw * (1 - modifier)));
+    // No class discounts here - those come from skill tree
+    return Math.max(10, raw);
 }
 
 // ── Component Upgrade Values ─────────────────────────────────────────────
