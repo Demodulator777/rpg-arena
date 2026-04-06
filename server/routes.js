@@ -795,124 +795,94 @@ function runBattle(fighterA, fighterB) {
     return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
 }
 
-function buildNpc(difficulty, playerLevel) {
-    // Base configs - NPCs need to be MUCH stronger
-    const configs = {
-        easy: { 
-            // Easy: Still beatable, but can hurt if player isn't careful
-            hpBase: 100, hpScale: 20,           // Level 10 = 300 HP
-            atkMin: 25, atkMax: 40,             // Level 10 = 25-40 damage
-            agiBase: 15, agiScale: 0.8,         
-            magicBase: 12, magicScale: 0.6,
-            vitalityBase: 12, vitalityScale: 0.6,
-            hit_chance_base: 85, hit_chance_scale: 0.5,
-            crit_chance_base: 10, crit_chance_scale: 0.3,
-            name: 'Brute',
-            elem_dmg_chance: 0.2,
-            elem_resist_chance: 0.2,
-            armor_base: 10, armor_scale: 0.5,
-        },
-        medium: { 
-            // Medium: Significant threat
-            hpBase: 200, hpScale: 35,           // Level 10 = 550 HP
-            atkMin: 40, atkMax: 65,             // Level 10 = 40-65 damage
-            agiBase: 20, agiScale: 1.0,         
-            magicBase: 18, magicScale: 0.8,
-            vitalityBase: 18, vitalityScale: 0.8,
-            hit_chance_base: 90, hit_chance_scale: 0.6,
-            crit_chance_base: 15, crit_chance_scale: 0.4,
-            name: 'Overlord',
-            elem_dmg_chance: 0.35,
-            elem_resist_chance: 0.35,
-            armor_base: 20, armor_scale: 0.8,
-        },
-        hard: { 
-            // Hard: Very dangerous - requires strategy and good gear
-            hpBase: 350, hpScale: 55,           // Level 10 = 900 HP
-            atkMin: 60, atkMax: 95,             // Level 10 = 60-95 damage
-            agiBase: 25, agiScale: 1.2,         
-            magicBase: 25, magicScale: 1.0,
-            vitalityBase: 25, vitalityScale: 1.0,
-            hit_chance_base: 95, hit_chance_scale: 0.7,
-            crit_chance_base: 20, crit_chance_scale: 0.5,
-            name: 'Legion Commander',
-            elem_dmg_chance: 0.5,
-            elem_resist_chance: 0.5,
-            armor_base: 30, armor_scale: 1.0,
-        },
+function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
+    // Base difficulty multipliers
+    const difficultyMultipliers = {
+        easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
+        medium: { hpMult: 1.2, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
+        hard: { hpMult: 1.8, dmgMult: 1.5, agiMult: 1.3, armorMult: 1.5, elemMult: 1.8 },
     };
     
-    const cfg = configs[difficulty] || configs.easy;
+    const mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
     
-    // Calculate stats
-    const hp = Math.floor(cfg.hpBase + (playerLevel * cfg.hpScale));
-    const dmgMin = Math.floor(cfg.atkMin + (playerLevel * 1.2));
-    const dmgMax = Math.floor(cfg.atkMax + (playerLevel * 1.8));
-    const agility = Math.floor(cfg.agiBase + (playerLevel * cfg.agiScale));
-    const magic = Math.floor(cfg.magicBase + (playerLevel * cfg.magicScale));
-    const vitality = Math.floor(cfg.vitalityBase + (playerLevel * cfg.vitalityScale));
-    const hit_chance = Math.min(98, Math.floor(cfg.hit_chance_base + (playerLevel * cfg.hit_chance_scale)));
-    const crit_chance = Math.min(45, Math.floor(cfg.crit_chance_base + (playerLevel * cfg.crit_chance_scale)));
-    const armor = Math.floor(cfg.armor_base + (playerLevel * cfg.armor_scale));
+    // Base stats scale with player level AND zone level
+    // Higher zone = higher effective level for NPC
+    const effectiveLevel = playerLevel + (zoneLevel * 2); // Zone level adds significantly to difficulty
     
-    // Generate random attack zones
+    // Calculate base stats (scales with effective level)
+    const baseHp = 80 + (effectiveLevel * 12);
+    const baseDmgMin = 15 + (effectiveLevel * 0.8);
+    const baseDmgMax = 25 + (effectiveLevel * 1.2);
+    const baseAgi = 10 + (effectiveLevel * 0.5);
+    const baseMagic = 8 + (effectiveLevel * 0.4);
+    const baseVitality = 8 + (effectiveLevel * 0.4);
+    const baseHitChance = 70 + (effectiveLevel * 0.3);
+    const baseCritChance = 5 + (effectiveLevel * 0.2);
+    const baseArmor = 5 + (effectiveLevel * 0.3);
+    
+    // Apply difficulty multipliers
+    const hp = Math.floor(baseHp * mult.hpMult);
+    const dmgMin = Math.floor(baseDmgMin * mult.dmgMult);
+    const dmgMax = Math.floor(baseDmgMax * mult.dmgMult);
+    const agility = Math.floor(baseAgi * mult.agiMult);
+    const magic = Math.floor(baseMagic * mult.dmgMult);
+    const vitality = Math.floor(baseVitality * mult.hpMult);
+    const hit_chance = Math.min(95, Math.floor(baseHitChance));
+    const crit_chance = Math.min(40, Math.floor(baseCritChance * mult.dmgMult));
+    const armor = Math.floor(baseArmor * mult.armorMult);
+    
+    // Random attack/block zones
     const allAttackZones = ['head', 'throat', 'chest', 'heart', 'solar_plexus', 'stomach', 'left_arm', 'right_arm', 'left_leg', 'right_leg'];
     const attackZones = [];
     for (let i = 0; i < 10; i++) {
         attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
     }
     
-    // Generate random block zones
     const allBlockZones = ['high_guard', 'cross_guard', 'mid_guard', 'left_guard', 'right_guard', 'full_turtle', 'weave_left', 'weave_right', 'counter_stance', 'no_block'];
     const blockZones = [];
     for (let i = 0; i < 10; i++) {
         blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
     }
     
-    // Add elemental damage - MUCH higher values
+    // Elemental damage/resist scaling
     const elemTypes = ['pyro', 'water', 'wind', 'electro'];
     const elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
     const elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
     
-    // Hard NPCs get SIGNIFICANT elemental damage
-    if (Math.random() < cfg.elem_dmg_chance) {
+    // Higher chance for elemental damage in harder difficulties and higher zones
+    const elemChance = Math.min(0.6, 0.1 + (effectiveLevel / 200) + (mult.elemMult * 0.2));
+    
+    if (Math.random() < elemChance) {
         const numElem = difficulty === 'hard' ? 3 : (difficulty === 'medium' ? 2 : 1);
         const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
         for (let i = 0; i < numElem; i++) {
             const elem = shuffled[i];
-            let dmg = 0;
-            if (difficulty === 'hard') {
-                dmg = Math.floor(30 + (playerLevel * 1.5));  // Level 10 = 45 elemental dmg
-            } else if (difficulty === 'medium') {
-                dmg = Math.floor(20 + (playerLevel * 1.0));  // Level 10 = 30 elemental dmg
-            } else {
-                dmg = Math.floor(10 + (playerLevel * 0.6));  // Level 10 = 16 elemental dmg
-            }
+            const elemBase = 10 + (effectiveLevel * 0.5);
+            const dmg = Math.floor(elemBase * mult.elemMult);
             elem_dmg[elem] = Math.max(1, dmg);
         }
     }
     
-    // High elemental resistances
-    if (Math.random() < cfg.elem_resist_chance) {
+    // Elemental resistances
+    const resistChance = Math.min(0.6, 0.1 + (effectiveLevel / 200));
+    if (Math.random() < resistChance) {
         const numResist = difficulty === 'hard' ? 3 : (difficulty === 'medium' ? 2 : 1);
         const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
         for (let i = 0; i < numResist; i++) {
             const elem = shuffled[i];
-            let resist = 0;
-            if (difficulty === 'hard') {
-                resist = Math.floor(40 + (playerLevel * 1.2));  // Level 10 = 52 resist
-            } else if (difficulty === 'medium') {
-                resist = Math.floor(25 + (playerLevel * 0.8));  // Level 10 = 33 resist
-            } else {
-                resist = Math.floor(15 + (playerLevel * 0.5));  // Level 10 = 20 resist
-            }
+            const resistBase = 10 + (effectiveLevel * 0.4);
+            const resist = Math.floor(resistBase * mult.armorMult);
             elem_resist[elem] = Math.max(1, resist);
         }
     }
     
+    // Name with zone indicator
+    const zoneNames = { forest: 'Forest', swamp: 'Swamp', mountains: 'Mountain', ruins: 'Ruins', dark_city: 'Dark' };
+    const zonePrefix = zoneNames[Object.keys(ZONE_LEVELS).find(k => ZONE_LEVELS[k] === zoneLevel)] || '';
+    
     return {
         id: -1, 
-        name: cfg.name,
+        name: `${zonePrefix} ${cfgNames[difficulty] || cfg.name}`,
         hp: hp,
         dmgMin: dmgMin,
         dmgMax: dmgMax,
@@ -929,6 +899,20 @@ function buildNpc(difficulty, playerLevel) {
         activeSkills: {},
     };
 }
+
+const cfgNames = {
+    easy: 'Raider',
+    medium: 'Warlord', 
+    hard: 'Legion Commander'
+};
+
+const ZONE_LEVELS = {
+    forest: 1,
+    swamp: 5,
+    mountains: 10,
+    ruins: 20,
+    dark_city: 35,
+};
 
 // ── Item Generators ─────────────────────────────────────────────────────────
 // ELEMENTS already defined at top
