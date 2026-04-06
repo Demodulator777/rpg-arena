@@ -796,108 +796,127 @@ function runBattle(fighterA, fighterB) {
 }
 
 function buildNpc(difficulty, playerLevel) {
+    // Base configs with better scaling
     const configs = {
         easy: { 
-            hpBase: 40, hpScale: 3, 
-            atkMin: 3, atkMax: 7, 
-            agi: 5, magic: 5,
-            vitality: 8,
-            hit_chance: 80,
-            crit_chance: 5,
-            name: 'Weak Foe' 
+            hpBase: 60, hpScale: 8,      // Was: 40, 3
+            atkMin: 8, atkMax: 14,       // Was: 3, 7
+            agiBase: 10, agiScale: 0.6,  // Was: 5 + level*0.3
+            magicBase: 8, magicScale: 0.5, // Was: 5 + level*0.4
+            vitalityBase: 10, vitalityScale: 0.5,
+            hit_chance_base: 75, hit_chance_scale: 0.3,
+            crit_chance_base: 5, crit_chance_scale: 0.2,
+            name: 'Weak Foe',
+            // Elemental damage chance
+            elem_dmg_chance: 0.1,
+            elem_resist_chance: 0.1
         },
         medium: { 
-            hpBase: 60, hpScale: 5, 
-            atkMin: 6, atkMax: 12, 
-            agi: 10, magic: 10,
-            vitality: 12,
-            hit_chance: 85,
-            crit_chance: 8,
-            name: 'Seasoned Foe' 
+            hpBase: 100, hpScale: 12,
+            atkMin: 12, atkMax: 20,
+            agiBase: 15, agiScale: 0.8,
+            magicBase: 12, magicScale: 0.7,
+            vitalityBase: 15, vitalityScale: 0.7,
+            hit_chance_base: 80, hit_chance_scale: 0.4,
+            crit_chance_base: 8, crit_chance_scale: 0.25,
+            name: 'Seasoned Foe',
+            elem_dmg_chance: 0.25,
+            elem_resist_chance: 0.25
         },
         hard: { 
-            hpBase: 80, hpScale: 8, 
-            atkMin: 10, atkMax: 18, 
-            agi: 15, magic: 15,
-            vitality: 16,
-            hit_chance: 90,
-            crit_chance: 12,
-            name: 'Elite Foe' 
+            hpBase: 150, hpScale: 18,
+            atkMin: 18, atkMax: 28,
+            agiBase: 20, agiScale: 1.0,
+            magicBase: 18, magicScale: 0.9,
+            vitalityBase: 20, vitalityScale: 0.9,
+            hit_chance_base: 85, hit_chance_scale: 0.5,
+            crit_chance_base: 12, crit_chance_scale: 0.3,
+            name: 'Elite Foe',
+            elem_dmg_chance: 0.4,
+            elem_resist_chance: 0.4
         },
     };
     
     const cfg = configs[difficulty] || configs.easy;
     
-    // Available attack zones
+    // Calculate stats with better scaling
+    const hp = Math.floor(cfg.hpBase + (playerLevel * cfg.hpScale));
+    const dmgMin = Math.floor(cfg.atkMin + (playerLevel * 0.8));
+    const dmgMax = Math.floor(cfg.atkMax + (playerLevel * 1.2));
+    const agility = Math.floor(cfg.agiBase + (playerLevel * cfg.agiScale));
+    const magic = Math.floor(cfg.magicBase + (playerLevel * cfg.magicScale));
+    const vitality = Math.floor(cfg.vitalityBase + (playerLevel * cfg.vitalityScale));
+    const hit_chance = Math.min(95, Math.floor(cfg.hit_chance_base + (playerLevel * cfg.hit_chance_scale)));
+    const crit_chance = Math.min(35, Math.floor(cfg.crit_chance_base + (playerLevel * cfg.crit_chance_scale)));
+    
+    // Generate random attack zones - completely random, no patterns
     const allAttackZones = ['head', 'throat', 'chest', 'heart', 'solar_plexus', 'stomach', 'left_arm', 'right_arm', 'left_leg', 'right_leg'];
+    const attackZones = [];
+    for (let i = 0; i < 10; i++) {
+        attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
+    }
     
-    // Available block zones
+    // Generate random block zones - completely random
     const allBlockZones = ['high_guard', 'cross_guard', 'mid_guard', 'left_guard', 'right_guard', 'full_turtle', 'weave_left', 'weave_right', 'counter_stance', 'no_block'];
+    const blockZones = [];
+    for (let i = 0; i < 10; i++) {
+        blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
+    }
     
-    // Generate random attack zones based on difficulty
-    let attackZones = [];
-    let blockZones = [];
+    // Add elemental damage and resistances based on difficulty
+    const elemTypes = ['pyro', 'water', 'wind', 'electro'];
+    const elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
+    const elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
     
-    if (difficulty === 'easy') {
-        // Easy NPC: more predictable, favors chest and stomach
-        const easyFavored = ['chest', 'stomach', 'solar_plexus'];
-        for (let i = 0; i < 10; i++) {
-            if (Math.random() < 0.7) {
-                attackZones.push(easyFavored[Math.floor(Math.random() * easyFavored.length)]);
-            } else {
-                attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
-            }
+    // Random elemental damage (higher difficulty = more likely and higher values)
+    if (Math.random() < cfg.elem_dmg_chance) {
+        const numElem = Math.min(3, Math.floor(Math.random() * (difficulty === 'hard' ? 4 : 3)) + 1);
+        const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < numElem; i++) {
+            const elem = shuffled[i];
+            // Elemental damage scales with player level and difficulty
+            const baseDmg = difficulty === 'hard' ? 15 : difficulty === 'medium' ? 10 : 5;
+            const dmg = Math.floor(baseDmg + (playerLevel * 0.3));
+            elem_dmg[elem] = dmg;
         }
-        // Easy block: favors cross_guard and mid_guard
-        const easyBlocks = ['cross_guard', 'mid_guard'];
-        for (let i = 0; i < 10; i++) {
-            if (Math.random() < 0.7) {
-                blockZones.push(easyBlocks[Math.floor(Math.random() * easyBlocks.length)]);
-            } else {
-                blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
-            }
+    }
+    
+    // Random elemental resistances
+    if (Math.random() < cfg.elem_resist_chance) {
+        const numResist = Math.min(3, Math.floor(Math.random() * 3) + 1);
+        const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < numResist; i++) {
+            const elem = shuffled[i];
+            const baseResist = difficulty === 'hard' ? 20 : difficulty === 'medium' ? 12 : 6;
+            const resist = Math.floor(baseResist + (playerLevel * 0.2));
+            elem_resist[elem] = resist;
         }
+    }
+    
+    // Armor calculation based on difficulty
+    let armor = 0;
+    if (difficulty === 'hard') {
+        armor = Math.floor(10 + (playerLevel * 0.5));
     } else if (difficulty === 'medium') {
-        // Medium NPC: more varied
-        for (let i = 0; i < 10; i++) {
-            attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
-            blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
-        }
+        armor = Math.floor(5 + (playerLevel * 0.3));
     } else {
-        // Hard NPC: aggressive, targets head and heart more often
-        const hardFavored = ['head', 'heart', 'throat'];
-        for (let i = 0; i < 10; i++) {
-            if (Math.random() < 0.6) {
-                attackZones.push(hardFavored[Math.floor(Math.random() * hardFavored.length)]);
-            } else {
-                attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
-            }
-        }
-        // Hard block: uses more counter_stance and weave
-        const hardBlocks = ['counter_stance', 'weave_left', 'weave_right', 'high_guard'];
-        for (let i = 0; i < 10; i++) {
-            if (Math.random() < 0.6) {
-                blockZones.push(hardBlocks[Math.floor(Math.random() * hardBlocks.length)]);
-            } else {
-                blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
-            }
-        }
+        armor = Math.floor(2 + (playerLevel * 0.1));
     }
     
     return {
         id: -1, 
         name: cfg.name,
-        hp: cfg.hpBase + (playerLevel * cfg.hpScale),
-        dmgMin: cfg.atkMin + Math.floor(playerLevel * 0.5),
-        dmgMax: cfg.atkMax + Math.floor(playerLevel * 0.8),
-        agility: cfg.agi + Math.floor(playerLevel * 0.3),
-        magic: cfg.magic + Math.floor(playerLevel * 0.4),
-        vitality: cfg.vitality + Math.floor(playerLevel * 0.3),
-        hit_chance: Math.min(95, cfg.hit_chance + Math.floor(playerLevel * 0.5)),
-        crit_chance: Math.min(30, cfg.crit_chance + Math.floor(playerLevel * 0.3)),
-        armor: 0,
-        elem_dmg: { pyro:0, water:0, wind:0, electro:0 },
-        elem_resist: { pyro:0, water:0, wind:0, electro:0 },
+        hp: hp,
+        dmgMin: dmgMin,
+        dmgMax: dmgMax,
+        agility: agility,
+        magic: magic,
+        vitality: vitality,
+        hit_chance: hit_chance,
+        crit_chance: crit_chance,
+        armor: armor,
+        elem_dmg: elem_dmg,
+        elem_resist: elem_resist,
         attackZones: attackZones,
         blockZones: blockZones,
         activeSkills: {},
