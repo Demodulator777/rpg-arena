@@ -1806,7 +1806,7 @@ function renderInventory(data) {
     // Helper to check if item is a loot box
     const isLootBox = (item) => item.item_data?.category === 'lootbox';
     
-    // Helper to get item image path - CORRECTED: /images/assets/item-name.png
+    // Helper to get item image path
     const getItemImage = (itemName) => {
         if (!itemName) return '';
         const imageName = itemName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
@@ -1819,15 +1819,22 @@ function renderInventory(data) {
         renderGearGrid(el, gear, data.equipped);
     };
 
-    if      (invTab === 'weapons')    gearTab(['weapon'],          'No weapons yet.');
-    else if (invTab === 'armor')      gearTab(['armor'],           'No armor yet.');
-    else if (invTab === 'helmets')    gearTab(['helmet'],          'No helmets yet.');
-    else if (invTab === 'shields')    gearTab(['shield'],          'No shields yet.');
-    else if (invTab === 'boots')      gearTab(['boots'],           'No boots yet.');
-    else if (invTab === 'jewelry')    gearTab(['ring','amulet'],   'No rings or amulets yet.');
-    else if (invTab === 'accessory')  gearTab(['accessory'],       'No accessories yet.');
-    else if (invTab === 'lootboxes') {
-        // LOOT BOXES TAB with image support
+    if (invTab === 'weapons') {
+        gearTab(['weapon'], 'No weapons yet.');
+    } else if (invTab === 'armor') {
+        gearTab(['armor'], 'No armor yet.');
+    } else if (invTab === 'helmets') {
+        gearTab(['helmet'], 'No helmets yet.');
+    } else if (invTab === 'shields') {
+        gearTab(['shield'], 'No shields yet.');
+    } else if (invTab === 'boots') {
+        gearTab(['boots'], 'No boots yet.');
+    } else if (invTab === 'jewelry') {
+        gearTab(['ring', 'amulet'], 'No rings or amulets yet.');
+    } else if (invTab === 'accessory') {
+        gearTab(['accessory'], 'No accessories yet.');
+    } else if (invTab === 'lootboxes') {
+        // LOOT BOXES TAB
         const lootBoxes = data.items.filter(i => i.item_type === 'consumable' && isLootBox(i));
         if (!lootBoxes.length) {
             el.innerHTML = '<p class="empty">No loot boxes. Buy them from the shop!</p>';
@@ -1852,132 +1859,114 @@ function renderInventory(data) {
             </div>`;
         }).join('') + '</div>';
         return;
-    }
-    else if (invTab === 'consumables') {
-        // CONSUMABLES TAB with image support (excluding loot boxes)
+    } else if (invTab === 'consumables') {
+        // CONSUMABLES TAB
         const cons = data.items.filter(i => i.item_type === 'consumable' && !isLootBox(i));
         if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
         el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
             const d = i.item_data;
             const eff = d.effect ? (
-                d.effect.type==='heal'      ? '❤️ Restore '+d.effect.value+' HP' :
-                d.effect.type==='heal_full' ? '❤️ Full HP restore' :
-                d.effect.type==='xp'        ? '⭐ +'+d.effect.value+' XP' :
-                d.effect.type==='temp_stat' ? '💪 +'+d.effect.value+' '+d.effect.stat : ''
+                d.effect.type === 'heal' ? '❤️ Restore ' + d.effect.value + ' HP' :
+                d.effect.type === 'heal_full' ? '❤️ Full HP restore' :
+                d.effect.type === 'xp' ? '⭐ +' + d.effect.value + ' XP' :
+                d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat : ''
             ) : '';
-            const sp = Math.max(1, Math.floor((d.price||0)*0.3));
-            const sn = (d.name||'').replace(/'/g,"\\'");
+            const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
+            const sn = (d.name || '').replace(/'/g, "\\'");
             const itemImage = d.image || getItemImage(d.name);
             return '<div class="inv-card">'
-                +'<div class="inv-card-header">'
-                +'<img src="'+itemImage+'" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline\'">'
-                +'<span style="font-size:1.4rem;display:none">'+(d.emoji||'🧪')+'</span>'
-                +'<span class="inv-card-name">'+(d.name||'')+'</span>'
-                +'<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×'+(d.qty||1)+'</span>'
-                +'</div>'
-                +'<div class="inv-stat-str">'+eff+'</div>'
-                +'<div class="inv-slot" style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 10px">'+(d.desc||'')+'</div>'
-                +'<div style="display:flex;gap:8px">'
-                +'<button class="btn-sm" style="flex:1;background:rgba(39,174,96,0.15);border-color:rgba(39,174,96,0.4);color:#2ecc71" onclick="useItem('+i.id+',\''+sn+'\')">Use</button>'
-                +'<button class="btn-sm danger" onclick="sellItem('+i.id+',\''+sn+'\','+sp+')">Sell '+sp+'g</button>'
-                +'</div></div>';
+                + '<div class="inv-card-header">'
+                + '<img src="' + itemImage + '" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline\'">'
+                + '<span style="font-size:1.4rem;display:none">' + (d.emoji || '🧪') + '</span>'
+                + '<span class="inv-card-name">' + (d.name || '') + '</span>'
+                + '<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×' + (d.qty || 1) + '</span>'
+                + '</div>'
+                + '<div class="inv-stat-str">' + eff + '</div>'
+                + '<div class="inv-slot" style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 10px">' + (d.desc || '') + '</div>'
+                + '<div style="display:flex;gap:8px">'
+                + '<button class="btn-sm" style="flex:1;background:rgba(39,174,96,0.15);border-color:rgba(39,174,96,0.4);color:#2ecc71" onclick="useItem(' + i.id + ',\'' + sn + '\')">Use</button>'
+                + '<button class="btn-sm danger" onclick="sellItem(' + i.id + ',\'' + sn + '\',' + sp + ')">Sell ' + sp + 'g</button>'
+                + '</div></div>';
         }).join('') + '</div>';
-    } else {
-        // MATERIALS TAB with image support
-        const mats = data.items.filter(i => i.item_type==='raw_mat' || i.item_type==='component');
-        if (!mats.length) { el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; return; }
-        el.innerHTML = '<div class="mat-grid">' + mats.map(i => {
-            const d = i.item_data;
-            const itemImage = d.image || getItemImage(d.name);
-            return '<div class="mat-card">'
-                +'<img src="'+itemImage+'" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'block\'">'
-                +'<div style="font-size:1.6rem;display:none">'+(d.emoji||'📦')+'</div>'
-                +'<div class="mat-name">'+(d.name||d.id)+'</div>'
-                +'<div class="mat-qty">× '+(d.qty||1)+'</div>'
-                +'<div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">'+(i.item_type==='component'?'Component':'Raw Material')+'</div>'
-                +'</div>';
-        }).join('') + '</div>';
-    }
-    else if (invTab === 'materials') {
-    // MATERIALS TAB with exchange options
-    const mats = data.items.filter(i => i.item_type === 'raw_mat' || i.item_type === 'component');
-    if (!mats.length) { 
-        el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; 
-        return; 
-    }
-    
-    // Get legendary fragment count for exchange
-    let fragmentCount = 0;
-    const fragmentItem = mats.find(i => i.item_data?.id === 'legendary_fragment');
-    if (fragmentItem) {
-        fragmentCount = fragmentItem.item_data?.qty || 1;
-    }
-    
-    // Define exchange rates
-    const exchangeRates = {
-        wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
-        iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
-        wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
-        herbs: { name: 'Herbs', emoji: '🌿', fragmentCost: 5 },
-        poison_gland: { name: 'Poison Gland', emoji: '🧪', fragmentCost: 10 },
-        swamp_crystal: { name: 'Swamp Crystal', emoji: '💎', fragmentCost: 10 },
-        frost_essence: { name: 'Frost Essence', emoji: '❄️', fragmentCost: 10 },
-        mithril_ore: { name: 'Mithril Ore', emoji: '✨', fragmentCost: 10 },
-        dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: '🐉', fragmentCost: 15 },
-        arcane_dust: { name: 'Arcane Dust', emoji: '🌟', fragmentCost: 15 },
-        void_shard: { name: 'Void Shard', emoji: '🌑', fragmentCost: 15 },
-        shadow_essence: { name: 'Shadow Essence', emoji: '👁️', fragmentCost: 20 },
-        demon_core: { name: 'Demon Core', emoji: '💀', fragmentCost: 20 },
-        void_crystal: { name: 'Void Crystal', emoji: '🔮', fragmentCost: 25 },
-        shadow_weave: { name: 'Shadow Weave', emoji: '🌙', fragmentCost: 25 },
-        demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', fragmentCost: 25 },
-    };
-    
-    // Group materials by type (owned vs exchangeable)
-    const ownedMaterials = mats.filter(m => m.item_type === 'raw_mat');
-    const exchangeableMaterials = Object.entries(exchangeRates).filter(([id]) => !mats.some(m => m.item_data?.id === id));
-    
-    el.innerHTML = `
-        <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <span style="font-size: 1.2rem;">⭐</span>
-                <strong>Legendary Fragments: ${fragmentCount}</strong>
+    } else if (invTab === 'materials') {
+        // MATERIALS TAB with exchange options
+        const mats = data.items.filter(i => i.item_type === 'raw_mat' || i.item_type === 'component');
+        if (!mats.length) { 
+            el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; 
+            return; 
+        }
+        
+        // Get legendary fragment count for exchange
+        let fragmentCount = 0;
+        const fragmentItem = mats.find(i => i.item_data?.id === 'legendary_fragment');
+        if (fragmentItem) {
+            fragmentCount = fragmentItem.item_data?.qty || 1;
+        }
+        
+        // Define exchange rates
+        const exchangeRates = {
+            wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
+            iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
+            wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
+            herbs: { name: 'Herbs', emoji: '🌿', fragmentCost: 5 },
+            poison_gland: { name: 'Poison Gland', emoji: '🧪', fragmentCost: 10 },
+            swamp_crystal: { name: 'Swamp Crystal', emoji: '💎', fragmentCost: 10 },
+            frost_essence: { name: 'Frost Essence', emoji: '❄️', fragmentCost: 10 },
+            mithril_ore: { name: 'Mithril Ore', emoji: '✨', fragmentCost: 10 },
+            dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: '🐉', fragmentCost: 15 },
+            arcane_dust: { name: 'Arcane Dust', emoji: '🌟', fragmentCost: 15 },
+            void_shard: { name: 'Void Shard', emoji: '🌑', fragmentCost: 15 },
+            shadow_essence: { name: 'Shadow Essence', emoji: '👁️', fragmentCost: 20 },
+            demon_core: { name: 'Demon Core', emoji: '💀', fragmentCost: 20 },
+            void_crystal: { name: 'Void Crystal', emoji: '🔮', fragmentCost: 25 },
+            shadow_weave: { name: 'Shadow Weave', emoji: '🌙', fragmentCost: 25 },
+            demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', fragmentCost: 25 },
+        };
+        
+        // Separate owned materials (excluding legendary fragments from the owned display)
+        const ownedMaterials = mats.filter(m => m.item_data?.id !== 'legendary_fragment');
+        
+        el.innerHTML = `
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <span style="font-size: 1.2rem;">⭐</span>
+                    <strong>Legendary Fragments: ${fragmentCount}</strong>
+                </div>
+                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials below</div>
             </div>
-            <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials below</div>
-        </div>
-        
-        <div class="section-title">📦 Your Materials</div>
-        <div class="mat-grid">
-            ${ownedMaterials.map(i => {
-                const d = i.item_data;
-                const itemImage = d.image || getItemImagePath(d.name);
-                return `<div class="mat-card">
-                    <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" onerror="this.style.display='none';this.nextSibling.style.display='block'">
-                    <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
-                    <div class="mat-name">${d.name || d.id}</div>
-                    <div class="mat-qty">× ${d.qty || 1}</div>
-                    <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
-                </div>`;
-            }).join('')}
-        </div>
-        
-        <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
-        <div class="mat-grid">
-            ${exchangeableMaterials.map(([id, rate]) => {
-                const canAfford = fragmentCount >= rate.fragmentCost;
-                return `<div class="mat-card" style="position: relative;">
-                    <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
-                    <div class="mat-name">${rate.name}</div>
-                    <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
-                    <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 1)" ${!canAfford ? 'disabled' : ''} 
-                        style="margin-top: 8px; width: 100%;">Exchange x1</button>
-                    <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 5)" ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
-                        style="margin-top: 4px; width: 100%;">Exchange x5</button>
-                </div>`;
-            }).join('')}
-        </div>
-    `;
-}
+            
+            <div class="section-title">📦 Your Materials</div>
+            <div class="mat-grid">
+                ${ownedMaterials.map(i => {
+                    const d = i.item_data;
+                    const itemImage = d.image || getItemImage(d.name);
+                    return `<div class="mat-card">
+                        <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" onerror="this.style.display='none';this.nextSibling.style.display='block'">
+                        <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
+                        <div class="mat-name">${d.name || d.id}</div>
+                        <div class="mat-qty">× ${d.qty || 1}</div>
+                        <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+            
+            <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
+            <div class="mat-grid">
+                ${Object.entries(exchangeRates).map(([id, rate]) => {
+                    const canAfford = fragmentCount >= rate.fragmentCost;
+                    return `<div class="mat-card" style="position: relative;">
+                        <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
+                        <div class="mat-name">${rate.name}</div>
+                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
+                        <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 1)" ${!canAfford ? 'disabled' : ''} 
+                            style="margin-top: 8px; width: 100%;">Exchange x1</button>
+                        <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 5)" ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
+                            style="margin-top: 4px; width: 100%;">Exchange x5</button>
+                    </div>`;
+                }).join('')}
+            </div>
+        `;
+    }
 }
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
