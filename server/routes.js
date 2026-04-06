@@ -4205,11 +4205,12 @@ router.post('/exchange/fragments', auth, async (req, res) => {
         const totalFragmentsNeeded = exchange.fragmentCost * quantity;
         
         // Check if player has enough legendary fragments
-        const fragmentItem = await dbGet(db, `
-            SELECT * FROM inventory 
-            WHERE char_id = ? AND item_type = 'component' 
-            AND json_extract(item_data, '$.id') = 'legendary_fragment'
-        `, [char.id]);
+const fragmentItem = await dbGet(db, `
+    SELECT * FROM inventory 
+    WHERE char_id = ? 
+    AND item_type IN ('raw_mat', 'component')
+    AND json_extract(item_data, '$.id') = 'legendary_fragment'
+`, [char.id]);
         
         let availableFragments = 0;
         if (fragmentItem) {
