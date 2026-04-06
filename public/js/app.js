@@ -4031,7 +4031,7 @@ async function openExchangeModal() {
 
 async function exchangeFragments(materialId, quantity) {
     try {
-        const result = await api('POST', '/exchange/fragments', { materialId, quantity });
+        const result = await api('POST', '/game/exchange/fragments', { materialId, quantity });
         showMsg('exchange-msg', result.message);
         openExchangeModal(); // Refresh the modal
         renderTopBar();
@@ -4050,7 +4050,7 @@ function closeExchangeModal() {
 
 async function exchangeFragmentForMaterial(materialId, quantity) {
     try {
-        const result = await api('POST', '/exchange/fragments', { materialId, quantity });
+        const result = await api('POST', '/game/exchange/fragments', { materialId, quantity });
         showMsg('inv-msg', result.message);
         loadInventory(); // Refresh inventory
         renderTopBar();
