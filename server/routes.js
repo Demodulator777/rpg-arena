@@ -4162,7 +4162,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
         }
         
-        upgradedStatsList = statPool.slice(0, 5);
+        upgradedStatsList = statPool.slice(0, 2);
         
         for (const stat of upgradedStatsList) {
             const currentValue = upgradedStats[stat] || 0;
