@@ -568,10 +568,18 @@ function applyMagicDamageModifiers(attacker, defender) {
 }
 
 function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty, attackerShield, defenderShield) {
-    const hit = HIT_ZONES[atkZone]  || HIT_ZONES.chest;
+    const hit = HIT_ZONES[atkZone] || HIT_ZONES.chest;
     const blk = BLOCK_ZONES[blkZone] || BLOCK_ZONES.cross_guard;
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
+
+    // MAGE PHYSICAL DAMAGE PENALTY
+    let physicalDamagePenalty = 1.0;
+    if (attacker.class === 'mage') {
+        // Mages deal only 40% of physical damage (from weapons/strength)
+        // But elemental damage is unaffected
+        physicalDamagePenalty = 0.40;
+    }
 
     let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
@@ -607,16 +615,23 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const baseCritChance = Math.max(0, Math.min(0.95, rawCritChance / 100));
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
         const isCrit = Math.random() < Math.min(0.95, baseCritChance + critBonus);
-        let rawDmg = isCrit ? attacker.dmgMax
-            : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
-        rawDmg = Math.floor(rawDmg * hit.dmgMult * atkBonusDmg);
-
+        
+        // Calculate physical damage (from weapon/strength) and elemental damage separately
+        let rawPhysicalDmg = isCrit ? attacker.dmgMax : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
+        
+        // Apply mage physical damage penalty
+        let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
+        
+        // Apply hit multiplier to physical damage
+        physicalDmg = Math.floor(physicalDmg * hit.dmgMult * atkBonusDmg);
+        
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
-        rawDmg += damageBonus;
+        physicalDmg += damageBonus;
 
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
         const blockFails = Math.random() < 0.001;
 
+        // Elemental damage (unaffected by mage penalty)
         const elemDmgs = attacker.elem_dmg || {};
         let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
@@ -637,9 +652,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             finalDmg = 0;
             totalElemDmg = 0;
             logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
-} else {
+        } else {
             // HIT - damage goes through
-            finalDmg = rawDmg;
+            finalDmg = physicalDmg;
 
             // Force Field Absorption
             let justAbsorbed = false;
@@ -661,8 +676,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             // Add elemental after armor
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
 
-            // Log set AFTER all reductions so number matches damageDealt
-            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${finalDmg} damage`;
+            // Log with mage penalty indicator
+            let penaltyNote = '';
+            if (attacker.class === 'mage' && rawPhysicalDmg > 0) {
+                penaltyNote = ` (${Math.round(physicalDamagePenalty * 100)}% physical penalty)`;
+            }
+            
+            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag}${penaltyNote} — ${finalDmg} damage`;
             if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
 
             // Override log if force field triggered THIS round only
@@ -699,7 +719,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     }
     return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty, healBack };
 }
-
 function runBattle(fighterA, fighterB) {
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
@@ -2739,7 +2758,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         }
 
         const fighterA = {
-            id: freshA.id, name: freshA.name,
+            id: freshA.id, name: freshA.name, class: freshA.class,
             hp: hpA,
             dmgMin: dmgMinA + (skillPassivesA.dmg_min || 0),
             dmgMax: dmgMaxA + (skillPassivesA.dmg_max || 0),
