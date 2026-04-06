@@ -931,61 +931,70 @@ function renderTraining() {
 }
 
 // ── Upgrade ───────────────────────────────────────────────────────────────
-function renderUpgrade() {
+async function renderUpgrade() {
     if (!character) return;
-    const c=character, costs=c.upgradeCosts||{};
-    const disc={ warrior:{strength:30,defense:15,vitality:10}, mage:{magic:35,agility:10}, rogue:{agility:35,strength:10}, paladin:{defense:25,magic:20,vitality:15} };
-    const cd=disc[c.class]||{};
-    const ev=c.active_event;
-    const hasStatDiscount=ev?.key==='discount_stats';
-    const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
-    document.getElementById('upgrade-gold').textContent=`💰 ${c.gold.toLocaleString()} Gold available`;
-    const evBanner=hasStatDiscount?`<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>`:'';
-    const apprenticeBanner=hasApprentice?`<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>`:'';
-    const stats=[
-        {key:'strength',icon:'💪',label:'Strength'},
-        {key:'defense',icon:'🛡️',label:'Defense'},
-        {key:'agility',icon:'⚡',label:'Agility',hint:'Dodge incoming hits'},
-        {key:'magic',icon:'✨',label:'Magic'},
-        {key:'vitality',icon:'❤️',label:'Vitality',hint:'Also boosts current HP'},
-        {key:'hit_chance',icon:'🎯',label:'Hit Chance',hint:'Accuracy vs agility'},
-        {key:'crit_chance',icon:'💥',label:'Crit Chance',hint:'% chance to hit max dmg'},
-    ];
-    document.getElementById('upgrade-grid').innerHTML=evBanner+apprenticeBanner+stats.map(s=>{
-        let cost=costs[s.key]||'?';
-        const disc2=cd[s.key];
-        if (hasStatDiscount&&typeof cost==='number') cost=Math.max(1,Math.floor(cost*0.70));
-        if (hasApprentice&&typeof cost==='number') cost=Math.max(1,Math.floor(cost*0.80));
-        const can=c.gold>=cost;
-        const displayName=s.label||capitalize(s.key);
-        return `<div class="upgrade-card">
-      <div class="upgrade-card-header"><span class="upgrade-card-icon">${s.icon}</span><span class="upgrade-card-name">${displayName}</span><span class="upgrade-card-val">${c[s.key]||0}</span></div>
-      ${s.hint?`<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>`:''}
-      ${disc2?`<div class="upgrade-discount">✦ ${disc2}% class discount</div>`:''}
-      ${hasStatDiscount?`<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>`:''}
-      ${hasApprentice?`<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>`:''}
-      <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
-      <button class="btn-upgrade" onclick="upgradestat('${s.key}')" ${can?'':'disabled'}>${can?`+1 for ${cost}g`:`Need ${cost-c.gold} more`}</button>
-    </div>`;
-    }).join('');
-}
-let _upgradingStats = {};
-async function upgradestat(stat) {
-    if (_upgradingStats[stat]) return;
-    _upgradingStats[stat] = true;
-    document.querySelectorAll('.btn-upgrade').forEach(b => b.disabled = true);
+    const c = character;
+    const costs = c.upgradeCosts || {};
+    
+    // Fetch skill tree data to get actual penalties/discounts for this class
+    let skillTreeData = null;
     try {
-        const d = await api('POST', '/game/upgrade', { stat });
-        character = d.character;
-        renderUpgrade();
-        renderCharacter();
-        showMsg('upgrade-msg', d.message);
+        skillTreeData = await api('GET', '/skills/tree');
     } catch(e) {
-        showMsg('upgrade-msg', e.message, true);
-        renderUpgrade();
-    } finally {
-        _upgradingStats[stat] = false;
+        console.error('Failed to load skill tree:', e);
     }
+    
+    const penalties = skillTreeData?.upgradePenalties || {};
+    const discounts = skillTreeData?.upgradeDiscounts || {};
+    
+    const ev = c.active_event;
+    const hasStatDiscount = ev?.key === 'discount_stats';
+    const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
+    
+    document.getElementById('upgrade-gold').textContent = `💰 ${c.gold.toLocaleString()} Gold available`;
+    
+    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
+    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
+    
+    const stats = [
+        { key: 'strength', icon: '💪', label: 'Strength' },
+        { key: 'defense', icon: '🛡️', label: 'Defense' },
+        { key: 'agility', icon: '⚡', label: 'Agility', hint: 'Dodge incoming hits' },
+        { key: 'magic', icon: '✨', label: 'Magic' },
+        { key: 'vitality', icon: '❤️', label: 'Vitality', hint: 'Also boosts current HP' },
+        { key: 'hit_chance', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
+        { key: 'crit_chance', icon: '💥', label: 'Crit Chance', hint: '% chance to hit max dmg' },
+    ];
+    
+    document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
+        let cost = costs[s.key] || '?';
+        
+        // Get penalty and discount from skill tree data
+        const penaltyPct = penalties[s.key] ? Math.round(penalties[s.key] * 100) : 0;
+        const discountPct = discounts[s.key] ? Math.round(discounts[s.key] * 100) : 0;
+        
+        // Apply event and premium discounts on frontend (these are not in backend costs)
+        if (hasStatDiscount && typeof cost === 'number') cost = Math.max(1, Math.floor(cost * 0.70));
+        if (hasApprentice && typeof cost === 'number') cost = Math.max(1, Math.floor(cost * 0.80));
+        
+        const can = c.gold >= cost;
+        const displayName = s.label || capitalize(s.key);
+        
+        return `<div class="upgrade-card">
+            <div class="upgrade-card-header">
+                <span class="upgrade-card-icon">${s.icon}</span>
+                <span class="upgrade-card-name">${displayName}</span>
+                <span class="upgrade-card-val">${c[s.key] || 0}</span>
+            </div>
+            ${s.hint ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>` : ''}
+            ${penaltyPct > 0 ? `<div class="upgrade-discount" style="color:#e74c3c">⚠️ +${penaltyPct}% class penalty</div>` : ''}
+            ${discountPct > 0 ? `<div class="upgrade-discount" style="color:#2ecc71">✦ ${discountPct}% class discount</div>` : ''}
+            ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>` : ''}
+            ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>` : ''}
+            <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
+            <button class="btn-upgrade" onclick="upgradestat('${s.key}')" ${can ? '' : 'disabled'}>${can ? `+1 for ${cost}g` : `Need ${cost - c.gold} more`}</button>
+        </div>`;
+    }).join('');
 }
 
 // ── Event Banner Helper ───────────────────────────────────────────────────
