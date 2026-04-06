@@ -931,21 +931,10 @@ function renderTraining() {
 }
 
 // ── Upgrade ───────────────────────────────────────────────────────────────
-async function renderUpgrade() {
+function renderUpgrade() {
     if (!character) return;
     const c = character;
     const costs = c.upgradeCosts || {};
-    
-    // Fetch skill tree data to get actual penalties/discounts for this class
-    let skillTreeData = null;
-    try {
-        skillTreeData = await api('GET', '/skills/tree');
-    } catch(e) {
-        console.error('Failed to load skill tree:', e);
-    }
-    
-    const penalties = skillTreeData?.upgradePenalties || {};
-    const discounts = skillTreeData?.upgradeDiscounts || {};
     
     const ev = c.active_event;
     const hasStatDiscount = ev?.key === 'discount_stats';
@@ -967,13 +956,11 @@ async function renderUpgrade() {
     ];
     
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
-        let cost = costs[s.key] || '?';
+        // Use the cost directly from backend (already includes all modifiers)
+        let cost = costs[s.key];
+        if (cost === undefined || cost === null) cost = '?';
         
-        // Get penalty and discount from skill tree data
-        const penaltyPct = penalties[s.key] ? Math.round(penalties[s.key] * 100) : 0;
-        const discountPct = discounts[s.key] ? Math.round(discounts[s.key] * 100) : 0;
-        
-        // Apply event and premium discounts on frontend (these are not in backend costs)
+        // Apply event and premium discounts on top (these are temporary and not in backend costs)
         if (hasStatDiscount && typeof cost === 'number') cost = Math.max(1, Math.floor(cost * 0.70));
         if (hasApprentice && typeof cost === 'number') cost = Math.max(1, Math.floor(cost * 0.80));
         
@@ -987,8 +974,6 @@ async function renderUpgrade() {
                 <span class="upgrade-card-val">${c[s.key] || 0}</span>
             </div>
             ${s.hint ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>` : ''}
-            ${penaltyPct > 0 ? `<div class="upgrade-discount" style="color:#e74c3c">⚠️ +${penaltyPct}% class penalty</div>` : ''}
-            ${discountPct > 0 ? `<div class="upgrade-discount" style="color:#2ecc71">✦ ${discountPct}% class discount</div>` : ''}
             ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>` : ''}
             ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>` : ''}
             <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
