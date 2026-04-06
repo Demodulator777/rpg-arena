@@ -4044,7 +4044,8 @@ async function exchangeFragments(materialId, quantity) {
 }
 
 function closeExchangeModal() {
-    document.getElementById('exchange-modal').classList.add('hidden');
+    const modal = document.getElementById('exchange-modal');
+    if (modal) modal.classList.add('hidden');
 }
 
 async function exchangeFragmentForMaterial(materialId, quantity) {
