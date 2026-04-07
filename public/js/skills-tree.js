@@ -174,6 +174,7 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass) {
             <div style="flex:1">
                 <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:${bc}">
                     ${branch.name}
+                    ${activeTraining ? '' : `<button class="btn-respec-branch" onclick="stRespecBranch('${branchId}')" style="font-size:0.6rem;padding:2px 8px;margin-left:8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">⟳ Reset Branch</button>`}
                     ${branch.exclusive_with
                         ? `<span style="font-size:0.6rem;padding:2px 6px;background:${bc}22;border-radius:4px;color:${bc};margin-left:6px;font-family:sans-serif">EXCLUSIVE</span>`
                         : ''}
@@ -364,6 +365,20 @@ async function stCancel() {
     if (!confirm('Cancel training? You will receive a 50% gold refund. Materials are NOT returned.')) return;
     try {
         const d = await api('POST', '/skills/cancel');
+        showMsg('skill-tree-msg', d.message);
+        await renderSkillTreeTab();
+    } catch (e) {
+        showMsg('skill-tree-msg', e.message, true);
+    }
+}
+
+async function stRespecBranch(branchId) {
+    if (!confirm(`Reset all skills in the "${branchId}" branch? This will refund 50% of gold and materials spent.`)) return;
+    try {
+        const d = await api('POST', '/skills/respec', { branchId });
+        character = await api('GET', '/game/character');
+        renderTopBar();
+        renderCharacter();
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch (e) {
