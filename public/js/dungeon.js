@@ -490,9 +490,9 @@ function generateFloor(dungeonId, floor) {
             for (let m = 0; m < actualCount; m++) {
               const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
               if (monsterDef) {
-                const scaledHp = monsterDef.hp + (floor * 5);
-                const scaledAtk = monsterDef.atk + (floor * 2);
-                const scaledDef = monsterDef.def + floor;
+                const scaledHp = monsterDef.hp + (Math.pow(floor, 1.3) * 12);
+const scaledAtk = monsterDef.atk + (Math.pow(floor, 1.2) * 3);
+const scaledDef = monsterDef.def + (Math.pow(floor, 1.1) * 1.5);
                 
                 monsters.push({
                   id: monsterDef.id,
@@ -544,8 +544,36 @@ function calcPlayerStats() {
   const c = getChar();
   if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
   
-  const atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
-  const def = (c.defense || 5) + (c.agility || 10) * 0.3;
+  let atk, def;
+  
+  // Calculate based on class
+  switch(c.class) {
+    case 'mage':
+      // Mages use Magic for damage, Agility for dodge (defense)
+      atk = (c.magic || 10) * 2.5 + (c.intelligence || 0) * 0.5;
+      def = (c.defense || 5) + (c.agility || 10) * 0.2;
+      break;
+      
+    case 'rogue':
+      // Rogues use Agility for damage and dodge
+      atk = (c.agility || 10) * 2.2 + (c.strength || 10) * 0.8;
+      def = (c.defense || 5) + (c.agility || 10) * 0.4;
+      break;
+      
+    case 'paladin':
+      // Paladins use Strength and Magic hybrid
+      atk = (c.strength || 10) * 1.5 + (c.magic || 10) * 1.0;
+      def = (c.defense || 5) + (c.strength || 10) * 0.3 + (c.magic || 10) * 0.2;
+      break;
+      
+    case 'warrior':
+    default:
+      // Warriors use Strength for damage, Agility for some dodge
+      atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
+      def = (c.defense || 5) + (c.strength || 10) * 0.3;
+      break;
+  }
+  
   const hp = c.hp_current || c.hp || 100;
   const maxHp = c.hp_max || 100;
   
