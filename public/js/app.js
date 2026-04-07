@@ -3431,9 +3431,8 @@ function viewBattleReport(msgId) {
     const summary = [
         report.won ? '✅ Victory' : '💀 Defeated',
         report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
-        report.xpEarned ? `⭐ +${report.xpEarned} XP` : null,
-        report.totalDmgDealt ? `⚔️ ${report.totalDmgDealt} dmg dealt` : null,
-        report.totalDmgTaken ? `💔 ${report.totalDmgTaken} dmg taken` : null
+        report.xpEarned ? `⭐ +${report.xpEarned} XP` : null
+        // REMOVED: report.totalDmgDealt and report.totalDmgTaken from here
     ].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken);
 }
