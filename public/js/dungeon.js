@@ -443,7 +443,7 @@ function generateFloor(dungeonId, floor) {
       const isStart = (i === 0);
       
       // Mini-boss chance (10% on non-start, non-boss rooms, floor 10+)
-      const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 10;
+      const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 5;
 
       const connections = [];
       for (let j = 0; j < chosen.length; j++) {
