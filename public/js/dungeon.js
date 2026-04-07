@@ -1895,6 +1895,16 @@ global.debugDungeonDetails = function() {
     // Check if the monster pool has valid monsters
     console.log('Monster pool sample:', dungeonDef.monsters[0]);
 };
+  global.testMonsterCreation = function() {
+    const dungeonDef = getDungeonDef('tower');
+    let monsterCount = 0;
+    for(let i = 0; i < 100; i++) {
+        if (!false && !false && dungeonDef && Math.random() < 0.7) {
+            monsterCount++;
+        }
+    }
+    console.log('Monster creation would happen', monsterCount, 'out of 100 times');
+};
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
