@@ -1782,6 +1782,64 @@ router.get('/training/status', async (req, res) => {
     }
 });
 
+router.post('/respec', async (req, res) => {
+    try {
+        const { getDb } = require('./db');
+        const db = await getDb();
+        const { branchId } = req.body;
+        
+        const char = (await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [req.user.userId] })).rows[0];
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        // Get all skills in this branch that are learned
+        const tree = SKILL_TREES[char.class];
+        const branch = tree?.branches[branchId];
+        if (!branch) return res.status(400).json({ error: 'Branch not found' });
+        
+        const learnedSkills = [];
+        let totalRefund = 0;
+        
+        for (const [skId, sk] of Object.entries(branch.skills)) {
+            const learned = await db.execute({
+                sql: 'SELECT * FROM character_skill_tree WHERE char_id=? AND skill_id=?',
+                args: [char.id, skId]
+            });
+            if (learned.rows.length) {
+                learnedSkills.push(skId);
+                totalRefund += Math.floor(sk.goldCost * 0.5);
+            }
+        }
+        
+        if (learnedSkills.length === 0) {
+            return res.status(400).json({ error: 'No skills learned in this branch' });
+        }
+        
+        // Remove learned skills
+        for (const skId of learnedSkills) {
+            await db.execute({
+                sql: 'DELETE FROM character_skill_tree WHERE char_id=? AND skill_id=?',
+                args: [char.id, skId]
+            });
+        }
+        
+        // Refund gold
+        if (totalRefund > 0) {
+            await db.execute({
+                sql: 'UPDATE characters SET gold=gold+? WHERE id=?',
+                args: [totalRefund, char.id]
+            });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `Reset ${learnedSkills.length} skills. Refunded ${totalRefund} gold.`,
+            refund: totalRefund 
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = {
     router,
     SKILL_TREES,
