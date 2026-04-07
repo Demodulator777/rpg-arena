@@ -3428,8 +3428,14 @@ async function loadInbox() {
 function viewBattleReport(msgId) {
     const report = window._reportCache?.[msgId];
     if (!report) { alert('Report not found. Try reloading the inbox.'); return; }
-    const summary = [report.won?'✅ Victory':'💀 Defeated', report.goldEarned?`💰 ${report.goldEarned>0?'+':''}${report.goldEarned} gold`:null, report.xpEarned?`⭐ +${report.xpEarned} XP`:null].filter(Boolean).join(' · ');
-    showBattleReportModal(report.log, report.won, summary);
+    const summary = [
+        report.won ? '✅ Victory' : '💀 Defeated',
+        report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
+        report.xpEarned ? `⭐ +${report.xpEarned} XP` : null,
+        report.totalDmgDealt ? `⚔️ ${report.totalDmgDealt} dmg dealt` : null,
+        report.totalDmgTaken ? `💔 ${report.totalDmgTaken} dmg taken` : null
+    ].filter(Boolean).join(' · ');
+    showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken);
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
 
