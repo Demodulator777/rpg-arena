@@ -1459,7 +1459,18 @@ function withTrainingStatus(char) {
 }
 function withUpgradeCosts(char) {
     const costs = {};
-    ['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].forEach(s => { costs[s] = upgradeCost(s, char[s] || 0, char.class); });
+    const stats = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance'];
+    
+    for (const stat of stats) {
+        // Get base cost from CLASS_DISCOUNTS
+        let baseCost = upgradeCost(stat, char[stat] || 0, char.class);
+        
+        // Apply skill tree penalties/discounts
+        let finalCost = applyClassUpgradeCostModifier(char.class, stat, baseCost);
+        
+        costs[stat] = finalCost;
+    }
+    
     return { ...char, upgradeCosts: costs };
 }
 
@@ -1664,12 +1675,15 @@ router.post('/upgrade', auth, async (req, res) => {
         if (!['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].includes(stat))
             return res.status(400).json({ error: 'Invalid stat' });
         
-        // Get base cost from upgradeCost (already includes CLASS_DISCOUNTS)
+        // Get learned skills for this character (for skill-specific discounts)
+        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+        const learnedIds = learnedRows.map(r => r.skill_id);
+        
+        // Get base cost from upgradeCost (includes CLASS_DISCOUNTS)
         let cost = upgradeCost(stat, char[stat] || 0, char.class);
         
-        // Only apply skill tree modifiers from LEARNED skills (if any)
-        // But since we don't have skills that affect upgrade costs yet, skip this
-        // cost = applyClassUpgradeCostModifier(char.class, stat, cost, learnedIds);
+        // Apply skill tree modifiers (class penalties/discounts from SKILL_TREES)
+        cost = applyClassUpgradeCostModifier(char.class, stat, cost, learnedIds);
         
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
         const activePrem = getActivePremium(char);
