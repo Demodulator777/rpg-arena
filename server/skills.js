@@ -73,8 +73,9 @@ const SKILL_TREES = {
     // ═══════════════════════════════════════════════════════════════════════════
     warrior: {
         description: 'Masters of physical combat. Strength, defense, and tactical prowess.',
-        upgrade_penalties: {},
-        upgrade_discounts: { strength: 0.30, defense: 0.15, vitality: 0.10 },
+            exclusive_branches: [['berserker', 'iron_guard', 'battle_commander', 'gladiator']],
+    upgrade_penalties: {},
+    upgrade_discounts: { strength: 0.30, defense: 0.15, vitality: 0.10 },
 
         branches: {
             berserker: {
@@ -380,7 +381,14 @@ const SKILL_TREES = {
         description: 'Arcane scholars. Elemental mastery and magical devastation.',
         upgrade_penalties: { strength: 1.50, defense: 0.30 },
         upgrade_discounts: { magic: 0.35, agility: 0.10 },
-        exclusive_branches: [['light_path', 'shadow_path']],
+        exclusive_branches: [[
+        'arcane_foundation',
+        'pyromancer', 
+        'cryomancer', 
+        'stormcaller', 
+        'light_path', 
+        'shadow_path'
+    ]],
 
         branches: {
             arcane_foundation: {
@@ -728,6 +736,7 @@ const SKILL_TREES = {
     // ═══════════════════════════════════════════════════════════════════════════
     rogue: {
         description: 'Masters of stealth and precision. High critical damage and evasion.',
+        exclusive_branches: [['assassin', 'trickster', 'shadowblade']],
         upgrade_penalties: { defense: 0.30, magic: 0.20 },
         upgrade_discounts: { agility: 0.35, strength: 0.10 },
 
@@ -980,6 +989,7 @@ const SKILL_TREES = {
     // ═══════════════════════════════════════════════════════════════════════════
     paladin: {
         description: 'Holy warriors. Unbreakable defense and divine justice.',
+        exclusive_branches: [['protector', 'divine_warrior', 'inquisitor', 'crusader']],
         upgrade_penalties: { agility: 0.60, strength: 0.20 },
         upgrade_discounts: { defense: 0.25, magic: 0.20, vitality: 0.15 },
 
@@ -1283,13 +1293,42 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, 
     if (!tree) return null;
 
     const result = { ...tree, branches: {} };
+    
+    // Track which branches are locked due to exclusivity
+    const exclusiveGroups = tree.exclusive_branches || [];
+    let activeBranch = null;
+    
+    // Find which branch the player has already invested in
+    for (const group of exclusiveGroups) {
+        for (const branchId of group) {
+            const branch = tree.branches[branchId];
+            if (branch && Object.keys(branch.skills).some(skillId => learnedMap[skillId])) {
+                activeBranch = branchId;
+                break;
+            }
+        }
+        if (activeBranch) break;
+    }
 
     for (const [branchId, branch] of Object.entries(tree.branches)) {
+        // Skip completely hidden branches (like dual_wielder) until unlocked
         if (branch.hidden) {
             const anyVisible = Object.values(branch.skills).some(sk =>
                 meetsUnlockCondition(char, sk.unlockCondition, extraStats)
             );
             if (!anyVisible) continue;
+        }
+        
+        // Check if this branch is locked by exclusivity
+        let isExclusiveLocked = false;
+        if (activeBranch && activeBranch !== branchId) {
+            // Check if they are in the same exclusive group
+            for (const group of exclusiveGroups) {
+                if (group.includes(activeBranch) && group.includes(branchId)) {
+                    isExclusiveLocked = true;
+                    break;
+                }
+            }
         }
 
         const enrichedSkills = {};
@@ -1300,29 +1339,34 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, 
             const prereqsMet = sk.requires.every(r => !!learnedMap[r]);
             const condMet = meetsUnlockCondition(char, sk.unlockCondition, extraStats);
             
-            const isVisible = learned || (prereqsMet && condMet);
+            // If branch is exclusive-locked, only show already learned skills
+            const isVisible = learned || (!isExclusiveLocked && prereqsMet && condMet);
+            
             if (!isVisible) continue;
             
             hasVisibleSkill = true;
-            const trainable = !learned && prereqsMet && condMet && !hasActiveTraining;
+            const trainable = !learned && prereqsMet && condMet && !hasActiveTraining && !isExclusiveLocked;
             const isLocked = !learned && !trainable;
             
             enrichedSkills[skId] = {
                 ...sk,
                 learned,
-                trainable,
-                locked: isLocked,
+                trainable: trainable,
+                locked: isLocked || isExclusiveLocked,
+                exclusiveLocked: isExclusiveLocked && !learned,
                 prereqsMet,
                 condMet,
                 unlockConditionDesc: isLocked ? '???' : (sk.unlockConditionDesc || null),
             };
         }
 
-        if (hasVisibleSkill) {
+        // Only show branch if it has at least one visible skill OR it's the active branch
+        if (hasVisibleSkill || activeBranch === branchId) {
             result.branches[branchId] = { 
                 ...branch, 
                 skills: enrichedSkills,
-                description: learnedMap[Object.keys(branch.skills)[0]] ? branch.description : '???'
+                description: learnedMap[Object.keys(branch.skills)[0]] ? branch.description : '???',
+                exclusiveLocked: isExclusiveLocked && activeBranch !== branchId,
             };
         }
     }
