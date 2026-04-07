@@ -2054,7 +2054,7 @@ const payload = JSON.stringify({
     goldEarned, 
     xpEarned, 
     type: 'mission', 
-    npc.name = npcName;
+    npc.name = npcName,
     missionName: mission.mission_name,
     totalDmgDealt: battle.totalDmgToB,
     totalDmgTaken: battle.totalDmgToA
