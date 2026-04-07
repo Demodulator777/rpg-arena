@@ -1870,6 +1870,31 @@ global.debugDungeonDetails = function() {
     }
     console.log('chance(0.7) test:', trueCount, 'out of 100');
 };
+  global.debugDungeonMonsters = function() {
+    console.log('=== MONSTER CREATION DEBUG ===');
+    
+    // Check if the condition is being evaluated
+    const dungeonDef = getDungeonDef('tower');
+    console.log('dungeonDef exists:', !!dungeonDef);
+    console.log('dungeonDef.monsters length:', dungeonDef.monsters.length);
+    
+    // Check a specific room that should have monsters (room 1)
+    const room1 = D.rooms[1];
+    console.log('Room 1 details:', {
+        isStart: room1.isStart,
+        isBoss: room1.isBoss,
+        type: room1.type,
+        connections: room1.connections,
+        monsters: room1.monsters
+    });
+    
+    // Manually test if a monster would be created for room 1
+    const shouldCreateMonster = !room1.isStart && !room1.isBoss && dungeonDef && chance(0.7);
+    console.log('Should create monster for room 1?', shouldCreateMonster);
+    
+    // Check if the monster pool has valid monsters
+    console.log('Monster pool sample:', dungeonDef.monsters[0]);
+};
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
