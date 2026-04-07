@@ -736,6 +736,9 @@ function travelToRoom(targetIdx) {
     const current = D.rooms[D.playerPos];
     if (!current.connections.includes(targetIdx)) return;
     
+    // Get the target room
+    const target = D.rooms[targetIdx];
+    
     // Check if current room has any alive monsters AND you haven't successfully evaded them
     const hasAliveMonsters = current.monsters && current.monsters.some(m => 
         !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
@@ -770,7 +773,10 @@ function travelToRoom(targetIdx) {
         saveState();
         saveProgressToDB();
 
-        if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
+        if (bar) { 
+            bar.style.transition = 'none'; 
+            bar.style.width = '0%'; 
+        }
 
         log(`📍 Arrived at ${target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`}`, 'log-arrive');
 
