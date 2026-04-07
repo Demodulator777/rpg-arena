@@ -731,21 +731,25 @@ function enterDungeon(dungeonId) {
     renderDungeonView();
 }
 
-  function travelToRoom(targetIdx) {
+function travelToRoom(targetIdx) {
     if (D.isTraveling || D.combat) return;
     const current = D.rooms[D.playerPos];
     if (!current.connections.includes(targetIdx)) return;
     
-    // NEW: Check if current room has alive monsters
-    const target = D.rooms[targetIdx];
-// Check if current room has any alive monsters (array)
-const hasAliveMonsters = current.monsters && current.monsters.some(m => 
-    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
-);
+    // Check if current room has any alive monsters AND you haven't successfully evaded them
+    const hasAliveMonsters = current.monsters && current.monsters.some(m => 
+        !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+    );
+    const hasEvaded = current.monstersEvaded === true;
     
-    if (hasAliveMonsters) {
-        log(`⚠️ You must defeat the enemies in this room before leaving!`, 'log-danger');
+    if (hasAliveMonsters && !hasEvaded) {
+        log(`⚠️ You must defeat or escape from the ${current.monsters.length} enemies in this room before leaving!`, 'log-danger');
         return;
+    }
+    
+    // Reset evaded flag when leaving
+    if (current.monstersEvaded) {
+        current.monstersEvaded = false;
     }
 
     D.isTraveling = true;
@@ -861,13 +865,16 @@ function fightRound() {
     }
 }
 
- function onRoomCleared(roomIdx) {
+function onRoomCleared(roomIdx) {
     const room = D.rooms[roomIdx];
     
     // Mark all monsters as killed
     if (room.monsters) {
         room.monsters.forEach(m => { m.lastKilled = Date.now(); });
     }
+    
+    // Clear evaded flag if it was set
+    room.monstersEvaded = false;
     
     // Roll loot for each monster
     let totalGold = 0;
@@ -890,25 +897,42 @@ function fightRound() {
 function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
         log(`💨 Escaped successfully!`, 'log-success');
+        
+        // Mark that you successfully fled from these monsters
+        // This allows you to leave the room without fighting
+        if (D.combat && D.combat.monsters) {
+            // Add a flag to the room that monsters have been evaded
+            const room = D.rooms[roomIdx];
+            if (room) {
+                room.monstersEvaded = true;
+            }
+        }
+        
         D.combat = null;
         renderDungeonView();
     } else {
-        log(`⚠️ Failed to escape! The monster attacks!`, 'log-danger');
-        // Run failed - monster gets a free attack, then combat continues
+        log(`⚠️ Failed to escape! The monsters attack!`, 'log-danger');
         const c = getChar();
-        if (c && D.combat) {
+        if (c && D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
             const pStats = calcPlayerStats();
-            const m = D.combat.monster;
-            const mDmg = Math.max(1, Math.floor(m.atk - pStats.def * 0.5 + rand(-2, 2)));
-            c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - mDmg);
+            let totalDamage = 0;
+            
+            for (let i = 0; i < D.combat.monsters.length; i++) {
+                const m = D.combat.monsters[i];
+                if (m.currentHp > 0) {
+                    const mDmg = Math.max(1, Math.floor(m.atk - pStats.def * 0.5 + rand(-2, 2)));
+                    totalDamage += mDmg;
+                    log(`💥 ${m.name} hits you for ${mDmg}!`, 'log-danger');
+                }
+            }
+            
+            c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - totalDamage);
             c.hp = c.hp_current;
-            log(`💥 ${m.name} hits you for ${mDmg} as you try to flee!`, 'log-danger');
             
             if (c.hp_current <= 0) {
                 onPlayerDeath();
                 return;
             }
-            // Combat continues - don't clear D.combat
             renderCombatPanel();
         }
     }
@@ -1930,9 +1954,20 @@ global.exchangeAtGuild = exchangeAtGuild;
 global.dungeonRun = (roomIdx) => {
     const room = D.rooms[roomIdx];
     if (room && room.monsters && room.monsters.length > 0) {
+        // Check if any monsters are alive
+        const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
+        if (!anyAlive) {
+            log(`💤 All monsters are dead or respawning.`, 'log-info');
+            return;
+        }
+        
         D.combat = { 
             roomIdx, 
-            monsters: room.monsters.map(m => ({ ...m, currentHp: m.currentHp || m.maxHp })),
+            monsters: room.monsters.map(m => ({ 
+                ...m, 
+                currentHp: m.currentHp || m.maxHp,
+                lastKilled: m.lastKilled
+            })),
             currentMonsterIndex: 0,
             roundLog: [] 
         };
