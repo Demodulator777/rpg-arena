@@ -1850,13 +1850,18 @@ function exchangeAtGuild(exchangeId) {
     // Check if the monster spawn chance is working
     console.log('Sample dungeonDef monsters:', getDungeonDef('tower').monsters.length);
 };
-  global.debugDungeonDetails = function() {
+global.debugDungeonDetails = function() {
     console.log('=== DETAILED DEBUG ===');
     
     // Check first 10 rooms
     D.rooms.slice(0, 10).forEach((r, i) => {
-        console.log(`Room ${i}: isStart=${r.isStart}, isBoss=${r.isBoss}, type=${r.type}, hasMonsters=${!!r.monsters}`);
+        console.log(`Room ${i}: isStart=${r.isStart}, isBoss=${r.isBoss}, type=${r.type}, connections=${r.connections?.length}, hasMonsters=${!!r.monsters}`);
     });
+    
+    // Also check if dungeonDef is truthy in the loop
+    const dungeonDef = getDungeonDef('tower');
+    console.log('dungeonDef exists:', !!dungeonDef);
+    console.log('dungeonDef.monsters length:', dungeonDef.monsters.length);
     
     // Test chance function
     let trueCount = 0;
