@@ -1834,6 +1834,22 @@ function exchangeAtGuild(exchangeId) {
 
   // ── Global API (called from HTML onclick) ──────────────────
   global.dungeonFightMiniBoss = fightMiniBoss;
+  global.debugDungeon = function() {
+    console.log('=== DUNGEON DEBUG ===');
+    console.log('Floor:', D.floor);
+    console.log('Total rooms:', D.rooms.length);
+    console.log('Rooms with monsters:', D.rooms.filter(r => r.monsters && r.monsters.length > 0).length);
+    console.log('Monsters available from pool:', getMonstersForFloor(D.floor).length);
+    
+    // Check first 3 non-start, non-boss rooms
+    const testRooms = D.rooms.filter(r => !r.isStart && !r.isBoss).slice(0, 3);
+    testRooms.forEach((r, i) => {
+        console.log(`Room ${i}: type=${r.type}, monsterCount=${r.monsters?.length || 0}, monsters=`, r.monsters);
+    });
+    
+    // Check if the monster spawn chance is working
+    console.log('Sample dungeonDef monsters:', getDungeonDef('tower').monsters.length);
+};
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
