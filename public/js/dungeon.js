@@ -86,6 +86,38 @@ const GUILD_RANKS = [
     { theme:'#92400e', themeGlow:'rgba(146,64,14,0.4)',   name:'Celestial Ruins' },
   ];
 
+  // ── Mini-Boss Pool (costs 5-10 tokens) ──────────────────────────────────────────
+const MINI_BOSS_POOL = [
+    { name:'Shadow Stalker',     icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:10, image:'/images/dungeon/miniboss1.jpg' },
+    { name:'Crystal Golem',      icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
+    { name:'Flame Revenant',     icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, tokenCost:7,  minFloor:20, image:'/images/dungeon/miniboss3.jpg' },
+    { name:'Frost Wyrmling',     icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, tokenCost:8,  minFloor:25, image:'/images/dungeon/miniboss4.jpg' },
+    { name:'Void Stalker',       icon:'🌑', baseHp:500, baseAtk:75, baseDef:28, tokenCost:9,  minFloor:30, image:'/images/dungeon/miniboss5.jpg' },
+    { name:'Doom Knight',        icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, tokenCost:10, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
+];
+
+function getMiniBossForFloor(floor) {
+    const available = MINI_BOSS_POOL.filter(m => m.minFloor <= floor);
+    if (available.length === 0) return null;
+    const miniBoss = available[rand(0, available.length - 1)];
+    const scale = 1 + (floor - 10) * 0.08;
+    
+    return {
+        name: miniBoss.name,
+        icon: miniBoss.icon,
+        image: miniBoss.image,
+        hp: Math.round(miniBoss.baseHp * scale),
+        atk: Math.round(miniBoss.baseAtk * scale),
+        def: Math.round(miniBoss.baseDef * scale),
+        tokenCost: miniBoss.tokenCost,
+        isMiniBoss: true,
+        currentHp: Math.round(miniBoss.baseHp * scale),
+        maxHp: Math.round(miniBoss.baseHp * scale),
+        lastKilled: null,
+        stolenItems: [],
+    };
+}
+
   const MONSTER_POOL = [
     { id:'skeleton',    name:'Skeleton Warrior', icon:'💀', hp:80,  atk:12, def:5,  steal:true,  minFloor:1  },
     { id:'ghost',       name:'Wailing Ghost',    icon:'👻', hp:60,  atk:18, def:2,  steal:false, minFloor:1  },
@@ -367,7 +399,7 @@ async function refreshCharacter() {
   }
 
   // ── Map Generation ─────────────────────────────────────────
-  function generateFloor(dungeonId, floor) {
+function generateFloor(dungeonId, floor) {
     const rooms = [];
     const gridW = 13, gridH = 5;
     const total = gridW * gridH;
@@ -408,6 +440,9 @@ async function refreshCharacter() {
       const x = idx % gridW, y = Math.floor(idx / gridW);
       const isBoss = (idx === farthest);
       const isStart = (i === 0);
+      
+      // Mini-boss chance (10% on non-start, non-boss rooms, floor 10+)
+      const isMiniBoss = !isStart && !isBoss && chance(0.10) && floor >= 10;
 
       const connections = [];
       for (let j = 0; j < chosen.length; j++) {
@@ -418,22 +453,52 @@ async function refreshCharacter() {
         }
       }
 
-      let monster = null;
+      // Determine how many monsters based on floor (every 10 floors adds 1 more enemy)
+      let monsterCount = 1;
+      if (floor >= 30) monsterCount = 4;      // Floors 30+: 4 enemies
+      else if (floor >= 20) monsterCount = 3; // Floors 20-29: 3 enemies
+      else if (floor >= 10) monsterCount = 2; // Floors 10-19: 2 enemies
+      else monsterCount = 1;                  // Floors 1-9: 1 enemy
+
+      let monsters = null;
       if (!isStart && !isBoss && dungeonDef && chance(0.7)) {
-        const m = dungeonDef.monsters[rand(0, dungeonDef.monsters.length-1)];
-        monster = {
-          ...m,
-          currentHp: m.hp + floor * 5,
-          maxHp: m.hp + floor * 5,
-          atk: m.atk + floor * 2,
-          def: m.def + floor,
-          lastKilled: null,
-          stolenItems: [],
-        };
+        monsters = [];
+        
+        if (isMiniBoss) {
+          // Mini-boss is a single strong enemy (overrides monsterCount)
+          const miniBoss = getMiniBossForFloor(floor);
+          if (miniBoss) {
+            monsters.push({
+              ...miniBoss,
+              currentHp: miniBoss.hp,
+              maxHp: miniBoss.hp,
+              atk: miniBoss.atk,
+              def: miniBoss.def,
+              tokenCost: miniBoss.tokenCost,
+              isMiniBoss: true,
+              lastKilled: null,
+              stolenItems: [],
+            });
+          }
+        } else {
+          // Create multiple regular monsters
+          for (let m = 0; m < monsterCount; m++) {
+            const monsterDef = dungeonDef.monsters[rand(0, dungeonDef.monsters.length-1)];
+            monsters.push({
+              ...monsterDef,
+              currentHp: monsterDef.hp + floor * 5,
+              maxHp: monsterDef.hp + floor * 5,
+              atk: monsterDef.atk + floor * 2,
+              def: monsterDef.def + floor,
+              lastKilled: null,
+              stolenItems: [],
+            });
+          }
+        }
       }
 
       // Determine room type and visual
-      let roomType = isBoss ? 'boss' : isStart ? 'start' : (chance(0.15) ? 'treasure' : 'corridor');
+      let roomType = isBoss ? 'boss' : isStart ? 'start' : (isMiniBoss ? 'miniboss' : (chance(0.15) ? 'treasure' : 'corridor'));
       let visualData = null;
       if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
       else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
@@ -445,9 +510,10 @@ async function refreshCharacter() {
         gridIdx: idx,
         x, y,
         isBoss,
+        isMiniBoss: isMiniBoss || false,
         isStart,
         connections,
-        monster,
+        monsters,  // ← CHANGED from 'monster' to 'monsters' (array)
         looted: false,
         type: roomType,
         visual: visualData
@@ -475,20 +541,31 @@ function calcPlayerStats() {
   };
 }
 
-  function runCombatRound(playerStats, monster) {
+function runCombatRound(playerStats, monsters, currentMonsterIndex) {
     const log = [];
-    const pDmg = Math.max(1, Math.floor(playerStats.atk - monster.def * 0.5 + rand(-3,3)));
-    monster.currentHp -= pDmg;
-    log.push({ actor: 'player', text: `You strike for ${pDmg} damage!`, dmg: pDmg });
-
-    if (monster.currentHp > 0) {
-      const mDmg = Math.max(1, Math.floor(monster.atk - playerStats.def * 0.5 + rand(-2,2)));
-      log.push({ actor: 'monster', text: `${monster.name} hits you for ${mDmg}!`, dmg: mDmg });
-      return { log, playerDmgTaken: mDmg, monsterDead: false };
+    const currentMonster = monsters[currentMonsterIndex];
+    
+    // Player attacks current monster
+    const pDmg = Math.max(1, Math.floor(playerStats.atk - currentMonster.def * 0.5 + rand(-3, 3)));
+    currentMonster.currentHp -= pDmg;
+    log.push({ actor: 'player', text: `You strike ${currentMonster.name} for ${pDmg} damage!`, dmg: pDmg });
+    
+    // ALL alive monsters attack back
+    let totalPlayerDmg = 0;
+    for (let i = 0; i < monsters.length; i++) {
+        const m = monsters[i];
+        if (m.currentHp > 0) {
+            const mDmg = Math.max(1, Math.floor(m.atk - playerStats.def * 0.5 + rand(-2, 2)));
+            totalPlayerDmg += mDmg;
+            log.push({ actor: 'monster', text: `${m.name} hits you for ${mDmg}!`, dmg: mDmg });
+        }
     }
-
-    return { log, playerDmgTaken: 0, monsterDead: true };
-  }
+    
+    const monsterDead = currentMonster.currentHp <= 0;
+    const allMonstersDead = monsters.every(m => m.currentHp <= 0);
+    
+    return { log, playerDmgTaken: totalPlayerDmg, monsterDead, allMonstersDead, currentMonsterIndex };
+}
 
   function rollMinorLoot(dungeonId) {
     const total = MINION_LOOT.reduce((s,l) => s+l.weight, 0);
@@ -645,9 +722,10 @@ function enterDungeon(dungeonId) {
     
     // NEW: Check if current room has alive monsters
     const target = D.rooms[targetIdx];
-    const hasAliveMonsters = current.monsters && current.monsters.some(m => 
-        !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
-    );
+// Check if current room has any alive monsters (array)
+const hasAliveMonsters = current.monsters && current.monsters.some(m => 
+    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+);
     
     if (hasAliveMonsters) {
         log(`⚠️ You must defeat the enemies in this room before leaving!`, 'log-danger');
@@ -686,74 +764,111 @@ function enterDungeon(dungeonId) {
     }, travelMs);
 }
 
-  function initiateFight(roomIdx) {
+function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
-    if (!room || !room.monster) return;
+    if (!room || !room.monsters || room.monsters.length === 0) return;
 
-    if (room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H)) {
-      const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monster.lastKilled) / 3600000).toFixed(1);
-      log(`💤 Monster respawns in ${hoursLeft}h`, 'log-info');
-      return;
+    // Check if any monsters are alive
+    const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
+    if (!anyAlive) {
+        const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monsters[0].lastKilled) / 3600000).toFixed(1);
+        log(`💤 Monsters respawn in ${hoursLeft}h`, 'log-info');
+        return;
     }
 
     D.combat = {
-      roomIdx,
-      monster: { ...room.monster },
-      playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
-      roundLog: [],
+        roomIdx,
+        monsters: room.monsters.map(m => ({ ...m, currentHp: m.currentHp || m.maxHp })),
+        currentMonsterIndex: 0,
+        playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
+        roundLog: [],
     };
     renderCombatPanel();
-  }
+}
 
 function fightRound() {
-  if (!D.combat) return;
-  
-  // Get fresh character stats before combat round
-  const c = getChar();
-  if (!c) return;
-  
-  // Use current health from character
-  const currentHp = c.hp_current || c.hp || 100;
-  const pStats = { 
-    atk: calcPlayerStats().atk, 
-    def: calcPlayerStats().def, 
-    hp: currentHp, 
-    maxHp: c.hp_max || 100 
-  };
-  
-  const { log: roundLog, playerDmgTaken, monsterDead } = runCombatRound(pStats, D.combat.monster);
-  
-  D.combat.roundLog.push(...roundLog);
-  
-  if (playerDmgTaken > 0) {
-    const newHp = Math.max(0, currentHp - playerDmgTaken);
-    c.hp_current = newHp;
-    c.hp = newHp;
+    if (!D.combat) return;
     
-    // Sync health to server
-    apiFetch('POST', '/game/dungeon/update-health', { hp: newHp }).catch(e => console.error('Failed to sync health:', e));
+    const c = getChar();
+    if (!c) return;
     
-    // Also update the top bar display
-    if (typeof renderTopBar === 'function') renderTopBar();
-  }
-  
-  // Check for death
-  if (c.hp_current <= 0) {
-    onPlayerDeath();
-    return;
-  }
-  
-  // Monster steal attempt
-  if (!monsterDead && D.combat.monster.steal && chance(STEAL_CHANCE)) {
-    tryStealFromPlayer(D.combat.roomIdx);
-  }
-  
-  if (monsterDead) {
-    if (D.combat.monster.isBoss) onBossDefeated();
-    else onMonsterDefeated(D.combat.roomIdx);
-  } else {
-    renderCombatPanel();
-  }
+    const currentHp = c.hp_current || c.hp || 100;
+    const pStats = { 
+        atk: calcPlayerStats().atk, 
+        def: calcPlayerStats().def, 
+        hp: currentHp, 
+        maxHp: c.hp_max || 100 
+    };
+    
+    const { log: roundLog, playerDmgTaken, monsterDead, allMonstersDead, currentMonsterIndex } = 
+        runCombatRound(pStats, D.combat.monsters, D.combat.currentMonsterIndex);
+    
+    D.combat.roundLog.push(...roundLog);
+    
+    if (playerDmgTaken > 0) {
+        const newHp = Math.max(0, currentHp - playerDmgTaken);
+        c.hp_current = newHp;
+        c.hp = newHp;
+        apiFetch('POST', '/game/dungeon/update-health', { hp: newHp }).catch(e => console.error('Failed to sync health:', e));
+        if (typeof renderTopBar === 'function') renderTopBar();
+    }
+    
+    if (c.hp_current <= 0) {
+        onPlayerDeath();
+        return;
+    }
+    
+    // Monster steal attempt
+    if (!monsterDead && D.combat.monsters[currentMonsterIndex].steal && chance(STEAL_CHANCE)) {
+        tryStealFromPlayer(D.combat.roomIdx, currentMonsterIndex);
+    }
+    
+    if (monsterDead) {
+        log(`✅ ${D.combat.monsters[currentMonsterIndex].name} defeated!`, 'log-success');
+        
+        let nextIndex = -1;
+        for (let i = 0; i < D.combat.monsters.length; i++) {
+            if (D.combat.monsters[i].currentHp > 0) {
+                nextIndex = i;
+                break;
+            }
+        }
+        
+        if (nextIndex === -1 || allMonstersDead) {
+            onRoomCleared(D.combat.roomIdx);
+        } else {
+            D.combat.currentMonsterIndex = nextIndex;
+            renderCombatPanel();
+        }
+    } else {
+        renderCombatPanel();
+    }
+}
+
+ function onRoomCleared(roomIdx) {
+    const room = D.rooms[roomIdx];
+    
+    // Mark all monsters as killed
+    if (room.monsters) {
+        room.monsters.forEach(m => { m.lastKilled = Date.now(); });
+    }
+    
+    // Roll loot for each monster
+    let totalGold = 0;
+    for (const monster of room.monsters) {
+        const loot = rollMinorLoot(D.activeDungeon);
+        if (loot.type === 'gold') totalGold += loot.amount;
+        else applyLoot(loot);
+    }
+    
+    if (totalGold > 0) {
+        applyLoot({ type: 'gold', amount: totalGold });
+    }
+    
+    D.combat = null;
+    saveState();
+    saveProgressToDB();
+    renderDungeonView();
 }
 
 function tryRun(roomIdx) {
@@ -783,16 +898,16 @@ function tryRun(roomIdx) {
     }
 }
 
-  function tryStealFromPlayer(roomIdx) {
+function tryStealFromPlayer(roomIdx, monsterIndex) {
     const c = getChar();
     if (!c || !c.inventory || c.inventory.length === 0) return;
     const invItems = c.inventory.filter(i => !i.equipped);
     if (invItems.length === 0) return;
     const stolen = invItems[rand(0, invItems.length-1)];
     c.inventory = c.inventory.filter(i => i !== stolen);
-    D.rooms[roomIdx].monster.stolenItems.push(stolen);
-    log(`💰 ${D.combat.monster.name} stole your ${stolen.name}!`, 'log-danger');
-  }
+    D.combat.monsters[monsterIndex].stolenItems.push(stolen);
+    log(`💰 ${D.combat.monsters[monsterIndex].name} stole your ${stolen.name}!`, 'log-danger');
+}
 
   function onMonsterDefeated(roomIdx) {
     const room = D.rooms[roomIdx];
@@ -838,7 +953,7 @@ function tryRun(roomIdx) {
     setTimeout(() => renderDungeonList(), 1500);
   }
 
-  async function fightBoss(roomIdx) {
+async function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isBoss) return;
     
@@ -853,17 +968,18 @@ function tryRun(roomIdx) {
 
     D.combat = {
       roomIdx,
-      monster: {
+      monsters: [{  // Changed to array
         ...boss,
         currentHp: boss.hp,
         maxHp: boss.hp,
         stolenItems: [],
         isBoss: true,
-      },
+      }],
+      currentMonsterIndex: 0,
       roundLog: [],
     };
     renderCombatPanel();
-  }
+}
 
 function onBossDefeated() {
   const dungeonDef = getDungeonDef(D.activeDungeon);
@@ -1149,7 +1265,9 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
                 // Monster is considered "alive" only if it has never been killed, or the respawn cooldown has elapsed.
-                const monsterAlive = cr.monster && (!cr.monster.lastKilled || elapsed(cr.monster.lastKilled, MONSTER_RESPAWN_H));
+                const monsterAlive = cr.monsters && cr.monsters.some(m => 
+    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+);
                 const icon = explored
                   ? (cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️')
                   : '❓';
@@ -1245,130 +1363,182 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     return html;
 }
 
-  function renderRoomInfo(room) {
-    const monsterAlive = room.monster && (!room.monster.lastKilled || elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
-    const monsterRespawning = room.monster && room.monster.lastKilled && !elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H);
+function renderRoomInfo(room) {
+    // Check if there are any monsters (array) and if any are alive
+    const hasMonsters = room.monsters && room.monsters.length > 0;
+    const anyMonsterAlive = hasMonsters && room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
+    const allMonstersRespawning = hasMonsters && room.monsters.every(m => m.lastKilled && !elapsed(m.lastKilled, MONSTER_RESPAWN_H));
+    
+    // Get first alive monster for display (if multiple)
+    const aliveMonster = anyMonsterAlive ? room.monsters.find(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)) : null;
+    const monsterCount = room.monsters ? room.monsters.length : 0;
+    const aliveCount = room.monsters ? room.monsters.filter(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)).length : 0;
 
-if (room.isBoss) {
-    const def = getDungeonDef(D.activeDungeon);
-    const boss = def.boss;
+    if (room.isBoss) {
+        const def = getDungeonDef(D.activeDungeon);
+        const boss = def.boss;
+        return `
+            <div class="dungeon-boss-room">
+                <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <div style="display:none;font-size:3rem">${boss.icon}</div>
+                <div class="boss-name-big">${boss.name}</div>
+                <div class="boss-stats">
+                    ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
+                </div>
+                <div class="boss-drop-preview">
+                    Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} gold · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} gems · ✨ Random Premium Feature (${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]} days)
+                </div>
+                <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
+                    ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
+                </button>
+            </div>
+        `;
+    }
+
+    if (room.isMiniBoss && anyMonsterAlive) {
+        const m = aliveMonster;
+        const hpPct = Math.round(m.currentHp / m.maxHp * 100);
+        return `
+            <div class="dungeon-room-monster">
+                <div class="monster-icon">⚠️ ${m.icon}</div>
+                <div class="monster-info">
+                    <div class="monster-name">MINI-BOSS: ${m.name}</div>
+                    <div class="monster-hp-bar-wrap">
+                        <div class="monster-hp-bar" style="width:${hpPct}%"></div>
+                    </div>
+                    <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def} · 🗝️ Costs ${m.tokenCost} tokens</div>
+                </div>
+                <div class="monster-btns">
+                    <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFightMiniBoss(${room.id})">⚔️ Challenge Mini-Boss</button>
+                </div>
+            </div>
+        `;
+    }
+
+    if (anyMonsterAlive) {
+        const m = aliveMonster;
+        const hpPct = Math.round(m.currentHp / m.maxHp * 100);
+        const monsterNames = room.monsters.map(m => m.name).join(', ');
+        
+        return `
+            <div class="dungeon-room-monster">
+                <div class="monster-icon">${monsterCount > 1 ? `👥 ${monsterCount}x` : m.icon}</div>
+                <div class="monster-info">
+                    <div class="monster-name">${monsterCount > 1 ? `${monsterCount} Enemies` : m.name}</div>
+                    <div class="monster-list" style="font-size:0.7rem;color:var(--dungeon-muted);margin-bottom:6px">
+                        ${monsterNames}
+                    </div>
+                    <div class="monster-hp-bar-wrap">
+                        <div class="monster-hp-bar" style="width:${hpPct}%"></div>
+                    </div>
+                    <div class="monster-stats">
+                        ${monsterCount > 1 ? `${aliveCount} enemies remaining` : `❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def}`}
+                        ${m.steal && monsterCount === 1 ? '· 🎒 Can steal' : ''}
+                    </div>
+                    ${monsterCount > 1 ? `<div class="monster-warning" style="font-size:0.65rem;color:#e74c3c;margin-top:4px">⚠️ All enemies attack together each round!</div>` : ''}
+                </div>
+                <div class="monster-btns">
+                    <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight All</button>
+                    <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun(${room.id})">💨 Run (75%)</button>
+                </div>
+                ${m.stolenItems && m.stolenItems.length > 0 ? `
+                    <div class="stolen-items-notice">
+                        🎒 Carrying stolen items: ${m.stolenItems.map(i=>i.name).join(', ')}
+                    </div>` : ''}
+            </div>
+        `;
+    }
+
+    if (allMonstersRespawning && room.monsters && room.monsters[0]) {
+        const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monsters[0].lastKilled) / 3600000).toFixed(1);
+        return `
+            <div class="dungeon-room-clear">
+                <div style="color:var(--dungeon-muted);font-size:0.9rem">💤 ${monsterCount} monster${monsterCount > 1 ? 's' : ''} respawn${monsterCount > 1 ? '' : 's'} in ${hoursLeft}h</div>
+                ${room.type === 'treasure' ? '<div style="color:#f1c40f;margin-top:8px">💰 Treasure already looted</div>' : ''}
+            </div>
+        `;
+    }
+
     return `
-        <div class="dungeon-boss-room">
-            <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-            <div style="display:none;font-size:3rem">${boss.icon}</div>
-            <div class="boss-name-big">${boss.name}</div>
-            <div class="boss-stats">
-                ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
+        <div class="dungeon-room-clear">
+            <div style="color:var(--dungeon-muted)">
+                ${room.isStart ? '🚪 Dungeon Entrance — choose a path to explore.' :
+                    room.type === 'treasure' ? (room.looted ? '💰 Treasure already collected.' : '✨ Peaceful chamber. Treasure collected!') :
+                    '🏚️ Empty corridor. All clear.'}
             </div>
-            <div class="boss-drop-preview">
-                Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} gold · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} gems · ✨ Random Premium Feature (${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]} days)
-            </div>
-            <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
-                ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
-            </button>
         </div>
     `;
 }
-
-    if (monsterAlive) {
-      const m = room.monster;
-      const hpPct = Math.round(m.currentHp / m.maxHp * 100);
-      return `
-        <div class="dungeon-room-monster">
-          <div class="monster-icon">${m.icon}</div>
-          <div class="monster-info">
-            <div class="monster-name">${m.name}</div>
-            <div class="monster-hp-bar-wrap">
-              <div class="monster-hp-bar" style="width:${hpPct}%"></div>
-            </div>
-            <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def} ${m.steal?'· 🎒 Can steal':''}</div>
-          </div>
-          <div class="monster-btns">
-            <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight</button>
-            <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun(${room.id})">💨 Run (75%)</button>
-          </div>
-          ${m.stolenItems.length > 0 ? `
-            <div class="stolen-items-notice">
-              🎒 Carrying your stolen items: ${m.stolenItems.map(i=>i.name).join(', ')}
-            </div>` : ''}
-        </div>
-      `;
-    }
-
-    if (monsterRespawning) {
-      const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monster.lastKilled) / 3600000).toFixed(1);
-      return `
-        <div class="dungeon-room-clear">
-          <div style="color:var(--dungeon-muted);font-size:0.9rem">💤 Monster respawns in ${hoursLeft}h</div>
-          ${room.type === 'treasure' ? '<div style="color:#f1c40f;margin-top:8px">💰 Treasure already looted</div>' : ''}
-        </div>
-      `;
-    }
-
-    return `
-      <div class="dungeon-room-clear">
-        <div style="color:var(--dungeon-muted)">
-          ${room.isStart ? '🚪 Dungeon Entrance — choose a path to explore.' :
-            room.type === 'treasure' ? (room.looted ? '💰 Treasure already collected.' : '✨ Peaceful chamber. Treasure collected!') :
-            '🏚️ Empty corridor. All clear.'}
-        </div>
-      </div>
-    `;
-  }
-
   function renderCombatPanel() {
     const overlay = document.getElementById('dungeon-overlay');
     if (!overlay || !D.combat) return;
     const def = getDungeonDef(D.activeDungeon);
-    const m = D.combat.monster;
+    const monsters = D.combat.monsters;
+    const currentMonster = monsters[D.combat.currentMonsterIndex];
     const pStats = calcPlayerStats();
-    const hpPct = Math.round(m.currentHp / m.maxHp * 100);
+    const hpPct = Math.round(currentMonster.currentHp / currentMonster.maxHp * 100);
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
+    
+    // Build monster list HTML
+    const monsterListHtml = monsters.map((m, idx) => {
+        const isCurrent = idx === D.combat.currentMonsterIndex;
+        const isDead = m.currentHp <= 0;
+        const hpPercent = isDead ? 0 : Math.round(m.currentHp / m.maxHp * 100);
+        return `
+            <div class="combat-monster-entry ${isCurrent ? 'current-target' : ''} ${isDead ? 'defeated' : ''}" style="margin-bottom:8px;padding:6px;border-radius:6px;background:${isCurrent ? 'rgba(255,255,255,0.1)' : 'transparent'}">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="fighter-icon" style="font-size:1.2rem">${isDead ? '💀' : m.icon}</span>
+                    <div style="flex:1">
+                        <div style="font-size:0.7rem">${m.name} ${isCurrent ? '(current)' : ''}</div>
+                        <div class="fighter-hp-bar-wrap" style="height:6px">
+                            <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%;height:6px"></div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.65rem">${isDead ? 'DEFEATED' : `${m.currentHp}/${m.maxHp}`}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
 
     const roundEntries = D.combat.roundLog.slice(-10).reverse().map(e =>
-      `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
+        `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
     ).join('');
 
     overlay.innerHTML = `
-      <div class="dungeon-overlay-backdrop"></div>
-      <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
-          <div class="combat-header">
-            ${m.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
-            <div class="combat-title">⚔️ Combat: ${m.name}</div>
-          </div>
-
-          <div class="combat-fighters">
-            <div class="combat-fighter player-fighter">
-              <div class="fighter-icon">🧙</div>
-              <div class="fighter-name">You</div>
-              <div class="fighter-hp-bar-wrap">
-                <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
-              </div>
-              <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
+        <div class="dungeon-overlay-backdrop"></div>
+        <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+            <div class="combat-header">
+                ${currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
+                <div class="combat-title">⚔️ Combat: ${monsters.length} Enemies</div>
             </div>
 
-            <div class="combat-vs">VS</div>
+            <div class="combat-fighters">
+                <div class="combat-fighter player-fighter">
+                    <div class="fighter-icon">🧙</div>
+                    <div class="fighter-name">You</div>
+                    <div class="fighter-hp-bar-wrap">
+                        <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
+                    </div>
+                    <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
+                </div>
 
-            <div class="combat-fighter monster-fighter">
-              <div class="fighter-icon">${m.icon}</div>
-              <div class="fighter-name">${m.name}</div>
-              <div class="fighter-hp-bar-wrap">
-                <div class="fighter-hp-bar monster-hp" style="width:${hpPct}%"></div>
-              </div>
-              <div class="fighter-stats">${m.currentHp} / ${m.maxHp} HP</div>
+                <div class="combat-vs">VS</div>
+
+                <div class="combat-fighter monster-fighter" style="flex-direction:column;align-items:stretch">
+                    <div class="fighter-name" style="margin-bottom:8px">Enemies</div>
+                    ${monsterListHtml}
+                </div>
             </div>
-          </div>
 
-          <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
+            <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
 
-          <div class="combat-actions">
-            <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
-            ${!m.isBoss ? `<button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>` : ''}
-          </div>
-      </div>
+            <div class="combat-actions">
+                <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
+                <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>
+            </div>
+        </div>
     `;
-  }
-
+}
   function renderLog() {
     const el = document.getElementById('dungeon-log-entries');
     if (!el) return;
@@ -1628,6 +1798,30 @@ function exchangeAtGuild(exchangeId) {
     .catch(e => console.error('Exchange failed:', e));
 }
 
+  async function fightMiniBoss(roomIdx) {
+    const room = D.rooms[roomIdx];
+    if (!room || !room.isMiniBoss) return;
+    
+    const miniBoss = room.monsters[0];  // Changed from room.monster
+    if (D.tokens < miniBoss.tokenCost) {
+        log(`🗝️ Need ${miniBoss.tokenCost} tokens to challenge this mini-boss. You have ${D.tokens}.`, 'log-danger');
+        return;
+    }
+    
+    const success = await spendTokens(miniBoss.tokenCost);
+    if (!success) return;
+    
+    D.combat = {
+        roomIdx,
+        monsters: [{ ...miniBoss, currentHp: miniBoss.maxHp }],  // Changed to array
+        currentMonsterIndex: 0,
+        playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
+        roundLog: [],
+        isMiniBoss: true,
+    };
+    renderCombatPanel();
+}
+
   // ── CSS Loading ──────────────────────────────────────────
   function loadCSS() {
     if (document.getElementById('dungeon-css')) return;
@@ -1639,16 +1833,25 @@ function exchangeAtGuild(exchangeId) {
   }
 
   // ── Global API (called from HTML onclick) ──────────────────
+  global.dungeonFightMiniBoss = fightMiniBoss;
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
   global.dungeonEnter        = enterDungeon;
   global.dungeonTravel       = travelToRoom;
   global.dungeonFight        = initiateFight;
-  global.dungeonRun          = (roomIdx) => {
-    D.combat = { roomIdx, monster: { ...D.rooms[roomIdx].monster }, roundLog: [] };
-    tryRun(roomIdx);
-  };
+global.dungeonRun = (roomIdx) => {
+    const room = D.rooms[roomIdx];
+    if (room && room.monsters && room.monsters.length > 0) {
+        D.combat = { 
+            roomIdx, 
+            monsters: room.monsters.map(m => ({ ...m, currentHp: m.currentHp || m.maxHp })),
+            currentMonsterIndex: 0,
+            roundLog: [] 
+        };
+        tryRun(roomIdx);
+    }
+};
   global.dungeonAttack       = fightRound;
   global.dungeonRunCombat    = () => { if(D.combat) tryRun(D.combat.roomIdx); };
   global.dungeonFightBoss    = fightBoss;
