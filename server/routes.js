@@ -818,8 +818,8 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
     // Base difficulty multipliers
     const difficultyMultipliers = {
         easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
-        medium: { hpMult: 1.2, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
-        hard: { hpMult: 1.8, dmgMult: 1.5, agiMult: 1.3, armorMult: 1.5, elemMult: 1.8 },
+        medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
+        hard: { hpMult: 1.8, dmgMult: 2.0, agiMult: 1.3, armorMult: 1.5, elemMult: 1.8 },
     };
     
     const mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
@@ -831,13 +831,13 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
     // Calculate base stats (scales with effective level)
     const baseHp = 80 + (effectiveLevel * 12);
     const baseDmgMin = 15 + (effectiveLevel * 0.8);
-    const baseDmgMax = 25 + (effectiveLevel * 1.2);
-    const baseAgi = 10 + (effectiveLevel * 0.5);
-    const baseMagic = 8 + (effectiveLevel * 0.4);
-    const baseVitality = 8 + (effectiveLevel * 0.4);
-    const baseHitChance = 70 + (effectiveLevel * 0.3);
-    const baseCritChance = 5 + (effectiveLevel * 0.2);
-    const baseArmor = 5 + (effectiveLevel * 0.3);
+    const baseDmgMax = 30 + (effectiveLevel * 1.2);
+    const baseAgi = 12 + (effectiveLevel * 0.5);
+    const baseMagic = 10 + (effectiveLevel * 0.4);
+    const baseVitality = 10 + (effectiveLevel * 0.4);
+    const baseHitChance = 85 + (effectiveLevel * 0.3);
+    const baseCritChance = 10 + (effectiveLevel * 0.2);
+    const baseArmor = 10 + (effectiveLevel * 0.3);
     
     // Apply difficulty multipliers
     const hp = Math.floor(baseHp * mult.hpMult);
