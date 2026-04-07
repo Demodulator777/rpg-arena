@@ -1850,6 +1850,21 @@ function exchangeAtGuild(exchangeId) {
     // Check if the monster spawn chance is working
     console.log('Sample dungeonDef monsters:', getDungeonDef('tower').monsters.length);
 };
+  global.debugDungeonDetails = function() {
+    console.log('=== DETAILED DEBUG ===');
+    
+    // Check first 10 rooms
+    D.rooms.slice(0, 10).forEach((r, i) => {
+        console.log(`Room ${i}: isStart=${r.isStart}, isBoss=${r.isBoss}, type=${r.type}, hasMonsters=${!!r.monsters}`);
+    });
+    
+    // Test chance function
+    let trueCount = 0;
+    for(let i = 0; i < 100; i++) {
+        if (chance(0.7)) trueCount++;
+    }
+    console.log('chance(0.7) test:', trueCount, 'out of 100');
+};
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
