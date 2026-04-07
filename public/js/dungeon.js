@@ -16,7 +16,7 @@
   // ── Constants ──────────────────────────────────────────────
   const MP_PER_TOKEN      = 20;
   const TOKENS_PER_RUN    = 50;
-  const MONSTER_RESPAWN_H = 12;
+  const MONSTER_RESPAWN_H = 48;
   const TRAVEL_BASE_MS    = 8000;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
@@ -401,7 +401,7 @@ async function refreshCharacter() {
   // ── Map Generation ─────────────────────────────────────────
 function generateFloor(dungeonId, floor) {
     const rooms = [];
-    const gridW = 13, gridH = 5;
+    const gridW = 13, gridH = 13;
     const total = gridW * gridH;
 
     const used = new Array(total).fill(false);
