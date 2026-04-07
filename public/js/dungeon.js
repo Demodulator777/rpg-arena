@@ -1484,7 +1484,7 @@ function renderRoomInfo(room) {
                     ${monsterCount > 1 ? `<div class="monster-warning" style="font-size:0.65rem;color:#e74c3c;margin-top:4px">⚠️ All enemies attack together each round!</div>` : ''}
                 </div>
                 <div class="monster-btns">
-                    <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight All</button>
+                    <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight</button>
                     <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun(${room.id})">💨 Run (75%)</button>
                 </div>
                 ${m.stolenItems && m.stolenItems.length > 0 ? `
