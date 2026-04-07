@@ -490,9 +490,9 @@ function generateFloor(dungeonId, floor) {
             for (let m = 0; m < actualCount; m++) {
               const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
               if (monsterDef) {
-                const scaledHp = monsterDef.hp + (Math.pow(floor, 1.3) * 12);
-const scaledAtk = monsterDef.atk + (Math.pow(floor, 1.2) * 3);
-const scaledDef = monsterDef.def + (Math.pow(floor, 1.1) * 1.5);
+                const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * 12));
+const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * 3));
+const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * 1.5));
                 
                 monsters.push({
                   id: monsterDef.id,
