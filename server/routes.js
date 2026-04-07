@@ -1896,6 +1896,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
+        const npcName = getNPCNameFromMission(mission.mission_name);
         
         // ── Skill tree passive bonuses ──────────────────────────────────────
         const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshChar.id]);
@@ -2053,7 +2054,7 @@ const payload = JSON.stringify({
     goldEarned, 
     xpEarned, 
     type: 'mission', 
-    npcName: mission.mission_name,
+    npc.name = npcName;
     missionName: mission.mission_name,
     totalDmgDealt: battle.totalDmgToB,
     totalDmgTaken: battle.totalDmgToA
@@ -4343,6 +4344,51 @@ const fragmentItem = await dbGet(db, `
         res.status(500).json({ error: e.message });
     }
 });
+
+// Helper function to extract NPC name from mission name
+function getNPCNameFromMission(missionName) {
+    // Define patterns for different mission types
+    const patterns = [
+        // "Slay the Bog Witch" -> "Bog Witch"
+        { regex: /Slay the (.+)/i, transform: (match) => match[1] },
+        // "Hunt the Wolves" -> "Wolves"
+        { regex: /Hunt the (.+)/i, transform: (match) => match[1] },
+        // "Clear the Bandits" -> "Bandits"
+        { regex: /Clear the (.+)/i, transform: (match) => match[1] },
+        // "Defeat the Forest Guardian" -> "Forest Guardian"
+        { regex: /Defeat the (.+)/i, transform: (match) => match[1] },
+        // "Face the Swamp Horror" -> "Swamp Horror"
+        { regex: /Face the (.+)/i, transform: (match) => match[1] },
+        // "Destroy the Corrupted Heart" -> "Corrupted Heart"
+        { regex: /Destroy the (.+)/i, transform: (match) => match[1] },
+        // "Purify the Waters" -> "Waters Guardian"
+        { regex: /Purify the (.+)/i, transform: (match) => `${match[1]} Guardian` },
+        // "Confront the Shadow Lord" -> "Shadow Lord"
+        { regex: /Confront the (.+)/i, transform: (match) => match[1] },
+        // "Slay the Ice Drake" -> "Ice Drake"
+        { regex: /Slay the (.+)/i, transform: (match) => match[1] },
+        // "Awaken the Frozen Giant" -> "Frozen Giant"
+        { regex: /Awaken the (.+)/i, transform: (match) => match[1] },
+        // "Banish the Wraith Lord" -> "Wraith Lord"
+        { regex: /Banish the (.+)/i, transform: (match) => match[1] },
+    ];
+    
+    for (const pattern of patterns) {
+        const match = missionName.match(pattern.regex);
+        if (match) {
+            let npcName = pattern.transform(match);
+            // Remove "the " if present at the start
+            npcName = npcName.replace(/^the\s+/i, '');
+            return npcName;
+        }
+    }
+    
+    // Default: return the mission name as-is, but remove common prefixes
+    let defaultName = missionName
+        .replace(/^(Slay|Hunt|Clear|Defeat|Face|Destroy|Purify|Confront|Banish|Awaken)\s+/i, '')
+        .replace(/^the\s+/i, '');
+    return defaultName;
+}
 
 // Get available exchanges
 router.get('/exchange/fragments/list', auth, async (req, res) => {
