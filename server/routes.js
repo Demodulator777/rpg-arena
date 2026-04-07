@@ -1896,7 +1896,6 @@ router.post('/missions/collect', auth, async (req, res) => {
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
-        const npcName = getNPCNameFromMission(mission.mission_name);
         
         // ── Skill tree passive bonuses ──────────────────────────────────────
         const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshChar.id]);
@@ -1949,7 +1948,8 @@ router.post('/missions/collect', auth, async (req, res) => {
         
         // Build NPC and override its name with the mission name
         const npc = buildNpc(mission.difficulty, freshChar.level);
-        npc.name = mission.mission_name;  // OVERRIDE WITH MISSION NAME
+        const npcName = getNPCNameFromMission(mission.mission_name);
+        npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
         
         const battle = runBattle(playerFighter, npc);
@@ -2054,7 +2054,7 @@ const payload = JSON.stringify({
     goldEarned, 
     xpEarned, 
     type: 'mission', 
-    npc.name = npcName,
+    npcName: npcName,  // Use the extracted NPC name here
     missionName: mission.mission_name,
     totalDmgDealt: battle.totalDmgToB,
     totalDmgTaken: battle.totalDmgToA
