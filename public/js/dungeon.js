@@ -461,38 +461,49 @@ function generateFloor(dungeonId, floor) {
       else monsterCount = 1;                  // Floors 1-9: 1 enemy
 
       let monsters = null;
-      if (!isStart && !isBoss && dungeonDef && chance(0.7)) {
-        monsters = [];
-        
-        if (isMiniBoss) {
-          // Mini-boss is a single strong enemy (overrides monsterCount)
-          const miniBoss = getMiniBossForFloor(floor);
-          if (miniBoss) {
-            monsters.push({
-              ...miniBoss,
-              currentHp: miniBoss.hp,
-              maxHp: miniBoss.hp,
-              atk: miniBoss.atk,
-              def: miniBoss.def,
-              tokenCost: miniBoss.tokenCost,
-              isMiniBoss: true,
-              lastKilled: null,
-              stolenItems: [],
-            });
-          }
-        } else {
-          // Create multiple regular monsters
-          for (let m = 0; m < monsterCount; m++) {
-            const monsterDef = dungeonDef.monsters[rand(0, dungeonDef.monsters.length-1)];
-            monsters.push({
-              ...monsterDef,
-              currentHp: monsterDef.hp + floor * 5,
-              maxHp: monsterDef.hp + floor * 5,
-              atk: monsterDef.atk + floor * 2,
-              def: monsterDef.def + floor,
-              lastKilled: null,
-              stolenItems: [],
-            });
+      // Only spawn monsters in non-start, non-boss rooms
+      if (!isStart && !isBoss && dungeonDef && dungeonDef.monsters && dungeonDef.monsters.length > 0) {
+        // Use a random roll for 70% spawn chance
+        const spawnRoll = Math.random();
+        if (spawnRoll < 0.7) {
+          monsters = [];
+          
+          if (isMiniBoss) {
+            // Mini-boss is a single strong enemy (overrides monsterCount)
+            const miniBoss = getMiniBossForFloor(floor);
+            if (miniBoss) {
+              monsters.push({
+                ...miniBoss,
+                currentHp: miniBoss.hp,
+                maxHp: miniBoss.hp,
+                atk: miniBoss.atk,
+                def: miniBoss.def,
+                tokenCost: miniBoss.tokenCost,
+                isMiniBoss: true,
+                lastKilled: null,
+                stolenItems: [],
+              });
+            }
+          } else {
+            // Create multiple regular monsters
+            for (let m = 0; m < monsterCount; m++) {
+              const monsterDef = dungeonDef.monsters[rand(0, dungeonDef.monsters.length - 1)];
+              if (monsterDef) {
+                monsters.push({
+                  id: monsterDef.id,
+                  name: monsterDef.name,
+                  icon: monsterDef.icon,
+                  hp: monsterDef.hp + floor * 5,
+                  atk: monsterDef.atk + floor * 2,
+                  def: monsterDef.def + floor,
+                  steal: monsterDef.steal || false,
+                  currentHp: (monsterDef.hp + floor * 5),
+                  maxHp: (monsterDef.hp + floor * 5),
+                  lastKilled: null,
+                  stolenItems: [],
+                });
+              }
+            }
           }
         }
       }
@@ -513,7 +524,7 @@ function generateFloor(dungeonId, floor) {
         isMiniBoss: isMiniBoss || false,
         isStart,
         connections,
-        monsters,  // ← CHANGED from 'monster' to 'monsters' (array)
+        monsters: monsters && monsters.length > 0 ? monsters : null,
         looted: false,
         type: roomType,
         visual: visualData
