@@ -216,7 +216,59 @@
 }
 
 .dungeon-minimap .dungeon-grid-inner {
-  gap: 4px;
+  transition: all 0.2s ease-out;
+}
+
+.dungeon-minimap {
+  overflow: hidden;
+  position: relative;
+}
+
+.map-room-player {
+  animation: player-pulse 1.5s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--dtheme, #7c3aed);
+}
+
+@keyframes player-pulse {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--dtheme, #7c3aed);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--dtheme, #7c3aed);
+  }
+}
+
+/* Multi-enemy combat styles - add these */
+.combat-monster-entry {
+  transition: background 0.15s ease;
+}
+
+.combat-monster-entry.current-target {
+  background: rgba(124, 58, 237, 0.2) !important;
+  border-left: 3px solid var(--dtheme, #7c3aed);
+}
+
+.combat-monster-entry.defeated {
+  opacity: 0.5;
+  filter: grayscale(0.5);
+}
+
+.combat-monster-entry .fighter-hp-bar-wrap {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Warning text for multiple enemies */
+.monster-warning {
+  animation: warning-pulse 1s ease-in-out infinite;
+}
+
+@keyframes warning-pulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .dungeon-minimap .map-room,
@@ -341,7 +393,13 @@
 }
 
 .dungeon-path-btn.has-monster {
-  border-color: rgba(231,76,60,0.35);
+  border-color: rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.08);
+}
+
+.dungeon-path-btn.has-monster:hover {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: rgba(231, 76, 60, 0.7);
 }
 
 .dungeon-path-btn.is-boss {
