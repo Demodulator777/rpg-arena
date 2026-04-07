@@ -434,6 +434,7 @@ function generateFloor(dungeonId, floor) {
     }
 
     const dungeonDef = getDungeonDef(dungeonId);
+    const availableMonsters = dungeonDef?.monsters || [];
 
     for (let i = 0; i < chosen.length; i++) {
       const idx = chosen[i];
@@ -442,7 +443,7 @@ function generateFloor(dungeonId, floor) {
       const isStart = (i === 0);
       
       // Mini-boss chance (10% on non-start, non-boss rooms, floor 10+)
-      const isMiniBoss = !isStart && !isBoss && chance(0.10) && floor >= 10;
+      const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 10;
 
       const connections = [];
       for (let j = 0; j < chosen.length; j++) {
@@ -455,21 +456,20 @@ function generateFloor(dungeonId, floor) {
 
       // Determine how many monsters based on floor (every 10 floors adds 1 more enemy)
       let monsterCount = 1;
-      if (floor >= 30) monsterCount = 4;      // Floors 30+: 4 enemies
-      else if (floor >= 20) monsterCount = 3; // Floors 20-29: 3 enemies
-      else if (floor >= 10) monsterCount = 2; // Floors 10-19: 2 enemies
-      else monsterCount = 1;                  // Floors 1-9: 1 enemy
+      if (floor >= 30) monsterCount = 4;
+      else if (floor >= 20) monsterCount = 3;
+      else if (floor >= 10) monsterCount = 2;
+      else monsterCount = 1;
 
       let monsters = null;
-      // Only spawn monsters in non-start, non-boss rooms
-      if (!isStart && !isBoss && dungeonDef && dungeonDef.monsters && dungeonDef.monsters.length > 0) {
-        // Use a random roll for 70% spawn chance
-        const spawnRoll = Math.random();
-        if (spawnRoll < 0.7) {
+      
+      // ONLY spawn monsters in non-start, non-boss rooms, with 70% chance
+      if (!isStart && !isBoss && availableMonsters.length > 0) {
+        const spawnChance = Math.random();
+        if (spawnChance < 0.7) {
           monsters = [];
           
           if (isMiniBoss) {
-            // Mini-boss is a single strong enemy (overrides monsterCount)
             const miniBoss = getMiniBossForFloor(floor);
             if (miniBoss) {
               monsters.push({
@@ -486,19 +486,24 @@ function generateFloor(dungeonId, floor) {
             }
           } else {
             // Create multiple regular monsters
-            for (let m = 0; m < monsterCount; m++) {
-              const monsterDef = dungeonDef.monsters[rand(0, dungeonDef.monsters.length - 1)];
+            const actualCount = Math.min(monsterCount, 4);
+            for (let m = 0; m < actualCount; m++) {
+              const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
               if (monsterDef) {
+                const scaledHp = monsterDef.hp + (floor * 5);
+                const scaledAtk = monsterDef.atk + (floor * 2);
+                const scaledDef = monsterDef.def + floor;
+                
                 monsters.push({
                   id: monsterDef.id,
                   name: monsterDef.name,
                   icon: monsterDef.icon,
-                  hp: monsterDef.hp + floor * 5,
-                  atk: monsterDef.atk + floor * 2,
-                  def: monsterDef.def + floor,
+                  hp: scaledHp,
+                  atk: scaledAtk,
+                  def: scaledDef,
                   steal: monsterDef.steal || false,
-                  currentHp: (monsterDef.hp + floor * 5),
-                  maxHp: (monsterDef.hp + floor * 5),
+                  currentHp: scaledHp,
+                  maxHp: scaledHp,
                   lastKilled: null,
                   stolenItems: [],
                 });
@@ -509,7 +514,7 @@ function generateFloor(dungeonId, floor) {
       }
 
       // Determine room type and visual
-      let roomType = isBoss ? 'boss' : isStart ? 'start' : (isMiniBoss ? 'miniboss' : (chance(0.15) ? 'treasure' : 'corridor'));
+      let roomType = isBoss ? 'boss' : isStart ? 'start' : (isMiniBoss ? 'miniboss' : (Math.random() < 0.15 ? 'treasure' : 'corridor'));
       let visualData = null;
       if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
       else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
@@ -524,7 +529,7 @@ function generateFloor(dungeonId, floor) {
         isMiniBoss: isMiniBoss || false,
         isStart,
         connections,
-        monsters: monsters && monsters.length > 0 ? monsters : null,
+        monsters: monsters,
         looted: false,
         type: roomType,
         visual: visualData
@@ -532,7 +537,7 @@ function generateFloor(dungeonId, floor) {
     }
 
     return rooms;
-  }
+}
 
   // ── Combat Engine ──────────────────────────────────────────
 function calcPlayerStats() {
