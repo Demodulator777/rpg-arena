@@ -20,7 +20,7 @@
   const TRAVEL_BASE_MS    = 8000;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
-  const ROOMS_PER_FLOOR   = 12;
+  const ROOMS_PER_FLOOR   = 65;
 
   // ── Dungeon Visuals ─────────────────────────────────────────
   const DUNGEON_VISUALS = {
@@ -369,7 +369,7 @@ async function refreshCharacter() {
   // ── Map Generation ─────────────────────────────────────────
   function generateFloor(dungeonId, floor) {
     const rooms = [];
-    const gridW = 5, gridH = 4;
+    const gridW = 13, gridH = 5;
     const total = gridW * gridH;
 
     const used = new Array(total).fill(false);
@@ -642,7 +642,17 @@ function enterDungeon(dungeonId) {
     if (D.isTraveling || D.combat) return;
     const current = D.rooms[D.playerPos];
     if (!current.connections.includes(targetIdx)) return;
+    
+    // NEW: Check if current room has alive monsters
     const target = D.rooms[targetIdx];
+    const hasAliveMonsters = current.monsters && current.monsters.some(m => 
+        !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+    );
+    
+    if (hasAliveMonsters) {
+        log(`⚠️ You must defeat the enemies in this room before leaving!`, 'log-danger');
+        return;
+    }
 
     D.isTraveling = true;
     updateTravelBtn(targetIdx, true);
@@ -651,30 +661,30 @@ function enterDungeon(dungeonId) {
     const travelMs = TRAVEL_BASE_MS + rand(0, 3000);
     const bar = document.getElementById('dungeon-travel-bar');
     if (bar) {
-      bar.style.transition = `width ${travelMs}ms linear`;
-      bar.style.width = '100%';
+        bar.style.transition = `width ${travelMs}ms linear`;
+        bar.style.width = '100%';
     }
 
     D.travelTimer = setTimeout(() => {
-      D.playerPos = targetIdx;
-      D.exploredRooms.add(targetIdx);
-      D.isTraveling = false;
-      saveState();
-      saveProgressToDB();
+        D.playerPos = targetIdx;
+        D.exploredRooms.add(targetIdx);
+        D.isTraveling = false;
+        saveState();
+        saveProgressToDB();
 
-      if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
+        if (bar) { bar.style.transition = 'none'; bar.style.width = '0%'; }
 
-      log(`📍 Arrived at ${target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`}`, 'log-arrive');
+        log(`📍 Arrived at ${target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`}`, 'log-arrive');
 
-      if (target.type === 'treasure' && !target.looted) {
-        target.looted = true;
-        const loot = rollMinorLoot(D.activeDungeon);
-        applyLoot(loot);
-      }
+        if (target.type === 'treasure' && !target.looted) {
+            target.looted = true;
+            const loot = rollMinorLoot(D.activeDungeon);
+            applyLoot(loot);
+        }
 
-      renderDungeonView();
+        renderDungeonView();
     }, travelMs);
-  }
+}
 
   function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
@@ -746,26 +756,32 @@ function fightRound() {
   }
 }
 
-  function tryRun(roomIdx) {
+function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
-      log(`💨 Escaped successfully!`, 'log-success');
-      D.combat = null;
-      renderDungeonView();
+        log(`💨 Escaped successfully!`, 'log-success');
+        D.combat = null;
+        renderDungeonView();
     } else {
-      log(`⚠️ Failed to escape! Monster attacks!`, 'log-danger');
-      const pStats = calcPlayerStats();
-      const mDmg = Math.max(1, Math.floor(D.combat.monster.atk - pStats.def * 0.5 + rand(-2,2)));
-      const c = getChar();
-      if (c) {
-        c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - mDmg);
-        c.hp = c.hp_current;
-      }
-      log(`💥 ${D.combat.monster.name} hits you for ${mDmg} as you flee!`, 'log-danger');
-      if (c && (c.hp_current || c.hp || 100) <= 0) { onPlayerDeath(); return; }
-      D.combat = null;
-      renderDungeonView();
+        log(`⚠️ Failed to escape! The monster attacks!`, 'log-danger');
+        // Run failed - monster gets a free attack, then combat continues
+        const c = getChar();
+        if (c && D.combat) {
+            const pStats = calcPlayerStats();
+            const m = D.combat.monster;
+            const mDmg = Math.max(1, Math.floor(m.atk - pStats.def * 0.5 + rand(-2, 2)));
+            c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - mDmg);
+            c.hp = c.hp_current;
+            log(`💥 ${m.name} hits you for ${mDmg} as you try to flee!`, 'log-danger');
+            
+            if (c.hp_current <= 0) {
+                onPlayerDeath();
+                return;
+            }
+            // Combat continues - don't clear D.combat
+            renderCombatPanel();
+        }
     }
-  }
+}
 
   function tryStealFromPlayer(roomIdx) {
     const c = getChar();
@@ -1161,45 +1177,73 @@ const previewFloors = [0,1,2,3,4].map(offset => {
   function renderMapGrid() {
     const grid = {};
     for (let i = 0; i < D.rooms.length; i++) {
-      const r = D.rooms[i];
-      grid[`${r.x},${r.y}`] = i;
+        const r = D.rooms[i];
+        grid[`${r.x},${r.y}`] = i;
     }
 
-    const xs = D.rooms.map(r=>r.x), ys = D.rooms.map(r=>r.y);
-    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    const xs = D.rooms.map(r => r.x), ys = D.rooms.map(r => r.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    
+    const currentRoom = D.rooms[D.playerPos];
+    const centerX = currentRoom.x;
+    const centerY = currentRoom.y;
+    
+    // Show 5x5 grid centered on player
+    const viewSize = 5;
+    const offset = Math.floor(viewSize / 2);
+    const viewMinX = centerX - offset;
+    const viewMaxX = centerX + offset;
+    const viewMinY = centerY - offset;
+    const viewMaxY = centerY + offset;
+    
+    let html = `<div class="dungeon-grid-inner" style="grid-template-columns:repeat(${viewSize},1fr);grid-template-rows:repeat(${viewSize},1fr);">`;
 
-    let html = `<div class="dungeon-grid-inner" style="grid-template-columns:repeat(${maxX-minX+1},1fr);grid-template-rows:repeat(${maxY-minY+1},1fr)">`;
+    for (let y = viewMinY; y <= viewMaxY; y++) {
+        for (let x = viewMinX; x <= viewMaxX; x++) {
+            const key = `${x},${y}`;
+            if (grid[key] !== undefined) {
+                const idx = grid[key];
+                const room = D.rooms[idx];
+                const isPlayer = idx === D.playerPos;
+                const explored = D.exploredRooms.has(idx);
+                const monsterAlive = room.monsters && room.monsters.some(m => 
+                    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+                );
 
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const key = `${x},${y}`;
-        if (grid[key] !== undefined) {
-          const idx = grid[key];
-          const room = D.rooms[idx];
-          const isPlayer = idx === D.playerPos;
-          const explored = D.exploredRooms.has(idx);
-          const monsterAlive = room.monster && (!room.monster.lastKilled || elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
+                let roomClass = 'map-room';
+                if (!explored) roomClass += ' map-room-fog';
+                else if (isPlayer) roomClass += ' map-room-player';
+                else if (room.isBoss) roomClass += ' map-room-boss';
+                else if (room.isMiniBoss) roomClass += ' map-room-miniboss';
+                else if (room.type === 'treasure') roomClass += ' map-room-treasure';
+                else if (monsterAlive) roomClass += ' map-room-monster';
+                else roomClass += ' map-room-clear';
 
-          let roomClass = 'map-room';
-          if (!explored) roomClass += ' map-room-fog';
-          else if (isPlayer) roomClass += ' map-room-player';
-          else if (room.isBoss) roomClass += ' map-room-boss';
-          else if (room.type === 'treasure') roomClass += ' map-room-treasure';
-          else if (monsterAlive) roomClass += ' map-room-monster';
-          else roomClass += ' map-room-clear';
+                let icon = '';
+                if (explored) {
+                    if (isPlayer) icon = '🧙';
+                    else if (room.isBoss) icon = '💀';
+                    else if (room.isMiniBoss) icon = '⚠️';
+                    else if (room.type === 'treasure') icon = '💰';
+                    else if (monsterAlive) icon = '👹';
+                    else icon = '✓';
+                } else {
+                    icon = '?';
+                }
 
-          html += `<div class="${roomClass}" title="${explored ? (room.isBoss ? 'BOSS' : `Room ${idx+1}`) : '???'}">
-            ${explored ? (isPlayer ? '🧙' : room.isBoss ? '💀' : room.type==='treasure' ? '💎' : monsterAlive ? '👹' : '✓') : ''}
-          </div>`;
-        } else {
-          html += `<div class="map-void"></div>`;
+                html += `<div class="${roomClass}" title="${explored ? (room.isBoss ? 'BOSS' : room.isMiniBoss ? 'MINI-BOSS' : `Room ${idx+1}`) : '???'}">
+                    ${icon}
+                </div>`;
+            } else {
+                html += `<div class="map-void"></div>`;
+            }
         }
-      }
     }
 
     html += '</div>';
     return html;
-  }
+}
 
   function renderRoomInfo(room) {
     const monsterAlive = room.monster && (!room.monster.lastKilled || elapsed(room.monster.lastKilled, MONSTER_RESPAWN_H));
