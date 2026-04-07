@@ -216,12 +216,16 @@
 }
 
 .dungeon-minimap .dungeon-grid-inner {
-  transition: all 0.2s ease-out;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
 }
 
 .dungeon-minimap {
-  overflow: hidden;
-  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .map-room-player {
