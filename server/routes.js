@@ -632,18 +632,18 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const blockFails = Math.random() < 0.001;
 
         // Elemental damage (unaffected by mage penalty)
-        const elemDmgs = attacker.elem_dmg || {};
-        let totalElemDmg = 0;
-        for (const elem of ELEMENTS) {
-            let ed = elemDmgs[elem] || 0;
-            if (ed <= 0) continue;
-            if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
-            if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-            const elemResist = (defender.elem_resist || {})[elem] || 0;
-            const magicResist = Math.floor((defender.magic || 0) * 0.05);
-            ed = Math.max(0, ed - elemResist - magicResist);
-            totalElemDmg += ed;
-        }
+const elemDmgs = attacker.elem_dmg || {};
+let totalElemDmg = 0;
+for (const elem of ELEMENTS) {
+    let ed = elemDmgs[elem] || 0;
+    if (ed <= 0) continue;
+    if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+    if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+    const elemResist = (defender.elem_resist || {})[elem] || 0;
+    const magicResist = Math.floor((defender.magic || 0) * 0.05);
+    ed = Math.max(0, ed - elemResist - magicResist);
+    totalElemDmg += Math.floor(ed);  // ← Add Math.floor() here
+}
 
         const critTag = isCrit ? ' ⚡CRIT' : '';
 
@@ -2036,21 +2036,28 @@ router.post('/missions/collect', auth, async (req, res) => {
         }
         
         try {
-            await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, mission.mission_name, JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned]);
-        } catch {}
+    await dbRun(db, `INSERT INTO battles (
+        attacker_id, defender_id, winner_id, attacker_name, defender_name, log, 
+        fought_at, battle_type, xp_gained, gold_gained, total_dmg_dealt, total_dmg_taken
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, mission.mission_name, 
+         JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned, 
+         battle.totalDmgToB, battle.totalDmgToA]);
+} catch {}
         
         try {
             const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`;
-            const payload = JSON.stringify({ 
-                log: battle.log, 
-                won: playerWon, 
-                goldEarned, 
-                xpEarned, 
-                type: 'mission', 
-                npcName: mission.mission_name,
-                missionName: mission.mission_name
-            });
+const payload = JSON.stringify({ 
+    log: battle.log, 
+    won: playerWon, 
+    goldEarned, 
+    xpEarned, 
+    type: 'mission', 
+    npcName: mission.mission_name,
+    missionName: mission.mission_name,
+    totalDmgDealt: battle.totalDmgToB,
+    totalDmgTaken: battle.totalDmgToA
+});
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
         } catch {}
         
