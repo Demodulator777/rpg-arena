@@ -133,6 +133,12 @@ function getMiniBossForFloor(floor) {
     { id:'void_titan',  name:'Void Titan',       icon:'💠', hp:250, atk:42, def:35, steal:true,  minFloor:15 },
     { id:'dread_knight',name:'Dread Knight',     icon:'⚔️', hp:300, atk:50, def:40, steal:true,  minFloor:20 },
     { id:'elder_lich',  name:'Elder Lich',       icon:'💜', hp:220, atk:60, def:20, steal:false, minFloor:25 },
+    { id:'shadow_stalker', name:'Shadow Stalker', icon:'🐺', hp:400, atk:55, def:25, steal:true, minFloor:10, isMiniBoss: true, tokenCost: 5 },
+    { id:'crystal_golem', name:'Crystal Golem', icon:'💎', hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss: true, tokenCost: 6 },
+    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss: true, tokenCost: 7 },
+    { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', hp:450, atk:60, def:30, steal:true, minFloor:25, isMiniBoss: true, tokenCost: 8 },
+    { id:'void_stalker', name:'Void Stalker', icon:'🌑', hp:500, atk:75, def:28, steal:true, minFloor:30, isMiniBoss: true, tokenCost: 9 },
+    { id:'doom_knight', name:'Doom Knight', icon:'⚔️', hp:700, atk:65, def:50, steal:true, minFloor:35, isMiniBoss: true, tokenCost: 10 },
   ];
 
 const BOSS_POOL = [
@@ -465,50 +471,32 @@ function generateFloor(dungeonId, floor) {
       
       // ONLY spawn monsters in non-start, non-boss rooms
       if (!isStart && !isBoss && availableMonsters.length > 0) {
-        
-        if (isMiniBoss) {
-          // ALWAYS spawn mini-boss (no spawn chance check)
-          monsters = [];
-          const miniBoss = getMiniBossForFloor(floor);
-          if (miniBoss) {
-            monsters.push({
-              ...miniBoss,
-              currentHp: miniBoss.hp,
-              maxHp: miniBoss.hp,
-              atk: miniBoss.atk,
-              def: miniBoss.def,
-              tokenCost: miniBoss.tokenCost,
-              isMiniBoss: true,
-              lastKilled: null,
-              stolenItems: [],
-            });
-            console.log(`[DEBUG] Mini-boss spawned in room ${i} on floor ${floor}`); // Temporary debug
-          }
-        } else {
-          // Regular monsters - 70% spawn chance
-          const spawnChance = Math.random();
-          if (spawnChance < 0.7) {
-            monsters = [];
-            const actualCount = Math.min(monsterCount, 4);
-            for (let m = 0; m < actualCount; m++) {
-              const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
-              if (monsterDef) {
-                const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * 12));
-                const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * 3));
-                const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * 1.5));
+    const spawnChance = Math.random();
+    if (spawnChance < 0.7) {  // 70% chance for any monster
+        monsters = [];
+        const actualCount = Math.min(monsterCount, 4);
+        for (let m = 0; m < actualCount; m++) {
+            const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
+            if (monsterDef) {
+                const isMiniBoss = monsterDef.isMiniBoss === true;
+                const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * (isMiniBoss ? 15 : 12)));
+                const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * (isMiniBoss ? 4 : 3)));
+                const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * (isMiniBoss ? 2 : 1.5)));
                 
                 monsters.push({
-                  id: monsterDef.id,
-                  name: monsterDef.name,
-                  icon: monsterDef.icon,
-                  hp: scaledHp,
-                  atk: scaledAtk,
-                  def: scaledDef,
-                  steal: monsterDef.steal || false,
-                  currentHp: scaledHp,
-                  maxHp: scaledHp,
-                  lastKilled: null,
-                  stolenItems: [],
+                    id: monsterDef.id,
+                    name: monsterDef.name,
+                    icon: monsterDef.icon,
+                    hp: scaledHp,
+                    atk: scaledAtk,
+                    def: scaledDef,
+                    steal: monsterDef.steal || false,
+                    isMiniBoss: isMiniBoss,
+                    tokenCost: monsterDef.tokenCost || 0,
+                    currentHp: scaledHp,
+                    maxHp: scaledHp,
+                    lastKilled: null,
+                    stolenItems: [],
                 });
               }
             }
