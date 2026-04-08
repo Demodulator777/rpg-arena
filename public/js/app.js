@@ -18,6 +18,16 @@ let playerTravelTarget = null;
 let playerTravelEndTime = 0;
 let playerTravelStartTime = 0;
 const FREE_CANCEL_WINDOW = 300;
+let abyssData = null;
+
+async function loadAbyssData() {
+    try {
+        abyssData = await api('GET', '/abyss/data');
+    } catch (e) {
+        console.error('Failed to load Abyss data:', e);
+        abyssData = null;
+    }
+}
 
 // ── Stat display labels ───────────────────────────────────────────────────
 const STAT_LABELS = {
@@ -1111,8 +1121,13 @@ async function loadMissions() {
         if (!character) character = char;
         await checkTravelStatus();
         
+        // Load Abyss data if not loaded
+        if (!abyssData) {
+            await loadAbyssData();
+        }
+        
         // Check which map to render
-        if (character.current_map === 'abyss') {
+        if (character.current_map === 'abyss' && abyssData) {
             renderAbyssMap();
         } else {
             renderWorldMap();
@@ -1182,13 +1197,22 @@ function renderWorldMap() {
 }
 
 function onMapNodeClick(zoneId) {
-    // Check if it's the Abyss Gate
+    // Check if it's the Abyss Gate (only in overworld)
     if (zoneId === 'abyss_gate') {
         enterAbyssGate();
         return;
     }
     
-    const zone = ZONES[zoneId];
+    // Determine which map we're on
+    const currentMap = character?.current_map || 'overworld';
+    let zone;
+    
+    if (currentMap === 'abyss' && abyssData) {
+        zone = abyssData.zones[zoneId];
+    } else {
+        zone = ZONES[zoneId];
+    }
+    
     if (!zone) return;
     if ((character?.level || 1) < zone.minLevel) { 
         showMsg('missions-msg', `Requires level ${zone.minLevel}`, true); 
@@ -4130,23 +4154,24 @@ async function exitAbyss() {
 }
 function renderAbyssMap() {
     const layer = document.getElementById('map-nodes-layer');
-    if (!layer) return;
+    if (!layer || !abyssData) return;
     
     const currentZone = character?.location || 'shadowfen';
     const playerLevel = character?.level || 1;
     const drawnPairs = new Set();
+    const zones = abyssData.zones;
+    const routes = abyssData.routes;
     
     // Draw connections between Abyss zones
     let svgLines = `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
     
-    // Use ABYSS_ROUTES for connections
-    for (const [fromId, neighbors] of Object.entries(ABYSS_ROUTES)) {
+    for (const [fromId, neighbors] of Object.entries(routes)) {
         for (const toId of Object.keys(neighbors)) {
             const key = [fromId, toId].sort().join('-');
             if (drawnPairs.has(key)) continue;
             drawnPairs.add(key);
-            const from = ABYSS_ZONES[fromId];
-            const to = ABYSS_ZONES[toId];
+            const from = zones[fromId];
+            const to = zones[toId];
             if (!from || !to) continue;
             const isActive = [currentZone, playerTravelTarget].includes(fromId) || [currentZone, playerTravelTarget].includes(toId);
             svgLines += `<line x1="${from.pos.x}%" y1="${from.pos.y}%" x2="${to.pos.x}%" y2="${to.pos.y}%" style="stroke:${isActive ? 'rgba(155,89,182,0.5)' : 'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none"/>`;
@@ -4155,7 +4180,7 @@ function renderAbyssMap() {
     svgLines += '</svg>';
     
     // Render Abyss zones
-    const pinsHtml = Object.entries(ABYSS_ZONES).map(([zoneId, zone]) => {
+    const pinsHtml = Object.entries(zones).map(([zoneId, zone]) => {
         const isUnlocked = playerLevel >= zone.minLevel;
         const isCurrent = currentZone === zoneId;
         const isTraveling = playerTravelTarget === zoneId;
@@ -4184,3 +4209,6 @@ function renderAbyssMap() {
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
+// Make Abyss data available globally
+window.ABYSS_ZONES = ABYSS_ZONES;
+window.ABYSS_ROUTES = ABYSS_ROUTES;
