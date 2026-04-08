@@ -1823,18 +1823,20 @@ router.post('/missions/start', auth, async (req, res) => {
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         const currentMap = character.current_map || 'overworld';
-        
-        // Get the correct zone data based on current map
         let zone;
+        
+        // Check the correct zone source based on current map
         if (currentMap === 'abyss') {
             zone = ABYSS_ZONES[zoneId];
         } else {
             zone = ZONES[zoneId];
         }
         
-        if (!zone) return res.status(404).json({ error: 'Zone not found' });
+        if (!zone) {
+            console.error('Zone not found:', zoneId, 'Map:', currentMap);
+            return res.status(404).json({ error: 'Zone not found' });
         if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
-        
+        }
         const hpCurrent = character.hp_current ?? character.hp_max;
         if (hpCurrent <= 0) return res.status(400).json({ error: 'Out of HP. Wait for regeneration.' });
         
