@@ -498,7 +498,6 @@ function generateFloor(dungeonId, floor) {
                     lastKilled: null,
                     stolenItems: [],
                 });
-              }
             }
           }
         }
