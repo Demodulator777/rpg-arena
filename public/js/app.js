@@ -22,7 +22,7 @@ let abyssData = null;
 
 async function loadAbyssData() {
     try {
-        abyssData = await api('GET', '/abyss/data');
+        abyssData = await api('GET', '/game/abyss/data');
     } catch (e) {
         console.error('Failed to load Abyss data:', e);
         abyssData = null;
@@ -4209,6 +4209,3 @@ function renderAbyssMap() {
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
-// Make Abyss data available globally
-window.ABYSS_ZONES = ABYSS_ZONES;
-window.ABYSS_ROUTES = ABYSS_ROUTES;
