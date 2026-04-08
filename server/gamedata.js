@@ -52,7 +52,7 @@ const ZONES = {
             { id:'ruins_temple',    name:'Sunken Temple',   difficulty:'medium', description:'A temple half-buried in the ground.',                missionDuration:900,  payoutMultiplier:1.8, missions:[{name:'Destroy the Corrupted Altar',img:'/images/missions/altar.jpg'},{name:'Find the Lost Grimoire',img:'/images/missions/grimoire.jpg'},{name:'Capture the Shadow Elemental',img:'/images/missions/elemental.jpg'},{name:'Purify the Holy Ground',img:'/images/missions/holy.jpg'}] },
             { id:'ruins_crypt',     name:'Ancient Crypt',   difficulty:'hard',   description:'Burial place of ancient kings, now filled with undead.', missionDuration:1200, payoutMultiplier:2.8, missions:[{name:'Banish the Wraith Lord',img:'/images/missions/wraith.jpg'},{name:'Loot the Sealed Vault',img:'/images/missions/vault.jpg'},{name:'Break the Undead Curse',img:'/images/missions/curse.jpg'},{name:"Claim the King's Crown",img:'/images/missions/crown.jpg'}] },
         ],
-        payoutBase:{ easy:[400,750], medium:[750,1400], hard:[1400,2500] },
+        payoutBase:{ easy:[400,750], medium:[750,1400], hard:[1000,2000] },
         xpBase:{ easy:[0,5], medium:[5,10], hard:[10,15] },
         rawMats:['mithril_ore','arcane_dust','void_shard','ancient_relic','rune_fragment'], matDropChance:0.82, matDropCount:[2,4],
     },
@@ -66,7 +66,7 @@ const ZONES = {
             { id:'city_cathedral',  name:'Dark Cathedral', difficulty:'medium', description:'A cathedral twisted by dark magic.',            missionDuration:1800, payoutMultiplier:2.0, missions:[{name:'Destroy the Ritual Site',img:'/images/missions/ritual.jpg'},{name:'Hunt the Demon Enforcer',img:'/images/missions/demon.jpg'},{name:'Claim the Black Market',img:'/images/missions/black-market.jpg'},{name:'Steal the Dark Codex',img:'/images/missions/codex.jpg'}] },
             { id:'city_palace',     name:'Shadow Palace',  difficulty:'hard',   description:"Seat of power for the city's dark lord.",      missionDuration:2700, payoutMultiplier:3.0, missions:[{name:'Confront the Shadow Lord',img:'/images/missions/shadow-lord.jpg'},{name:'Seal the Void Rift',img:'/images/missions/rift.jpg'},{name:'Claim the Demon Crown',img:'/images/missions/demon-crown.jpg'},{name:'Purge the City Forever',img:'/images/missions/purge.jpg'}] },
         ],
-        payoutBase:{ easy:[1200,2200], medium:[2200,4000], hard:[4000,7500] },
+        payoutBase:{ easy:[800,1200], medium:[1000,1500], hard:[1200,2200] },
         xpBase:{ easy:[0,5], medium:[5,10], hard:[10,15] },
         rawMats:['void_shard','arcane_dust','demon_core','shadow_essence','legendary_fragment'], matDropChance:0.88, matDropCount:[2,5],
     },
@@ -103,7 +103,7 @@ const ABYSS_ZONES = {
                     { name: 'Face the Abyssal Horror', img: '/images/missions/abyss/horror.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [1000, 2000], hard: [3500, 8000], nightmare: [4000, 9000] },
+        payoutBase: { normal: [1000, 1500], hard: [1200, 1750], nightmare: [1500, 2550] },
         rawMats: ['void_shard', 'shadow_essence', 'abyss_crystal'], 
         matDropChance: 0.7, 
         matDropCount: [2, 5]
@@ -138,7 +138,7 @@ const ABYSS_ZONES = {
                     { name: 'Purge the Crimson Curse', img: '/images/missions/abyss/curse.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [1100, 2100], hard: [3600, 8200], nightmare: [4000, 9300] },
+        payoutBase: { normal: [1000, 1600], hard: [1200, 1850], nightmare: [1500, 2650] },
         rawMats: ['crimson_crystal', 'fire_essence', 'infernal_core'], 
         matDropChance: 0.75, 
         matDropCount: [2, 5]
@@ -173,7 +173,7 @@ const ABYSS_ZONES = {
                     { name: 'Claim the Void Crown', img: '/images/missions/abyss/crown.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [1200, 2300], hard: [3600, 8500], nightmare: [4000, 9500] },
+        payoutBase: { normal: [1100, 1600], hard: [1200, 1950], nightmare: [1600, 2650] },
         rawMats: ['void_crystal', 'null_essence', 'abyss_fragment'], 
         matDropChance: 0.8, 
         matDropCount: [3, 6]
@@ -208,7 +208,7 @@ const ABYSS_ZONES = {
                     { name: 'Destroy the Dark Crystal', img: '/images/missions/abyss/crystal.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [1200, 2500], hard: [3600, 9000], nightmare: [4000, 10000] },
+        payoutBase: { normal: [1150, 1650], hard: [1200, 2050], nightmare: [1450, 2850] },
         rawMats: ['shadowsteel', 'soul_essence', 'obsidian_shard'], 
         matDropChance: 0.85, 
         matDropCount: [3, 7]
@@ -243,7 +243,7 @@ const ABYSS_ZONES = {
                     { name: 'Ascend to True Power', img: '/images/missions/abyss/ascend.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [1200, 2500], hard: [3600, 9000], nightmare: [4000, 10500] },
+        payoutBase: { normal: [1150, 1650], hard: [1200, 2050], nightmare: [1250, 3500] },
         rawMats: ['dark_essence', 'primordial_shard', 'eternal_core'], 
         matDropChance: 0.9, 
         matDropCount: [4, 8]
