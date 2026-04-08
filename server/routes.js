@@ -1579,11 +1579,14 @@ async function buildCharacterResponse(char, db) {
     const elemResist = calcElemResist(char, equippedArray);
     
     // Rogue no-shield agility bonus
-    let noShieldAgiBonus = 0;
-    if (char.class === 'rogue') {
-        const hasShield = !!equippedObj.shield;
-        if (!hasShield) noShieldAgiBonus = 5;
-    }
+let noShieldAgiBonus = 0;
+        if (freshChar.class === 'rogue') {
+            const equipped = await getEquippedItems(db, freshChar.id);
+            const hasShield = !!equipped.shield;
+            if (!hasShield) {
+        // 5% agility bonus when no shield equipped
+        noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+        }
 
     return {
         ...withTrain,
