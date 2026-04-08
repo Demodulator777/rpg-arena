@@ -1379,53 +1379,83 @@ function openSpotMissions(zoneId, spotId) {
 }
 
 function pickMissionSize(zoneId, spotId, sizeKey) {
-    const activeEl=document.getElementById('mission-location-active');
-    activeEl.dataset.selectedSize=sizeKey;
-    const zone=ZONES[zoneId], spot=zone?.spots.find(s=>s.id===spotId);
-    const dc={easy:'#2ecc71',medium:'#f39c12',hard:'#e74c3c'};
-    const mults={small:1.0,medium:1.8,large:3.0};
-    const mult=mults[sizeKey]||1;
-    spot.missions.forEach((m,idx)=>{
-        const card=document.getElementById(`mission-opt-${idx}`);
+    const currentMap = character?.current_map || 'overworld';
+    let zone;
+    
+    if (currentMap === 'abyss' && abyssData) {
+        zone = abyssData.zones[zoneId];
+    } else {
+        zone = ZONES[zoneId];
+    }
+    
+    if (!zone) return;
+    
+    const spot = zone.spots.find(s => s.id === spotId);
+    if (!spot) return;
+    
+    const activeEl = document.getElementById('mission-location-active');
+    activeEl.dataset.selectedSize = sizeKey;
+    
+    const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
+    const mults = { small: 1.0, medium: 1.8, large: 3.0 };
+    const mult = mults[sizeKey] || 1;
+    
+    spot.missions.forEach((m, idx) => {
+        const card = document.getElementById(`mission-opt-${idx}`);
         if (card) {
-            card.style.opacity='1';
-            card.style.pointerEvents='auto';
-            card.onclick=()=>doStartMission(zoneId,spotId,idx,sizeKey);
-            const reward=card.querySelector('.mz-mission-reward');
-            if (reward) reward.innerHTML=`💰 ${Math.floor(zone.payoutBase[spot.difficulty][0]*mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1]*mult)} &nbsp;·&nbsp; ⭐ ${Math.floor(zone.xpBase[spot.difficulty][0]*mult)}–${Math.floor(zone.xpBase[spot.difficulty][1]*mult)} XP`;
+            card.style.opacity = '1';
+            card.style.pointerEvents = 'auto';
+            card.onclick = () => doStartMission(zoneId, spotId, idx, sizeKey);
+            const reward = card.querySelector('.mz-mission-reward');
+            if (reward) {
+                reward.innerHTML = `💰 ${Math.floor(zone.payoutBase[spot.difficulty][0] * mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1] * mult)} gold`;
+            }
         }
     });
-    document.querySelectorAll('#mission-location-active [onclick^="pickMissionSize"]').forEach(el=>{
-        el.style.background=el.getAttribute('onclick')?.includes(sizeKey)?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.05)';
-        el.style.borderColor=el.getAttribute('onclick')?.includes(sizeKey)?'rgba(155,89,182,0.5)':'';
+    
+    // Highlight selected size
+    document.querySelectorAll('#mission-location-active [onclick^="pickMissionSize"]').forEach(el => {
+        el.style.background = el.getAttribute('onclick')?.includes(sizeKey) ? 'rgba(155,89,182,0.2)' : 'rgba(255,255,255,0.05)';
+        el.style.borderColor = el.getAttribute('onclick')?.includes(sizeKey) ? 'rgba(155,89,182,0.5)' : '';
     });
 }
 
 let _missionStarting = false;
-async function doStartMission(zoneId, spotId, missionIdx, size='small') {
+async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
     if (_missionStarting) return;
     _missionStarting = true;
-    const zone = ZONES[zoneId];
+    
+    const currentMap = character?.current_map || 'overworld';
+    let zone;
+    
+    if (currentMap === 'abyss' && abyssData) {
+        zone = abyssData.zones[zoneId];
+    } else {
+        zone = ZONES[zoneId];
+    }
+    
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
     if (character?.location !== zoneId) { showMsg('missions-msg', 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
     if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
+    
     closeMissionModal2();
     const chosenMission = spot.missions[missionIdx] || spot.missions[0];
     const missionName = chosenMission.name;
+    
     try {
         const result = await api('POST', '/game/missions/start', { zoneId, spotId, missionIdx, missionName, size });
-
-        // ── Dungeon token generation ──
+        
+        // Dungeon token generation
         const mpCosts = { small: 20, medium: 40, large: 60 };
         if (typeof dungeonAddTokens === 'function') dungeonAddTokens(mpCosts[size] || 20);
-
+        
         character = await api('GET', '/game/character');
         renderTopBar();
         const confirmedName = result?.mission?.missionName || result?.mission?.mission_name || missionName;
         const endsAt = result?.mission?.ends_at || (Math.floor(Date.now() / 1000) + (result?.mission?.duration || 600));
         showMissionOverlay({ id: result?.mission?.id || 1, zone: zoneId, ends_at: endsAt }, confirmedName);
-        renderWorldMap();
+        renderWorldMap(); // or renderCurrentMap?
         setTimeout(() => checkAndShowMissionOverlay(), 1000);
     } catch(e) {
         showMsg('missions-msg', e.message, true);
