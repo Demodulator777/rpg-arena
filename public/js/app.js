@@ -4107,3 +4107,17 @@ async function exchangeFragmentForMaterial(materialId, quantity) {
         showMsg('inv-msg', e.message, true);
     }
 }
+async function exitAbyss() {
+    try {
+        const result = await api('POST', '/game/travel/abyss/exit', {});
+        if (result.success) {
+            character.location = result.location;
+            character.current_map = 'overworld';
+            await checkTravelStatus();
+            renderWorldMap();
+            showMsg('missions-msg', 'You return from the Abyss to Dark City.');
+        }
+    } catch (e) {
+        showMsg('missions-msg', e.message, true);
+    }
+}
