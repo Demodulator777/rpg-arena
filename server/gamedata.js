@@ -103,7 +103,7 @@ const ABYSS_ZONES = {
                     { name: 'Face the Abyssal Horror', img: '/images/missions/abyss/horror.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [2500, 5000], hard: [5000, 10000], nightmare: [10000, 20000] },
+        payoutBase: { normal: [1000, 2000], hard: [3500, 8000], nightmare: [4000, 9000] },
         rawMats: ['void_shard', 'shadow_essence', 'abyss_crystal'], 
         matDropChance: 0.7, 
         matDropCount: [2, 5]
@@ -138,7 +138,7 @@ const ABYSS_ZONES = {
                     { name: 'Purge the Crimson Curse', img: '/images/missions/abyss/curse.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [5000, 10000], hard: [10000, 20000], nightmare: [20000, 40000] },
+        payoutBase: { normal: [1100, 2100], hard: [3600, 8200], nightmare: [4000, 9300] },
         rawMats: ['crimson_crystal', 'fire_essence', 'infernal_core'], 
         matDropChance: 0.75, 
         matDropCount: [2, 5]
@@ -173,7 +173,7 @@ const ABYSS_ZONES = {
                     { name: 'Claim the Void Crown', img: '/images/missions/abyss/crown.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [10000, 20000], hard: [20000, 40000], nightmare: [40000, 80000] },
+        payoutBase: { normal: [1200, 2300], hard: [3600, 8500], nightmare: [4000, 9500] },
         rawMats: ['void_crystal', 'null_essence', 'abyss_fragment'], 
         matDropChance: 0.8, 
         matDropCount: [3, 6]
@@ -208,7 +208,7 @@ const ABYSS_ZONES = {
                     { name: 'Destroy the Dark Crystal', img: '/images/missions/abyss/crystal.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [20000, 40000], hard: [40000, 80000], nightmare: [80000, 160000] },
+        payoutBase: { normal: [1200, 2500], hard: [3600, 9000], nightmare: [4000, 10000] },
         rawMats: ['shadowsteel', 'soul_essence', 'obsidian_shard'], 
         matDropChance: 0.85, 
         matDropCount: [3, 7]
@@ -243,7 +243,7 @@ const ABYSS_ZONES = {
                     { name: 'Ascend to True Power', img: '/images/missions/abyss/ascend.jpg' }
                 ] }
         ],
-        payoutBase: { normal: [40000, 80000], hard: [80000, 160000], nightmare: [160000, 350000] },
+        payoutBase: { normal: [1200, 2500], hard: [3600, 9000], nightmare: [4000, 10500] },
         rawMats: ['dark_essence', 'primordial_shard', 'eternal_core'], 
         matDropChance: 0.9, 
         matDropCount: [4, 8]
