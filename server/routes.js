@@ -618,7 +618,6 @@ rawDmg = Math.floor(rawDmg * rogueWeaponPenalty);
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
-    let forceMiss = false;
     if (Math.random() < dodgeChance) forceMiss = true;
     if (!forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
 
