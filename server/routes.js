@@ -2090,18 +2090,26 @@ if (freshChar.class === 'rogue') {
         const playerWon = battle.winnerId === freshChar.id;
         
         let goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
-        let xpEarned = playerWon ? mission.xp_reward : 0;
-        
-        if (isEvent) {
-            goldEarned *= 2;
-            xpEarned *= 2;
-        }
-        if (hasPremium(activePremCollect, 'fortune_hunter')) {
-            goldEarned = Math.floor(goldEarned * 1.30);
-        }
-        if (hasUlt) {
-            xpEarned = Math.floor(xpEarned * 1.50);
-        }
+let xpEarned = playerWon ? mission.xp_reward : 0;
+
+// Add damage-based bonus
+const sizeConf = MISSION_SIZES[mission.size || 'small'];
+const mpMultiplier = sizeConf.mpCost / 60;
+const damageDiff = Math.max(0, battle.totalDmgToB - battle.totalDmgToA);
+const damageGold = Math.floor(damageDiff * mpMultiplier);
+
+goldEarned += damageGold;
+
+if (isEvent) {
+    goldEarned *= 2;
+    xpEarned *= 2;
+}
+if (hasPremium(activePremCollect, 'fortune_hunter')) {
+    goldEarned = Math.floor(goldEarned * 1.30);
+}
+if (hasUlt) {
+    xpEarned = Math.floor(xpEarned * 1.50);
+}
         
         const gemChance = isEvent ? 0.15 : 0.05;
         let gemsFound = 0;
