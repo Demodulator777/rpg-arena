@@ -1480,6 +1480,9 @@ async function doTravelToZone(zoneId) {
 
 async function travelToZone(zoneId) {
     try {
+        // Close the modal first
+        closeMissionModal2();
+        
         const result = await api('POST', '/game/travel/start', { targetZone: zoneId });
         if (result.success) {
             // Start travel timer
