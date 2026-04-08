@@ -1478,6 +1478,23 @@ async function doTravelToZone(zoneId) {
     } catch(e) { showMsg('missions-msg',e.message,true); }
 }
 
+async function travelToZone(zoneId) {
+    try {
+        const result = await api('POST', '/game/travel/start', { targetZone: zoneId });
+        if (result.success) {
+            // Start travel timer
+            playerTravelTarget = zoneId;
+            playerTravelEndTime = result.travelEnd;
+            playerTravelStartTime = result.travelStart;
+            showTravelOverlay();
+            renderCurrentMap(); // or renderAbyssMap/WorldMap
+            showMsg('missions-msg', `Traveling to ${zoneId}...`);
+        }
+    } catch (e) {
+        showMsg('missions-msg', e.message, true);
+    }
+}
+
 async function collectMission() {
     try {
         const d=await api('POST','/game/missions/collect');
