@@ -573,6 +573,24 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
 
+    let rogueWeaponPenalty = 1.0;
+if (attacker.class === 'rogue') {
+    const weapon = getEquippedWeaponData(attacker.equippedItems || []);
+    if (weapon && weapon.slot === 'weapon') {
+        // Check weapon type - only daggers get full damage
+        const isDagger = weapon.type === 'dagger' || 
+                        weapon.name?.toLowerCase().includes('dagger') ||
+                        weapon.id?.includes('dagger');
+        
+        if (!isDagger) {
+            rogueWeaponPenalty = 0.60;  // 40% damage penalty for non-daggers
+        }
+    }
+}
+
+// Then apply to damage calculation:
+rawDmg = Math.floor(rawDmg * rogueWeaponPenalty);
+    
     // MAGE PHYSICAL DAMAGE PENALTY
     let physicalDamagePenalty = 1.0;
     if (attacker.class === 'mage') {
