@@ -573,29 +573,20 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
 
+    // Rogue weapon penalty - check if attacker has a weapon property
     let rogueWeaponPenalty = 1.0;
-if (attacker.class === 'rogue') {
-    const weapon = getEquippedWeaponData(attacker.equippedItems || []);
-    if (weapon && weapon.slot === 'weapon') {
-        // Check weapon type - only daggers get full damage
-        const isDagger = weapon.type === 'dagger' || 
-                        weapon.name?.toLowerCase().includes('dagger') ||
-                        weapon.id?.includes('dagger');
-        
-        if (!isDagger) {
-            rogueWeaponPenalty = 0.60;  // 40% damage penalty for non-daggers
+    if (attacker.class === 'rogue') {
+        // Check if attacker has a weapon and if it's a dagger
+        const weapon = attacker.weapon || null;
+        const isDagger = weapon && (weapon.name?.toLowerCase().includes('dagger') || weapon.type === 'dagger');
+        if (!isDagger && weapon) {
+            rogueWeaponPenalty = 0.60;
         }
     }
-}
-
-// Then apply to damage calculation:
-rawDmg = Math.floor(rawDmg * rogueWeaponPenalty);
     
     // MAGE PHYSICAL DAMAGE PENALTY
     let physicalDamagePenalty = 1.0;
     if (attacker.class === 'mage') {
-        // Mages deal only 40% of physical damage (from weapons/strength)
-        // But elemental damage is unaffected
         physicalDamagePenalty = 0.40;
     }
 
@@ -618,14 +609,14 @@ rawDmg = Math.floor(rawDmg * rogueWeaponPenalty);
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
-    if (Math.random() < dodgeChance) forceMiss = true;
+    // REMOVED duplicate dodge check
     if (!forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
 
     let divineNegate = false;
     if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
 
     const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
-    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0;
+    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0;
 
     if (!atkHit) {
         if (divineNegate) logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
@@ -637,8 +628,11 @@ rawDmg = Math.floor(rawDmg * rogueWeaponPenalty);
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
         const isCrit = Math.random() < Math.min(0.95, baseCritChance + critBonus);
         
-        // Calculate physical damage (from weapon/strength) and elemental damage separately
-        let rawPhysicalDmg = isCrit ? attacker.dmgMax : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
+        // Calculate physical damage
+        rawPhysicalDmg = isCrit ? attacker.dmgMax : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
+        
+        // Apply rogue weapon penalty
+        rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
         
         // Apply mage physical damage penalty
         let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
@@ -652,29 +646,27 @@ rawDmg = Math.floor(rawDmg * rogueWeaponPenalty);
         const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
         const blockFails = Math.random() < 0.001;
 
-        // Elemental damage (unaffected by mage penalty)
-const elemDmgs = attacker.elem_dmg || {};
-let totalElemDmg = 0;
-for (const elem of ELEMENTS) {
-    let ed = elemDmgs[elem] || 0;
-    if (ed <= 0) continue;
-    if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
-    if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-    const elemResist = (defender.elem_resist || {})[elem] || 0;
-    const magicResist = Math.floor((defender.magic || 0) * 0.05);
-    ed = Math.max(0, ed - elemResist - magicResist);
-    totalElemDmg += Math.floor(ed);  // ← Add Math.floor() here
-}
+        // Elemental damage
+        const elemDmgs = attacker.elem_dmg || {};
+        let totalElemDmg = 0;
+        for (const elem of ELEMENTS) {
+            let ed = elemDmgs[elem] || 0;
+            if (ed <= 0) continue;
+            if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+            if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            const elemResist = (defender.elem_resist || {})[elem] || 0;
+            const magicResist = Math.floor((defender.magic || 0) * 0.05);
+            ed = Math.max(0, ed - elemResist - magicResist);
+            totalElemDmg += Math.floor(ed);
+        }
 
         const critTag = isCrit ? ' ⚡CRIT' : '';
 
         if (blockCovers && !blockFails) {
-            // FULL BLOCK - no damage
             finalDmg = 0;
             totalElemDmg = 0;
             logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
         } else {
-            // HIT - damage goes through
             finalDmg = physicalDmg;
 
             // Force Field Absorption
@@ -697,22 +689,24 @@ for (const elem of ELEMENTS) {
             // Add elemental after armor
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
 
-            // Log with mage penalty indicator
+            // Log with penalty indicators
             let penaltyNote = '';
             if (attacker.class === 'mage' && rawPhysicalDmg > 0) {
                 penaltyNote = ` (${Math.round(physicalDamagePenalty * 100)}% physical penalty)`;
+            } else if (attacker.class === 'rogue' && rogueWeaponPenalty < 1.0) {
+                penaltyNote = ` (${Math.round((1 - rogueWeaponPenalty) * 100)}% non-dagger penalty)`;
             }
             
-            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag}${penaltyNote} — ${finalDmg} damage`;
-            if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
+            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag}${penaltyNote} — ${Math.floor(finalDmg)} damage`;
+            if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
 
-            // Override log if force field triggered THIS round only
+            // Override log if force field triggered
             if (justAbsorbed) {
                 if (finalDmg <= 0 && totalElemDmg === 0) {
                     logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
                 } else {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${finalDmg - totalElemDmg} gets through`;
-                    if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.floor(finalDmg - totalElemDmg)} gets through`;
+                    if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
             }
