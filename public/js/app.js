@@ -4211,6 +4211,10 @@ async function exitAbyss() {
         showMsg('missions-msg', e.message, true);
     }
 }
+function closeMissionModal2() {
+    const modal = document.getElementById('mission-location-modal');
+    if (modal) modal.classList.add('hidden');
+}
 function renderAbyssMap() {
     const layer = document.getElementById('map-nodes-layer');
     if (!layer || !abyssData) return;
