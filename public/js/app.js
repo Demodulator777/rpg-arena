@@ -1107,15 +1107,22 @@ async function activateSkill(skillId) {
 // ── Missions ──────────────────────────────────────────────────────────────
 async function loadMissions() {
     try {
-        const char=character||await api('GET','/game/character');
-        if (!character) character=char;
+        const char = character || await api('GET', '/game/character');
+        if (!character) character = char;
         await checkTravelStatus();
-        renderWorldMap();
+        
+        // Check which map to render
+        if (character.current_map === 'abyss') {
+            renderAbyssMap();
+        } else {
+            renderWorldMap();
+        }
+        
         await checkAndShowMissionOverlay();
     } catch(e) {
-        console.error('Error loading missions:',e);
-        const layer=document.getElementById('map-nodes-layer');
-        if (layer) layer.innerHTML=`<p style="color:red;padding:20px">Failed to load: ${e.message}</p>`;
+        console.error('Error loading missions:', e);
+        const layer = document.getElementById('map-nodes-layer');
+        if (layer) layer.innerHTML = `<p style="color:red;padding:20px">Failed to load: ${e.message}</p>`;
     }
 }
 
@@ -4120,4 +4127,60 @@ async function exitAbyss() {
     } catch (e) {
         showMsg('missions-msg', e.message, true);
     }
+}
+function renderAbyssMap() {
+    const layer = document.getElementById('map-nodes-layer');
+    if (!layer) return;
+    
+    const currentZone = character?.location || 'shadowfen';
+    const playerLevel = character?.level || 1;
+    const drawnPairs = new Set();
+    
+    // Draw connections between Abyss zones
+    let svgLines = `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
+    
+    // Use ABYSS_ROUTES for connections
+    for (const [fromId, neighbors] of Object.entries(ABYSS_ROUTES)) {
+        for (const toId of Object.keys(neighbors)) {
+            const key = [fromId, toId].sort().join('-');
+            if (drawnPairs.has(key)) continue;
+            drawnPairs.add(key);
+            const from = ABYSS_ZONES[fromId];
+            const to = ABYSS_ZONES[toId];
+            if (!from || !to) continue;
+            const isActive = [currentZone, playerTravelTarget].includes(fromId) || [currentZone, playerTravelTarget].includes(toId);
+            svgLines += `<line x1="${from.pos.x}%" y1="${from.pos.y}%" x2="${to.pos.x}%" y2="${to.pos.y}%" style="stroke:${isActive ? 'rgba(155,89,182,0.5)' : 'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none"/>`;
+        }
+    }
+    svgLines += '</svg>';
+    
+    // Render Abyss zones
+    const pinsHtml = Object.entries(ABYSS_ZONES).map(([zoneId, zone]) => {
+        const isUnlocked = playerLevel >= zone.minLevel;
+        const isCurrent = currentZone === zoneId;
+        const isTraveling = playerTravelTarget === zoneId;
+        const pinStyle = `position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:${isUnlocked ? 'pointer' : 'not-allowed'};z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked ? 'opacity:0.4' : ''}`;
+        const badge = isCurrent ? '📍' : !isUnlocked ? '🔒' : isTraveling ? '🚶' : '';
+        const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? 'filter:grayscale(1)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
+        
+        return `<div style="${pinStyle}" onclick="onMapNodeClick('${zoneId}')" title="${zone.name}">
+            <div style="position:relative;display:inline-block">
+                ${badge ? `<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>` : ''}
+                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" onerror="this.style.background='#2c3e50'">
+            </div>
+            <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? 'HERE' : '') : 'Lv.' + zone.minLevel}</div>
+        </div>`;
+    }).join('');
+    
+    // Add exit button
+    const exitButton = `
+        <div style="position:absolute;bottom:20px;right:20px;z-index:20;">
+            <button class="btn-primary" onclick="exitAbyss()" style="background:rgba(231,76,60,0.8);border-color:#e74c3c;">
+                🚪 Return to Dark City
+            </button>
+        </div>
+    `;
+    
+    layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
