@@ -2264,3 +2264,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     70% { box-shadow: 0 0 0 10px rgba(155, 89, 182, 0); }
     100% { box-shadow: 0 0 0 0 rgba(155, 89, 182, 0); }
 }
+/* Abyss Map Styles */
+.abyss-zone {
+    filter: drop-shadow(0 0 5px rgba(155, 89, 182, 0.5));
+}
+
+.abyss-zone-locked {
+    filter: grayscale(0.8) opacity(0.6);
+}
+
+.abyss-exit-btn {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.abyss-exit-btn:hover {
+    transform: scale(1.05);
+}
