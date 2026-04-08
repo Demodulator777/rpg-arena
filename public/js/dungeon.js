@@ -464,49 +464,51 @@ function generateFloor(dungeonId, floor) {
       let monsters = null;
       
       // ONLY spawn monsters in non-start, non-boss rooms, with 70% chance
-      if (!isStart && !isBoss && availableMonsters.length > 0) {
-        const spawnChance = Math.random();
-        if (spawnChance < 0.7) {
-          monsters = [];
+if (!isStart && !isBoss && availableMonsters.length > 0) {
+  
+  if (isMiniBoss) {
+    // ALWAYS spawn mini-boss (no spawn chance check)
+    monsters = [];
+    const miniBoss = getMiniBossForFloor(floor);
+    if (miniBoss) {
+      monsters.push({
+        ...miniBoss,
+        currentHp: miniBoss.hp,
+        maxHp: miniBoss.hp,
+        atk: miniBoss.atk,
+        def: miniBoss.def,
+        tokenCost: miniBoss.tokenCost,
+        isMiniBoss: true,
+        lastKilled: null,
+        stolenItems: [],
+      });
+    }
+  } else {
+    // Regular monsters - 70% spawn chance
+    const spawnChance = Math.random();
+    if (spawnChance < 0.7) {
+      monsters = [];
+      const actualCount = Math.min(monsterCount, 4);
+      for (let m = 0; m < actualCount; m++) {
+        const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
+        if (monsterDef) {
+          const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * 12));
+          const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * 3));
+          const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * 1.5));
           
-          if (isMiniBoss) {
-            const miniBoss = getMiniBossForFloor(floor);
-            if (miniBoss) {
-              monsters.push({
-                ...miniBoss,
-                currentHp: miniBoss.hp,
-                maxHp: miniBoss.hp,
-                atk: miniBoss.atk,
-                def: miniBoss.def,
-                tokenCost: miniBoss.tokenCost,
-                isMiniBoss: true,
-                lastKilled: null,
-                stolenItems: [],
-              });
-            }
-          } else {
-            // Create multiple regular monsters
-            const actualCount = Math.min(monsterCount, 4);
-            for (let m = 0; m < actualCount; m++) {
-              const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
-              if (monsterDef) {
-                const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * 12));
-const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * 3));
-const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * 1.5));
-                
-                monsters.push({
-                  id: monsterDef.id,
-                  name: monsterDef.name,
-                  icon: monsterDef.icon,
-                  hp: scaledHp,
-                  atk: scaledAtk,
-                  def: scaledDef,
-                  steal: monsterDef.steal || false,
-                  currentHp: scaledHp,
-                  maxHp: scaledHp,
-                  lastKilled: null,
-                  stolenItems: [],
-                });
+          monsters.push({
+            id: monsterDef.id,
+            name: monsterDef.name,
+            icon: monsterDef.icon,
+            hp: scaledHp,
+            atk: scaledAtk,
+            def: scaledDef,
+            steal: monsterDef.steal || false,
+            currentHp: scaledHp,
+            maxHp: scaledHp,
+            lastKilled: null,
+            stolenItems: [],
+          });
               }
             }
           }
