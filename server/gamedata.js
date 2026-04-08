@@ -250,6 +250,19 @@ const ABYSS_ZONES = {
     }
 };
 
+const ABYSS_ROUTES = {
+    shadowfen: { crimson: 180 },
+    crimson: { shadowfen: 180, void: 240 },
+    void: { crimson: 240, citadel: 300 },
+    citadel: { void: 300, eternal_dark: 360 },
+    eternal_dark: { citadel: 360 }
+};
+
+// Also need route from Dark City to Abyss entrance
+const ABYSS_ENTRY = {
+    dark_city: { shadowfen: 120 }  // Travel from Dark City to Shadowfen Depths
+};
+
 // ── Raw materials (your originals) ────────────────────────────────────────
 const RAW_MATERIALS = {
     iron_ore:           { name:'Iron Ore',           emoji:'🪨', rarity:'common'    },
@@ -558,6 +571,6 @@ function generateMission(zoneId, spotId, charLevel) {
 }
 
 module.exports = {
-    ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS,
+    ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS,
     generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES
 };
