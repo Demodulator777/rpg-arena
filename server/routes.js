@@ -2,7 +2,7 @@ const express = require('express');
 const { getDb } = require('./db');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-const { ZONES, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 
 // Import skill tree functions
 const { 
@@ -60,6 +60,8 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN dungeon_progress TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN dungeon_gold INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
+            `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
+            `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -1787,12 +1789,25 @@ router.get('/missions', auth, async (req, res) => {
         const db = await getDb();
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'No character' });
+        
         const active = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id=?', [char.id]);
-        const unlockedZones = Object.entries(ZONES)
+        const currentMap = char.current_map || 'overworld';
+        const zones = getAllZones(currentMap);
+        
+        const unlockedZones = Object.entries(zones)
             .filter(([,z]) => char.level >= z.minLevel)
             .map(([key, z]) => ({ key, ...z }));
-        res.json({ active: active ? { ...active, mat_drops: JSON.parse(active.mat_drops || '[]') } : null, unlockedZones, charLevel: char.level });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+        
+        res.json({ 
+            active: active ? { ...active, mat_drops: JSON.parse(active.mat_drops || '[]') } : null, 
+            unlockedZones, 
+            charLevel: char.level,
+            currentMap 
+        });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 router.post('/missions/start', auth, async (req, res) => {
@@ -1805,20 +1820,37 @@ router.post('/missions/start', auth, async (req, res) => {
         const db = await getDb();
         const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
-        const activePrem = getActivePremium(character);
-        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
         if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        const currentMap = character.current_map || 'overworld';
+        
+        // Get the correct zone data based on current map
+        let zone;
+        if (currentMap === 'abyss') {
+            zone = ABYSS_ZONES[zoneId];
+        } else {
+            zone = ZONES[zoneId];
+        }
+        
+        if (!zone) return res.status(404).json({ error: 'Zone not found' });
         if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
+        
         const hpCurrent = character.hp_current ?? character.hp_max;
         if (hpCurrent <= 0) return res.status(400).json({ error: 'Out of HP. Wait for regeneration.' });
+        
         const now = Math.floor(Date.now() / 1000);
         const lastBattle = character.last_battle_at || 0;
+        const activePrem = getActivePremium(character);
+        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+        
         if (lastBattle + 600 > now) {
             const secs = (lastBattle + pvpCd) - now;
             return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'}.` });
         }
+        
         const sizeKey = ['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small';
         const sizeConf = MISSION_SIZES[sizeKey];
+        
         const todayStart = Math.floor(now / 86400) * 86400;
         const lastReset = character.daily_mp_reset_at || 0;
         let dailyMpSpent = character.daily_mp_spent || 0;
@@ -1826,63 +1858,80 @@ router.post('/missions/start', auth, async (req, res) => {
             dailyMpSpent = 0;
             await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, character.id]);
         }
+        
         await applyMpRegen(db, character.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
         const currentMp = freshChar.mission_points ?? 0;
-        const zone = ZONES[zoneId];
-        const spot = zone?.spots.find(s => s.id === spotId);
+        
+        const spot = zone.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
+        
         const difficulty = spot.difficulty;
-const [minGold, maxGold] = zone.payoutBase[difficulty];
-
-let minXp = 0, maxXp = 0;
-
-if (sizeKey === 'small') {
-    minXp = 0;
-    maxXp = 6;
-} else if (sizeKey === 'medium') {
-    minXp = 0;
-    maxXp = 9;
-} else {
-    minXp = 0;
-    maxXp = 12;
-}
-
-let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
-xpReward = Math.max(0, xpReward);
-
-const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
+        const [minGold, maxGold] = zone.payoutBase[difficulty];
+        
+        let minXp = 0, maxXp = 0;
+        if (sizeKey === 'small') {
+            minXp = 0;
+            maxXp = 6;
+        } else if (sizeKey === 'medium') {
+            minXp = 0;
+            maxXp = 9;
+        } else {
+            minXp = 0;
+            maxXp = 12;
+        }
+        
+        let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
+        xpReward = Math.max(0, xpReward);
+        
+        const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
         
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (sentName && missionList.includes(sentName)) ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
+        
         const baseDuration = sizeConf.duration;
-        const activePremMission = getActivePremium(character);
         let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
-        if (hasPremium(activePremMission, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
-
+        if (hasPremium(activePrem, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
+        
         let effectiveMpCost = sizeConf.mpCost;
         const midasFlow = PREMIUM_SYNERGIES.find(s => s.requires.includes('arcane_reservoir') && s.requires.includes('fortune_hunter'));
-        if (midasFlow && hasPremium(activePremMission, 'arcane_reservoir') && hasPremium(activePremMission, 'fortune_hunter')) {
+        if (midasFlow && hasPremium(activePrem, 'arcane_reservoir') && hasPremium(activePrem, 'fortune_hunter')) {
             effectiveMpCost = Math.max(0, effectiveMpCost - midasFlow.effect.mp_cost_reduction);
         }
-        if (currentMp < effectiveMpCost)
+        
+        if (currentMp < effectiveMpCost) {
             return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${effectiveMpCost} MP, you have ${currentMp}.` });
+        }
+        
         const insertResult = await dbRun(db, `
-            INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at)
-            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type)
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
-        `, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, character.id]);
+        `, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, currentMap, character.id]);
+        
         const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
         if (!didInsert) return res.status(400).json({ error: 'You already have an active mission.' });
+        
         await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
             [effectiveMpCost, effectiveMpCost, character.id]);
+        
         res.json({
             success: true,
             mission: {
-                id: Number(insertResult.lastInsertRowid), zone: zoneId, spot: spotId, spot_name: spot.name,
-                mission_name: missionName, missionName, difficulty, size: sizeKey,
-                gold_reward: goldReward, xp_reward: xpReward,
-                started_at: now, ends_at: now + duration, duration
+                id: Number(insertResult.lastInsertRowid), 
+                zone: zoneId, 
+                spot: spotId, 
+                spot_name: spot.name,
+                mission_name: missionName, 
+                missionName, 
+                difficulty, 
+                size: sizeKey,
+                gold_reward: goldReward, 
+                xp_reward: xpReward,
+                started_at: now, 
+                ends_at: now + duration, 
+                duration,
+                map_type: currentMap
             }
         });
     } catch (e) {
@@ -2012,33 +2061,64 @@ if (freshChar.class === 'rogue') {
         }
         
         const drops = [];
-        const matsByZone = {
-            forest: [
-                { id:'wood', emoji:'🪵', name:'Wood' },
-                { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
-                { id:'herbs', emoji:'🌿', name:'Herbs' }
-            ],
-            swamp: [
-                { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' },
-                { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
-                { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
-            ],
-            mountains: [
-                { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
-                { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
-                { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
-            ],
-            ruins: [
-                { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
-                { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' },
-                { id:'void_shard', emoji:'🌑', name:'Void Shard' }
-            ],
-            dark_city: [
-                { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
-                { id:'demon_core', emoji:'👹', name:'Demon Core' }
-            ],
-        };
-        const mats = matsByZone[mission.zone] || matsByZone.forest;
+let matsByZone;
+if (mission.map_type === 'abyss') {
+    matsByZone = {
+        shadowfen: [
+            { id:'void_shard', emoji:'🔮', name:'Void Shard' },
+            { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+            { id:'abyss_crystal', emoji:'💎', name:'Abyss Crystal' }
+        ],
+        crimson: [
+            { id:'crimson_crystal', emoji:'🔴', name:'Crimson Crystal' },
+            { id:'fire_essence', emoji:'🔥', name:'Fire Essence' },
+            { id:'infernal_core', emoji:'💀', name:'Infernal Core' }
+        ],
+        void: [
+            { id:'void_crystal', emoji:'🔮', name:'Void Crystal' },
+            { id:'null_essence', emoji:'🌑', name:'Null Essence' },
+            { id:'abyss_fragment', emoji:'🧩', name:'Abyss Fragment' }
+        ],
+        citadel: [
+            { id:'shadowsteel', emoji:'⚙️', name:'Shadowsteel' },
+            { id:'soul_essence', emoji:'👻', name:'Soul Essence' },
+            { id:'obsidian_shard', emoji:'🪨', name:'Obsidian Shard' }
+        ],
+        eternal_dark: [
+            { id:'dark_essence', emoji:'🌑', name:'Dark Essence' },
+            { id:'primordial_shard', emoji:'✨', name:'Primordial Shard' },
+            { id:'eternal_core', emoji:'💠', name:'Eternal Core' }
+        ]
+    };
+} else {
+    matsByZone = {
+        forest: [
+            { id:'wood', emoji:'🪵', name:'Wood' },
+            { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
+            { id:'herbs', emoji:'🌿', name:'Herbs' }
+        ],
+        swamp: [
+            { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' },
+            { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
+            { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
+        ],
+        mountains: [
+            { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
+            { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
+            { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
+        ],
+        ruins: [
+            { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
+            { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' },
+            { id:'void_shard', emoji:'🌑', name:'Void Shard' }
+        ],
+        dark_city: [
+            { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+            { id:'demon_core', emoji:'👹', name:'Demon Core' }
+        ],
+    };
+}
+const mats = matsByZone[mission.zone] || (mission.map_type === 'abyss' ? matsByZone.shadowfen : matsByZone.forest);
         const dropChance = playerWon ? 0.6 : 0.2;
         for (const mat of mats) {
             if (Math.random() < dropChance) {
@@ -2410,17 +2490,56 @@ router.post('/travel/start', auth, async (req, res) => {
         const { targetZone } = req.body;
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!character) return res.status(404).json({ error: 'Character not found' });
-        const zone = ZONES[targetZone];
+        
+        const currentMap = character.current_map || 'overworld';
+        let zone;
+        let travelTime;
+        
+        // Check if target is in Abyss or Overworld
+        if (currentMap === 'abyss' && ABYSS_ZONES[targetZone]) {
+            zone = ABYSS_ZONES[targetZone];
+            travelTime = getTravelTime(character.location, targetZone, 'abyss');
+        } else if (ZONES[targetZone]) {
+            zone = ZONES[targetZone];
+            travelTime = zone.travelTime;
+        } else {
+            return res.status(400).json({ error: 'Invalid zone' });
+        }
+        
         if (!zone) return res.status(400).json({ error: 'Invalid zone' });
         if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
         if (character.level < zone.minLevel) return res.status(400).json({ error: `Requires level ${zone.minLevel}` });
+        
         const now = Math.floor(Date.now() / 1000);
         if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
-        const travelEnd = now + zone.travelTime;
-        await dbRun(db, 'UPDATE characters SET travel_target=?,travel_end_time=?,travel_start_time=? WHERE id=?', [targetZone, travelEnd, now, character.id]);
-        res.json({ success:true, message:`Traveling to ${zone.name}`, travelEnd, travelStart:now, duration:zone.travelTime });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+        
+        const travelEnd = now + travelTime;
+        await dbRun(db, 'UPDATE characters SET travel_target=?,travel_end_time=?,travel_start_time=? WHERE id=?', 
+            [targetZone, travelEnd, now, character.id]);
+        
+        res.json({ success: true, message: `Traveling to ${zone.name}`, travelEnd, travelStart: now, duration: travelTime });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
 });
+
+// Helper to get travel time between zones
+function getTravelTime(fromZone, toZone, currentMap) {
+    // If traveling within Abyss
+    if (currentMap === 'abyss' && ABYSS_ROUTES[fromZone] && ABYSS_ROUTES[fromZone][toZone]) {
+        return ABYSS_ROUTES[fromZone][toZone];
+    }
+    // If entering Abyss from Dark City
+    if (currentMap === 'overworld' && fromZone === 'dark_city' && ABYSS_ENTRY.dark_city && ABYSS_ENTRY.dark_city[toZone]) {
+        return ABYSS_ENTRY.dark_city[toZone];
+    }
+    // Normal overworld travel
+    if (ZONES[fromZone] && ZONES[fromZone].routes && ZONES[fromZone].routes[toZone]) {
+        return ZONES[fromZone].routes[toZone];
+    }
+    return null;
+}
 
 router.post('/travel/cancel', auth, async (req, res) => {
     try {
@@ -2446,25 +2565,55 @@ router.post('/travel/cancel', auth, async (req, res) => {
 router.get('/travel/status', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT id,location,travel_target,travel_end_time,travel_start_time FROM characters WHERE user_id=?', [req.user.userId]);
+        const character = await dbGet(db, 'SELECT id, location, travel_target, travel_end_time, travel_start_time, current_map FROM characters WHERE user_id=?', [req.user.userId]);
         if (!character) return res.status(404).json({ error: 'Character not found' });
+        
         const now = Math.floor(Date.now() / 1000);
+        let currentMap = character.current_map || 'overworld';
+        
+        // Check if travel completed
         if (character.travel_target && character.travel_end_time && character.travel_end_time <= now) {
-            await dbRun(db, 'UPDATE characters SET location=?,travel_target=NULL,travel_end_time=0 WHERE id=?', [character.travel_target, character.id]);
-            character.location = character.travel_target;
+            let targetZone = character.travel_target;
+            
+            // Update location
+            await dbRun(db, 'UPDATE characters SET location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?', 
+                [targetZone, character.id]);
+            character.location = targetZone;
             character.travel_target = null;
             character.travel_end_time = 0;
+            character.travel_start_time = 0;
         }
+        
         res.json({
-            location:        character.location || 'forest',
-            travelTarget:    character.travel_target,
-            travelEndTime:   character.travel_end_time || 0,
+            location: character.location || 'forest',
+            currentMap: currentMap,
+            travelTarget: character.travel_target,
+            travelEndTime: character.travel_end_time || 0,
             travelStartTime: character.travel_start_time || 0,
-            traveling:       !!character.travel_target,
-            timeRemaining:   character.travel_target ? Math.max(0, character.travel_end_time - now) : 0,
+            traveling: !!character.travel_target,
+            timeRemaining: character.travel_target ? Math.max(0, character.travel_end_time - now) : 0,
         });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
 });
+
+// Helper to get zone data based on current map
+function getZoneData(zoneId, currentMap = 'overworld') {
+    if (currentMap === 'abyss' && ABYSS_ZONES[zoneId]) {
+        return ABYSS_ZONES[zoneId];
+    }
+    return ZONES[zoneId];
+}
+
+// Helper to get all zones for current map
+function getAllZones(currentMap = 'overworld') {
+    if (currentMap === 'abyss') {
+        return ABYSS_ZONES;
+    }
+    return ZONES;
+}
 
 // ── Sell item ─────────────────────────────────────────────────────────────
 router.post('/sell/:inventoryId', auth, async (req, res) => {
