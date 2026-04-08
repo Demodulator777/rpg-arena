@@ -837,13 +837,24 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
         easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
         medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
         hard: { hpMult: 1.8, dmgMult: 2.0, agiMult: 1.3, armorMult: 1.5, elemMult: 1.8 },
+        normal: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
+        nightmare: { hpMult: 2.2, dmgMult: 2.5, agiMult: 1.5, armorMult: 1.8, elemMult: 2.0 }
     };
     
     const mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
     
+    // NPC name configs
+    const configs = {
+        easy: { name: 'Raider' },
+        medium: { name: 'Warlord' },
+        hard: { name: 'Legion Commander' },
+        normal: { name: 'Abyss Minion' },
+        nightmare: { name: 'Abyss Horror' }
+    };
+    const cfg = configs[difficulty] || configs.hard;
+    
     // Base stats scale with player level AND zone level
-    // Higher zone = higher effective level for NPC
-    const effectiveLevel = playerLevel + (zoneLevel * 2); // Zone level adds significantly to difficulty
+    const effectiveLevel = playerLevel + (zoneLevel * 2);
     
     // Calculate base stats (scales with effective level)
     const baseHp = 80 + (effectiveLevel * 12);
@@ -889,7 +900,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
     const elemChance = Math.min(0.6, 0.1 + (effectiveLevel / 200) + (mult.elemMult * 0.2));
     
     if (Math.random() < elemChance) {
-        const numElem = difficulty === 'hard' ? 3 : (difficulty === 'medium' ? 2 : 1);
+        const numElem = difficulty === 'hard' || difficulty === 'nightmare' ? 3 : (difficulty === 'medium' ? 2 : 1);
         const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
         for (let i = 0; i < numElem; i++) {
             const elem = shuffled[i];
@@ -902,7 +913,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
     // Elemental resistances
     const resistChance = Math.min(0.6, 0.1 + (effectiveLevel / 200));
     if (Math.random() < resistChance) {
-        const numResist = difficulty === 'hard' ? 3 : (difficulty === 'medium' ? 2 : 1);
+        const numResist = difficulty === 'hard' || difficulty === 'nightmare' ? 3 : (difficulty === 'medium' ? 2 : 1);
         const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
         for (let i = 0; i < numResist; i++) {
             const elem = shuffled[i];
@@ -912,13 +923,22 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
         }
     }
     
-    // Name with zone indicator
-    const zoneNames = { forest: 'Forest', swamp: 'Swamp', mountains: 'Mountain', ruins: 'Ruins', dark_city: 'Dark' };
-    const zonePrefix = zoneNames[Object.keys(ZONE_LEVELS).find(k => ZONE_LEVELS[k] === zoneLevel)] || '';
+    // Zone prefix for name
+    let zonePrefix = '';
+    if (zoneLevel === 1) zonePrefix = 'Forest';
+    else if (zoneLevel === 5) zonePrefix = 'Swamp';
+    else if (zoneLevel === 10) zonePrefix = 'Mountain';
+    else if (zoneLevel === 20) zonePrefix = 'Ruins';
+    else if (zoneLevel === 35) zonePrefix = 'Dark';
+    else if (zoneLevel >= 39 && zoneLevel < 50) zonePrefix = 'Shadowfen';
+    else if (zoneLevel >= 50 && zoneLevel < 60) zonePrefix = 'Crimson';
+    else if (zoneLevel >= 60 && zoneLevel < 70) zonePrefix = 'Void';
+    else if (zoneLevel >= 70 && zoneLevel < 80) zonePrefix = 'Citadel';
+    else if (zoneLevel >= 80) zonePrefix = 'Eternal';
     
     return {
         id: -1, 
-        name: `${zonePrefix} ${cfgNames[difficulty] || cfg.name}`,
+        name: zonePrefix ? `${zonePrefix} ${cfg.name}` : cfg.name,
         hp: hp,
         dmgMin: dmgMin,
         dmgMax: dmgMax,
