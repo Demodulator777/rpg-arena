@@ -2073,7 +2073,7 @@ if (freshChar.class === 'rogue') {
         };
         
         // Build NPC and override its name with the mission name
-        const npc = buildNpc(mission.difficulty, freshChar.level);
+        const npc = buildNpc(mission.difficulty, freshChar.level, zoneLevel, playerStats);
         const npcName = getNPCNameFromMission(mission.mission_name);
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
