@@ -1667,18 +1667,38 @@ function hideTravelOverlay() {
     const o=document.getElementById('travel-overlay'); if(o) o.classList.add('hidden');
 }
 async function cancelTravel() {
-    const now=Math.floor(Date.now()/1000), elapsed=now-playerTravelStartTime;
-    const isFreeCancel=playerTravelStartTime===0||elapsed<FREE_CANCEL_WINDOW;
-    const gems=character?.gems||0;
-    if (!isFreeCancel&&gems<1) { showMsg('missions-msg','Not enough gems to cancel!',true); return; }
-    if (!confirm(isFreeCancel?'Cancel travel for free?':'Cancel travel for 1 💎?')) return;
+    const now = Math.floor(Date.now() / 1000);
+    const elapsed = now - playerTravelStartTime;
+    const isFreeCancel = playerTravelStartTime === 0 || elapsed < FREE_CANCEL_WINDOW;
+    const gems = character?.gems || 0;
+    
+    if (!isFreeCancel && gems < 1) {
+        showMsg('missions-msg', 'Not enough gems to cancel!', true);
+        return;
+    }
+    
+    if (!confirm(isFreeCancel ? 'Cancel travel for free?' : 'Cancel travel for 1 💎?')) return;
+    
     try {
-        await api('POST','/game/travel/cancel',{paid:!isFreeCancel});
-        playerTravelTarget=null; playerTravelEndTime=0; playerTravelStartTime=0;
-        character=await api('GET','/game/character');
-        hideTravelOverlay(); renderWorldMap(); renderCharacter();
-        showMsg('missions-msg',isFreeCancel?'Travel cancelled.':'Travel cancelled (1 💎 spent).');
-    } catch(e) { showMsg('missions-msg',e.message,true); }
+        await api('POST', '/game/travel/cancel', { paid: !isFreeCancel });
+        
+        // DON'T change location - stay where you are
+        // Just clear travel target
+        playerTravelTarget = null;
+        playerTravelEndTime = 0;
+        playerTravelStartTime = 0;
+        
+        // Refresh character to get updated gems
+        character = await api('GET', '/game/character');
+        
+        // Hide travel overlay and re-render current map
+        hideTravelOverlay();
+        renderCurrentMap(); // or renderWorldMap/renderAbyssMap based on current map
+        
+        showMsg('missions-msg', isFreeCancel ? 'Travel cancelled.' : 'Travel cancelled (1 💎 spent).');
+    } catch (e) {
+        showMsg('missions-msg', e.message, true);
+    }
 }
 function updateTravelStatusBar() { if(playerTravelTarget) showTravelOverlay(); else hideTravelOverlay(); }
 async function checkTravelStatus() {
