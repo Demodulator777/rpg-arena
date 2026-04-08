@@ -587,9 +587,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const atkAgi = attacker.agility || 0;
-    let dodgeChance = Math.max(0, Math.min(0.999, (defAgi - atkAgi) / 200));
+    let agiDiff = Math.max(0, defAgi - atkAgi);
+    let dodgeChance = Math.min(0.10, agiDiff / 200);
     if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
+
+    let forceMiss = false;
+    if (Math.random() < dodgeChance) forceMiss = true;
 
     let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
     if (attacker.dmg_bonus) atkBonusDmg *= (1 + attacker.dmg_bonus);
