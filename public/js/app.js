@@ -1138,7 +1138,8 @@ function renderWorldMap() {
         }
     }
     svgLines+='</svg>';
-    const pinsHtml=Object.entries(ZONES).map(([zoneId,zone])=>{
+    
+    let pinsHtml=Object.entries(ZONES).map(([zoneId,zone])=>{
         const isUnlocked=playerLevel>=zone.minLevel;
         const isCurrent=currentZone===zoneId;
         const isTraveling=playerTravelTarget===zoneId;
@@ -1154,6 +1155,22 @@ function renderWorldMap() {
             <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):'Lv.'+zone.minLevel}</div>
         </div>`;
     }).join('');
+    
+    // Add Abyss Gate (appears at level 39)
+    if (playerLevel >= 39) {
+        pinsHtml += `
+            <div style="position:absolute;left:90%;top:85%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;" 
+                 onclick="onMapNodeClick('abyss_gate')" title="Abyss Gate">
+                <div style="position:relative;display:inline-block">
+                    <img style="width:72px;height:72px;border-radius:50%;border:3px solid #9b59b6;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 15px rgba(155,89,182,0.5);animation:pulse 2s infinite;" 
+                         src="/images/zones/abyss_gate.jpg" alt="Abyss Gate" onerror="this.style.background='#2c3e50'">
+                </div>
+                <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">Abyss Gate</div>
+                <div style="font-size:10px;color:rgba(155,89,182,0.8);text-align:center">Lv.39+</div>
+            </div>
+        `;
+    }
+    
     layer.innerHTML=svgLines+pinsHtml;
 }
 
