@@ -1950,10 +1950,10 @@ router.post('/missions/start', auth, async (req, res) => {
         }
         
         const insertResult = await dbRun(db, `
-            INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type)
-            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
-        `, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, currentMap, character.id]);
+    INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
+`, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, currentMap, sizeKey, character.id]);
         
         const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
         if (!didInsert) return res.status(400).json({ error: 'You already have an active mission.' });
