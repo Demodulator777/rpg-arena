@@ -882,7 +882,7 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
     const effectiveLevel = playerLevel + (zoneLevel * 2);
     
     // Calculate base stats (scales with effective level)
-    const baseHp = 80 + (effectiveLevel * 12);
+    const baseHp = 80 + (effectiveLevel * 30);
     const baseDmgMin = 15 + (effectiveLevel * 0.8);
     const baseDmgMax = 30 + (effectiveLevel * 1.2);
     const baseAgi = 12 + (effectiveLevel * 0.5);
