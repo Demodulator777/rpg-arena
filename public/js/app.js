@@ -1238,60 +1238,76 @@ async function enterAbyssGate() {
 }
 
 function openLocationModal(zoneId) {
-    const zone=ZONES[zoneId]; if(!zone) return;
-    const modal=document.getElementById('mission-location-modal');
-    const header=document.getElementById('mission-location-header');
-    const spotsEl=document.getElementById('mission-spots-grid');
-    const activeEl=document.getElementById('mission-location-active');
-    if (!modal) return;
-    const currentZone=character?.location||'forest';
-    const isCurrent=currentZone===zoneId;
-    const isTraveling=!!playerTravelTarget;
-    let travelInfo='';
-    if (!isCurrent) {
-        const route=getShortestPath(currentZone,zoneId);
-        if (route) {
-            const mins=Math.ceil(route.time/60);
-            const via=route.path.length>2?` via ${route.path.slice(1,-1).map(z=>ZONES[z]?.name||z).join(' → ')}`:'' ;
-            travelInfo=`${mins} min${via}`;
-        }
+    // Determine which map we're on
+    const currentMap = character?.current_map || 'overworld';
+    let zone;
+    
+    if (currentMap === 'abyss' && abyssData) {
+        zone = abyssData.zones[zoneId];
+    } else {
+        zone = ZONES[zoneId];
     }
-    const dc={easy:'#2ecc71',medium:'#f39c12',hard:'#e74c3c'};
-    const db2={easy:'rgba(39,174,96,0.2)',medium:'rgba(243,156,18,0.2)',hard:'rgba(192,57,43,0.2)'};
-    header.innerHTML=`
-        <div class="mz-hero" style="background-image:url('${zone.bgImg||zone.mapImg}')">
+    
+    if (!zone) {
+        console.error('Zone not found:', zoneId);
+        return;
+    }
+    
+    const modal = document.getElementById('mission-location-modal');
+    const header = document.getElementById('mission-location-header');
+    const spotsEl = document.getElementById('mission-spots-grid');
+    const activeEl = document.getElementById('mission-location-active');
+    if (!modal) return;
+    
+    const currentZone = character?.location || 'forest';
+    const isCurrent = currentZone === zoneId;
+    const isTraveling = !!playerTravelTarget;
+    
+    let travelInfo = '';
+    if (!isCurrent) {
+        // For now, show simple travel message (you can implement proper travel time later)
+        travelInfo = `Travel required to reach ${zone.name}`;
+    }
+    
+    const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
+    const db2 = { easy: 'rgba(39,174,96,0.2)', medium: 'rgba(243,156,18,0.2)', hard: 'rgba(192,57,43,0.2)', normal: 'rgba(52,152,219,0.2)', nightmare: 'rgba(155,89,182,0.2)' };
+    
+    header.innerHTML = `
+        <div class="mz-hero" style="background-image:url('${zone.bgImg || zone.mapImg}')">
             <div class="mz-hero-overlay">
                 <div class="mz-hero-title">${zone.name}</div>
                 <div class="mz-hero-desc">${zone.description}</div>
                 <div class="mz-hero-actions">
                     ${isCurrent
-        ?`<span class="mz-here-badge">📍 You are here</span>`
-        :`<button class="mz-travel-btn" onclick="doTravelToZone('${zoneId}')" ${isTraveling?'disabled':''}>
-                            🚶 Travel here${travelInfo?' · '+travelInfo:''}
+                        ? `<span class="mz-here-badge">📍 You are here</span>`
+                        : `<button class="mz-travel-btn" onclick="travelToZone('${zoneId}')" ${isTraveling ? 'disabled' : ''}>
+                            🚶 Travel here${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
-    }
+                    }
                 </div>
             </div>
         </div>`;
-    spotsEl.innerHTML=`
+    
+    spotsEl.innerHTML = `
         <div class="mz-section-label">Choose a location</div>
         <div class="mz-spots-grid">
-            ${zone.spots.map(spot=>{
-        const locked=!isCurrent;
-        return `<div class="mz-spot-card ${locked?'mz-spot-locked':''}" onclick="${locked?'':` openSpotMissions('${zoneId}','${spot.id}')`}">
+            ${zone.spots.map(spot => {
+                const locked = !isCurrent;
+                return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" onclick="${locked ? '' : ` openSpotMissions('${zoneId}','${spot.id}')`}">
                     <div class="mz-spot-img-wrap">
                         <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" onerror="this.src=''">
                         <span class="mz-spot-diff-badge" style="background:${db2[spot.difficulty]};color:${dc[spot.difficulty]}">${spot.difficulty.toUpperCase()}</span>
-                        ${locked?'<div class="mz-spot-locked-overlay">🔒 Travel here first</div>':''}
+                        ${locked ? '<div class="mz-spot-locked-overlay">🔒 Travel here first</div>' : ''}
                     </div>
                     <div class="mz-spot-info">
                         <div class="mz-spot-name">${spot.name}</div>
-                        <div class="mz-spot-stats">🔮 20–60 MP &nbsp;·&nbsp; ⏱️ 10–30 min &nbsp;·&nbsp; 💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]}</div>
+                        <div class="mz-spot-stats">💰 ${zone.payoutBase[spot.difficulty]?.[0] || 0}–${zone.payoutBase[spot.difficulty]?.[1] || 0} gold</div>
                     </div>
                 </div>`;
-    }).join('')}
+            }).join('')}
         </div>`;
-    activeEl.innerHTML='';
+    
+    activeEl.innerHTML = '';
     modal.classList.remove('hidden');
 }
 
