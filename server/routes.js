@@ -2021,8 +2021,6 @@ router.post('/missions/collect', auth, async (req, res) => {
         crit_chance: freshChar.crit_chance
     };
 }
-        const now = Math.floor(Date.now() / 1000);
-        if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         const isEvent = eventHas('grand_festival');
         const activePremCollect = getActivePremium(freshChar);
         const hasUlt = hasUltimate(activePremCollect);
