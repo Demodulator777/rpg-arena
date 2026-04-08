@@ -1682,8 +1682,7 @@ async function cancelTravel() {
     try {
         await api('POST', '/game/travel/cancel', { paid: !isFreeCancel });
         
-        // DON'T change location - stay where you are
-        // Just clear travel target
+        // Clear travel targets - DO NOT change location
         playerTravelTarget = null;
         playerTravelEndTime = 0;
         playerTravelStartTime = 0;
@@ -1691,9 +1690,11 @@ async function cancelTravel() {
         // Refresh character to get updated gems
         character = await api('GET', '/game/character');
         
-        // Hide travel overlay and re-render current map
+        // Hide travel overlay
         hideTravelOverlay();
-        renderCurrentMap(); // or renderWorldMap/renderAbyssMap based on current map
+        
+        // Re-render the current map (stay in same zone)
+        renderCurrentMap();
         
         showMsg('missions-msg', isFreeCancel ? 'Travel cancelled.' : 'Travel cancelled (1 💎 spent).');
     } catch (e) {
@@ -4256,6 +4257,14 @@ async function exitAbyss() {
 function closeMissionModal2() {
     const modal = document.getElementById('mission-location-modal');
     if (modal) modal.classList.add('hidden');
+}
+function renderCurrentMap() {
+    const currentMap = character?.current_map || 'overworld';
+    if (currentMap === 'abyss') {
+        renderAbyssMap();
+    } else {
+        renderWorldMap();
+    }
 }
 function renderAbyssMap() {
     const layer = document.getElementById('map-nodes-layer');
