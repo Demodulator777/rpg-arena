@@ -4604,6 +4604,63 @@ router.get('/exchange/fragments/list', auth, async (req, res) => {
     }
 });
 
+router.post('/travel/abyss/enter', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        // Check level requirement
+        if (character.level < 39) {
+            return res.status(400).json({ error: 'Requires level 39 to enter the Abyss' });
+        }
+        
+        // Check if already in Abyss
+        if (character.current_map === 'abyss') {
+            return res.status(400).json({ error: 'Already in the Abyss' });
+        }
+        
+        // Teleport to Shadowfen Depths
+        await dbRun(db, 'UPDATE characters SET current_map = ?, location = ? WHERE id = ?', 
+            ['abyss', 'shadowfen', character.id]);
+        
+        res.json({ 
+            success: true, 
+            location: 'shadowfen',
+            message: 'You enter the Abyss...'
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/travel/abyss/exit', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        // Check if in Abyss
+        if (character.current_map !== 'abyss') {
+            return res.status(400).json({ error: 'Not in the Abyss' });
+        }
+        
+        // Return to Dark City
+        await dbRun(db, 'UPDATE characters SET current_map = ?, location = ? WHERE id = ?', 
+            ['overworld', 'dark_city', character.id]);
+        
+        res.json({ 
+            success: true, 
+            location: 'dark_city',
+            message: 'You return from the Abyss.'
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 function escapeHtml(str) {
     if (!str) return '';
     return str
