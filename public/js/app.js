@@ -1483,7 +1483,9 @@ async function collectMission() {
         const d=await api('POST','/game/missions/collect');
         character=d.character;
         hideMissionOverlay(); renderTopBar();
-        let msg=`💰 +${d.goldEarned} gold · ⭐ +${d.xpEarned} XP`;
+        let msg=`💰 +${d.goldEarned} gold`;
+        if (d.gemsFound) msg += ` · 💎 +${d.gemsFound} gem${d.gemsFound > 1 ? 's' : ''}`;
+        msg += ` · ⭐ +${d.xpEarned} XP`;
         if (d.won===false) msg=`💀 Defeated · ${msg}`;
         if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
