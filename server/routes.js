@@ -4661,6 +4661,25 @@ router.post('/travel/abyss/exit', auth, async (req, res) => {
     }
 });
 
+router.get('/abyss/data', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT current_map, level FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        res.json({
+            success: true,
+            zones: ABYSS_ZONES,
+            routes: ABYSS_ROUTES,
+            currentMap: char.current_map || 'overworld',
+            playerLevel: char.level
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 function escapeHtml(str) {
     if (!str) return '';
     return str
