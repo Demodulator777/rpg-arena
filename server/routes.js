@@ -831,17 +831,42 @@ function runBattle(fighterA, fighterB) {
     return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
 }
 
-function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
+function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     // Base difficulty multipliers
     const difficultyMultipliers = {
         easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
         medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
         hard: { hpMult: 1.8, dmgMult: 2.0, agiMult: 1.3, armorMult: 1.5, elemMult: 1.8 },
         normal: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
-        nightmare: { hpMult: 2.2, dmgMult: 2.5, agiMult: 1.5, armorMult: 1.8, elemMult: 2.0 }
+        nightmare: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 } // Base, will be overridden
     };
     
-    const mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
+    let mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
+    
+    // For Nightmare difficulty, scale based on player stats
+    let powerScale = 1.0;
+    if (difficulty === 'nightmare' && playerStats) {
+        // Calculate player power score
+const playerPower = (playerStats.hp_max || 100) * 0.5 +
+                    (playerStats.strength || 0) * 2 +
+                    (playerStats.defense || 0) * 1.5 +
+                    (playerStats.agility || 0) * 1.2 +
+                    (playerStats.magic || 0) * 2.5 +
+                    (playerStats.hit_chance || 0) * 3 +
+                    (playerStats.crit_chance || 0) * 5;
+        
+        // Scale NPC to be 80-150% of player power
+        powerScale = Math.max(0.8, Math.min(1.5, playerPower / 5000));
+        
+        // Override multipliers for Nightmare
+        mult = {
+            hpMult: 1.2 * powerScale,
+            dmgMult: 1.3 * powerScale,
+            agiMult: 1.1 * powerScale,
+            armorMult: 1.2 * powerScale,
+            elemMult: 1.4 * powerScale
+        };
+    }
     
     // NPC name configs
     const configs = {
@@ -955,7 +980,6 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1) {
         activeSkills: {},
     };
 }
-
 const cfgNames = {
     easy: 'Raider',
     medium: 'Warlord', 
@@ -1975,6 +1999,18 @@ router.post('/missions/collect', auth, async (req, res) => {
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
         if (!mission) return res.status(400).json({ error: 'No active mission' });
+        let playerStats = null;
+        if (mission.difficulty === 'nightmare') {
+    playerStats = {
+        hp_max: freshChar.hp_max,
+        strength: freshChar.strength,
+        defense: freshChar.defense,
+        agility: freshChar.agility,
+        magic: freshChar.magic,
+        hit_chance: freshChar.hit_chance,
+        crit_chance: freshChar.crit_chance
+    };
+}
         const now = Math.floor(Date.now() / 1000);
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         const isEvent = eventHas('grand_festival');
