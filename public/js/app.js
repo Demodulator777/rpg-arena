@@ -1311,58 +1311,71 @@ function openLocationModal(zoneId) {
     modal.classList.remove('hidden');
 }
 
-function closeMissionModal2() { const m=document.getElementById('mission-location-modal'); if(m) m.classList.add('hidden'); }
-
 function openSpotMissions(zoneId, spotId) {
-    const zone=ZONES[zoneId]; if(!zone) return;
-    const spot=zone.spots.find(s=>s.id===spotId); if(!spot) return;
-    const activeEl=document.getElementById('mission-location-active');
-    const dc={easy:'#2ecc71',medium:'#f39c12',hard:'#e74c3c'};
-    const mp=character?.mission_points??0;
-    const sizes=[
-        {key:'small',  label:'Small',  mpCost:20, duration:'10 min', mult:'1×',  desc:'Quick mission, standard rewards'},
-        {key:'medium', label:'Medium', mpCost:40, duration:'20 min', mult:'1.8×',desc:'Longer mission, better rewards'},
-        {key:'large',  label:'Large',  mpCost:60, duration:'30 min', mult:'3×',  desc:'Epic mission, best rewards'},
+    const currentMap = character?.current_map || 'overworld';
+    let zone;
+    
+    if (currentMap === 'abyss' && abyssData) {
+        zone = abyssData.zones[zoneId];
+    } else {
+        zone = ZONES[zoneId];
+    }
+    
+    if (!zone) return;
+    
+    const spot = zone.spots.find(s => s.id === spotId);
+    if (!spot) return;
+    
+    const activeEl = document.getElementById('mission-location-active');
+    const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
+    const mp = character?.mission_points ?? 0;
+    const sizes = [
+        { key: 'small', label: 'Small', mpCost: 20, duration: '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
+        { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8×', desc: 'Longer mission, better rewards' },
+        { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '3×', desc: 'Epic mission, best rewards' },
     ];
-    activeEl.innerHTML=`
+    
+    activeEl.innerHTML = `
         <div class="mz-section-label" style="margin-top:24px">${spot.name} — pick mission size</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
-            ${sizes.map(sz=>{
-        const canAfford=mp>=sz.mpCost;
-        const border=canAfford?`1px solid ${dc[spot.difficulty]}44`:'1px solid rgba(255,255,255,0.08)';
-        const bg=canAfford?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.02)';
-        const opacity=canAfford?'1':'0.45';
-        return `<div onclick="${canAfford?`pickMissionSize('${zoneId}','${spotId}','${sz.key}')`:''}"
-                    style="border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford?'pointer':'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
+            ${sizes.map(sz => {
+                const canAfford = mp >= sz.mpCost;
+                const border = canAfford ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
+                const bg = canAfford ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
+                const opacity = canAfford ? '1' : '0.45';
+                return `<div onclick="${canAfford ? `pickMissionSize('${zoneId}','${spotId}','${sz.key}')` : ''}"
+                    style="border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
                     <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
                     <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">💰 ${sz.mult} gold</div>
                     <div style="font-size:0.7rem;color:#f1c40f;margin-top:2px">⭐ ${sz.key === 'small' ? '0-6' : sz.key === 'medium' ? '0-9' : '0-12'} XP</div>
-                    ${!canAfford?`<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost-mp} more MP</div>`:''}
+                    ${!canAfford ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
                 </div>`;
-    }).join('')}
+            }).join('')}
         </div>
         <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 240}</strong> · MP regenerates +10/hr</div>
         <div class="mz-section-label">Choose a mission</div>
         <div class="mz-missions-grid" id="spot-missions-list">
-            ${spot.missions.map((m,idx)=>`
-            <div class="mz-mission-card" id="mission-opt-${idx}" style="opacity:0.4;pointer-events:none">
-                <div class="mz-mission-img-wrap">
-                    <img class="mz-mission-img" src="${m.img}" alt="${m.name}" onerror="this.style.background='#1c2b38'">
-                    <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ Start</div></div>
-                </div>
-                <div class="mz-mission-info">
-                    <div class="mz-mission-name">${m.name}</div>
-                    <div class="mz-mission-reward" style="color:${dc[spot.difficulty]}">
-                        💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]} gold
+            ${spot.missions.map((m, idx) => `
+                <div class="mz-mission-card" id="mission-opt-${idx}" style="opacity:0.4;pointer-events:none">
+                    <div class="mz-mission-img-wrap">
+                        <img class="mz-mission-img" src="${m.img}" alt="${m.name}" onerror="this.style.background='#1c2b38'">
+                        <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ Start</div></div>
+                    </div>
+                    <div class="mz-mission-info">
+                        <div class="mz-mission-name">${m.name}</div>
+                        <div class="mz-mission-reward" style="color:${dc[spot.difficulty]}">
+                            💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]} gold
+                        </div>
                     </div>
                 </div>
-            </div>`).join('')}
+            `).join('')}
         </div>`;
-    activeEl.dataset.zoneId=zoneId;
-    activeEl.dataset.spotId=spotId;
-    activeEl.dataset.selectedSize='';
+    
+    activeEl.dataset.zoneId = zoneId;
+    activeEl.dataset.spotId = spotId;
+    activeEl.dataset.selectedSize = '';
 }
 
 function pickMissionSize(zoneId, spotId, sizeKey) {
