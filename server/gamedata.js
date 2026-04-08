@@ -72,6 +72,184 @@ const ZONES = {
     },
 };
 
+const ABYSS_ZONES = {
+    shadowfen: {
+        name: 'Shadowfen Depths', emoji: '🌑', minLevel: 39,
+        mapImg: '/images/zones/abyss/shadowfen.jpg',
+        bgImg: '/images/zones/abyss/shadowfen-bg.jpg',
+        pos: { x: 20, y: 80 },
+        travelTime: 180,
+        description: 'The corrupted entrance to the Abyss. Darkness seeps from every crack.',
+        spots: [
+            { id: 'shadowfen_camp', name: 'Twilight Encampment', difficulty: 'normal', img: '/images/spots/abyss/camp.jpg',
+                description: 'A dimly lit camp at the edge of darkness.', missionDuration: 600, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Clear the Shadow Spawn', img: '/images/missions/abyss/shadow_spawn.jpg' },
+                    { name: 'Gather Void Essence', img: '/images/missions/abyss/void_essence.jpg' },
+                    { name: 'Close the Minor Rift', img: '/images/missions/abyss/rift.jpg' }
+                ] },
+            { id: 'shadowfen_temple', name: 'Sunken Temple', difficulty: 'hard', img: '/images/spots/abyss/temple.jpg',
+                description: 'An ancient temple swallowed by darkness.', missionDuration: 600, payoutMultiplier: 1.5,
+                missions: [
+                    { name: 'Purge the Corrupted Priest', img: '/images/missions/abyss/priest.jpg' },
+                    { name: 'Recover the Dark Relic', img: '/images/missions/abyss/relic.jpg' },
+                    { name: 'Break the Seal', img: '/images/missions/abyss/seal.jpg' }
+                ] },
+            { id: 'shadowfen_rift', name: 'Abyssal Rift', difficulty: 'nightmare', img: '/images/spots/abyss/rift.jpg',
+                description: 'A tear in reality where nightmares pour through.', missionDuration: 600, payoutMultiplier: 2.5,
+                missions: [
+                    { name: 'Slay the Void Lord', img: '/images/missions/abyss/void_lord.jpg' },
+                    { name: 'Seal the Dimensional Rift', img: '/images/missions/abyss/seal_rift.jpg' },
+                    { name: 'Face the Abyssal Horror', img: '/images/missions/abyss/horror.jpg' }
+                ] }
+        ],
+        payoutBase: { normal: [2500, 5000], hard: [5000, 10000], nightmare: [10000, 20000] },
+        rawMats: ['void_shard', 'shadow_essence', 'abyss_crystal'], 
+        matDropChance: 0.7, 
+        matDropCount: [2, 5]
+    },
+    crimson: {
+        name: 'Crimson Wastes', emoji: '🌋', minLevel: 50,
+        mapImg: '/images/zones/abyss/crimson.jpg',
+        bgImg: '/images/zones/abyss/crimson-bg.jpg',
+        pos: { x: 40, y: 75 },
+        travelTime: 240,
+        description: 'A desolate landscape of blood-red sands and eternal fire.',
+        spots: [
+            { id: 'crimson_outpost', name: 'Blood Outpost', difficulty: 'normal', img: '/images/spots/abyss/outpost.jpg',
+                description: 'A fortified outpost against the crimson tide.', missionDuration: 600, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Repel the Fire Demons', img: '/images/missions/abyss/demons.jpg' },
+                    { name: 'Gather Crimson Crystals', img: '/images/missions/abyss/crystals.jpg' },
+                    { name: 'Rescue the Survivors', img: '/images/missions/abyss/survivors.jpg' }
+                ] },
+            { id: 'crimson_forge', name: 'Eternal Forge', difficulty: 'hard', img: '/images/spots/abyss/forge.jpg',
+                description: 'A forge that never stops burning.', missionDuration: 600, payoutMultiplier: 1.5,
+                missions: [
+                    { name: 'Defeat the Flame Keeper', img: '/images/missions/abyss/flame_keeper.jpg' },
+                    { name: 'Retrieve the Infernal Core', img: '/images/missions/abyss/core.jpg' },
+                    { name: 'Quench the Eternal Fire', img: '/images/missions/abyss/quench.jpg' }
+                ] },
+            { id: 'crimson_palace', name: 'Crimson Palace', difficulty: 'nightmare', img: '/images/spots/abyss/palace.jpg',
+                description: 'The throne of the Crimson King.', missionDuration: 600, payoutMultiplier: 2.5,
+                missions: [
+                    { name: 'Slay the Crimson King', img: '/images/missions/abyss/crimson_king.jpg' },
+                    { name: 'Shatter the Blood Throne', img: '/images/missions/abyss/throne.jpg' },
+                    { name: 'Purge the Crimson Curse', img: '/images/missions/abyss/curse.jpg' }
+                ] }
+        ],
+        payoutBase: { normal: [5000, 10000], hard: [10000, 20000], nightmare: [20000, 40000] },
+        rawMats: ['crimson_crystal', 'fire_essence', 'infernal_core'], 
+        matDropChance: 0.75, 
+        matDropCount: [2, 5]
+    },
+    void: {
+        name: 'Abyssal Void', emoji: '🕳️', minLevel: 60,
+        mapImg: '/images/zones/abyss/void.jpg',
+        bgImg: '/images/zones/abyss/void-bg.jpg',
+        pos: { x: 55, y: 65 },
+        travelTime: 300,
+        description: 'The space between worlds. Reality bends here.',
+        spots: [
+            { id: 'void_edge', name: 'Void Edge', difficulty: 'normal', img: '/images/spots/abyss/void_edge.jpg',
+                description: 'Where reality begins to fray.', missionDuration: 600, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Stabilize the Rift', img: '/images/missions/abyss/stabilize.jpg' },
+                    { name: 'Hunt Void Walkers', img: '/images/missions/abyss/walkers.jpg' },
+                    { name: 'Collect Null Crystals', img: '/images/missions/abyss/null_crystals.jpg' }
+                ] },
+            { id: 'void_heart', name: 'Void Heart', difficulty: 'hard', img: '/images/spots/abyss/void_heart.jpg',
+                description: 'The pulsating core of the Abyss.', missionDuration: 600, payoutMultiplier: 1.5,
+                missions: [
+                    { name: 'Destroy the Void Core', img: '/images/missions/abyss/core.jpg' },
+                    { name: 'Defeat the Null Behemoth', img: '/images/missions/abyss/behemoth.jpg' },
+                    { name: 'Absorb Void Energy', img: '/images/missions/abyss/energy.jpg' }
+                ] },
+            { id: 'void_throne', name: 'Empty Throne', difficulty: 'nightmare', img: '/images/spots/abyss/throne.jpg',
+                description: 'The seat of the Void Lord.', missionDuration: 600, payoutMultiplier: 2.5,
+                missions: [
+                    { name: 'Challenge the Void Lord', img: '/images/missions/abyss/void_lord.jpg' },
+                    { name: 'Seal the Abyss', img: '/images/missions/abyss/seal_abyss.jpg' },
+                    { name: 'Claim the Void Crown', img: '/images/missions/abyss/crown.jpg' }
+                ] }
+        ],
+        payoutBase: { normal: [10000, 20000], hard: [20000, 40000], nightmare: [40000, 80000] },
+        rawMats: ['void_crystal', 'null_essence', 'abyss_fragment'], 
+        matDropChance: 0.8, 
+        matDropCount: [3, 6]
+    },
+    citadel: {
+        name: 'Void Citadel', emoji: '🏰', minLevel: 70,
+        mapImg: '/images/zones/abyss/citadel.jpg',
+        bgImg: '/images/zones/abyss/citadel-bg.jpg',
+        pos: { x: 70, y: 55 },
+        travelTime: 360,
+        description: 'A fortress built from nightmares.',
+        spots: [
+            { id: 'citadel_gates', name: 'Citadel Gates', difficulty: 'normal', img: '/images/spots/abyss/gates.jpg',
+                description: 'The imposing entrance to the citadel.', missionDuration: 600, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Breach the Gates', img: '/images/missions/abyss/breach.jpg' },
+                    { name: 'Defeat the Gatekeepers', img: '/images/missions/abyss/gatekeepers.jpg' },
+                    { name: 'Gather Shadowsteel', img: '/images/missions/abyss/shadowsteel.jpg' }
+                ] },
+            { id: 'citadel_halls', name: 'Haunted Halls', difficulty: 'hard', img: '/images/spots/abyss/halls.jpg',
+                description: 'Corridors filled with trapped souls.', missionDuration: 600, payoutMultiplier: 1.5,
+                missions: [
+                    { name: 'Purify the Halls', img: '/images/missions/abyss/purify.jpg' },
+                    { name: 'Defeat the Soul Weaver', img: '/images/missions/abyss/soul_weaver.jpg' },
+                    { name: 'Free the Captive Souls', img: '/images/missions/abyss/souls.jpg' }
+                ] },
+            { id: 'citadel_peak', name: 'Obsidian Peak', difficulty: 'nightmare', img: '/images/spots/abyss/peak.jpg',
+                description: 'The highest point of the citadel.', missionDuration: 600, payoutMultiplier: 2.5,
+                missions: [
+                    { name: 'Slay the Obsidian Dragon', img: '/images/missions/abyss/dragon.jpg' },
+                    { name: 'Claim the Citadel', img: '/images/missions/abyss/claim.jpg' },
+                    { name: 'Destroy the Dark Crystal', img: '/images/missions/abyss/crystal.jpg' }
+                ] }
+        ],
+        payoutBase: { normal: [20000, 40000], hard: [40000, 80000], nightmare: [80000, 160000] },
+        rawMats: ['shadowsteel', 'soul_essence', 'obsidian_shard'], 
+        matDropChance: 0.85, 
+        matDropCount: [3, 7]
+    },
+    eternal_dark: {
+        name: 'The Eternal Dark', emoji: '🌌', minLevel: 80,
+        mapImg: '/images/zones/abyss/eternal.jpg',
+        bgImg: '/images/zones/abyss/eternal-bg.jpg',
+        pos: { x: 85, y: 40 },
+        travelTime: 420,
+        description: 'The source of all darkness. Few return.',
+        spots: [
+            { id: 'dark_approach', name: 'Path of Shadows', difficulty: 'normal', img: '/images/spots/abyss/path.jpg',
+                description: 'The final approach to true darkness.', missionDuration: 600, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Navigate the Shadows', img: '/images/missions/abyss/navigate.jpg' },
+                    { name: 'Defeat the Shadow Sentinels', img: '/images/missions/abyss/sentinels.jpg' },
+                    { name: 'Gather Dark Essence', img: '/images/missions/abyss/dark_essence.jpg' }
+                ] },
+            { id: 'dark_throne', name: 'Throne of Night', difficulty: 'hard', img: '/images/spots/abyss/throne_night.jpg',
+                description: 'The seat of the Shadow King.', missionDuration: 600, payoutMultiplier: 1.5,
+                missions: [
+                    { name: 'Confront the Shadow King', img: '/images/missions/abyss/shadow_king.jpg' },
+                    { name: 'Break the Night Crown', img: '/images/missions/abyss/crown_night.jpg' },
+                    { name: 'Restore the Light', img: '/images/missions/abyss/restore_light.jpg' }
+                ] },
+            { id: 'dark_heart', name: 'Heart of Darkness', difficulty: 'nightmare', img: '/images/spots/abyss/heart.jpg',
+                description: 'The core of all evil.', missionDuration: 600, payoutMultiplier: 3.0,
+                missions: [
+                    { name: 'Face the Primordial Darkness', img: '/images/missions/abyss/primordial.jpg' },
+                    { name: 'Seal the Eternal Dark', img: '/images/missions/abyss/seal_dark.jpg' },
+                    { name: 'Ascend to True Power', img: '/images/missions/abyss/ascend.jpg' }
+                ] }
+        ],
+        payoutBase: { normal: [40000, 80000], hard: [80000, 160000], nightmare: [160000, 350000] },
+        rawMats: ['dark_essence', 'primordial_shard', 'eternal_core'], 
+        matDropChance: 0.9, 
+        matDropCount: [4, 8]
+    }
+};
+
 // ── Raw materials (your originals) ────────────────────────────────────────
 const RAW_MATERIALS = {
     iron_ore:           { name:'Iron Ore',           emoji:'🪨', rarity:'common'    },
