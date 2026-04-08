@@ -1999,6 +1999,16 @@ router.post('/missions/collect', auth, async (req, res) => {
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
         if (!mission) return res.status(400).json({ error: 'No active mission' });
+        let zoneLevel = 1;
+        if (mission.map_type === 'abyss') {
+            const zone = ABYSS_ZONES[mission.zone];
+            zoneLevel = zone?.minLevel || 39;
+        } else {
+            const zone = ZONES[mission.zone];
+            zoneLevel = zone?.minLevel || 1;
+        }        
+        const now = Math.floor(Date.now() / 1000);
+        if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         let playerStats = null;
         if (mission.difficulty === 'nightmare') {
     playerStats = {
