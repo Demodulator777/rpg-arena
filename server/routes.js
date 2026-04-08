@@ -1580,13 +1580,13 @@ async function buildCharacterResponse(char, db) {
     
     // Rogue no-shield agility bonus
 let noShieldAgiBonus = 0;
-        if (freshChar.class === 'rogue') {
-            const equipped = await getEquippedItems(db, freshChar.id);
-            const hasShield = !!equipped.shield;
-            if (!hasShield) {
+if (char.class === 'rogue') {  // Use 'char' here since that's the parameter name in buildCharacterResponse
+    const hasShield = !!equippedObj.shield;
+    if (!hasShield) {
         // 5% agility bonus when no shield equipped
         noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
-        }
+    }
+}
 
     return {
         ...withTrain,
@@ -1909,14 +1909,13 @@ router.post('/missions/collect', auth, async (req, res) => {
         
         // Rogue no-shield agility bonus
 let noShieldAgiBonus = 0;
-if (char.class === 'rogue') {
-    const hasShield = !!equippedObj.shield;
+if (freshChar.class === 'rogue') {
+    const equipped = await getEquippedItems(db, freshChar.id);  // Get equipped items
+    const hasShield = !!equipped.shield;
     if (!hasShield) {
-        // 5% agility bonus when no shield equipped
-        noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+        noShieldAgiBonus = Math.floor((freshChar.agility || 0) * 0.05);
     }
-}
-        
+}      
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
