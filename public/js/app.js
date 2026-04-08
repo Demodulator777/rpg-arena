@@ -1175,9 +1175,35 @@ function renderWorldMap() {
 }
 
 function onMapNodeClick(zoneId) {
-    const zone=ZONES[zoneId]; if(!zone) return;
-    if ((character?.level||1)<zone.minLevel) { showMsg('missions-msg',`Requires level ${zone.minLevel}`,true); return; }
+    // Check if it's the Abyss Gate
+    if (zoneId === 'abyss_gate') {
+        enterAbyssGate();
+        return;
+    }
+    
+    const zone = ZONES[zoneId];
+    if (!zone) return;
+    if ((character?.level || 1) < zone.minLevel) { 
+        showMsg('missions-msg', `Requires level ${zone.minLevel}`, true); 
+        return; 
+    }
     openLocationModal(zoneId);
+}
+
+async function enterAbyssGate() {
+    try {
+        const result = await api('POST', '/game/travel/abyss/enter', {});
+        if (result.success) {
+            character.location = result.location;
+            character.current_map = 'abyss';
+            // Refresh the map view
+            await checkTravelStatus();
+            renderWorldMap();
+            showMsg('missions-msg', 'You step through the Abyss Gate into darkness...');
+        }
+    } catch (e) {
+        showMsg('missions-msg', e.message, true);
+    }
 }
 
 function openLocationModal(zoneId) {
