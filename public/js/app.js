@@ -3750,6 +3750,81 @@ async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.
     });
 }
 
+function showShopItemTooltip(event, itemJson) {
+    cancelHideTooltip();
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    
+    let item;
+    try {
+        item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson;
+    } catch(e) {
+        return;
+    }
+    
+    const qColor = { legendary: '#ffd700', rare: '#9b59b6', common: 'rgba(255,255,255,0.5)' }[item.quality || 'common'];
+    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png` : null);
+    
+    // Calculate sell price with premium (for shop, we show buy price, not sell)
+    let buyPrice = item.price;
+    let priceType = item.priceType || 'gold';
+    let priceIcon = priceType === 'gems' ? '💎' : '💰';
+    
+    // Build stats HTML
+    let statsHtml = '';
+    if (item.stats) {
+        for (const [stat, value] of Object.entries(item.stats)) {
+            if (value === 0) continue;
+            const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
+            statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">+${value}</span></div>`;
+        }
+    }
+    
+    // Effect for consumables
+    let effectHtml = '';
+    if (item.effect) {
+        const e = item.effect;
+        let effectText = '';
+        if (e.type === 'heal') effectText = `❤️ Restores ${e.value} HP`;
+        else if (e.type === 'heal_full') effectText = '❤️ Fully restores HP';
+        else if (e.type === 'mp') effectText = `🔮 Restores ${e.value} MP`;
+        else if (e.type === 'temp_stat') effectText = `💪 +${e.value} ${e.stat} for 1 hour`;
+        else if (e.type === 'xp') effectText = `⭐ +${e.value} XP`;
+        if (effectText) effectHtml = `<div class="tt-stat"><span class="tt-stat-name">Effect</span><span class="tt-stat-val">${effectText}</span></div>`;
+    }
+    
+    tooltip.innerHTML = `
+        <div class="tt-preview">
+            ${imgSrc
+                ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
+                : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
+            }
+        </div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
+            <div class="tt-meta">${capitalize(item.slot || item.category || 'item')}${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}</div>
+            ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
+            <div class="tt-stats">${statsHtml || effectHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+            <div class="tt-price" style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);color:#f1c40f">
+                ${priceIcon} ${buyPrice.toLocaleString()} ${priceType === 'gems' ? 'gems' : 'gold'}
+            </div>
+        </div>
+    `;
+    
+    tooltip.classList.remove('hidden');
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px';
+    tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth || 220;
+    const th = tooltip.offsetHeight || 320;
+    let left = r.right + 12;
+    let top = r.top;
+    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
+    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+    tooltip.style.left = Math.max(8, left) + 'px';
+    tooltip.style.top = Math.max(8, top) + 'px';
+}
+
 function toggleScreenshotUpload() {
     const checkbox = document.getElementById('include-screenshot');
     const uploadArea = document.getElementById('screenshot-upload-area');
@@ -4247,6 +4322,7 @@ function renderCurrentMap() {
         renderWorldMap();
     }
 }
+window.showShopItemTooltip = showShopItemTooltip;
 function renderAbyssMap() {
     const layer = document.getElementById('map-nodes-layer');
     if (!layer || !abyssData) return;
