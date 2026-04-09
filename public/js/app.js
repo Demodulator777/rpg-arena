@@ -1880,7 +1880,16 @@ function renderGearGrid(el, gear, equipped) {
         window._invGearData[i.id] = { ...i, equippedInSlot: equipped?.[d.slot] };
     });
     const equippedIds = Object.values(equipped || {}).map(e => e.inventoryId).filter(Boolean);
-    el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade</div>
+    
+    // Calculate premium sell rate for display in tooltip (tooltip will handle it)
+    // But we can also show a small badge for merchant prince
+    const activePrem = character?.premium_features || {};
+    const hasVaultKeeper = !!activePrem.vault_keeper;
+    const hasApprentice = !!activePrem.apprentice;
+    const merchantPrince = hasVaultKeeper && hasApprentice;
+    const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
+    
+    el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
@@ -2218,109 +2227,81 @@ function showItemTooltip(event, itemId) {
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
 
-function showShopItemTooltip(event, itemJson) {
+function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
-    let item; try { item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson; } catch { return; }
-    const qColor = { legendary: '#ffd700', rare: '#9b59b6', common: 'rgba(255,255,255,0.5)' }[item.quality || 'common'];
-    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png` : null);
-
-    // Normalize slot for jewelry (rings and amulets are the same slot)
-    let slot = item.slot || item.category;
-    if (slot === 'ring' || slot === 'amulet') {
-        slot = 'jewelry';
-    }
+    const info = window._invGearData?.[itemId];
+    if (!info) return;
+    const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
     
-    let equipped = null;
-    let equippedSlotName = '';
+    // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
+    let itemSlot = d.slot;
+    let equippedItem = eq;
     
-    // For jewelry, check both ring and amulet slots
-    if (slot === 'jewelry') {
-        if (character?.equipped?.ring) {
-            equipped = character.equipped.ring;
-            equippedSlotName = 'ring';
-        } else if (character?.equipped?.amulet) {
-            equipped = character.equipped.amulet;
-            equippedSlotName = 'amulet';
+    if (itemSlot === 'ring' || itemSlot === 'amulet') {
+        itemSlot = 'jewelry';
+        // For equipped comparison, check both ring and amulet slots
+        if (!equippedItem && character?.equipped) {
+            equippedItem = character.equipped.ring || character.equipped.amulet;
         }
-    } else {
-        equipped = character?.equipped?.[slot] || null;
-        equippedSlotName = slot;
     }
     
-    const allStats = new Set([
-        ...Object.keys(item.stats || {}),
-        ...Object.keys(equipped?.stats || {})
-    ].filter(k => !k.includes('type') && k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist'));
+    const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
+    const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const imgSrc = d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
 
     let statsHtml = '';
     for (const stat of allStats) {
-        const nv = item.stats?.[stat] || 0;
-        const ov = equipped?.stats?.[stat] || 0;
-        const diff = nv - ov;
-        const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
-        const ds = diff > 0 ? '▲' + diff : diff < 0 ? '▼' + Math.abs(diff) : '';
-        const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
+        const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
+        const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
+        const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
+        const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
-    // Consumable effect line
-    let effectHtml = '';
-    if (item.effect) {
-        const e = item.effect;
-        let label = '';
-        if (e.type === 'heal') label = `❤️ Restore ${e.value} HP`;
-        else if (e.type === 'heal_full') label = '❤️ Full HP restore';
-        else if (e.type === 'temp_stat') label = `💪 +${e.value} ${capitalize(e.stat || '')}`;
-        else if (e.type === 'xp_multiplier') label = `${e.value}× XP boost`;
-        else if (e.type === 'gold_multiplier') label = `${e.value}× Gold boost`;
-        else if (e.type === 'xp') label = `⭐ +${e.value} XP`;
-        if (label) effectHtml = `<div class="tt-stat"><span class="tt-stat-name">Effect</span><span class="tt-stat-val" style="color:#2ecc71">${label}</span></div>`;
-    }
-
-    const bodyStats = statsHtml || effectHtml
-        ? `${statsHtml}${effectHtml}`
-        : '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>';
-
-    // Build the comparison text
-    let vsText = '';
-    if (slot === 'jewelry') {
-        if (equipped) {
-            vsText = `<div class="tt-vs">vs equipped ${equippedSlotName}: <strong>${equipped.name}</strong></div>`;
-        } else {
-            vsText = `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">No jewelry currently equipped</div>`;
-        }
-    } else {
-        vsText = equipped
-            ? `<div class="tt-vs">vs equipped: <strong>${equipped.name}</strong></div>`
-            : `<div class="tt-vs" style="color:rgba(255,255,255,0.25)">Nothing equipped in this slot</div>`;
-    }
+    // Calculate sell price with premium discounts
+    const activePrem = character?.premium_features || {};
+    const hasVaultKeeper = !!activePrem.vault_keeper;
+    const hasApprentice = !!activePrem.apprentice;
+    const merchantPrince = hasVaultKeeper && hasApprentice;
+    const sellRate = merchantPrince ? 0.40 : 0.30;
+    const originalPrice = d.original_price || d.price || 0;
+    const sellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
+    const sn = (d.name||'').replace(/'/g,"\\'");
 
     tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
-                ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
-                : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`}
+                ?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+                :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
-            <div class="tt-meta">${capitalize(slot || 'item')}${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}</div>
-            ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
-            <div class="tt-stats">${bodyStats}</div>
-            ${vsText}
+            <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
+            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
+            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+        </div>
+        <div class="tt-actions">
+            ${isEquipped
+                ?`<button class="tt-btn tt-btn-secondary" onclick="unequipSlot('${d.slot}')">Unequip</button>`
+                :`<button class="tt-btn tt-btn-primary" onclick="equipItem(${itemId})">Equip</button>`}
+            <button class="tt-btn tt-btn-danger" onclick="sellItem(${itemId},'${sn}',${sellPrice})" ${isEquipped?'disabled':''}>
+                Sell ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
+            </button>
         </div>`;
 
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
-    tooltip.style.left = '-9999px';
-    tooltip.style.top = '-9999px';
-    const tw = tooltip.offsetWidth || 220, th = tooltip.offsetHeight || 320;
-    let left = r.right + 12, top = r.top;
-    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
-    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
-    tooltip.style.left = Math.max(8, left) + 'px';
-    tooltip.style.top = Math.max(8, top) + 'px';
+    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||340;
+    let left = r.right+12, top = r.top;
+    if (left+tw>window.innerWidth-8) left = r.left-tw-12;
+    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    tooltip.style.left = Math.max(8,left)+'px';
+    tooltip.style.top  = Math.max(8,top)+'px';
 }
 
 function showEqTooltip(event, itemJson) {
