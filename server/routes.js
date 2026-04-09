@@ -2703,15 +2703,23 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
             if (equippedIds.includes(item.id)) return res.status(400).json({ error: 'Unequip the item before selling.' });
         }
         const data = JSON.parse(item.item_data);
+        
+        // Use original_price if available, otherwise fall back to price
+        const originalPrice = data.original_price || data.price;
+        
         const activePremSell = getActivePremium(char);
         const merchantPrince = hasPremium(activePremSell, 'vault_keeper') && hasPremium(activePremSell, 'apprentice');
         const sellRate = merchantPrince ? 0.40 : 0.30;
-        const sellPrice = Math.max(1, Math.floor((data.price || 0) * sellRate));
+        const sellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
+        
         await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
         await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [sellPrice, char.id]);
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
-        res.json({ message:`Sold ${data.name} for ${sellPrice} gold.`, goldEarned: sellPrice, character: await buildCharacterResponse(updated, db) });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+        res.json({ message: `Sold ${data.name} for ${sellPrice} gold.`, goldEarned: sellPrice, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // ── Use consumable ────────────────────────────────────────────────────────
