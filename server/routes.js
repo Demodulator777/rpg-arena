@@ -1364,12 +1364,14 @@ function generateBackendRandomItem(level, type) {
         quality,
     };
     item.price = calculateBackendItemPrice(item, level);
+    item.original_price = item.price;  // ← ADDED: Store original price
 
     if (Math.random() < 0.20) {
         const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
         const gemCost = 1 + Math.floor(Math.random() * maxGems);
         item.gemCost = gemCost;
         item.price   = Math.max(1, Math.floor(item.price * (1 - Math.min(0.20, gemCost / 150))));
+        item.original_price = item.price;  // ← ADDED: Update original price after gem discount
         item.desc    = `✨ ${item.desc}`;
     }
 
@@ -2476,6 +2478,7 @@ router.post('/forge/craft', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
         
         const scaledItem = scaleItemToLevel(recipe, char.level);
+        scaledItem.original_price = scaledItem.price;
         
         await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
             [char.id, 'equipment', JSON.stringify(scaledItem)]);
