@@ -685,18 +685,37 @@
   margin-top: 2px;
 }
 .dungeon-token-wrap {
-  text-align: right;
+    display: flex;
+    flex-wrap: wrap;  /* This allows the pills to stack on mobile */
+    gap: 12px;
+    align-items: center;
 }
 .dungeon-token-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(243,156,18,0.1);
-  border: 1px solid rgba(243,156,18,0.3);
-  border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 0.85rem;
-  color: var(--dungeon-token);
+    display: flex;  /* Changed from inline-flex */
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(243, 156, 18, 0.1);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    color: var(--dungeon-token);
+    white-space: nowrap;  /* Prevent text wrapping inside pill */
+}
+
+/* Mobile fix */
+@media (max-width: 768px) {
+    .dungeon-token-pill {
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        gap: 4px;
+    }
+    
+    .dungeon-token-wrap {
+        flex-wrap: wrap;  /* Allow pills to wrap to next line */
+        gap: 8px;
+    }
 }
 .dungeon-token-num {
   font-weight: 700;
