@@ -1511,7 +1511,7 @@ async function collectMission() {
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken);
         else showMissionModal(msg);
-        renderWorldMap(); renderCharacter();
+        renderCurrentMap(); renderCharacter();
     } catch(e) { alert(e.message); }
 }
 
