@@ -212,7 +212,11 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const progress = sk.progress || 0;
     const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
     const maxHours = hasArcaneReservoir ? 12 : 8;
-    
+    const now = Math.floor(Date.now() / 1000);
+    const hasActiveMission = window.activeMission === true; // You'll need to track this globally
+    const inBattleCooldown = character?.battle_cooldown_ends_at > now;
+    const isTraveling = window.playerTravelTarget !== null;
+    const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
         borderColor = branchColor;
@@ -292,36 +296,42 @@ if (locked && !learned && !training) {
     }
 
     let trainOptionsHtml = '';
-    if (trainable && !training && !learned) {
-        const hoursOptions = [];
-        for (let h = 1; h <= maxHours; h++) {
-            hoursOptions.push(`<option value="${h}">${h}h</option>`);
-        }
-        trainOptionsHtml = `
-            <div style="display: flex; gap: 4px; margin-top: 8px;">
-                <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
-                    ${hoursOptions.join('')}
-                </select>
-                <button onclick="stStartTrain('${skillKey}','${branchId}', false)" 
-                    style="flex:1; padding: 5px 6px; border-radius: 4px; border: 1px solid ${branchColor}66;
-                           background: ${branchColor}18; color: ${branchColor}; font-size: 0.65rem; font-weight: 600;
-                           cursor: pointer; transition: all 0.15s;"
-                    onmouseenter="this.style.background='${branchColor}33'"
-                    onmouseleave="this.style.background='${branchColor}18'">
-                    Train
-                </button>
-                <button onclick="stStartTrain('${skillKey}','${branchId}', true)" 
-                    style="padding: 5px 6px; border-radius: 4px; border: 1px solid #f1c40f66;
-                           background: rgba(241,196,15,0.15); color: #f1c40f; font-size: 0.65rem; font-weight: 600;
-                           cursor: pointer; transition: all 0.15s;"
-                    onmouseenter="this.style.background='rgba(241,196,15,0.3)'"
-                    onmouseleave="this.style.background='rgba(241,196,15,0.15)'"
-                    title="2x speed (costs 500 gold per hour)">
-                    2x
-                </button>
-            </div>
-        `;
+if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
+    const hoursOptions = [];
+    for (let h = 1; h <= maxHours; h++) {
+        hoursOptions.push(`<option value="${h}">${h}h</option>`);
     }
+    trainOptionsHtml = `
+        <div style="display: flex; gap: 4px; margin-top: 8px;">
+            <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
+                ${hoursOptions.join('')}
+            </select>
+            <button onclick="stStartTrain('${skillKey}','${branchId}', false)" 
+                style="flex:1; padding: 5px 6px; border-radius: 4px; border: 1px solid ${branchColor}66;
+                       background: ${branchColor}18; color: ${branchColor}; font-size: 0.65rem; font-weight: 600;
+                       cursor: pointer; transition: all 0.15s;"
+                onmouseenter="this.style.background='${branchColor}33'"
+                onmouseleave="this.style.background='${branchColor}18'">
+                Train
+            </button>
+            <button onclick="stStartTrain('${skillKey}','${branchId}', true)" 
+                style="padding: 5px 6px; border-radius: 4px; border: 1px solid #f1c40f66;
+                       background: rgba(241,196,15,0.15); color: #f1c40f; font-size: 0.65rem; font-weight: 600;
+                       cursor: pointer; transition: all 0.15s;"
+                onmouseenter="this.style.background='rgba(241,196,15,0.3)'"
+                onmouseleave="this.style.background='rgba(241,196,15,0.15)'"
+                title="2x speed (costs 500 gold per hour)">
+                2x
+            </button>
+        </div>
+    `;
+} else if (trainable && !training && !learned && isBusy) {  // Added this else if
+    trainOptionsHtml = `
+        <div style="margin-top: 8px; text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.3); padding: 5px;">
+            🔒 ${hasActiveMission ? 'On a mission' : inBattleCooldown ? 'Battle cooldown' : 'Traveling'}
+        </div>
+    `;
+}
 
     let btnHtml = '';
     if (learned) {
