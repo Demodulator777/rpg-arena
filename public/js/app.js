@@ -736,17 +736,25 @@ async function checkTrainingStatus() {
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
         
-        if (status.active) {
-            const remaining = status.remainingSeconds;
+        // If status exists and has an id, training is active
+        if (status && status.id) {
+            // Calculate remaining time if not provided
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = status.remainingSeconds || (status.ends_at - now);
             const progress = status.progress || 0;
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
             const percent = Math.floor(progress);
             
-            document.getElementById('training-skill-name').textContent = `Training: ${status.skillId.replace(/_/g, ' ')}`;
-            document.getElementById('training-overlay-timer').textContent = `${m}:${String(s).padStart(2, '0')}`;
-            document.getElementById('training-overlay-fill').style.width = `${percent}%`;
-            document.getElementById('training-progress-text').textContent = `${percent}% complete`;
+            const skillNameEl = document.getElementById('training-skill-name');
+            const timerEl = document.getElementById('training-overlay-timer');
+            const fillEl = document.getElementById('training-overlay-fill');
+            const progressTextEl = document.getElementById('training-progress-text');
+            
+            if (skillNameEl) skillNameEl.textContent = `Training: ${(status.skill_id || '').replace(/_/g, ' ')}`;
+            if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+            if (fillEl) fillEl.style.width = `${percent}%`;
+            if (progressTextEl) progressTextEl.textContent = `${percent}% complete`;
             
             overlay.classList.remove('hidden');
         } else {
