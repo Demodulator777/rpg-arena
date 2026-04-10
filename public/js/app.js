@@ -1569,22 +1569,24 @@ async function collectMission() {
 // ── Mission Overlay ───────────────────────────────────────────────────────
 async function checkAndShowMissionOverlay() {
     try {
-        // 1. Check active mission first (highest priority usually)
+        // 1. Mission (highest priority)
         const activeMission = await api('GET', '/game/missions/active').catch(() => null);
         if (activeMission && activeMission.id) {
             window.activeMission = true;
             hideRestOverlay();
             hideTrainingOverlay();
+            hideTravelOverlay();           // ← added
             showMissionOverlay(activeMission, activeMission.mission_name || activeMission.missionName || 'Mission');
             return;
         }
         window.activeMission = false;
 
-        // 2. Check training
+        // 2. Training
         const trainingStatus = await api('GET', '/skills/training/status').catch(() => null);
         if (trainingStatus && trainingStatus.active && trainingStatus.endsAt) {
             hideRestOverlay();
             hideMissionOverlay();
+            hideTravelOverlay();           // ← added
             showTrainingOverlay(
                 trainingStatus.skillName || 'Skill Training',
                 trainingStatus.endsAt
@@ -1593,10 +1595,10 @@ async function checkAndShowMissionOverlay() {
         }
         hideTrainingOverlay();
 
-        // 3. Check battle/rest cooldown (lowest priority)
+        // 3. Rest / Battle cooldown
         hideMissionOverlay();
+        hideTravelOverlay();               // ← added
 
-        // Refresh character in case it was stale
         const freshChar = await api('GET', '/game/character').catch(() => null);
         if (freshChar) character = freshChar;
 
@@ -1606,15 +1608,20 @@ async function checkAndShowMissionOverlay() {
 
         if (endsAt > now && lastBattle > 0) {
             showRestOverlay(lastBattle, endsAt);
+            return;                        // ← added to prevent falling through
         } else {
             hideRestOverlay();
         }
+
+        // Nothing active
+        hideTravelOverlay();
 
     } catch (e) {
         console.error('Error in checkAndShowMissionOverlay:', e);
         hideMissionOverlay();
         hideRestOverlay();
         hideTrainingOverlay();
+        hideTravelOverlay();
     }
 }
 
@@ -1764,8 +1771,8 @@ function showTravelOverlay() {
     overlay.classList.remove('hidden');
 }
 function hideTravelOverlay() {
-    if (travelOverlayInterval) { clearInterval(travelOverlayInterval); travelOverlayInterval=null; }
-    const o=document.getElementById('travel-overlay'); if(o) o.classList.add('hidden');
+    const overlay = document.getElementById('travel-overlay');   // change ID if yours is different
+    if (overlay) overlay.classList.add('hidden');
 }
 async function cancelTravel() {
     const now = Math.floor(Date.now() / 1000);
