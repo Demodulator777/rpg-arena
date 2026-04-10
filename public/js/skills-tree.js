@@ -361,7 +361,7 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         ${btnHtml}
         ${!locked && sk.tier ? `<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>` : ''}
     </div>`;
-}
+})
 
 async function stCancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
