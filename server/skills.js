@@ -2123,7 +2123,6 @@ router.post('/train/start', async (req, res) => {
             await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [goldCost, char.id]);
         }
         
-        const now = Math.floor(Date.now() / 1000);
         const endsAt = now + (hours * 3600);
         
         // Insert training session - use dbRun helper
