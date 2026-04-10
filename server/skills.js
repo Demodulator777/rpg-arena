@@ -2033,7 +2033,7 @@ router.post('/respec', async (req, res) => {
     }
 });
 
-router.post('/skills/train/start', async (req, res) => {
+router.post('/train/start', async (req, res) => {
     try {
         const db = await getDb();
         const { skillId, branchId, hours, doubleSpeed } = req.body;
