@@ -1900,10 +1900,17 @@ router.post('/collect', async (req, res) => {
         const training = (await db.execute({ sql: 'SELECT * FROM skill_training WHERE char_id=?', args: [char.id] })).rows[0];
         if (!training) return res.status(400).json({ error: 'No training in progress' });
 
-        const now = Math.floor(Date.now() / 1000);
-        if (now < training.ends_at) {
-            const left = training.ends_at - now;
-            return res.status(400).json({ error: `Training not complete. ${Math.ceil(left/60)}m remaining.` });
+        // Get current progress from character_skill_tree
+        const progressRow = (await db.execute({ 
+            sql: 'SELECT progress FROM character_skill_tree WHERE char_id=? AND skill_id=?', 
+            args: [char.id, training.skill_id] 
+        })).rows[0];
+        
+        const currentProgress = progressRow?.progress || 0;
+        
+        // Check if progress has reached 100%
+        if (currentProgress < 100) {
+            return res.status(400).json({ error: `Skill not fully learned yet. Current progress: ${currentProgress}%. Continue training.` });
         }
 
         const tree = SKILL_TREES[char.class];
@@ -1911,16 +1918,13 @@ router.post('/collect', async (req, res) => {
         const sk = branch?.skills[training.skill_id];
 
         await db.execute({
-            sql: 'INSERT OR IGNORE INTO character_skill_tree (char_id, skill_id, branch_id, class, learned_at) VALUES (?,?,?,?,?)',
-            args: [char.id, training.skill_id, training.branch_id, char.class, now]
+            sql: 'UPDATE character_skill_tree SET learned_at = ? WHERE char_id=? AND skill_id=?',
+            args: [Math.floor(Date.now() / 1000), char.id, training.skill_id]
         });
 
         if (sk) {
             for (const eff of (sk.effects || [])) {
                 if (eff.type === 'passive_pct') {
-                    // For percentage bonuses, we need to handle differently
-                    // Store in a separate table or apply as multiplier
-                    // For now, we'll just log - actual implementation depends on your stat system
                     console.log(`Percentage bonus: ${eff.stat} +${eff.value * 100}%`);
                 } else if (eff.type === 'passive_stat') {
                     await db.execute({
