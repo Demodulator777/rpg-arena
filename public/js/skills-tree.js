@@ -215,7 +215,7 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const now = Math.floor(Date.now() / 1000);
     const hasActiveMission = window.activeMission === true; // You'll need to track this globally
     const inBattleCooldown = character?.battle_cooldown_ends_at > now;
-    const isTraveling = window.playerTravelTarget !== null;
+    const isTraveling = false;
     const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
@@ -328,7 +328,7 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
 } else if (trainable && !training && !learned && isBusy) {  // Added this else if
     trainOptionsHtml = `
         <div style="margin-top: 8px; text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.3); padding: 5px;">
-            🔒 ${hasActiveMission ? 'On a mission' : inBattleCooldown ? 'Battle cooldown' : 'Traveling'}
+            🔒 ${hasActiveMission ? 'On a mission' : inBattleCooldown ? 'Battle cooldown' : 'Unavailable'}
         </div>
     `;
 }
@@ -369,7 +369,7 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
 async function stCancel() {
     if (!confirm('Cancel current training?')) return;
     try {
-        await api('POST', '/skills/cancel');
+        await api('POST', '/skills/train/cancel');
         hideTrainingOverlay();           // ← Important
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
@@ -503,7 +503,7 @@ function formatTime(seconds) {
 async function cancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
     try {
-        const d = await api('POST', '/skills/cancel');
+        const d = await api('POST', '/skills/train/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch(e) {
