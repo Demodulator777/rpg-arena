@@ -1172,6 +1172,7 @@ async function loadMissions() {
         }
         
         await checkAndShowMissionOverlay();
+        await checkTrainingStatus();
     } catch(e) {
         console.error('Error loading missions:', e);
         const layer = document.getElementById('map-nodes-layer');
