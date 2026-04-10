@@ -3998,6 +3998,55 @@ document.addEventListener('DOMContentLoaded', () => {
     initBugReport();
 });
 
+async function updateTrainingStatus() {
+    try {
+        const status = await api('GET', '/skills/training/status');
+        const indicator = document.getElementById('training-indicator');
+        if (!indicator) return;
+        
+        if (status.active) {
+            const progress = Math.floor(status.progress);
+            const remaining = formatTrainingTime(status.remainingSeconds);
+            indicator.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
+                    <span style="font-size: 0.75rem;">⚔️ ${progress}%</span>
+                    <div style="width: 50px; background: rgba(255,255,255,0.2); border-radius: 4px; height: 4px;">
+                        <div style="width: ${progress}%; background: #9b59b6; height: 4px; border-radius: 4px;"></div>
+                    </div>
+                    <span style="font-size: 0.65rem;">${remaining}</span>
+                    <button onclick="cancelTraining()" style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">✕</button>
+                </div>
+            `;
+            indicator.classList.remove('hidden');
+        } else {
+            indicator.classList.add('hidden');
+        }
+    } catch(e) {
+        console.error('Failed to get training status:', e);
+    }
+}
+
+function formatTrainingTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+}
+
+async function cancelTraining() {
+    if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
+    try {
+        const d = await api('POST', '/skills/train/cancel');
+        showMsg('skill-tree-msg', d.message);
+        await renderSkillTreeTab();
+        character = await api('GET', '/game/character');
+        renderTopBar();
+        updateTrainingStatus();
+    } catch(e) {
+        showMsg('skill-tree-msg', e.message, true);
+    }
+}
+
 // ── Convert MP to Special Mana Potion ─────────────────────────────────────
 let _convertingMp = false;
 
