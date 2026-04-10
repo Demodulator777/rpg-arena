@@ -292,6 +292,9 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
     }
 
     // Training options (hours selector + buttons)
+    Object.entries(branch.skills).forEach(([skillKey, sk]) => {
+    // Now skillKey is defined here
+    
     let trainOptionsHtml = '';
     if (trainable && !training && !learned) {
         const hoursOptions = [];
@@ -300,7 +303,7 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         }
         trainOptionsHtml = `
             <div style="display: flex; gap: 4px; margin-top: 8px;">
-                <select id="train-hours-${sk.id}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
+                <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
                     ${hoursOptions.join('')}
                 </select>
                 <button onclick="stStartTrain('${skillKey}','${branchId}', false)" 
