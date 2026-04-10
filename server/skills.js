@@ -1981,22 +1981,70 @@ router.post('/cancel', async (req, res) => {
     }
 });
 
-router.get('/training/status', async (req, res) => {
+router.get('/training/status', auth, async (req, res) => {
+
     try {
-        const { getDb } = require('./db');
+
         const db = await getDb();
-        const char = (await db.execute({ sql: 'SELECT id FROM characters WHERE user_id=?', args: [req.user.userId] })).rows[0];
-        if (!char) return res.status(404).json({ error: 'No character' });
-
-        const training = (await db.execute({ sql: 'SELECT * FROM skill_training WHERE char_id=?', args: [char.id] })).rows[0];
-        if (!training) return res.json(null);
-
         const now = Math.floor(Date.now() / 1000);
+
+        const char = await dbGet(
+            db,
+            'SELECT * FROM characters WHERE user_id = ?',
+            [req.user.userId]
+        );
+
+        const training = await dbGet(
+            db,
+            'SELECT * FROM skill_training WHERE char_id = ?',
+            [char.id]
+        );
+
+        if (!training)
+            return res.json({ active: false });
+
+        const remaining = Math.max(0, training.ends_at - now);
+
+        // If training finished
+        if (remaining === 0) {
+
+            await dbRun(
+                db,
+                `
+                UPDATE character_skill_tree
+                SET progress = progress_target
+                WHERE char_id = ? AND skill_id = ?
+                `,
+                [char.id, training.skill_id]
+            );
+
+            await dbRun(
+                db,
+                'DELETE FROM skill_training WHERE id = ?',
+                [training.id]
+            );
+
+            return res.json({
+                active: false,
+                finished: true,
+                skillId: training.skill_id
+            });
+        }
+
+        const total = training.ends_at - training.started_at;
+        const elapsed = now - training.started_at;
+
+        const progress = Math.floor((elapsed / total) * 100);
+
         res.json({
-            ...training,
-            timeLeft: Math.max(0, training.ends_at - now),
-            done: now >= training.ends_at,
+            active: true,
+            skillId: training.skill_id,
+            skillName: training.skill_id.replace(/_/g, ' '),
+            remaining,
+            progress,
+            target: 100
         });
+
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -2060,89 +2108,139 @@ router.post('/respec', async (req, res) => {
     }
 });
 
-router.post('/train/start', async (req, res) => {
+router.post('/train/start', auth, async (req, res) => {
     try {
+
         const db = await getDb();
-        const { skillId, branchId, hours, doubleSpeed } = req.body;
-        
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
-        if (!char) return res.status(404).json({ error: 'Character not found' });
-        
-        // Check for active mission
-        const activeMission = await dbGet(db, 'SELECT * FROM active_missions WHERE char_id = ? AND completed = 0', [char.id]);
-        if (activeMission) {
-            return res.status(400).json({ error: 'Cannot train while on a mission!' });
-        }
-        
-        // Check for battle cooldown
         const now = Math.floor(Date.now() / 1000);
-        if (char.battle_cooldown_ends_at && char.battle_cooldown_ends_at > now) {
-            const remaining = Math.ceil((char.battle_cooldown_ends_at - now) / 60);
-            return res.status(400).json({ error: `Cannot train while in battle cooldown! ${remaining} minutes remaining.` });
+
+        const { skillId, branchId, hours, doubleSpeed } = req.body;
+
+        const char = await dbGet(
+            db,
+            'SELECT * FROM characters WHERE user_id = ?',
+            [req.user.userId]
+        );
+
+        if (!char)
+            return res.status(404).json({ error: 'Character not found' });
+
+        // Mission check
+        const mission = await dbGet(
+            db,
+            'SELECT * FROM active_missions WHERE character_id = ? AND ends_at > ?',
+            [char.id, now]
+        );
+
+        if (mission)
+            return res.status(400).json({ error: 'Cannot train during a mission' });
+
+        // Travel check
+        if (char.travel_target && char.travel_end_time > now)
+            return res.status(400).json({ error: 'Cannot train while traveling' });
+
+        // Existing training
+        const existing = await dbGet(
+            db,
+            'SELECT * FROM skill_training WHERE char_id = ?',
+            [char.id]
+        );
+
+        if (existing)
+            return res.status(400).json({ error: 'Already training a skill' });
+
+        // Ensure skill exists in tree
+        const row = await dbGet(
+            db,
+            'SELECT * FROM character_skill_tree WHERE char_id = ? AND skill_id = ?',
+            [char.id, skillId]
+        );
+
+        if (!row) {
+            await dbRun(
+                db,
+                `
+                INSERT INTO character_skill_tree
+                (char_id, skill_id, branch_id, class, progress)
+                VALUES (?, ?, ?, ?, 0)
+                `,
+                [char.id, skillId, branchId, char.class]
+            );
         }
-        
-        // Check if already training
-        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
-        if (training) {
-            return res.status(400).json({ error: 'Already training! Complete or cancel current training first.' });
-        }
-        
-        // Check for travel
-        if (char.travel_target && char.travel_end_time > now) {
-            return res.status(400).json({ error: 'Cannot train while traveling!' });
-        }
-        
-        // Get current progress
-        const progressRow = await dbGet(db, 'SELECT progress FROM character_skill_tree WHERE char_id = ? AND skill_id = ?', [char.id, skillId]);
-        const currentProgress = progressRow?.progress || 0;
-        
-        // Validate hours
-        const activePrem = getActivePremium(char);
-        const maxHours = hasPremium(activePrem, 'arcane_reservoir') ? 12 : 8;
-        if (hours < 1 || hours > maxHours) {
-            return res.status(400).json({ error: `Training hours must be between 1 and ${maxHours}` });
-        }
-        
-        // Get skill data
-        const tree = SKILL_TREES[char.class];
-        const branch = tree?.branches[branchId];
-        const skill = branch?.skills[skillId];
-        if (!skill) return res.status(404).json({ error: 'Skill not found' });
-        
-        // Calculate target progress
-        const progressPerHour = doubleSpeed ? 2 : 1;
-        const targetProgress = Math.min(100, currentProgress + (hours * progressPerHour));
-        
-        // Deduct gold for double speed
-        let goldCost = 0;
-        if (doubleSpeed) {
-            goldCost = hours * 500;
-            if (char.gold < goldCost) {
-                return res.status(400).json({ error: `Need ${goldCost} gold for double speed training` });
-            }
-            await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [goldCost, char.id]);
-        }
-        
-        const endsAt = now + (hours * 3600);
-        
-        // Insert training session - use dbRun helper
-        await dbRun(db, `
-            INSERT INTO skill_training (char_id, skill_id, branch_id, progress_start, progress_target, hours_to_train, double_speed, started_at, ends_at, last_tick_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [char.id, skillId, branchId, currentProgress, targetProgress, hours, doubleSpeed ? 1 : 0, now, endsAt, now]);
-        
-        // Set training cooldown
-        await dbRun(db, 'UPDATE characters SET training_cooldown_until = ? WHERE id = ?', [endsAt, char.id]);
-        
+
+        const duration = (hours || 1) * 3600;
+
+        await dbRun(
+            db,
+            `
+            INSERT INTO skill_training
+            (char_id, skill_id, branch_id, progress_start,
+             progress_target, progress_current,
+             hours_to_train, double_speed,
+             started_at, ends_at, last_tick_at)
+            VALUES (?, ?, ?, 0, 100, 0, ?, ?, ?, ?, ?)
+            `,
+            [
+                char.id,
+                skillId,
+                branchId,
+                hours || 1,
+                doubleSpeed ? 1 : 0,
+                now,
+                now + duration,
+                now
+            ]
+        );
+
         res.json({
             success: true,
-            message: `Training started! ${hours} hour${hours > 1 ? 's' : ''}${doubleSpeed ? ' (2x speed)' : ''}`,
-            endsAt,
-            currentProgress,
-            targetProgress
+            message: 'Training started'
         });
+
     } catch (e) {
-        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+
+// ========================================
+// CANCEL TRAINING
+// ========================================
+
+router.post('/train/cancel', auth, async (req, res) => {
+
+    try {
+
+        const db = await getDb();
+
+        const char = await dbGet(
+            db,
+            'SELECT * FROM characters WHERE user_id = ?',
+            [req.user.userId]
+        );
+
+        const training = await dbGet(
+            db,
+            'SELECT * FROM skill_training WHERE char_id = ?',
+            [char.id]
+        );
+
+        if (!training)
+            return res.status(400).json({ error: 'No training active' });
+
+        await dbRun(
+            db,
+            'DELETE FROM skill_training WHERE id = ?',
+            [training.id]
+        );
+
+        res.json({
+            success: true,
+            message: 'Training cancelled'
+        });
+
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
