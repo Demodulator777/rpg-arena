@@ -10,7 +10,11 @@ const {
     computePassiveBonuses, 
     computeActiveCombatEffects, 
     computeClassModifiers, 
-    rogueHasDualWield 
+    rogueHasDualWield,
+    // NEW progressive functions
+    computePassiveBonusesWithProgress,
+    computeActiveCombatEffectsWithProgress,
+    computeClassModifiersWithProgress
 } = require('./skills');
 
 BigInt.prototype.toJSON = function() { return Number(this); };
