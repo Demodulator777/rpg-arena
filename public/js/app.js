@@ -4079,7 +4079,14 @@ async function cancelTraining() {
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
-        updateTrainingStatus();
+        
+        // Stop training overlay polling
+        if (trainingInterval) {
+            clearInterval(trainingInterval);
+            trainingInterval = null;
+        }
+        const overlay = document.getElementById('training-overlay');
+        if (overlay) overlay.classList.add('hidden');
     } catch(e) {
         showMsg('skill-tree-msg', e.message, true);
     }
