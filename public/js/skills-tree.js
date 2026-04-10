@@ -447,15 +447,12 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
         if (!confirm(`Train "${sk.name}"?\nTime: ${hours} hours\nRequires: ${costLine}`)) return;
     }
     
-     try {
+    try {
         const d = await api('POST', '/skills/train/start', { skillId, branchId, hours, doubleSpeed });
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
-        
-        // Start training overlay polling
-        startTrainingPolling();
     } catch (e) {
         showMsg('skill-tree-msg', e.message, true);
     }
