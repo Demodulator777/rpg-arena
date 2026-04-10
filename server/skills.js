@@ -2033,7 +2033,7 @@ router.post('/respec', async (req, res) => {
     }
 });
 
-router.post('/skills/train/start', auth, async (req, res) => {
+router.post('/skills/train/start', async (req, res) => {
     try {
         const db = await getDb();
         const { skillId, branchId, hours, doubleSpeed } = req.body;
@@ -2104,7 +2104,7 @@ router.post('/skills/train/start', auth, async (req, res) => {
     }
 });
 
-router.post('/skills/train/tick', auth, async (req, res) => {
+router.post('/skills/train/tick', async (req, res) => {
     try {
         const db = await getDb();
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
