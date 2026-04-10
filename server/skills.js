@@ -1716,7 +1716,7 @@ async function loadCharWithSkills(db, userId) {
     const c = char.rows[0];
     if (!c) return { char: null, learned: [], learnedMap: {} };
     const rows = await db.execute({
-        sql: 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', args: [c.id]
+        sql: 'SELECT skill_id FROM character_skill_tree WHERE char_id=? AND learned_at > 0', args: [c.id]
     });
     const learned = rows.rows.map(r => r.skill_id);
     const learnedMap = Object.fromEntries(learned.map(s => [s, true]));
@@ -1741,20 +1741,45 @@ router.get('/tree', async (req, res) => {
         const trainingRow = await db.execute({
             sql: 'SELECT * FROM skill_training WHERE char_id=?', args: [char.id]
         });
-        const hasActiveTraining = trainingRow.rows.length > 0 && trainingRow.rows[0].ends_at > Math.floor(Date.now() / 1000);
+        let activeTraining = trainingRow.rows[0] || null;
+        const now = Math.floor(Date.now() / 1000);
+        let hasActiveTraining = false;
+
+        if (activeTraining) {
+            const progressPerHour = activeTraining.double_speed ? 2 : 1;
+            const elapsedSeconds = Math.max(0, Math.min(now, activeTraining.ends_at) - activeTraining.started_at);
+            const elapsedHours = elapsedSeconds / 3600;
+            const liveProgress = Math.min(
+                activeTraining.progress_target || 100,
+                (activeTraining.progress_start || 0) + (elapsedHours * progressPerHour)
+            );
+
+            if ((activeTraining.progress_current || 0) !== liveProgress) {
+                await dbRun(db, 'UPDATE skill_training SET progress_current = ?, last_tick_at = ? WHERE id = ?', [liveProgress, now, activeTraining.id]);
+                await dbRun(db, 'UPDATE character_skill_tree SET progress = ? WHERE char_id = ? AND skill_id = ?', [liveProgress, char.id, activeTraining.skill_id]);
+                activeTraining.progress_current = liveProgress;
+            }
+
+            activeTraining.progress = liveProgress;
+            activeTraining.remaining = Math.max(0, activeTraining.ends_at - now);
+            activeTraining.timeLeft = activeTraining.remaining;
+            activeTraining.collectible = now >= activeTraining.ends_at && liveProgress >= 100;
+            activeTraining.done = activeTraining.collectible;
+
+            if (now >= activeTraining.ends_at && !activeTraining.collectible) {
+                await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [activeTraining.id]);
+                await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
+                activeTraining = null;
+            } else {
+                hasActiveTraining = !activeTraining.collectible;
+            }
+        }
 
         const tree = getVisibleSkillTree(char.class, char, learnedMap, extraStats, hasActiveTraining);
         const passives = computePassiveBonuses(char.class, learned);
         const mods = computeClassModifiers(char.class, learned);
         const dualWield = char.class === 'rogue' && rogueHasDualWield(learned);
         const mPath = char.class === 'mage' ? magePath(learned) : null;
-
-        const activeTraining = trainingRow.rows[0] || null;
-        if (activeTraining) {
-            const now = Math.floor(Date.now() / 1000);
-            activeTraining.timeLeft = Math.max(0, activeTraining.ends_at - now);
-            activeTraining.done = now >= activeTraining.ends_at;
-        }
 
         res.json({
             tree,
@@ -2069,15 +2094,15 @@ router.post('/train/start', async (req, res) => {
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         // Check for active mission
-        const activeMission = await dbGet(db, 'SELECT * FROM active_missions WHERE char_id = ? AND completed = 0', [char.id]);
+        const now = Math.floor(Date.now() / 1000);
+        const activeMission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ? AND ends_at > ?', [char.id, now]);
         if (activeMission) {
             return res.status(400).json({ error: 'Cannot train while on a mission!' });
         }
         
         // Check for battle cooldown
-        const now = Math.floor(Date.now() / 1000);
-        if (char.battle_cooldown_ends_at && char.battle_cooldown_ends_at > now) {
-            const remaining = Math.ceil((char.battle_cooldown_ends_at - now) / 60);
+        if (char.attack_cooldown_until && char.attack_cooldown_until > now) {
+            const remaining = Math.ceil((char.attack_cooldown_until - now) / 60);
             return res.status(400).json({ error: `Cannot train while in battle cooldown! ${remaining} minutes remaining.` });
         }
         
@@ -2156,52 +2181,47 @@ router.post('/skills/train/tick', async (req, res) => {
         if (!training) return res.json({ active: false });
         
         const now = Math.floor(Date.now() / 1000);
+        const progressPerHour = training.double_speed ? 2 : 1;
+        const elapsedSeconds = Math.max(0, Math.min(now, training.ends_at) - training.started_at);
+        const elapsedHours = elapsedSeconds / 3600;
+        const newProgress = Math.min(training.progress_target, training.progress_start + (elapsedHours * progressPerHour));
+
         if (now >= training.ends_at) {
-            // Calculate final progress
-            const hoursElapsed = training.hours_to_train;
-            const progressPerHour = training.double_speed ? 2 : 1;
-            const progressGain = hoursElapsed * progressPerHour;
-            const finalProgress = Math.min(training.progress_target, training.progress_start + progressGain);
-            
-            // Update skill progress in character_skill_tree
+            await dbRun(db, `
+                UPDATE skill_training 
+                SET progress_current = ?, last_tick_at = ? 
+                WHERE id = ?
+            `, [newProgress, now, training.id]);
+
             await dbRun(db, `
                 UPDATE character_skill_tree 
                 SET progress = ? 
                 WHERE char_id = ? AND skill_id = ?
-            `, [finalProgress, char.id, training.skill_id]);
-            
-            // Check if skill is now complete (100%)
-            if (finalProgress >= 100) {
-                // Mark as learned and apply effects
-                await dbRun(db, `
-                    UPDATE character_skill_tree 
-                    SET learned_at = ? 
-                    WHERE char_id = ? AND skill_id = ?
-                `, [now, char.id, training.skill_id]);
-                
-                // Apply skill effects here...
+            `, [newProgress, char.id, training.skill_id]);
+
+            if (newProgress < 100) {
+                await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
+                await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
+                return res.json({ 
+                    active: false, 
+                    complete: true,
+                    newProgress,
+                    skillLearned: false
+                });
             }
-            
-            // Delete training record and clear cooldown
-            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-            await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
-            
-            return res.json({ 
-                active: false, 
-                complete: true,
-                newProgress: finalProgress,
-                skillLearned: finalProgress >= 100
+
+            return res.json({
+                active: true,
+                done: true,
+                skillId: training.skill_id,
+                progress: newProgress,
+                target: training.progress_target,
+                endsAt: training.ends_at,
+                remaining: 0
             });
         }
-        
-        // Calculate elapsed time since last tick
-        const lastTick = training.last_tick_at;
-        const elapsed = now - lastTick;
-        const hoursElapsed = elapsed / 3600;
-        const progressPerHour = training.double_speed ? 2 : 1;
-        const progressGain = hoursElapsed * progressPerHour;
-        
-        const newProgress = Math.min(training.progress_target, training.progress_start + progressGain);
+
+        // Calculate elapsed time since training started
         
         // Update progress
         await dbRun(db, `
