@@ -2062,17 +2062,34 @@ router.post('/respec', async (req, res) => {
 
 router.post('/train/start', async (req, res) => {
     try {
-        const db = await getDb();  // ← THIS RETURNS THE CONNECTION
+        const db = await getDb();
         const { skillId, branchId, hours, doubleSpeed } = req.body;
         
-        // Use the helpers with the db connection
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Check if already training - use the helper
+        // Check for active mission
+        const activeMission = await dbGet(db, 'SELECT * FROM character_missions WHERE char_id = ? AND completed = 0', [char.id]);
+        if (activeMission) {
+            return res.status(400).json({ error: 'Cannot train while on a mission!' });
+        }
+        
+        // Check for battle cooldown
+        const now = Math.floor(Date.now() / 1000);
+        if (char.battle_cooldown_ends_at && char.battle_cooldown_ends_at > now) {
+            const remaining = Math.ceil((char.battle_cooldown_ends_at - now) / 60);
+            return res.status(400).json({ error: `Cannot train while in battle cooldown! ${remaining} minutes remaining.` });
+        }
+        
+        // Check if already training
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
         if (training) {
-            return res.status(400).json({ error: 'Already training. Complete or cancel current training.' });
+            return res.status(400).json({ error: 'Already training! Complete or cancel current training first.' });
+        }
+        
+        // Check for travel
+        if (char.travel_target && char.travel_end_time > now) {
+            return res.status(400).json({ error: 'Cannot train while traveling!' });
         }
         
         // Get current progress
