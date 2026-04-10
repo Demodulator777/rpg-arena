@@ -1981,7 +1981,7 @@ router.post('/cancel', async (req, res) => {
     }
 });
 
-router.get('/training/status', auth, async (req, res) => {
+router.get('/training/status', async (req, res) => {
 
     try {
 
@@ -2108,7 +2108,7 @@ router.post('/respec', async (req, res) => {
     }
 });
 
-router.post('/train/start', auth, async (req, res) => {
+router.post('/train/start', async (req, res) => {
     try {
 
         const db = await getDb();
@@ -2208,7 +2208,7 @@ router.post('/train/start', auth, async (req, res) => {
 // CANCEL TRAINING
 // ========================================
 
-router.post('/train/cancel', auth, async (req, res) => {
+router.post('/train/cancel', async (req, res) => {
 
     try {
 
