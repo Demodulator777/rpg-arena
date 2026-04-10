@@ -4817,7 +4817,7 @@ router.post('/skills/train/cancel', auth, async (req, res) => {
         }
         
         // Delete training session
-        await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
+        await dbRun(db, 'DELETE FROM skill_training WHERE char_id = ?', [char.id]);
         
         // Clear training cooldown
         await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
@@ -4844,6 +4844,10 @@ router.get('/skills/training/status', auth, async (req, res) => {
         const db = await getDb();
         const now = Math.floor(Date.now() / 1000);
 
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const traveling = !!(char.travel_target && Number(char.travel_end_time || 0) > now);
         const training = await dbGet(db, `
             SELECT st.*, c.training_cooldown_until 
             FROM skill_training st 
@@ -4852,17 +4856,34 @@ router.get('/skills/training/status', auth, async (req, res) => {
         `, [req.user.userId]);
 
         if (!training || training.ends_at <= now) {
-            return res.json({ active: false });
+            return res.json({
+                active: false,
+                traveling,
+                travelTarget: traveling ? char.travel_target : null,
+                travelEndsAt: traveling ? char.travel_end_time : 0
+            });
         }
 
+        const progressTarget = Number(training.progress_target || 100);
+        const progress = Math.max(0, Math.min(progressTarget, Number(training.progress_current ?? training.progress_start ?? 0)));
         res.json({
             active: true,
-            endsAt: training.ends_at,           // ← This is what the overlay needs
+            done: false,
+            endsAt: training.ends_at,
             remaining: training.ends_at - now,
+            remainingSeconds: training.ends_at - now,
+            timeLeft: training.ends_at - now,
             skillId: training.skill_id,
-            skillName: training.skill_id.replace(/_/g, ' '), // or lookup real name
-            progress: training.progress_current || 0,
-            target: training.progress_target || 100
+            skill_id: training.skill_id,
+            skillName: training.skill_id.replace(/_/g, ' '),
+            progress,
+            progress_current: progress,
+            target: progressTarget,
+            progressTarget,
+            progress_target: progressTarget,
+            traveling,
+            travelTarget: traveling ? char.travel_target : null,
+            travelEndsAt: traveling ? char.travel_end_time : 0
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
