@@ -4838,36 +4838,33 @@ router.post('/skills/train/cancel', auth, async (req, res) => {
     }
 });
 
+// In routes.js - replace or add this endpoint
 router.get('/skills/training/status', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
-        if (!char) return res.status(404).json({ error: 'Character not found' });
-        
-        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
-        if (!training) {
+        const now = Math.floor(Date.now() / 1000);
+
+        const training = await dbGet(db, `
+            SELECT st.*, c.training_cooldown_until 
+            FROM skill_training st 
+            JOIN characters c ON st.char_id = c.id 
+            WHERE c.user_id = ?
+        `, [req.user.userId]);
+
+        if (!training || training.ends_at <= now) {
             return res.json({ active: false });
         }
-        
-        const now = Math.floor(Date.now() / 1000);
-        const remaining = Math.max(0, training.ends_at - now);
-        
-        // Calculate progress percentage
-        const totalSeconds = training.hours_to_train * 3600;
-        const elapsed = totalSeconds - remaining;
-        const progressPercent = Math.min(100, (elapsed / totalSeconds) * 100);
-        
+
         res.json({
             active: true,
+            endsAt: training.ends_at,           // ← This is what the overlay needs
+            remaining: training.ends_at - now,
             skillId: training.skill_id,
-            progress: progressPercent,
-            remainingSeconds: remaining,
-            endsAt: training.ends_at,
-            doubleSpeed: training.double_speed === 1,
-            hoursToTrain: training.hours_to_train
+            skillName: training.skill_id.replace(/_/g, ' '), // or lookup real name
+            progress: training.progress_current || 0,
+            target: training.progress_target || 100
         });
     } catch (e) {
-        console.error(e);
         res.status(500).json({ error: e.message });
     }
 });
