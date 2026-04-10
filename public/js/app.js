@@ -749,7 +749,9 @@ async function checkTrainingStatus() {
             const fillEl = document.getElementById('training-overlay-fill');
             const progressTextEl = document.getElementById('training-progress-text');
 
-            if (skillNameEl) skillNameEl.textContent = `Training: ${(status.skillName || status.skillId || '').replace(/_/g, ' ')}`;
+            const label = status.skillName || (status.skillId || status.skill_id || '').replace(/_/g, ' ');
+
+            if (skillNameEl) skillNameEl.textContent = `Training: ${label}`;
             if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
             if (fillEl) fillEl.style.width = `${percent}%`;
             if (progressTextEl) progressTextEl.textContent = `${percent}% complete`;
@@ -4101,6 +4103,8 @@ function showBugReportStatus(message, type) {
 // Initialize bug report system when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
     initBugReport();
+    startTrainingPolling();
+    checkTrainingStatus();
 });
 
 async function updateTrainingStatus() {
