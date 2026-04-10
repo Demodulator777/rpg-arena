@@ -25,6 +25,23 @@ async function dbRun(db, sql, args = []) {
     return db.execute({ sql, args }); 
 }
 
+function getActivePremium(char) {
+    if (!char.premium_features) return {};
+    try {
+        const feats = JSON.parse(char.premium_features);
+        const now = Math.floor(Date.now() / 1000);
+        const active = {};
+        for (const [id, expiresAt] of Object.entries(feats)) {
+            if (expiresAt > now) active[id] = expiresAt;
+        }
+        return active;
+    } catch { return {}; }
+}
+
+function hasPremium(activePremium, featureId) {
+    return !!activePremium[featureId];
+}
+
 // ── Training durations (seconds) ─────────────────────────────────────────────
 const SKILL_TRAIN_DURATIONS = {
     novice:      3600,        //  1 hour
