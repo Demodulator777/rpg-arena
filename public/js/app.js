@@ -1563,6 +1563,10 @@ async function checkAndShowMissionOverlay() {
             return;
         }
         hideMissionOverlay();
+        
+        // ADD THIS - Check training status when no active mission
+        await checkTrainingStatus();
+        
         // Re-fetch character to get fresh battle_cooldown_ends_at — the cached
         // `character` object may be stale (e.g. set before the last battle completed).
         const freshChar = await api('GET', '/game/character');
