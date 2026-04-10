@@ -205,6 +205,7 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass) {
 }
 
 // ── Skill card ────────────────────────────────────────────────────────────────
+// ── Skill card ────────────────────────────────────────────────────────────────
 function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
     const learned = sk.learned;
     const trainable = sk.trainable;
@@ -292,9 +293,6 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
     }
 
     // Training options (hours selector + buttons)
-    Object.entries(branch.skills).forEach(([skillKey, sk]) => {
-    // Now skillKey is defined here
-    
     let trainOptionsHtml = '';
     if (trainable && !training && !learned) {
         const hoursOptions = [];
@@ -303,10 +301,10 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         }
         trainOptionsHtml = `
             <div style="display: flex; gap: 4px; margin-top: 8px;">
-                <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
+                <select id="train-hours-${sk.id}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
                     ${hoursOptions.join('')}
                 </select>
-                <button onclick="stStartTrain('${skillKey}','${branchId}', false)" 
+                <button onclick="stStartTrain('${sk.id}','${branchId}', false)" 
                     style="flex:1; padding: 5px 6px; border-radius: 4px; border: 1px solid ${branchColor}66;
                            background: ${branchColor}18; color: ${branchColor}; font-size: 0.65rem; font-weight: 600;
                            cursor: pointer; transition: all 0.15s;"
@@ -314,7 +312,7 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
                     onmouseleave="this.style.background='${branchColor}18'">
                     Train
                 </button>
-                <button onclick="stStartTrain('${skillKey}','${branchId}', true)" 
+                <button onclick="stStartTrain('${sk.id}','${branchId}', true)" 
                     style="padding: 5px 6px; border-radius: 4px; border: 1px solid #f1c40f66;
                            background: rgba(241,196,15,0.15); color: #f1c40f; font-size: 0.65rem; font-weight: 600;
                            cursor: pointer; transition: all 0.15s;"
@@ -341,7 +339,6 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
             Cancel Training
         </button>`;
     } else if (trainable) {
-        // Use trainOptionsHtml instead of single button
         btnHtml = trainOptionsHtml;
     } else {
         btnHtml = `<div style="text-align:center;font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:8px">???</div>`;
@@ -361,7 +358,7 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         ${btnHtml}
         ${!locked && sk.tier ? `<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>` : ''}
     </div>`;
-})
+}
 
 async function stCancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
