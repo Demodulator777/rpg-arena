@@ -1867,7 +1867,11 @@ router.post('/missions/start', auth, async (req, res) => {
         const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
         const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
         if (!character) return res.status(404).json({ error: 'Character not found' });
-        
+        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
+            [character.id, Math.floor(Date.now() / 1000)]);
+        if (activeTraining) {
+            return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
+        }
         const currentMap = character.current_map || 'overworld';
         let zone;
         
@@ -2965,6 +2969,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const db = await getDb();
         const attacker = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!attacker) return res.status(404).json({ error: 'No character' });
+        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
+            [attacker.id, Math.floor(Date.now() / 1000)]);
+        if (activeTraining) {
+            return res.status(400).json({ error: 'Cannot attack while training skills. Complete or cancel training first.' });
+        }
         const defender = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [req.params.targetId]);
         if (!defender) return res.status(404).json({ error: 'Target not found' });
         if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'Cannot attack yourself' });
@@ -4774,5 +4783,89 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 }
+
+// Helper to check if character is currently training
+async function isCharacterTraining(db, characterId) {
+    const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
+        [characterId, Math.floor(Date.now() / 1000)]);
+    return !!training;
+}
+
+router.post('/skills/train/cancel', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
+        if (!training) {
+            return res.status(400).json({ error: 'No active training to cancel' });
+        }
+        
+        // Optional: Refund partial gold if double speed was paid
+        let refund = 0;
+        if (training.double_speed) {
+            const hoursElapsed = (Date.now() / 1000 - training.started_at) / 3600;
+            const hoursRemaining = training.hours_to_train - hoursElapsed;
+            if (hoursRemaining > 0) {
+                refund = Math.floor(hoursRemaining * 250); // 250 gold per hour refund (half of 500)
+            }
+        }
+        
+        // Delete training session
+        await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
+        
+        // Clear training cooldown
+        await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
+        
+        // Refund gold if applicable
+        if (refund > 0) {
+            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `Training cancelled.${refund > 0 ? ` Refunded ${refund} gold.` : ''}`,
+            refund 
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/skills/training/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
+        if (!training) {
+            return res.json({ active: false });
+        }
+        
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = Math.max(0, training.ends_at - now);
+        
+        // Calculate progress percentage
+        const totalSeconds = training.hours_to_train * 3600;
+        const elapsed = totalSeconds - remaining;
+        const progressPercent = Math.min(100, (elapsed / totalSeconds) * 100);
+        
+        res.json({
+            active: true,
+            skillId: training.skill_id,
+            progress: progressPercent,
+            remainingSeconds: remaining,
+            endsAt: training.ends_at,
+            doubleSpeed: training.double_speed === 1,
+            hoursToTrain: training.hours_to_train
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
 
 module.exports = router;
