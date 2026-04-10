@@ -286,22 +286,23 @@
                         </div>
                     </div>
 
-<!-- Training Overlay -->
+<!-- Training Overlay (now consistent with mission + battle cooldowns) -->
 <div id="training-overlay" class="mission-overlay hidden">
-    <div class="mission-overlay-container">
-        <div class="mission-overlay-header">
-            <span class="mission-overlay-icon">⚔️</span>
-            <span id="training-skill-name" class="mission-overlay-title">Training...</span>
+    <div class="mission-overlay-inner"> <!-- changed to match others -->
+        <div class="mission-overlay-badge">⚔️ TRAINING</div>
+        <div id="training-skill-name" class="mission-overlay-name">Training Skill Name</div>
+        <div id="training-overlay-timer" class="mission-overlay-timer">0:00</div>
+        
+        <div class="mission-overlay-progress-track">
+            <div id="training-overlay-fill" class="mission-overlay-progress-fill"></div>
         </div>
-        <div class="mission-overlay-timer-container">
-            <span id="training-overlay-timer" class="mission-overlay-timer">0:00</span>
-            <div class="mission-overlay-progress">
-                <div id="training-overlay-fill" class="mission-overlay-progress-fill" style="width:0%"></div>
-            </div>
-            <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
-        </div>
+        
+        <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
+        
         <div class="mission-overlay-actions">
-            <button onclick="stCancel()" class="btn-sm danger" style="background:rgba(231,76,60,0.2);border-color:#e74c3c;">Cancel</button>
+            <button onclick="stCancel()" class="btn-cancel-travel" style="border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,0.15)">
+                Cancel Training (Free)
+            </button>
         </div>
     </div>
 </div>
