@@ -735,28 +735,25 @@ async function checkTrainingStatus() {
         const status = await api('GET', '/skills/training/status');
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
-        
-        // Fix: Check if status exists and has an id
+
         if (status && status.active) {
-            // Use remaining instead of remainingSeconds
             const remaining = status.remaining || 0;
-            // Use progress instead of progress
             const progress = status.progress || 0;
             const target = status.target || 100;
             const percent = target > 0 ? Math.floor((progress / target) * 100) : 0;
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
-            
+
             const skillNameEl = document.getElementById('training-skill-name');
             const timerEl = document.getElementById('training-overlay-timer');
             const fillEl = document.getElementById('training-overlay-fill');
             const progressTextEl = document.getElementById('training-progress-text');
-            
-            if (skillNameEl) skillNameEl.textContent = `Training: ${(status.skill_id || '').replace(/_/g, ' ')}`;
+
+            if (skillNameEl) skillNameEl.textContent = `Training: ${(status.skillName || status.skillId || '').replace(/_/g, ' ')}`;
             if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
             if (fillEl) fillEl.style.width = `${percent}%`;
             if (progressTextEl) progressTextEl.textContent = `${percent}% complete`;
-            
+
             overlay.classList.remove('hidden');
         } else {
             overlay.classList.add('hidden');
@@ -4114,7 +4111,7 @@ async function updateTrainingStatus() {
         
         if (status.active) {
             const progress = Math.floor(status.progress);
-            const remaining = formatTrainingTime(status.remainingSeconds);
+            const remaining = formatTrainingTime(status.remaining || 0);
             indicator.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span style="font-size: 0.75rem;">⚔️ ${progress}%</span>
