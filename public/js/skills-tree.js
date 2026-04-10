@@ -301,10 +301,10 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         }
         trainOptionsHtml = `
             <div style="display: flex; gap: 4px; margin-top: 8px;">
-                <select id="train-hours-${sk.id}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
+                <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
                     ${hoursOptions.join('')}
                 </select>
-                <button onclick="stStartTrain('${sk.id}','${branchId}', false)" 
+                <button onclick="stStartTrain('${skillKey}','${branchId}', false)" 
                     style="flex:1; padding: 5px 6px; border-radius: 4px; border: 1px solid ${branchColor}66;
                            background: ${branchColor}18; color: ${branchColor}; font-size: 0.65rem; font-weight: 600;
                            cursor: pointer; transition: all 0.15s;"
@@ -312,7 +312,7 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
                     onmouseleave="this.style.background='${branchColor}18'">
                     Train
                 </button>
-                <button onclick="stStartTrain('${sk.id}','${branchId}', true)" 
+                <button onclick="stStartTrain('${skillKey}','${branchId}', true)" 
                     style="padding: 5px 6px; border-radius: 4px; border: 1px solid #f1c40f66;
                            background: rgba(241,196,15,0.15); color: #f1c40f; font-size: 0.65rem; font-weight: 600;
                            cursor: pointer; transition: all 0.15s;"
