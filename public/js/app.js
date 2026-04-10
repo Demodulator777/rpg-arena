@@ -21,6 +21,24 @@ const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
 let trainingInterval = null;
 
+function normalizeTrainingStatus(status) {
+    if (!status || status.active === false) return { active: false };
+    const remainingSeconds = Number(status.remainingSeconds ?? status.remaining ?? status.timeLeft ?? 0);
+    const progressTarget = Number(status.progressTarget ?? status.progress_target ?? status.target ?? 100);
+    const progress = Math.max(0, Math.min(progressTarget, Number(status.progress ?? status.progress_current ?? 0)));
+    return {
+        ...status,
+        active: !!status.active || remainingSeconds > 0,
+        remainingSeconds,
+        timeLeft: remainingSeconds,
+        progress,
+        progressTarget,
+        progress_target: progressTarget,
+        skillId: status.skillId || status.skill_id,
+        skill_id: status.skill_id || status.skillId,
+    };
+}
+
 async function loadAbyssData() {
     try {
         abyssData = await api('GET', '/game/abyss/data');
@@ -732,31 +750,29 @@ function renderLoadoutRoundTabs() {
 
 async function checkTrainingStatus() {
     try {
-        const status = await api('GET', '/skills/training/status');
+        const rawStatus = await api('GET', '/skills/training/status');
+        const status = normalizeTrainingStatus(rawStatus);
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
-        
-        // Fix: Check if status exists and has an id
-        if (status && status.id) {
-            // Use timeLeft instead of remainingSeconds
-            const remaining = status.timeLeft || 0;
-            // Use progress_current instead of progress
-            const progress = status.progress_current || 0;
-            const target = status.progress_target || 100;
+
+        if (status.active) {
+            const remaining = status.remainingSeconds || 0;
+            const progress = status.progress || 0;
+            const target = status.progressTarget || 100;
             const percent = target > 0 ? Math.floor((progress / target) * 100) : 0;
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
-            
+
             const skillNameEl = document.getElementById('training-skill-name');
             const timerEl = document.getElementById('training-overlay-timer');
             const fillEl = document.getElementById('training-overlay-fill');
             const progressTextEl = document.getElementById('training-progress-text');
-            
-            if (skillNameEl) skillNameEl.textContent = `Training: ${(status.skill_id || '').replace(/_/g, ' ')}`;
+
+            if (skillNameEl) skillNameEl.textContent = `Training: ${(status.skillId || '').replace(/_/g, ' ')}`;
             if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
             if (fillEl) fillEl.style.width = `${percent}%`;
             if (progressTextEl) progressTextEl.textContent = `${percent}% complete`;
-            
+
             overlay.classList.remove('hidden');
         } else {
             overlay.classList.add('hidden');
@@ -1582,7 +1598,7 @@ async function checkAndShowMissionOverlay() {
         window.activeMission = false;
 
         // 2. Training
-        const trainingStatus = await api('GET', '/skills/training/status').catch(() => null);
+        const trainingStatus = normalizeTrainingStatus(await api('GET', '/skills/training/status').catch(() => null));
         if (trainingStatus && trainingStatus.active && trainingStatus.endsAt) {
             hideRestOverlay();
             hideMissionOverlay();
@@ -4108,7 +4124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function updateTrainingStatus() {
     try {
-        const status = await api('GET', '/skills/training/status');
+        const status = normalizeTrainingStatus(await api('GET', '/skills/training/status'));
         const indicator = document.getElementById('training-indicator');
         if (!indicator) return;
         
