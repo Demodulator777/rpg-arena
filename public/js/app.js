@@ -20,7 +20,6 @@ let playerTravelStartTime = 0;
 const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
 let trainingInterval = null;
-let trainingOverlayInterval = null; 
 
 async function loadAbyssData() {
     try {
@@ -750,107 +749,17 @@ async function checkTrainingStatus() {
             document.getElementById('training-progress-text').textContent = `${percent}% complete`;
             
             overlay.classList.remove('hidden');
-            
-            // Start training overlay interval if not already running
-            if (!trainingOverlayInterval) {
-                startTrainingOverlayUpdates();
-            }
         } else {
             overlay.classList.add('hidden');
-            if (trainingOverlayInterval) {
-                clearInterval(trainingOverlayInterval);
-                trainingOverlayInterval = null;
+            if (trainingInterval) {
+                clearInterval(trainingInterval);
+                trainingInterval = null;
             }
         }
     } catch(e) {
         console.error('Failed to check training status:', e);
     }
 }
-
-async function startTraining(skillId, doubleSpeed = false) {
-    try {
-        const response = await api('POST', '/skills/train', { skillId, doubleSpeed });
-        
-        if (response.success) {
-            showMsg('skill-tree-msg', response.message);
-            
-            // Start the training overlay
-            await checkTrainingStatus();
-            
-            // Ensure the overlay updates start
-            if (!trainingOverlayInterval) {
-                startTrainingOverlayUpdates();
-            }
-            
-            // Refresh character data
-            character = await api('GET', '/game/character');
-            renderTopBar();
-            
-            // Refresh skill tree tab if active
-            if (document.getElementById('tab-train')?.classList.contains('active')) {
-                if (typeof renderSkillTreeTab === 'function') {
-                    renderSkillTreeTab();
-                }
-            }
-        } else {
-            showMsg('skill-tree-msg', response.error || 'Failed to start training', true);
-        }
-    } catch (error) {
-        console.error('Training error:', error);
-        showMsg('skill-tree-msg', error.message, true);
-    }
-}
-
-function startTrainingOverlayUpdates() {
-    if (trainingOverlayInterval) {
-        clearInterval(trainingOverlayInterval);
-    }
-    trainingOverlayInterval = setInterval(async () => {
-        try {
-            const status = await api('GET', '/skills/training/status');
-            const overlay = document.getElementById('training-overlay');
-            if (!overlay) return;
-            
-            if (status.active) {
-                const remaining = status.remainingSeconds;
-                const progress = status.progress || 0;
-                const m = Math.floor(remaining / 60);
-                const s = remaining % 60;
-                const percent = Math.floor(progress);
-                
-                document.getElementById('training-skill-name').textContent = `Training: ${status.skillId.replace(/_/g, ' ')}`;
-                document.getElementById('training-overlay-timer').textContent = `${m}:${String(s).padStart(2, '0')}`;
-                document.getElementById('training-overlay-fill').style.width = `${percent}%`;
-                document.getElementById('training-progress-text').textContent = `${percent}% complete`;
-                
-                // When training completes
-                if (remaining <= 0) {
-                    clearInterval(trainingOverlayInterval);
-                    trainingOverlayInterval = null;
-                    overlay.classList.add('hidden');
-                    // Refresh character data
-                    character = await api('GET', '/game/character');
-                    renderTopBar();
-                    // Refresh skill tree tab if active
-                    if (document.getElementById('tab-train')?.classList.contains('active')) {
-                        if (typeof renderSkillTreeTab === 'function') {
-                            renderSkillTreeTab();
-                        }
-                    }
-                }
-            } else {
-                overlay.classList.add('hidden');
-                if (trainingOverlayInterval) {
-                    clearInterval(trainingOverlayInterval);
-                    trainingOverlayInterval = null;
-                }
-            }
-        } catch(e) {
-            console.error('Training overlay update failed:', e);
-        }
-    }, 1000); // Update every second like mission overlay
-}
-
 
 // Start polling for training status (every second for smooth countdown)
 function startTrainingPolling() {
@@ -1647,25 +1556,15 @@ async function collectMission() {
 // ── Mission Overlay ───────────────────────────────────────────────────────
 async function checkAndShowMissionOverlay() {
     try {
-        const active = await api('GET', '/game/missions/active');
-        if (active && active.id) {
+        const active=await api('GET','/game/missions/active');
+        if (active&&active.id) {
             hideRestOverlay();
-            showMissionOverlay(active, active.mission_name || active.missionName || 'Mission');
-            // Hide training overlay if mission is active
-            const trainingOverlay = document.getElementById('training-overlay');
-            if (trainingOverlay) trainingOverlay.classList.add('hidden');
-            if (trainingOverlayInterval) {
-                clearInterval(trainingOverlayInterval);
-                trainingOverlayInterval = null;
-            }
+            showMissionOverlay(active,active.mission_name||active.missionName||'Mission');
             return;
         }
         hideMissionOverlay();
-        
-        // Check training status when no active mission
-        await checkTrainingStatus();
-        
-        // Re-fetch character to get fresh battle_cooldown_ends_at
+        // Re-fetch character to get fresh battle_cooldown_ends_at — the cached
+        // `character` object may be stale (e.g. set before the last battle completed).
         const freshChar = await api('GET', '/game/character');
         if (freshChar) character = freshChar;
         const endsAt = character?.battle_cooldown_ends_at || 0;
@@ -1676,29 +1575,7 @@ async function checkAndShowMissionOverlay() {
         } else {
             hideRestOverlay();
         }
-    } catch { 
-        hideMissionOverlay(); 
-        hideRestOverlay(); 
-    }
-}
-
-function cleanupOverlays() {
-    if (trainingOverlayInterval) {
-        clearInterval(trainingOverlayInterval);
-        trainingOverlayInterval = null;
-    }
-    if (overlayInterval) {
-        clearInterval(overlayInterval);
-        overlayInterval = null;
-    }
-    if (travelOverlayInterval) {
-        clearInterval(travelOverlayInterval);
-        travelOverlayInterval = null;
-    }
-    if (restOverlayInterval) {
-        clearInterval(restOverlayInterval);
-        restOverlayInterval = null;
-    }
+    } catch { hideMissionOverlay(); hideRestOverlay(); }
 }
 
 function showRestOverlay(startedAt, endsAt) {
@@ -4199,19 +4076,10 @@ async function cancelTraining() {
     try {
         const d = await api('POST', '/skills/train/cancel');
         showMsg('skill-tree-msg', d.message);
-        
-        // Stop training overlay
-        if (trainingOverlayInterval) {
-            clearInterval(trainingOverlayInterval);
-            trainingOverlayInterval = null;
-        }
-        
-        const overlay = document.getElementById('training-overlay');
-        if (overlay) overlay.classList.add('hidden');
-        
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
+        updateTrainingStatus();
     } catch(e) {
         showMsg('skill-tree-msg', e.message, true);
     }
