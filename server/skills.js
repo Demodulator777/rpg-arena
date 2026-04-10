@@ -11,23 +11,9 @@
 
 const { getDb } = require('./db');
 
-async function dbExecute(db, sql, args = []) {
-    return db.execute({ sql, args });
-}
-
-async function dbGet(db, sql, args = []) {
-    const r = await db.execute({ sql, args });
-    return r.rows[0] ?? null;
-}
-
-async function dbAll(db, sql, args = []) {
-    const r = await db.execute({ sql, args });
-    return r.rows;
-}
-
-async function dbRun(db, sql, args = []) {
-    return db.execute({ sql, args });
-}
+async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
+async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows; }
+async function dbRun(db, sql, args = []) { return db.execute({ sql, args }); }
 
 function getActivePremium(char) {
     if (!char.premium_features) return {};
