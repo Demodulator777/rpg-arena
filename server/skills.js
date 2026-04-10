@@ -24,36 +24,27 @@ const UNLOCK_CONDITIONS = {
     // Tier 1 (Novice)
     wins_5:           { type: 'wins', value: 5, desc: 'Win 5 battles' },
     level_5:          { type: 'level', value: 5, desc: 'Reach level 5' },
-    missions_5:       { type: 'total_missions', value: 5, desc: 'Complete 5 missions' },
     
     // Tier 2 (Apprentice)
     wins_20:          { type: 'wins', value: 20, desc: 'Win 20 battles' },
     level_10:         { type: 'level', value: 10, desc: 'Reach level 10' },
-    missions_15:      { type: 'total_missions', value: 15, desc: 'Complete 15 missions' },
-    gold_earned_10k:  { type: 'total_gold_earned', value: 10000, desc: 'Earn 10,000 gold total' },
     
     // Tier 3 (Journeyman)
     wins_50:          { type: 'wins', value: 50, desc: 'Win 50 battles' },
     level_20:         { type: 'level', value: 20, desc: 'Reach level 20' },
-    missions_30:      { type: 'total_missions', value: 30, desc: 'Complete 30 missions' },
     gold_earned_50k:  { type: 'total_gold_earned', value: 50000, desc: 'Earn 50,000 gold total' },
-    hard_mission_5:   { type: 'hard_missions', value: 5, desc: 'Complete 5 hard missions' },
     dungeon_floor_5:  { type: 'dungeon_highest_floor', value: 5, desc: 'Reach dungeon floor 5' },
     
     // Tier 4 (Expert)
     wins_150:         { type: 'wins', value: 150, desc: 'Win 150 battles' },
     level_35:         { type: 'level', value: 35, desc: 'Reach level 35' },
-    missions_75:      { type: 'total_missions', value: 75, desc: 'Complete 75 missions' },
     gold_earned_200k: { type: 'total_gold_earned', value: 200000, desc: 'Earn 200,000 gold total' },
-    hard_mission_15:  { type: 'hard_missions', value: 15, desc: 'Complete 15 hard missions' },
     dungeon_floor_15: { type: 'dungeon_highest_floor', value: 15, desc: 'Reach dungeon floor 15' },
     
-    // Tier 5 (Master/Grandmaster)
+    // Tier 5 (Master)
     wins_500:         { type: 'wins', value: 500, desc: 'Win 500 battles' },
     level_60:         { type: 'level', value: 60, desc: 'Reach level 60' },
-    missions_200:     { type: 'total_missions', value: 200, desc: 'Complete 200 missions' },
     gold_earned_1m:   { type: 'total_gold_earned', value: 1000000, desc: 'Earn 1,000,000 gold total' },
-    hard_mission_30:  { type: 'hard_missions', value: 30, desc: 'Complete 30 hard missions' },
     dungeon_floor_30: { type: 'dungeon_highest_floor', value: 30, desc: 'Reach dungeon floor 30' },
     
     // Special conditions
@@ -63,7 +54,36 @@ const UNLOCK_CONDITIONS = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SKILL TREES — All bonuses are PERCENTAGE-BASED
+// HELPER: Create skill thresholds
+// ═══════════════════════════════════════════════════════════════════════════════
+function createThresholds(materialsByLevel) {
+    return {
+        10: { materials: materialsByLevel[10] || {}, unlocks: 'next_skill' },
+        25: { materials: materialsByLevel[25] || {} },
+        50: { materials: materialsByLevel[50] || {} },
+        75: { materials: materialsByLevel[75] || {} },
+        100: { materials: materialsByLevel[100] || {}, unlocks: 'next_skill' },
+    };
+}
+
+// Default thresholds for skills
+const DEFAULT_THRESHOLDS = {
+    tier2: createThresholds({
+        10: {}, 25: { iron_ingot: 3 }, 50: { iron_ingot: 5 }, 75: { mithril_ingot: 2 }, 100: { mithril_ingot: 3 }
+    }),
+    tier3: createThresholds({
+        10: {}, 25: { mithril_ingot: 3 }, 50: { mithril_ingot: 5 }, 75: { dragon_scale_shard: 2 }, 100: { dragon_scale_shard: 3 }
+    }),
+    tier4: createThresholds({
+        10: {}, 25: { dragon_scale_shard: 3 }, 50: { dragon_scale_shard: 5 }, 75: { void_crystal: 2 }, 100: { void_crystal: 3 }
+    }),
+    tier5: createThresholds({
+        10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 3 }, 75: { legendary_fragment: 5 }, 100: { demon_core: 2 }
+    }),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SKILL TREES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const SKILL_TREES = {
@@ -72,45 +92,63 @@ const SKILL_TREES = {
     // WARRIOR
     // ═══════════════════════════════════════════════════════════════════════════
     warrior: {
-        description: 'Masters of physical combat. Strength, defense, and tactical prowess.',
-            exclusive_branches: [['berserker', 'iron_guard', 'battle_commander', 'gladiator']],
-    upgrade_penalties: {},
-    upgrade_discounts: { strength: 0.30, defense: 0.15, vitality: 0.10 },
+        description: 'Masters of physical combat. Four distinct combat philosophies await.',
+        upgrade_penalties: {},
+        upgrade_discounts: { strength: 0.30, defense: 0.15, vitality: 0.10 },
 
         branches: {
+            // STARTER SKILL
+            warrior_training: {
+                name: 'Warrior Training',
+                emoji: '⚔️',
+                description: 'The foundation of all warrior combat styles.',
+                isStarter: true,
+                skills: {
+                    basic_training: {
+                        id: 'basic_training', tier: 1, name: 'Basic Training', emoji: '🛡️',
+                        type: 'progressive',
+                        desc: '+5% Strength and +5% Defense.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'strength', value: 0.05 },
+                            { type: 'passive_pct', stat: 'defense', value: 0.05 }
+                        ],
+                        requires: [],
+                        unlockCondition: null,
+                        thresholds: createThresholds({
+                            10: {}, 25: { iron_ingot: 2 }, 50: { iron_ingot: 4 }, 75: { mithril_ingot: 2 }, 100: { mithril_ingot: 4 }
+                        }),
+                    },
+                },
+            },
+
+            // BRANCH 1: Berserker
             berserker: {
                 name: 'Berserker',
                 emoji: '🔥',
-                description: 'Sacrifice defense for overwhelming offense.',
+                description: 'Abandon defence, maximise destruction. High risk, highest reward.',
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     bloodlust: {
-                        id: 'bloodlust', tier: 1, name: 'Bloodlust', emoji: '🩸',
-                        type: 'passive_pct',
-                        desc: '+8% Strength and +5% damage permanently.',
-                        effects: [
-                            { type: 'passive_pct', stat: 'strength', value: 0.08 },
-                            { type: 'passive_pct', stat: 'dmg_output', value: 0.05 }
-                        ],
-                        requires: [],
-                        goldCost: 500,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
+                        id: 'bloodlust', tier: 2, name: 'Bloodlust', emoji: '🩸',
+                        type: 'progressive',
+                        desc: '+8% Strength permanently.',
+                        effects: [{ type: 'passive_pct', stat: 'strength', value: 0.08 }],
+                        requires: ['basic_training'],
                         unlockCondition: 'wins_5',
+                        thresholds: DEFAULT_THRESHOLDS.tier2,
                     },
                     reckless_swing: {
-                        id: 'reckless_swing', tier: 2, name: 'Reckless Swing', emoji: '⚡',
-                        type: 'active_combat',
+                        id: 'reckless_swing', tier: 3, name: 'Reckless Swing', emoji: '⚡',
+                        type: 'progressive',
                         desc: '+35% damage, -10% block effectiveness.',
                         effects: [{ type: 'active_combat', id: 'reckless_swing', atk_dmg_bonus: 0.35, block_penalty: 0.10 }],
                         requires: ['bloodlust'],
-                        goldCost: 2000,
-                        materials: { iron_ingot: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: 'wins_20',
+                        thresholds: DEFAULT_THRESHOLDS.tier3,
                     },
                     frenzy: {
-                        id: 'frenzy', tier: 3, name: 'Frenzy', emoji: '💢',
-                        type: 'passive_pct',
+                        id: 'frenzy', tier: 4, name: 'Frenzy', emoji: '💢',
+                        type: 'progressive',
                         desc: '+12% Strength and +8% Agility. Damage increases by 3% per consecutive hit.',
                         effects: [
                             { type: 'passive_pct', stat: 'strength', value: 0.12 },
@@ -118,102 +156,88 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'frenzy_stacks', max_stacks: 5, per_stack_dmg: 0.03 }
                         ],
                         requires: ['reckless_swing'],
-                        goldCost: 5000,
-                        materials: { mithril_ingot: 2, dragon_scale_shard: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'wins_50',
+                        thresholds: DEFAULT_THRESHOLDS.tier4,
                     },
                     berserker_rage: {
-                        id: 'berserker_rage', tier: 4, name: 'Berserker Rage', emoji: '🌋',
-                        type: 'active_combat',
+                        id: 'berserker_rage', tier: 5, name: 'Berserker Rage', emoji: '🌋',
+                        type: 'progressive',
                         desc: '+60% damage, ignore 40% armor on every 3rd hit.',
-                        effects: [
-                            { type: 'active_combat', id: 'berserker_rage', atk_dmg_bonus: 0.60, ignore_armour_pct: 0.40, interval: 3 }
-                        ],
+                        effects: [{ type: 'active_combat', id: 'berserker_rage', atk_dmg_bonus: 0.60, ignore_armour_pct: 0.40, interval: 3 }],
                         requires: ['frenzy'],
-                        goldCost: 15000,
-                        materials: { dragon_scale_shard: 3, demon_core: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
                         unlockCondition: 'wins_150',
+                        thresholds: DEFAULT_THRESHOLDS.tier5,
                     },
                     unstoppable: {
                         id: 'unstoppable', tier: 5, name: 'Unstoppable', emoji: '🔱',
-                        type: 'passive_pct',
-                        desc: '+20% damage, +15% Critical Damage. Cannot be stunned or knocked back.',
+                        type: 'progressive',
+                        desc: '+20% damage, +15% Critical Damage. Cannot be stunned.',
                         effects: [
                             { type: 'passive_pct', stat: 'dmg_output', value: 0.20 },
                             { type: 'passive_pct', stat: 'crit_dmg', value: 0.15 },
                             { type: 'class_modifier', id: 'stun_immune' }
                         ],
                         requires: ['berserker_rage'],
-                        goldCost: 50000,
-                        materials: { void_crystal: 3, legendary_fragment: 5 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
                         unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 2 }, 50: { legendary_fragment: 3 }, 75: { legendary_fragment: 5 }, 100: { demon_core: 2 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 2: Iron Guard
             iron_guard: {
                 name: 'Iron Guard',
                 emoji: '🏰',
-                description: 'Immovable defense. Take hits and protect allies.',
+                description: 'Become an immovable fortress. Exceptional defence and damage mitigation.',
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     toughness: {
-                        id: 'toughness', tier: 1, name: 'Toughness', emoji: '🪨',
-                        type: 'passive_pct',
-                        desc: '+10% Defense and +8% Max HP permanently.',
+                        id: 'toughness', tier: 2, name: 'Toughness', emoji: '🪨',
+                        type: 'progressive',
+                        desc: '+10% Defense and +8% Max HP.',
                         effects: [
                             { type: 'passive_pct', stat: 'defense', value: 0.10 },
                             { type: 'passive_pct', stat: 'hp_max', value: 0.08 }
                         ],
-                        requires: [],
-                        goldCost: 500,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
+                        requires: ['basic_training'],
                         unlockCondition: 'level_5',
+                        thresholds: DEFAULT_THRESHOLDS.tier2,
                     },
                     shield_mastery: {
-                        id: 'shield_mastery', tier: 2, name: 'Shield Mastery', emoji: '🛡️',
-                        type: 'passive_pct',
+                        id: 'shield_mastery', tier: 3, name: 'Shield Mastery', emoji: '🛡️',
+                        type: 'progressive',
                         desc: '+30% block effectiveness on all guard stances.',
                         effects: [{ type: 'passive_pct', stat: 'block_effectiveness', value: 0.30 }],
                         requires: ['toughness'],
-                        goldCost: 2000,
-                        materials: { iron_ingot: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
-                        unlockCondition: 'missions_15',
+                        unlockCondition: 'level_10',
+                        thresholds: DEFAULT_THRESHOLDS.tier3,
                     },
                     iron_skin: {
-                        id: 'iron_skin', tier: 3, name: 'Iron Skin', emoji: '⚙️',
-                        type: 'passive_pct',
-                        desc: '+15% Armor and +12% Vitality permanently.',
+                        id: 'iron_skin', tier: 4, name: 'Iron Skin', emoji: '⚙️',
+                        type: 'progressive',
+                        desc: '+15% Armor and +12% Vitality.',
                         effects: [
                             { type: 'passive_pct', stat: 'armor', value: 0.15 },
                             { type: 'passive_pct', stat: 'vitality', value: 0.12 }
                         ],
                         requires: ['shield_mastery'],
-                        goldCost: 6000,
-                        materials: { mithril_ingot: 3, tanned_hide: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'level_20',
+                        thresholds: DEFAULT_THRESHOLDS.tier4,
                     },
                     last_stand: {
-                        id: 'last_stand', tier: 4, name: 'Last Stand', emoji: '⚔️',
-                        type: 'active_combat',
-                        desc: 'Below 25% HP: +50% damage, +40% block, and heal 5% max HP per round.',
-                        effects: [
-                            { type: 'active_combat', id: 'last_stand', hp_threshold: 0.25, dmg_bonus: 0.50, block_bonus: 0.40, heal_pct: 0.05 }
-                        ],
+                        id: 'last_stand', tier: 5, name: 'Last Stand', emoji: '⚔️',
+                        type: 'progressive',
+                        desc: 'Below 25% HP: +50% damage, +40% block, heal 5% max HP per round.',
+                        effects: [{ type: 'active_combat', id: 'last_stand', hp_threshold: 0.25, dmg_bonus: 0.50, block_bonus: 0.40, heal_pct: 0.05 }],
                         requires: ['iron_skin'],
-                        goldCost: 18000,
-                        materials: { dragon_plate: 2, void_crystal: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'dungeon_floor_15',
+                        unlockCondition: 'level_35',
+                        thresholds: DEFAULT_THRESHOLDS.tier5,
                     },
                     fortress: {
                         id: 'fortress', tier: 5, name: 'Fortress', emoji: '🗼',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+25% Armor, +30% Max HP, +15% Defense. Reduce all damage by 15%.',
                         effects: [
                             { type: 'passive_pct', stat: 'armor', value: 0.25 },
@@ -222,69 +246,63 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'dmg_taken', value: -0.15 }
                         ],
                         requires: ['last_stand'],
-                        goldCost: 60000,
-                        materials: { legendary_fragment: 6, demon_alloy: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { dragon_plate: 2 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { demon_alloy: 2 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 3: Battle Commander
             battle_commander: {
                 name: 'Battle Commander',
                 emoji: '📯',
-                description: 'Tactical mastery. Precision strikes and critical hits.',
+                description: 'Tactical mastery. Higher hit chance, critical strikes.',
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     combat_discipline: {
-                        id: 'combat_discipline', tier: 1, name: 'Combat Discipline', emoji: '📋',
-                        type: 'passive_pct',
+                        id: 'combat_discipline', tier: 2, name: 'Combat Discipline', emoji: '📋',
+                        type: 'progressive',
                         desc: '+8% Hit Chance permanently.',
                         effects: [{ type: 'passive_pct', stat: 'hit_chance', value: 0.08 }],
-                        requires: [],
-                        goldCost: 600,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
+                        requires: ['basic_training'],
                         unlockCondition: 'wins_5',
+                        thresholds: DEFAULT_THRESHOLDS.tier2,
                     },
                     precision_strike: {
-                        id: 'precision_strike', tier: 2, name: 'Precision Strike', emoji: '🎯',
-                        type: 'passive_pct',
+                        id: 'precision_strike', tier: 3, name: 'Precision Strike', emoji: '🎯',
+                        type: 'progressive',
                         desc: '+10% Crit Chance and +5% Hit Chance.',
                         effects: [
                             { type: 'passive_pct', stat: 'crit_chance', value: 0.10 },
                             { type: 'passive_pct', stat: 'hit_chance', value: 0.05 }
                         ],
                         requires: ['combat_discipline'],
-                        goldCost: 2500,
-                        materials: { hardwood_plank: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: 'wins_20',
+                        thresholds: DEFAULT_THRESHOLDS.tier3,
                     },
                     war_cry: {
-                        id: 'war_cry', tier: 3, name: 'War Cry', emoji: '📯',
-                        type: 'active_combat',
+                        id: 'war_cry', tier: 4, name: 'War Cry', emoji: '📯',
+                        type: 'progressive',
                         desc: 'First 3 rounds: 100% hit chance and +20% crit chance.',
                         effects: [{ type: 'active_combat', id: 'war_cry', no_miss_rounds: 3, crit_bonus: 0.20 }],
                         requires: ['precision_strike'],
-                        goldCost: 7000,
-                        materials: { frost_core: 2, iron_ingot: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'wins_50',
+                        thresholds: DEFAULT_THRESHOLDS.tier4,
                     },
                     execute: {
-                        id: 'execute', tier: 4, name: 'Execute', emoji: '💀',
-                        type: 'active_combat',
+                        id: 'execute', tier: 5, name: 'Execute', emoji: '💀',
+                        type: 'progressive',
                         desc: '+150% damage against enemies below 30% HP.',
                         effects: [{ type: 'active_combat', id: 'execute', hp_threshold: 0.30, dmg_bonus: 1.50 }],
                         requires: ['war_cry'],
-                        goldCost: 20000,
-                        materials: { void_crystal: 2, arcane_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'hard_mission_15',
+                        unlockCondition: 'wins_150',
+                        thresholds: DEFAULT_THRESHOLDS.tier5,
                     },
                     supreme_commander: {
                         id: 'supreme_commander', tier: 5, name: 'Supreme Commander', emoji: '👑',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+15% Hit Chance, +15% Crit Chance. Critical hits deal 25% more damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'hit_chance', value: 0.15 },
@@ -293,33 +311,33 @@ const SKILL_TREES = {
                             { type: 'class_modifier', id: 'tie_breaker' }
                         ],
                         requires: ['execute'],
-                        goldCost: 70000,
-                        materials: { legendary_fragment: 8, shadow_weave: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
                         unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 2 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { shadow_weave: 2 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 4: Gladiator
             gladiator: {
                 name: 'Gladiator',
                 emoji: '🏟️',
                 description: 'Arena fighter. Bonus rewards and faster recovery.',
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     arena_veteran: {
-                        id: 'arena_veteran', tier: 1, name: 'Arena Veteran', emoji: '🏅',
-                        type: 'passive_pct',
+                        id: 'arena_veteran', tier: 2, name: 'Arena Veteran', emoji: '🏅',
+                        type: 'progressive',
                         desc: '+15% gold from PvP wins.',
                         effects: [{ type: 'passive_pct', stat: 'pvp_gold_earn', value: 0.15 }],
-                        requires: [],
-                        goldCost: 500,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
+                        requires: ['basic_training'],
                         unlockCondition: 'wins_5',
+                        thresholds: DEFAULT_THRESHOLDS.tier2,
                     },
                     battle_hardened: {
-                        id: 'battle_hardened', tier: 2, name: 'Battle Hardened', emoji: '💪',
-                        type: 'passive_pct',
+                        id: 'battle_hardened', tier: 3, name: 'Battle Hardened', emoji: '💪',
+                        type: 'progressive',
                         desc: '+8% Strength, +8% Defense, +6% Vitality.',
                         effects: [
                             { type: 'passive_pct', stat: 'strength', value: 0.08 },
@@ -327,36 +345,30 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'vitality', value: 0.06 }
                         ],
                         requires: ['arena_veteran'],
-                        goldCost: 3000,
-                        materials: { iron_ingot: 2, tanned_hide: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: 'wins_20',
+                        thresholds: DEFAULT_THRESHOLDS.tier3,
                     },
                     counter_attack: {
-                        id: 'counter_attack', tier: 3, name: 'Counter Attack', emoji: '↩️',
-                        type: 'active_combat',
+                        id: 'counter_attack', tier: 4, name: 'Counter Attack', emoji: '↩️',
+                        type: 'progressive',
                         desc: '40% chance to counter for 75% damage.',
                         effects: [{ type: 'active_combat', id: 'counter_attack', counter_chance: 0.40, counter_dmg_pct: 0.75 }],
                         requires: ['battle_hardened'],
-                        goldCost: 8000,
-                        materials: { mithril_ingot: 2, poison_extract: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'wins_50',
+                        thresholds: DEFAULT_THRESHOLDS.tier4,
                     },
                     gladiator_rush: {
-                        id: 'gladiator_rush', tier: 4, name: 'Gladiator Rush', emoji: '🏃',
-                        type: 'active_combat',
+                        id: 'gladiator_rush', tier: 5, name: 'Gladiator Rush', emoji: '🏃',
+                        type: 'progressive',
                         desc: 'First round: +100% damage, cannot be blocked.',
                         effects: [{ type: 'active_combat', id: 'gladiator_rush', round_1_dmg_bonus: 1.00, pierce_block_round: 1 }],
                         requires: ['counter_attack'],
-                        goldCost: 22000,
-                        materials: { dragon_plate: 2, void_crystal: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'gold_earned_200k',
+                        unlockCondition: 'wins_150',
+                        thresholds: DEFAULT_THRESHOLDS.tier5,
                     },
                     champion: {
                         id: 'champion', tier: 5, name: 'Champion', emoji: '🥇',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+50% gold from PvP. PvP cooldown reduced by 60%. +10% all stats.',
                         effects: [
                             { type: 'passive_pct', stat: 'pvp_gold_earn', value: 0.50 },
@@ -364,135 +376,90 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'all_stats', value: 0.10 }
                         ],
                         requires: ['gladiator_rush'],
-                        goldCost: 80000,
-                        materials: { legendary_fragment: 8, demon_alloy: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
                         unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { demon_alloy: 2 }, 100: { shadow_weave: 2 }
+                        }),
                     },
                 },
             },
         },
     },
 
-    // ═══════════════════════════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════════════════════════════════
     // MAGE
     // ═══════════════════════════════════════════════════════════════════════════
     mage: {
         description: 'Arcane scholars. Elemental mastery and magical devastation.',
         upgrade_penalties: { strength: 1.50, defense: 0.30 },
         upgrade_discounts: { magic: 0.35, agility: 0.10 },
-        exclusive_branches: [[
-        'arcane_foundation',
-        'pyromancer', 
-        'cryomancer', 
-        'stormcaller', 
-        'light_path', 
-        'shadow_path'
-    ]],
+        exclusive_branches: [['light_path', 'shadow_path']],
 
         branches: {
-            arcane_foundation: {
-                name: 'Arcane Foundation',
-                emoji: '✨',
-                description: 'The bedrock of magical power.',
+            // STARTER SKILL
+            mage_training: {
+                name: 'Mage Training',
+                emoji: '🔮',
+                description: 'The foundation of all magical power.',
+                isStarter: true,
                 skills: {
                     arcane_attunement: {
                         id: 'arcane_attunement', tier: 1, name: 'Arcane Attunement', emoji: '🔮',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+12% Magic. Magic adds 15% to all damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.12 },
                             { type: 'class_modifier', id: 'magic_dmg_scale', value: 0.15 }
                         ],
                         requires: [],
-                        goldCost: 600,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
-                        unlockCondition: 'level_5',
-                    },
-                    mana_shield: {
-                        id: 'mana_shield', tier: 2, name: 'Mana Shield', emoji: '🛡️',
-                        type: 'active_combat',
-                        desc: 'Absorb (Magic × 0.4) damage per battle.',
-                        effects: [{ type: 'active_combat', id: 'mana_shield', shield_from_magic_ratio: 0.40 }],
-                        requires: ['arcane_attunement'],
-                        goldCost: 2000,
-                        materials: { arcane_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
-                        unlockCondition: 'missions_15',
-                    },
-                    spell_mastery: {
-                        id: 'spell_mastery', tier: 3, name: 'Spell Mastery', emoji: '📖',
-                        type: 'passive_pct',
-                        desc: '+25% to all elemental damage.',
-                        effects: [{ type: 'passive_pct', stat: 'elem_dmg', value: 0.25 }],
-                        requires: ['mana_shield'],
-                        goldCost: 7000,
-                        materials: { arcane_shard: 3, void_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
-                    },
-                    arcane_mastery: {
-                        id: 'arcane_mastery', tier: 4, name: 'Arcane Mastery', emoji: '🌟',
-                        type: 'passive_pct',
-                        desc: '+20% Magic. Magic scaling increases to 35%.',
-                        effects: [
-                            { type: 'passive_pct', stat: 'magic', value: 0.20 },
-                            { type: 'class_modifier', id: 'magic_dmg_scale', value: 0.35 }
-                        ],
-                        requires: ['spell_mastery'],
-                        goldCost: 20000,
-                        materials: { void_crystal: 2, arcane_shard: 5 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'elem_dmg_kill_100',
+                        unlockCondition: null,
+                        thresholds: createThresholds({
+                            10: {}, 25: { arcane_shard: 2 }, 50: { arcane_shard: 4 }, 75: { void_shard: 2 }, 100: { void_shard: 4 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 1: Pyromancer
             pyromancer: {
                 name: 'Pyromancer',
                 emoji: '🔥',
-                description: 'Master of fire. High burst damage and burning.',
+                description: 'Command the flames. High burst fire damage with burning effects.',
+                requires: { skill: 'arcane_attunement', minProgress: 10 },
                 skills: {
                     fire_bolt: {
                         id: 'fire_bolt', tier: 2, name: 'Fire Bolt', emoji: '🔥',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+15% Fire Damage.',
                         effects: [{ type: 'passive_pct', stat: 'pyro_dmg', value: 0.15 }],
                         requires: ['arcane_attunement'],
-                        goldCost: 1500,
-                        materials: { arcane_shard: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: null,
+                        thresholds: MAGE_THRESHOLDS.tier2,
                     },
                     immolate: {
                         id: 'immolate', tier: 3, name: 'Immolate', emoji: '🌋',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+20% Fire Damage. Enemies burn for 5% of damage dealt per round.',
                         effects: [
                             { type: 'passive_pct', stat: 'pyro_dmg', value: 0.20 },
                             { type: 'active_combat', id: 'burn_dot', dot_pct: 0.05, elem: 'pyro' }
                         ],
                         requires: ['fire_bolt'],
-                        goldCost: 6000,
-                        materials: { arcane_shard: 3, dragon_scale_shard: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
+                        unlockCondition: 'level_10',
+                        thresholds: MAGE_THRESHOLDS.tier3,
                     },
                     inferno: {
                         id: 'inferno', tier: 4, name: 'Inferno', emoji: '☄️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Once per battle: deal (Magic × 2.5) fire damage, ignore resistance.',
                         effects: [{ type: 'active_combat', id: 'inferno', magic_mult: 2.5, ignore_resist: true, uses: 1 }],
                         requires: ['immolate'],
-                        goldCost: 22000,
-                        materials: { void_crystal: 2, dragon_scale_shard: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'hard_mission_15',
+                        unlockCondition: 'level_20',
+                        thresholds: MAGE_THRESHOLDS.tier4,
                     },
                     fire_lord: {
                         id: 'fire_lord', tier: 5, name: 'Fire Lord', emoji: '👑',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+30% Fire Damage, +15% Magic. Burning deals 100% more damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'pyro_dmg', value: 0.30 },
@@ -500,58 +467,66 @@ const SKILL_TREES = {
                             { type: 'class_modifier', id: 'burn_amplify', bonus: 1.00 }
                         ],
                         requires: ['inferno'],
-                        goldCost: 80000,
-                        materials: { legendary_fragment: 6, demon_core: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_35',
+                        thresholds: MAGE_THRESHOLDS.tier5,
+                    },
+                    fire_mastery: {
+                        id: 'fire_mastery', tier: 5, name: 'Fire Mastery', emoji: '👑🔥',
+                        type: 'progressive',
+                        desc: '+40% Fire Damage. Inferno can be used twice per battle.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'pyro_dmg', value: 0.40 },
+                            { type: 'active_combat', id: 'inferno', magic_mult: 3.0, ignore_resist: true, uses: 2 }
+                        ],
+                        requires: ['fire_lord'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { demon_core: 3 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 2: Cryomancer
             cryomancer: {
                 name: 'Cryomancer',
                 emoji: '❄️',
-                description: 'Master of ice. Slowing and controlling enemies.',
+                description: 'Freeze and shatter. Water damage that slows and debilitates enemies.',
+                requires: { skill: 'arcane_attunement', minProgress: 10 },
                 skills: {
                     frost_bolt: {
                         id: 'frost_bolt', tier: 2, name: 'Frost Bolt', emoji: '❄️',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+15% Water Damage.',
                         effects: [{ type: 'passive_pct', stat: 'water_dmg', value: 0.15 }],
                         requires: ['arcane_attunement'],
-                        goldCost: 1500,
-                        materials: { frost_core: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: null,
+                        thresholds: MAGE_THRESHOLDS.tier2,
                     },
                     chill: {
                         id: 'chill', tier: 3, name: 'Chill', emoji: '🌨️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: '+20% Water Damage. Chilled enemies have -20% hit chance for 2 rounds.',
                         effects: [
                             { type: 'passive_pct', stat: 'water_dmg', value: 0.20 },
                             { type: 'active_combat', id: 'chill_debuff', hit_penalty: 0.20, duration_rounds: 2 }
                         ],
                         requires: ['frost_bolt'],
-                        goldCost: 6000,
-                        materials: { frost_core: 3, arcane_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
+                        unlockCondition: 'level_10',
+                        thresholds: MAGE_THRESHOLDS.tier3,
                     },
                     blizzard: {
                         id: 'blizzard', tier: 4, name: 'Blizzard', emoji: '🌀',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Deals (Magic × 1.5) water damage over 5 rounds.',
                         effects: [{ type: 'active_combat', id: 'blizzard', magic_mult: 1.5, split_rounds: 5 }],
                         requires: ['chill'],
-                        goldCost: 22000,
-                        materials: { void_crystal: 2, frost_core: 5 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'hard_mission_15',
+                        unlockCondition: 'level_20',
+                        thresholds: MAGE_THRESHOLDS.tier4,
                     },
                     absolute_zero: {
                         id: 'absolute_zero', tier: 5, name: 'Absolute Zero', emoji: '🧊',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+30% Water Damage, +15% Magic, +25% Water Resist.',
                         effects: [
                             { type: 'passive_pct', stat: 'water_dmg', value: 0.30 },
@@ -559,58 +534,66 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'water_resist', value: 0.25 }
                         ],
                         requires: ['blizzard'],
-                        goldCost: 80000,
-                        materials: { legendary_fragment: 6, void_crystal: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_35',
+                        thresholds: MAGE_THRESHOLDS.tier5,
+                    },
+                    permafrost: {
+                        id: 'permafrost', tier: 5, name: 'Permafrost', emoji: '🧊❄️',
+                        type: 'progressive',
+                        desc: '+40% Water Damage. Chill effect lasts 4 rounds and reduces hit chance by 30%.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'water_dmg', value: 0.40 },
+                            { type: 'active_combat', id: 'chill_debuff', hit_penalty: 0.30, duration_rounds: 4 }
+                        ],
+                        requires: ['absolute_zero'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { demon_core: 3 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 3: Stormcaller
             stormcaller: {
                 name: 'Stormcaller',
                 emoji: '⚡',
-                description: 'Master of lightning and wind. High critical damage.',
+                description: 'Harness wind and lightning. High crit electro damage with mobility.',
+                requires: { skill: 'arcane_attunement', minProgress: 10 },
                 skills: {
                     static_charge: {
                         id: 'static_charge', tier: 2, name: 'Static Charge', emoji: '⚡',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+12% Electro Damage, +8% Wind Damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'electro_dmg', value: 0.12 },
                             { type: 'passive_pct', stat: 'wind_dmg', value: 0.08 }
                         ],
                         requires: ['arcane_attunement'],
-                        goldCost: 1500,
-                        materials: { arcane_shard: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: null,
+                        thresholds: MAGE_THRESHOLDS.tier2,
                     },
                     lightning_strike: {
                         id: 'lightning_strike', tier: 3, name: 'Lightning Strike', emoji: '⛈️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: '25% chance to arc for +75% electro damage.',
                         effects: [{ type: 'active_combat', id: 'lightning_arc', proc_chance: 0.25, bonus_pct: 0.75, elem: 'electro' }],
                         requires: ['static_charge'],
-                        goldCost: 6000,
-                        materials: { arcane_shard: 3, void_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
+                        unlockCondition: 'level_10',
+                        thresholds: MAGE_THRESHOLDS.tier3,
                     },
                     tempest: {
                         id: 'tempest', tier: 4, name: 'Tempest', emoji: '🌪️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Once per battle: 100% crit, guaranteed hit, double elemental damage.',
                         effects: [{ type: 'active_combat', id: 'tempest', guaranteed_hit: true, guaranteed_crit: true, elem_mult: 2.0, uses: 1 }],
                         requires: ['lightning_strike'],
-                        goldCost: 22000,
-                        materials: { void_crystal: 2, arcane_shard: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'hard_mission_15',
+                        unlockCondition: 'level_20',
+                        thresholds: MAGE_THRESHOLDS.tier4,
                     },
                     storm_lord: {
                         id: 'storm_lord', tier: 5, name: 'Storm Lord', emoji: '🌩️',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+25% Electro, +20% Wind, +15% Magic, +10% Agility.',
                         effects: [
                             { type: 'passive_pct', stat: 'electro_dmg', value: 0.25 },
@@ -619,23 +602,38 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'agility', value: 0.10 }
                         ],
                         requires: ['tempest'],
-                        goldCost: 80000,
-                        materials: { legendary_fragment: 6, void_crystal: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_35',
+                        thresholds: MAGE_THRESHOLDS.tier5,
+                    },
+                    tempest_mastery: {
+                        id: 'tempest_mastery', tier: 5, name: 'Tempest Mastery', emoji: '🌩️⚡',
+                        type: 'progressive',
+                        desc: '+35% Electro, +30% Wind. Tempest can be used twice per battle.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'electro_dmg', value: 0.35 },
+                            { type: 'passive_pct', stat: 'wind_dmg', value: 0.30 },
+                            { type: 'active_combat', id: 'tempest', guaranteed_hit: true, guaranteed_crit: true, elem_mult: 2.5, uses: 2 }
+                        ],
+                        requires: ['storm_lord'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { demon_core: 3 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 4: Light Path (mutually exclusive with Shadow)
             light_path: {
                 name: 'Path of Light',
                 emoji: '☀️',
-                description: 'Holy magic. Healing and protection.',
+                description: 'Holy power. Healing, shields, and righteous damage.',
                 exclusive_with: 'shadow_path',
+                requires: { skill: 'arcane_attunement', minProgress: 10 },
                 skills: {
                     holy_spark: {
-                        id: 'holy_spark', tier: 3, name: 'Holy Spark', emoji: '✨',
-                        type: 'passive_pct',
+                        id: 'holy_spark', tier: 2, name: 'Holy Spark', emoji: '✨',
+                        type: 'progressive',
                         desc: '+10% Magic, +12% Max HP. Heal 8% HP at battle start.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.10 },
@@ -643,50 +641,71 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'battle_start_heal', heal_pct: 0.08 }
                         ],
                         requires: ['arcane_attunement'],
-                        goldCost: 6000,
-                        materials: { arcane_shard: 2, frost_core: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
+                        unlockCondition: 'level_10',
+                        thresholds: MAGE_THRESHOLDS.tier2,
                     },
                     radiance: {
-                        id: 'radiance', tier: 4, name: 'Radiance', emoji: '🌟',
-                        type: 'active_combat',
+                        id: 'radiance', tier: 3, name: 'Radiance', emoji: '🌟',
+                        type: 'progressive',
                         desc: 'Heal 12% HP per round. Enemy deals 15% less damage.',
                         effects: [{ type: 'active_combat', id: 'radiance', heal_pct_per_round: 0.12, enemy_dmg_debuff: 0.15 }],
                         requires: ['holy_spark'],
-                        goldCost: 25000,
-                        materials: { void_crystal: 2, legendary_fragment: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
+                        unlockCondition: 'level_20',
+                        thresholds: MAGE_THRESHOLDS.tier3,
+                    },
+                    divine_light: {
+                        id: 'divine_light', tier: 4, name: 'Divine Light', emoji: '☀️',
+                        type: 'progressive',
+                        desc: 'Once per battle: heal 50% max HP to self or ally.',
+                        effects: [{ type: 'active_combat', id: 'divine_light', heal_pct: 0.50, uses: 1 }],
+                        requires: ['radiance'],
                         unlockCondition: 'level_35',
+                        thresholds: MAGE_THRESHOLDS.tier4,
                     },
                     divine_ascension: {
                         id: 'divine_ascension', tier: 5, name: 'Divine Ascension', emoji: '👼',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+20% Magic, +25% HP, +20% all resists. Resurrect once per battle with 30% HP.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.20 },
                             { type: 'passive_pct', stat: 'hp_max', value: 0.25 },
-                            { type: 'resist_bonus', elems: ['pyro','water','wind','electro'], value: 20 },
+                            { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 20 },
                             { type: 'class_modifier', id: 'resurrection', hp_pct: 0.30 }
                         ],
-                        requires: ['radiance'],
-                        goldCost: 100000,
-                        materials: { legendary_fragment: 8, void_crystal: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        requires: ['divine_light'],
+                        unlockCondition: 'level_50',
+                        thresholds: MAGE_THRESHOLDS.tier5,
+                    },
+                    holy_avatar: {
+                        id: 'holy_avatar', tier: 5, name: 'Holy Avatar', emoji: '👼✨',
+                        type: 'progressive',
+                        desc: '+30% Magic, +35% HP. Divine Light can be used twice. Resurrection heals to 50%.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'magic', value: 0.30 },
+                            { type: 'passive_pct', stat: 'hp_max', value: 0.35 },
+                            { type: 'active_combat', id: 'divine_light', heal_pct: 0.50, uses: 2 },
+                            { type: 'class_modifier', id: 'resurrection', hp_pct: 0.50 }
+                        ],
+                        requires: ['divine_ascension'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 5 }, 75: { legendary_fragment: 7 }, 100: { demon_core: 4 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 5: Shadow Path (mutually exclusive with Light)
             shadow_path: {
                 name: 'Path of Shadow',
                 emoji: '🌑',
-                description: 'Dark magic. Life drain and curses.',
+                description: 'Dark sorcery. Life drain, curses, and void magic.',
                 exclusive_with: 'light_path',
+                requires: { skill: 'arcane_attunement', minProgress: 10 },
                 skills: {
                     dark_pact: {
-                        id: 'dark_pact', tier: 3, name: 'Dark Pact', emoji: '🌑',
-                        type: 'passive_pct',
+                        id: 'dark_pact', tier: 2, name: 'Dark Pact', emoji: '🌑',
+                        type: 'progressive',
                         desc: '+15% Magic, -8% Max HP. Drain 10% of damage dealt.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.15 },
@@ -694,25 +713,33 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'life_drain', pct: 0.10 }
                         ],
                         requires: ['arcane_attunement'],
-                        goldCost: 6000,
-                        materials: { shadow_essence: 2, arcane_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
+                        unlockCondition: 'level_10',
+                        thresholds: MAGE_THRESHOLDS.tier2,
                     },
                     void_curse: {
-                        id: 'void_curse', tier: 4, name: 'Void Curse', emoji: '💀',
-                        type: 'active_combat',
+                        id: 'void_curse', tier: 3, name: 'Void Curse', emoji: '💀',
+                        type: 'progressive',
                         desc: 'Curse: -25% resistance, -15% hit chance for whole battle.',
                         effects: [{ type: 'active_combat', id: 'void_curse', enemy_elem_resist_debuff: 0.25, enemy_hit_debuff: 0.15 }],
                         requires: ['dark_pact'],
-                        goldCost: 25000,
-                        materials: { void_crystal: 3, demon_core: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
+                        unlockCondition: 'level_20',
+                        thresholds: MAGE_THRESHOLDS.tier3,
+                    },
+                    shadow_step: {
+                        id: 'shadow_step_mage', tier: 4, name: 'Shadow Step', emoji: '👻',
+                        type: 'progressive',
+                        desc: 'Teleport to avoid the first attack each battle. +15% dodge chance.',
+                        effects: [
+                            { type: 'active_combat', id: 'shadow_step_mage', teleport_first_hit: true },
+                            { type: 'passive_pct', stat: 'dodge_chance', value: 0.15 }
+                        ],
+                        requires: ['void_curse'],
                         unlockCondition: 'level_35',
+                        thresholds: MAGE_THRESHOLDS.tier4,
                     },
                     oblivion: {
                         id: 'oblivion', tier: 5, name: 'Oblivion', emoji: '🕳️',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+25% Magic, -15% Max HP. Drain 25% damage. Shadow magic ignores all resistances.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.25 },
@@ -720,11 +747,24 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'life_drain', pct: 0.25 },
                             { type: 'class_modifier', id: 'ignore_resist_shadow' }
                         ],
-                        requires: ['void_curse'],
-                        goldCost: 100000,
-                        materials: { legendary_fragment: 8, demon_core: 5, shadow_weave: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        requires: ['shadow_step'],
+                        unlockCondition: 'level_50',
+                        thresholds: MAGE_THRESHOLDS.tier5,
+                    },
+                    void_lord: {
+                        id: 'void_lord', tier: 5, name: 'Void Lord', emoji: '🌑👑',
+                        type: 'progressive',
+                        desc: '+35% Magic. Life drain increased to 35%. Void Curse affects all enemies.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'magic', value: 0.35 },
+                            { type: 'active_combat', id: 'life_drain', pct: 0.35 },
+                            { type: 'active_combat', id: 'void_curse', aoe: true }
+                        ],
+                        requires: ['oblivion'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 4 }, 50: { legendary_fragment: 5 }, 75: { legendary_fragment: 8 }, 100: { demon_core: 4 }
+                        }),
                     },
                 },
             },
@@ -736,67 +776,83 @@ const SKILL_TREES = {
     // ═══════════════════════════════════════════════════════════════════════════
     rogue: {
         description: 'Masters of stealth and precision. High critical damage and evasion.',
-        exclusive_branches: [['assassin', 'trickster', 'shadowblade']],
         upgrade_penalties: { defense: 0.30, magic: 0.20 },
         upgrade_discounts: { agility: 0.35, strength: 0.10 },
-
         passive_modifiers: [
             { condition: 'no_shield', stat: 'agility', bonus: 5, desc: '+5 Agility when no shield is equipped' },
         ],
 
         branches: {
+            // STARTER SKILL
+            rogue_training: {
+                name: 'Rogue Training',
+                emoji: '🗡️',
+                description: 'The foundation of all rogue techniques.',
+                isStarter: true,
+                skills: {
+                    basic_training: {
+                        id: 'rogue_basic', tier: 1, name: 'Basic Training', emoji: '🗡️',
+                        type: 'progressive',
+                        desc: '+8% Agility and +5% Crit Chance.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'agility', value: 0.08 },
+                            { type: 'passive_pct', stat: 'crit_chance', value: 0.05 }
+                        ],
+                        requires: [],
+                        unlockCondition: null,
+                        thresholds: createThresholds({
+                            10: {}, 25: { tanned_hide: 2 }, 50: { tanned_hide: 4 }, 75: { shadow_essence: 2 }, 100: { shadow_essence: 4 }
+                        }),
+                    },
+                },
+            },
+
+            // BRANCH 1: Assassin
             assassin: {
                 name: 'Assassin',
                 emoji: '🗡️',
                 description: 'Lethal precision. High crit damage and finishing blows.',
+                requires: { skill: 'rogue_basic', minProgress: 10 },
                 skills: {
                     backstab: {
-                        id: 'backstab', tier: 1, name: 'Backstab', emoji: '🔪',
-                        type: 'active_combat',
+                        id: 'backstab', tier: 2, name: 'Backstab', emoji: '🔪',
+                        type: 'progressive',
                         desc: 'Round 1: +80% damage, cannot be blocked.',
                         effects: [{ type: 'active_combat', id: 'backstab', round: 1, dmg_bonus: 0.80, pierce_block: true }],
-                        requires: [],
-                        goldCost: 500,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
-                        unlockCondition: 'wins_5',
+                        requires: ['rogue_basic'],
+                        unlockCondition: null,
+                        thresholds: ROGUE_THRESHOLDS.tier2,
                     },
                     expose_weakness: {
-                        id: 'expose_weakness', tier: 2, name: 'Expose Weakness', emoji: '🎯',
-                        type: 'passive_pct',
+                        id: 'expose_weakness', tier: 3, name: 'Expose Weakness', emoji: '🎯',
+                        type: 'progressive',
                         desc: '+12% Crit Chance.',
                         effects: [{ type: 'passive_pct', stat: 'crit_chance', value: 0.12 }],
                         requires: ['backstab'],
-                        goldCost: 2000,
-                        materials: { poison_extract: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: 'wins_20',
+                        thresholds: ROGUE_THRESHOLDS.tier3,
                     },
                     venomfang: {
-                        id: 'venomfang', tier: 3, name: 'Venomfang', emoji: '🐍',
-                        type: 'active_combat',
+                        id: 'venomfang', tier: 4, name: 'Venomfang', emoji: '🐍',
+                        type: 'progressive',
                         desc: 'Each hit applies poison: 8% of damage per round.',
                         effects: [{ type: 'active_combat', id: 'venomfang', poison_pct: 0.08 }],
                         requires: ['expose_weakness'],
-                        goldCost: 6000,
-                        materials: { poison_extract: 4, tanned_hide: 1 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'wins_50',
+                        thresholds: ROGUE_THRESHOLDS.tier4,
                     },
                     death_mark: {
-                        id: 'death_mark', tier: 4, name: 'Death Mark', emoji: '☠️',
-                        type: 'active_combat',
+                        id: 'death_mark', tier: 5, name: 'Death Mark', emoji: '☠️',
+                        type: 'progressive',
                         desc: 'Mark enemy: next hit deals (Agility × 3) bonus damage.',
                         effects: [{ type: 'active_combat', id: 'death_mark', agility_mult: 3.0, uses: 1 }],
                         requires: ['venomfang'],
-                        goldCost: 20000,
-                        materials: { void_crystal: 2, poison_extract: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'hard_mission_15',
+                        unlockCondition: 'wins_150',
+                        thresholds: ROGUE_THRESHOLDS.tier5,
                     },
                     shadow_reaper: {
                         id: 'shadow_reaper', tier: 5, name: 'Shadow Reaper', emoji: '💀',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+20% Crit Chance, +15% Strength, +15% Agility. Crits ignore 50% armor.',
                         effects: [
                             { type: 'passive_pct', stat: 'crit_chance', value: 0.20 },
@@ -805,179 +861,193 @@ const SKILL_TREES = {
                             { type: 'class_modifier', id: 'crit_armour_pierce', pct: 0.50 }
                         ],
                         requires: ['death_mark'],
-                        goldCost: 80000,
-                        materials: { legendary_fragment: 8, shadow_weave: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
                         unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { shadow_weave: 2 }, 100: { demon_core: 3 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 2: Trickster
             trickster: {
                 name: 'Trickster',
                 emoji: '🃏',
                 description: 'Unpredictable and evasive. High dodge and misdirection.',
+                requires: { skill: 'rogue_basic', minProgress: 10 },
                 skills: {
                     feint: {
-                        id: 'feint', tier: 1, name: 'Feint', emoji: '💨',
-                        type: 'passive_pct',
+                        id: 'feint', tier: 2, name: 'Feint', emoji: '💨',
+                        type: 'progressive',
                         desc: '+10% Agility.',
                         effects: [{ type: 'passive_pct', stat: 'agility', value: 0.10 }],
-                        requires: [],
-                        goldCost: 500,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
-                        unlockCondition: 'wins_5',
+                        requires: ['rogue_basic'],
+                        unlockCondition: null,
+                        thresholds: ROGUE_THRESHOLDS.tier2,
                     },
                     shadow_step: {
-                        id: 'shadow_step', tier: 2, name: 'Shadow Step', emoji: '👻',
-                        type: 'active_combat',
+                        id: 'shadow_step', tier: 3, name: 'Shadow Step', emoji: '👻',
+                        type: 'progressive',
                         desc: '+50% dodge chance for whole battle.',
                         effects: [{ type: 'active_combat', id: 'shadow_step', dodge_bonus: 0.50 }],
                         requires: ['feint'],
-                        goldCost: 2000,
-                        materials: { tanned_hide: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
-                        unlockCondition: 'missions_15',
+                        unlockCondition: 'level_10',
+                        thresholds: ROGUE_THRESHOLDS.tier3,
                     },
                     smoke_bomb: {
-                        id: 'smoke_bomb', tier: 3, name: 'Smoke Bomb', emoji: '💣',
-                        type: 'active_combat',
+                        id: 'smoke_bomb', tier: 4, name: 'Smoke Bomb', emoji: '💣',
+                        type: 'progressive',
                         desc: 'Rounds 1-3: enemy has 40% chance to miss.',
                         effects: [{ type: 'active_combat', id: 'smoke_bomb', enemy_miss_chance: 0.40, rounds: [1, 2, 3] }],
                         requires: ['shadow_step'],
-                        goldCost: 7000,
-                        materials: { poison_extract: 3, tanned_hide: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'wins_50',
+                        unlockCondition: 'level_20',
+                        thresholds: ROGUE_THRESHOLDS.tier4,
                     },
                     phantom_strikes: {
-                        id: 'phantom_strikes', tier: 4, name: 'Phantom Strikes', emoji: '🌀',
-                        type: 'active_combat',
+                        id: 'phantom_strikes', tier: 5, name: 'Phantom Strikes', emoji: '🌀',
+                        type: 'progressive',
                         desc: '+15% Agility. Dodge procs 25% damage counter.',
                         effects: [
                             { type: 'passive_pct', stat: 'agility', value: 0.15 },
                             { type: 'active_combat', id: 'phantom_counter', counter_on_dodge_pct: 0.25 }
                         ],
                         requires: ['smoke_bomb'],
-                        goldCost: 20000,
-                        materials: { void_crystal: 2, arcane_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
                         unlockCondition: 'level_35',
+                        thresholds: ROGUE_THRESHOLDS.tier5,
                     },
                     ghost_form: {
                         id: 'ghost_form', tier: 5, name: 'Ghost Form', emoji: '👁️',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+25% Agility. 50% chance to negate incoming crits.',
                         effects: [
                             { type: 'passive_pct', stat: 'agility', value: 0.25 },
                             { type: 'active_combat', id: 'negate_crit', chance: 0.50 }
                         ],
                         requires: ['phantom_strikes'],
-                        goldCost: 80000,
-                        materials: { legendary_fragment: 8, shadow_weave: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'wins_500',
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { shadow_weave: 2 }, 100: { demon_core: 3 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 3: Shadowblade
             shadowblade: {
                 name: 'Shadowblade',
                 emoji: '🌑',
-                description: 'Shadow-infused blades. Bonus elemental damage.',
+                description: 'Strike from darkness. Shadow-infused blades deal bonus elemental damage.',
+                requires: { skill: 'rogue_basic', minProgress: 10 },
                 skills: {
                     shadow_coat: {
                         id: 'shadow_coat', tier: 2, name: 'Shadow Coat', emoji: '🌑',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+12% Wind Damage.',
                         effects: [{ type: 'passive_pct', stat: 'wind_dmg', value: 0.12 }],
-                        requires: ['backstab'],
-                        goldCost: 2000,
-                        materials: { shadow_essence: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
+                        requires: ['rogue_basic'],
                         unlockCondition: null,
+                        thresholds: ROGUE_THRESHOLDS.tier2,
                     },
                     nightfall: {
                         id: 'nightfall', tier: 3, name: 'Nightfall', emoji: '🌒',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: '+18% Wind Damage. Reduce enemy hit chance by 20%.',
                         effects: [
                             { type: 'passive_pct', stat: 'wind_dmg', value: 0.18 },
                             { type: 'active_combat', id: 'darkness_debuff', enemy_hit_debuff: 0.20 }
                         ],
                         requires: ['shadow_coat'],
-                        goldCost: 7000,
-                        materials: { shadow_essence: 3, void_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'level_20',
+                        unlockCondition: 'level_10',
+                        thresholds: ROGUE_THRESHOLDS.tier3,
                     },
                     void_blade: {
                         id: 'void_blade', tier: 4, name: 'Void Blade', emoji: '🗡️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: '30% chance to deal bonus electro+wind damage equal to 150% Agility.',
                         effects: [{ type: 'active_combat', id: 'void_blade', proc_chance: 0.30, bonus_from_stat: 'agility', bonus_mult: 1.50, elems: ['electro', 'wind'] }],
                         requires: ['nightfall'],
-                        goldCost: 22000,
-                        materials: { void_crystal: 3, shadow_essence: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'dungeon_floor_15',
+                        unlockCondition: 'level_20',
+                        thresholds: ROGUE_THRESHOLDS.tier4,
+                    },
+                    shadow_master: {
+                        id: 'shadow_master', tier: 5, name: 'Shadow Master', emoji: '🌑👑',
+                        type: 'progressive',
+                        desc: '+25% Wind Damage, +15% Agility. Void Blade procs on every hit.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'wind_dmg', value: 0.25 },
+                            { type: 'passive_pct', stat: 'agility', value: 0.15 },
+                            { type: 'active_combat', id: 'void_blade', proc_chance: 1.00, bonus_from_stat: 'agility', bonus_mult: 1.50, elems: ['electro', 'wind'] }
+                        ],
+                        requires: ['void_blade'],
+                        unlockCondition: 'level_50',
+                        thresholds: ROGUE_THRESHOLDS.tier5,
+                    },
+                    shadow_incarnate: {
+                        id: 'shadow_incarnate', tier: 5, name: 'Shadow Incarnate', emoji: '🌑✨',
+                        type: 'progressive',
+                        desc: '+35% Wind Damage, +20% Agility. Darkness debuff reduces hit chance by 35%.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'wind_dmg', value: 0.35 },
+                            { type: 'passive_pct', stat: 'agility', value: 0.20 },
+                            { type: 'active_combat', id: 'darkness_debuff', enemy_hit_debuff: 0.35 }
+                        ],
+                        requires: ['shadow_master'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 4 }, 50: { legendary_fragment: 6 }, 75: { shadow_weave: 3 }, 100: { demon_core: 4 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 4: Dual Wielder (Secret - unlocks with kills_no_shield)
             dual_wielder: {
                 name: 'Dual Wielder',
                 emoji: '⚔️⚔️',
-                description: 'Secret path. Wield two weapons at once.',
+                description: 'Secret path. Drop the shield, double the blades.',
                 hidden: true,
+                requires: { skill: 'rogue_basic', minProgress: 50, condition: 'kills_no_shield' },
                 skills: {
                     off_hand_training: {
                         id: 'off_hand_training', tier: 3, name: 'Off-Hand Training', emoji: '🤜',
-                        type: 'class_modifier',
+                        type: 'progressive',
                         desc: 'Equip second weapon in shield slot. Off-hand deals 60% damage.',
                         effects: [{ type: 'class_modifier', id: 'dual_wield_unlock', off_hand_dmg_pct: 0.60 }],
-                        requires: [],
-                        goldCost: 12000,
-                        materials: { mithril_ingot: 4, tanned_hide: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
+                        requires: ['rogue_basic'],
                         unlockCondition: 'kills_no_shield',
+                        thresholds: ROGUE_THRESHOLDS.tier3,
                     },
                     ambidexterity: {
                         id: 'ambidexterity', tier: 4, name: 'Ambidexterity', emoji: '🤝',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: 'Off-hand damage increases to 85%. +10% Attack Speed.',
                         effects: [
                             { type: 'class_modifier', id: 'dual_wield_dmg_pct', off_hand_dmg_pct: 0.85 },
                             { type: 'passive_pct', stat: 'attack_speed', value: 0.10 }
                         ],
                         requires: ['off_hand_training'],
-                        goldCost: 25000,
-                        materials: { void_crystal: 3, shadow_essence: 4 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
                         unlockCondition: 'wins_150',
+                        thresholds: ROGUE_THRESHOLDS.tier4,
                     },
                     blade_storm: {
                         id: 'blade_storm', tier: 5, name: 'Blade Storm', emoji: '🌀',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Once per battle: both weapons strike for full damage, ignore blocks.',
                         effects: [{ type: 'active_combat', id: 'blade_storm', dual_strike: true, pierce_block: true, uses: 1 }],
                         requires: ['ambidexterity'],
-                        goldCost: 60000,
-                        materials: { legendary_fragment: 8, shadow_weave: 3, void_crystal: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
                         unlockCondition: 'wins_500',
+                        thresholds: ROGUE_THRESHOLDS.tier5,
                     },
                     twin_agility: {
-                        id: 'twin_agility', tier: 4, name: 'Twin Agility', emoji: '💨',
-                        type: 'passive_pct',
-                        desc: '+20% Agility permanently.',
-                        effects: [{ type: 'passive_pct', stat: 'agility', value: 0.20 }],
+                        id: 'twin_agility', tier: 5, name: 'Twin Agility', emoji: '💨',
+                        type: 'progressive',
+                        desc: '+25% Agility permanently.',
+                        effects: [{ type: 'passive_pct', stat: 'agility', value: 0.25 }],
                         requires: ['off_hand_training'],
-                        goldCost: 15000,
-                        materials: { tanned_hide: 5, frost_core: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: null,
+                        thresholds: createThresholds({
+                            10: {}, 25: { shadow_essence: 4 }, 50: { void_crystal: 2 }, 75: { legendary_fragment: 3 }, 100: { shadow_weave: 2 }
+                        }),
                     },
                 },
             },
@@ -989,44 +1059,65 @@ const SKILL_TREES = {
     // ═══════════════════════════════════════════════════════════════════════════
     paladin: {
         description: 'Holy warriors. Unbreakable defense and divine justice.',
-        exclusive_branches: [['protector', 'divine_warrior', 'inquisitor', 'crusader']],
         upgrade_penalties: { agility: 0.60, strength: 0.20 },
         upgrade_discounts: { defense: 0.25, magic: 0.20, vitality: 0.15 },
 
         branches: {
+            // STARTER SKILL
+            paladin_training: {
+                name: 'Paladin Training',
+                emoji: '✨',
+                description: 'The foundation of all paladin oaths.',
+                isStarter: true,
+                skills: {
+                    divine_favor: {
+                        id: 'divine_favor', tier: 1, name: 'Divine Favor', emoji: '🙏',
+                        type: 'progressive',
+                        desc: '+10% Magic and +8% Defense.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'magic', value: 0.10 },
+                            { type: 'passive_pct', stat: 'defense', value: 0.08 }
+                        ],
+                        requires: [],
+                        unlockCondition: null,
+                        thresholds: createThresholds({
+                            10: {}, 25: { arcane_shard: 2 }, 50: { arcane_shard: 4 }, 75: { holy_essence: 2 }, 100: { holy_essence: 4 }
+                        }),
+                    },
+                },
+            },
+
+            // BRANCH 1: Protector
             protector: {
                 name: 'Protector',
                 emoji: '🏰',
-                description: 'Maximum survivability.',
+                description: 'Maximum survivability. Shields, blocks, and unbreakable defence.',
+                requires: { skill: 'divine_favor', minProgress: 10 },
                 skills: {
                     stalwart: {
-                        id: 'stalwart', tier: 1, name: 'Stalwart', emoji: '⚓',
-                        type: 'passive_pct',
+                        id: 'stalwart', tier: 2, name: 'Stalwart', emoji: '⚓',
+                        type: 'progressive',
                         desc: '+12% Defense, +10% Vitality.',
                         effects: [
                             { type: 'passive_pct', stat: 'defense', value: 0.12 },
                             { type: 'passive_pct', stat: 'vitality', value: 0.10 }
                         ],
-                        requires: [],
-                        goldCost: 600,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
-                        unlockCondition: 'level_5',
+                        requires: ['divine_favor'],
+                        unlockCondition: null,
+                        thresholds: PALADIN_THRESHOLDS.tier2,
                     },
                     aegis: {
-                        id: 'aegis', tier: 2, name: 'Aegis', emoji: '🛡️',
-                        type: 'passive_pct',
+                        id: 'aegis', tier: 3, name: 'Aegis', emoji: '🛡️',
+                        type: 'progressive',
                         desc: '+40% block effectiveness.',
                         effects: [{ type: 'passive_pct', stat: 'block_effectiveness', value: 0.40 }],
                         requires: ['stalwart'],
-                        goldCost: 2500,
-                        materials: { iron_ingot: 5 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
-                        unlockCondition: 'missions_15',
+                        unlockCondition: 'level_10',
+                        thresholds: PALADIN_THRESHOLDS.tier3,
                     },
                     fortress_stance: {
-                        id: 'fortress_stance', tier: 3, name: 'Fortress Stance', emoji: '🗼',
-                        type: 'active_combat',
+                        id: 'fortress_stance', tier: 4, name: 'Fortress Stance', emoji: '🗼',
+                        type: 'progressive',
                         desc: '+15% Armor, +12% Defense. First hit each battle is auto-blocked.',
                         effects: [
                             { type: 'passive_pct', stat: 'armor', value: 0.15 },
@@ -1034,14 +1125,12 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'auto_block_first_hit' }
                         ],
                         requires: ['aegis'],
-                        goldCost: 8000,
-                        materials: { mithril_ingot: 3, iron_ingot: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'level_20',
+                        thresholds: PALADIN_THRESHOLDS.tier4,
                     },
                     impenetrable: {
-                        id: 'impenetrable', tier: 4, name: 'Impenetrable', emoji: '💎',
-                        type: 'passive_pct',
+                        id: 'impenetrable', tier: 5, name: 'Impenetrable', emoji: '💎',
+                        type: 'progressive',
                         desc: '+20% Armor, +25% Max HP. Reduce physical damage by 20%.',
                         effects: [
                             { type: 'passive_pct', stat: 'armor', value: 0.20 },
@@ -1049,14 +1138,12 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'phys_dmg_taken', value: -0.20 }
                         ],
                         requires: ['fortress_stance'],
-                        goldCost: 25000,
-                        materials: { dragon_plate: 3, void_crystal: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'dungeon_floor_15',
+                        unlockCondition: 'level_35',
+                        thresholds: PALADIN_THRESHOLDS.tier5,
                     },
                     guardian: {
                         id: 'guardian', tier: 5, name: 'Guardian', emoji: '👑',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+30% Defense, +25% Armor, +40% HP. Reduce ALL damage by 25%.',
                         effects: [
                             { type: 'passive_pct', stat: 'defense', value: 0.30 },
@@ -1065,66 +1152,51 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'dmg_taken', value: -0.25 }
                         ],
                         requires: ['impenetrable'],
-                        goldCost: 100000,
-                        materials: { legendary_fragment: 8, demon_alloy: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { demon_alloy: 2 }, 100: { demon_alloy: 3 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 2: Divine Warrior
             divine_warrior: {
                 name: 'Divine Warrior',
                 emoji: '✨',
                 description: 'Holy strikes and divine healing.',
+                requires: { skill: 'divine_favor', minProgress: 10 },
                 skills: {
-                    divine_favor: {
-                        id: 'divine_favor', tier: 1, name: 'Divine Favor', emoji: '🙏',
-                        type: 'passive_pct',
-                        desc: '+10% Magic.',
-                        effects: [{ type: 'passive_pct', stat: 'magic', value: 0.10 }],
-                        requires: [],
-                        goldCost: 600,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
-                        unlockCondition: 'level_5',
-                    },
                     holy_strike: {
                         id: 'holy_strike', tier: 2, name: 'Holy Strike', emoji: '⚡',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: '+25% damage. Heal 12% of damage dealt.',
                         effects: [{ type: 'active_combat', id: 'holy_strike', dmg_bonus: 0.25, heal_pct: 0.12 }],
                         requires: ['divine_favor'],
-                        goldCost: 2500,
-                        materials: { arcane_shard: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
-                        unlockCondition: 'wins_20',
+                        unlockCondition: null,
+                        thresholds: PALADIN_THRESHOLDS.tier2,
                     },
                     consecrate: {
                         id: 'consecrate', tier: 3, name: 'Consecrate', emoji: '🌿',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Reflect 25% of damage received.',
                         effects: [{ type: 'active_combat', id: 'consecrate', reflect_pct: 0.25 }],
                         requires: ['holy_strike'],
-                        goldCost: 8000,
-                        materials: { arcane_shard: 3, iron_ingot: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'wins_50',
+                        unlockCondition: 'wins_20',
+                        thresholds: PALADIN_THRESHOLDS.tier3,
                     },
                     divine_judgment: {
                         id: 'divine_judgment', tier: 4, name: 'Divine Judgment', emoji: '⚖️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Once per battle: deal (Defense × 2.5) holy damage, ignore armor.',
                         effects: [{ type: 'active_combat', id: 'divine_judgment', defense_mult: 2.5, ignore_armour: true, uses: 1 }],
                         requires: ['consecrate'],
-                        goldCost: 25000,
-                        materials: { void_crystal: 2, dragon_plate: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'level_35',
+                        unlockCondition: 'level_20',
+                        thresholds: PALADIN_THRESHOLDS.tier4,
                     },
                     avatar_of_justice: {
                         id: 'avatar_of_justice', tier: 5, name: 'Avatar of Justice', emoji: '☀️',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+20% Magic, +15% Defense. Reflect 35% damage. Heal 12% per round.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.20 },
@@ -1133,142 +1205,161 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'holy_regen', heal_pct_per_round: 0.12 }
                         ],
                         requires: ['divine_judgment'],
-                        goldCost: 100000,
-                        materials: { legendary_fragment: 8, shadow_weave: 2, void_crystal: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_35',
+                        thresholds: PALADIN_THRESHOLDS.tier5,
+                    },
+                    divine_wrath: {
+                        id: 'divine_wrath', tier: 5, name: 'Divine Wrath', emoji: '☀️⚡',
+                        type: 'progressive',
+                        desc: '+30% Magic, +20% Defense. Divine Judgment can be used twice. Reflect 45% damage.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'magic', value: 0.30 },
+                            { type: 'passive_pct', stat: 'defense', value: 0.20 },
+                            { type: 'active_combat', id: 'divine_judgment', defense_mult: 3.0, ignore_armour: true, uses: 2 },
+                            { type: 'active_combat', id: 'consecrate', reflect_pct: 0.45 }
+                        ],
+                        requires: ['avatar_of_justice'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 4 }, 50: { legendary_fragment: 6 }, 75: { demon_alloy: 3 }, 100: { demon_alloy: 4 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 3: Inquisitor
             inquisitor: {
                 name: 'Inquisitor',
                 emoji: '🔎',
                 description: 'Punish weakness. Bonus damage to vulnerable enemies.',
+                requires: { skill: 'divine_favor', minProgress: 10 },
                 skills: {
                     judgement: {
-                        id: 'judgement', tier: 1, name: 'Judgement', emoji: '⚖️',
-                        type: 'passive_pct',
+                        id: 'judgement', tier: 2, name: 'Judgement', emoji: '⚖️',
+                        type: 'progressive',
                         desc: '+8% Hit Chance, +6% Crit Chance.',
                         effects: [
                             { type: 'passive_pct', stat: 'hit_chance', value: 0.08 },
                             { type: 'passive_pct', stat: 'crit_chance', value: 0.06 }
                         ],
-                        requires: [],
-                        goldCost: 600,
-                        materials: {},
-                        trainDuration: SKILL_TRAIN_DURATIONS.novice,
-                        unlockCondition: 'wins_5',
+                        requires: ['divine_favor'],
+                        unlockCondition: null,
+                        thresholds: PALADIN_THRESHOLDS.tier2,
                     },
                     expose: {
-                        id: 'expose', tier: 2, name: 'Expose', emoji: '🎯',
-                        type: 'active_combat',
+                        id: 'expose', tier: 3, name: 'Expose', emoji: '🎯',
+                        type: 'progressive',
                         desc: '+20% Crit Chance for whole battle.',
                         effects: [{ type: 'active_combat', id: 'expose', crit_bonus: 0.20 }],
                         requires: ['judgement'],
-                        goldCost: 2500,
-                        materials: { hardwood_plank: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
                         unlockCondition: 'wins_20',
+                        thresholds: PALADIN_THRESHOLDS.tier3,
                     },
                     crusader_oath: {
-                        id: 'crusader_oath', tier: 3, name: 'Crusader\'s Oath', emoji: '📜',
-                        type: 'active_combat',
+                        id: 'crusader_oath', tier: 4, name: 'Crusader\'s Oath', emoji: '📜',
+                        type: 'progressive',
                         desc: '+50% damage against enemies below 40% HP.',
                         effects: [{ type: 'active_combat', id: 'crusader_oath', hp_threshold: 0.40, dmg_bonus: 0.50 }],
                         requires: ['expose'],
-                        goldCost: 9000,
-                        materials: { void_shard: 2, iron_ingot: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
                         unlockCondition: 'wins_50',
+                        thresholds: PALADIN_THRESHOLDS.tier4,
                     },
                     sanctioned_strike: {
-                        id: 'sanctioned_strike', tier: 4, name: 'Sanctioned Strike', emoji: '✝️',
-                        type: 'active_combat',
+                        id: 'sanctioned_strike', tier: 5, name: 'Sanctioned Strike', emoji: '✝️',
+                        type: 'progressive',
                         desc: 'Critical hits heal for 30% of crit damage.',
                         effects: [{ type: 'active_combat', id: 'sanctioned_strike', crit_heal_pct: 0.30 }],
                         requires: ['crusader_oath'],
-                        goldCost: 25000,
-                        materials: { arcane_shard: 3, mithril_ingot: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'zero_deaths_dungeon',
+                        unlockCondition: 'level_35',
+                        thresholds: PALADIN_THRESHOLDS.tier5,
                     },
                     divine_shield: {
                         id: 'divine_shield', tier: 5, name: 'Divine Shield', emoji: '🌟',
-                        type: 'active_combat',
-                        desc: 'Negate first hit each battle. Crit heal increased to 50%.',
+                        type: 'progressive',
+                        desc: 'Negate first hit each battle. Crit heal increased to 50%. +15% Crit Chance.',
                         effects: [
                             { type: 'active_combat', id: 'divine_shield', negate_first_hit: true },
-                            { type: 'active_combat', id: 'sanctioned_strike', crit_heal_pct: 0.50 }
+                            { type: 'active_combat', id: 'sanctioned_strike', crit_heal_pct: 0.50 },
+                            { type: 'passive_pct', stat: 'crit_chance', value: 0.15 }
                         ],
                         requires: ['sanctioned_strike'],
-                        goldCost: 100000,
-                        materials: { legendary_fragment: 8, demon_core: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'wins_500',
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 4 }, 50: { legendary_fragment: 6 }, 75: { demon_alloy: 3 }, 100: { demon_alloy: 4 }
+                        }),
                     },
                 },
             },
 
+            // BRANCH 4: Crusader
             crusader: {
                 name: 'Crusader',
                 emoji: '⚔️',
                 description: 'Holy fire damage and relentless advance.',
+                requires: { skill: 'divine_favor', minProgress: 10 },
                 skills: {
                     holy_aura: {
                         id: 'holy_aura', tier: 2, name: 'Holy Aura', emoji: '🌅',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+15% Fire Damage, +8% all resistances.',
                         effects: [
                             { type: 'passive_pct', stat: 'pyro_dmg', value: 0.15 },
-                            { type: 'resist_bonus', elems: ['pyro','water','wind','electro'], value: 8 }
+                            { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 8 }
                         ],
-                        requires: ['stalwart'],
-                        goldCost: 2500,
-                        materials: { arcane_shard: 2, iron_ingot: 2 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.apprentice,
+                        requires: ['divine_favor'],
                         unlockCondition: null,
+                        thresholds: PALADIN_THRESHOLDS.tier2,
                     },
                     righteous_fury: {
                         id: 'righteous_fury', tier: 3, name: 'Righteous Fury', emoji: '💥',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: '+20% Fire Damage. Damage increases by 8% per round.',
                         effects: [
                             { type: 'passive_pct', stat: 'pyro_dmg', value: 0.20 },
                             { type: 'active_combat', id: 'momentum', dmg_per_round_pct: 0.08 }
                         ],
                         requires: ['holy_aura'],
-                        goldCost: 9000,
-                        materials: { dragon_scale_shard: 2, arcane_shard: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.journeyman,
-                        unlockCondition: 'wins_50',
+                        unlockCondition: 'level_10',
+                        thresholds: PALADIN_THRESHOLDS.tier3,
                     },
                     holy_crusade: {
                         id: 'holy_crusade', tier: 4, name: 'Holy Crusade', emoji: '🏳️',
-                        type: 'active_combat',
+                        type: 'progressive',
                         desc: 'Once per battle: deal (Magic + Defense) × 1.8 holy damage, ignore resist.',
                         effects: [{ type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 1.8, ignore_resist: true, uses: 1 }],
                         requires: ['righteous_fury'],
-                        goldCost: 28000,
-                        materials: { void_crystal: 2, dragon_plate: 2, arcane_shard: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.expert,
-                        unlockCondition: 'hard_mission_15',
+                        unlockCondition: 'level_20',
+                        thresholds: PALADIN_THRESHOLDS.tier4,
                     },
                     undying_crusader: {
                         id: 'undying_crusader', tier: 5, name: 'Undying Crusader', emoji: '🕊️',
-                        type: 'passive_pct',
+                        type: 'progressive',
                         desc: '+25% Magic, +20% all resists, +30% HP. Holy fire deals +60% damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.25 },
                             { type: 'passive_pct', stat: 'hp_max', value: 0.30 },
-                            { type: 'resist_bonus', elems: ['pyro','water','wind','electro'], value: 20 },
+                            { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 20 },
                             { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 0.60 }
                         ],
                         requires: ['holy_crusade'],
-                        goldCost: 100000,
-                        materials: { legendary_fragment: 8, demon_alloy: 3, void_crystal: 3 },
-                        trainDuration: SKILL_TRAIN_DURATIONS.grandmaster,
-                        unlockCondition: 'dungeon_floor_30',
+                        unlockCondition: 'level_35',
+                        thresholds: PALADIN_THRESHOLDS.tier5,
+                    },
+                    crusader_king: {
+                        id: 'crusader_king', tier: 5, name: 'Crusader King', emoji: '👑⚔️',
+                        type: 'progressive',
+                        desc: '+35% Magic, +30% all resists. Holy Crusade can be used twice. Holy fire deals +100% damage.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'magic', value: 0.35 },
+                            { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 30 },
+                            { type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 2.0, ignore_resist: true, uses: 2 },
+                            { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 1.00 }
+                        ],
+                        requires: ['undying_crusader'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 5 }, 50: { legendary_fragment: 8 }, 75: { demon_alloy: 4 }, 100: { demon_alloy: 6 }
+                        }),
                     },
                 },
             },
@@ -1372,6 +1463,58 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, 
     }
 
     return result;
+}
+
+// Get skill thresholds
+function getSkillThresholds(skillId, className) {
+    const tree = SKILL_TREES[className];
+    for (const branch of Object.values(tree.branches)) {
+        if (branch.skills[skillId]) {
+            return branch.skills[skillId].thresholds || {};
+        }
+    }
+    return {};
+}
+
+// Check if player can train past a threshold
+function canTrainPastThreshold(char, skillId, targetProgress, db) {
+    const thresholds = getSkillThresholds(skillId, char.class);
+    const currentProgress = getSkillProgress(char.id, skillId, db);
+    
+    // Find the next threshold
+    const nextThreshold = Object.keys(thresholds)
+        .map(Number)
+        .find(t => t > currentProgress && t <= targetProgress);
+    
+    if (!nextThreshold) return true;
+    
+    const requiredMats = thresholds[nextThreshold].materials;
+    if (!requiredMats || Object.keys(requiredMats).length === 0) return true;
+    
+    // Check if player has materials
+    return hasMaterials(char.id, requiredMats, db);
+}
+
+// Calculate skill effectiveness based on progress
+function getSkillEffectiveness(skillId, charId, db) {
+    const progress = getSkillProgress(charId, skillId, db);
+    const skill = getSkillById(skillId, char.class);
+    
+    if (!skill || !skill.effects) return null;
+    
+    const effectiveness = Math.min(1, progress / 100);
+    
+    // Scale all effects by effectiveness
+    const scaledEffects = skill.effects.map(effect => {
+        const scaled = { ...effect };
+        if (effect.dmg_bonus) scaled.dmg_bonus = effect.dmg_bonus * effectiveness;
+        if (effect.crit_bonus) scaled.crit_bonus = effect.crit_bonus * effectiveness;
+        if (effect.dodge_bonus) scaled.dodge_bonus = effect.dodge_bonus * effectiveness;
+        // Add more as needed
+        return scaled;
+    });
+    
+    return { effects: scaledEffects, progress, effectiveness };
 }
 
 function computePassiveBonuses(className, learnedSkillIds) {
@@ -1836,6 +1979,143 @@ router.post('/respec', async (req, res) => {
             refund: totalRefund 
         });
     } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/skills/train/start', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { skillId, branchId, hours, doubleSpeed } = req.body;
+        
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        // Check if already training
+        if (char.training_cooldown_until > Date.now() / 1000) {
+            return res.status(400).json({ error: 'Already training. Complete or cancel current training.' });
+        }
+        
+        // Validate hours (1-8, or 1-12 with Arcane Reservoir)
+        const activePrem = getActivePremium(char);
+        const maxHours = hasPremium(activePrem, 'arcane_reservoir') ? 12 : 8;
+        if (hours < 1 || hours > maxHours) {
+            return res.status(400).json({ error: `Training hours must be between 1 and ${maxHours}` });
+        }
+        
+        // Get skill data
+        const tree = SKILL_TREES[char.class];
+        const branch = tree?.branches[branchId];
+        const skill = branch?.skills[skillId];
+        if (!skill) return res.status(404).json({ error: 'Skill not found' });
+        
+        // Calculate target progress (each hour = 1% progress, or 2% with double speed)
+        const progressPerHour = doubleSpeed ? 2 : 1;
+        const currentProgress = await getSkillProgress(char.id, skillId, db);
+        const targetProgress = Math.min(100, currentProgress + (hours * progressPerHour));
+        
+        // Check if player can train past thresholds
+        if (!canTrainPastThreshold(char, skillId, targetProgress, db)) {
+            return res.status(400).json({ error: 'Need materials to continue training this skill' });
+        }
+        
+        // Deduct gold for double speed
+        let goldCost = 0;
+        if (doubleSpeed) {
+            goldCost = hours * 500; // 500 gold per hour for double speed
+            if (char.gold < goldCost) {
+                return res.status(400).json({ error: `Need ${goldCost} gold for double speed training` });
+            }
+            await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [goldCost, char.id]);
+        }
+        
+        const now = Math.floor(Date.now() / 1000);
+        const endsAt = now + (hours * 3600);
+        
+        // Insert training session
+        await dbRun(db, `
+            INSERT INTO skill_training (char_id, skill_id, branch_id, progress_start, progress_target, hours_to_train, double_speed, started_at, ends_at, last_tick_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [char.id, skillId, branchId, currentProgress, targetProgress, hours, doubleSpeed ? 1 : 0, now, endsAt, now]);
+        
+        // Set training cooldown
+        await dbRun(db, 'UPDATE characters SET training_cooldown_until = ? WHERE id = ?', [endsAt, char.id]);
+        
+        res.json({
+            success: true,
+            message: `Training started! ${hours} hour${hours > 1 ? 's' : ''}${doubleSpeed ? ' (2x speed)' : ''}`,
+            endsAt,
+            currentProgress,
+            targetProgress
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/skills/train/tick', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
+        if (!training) return res.json({ active: false });
+        
+        const now = Math.floor(Date.now() / 1000);
+        if (now >= training.ends_at) {
+            // Training complete
+            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
+            await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
+            
+            // Update skill progress in character_skill_tree
+            await dbRun(db, `
+                UPDATE character_skill_tree 
+                SET progress = ? 
+                WHERE char_id = ? AND skill_id = ?
+            `, [training.progress_target, char.id, training.skill_id]);
+            
+            return res.json({ 
+                active: false, 
+                complete: true,
+                message: 'Training complete!',
+                newProgress: training.progress_target
+            });
+        }
+        
+        // Calculate elapsed time since last tick
+        const lastTick = training.last_tick_at;
+        const elapsed = now - lastTick;
+        const hoursElapsed = elapsed / 3600;
+        const progressPerHour = training.double_speed ? 2 : 1;
+        const progressGain = hoursElapsed * progressPerHour;
+        
+        const newProgress = Math.min(training.progress_target, training.progress_start + progressGain);
+        
+        // Update progress
+        await dbRun(db, `
+            UPDATE skill_training 
+            SET progress_current = ?, last_tick_at = ? 
+            WHERE id = ?
+        `, [newProgress, now, training.id]);
+        
+        // Update character_skill_tree progress
+        await dbRun(db, `
+            UPDATE character_skill_tree 
+            SET progress = ? 
+            WHERE char_id = ? AND skill_id = ?
+        `, [newProgress, char.id, training.skill_id]);
+        
+        res.json({
+            active: true,
+            progress: newProgress,
+            target: training.progress_target,
+            endsAt: training.ends_at,
+            remaining: training.ends_at - now
+        });
+    } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message });
     }
 });
