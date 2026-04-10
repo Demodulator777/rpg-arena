@@ -2069,7 +2069,7 @@ router.post('/train/start', async (req, res) => {
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         // Check for active mission
-        const activeMission = await dbGet(db, 'SELECT * FROM character_missions WHERE char_id = ? AND completed = 0', [char.id]);
+        const activeMission = await dbGet(db, 'SELECT * FROM active_missions WHERE char_id = ? AND completed = 0', [char.id]);
         if (activeMission) {
             return res.status(400).json({ error: 'Cannot train while on a mission!' });
         }
