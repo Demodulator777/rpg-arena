@@ -1484,6 +1484,8 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
     try {
         const result = await api('POST', '/game/missions/start', { zoneId, spotId, missionIdx, missionName, size });
         
+        window.activeMission = true;  // <-- ADD THIS LINE
+        
         // Dungeon token generation
         const mpCosts = { small: 20, medium: 40, large: 60 };
         if (typeof dungeonAddTokens === 'function') dungeonAddTokens(mpCosts[size] || 20);
@@ -1501,7 +1503,6 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
         _missionStarting = false;
     }
 }
-
 async function doTravelToZone(zoneId) {
     const active=await api('GET','/game/missions/active').catch(()=>null);
     if (active&&active.id) { showMsg('missions-msg','Cannot travel while on a mission!',true); return; }
@@ -1538,9 +1539,11 @@ async function travelToZone(zoneId) {
 
 async function collectMission() {
     try {
-        const d=await api('POST','/game/missions/collect');
-        character=d.character;
-        hideMissionOverlay(); renderTopBar();
+        const d = await api('POST', '/game/missions/collect');
+        character = d.character;
+        window.activeMission = false;  // <-- ADD THIS LINE
+        hideMissionOverlay(); 
+        renderTopBar();
         let msg=`💰 +${d.goldEarned} gold`;
         if (d.gemsFound) msg += ` · 💎 +${d.gemsFound} gem${d.gemsFound > 1 ? 's' : ''}`;
         msg += ` · ⭐ +${d.xpEarned} XP`;
@@ -1556,12 +1559,14 @@ async function collectMission() {
 // ── Mission Overlay ───────────────────────────────────────────────────────
 async function checkAndShowMissionOverlay() {
     try {
-        const active=await api('GET','/game/missions/active');
-        if (active&&active.id) {
+        const active = await api('GET', '/game/missions/active');
+        if (active && active.id) {
+            window.activeMission = true;  // <-- ADD THIS
             hideRestOverlay();
-            showMissionOverlay(active,active.mission_name||active.missionName||'Mission');
+            showMissionOverlay(active, active.mission_name || active.missionName || 'Mission');
             return;
         }
+        window.activeMission = false;  // <-- ADD THIS
         hideMissionOverlay();
         // Re-fetch character to get fresh battle_cooldown_ends_at — the cached
         // `character` object may be stale (e.g. set before the last battle completed).
@@ -1661,8 +1666,10 @@ function showMissionOverlay(active, displayName) {
     overlay.classList.remove('hidden');
 }
 function hideMissionOverlay() {
-    if (overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
-    const o=document.getElementById('mission-overlay'); if(o) o.classList.add('hidden');
+    if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
+    const o = document.getElementById('mission-overlay'); 
+    if(o) o.classList.add('hidden');
+    window.activeMission = false;
 }
 async function overlayCollectMission() { await collectMission(); }
 
