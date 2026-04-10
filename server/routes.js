@@ -2958,7 +2958,7 @@ router.get('/matchmaking', auth, async (req, res) => {
         const myCooldowns = myCooldownRows.map(r => r.defender_id);
         candidates = candidates.filter(c => !myCooldowns.includes(c.id));
 
-        if (!candidates.length) return res.json(null);
+        if (!candidates.length) return res.json({ active: false });
         let target;
         if (direction === 'weaker') target = candidates.filter(c => c.power < myPower).sort((a,b) => b.power - a.power)[0] || null;
         else if (direction === 'stronger') target = candidates.filter(c => c.power > myPower).sort((a,b) => a.power - b.power)[0] || null;
@@ -3634,7 +3634,7 @@ router.post('/skills/activate', auth, async (req, res) => {
 router.get('/events/active', auth, async (req, res) => {
     try {
         const ev = getActiveEvent();
-        if (!ev) return res.json(null);
+        if (!ev) return res.json({ active: false });
         const def = GLOBAL_EVENTS.find(e => e.key === ev.event_key);
         res.json({ ...def, ends_at: ev.ends_at });
     } catch (e) { res.status(500).json({ error: e.message }); }
