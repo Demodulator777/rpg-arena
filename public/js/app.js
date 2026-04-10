@@ -1569,28 +1569,74 @@ async function collectMission() {
 // ── Mission Overlay ───────────────────────────────────────────────────────
 async function checkAndShowMissionOverlay() {
     try {
-        const active = await api('GET', '/game/missions/active');
-        if (active && active.id) {
-            window.activeMission = true;  // <-- ADD THIS
+        // 1. Check active mission first (highest priority usually)
+        const activeMission = await api('GET', '/game/missions/active').catch(() => null);
+        if (activeMission && activeMission.id) {
+            window.activeMission = true;
             hideRestOverlay();
-            showMissionOverlay(active, active.mission_name || active.missionName || 'Mission');
+            hideTrainingOverlay();
+            showMissionOverlay(activeMission, activeMission.mission_name || activeMission.missionName || 'Mission');
             return;
         }
-        window.activeMission = false;  // <-- ADD THIS
+        window.activeMission = false;
+
+        // 2. Check training
+        const trainingStatus = await api('GET', '/skills/training/status').catch(() => null);
+        if (trainingStatus && trainingStatus.active && trainingStatus.endsAt) {
+            hideRestOverlay();
+            hideMissionOverlay();
+            showTrainingOverlay(
+                trainingStatus.skillName || 'Skill Training',
+                trainingStatus.endsAt
+            );
+            return;
+        }
+        hideTrainingOverlay();
+
+        // 3. Check battle/rest cooldown (lowest priority)
         hideMissionOverlay();
-        // Re-fetch character to get fresh battle_cooldown_ends_at — the cached
-        // `character` object may be stale (e.g. set before the last battle completed).
-        const freshChar = await api('GET', '/game/character');
+
+        // Refresh character in case it was stale
+        const freshChar = await api('GET', '/game/character').catch(() => null);
         if (freshChar) character = freshChar;
+
         const endsAt = character?.battle_cooldown_ends_at || 0;
         const lastBattle = character?.last_battle_at || 0;
         const now = Math.floor(Date.now() / 1000);
+
         if (endsAt > now && lastBattle > 0) {
             showRestOverlay(lastBattle, endsAt);
         } else {
             hideRestOverlay();
         }
-    } catch { hideMissionOverlay(); hideRestOverlay(); }
+
+    } catch (e) {
+        console.error('Error in checkAndShowMissionOverlay:', e);
+        hideMissionOverlay();
+        hideRestOverlay();
+        hideTrainingOverlay();
+    }
+}
+
+function showTrainingOverlay(skillName, endsAt) {
+    const overlay = document.getElementById('training-overlay');
+    if (!overlay) return;
+
+    document.getElementById('training-skill-name').textContent = skillName;
+    overlay.classList.remove('hidden');
+
+    window.currentTrainingEnd = endsAt;
+
+    // Use the same global timer as missions if possible
+    if (!window.cooldownInterval) {
+        window.cooldownInterval = setInterval(updateAllCooldowns, 1000);
+    }
+}
+
+function hideTrainingOverlay() {
+    const overlay = document.getElementById('training-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    window.currentTrainingEnd = null;
 }
 
 function showRestOverlay(startedAt, endsAt) {
