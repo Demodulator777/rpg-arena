@@ -21,7 +21,11 @@ async function renderSkillTreeTab() {
     if (!root) return;
     root.innerHTML = stSpinner('Loading skill tree...');
     try {
-        _stData    = await api('GET', '/skills/tree');
+        _stData = await api('GET', '/skills/tree');
+        try {
+            const status = await api('GET', '/skills/training/status');
+            _stData.activeTraining = status && status.active ? { ...(_stData.activeTraining || {}), ...status } : null;
+        } catch {}
         _stLoading = false;
         renderSkillTreeUI(root);
     } catch (e) {
@@ -114,8 +118,8 @@ function renderSkillTreeUI(root) {
 
     // ── Active training session ───────────────────────────────────────────────
     if (activeTraining) {
-        const done = activeTraining.done;
-        const left = activeTraining.timeLeft || 0;
+        const done = !!(activeTraining.done || activeTraining.collectible);
+        const left = activeTraining.remaining ?? activeTraining.timeLeft ?? 0;
         const timeStr = stFormatTime(left);
         html += `
         <div id="st-training-bar" style="padding:14px 16px;border-radius:10px;
@@ -124,7 +128,7 @@ function renderSkillTreeUI(root) {
                   margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="flex:1">
                 <div style="font-weight:700;font-size:0.9rem;color:${done?'#2ecc71':accent}">
-                    ${done ? '✅ Training Complete!' : `⏳ Training: ${activeTraining.skill_id.replace(/_/g,' ')}`}
+                    ${done ? '✅ Training Complete!' : `⏳ Training: ${(activeTraining.skillName || activeTraining.skill_id || '').replace(/_/g,' ')}`}
                 </div>
                 <div style="font-size:0.74rem;color:rgba(255,255,255,0.4);margin-top:3px">
                     ${done ? 'Collect your new skill below.' : `${timeStr} remaining`}
@@ -214,8 +218,8 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const maxHours = hasArcaneReservoir ? 12 : 8;
     const now = Math.floor(Date.now() / 1000);
     const hasActiveMission = window.activeMission === true; // You'll need to track this globally
-    const inBattleCooldown = character?.battle_cooldown_ends_at > now;
-    const isTraveling = false;
+    const inBattleCooldown = (character?.attack_cooldown_until || 0) > now;
+    const isTraveling = !!activeTraining?.traveling;
     const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
@@ -251,6 +255,7 @@ if (locked && !learned && !training) {
     let progressHtml = '';
     if (training && activeTraining) {
         const trainProgress = activeTraining.progress || 0;
+        const trainRemaining = activeTraining.remaining ?? activeTraining.timeLeft ?? 0;
         progressHtml = `
             <div style="margin-top: 8px;">
                 <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 4px; overflow: hidden;">
@@ -260,7 +265,7 @@ if (locked && !learned && !training) {
                     ${Math.floor(trainProgress)}% complete
                 </div>
                 <div style="font-size: 0.55rem; color: #f1c40f; text-align: center; margin-top: 2px;">
-                    ⏳ ${stFormatTime(activeTraining.timeLeft)} remaining
+                    ⏳ ${stFormatTime(trainRemaining)} remaining
                 </div>
             </div>
         `;
@@ -337,14 +342,23 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
     if (learned) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
     } else if (training) {
-        btnHtml = `<button onclick="stCancelTraining()"
-            style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
-                   background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
-                   cursor:pointer;transition:all 0.15s"
-            onmouseenter="this.style.background='rgba(231,76,60,0.3)'"
-            onmouseleave="this.style.background='rgba(231,76,60,0.15)'">
-            Cancel Training
-        </button>`;
+        if (activeTraining?.done || activeTraining?.collectible) {
+            btnHtml = `<button onclick="stCollect()"
+                style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #2ecc7166;
+                       background:rgba(46,204,113,0.15);color:#2ecc71;font-size:0.68rem;font-weight:700;
+                       cursor:pointer;transition:all 0.15s">
+                Collect Skill
+            </button>`;
+        } else {
+            btnHtml = `<button onclick="stCancel()"
+                style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
+                       background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
+                       cursor:pointer;transition:all 0.15s"
+                onmouseenter="this.style.background='rgba(231,76,60,0.3)'"
+                onmouseleave="this.style.background='rgba(231,76,60,0.15)'">
+                Cancel Training
+            </button>`;
+        }
     } else if (trainable) {
         btnHtml = trainOptionsHtml;
     } else {
@@ -473,7 +487,7 @@ async function updateTrainingStatus() {
         const status = await api('GET', '/skills/training/status');
         if (status.active) {
             const progress = Math.floor(status.progress);
-            const remaining = formatTime(status.remainingSeconds);
+            const remaining = formatTime(status.remaining || 0);
             document.getElementById('training-indicator').innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span>⚔️ Training: ${progress}%</span>
@@ -527,7 +541,7 @@ async function stCollect() {
 async function stCancel() {
     if (!confirm('Cancel training? You will receive a 50% gold refund. Materials are NOT returned.')) return;
     try {
-        const d = await api('POST', '/skills/cancel');
+        const d = await api('POST', '/skills/train/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch (e) {
@@ -559,8 +573,8 @@ function startSkillTreePoll() {
         if (!root || !tab?.classList.contains('active')) return;
         try {
             const status = await api('GET', '/skills/training/status');
-            if (status && _stData) {
-                _stData.activeTraining = status;
+            if (_stData) {
+                _stData.activeTraining = status && status.active ? { ...(_stData.activeTraining || {}), ...status } : null;
                 renderSkillTreeUI(root);
             }
         } catch {}
