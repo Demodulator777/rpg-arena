@@ -14,26 +14,6 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let _stData      = null;   // last fetched skill tree response
 let _stLoading   = false;
-let _stActivityStatus = { traveling: false };
-
-function stNormalizeTrainingStatus(status) {
-    if (!status || status.active === false) return { active: false, traveling: !!status?.traveling, travelTarget: status?.travelTarget || null, travelEndsAt: Number(status?.travelEndsAt || 0) };
-    const remainingSeconds = Number(status.remainingSeconds ?? status.remaining ?? status.timeLeft ?? 0);
-    const progressTarget = Number(status.progressTarget ?? status.progress_target ?? status.target ?? 100);
-    const progress = Math.max(0, Math.min(progressTarget, Number(status.progress ?? status.progress_current ?? 0)));
-    return {
-        ...status,
-        active: !!status.active || remainingSeconds > 0,
-        timeLeft: remainingSeconds,
-        remainingSeconds,
-        progress,
-        progressTarget,
-        traveling: !!status.traveling,
-        travelTarget: status.travelTarget || null,
-        travelEndsAt: Number(status.travelEndsAt || 0),
-        skill_id: status.skill_id || status.skillId,
-    };
-}
 
 // ── Entry point — called by showTab('train') in app.js ───────────────────────
 async function renderSkillTreeTab() {
@@ -41,21 +21,13 @@ async function renderSkillTreeTab() {
     if (!root) return;
     root.innerHTML = stSpinner('Loading skill tree...');
     try {
-        character = await api('GET', '/game/character');
-        const [treeData, statusRaw] = await Promise.all([
-            api('GET', '/skills/tree'),
-            api('GET', '/skills/training/status').catch(() => ({ active: false }))
-        ]);
-        _stData = treeData;
-        _stActivityStatus = stNormalizeTrainingStatus(statusRaw);
-        _stData.activeTraining = _stData.activeTraining?.active ? stNormalizeTrainingStatus(_stData.activeTraining) : (_stActivityStatus.active ? _stActivityStatus : _stData.activeTraining);
+        _stData    = await api('GET', '/skills/tree');
         _stLoading = false;
         renderSkillTreeUI(root);
     } catch (e) {
         root.innerHTML = `<p style="color:var(--red-light);padding:20px">${e.message}</p>`;
     }
 }
-
 
 // ── Main render ───────────────────────────────────────────────────────────────
 function renderSkillTreeUI(root) {
@@ -241,9 +213,9 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
     const maxHours = hasArcaneReservoir ? 12 : 8;
     const now = Math.floor(Date.now() / 1000);
-    const hasActiveMission = window.activeMission === true;
+    const hasActiveMission = window.activeMission === true; // You'll need to track this globally
     const inBattleCooldown = character?.battle_cooldown_ends_at > now;
-    const isTraveling = !!((_stActivityStatus?.traveling) || (character?.travel_target && Number(character?.travel_end_time || 0) > now));
+    const isTraveling = false;
     const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
@@ -498,10 +470,10 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
 
 async function updateTrainingStatus() {
     try {
-        const status = stNormalizeTrainingStatus(await api('GET', '/skills/training/status'));
+        const status = await api('GET', '/skills/training/status');
         if (status.active) {
-            const progress = Math.floor(status.progress || 0);
-            const remaining = formatTime(status.remainingSeconds || 0);
+            const progress = Math.floor(status.progress);
+            const remaining = formatTime(status.remainingSeconds);
             document.getElementById('training-indicator').innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span>⚔️ Training: ${progress}%</span>
@@ -555,7 +527,7 @@ async function stCollect() {
 async function stCancel() {
     if (!confirm('Cancel training? You will receive a 50% gold refund. Materials are NOT returned.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch (e) {
@@ -586,11 +558,9 @@ function startSkillTreePoll() {
         const tab  = document.getElementById('tab-train');
         if (!root || !tab?.classList.contains('active')) return;
         try {
-            const status = stNormalizeTrainingStatus(await api('GET', '/skills/training/status'));
-            _stActivityStatus = status;
-            character = await api('GET', '/game/character');
-            if (_stData) {
-                _stData.activeTraining = status.active ? status : null;
+            const status = await api('GET', '/skills/training/status');
+            if (status && _stData) {
+                _stData.activeTraining = status;
                 renderSkillTreeUI(root);
             }
         } catch {}
