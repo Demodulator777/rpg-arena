@@ -208,7 +208,7 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const learned = sk.learned;
     const trainable = sk.trainable;
     const locked = sk.locked;
-    const training = activeTraining?.skill_id === sk.id;
+    const training = activeTraining?.skill_id === skillKey;
     const progress = sk.progress || 0;
     const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
     const maxHours = hasArcaneReservoir ? 12 : 8;
