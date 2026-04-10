@@ -9,6 +9,8 @@
 
 'use strict';
 
+const { getDb } = require('./db');
+
 // ── Training durations (seconds) ─────────────────────────────────────────────
 const SKILL_TRAIN_DURATIONS = {
     novice:      3600,        //  1 hour
