@@ -2058,18 +2058,24 @@ router.post('/respec', async (req, res) => {
 
 router.post('/train/start', async (req, res) => {
     try {
-        const db = await getDb();
+        const db = await getDb();  // ← THIS RETURNS THE CONNECTION
         const { skillId, branchId, hours, doubleSpeed } = req.body;
         
+        // Use the helpers with the db connection
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Check if already training
-        if (char.training_cooldown_until > Date.now() / 1000) {
+        // Check if already training - use the helper
+        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
+        if (training) {
             return res.status(400).json({ error: 'Already training. Complete or cancel current training.' });
         }
         
-        // Validate hours (1-8, or 1-12 with Arcane Reservoir)
+        // Get current progress
+        const progressRow = await dbGet(db, 'SELECT progress FROM character_skill_tree WHERE char_id = ? AND skill_id = ?', [char.id, skillId]);
+        const currentProgress = progressRow?.progress || 0;
+        
+        // Validate hours
         const activePrem = getActivePremium(char);
         const maxHours = hasPremium(activePrem, 'arcane_reservoir') ? 12 : 8;
         if (hours < 1 || hours > maxHours) {
@@ -2082,20 +2088,14 @@ router.post('/train/start', async (req, res) => {
         const skill = branch?.skills[skillId];
         if (!skill) return res.status(404).json({ error: 'Skill not found' });
         
-        // Calculate target progress (each hour = 1% progress, or 2% with double speed)
+        // Calculate target progress
         const progressPerHour = doubleSpeed ? 2 : 1;
-        const currentProgress = await getSkillProgress(char.id, skillId, db);
         const targetProgress = Math.min(100, currentProgress + (hours * progressPerHour));
-        
-        // Check if player can train past thresholds
-        if (!canTrainPastThreshold(char, skillId, targetProgress, db)) {
-            return res.status(400).json({ error: 'Need materials to continue training this skill' });
-        }
         
         // Deduct gold for double speed
         let goldCost = 0;
         if (doubleSpeed) {
-            goldCost = hours * 500; // 500 gold per hour for double speed
+            goldCost = hours * 500;
             if (char.gold < goldCost) {
                 return res.status(400).json({ error: `Need ${goldCost} gold for double speed training` });
             }
@@ -2105,7 +2105,7 @@ router.post('/train/start', async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const endsAt = now + (hours * 3600);
         
-        // Insert training session
+        // Insert training session - use dbRun helper
         await dbRun(db, `
             INSERT INTO skill_training (char_id, skill_id, branch_id, progress_start, progress_target, hours_to_train, double_speed, started_at, ends_at, last_tick_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2126,7 +2126,6 @@ router.post('/train/start', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-
 router.post('/skills/train/tick', async (req, res) => {
     try {
         const db = await getDb();
