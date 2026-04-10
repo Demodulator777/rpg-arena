@@ -2141,22 +2141,40 @@ router.post('/skills/train/tick', async (req, res) => {
         
         const now = Math.floor(Date.now() / 1000);
         if (now >= training.ends_at) {
-            // Training complete
-            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-            await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
+            // Calculate final progress
+            const hoursElapsed = training.hours_to_train;
+            const progressPerHour = training.double_speed ? 2 : 1;
+            const progressGain = hoursElapsed * progressPerHour;
+            const finalProgress = Math.min(training.progress_target, training.progress_start + progressGain);
             
             // Update skill progress in character_skill_tree
             await dbRun(db, `
                 UPDATE character_skill_tree 
                 SET progress = ? 
                 WHERE char_id = ? AND skill_id = ?
-            `, [training.progress_target, char.id, training.skill_id]);
+            `, [finalProgress, char.id, training.skill_id]);
+            
+            // Check if skill is now complete (100%)
+            if (finalProgress >= 100) {
+                // Mark as learned and apply effects
+                await dbRun(db, `
+                    UPDATE character_skill_tree 
+                    SET learned_at = ? 
+                    WHERE char_id = ? AND skill_id = ?
+                `, [now, char.id, training.skill_id]);
+                
+                // Apply skill effects here...
+            }
+            
+            // Delete training record and clear cooldown
+            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
+            await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
             
             return res.json({ 
                 active: false, 
                 complete: true,
-                message: 'Training complete!',
-                newProgress: training.progress_target
+                newProgress: finalProgress,
+                skillLearned: finalProgress >= 100
             });
         }
         
@@ -2195,7 +2213,6 @@ router.post('/skills/train/tick', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-
 // Add to skills.js - Progressive calculation helpers
 
 async function getSkillProgress(db, charId, skillId) {
