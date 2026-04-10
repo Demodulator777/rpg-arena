@@ -192,21 +192,19 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass) {
         <div style="display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding-bottom:4px">
     `;
 
-    // Render skills in tier order
-    const sorted = Object.values(branch.skills).sort((a, b) => (a.tier || 0) - (b.tier || 0));
-    for (let i = 0; i < sorted.length; i++) {
-        const sk = sorted[i];
-        if (i > 0) html += renderConnector(sorted[i-1], sk);
-        html += renderSkillCard(sk, bc, activeTraining, branchId, charClass);
+    // Render skills in tier order - FIX: Use Object.entries to get both key and value
+    const sortedEntries = Object.entries(branch.skills).sort(([,a], [,b]) => (a.tier || 0) - (b.tier || 0));
+    for (let i = 0; i < sortedEntries.length; i++) {
+        const [skillKey, sk] = sortedEntries[i];
+        if (i > 0) html += renderConnector(sortedEntries[i-1][1], sk);
+        html += renderSkillCard(skillKey, sk, bc, activeTraining, branchId, charClass);
     }
 
     html += `</div></div>`;
     return html;
 }
 
-// ── Skill card ────────────────────────────────────────────────────────────────
-// ── Skill card ────────────────────────────────────────────────────────────────
-function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
+function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, charClass) {
     const learned = sk.learned;
     const trainable = sk.trainable;
     const locked = sk.locked;
@@ -234,15 +232,11 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         labelColor = 'rgba(255,255,255,0.2)';
     }
 
-    // For locked/unseen skills, show mystery text
     const displayName = locked && !learned ? '???' : sk.name;
     const displayDesc = locked && !learned ? 'Unknown skill. Train previous skills to discover.' : sk.desc;
     const displayEmoji = locked && !learned ? '❓' : (sk.emoji || '⚔️');
-
-    // Effect summary - hide for locked skills
     const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) : '';
 
-    // Progress bar for skills in training or with partial progress
     let progressHtml = '';
     if (training && activeTraining) {
         const trainProgress = activeTraining.progress || 0;
@@ -272,14 +266,12 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         `;
     }
     
-    // Next threshold material cost
     let thresholdHtml = '';
     if (trainable && sk.nextThresholdCost && Object.keys(sk.nextThresholdCost).length > 0) {
         const matStrs = Object.entries(sk.nextThresholdCost).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
         thresholdHtml = `<div style="font-size: 0.6rem; color: #f39c12; margin-top: 4px; text-align: center;">🔓 Next: ${matStrs.join(', ')}</div>`;
     }
 
-    // Cost display
     let costHtml = '';
     if (!learned && !training && trainable) {
         costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
@@ -292,7 +284,6 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.15);margin-top:3px">???</div>`;
     }
 
-    // Training options (hours selector + buttons)
     let trainOptionsHtml = '';
     if (trainable && !training && !learned) {
         const hoursOptions = [];
@@ -325,7 +316,6 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         `;
     }
 
-    // Button for learned or training state
     let btnHtml = '';
     if (learned) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
@@ -359,7 +349,6 @@ function renderSkillCard(sk, branchColor, activeTraining, branchId, charClass) {
         ${!locked && sk.tier ? `<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>` : ''}
     </div>`;
 }
-
 async function stCancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
     try {
