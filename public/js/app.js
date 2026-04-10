@@ -19,6 +19,7 @@ let playerTravelEndTime = 0;
 let playerTravelStartTime = 0;
 const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
+let trainingInterval = null;
 
 async function loadAbyssData() {
     try {
@@ -727,6 +728,43 @@ function renderLoadoutRoundTabs() {
             </div>
         </div>`;
     }).join('');
+}
+
+async function checkTrainingStatus() {
+    try {
+        const status = await api('GET', '/skills/training/status');
+        const overlay = document.getElementById('training-overlay');
+        if (!overlay) return;
+        
+        if (status.active) {
+            const remaining = status.remainingSeconds;
+            const progress = status.progress || 0;
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            const percent = Math.floor(progress);
+            
+            document.getElementById('training-skill-name').textContent = `Training: ${status.skillId.replace(/_/g, ' ')}`;
+            document.getElementById('training-overlay-timer').textContent = `${m}:${String(s).padStart(2, '0')}`;
+            document.getElementById('training-overlay-fill').style.width = `${percent}%`;
+            document.getElementById('training-progress-text').textContent = `${percent}% complete`;
+            
+            overlay.classList.remove('hidden');
+        } else {
+            overlay.classList.add('hidden');
+            if (trainingInterval) {
+                clearInterval(trainingInterval);
+                trainingInterval = null;
+            }
+        }
+    } catch(e) {
+        console.error('Failed to check training status:', e);
+    }
+}
+
+// Start polling for training status (every second for smooth countdown)
+function startTrainingPolling() {
+    if (trainingInterval) clearInterval(trainingInterval);
+    trainingInterval = setInterval(checkTrainingStatus, 1000);
 }
 
 function renderLoadoutDotGrid(type) {
