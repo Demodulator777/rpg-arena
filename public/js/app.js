@@ -736,43 +736,50 @@ async function checkTrainingStatus() {
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
 
-        if (status && status.active) {
-            const remaining = status.remaining || 0;
-            const progress = status.progress || 0;
-            const target = status.target || 100;
+        const isActive =
+            status?.active === true ||
+            !!status?.skill_id ||
+            !!status?.skillId;
+
+        if (isActive) {
+            const remaining = Math.max(
+                0,
+                status.remaining ?? ((status.ends_at || status.endsAt || 0) - Math.floor(Date.now() / 1000))
+            );
+
+            const progress = status.progress ?? status.progress_current ?? 0;
+            const target = status.target ?? status.progress_target ?? 100;
             const percent = target > 0 ? Math.floor((progress / target) * 100) : 0;
+
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
 
-            const skillNameEl = document.getElementById('training-skill-name');
-            const timerEl = document.getElementById('training-overlay-timer');
-            const fillEl = document.getElementById('training-overlay-fill');
-            const progressTextEl = document.getElementById('training-progress-text');
+            document.getElementById('training-skill-name').textContent =
+                `Training: ${(status.skillName || status.skill_id || status.skillId || '').replace(/_/g,' ')}`;
 
-            const label = status.skillName || (status.skillId || status.skill_id || '').replace(/_/g, ' ');
+            document.getElementById('training-overlay-timer').textContent =
+                `${m}:${String(s).padStart(2,'0')}`;
 
-            if (skillNameEl) skillNameEl.textContent = `Training: ${label}`;
-            if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
-            if (fillEl) fillEl.style.width = `${percent}%`;
-            if (progressTextEl) progressTextEl.textContent = `${percent}% complete`;
+            document.getElementById('training-progress-text').textContent =
+                `${percent}% complete`;
+
+            document.getElementById('training-overlay-fill').style.width =
+                `${percent}%`;
 
             overlay.classList.remove('hidden');
         } else {
             overlay.classList.add('hidden');
-            if (trainingInterval) {
-                clearInterval(trainingInterval);
-                trainingInterval = null;
-            }
         }
-    } catch(e) {
+    } catch (e) {
         console.error('Failed to check training status:', e);
     }
 }
 
+
 // Start polling for training status (every second for smooth countdown)
 function startTrainingPolling() {
     if (trainingInterval) clearInterval(trainingInterval);
-    trainingInterval = setInterval(checkTrainingStatus, 1000);
+    checkTrainingStatus(); trainingInterval = setInterval(checkTrainingStatus, 1000);
 }
 
 function renderLoadoutDotGrid(type) {
@@ -4103,8 +4110,6 @@ function showBugReportStatus(message, type) {
 // Initialize bug report system when DOM loads
 document.addEventListener('DOMContentLoaded', () => {
     initBugReport();
-    startTrainingPolling();
-    checkTrainingStatus();
 });
 
 async function updateTrainingStatus() {
@@ -4115,7 +4120,7 @@ async function updateTrainingStatus() {
         
         if (status.active) {
             const progress = Math.floor(status.progress);
-            const remaining = formatTrainingTime(status.remaining || 0);
+            const remaining = formatTrainingTime(status.remainingSeconds);
             indicator.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span style="font-size: 0.75rem;">⚔️ ${progress}%</span>
