@@ -438,6 +438,11 @@ function startPolling() {
     },600000);
     unreadTimer=setInterval(pollUnread,600000);
     pollUnread();
+    
+    // ADD THIS - Training status polling (every second)
+    setInterval(() => {
+        checkTrainingStatus();
+    }, 1000);
 }
 async function pollUnread() {
     try {
