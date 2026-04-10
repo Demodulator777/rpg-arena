@@ -736,11 +736,9 @@ async function checkTrainingStatus() {
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
         
-        // If status exists and has an id, training is active
+        // Fix: Check if status exists and has an id (not status.active)
         if (status && status.id) {
-            // Calculate remaining time if not provided
-            const now = Math.floor(Date.now() / 1000);
-            const remaining = status.remainingSeconds || (status.ends_at - now);
+            const remaining = status.remainingSeconds || (status.ends_at - Math.floor(Date.now() / 1000));
             const progress = status.progress || 0;
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
