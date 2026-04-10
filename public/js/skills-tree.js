@@ -22,17 +22,6 @@ async function renderSkillTreeTab() {
     root.innerHTML = stSpinner('Loading skill tree...');
     try {
         _stData    = await api('GET', '/skills/tree');
-        if (_stData && _stData.activeTraining) {
-            _stData.activeTraining = {
-                ..._stData.activeTraining,
-                skill_id: _stData.activeTraining.skill_id || _stData.activeTraining.skillId,
-                skillName: _stData.activeTraining.skillName || _stData.activeTraining.skill_id || _stData.activeTraining.skillId,
-                timeLeft: _stData.activeTraining.timeLeft || _stData.activeTraining.remaining || 0,
-                remaining: _stData.activeTraining.remaining || _stData.activeTraining.timeLeft || 0
-            };
-            if (typeof startTrainingPolling === 'function') startTrainingPolling();
-            if (typeof checkTrainingStatus === 'function') checkTrainingStatus();
-        }
         _stLoading = false;
         renderSkillTreeUI(root);
     } catch (e) {
@@ -125,8 +114,8 @@ function renderSkillTreeUI(root) {
 
     // ── Active training session ───────────────────────────────────────────────
     if (activeTraining) {
-        const done = !!activeTraining.done;
-        const left = activeTraining.remaining || activeTraining.timeLeft || 0;
+        const done = activeTraining.done;
+        const left = activeTraining.timeLeft || 0;
         const timeStr = stFormatTime(left);
         html += `
         <div id="st-training-bar" style="padding:14px 16px;border-radius:10px;
@@ -135,7 +124,7 @@ function renderSkillTreeUI(root) {
                   margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="flex:1">
                 <div style="font-weight:700;font-size:0.9rem;color:${done?'#2ecc71':accent}">
-                    ${done ? '✅ Training Complete!' : `⏳ Training: ${(activeTraining.skillName || activeTraining.skill_id || activeTraining.skillId || '').replace(/_/g,' ')}`}
+                    ${done ? '✅ Training Complete!' : `⏳ Training: ${activeTraining.skill_id.replace(/_/g,' ')}`}
                 </div>
                 <div style="font-size:0.74rem;color:rgba(255,255,255,0.4);margin-top:3px">
                     ${done ? 'Collect your new skill below.' : `${timeStr} remaining`}
@@ -219,14 +208,14 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const learned = sk.learned;
     const trainable = sk.trainable;
     const locked = sk.locked;
-    const training = (activeTraining?.skill_id || activeTraining?.skillId) === skillKey;
+    const training = activeTraining?.skill_id === skillKey;
     const progress = sk.progress || 0;
     const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
     const maxHours = hasArcaneReservoir ? 12 : 8;
     const now = Math.floor(Date.now() / 1000);
     const hasActiveMission = window.activeMission === true; // You'll need to track this globally
     const inBattleCooldown = character?.battle_cooldown_ends_at > now;
-    const isTraveling = false;
+    const isTraveling = window.playerTravelTarget !== null;
     const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
@@ -271,7 +260,7 @@ if (locked && !learned && !training) {
                     ${Math.floor(trainProgress)}% complete
                 </div>
                 <div style="font-size: 0.55rem; color: #f1c40f; text-align: center; margin-top: 2px;">
-                    ⏳ ${stFormatTime(activeTraining.remaining || activeTraining.timeLeft || 0)} remaining
+                    ⏳ ${stFormatTime(activeTraining.timeLeft)} remaining
                 </div>
             </div>
         `;
@@ -348,7 +337,7 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
     if (learned) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
     } else if (training) {
-        btnHtml = `<button onclick="stCancelTraining()"
+        btnHtml = `<button onclick="stCancel()"
             style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
                    background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
                    cursor:pointer;transition:all 0.15s"
@@ -380,7 +369,7 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
 async function stCancel() {
     if (!confirm('Cancel current training?')) return;
     try {
-        await api('POST', '/skills/train/cancel');
+        await api('POST', '/skills/cancel');
         hideTrainingOverlay();           // ← Important
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
@@ -484,7 +473,7 @@ async function updateTrainingStatus() {
         const status = await api('GET', '/skills/training/status');
         if (status.active) {
             const progress = Math.floor(status.progress);
-            const remaining = formatTime(status.remaining || 0);
+            const remaining = formatTime(status.remainingSeconds);
             document.getElementById('training-indicator').innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span>⚔️ Training: ${progress}%</span>
@@ -514,7 +503,7 @@ function formatTime(seconds) {
 async function cancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch(e) {
@@ -538,7 +527,7 @@ async function stCollect() {
 async function stCancel() {
     if (!confirm('Cancel training? You will receive a 50% gold refund. Materials are NOT returned.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch (e) {
@@ -570,18 +559,8 @@ function startSkillTreePoll() {
         if (!root || !tab?.classList.contains('active')) return;
         try {
             const status = await api('GET', '/skills/training/status');
-            if (_stData) {
-                if (status && status.active) {
-                    _stData.activeTraining = {
-                        ...status,
-                        skill_id: status.skill_id || status.skillId,
-                        timeLeft: status.timeLeft || status.remaining || 0,
-                        remaining: status.remaining || status.timeLeft || 0,
-                        done: false
-                    };
-                } else {
-                    _stData.activeTraining = null;
-                }
+            if (status && _stData) {
+                _stData.activeTraining = status;
                 renderSkillTreeUI(root);
             }
         } catch {}
