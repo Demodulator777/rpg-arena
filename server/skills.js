@@ -1716,8 +1716,7 @@ async function loadCharWithSkills(db, userId) {
     const c = char.rows[0];
     if (!c) return { char: null, learned: [], learnedMap: {} };
     const rows = await db.execute({
-        sql: 'SELECT skill_id FROM character_skill_tree WHERE char_id=? AND learned_at > 0',
-        args: [c.id]
+        sql: 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', args: [c.id]
     });
     const learned = rows.rows.map(r => r.skill_id);
     const learnedMap = Object.fromEntries(learned.map(s => [s, true]));
@@ -1754,11 +1753,7 @@ router.get('/tree', async (req, res) => {
         if (activeTraining) {
             const now = Math.floor(Date.now() / 1000);
             activeTraining.timeLeft = Math.max(0, activeTraining.ends_at - now);
-            activeTraining.remaining = activeTraining.timeLeft;
-            activeTraining.skillName = activeTraining.skill_id.replace(/_/g,' ');
-            activeTraining.progress = activeTraining.progress_current || activeTraining.progress || 0;
-            activeTraining.target = activeTraining.progress_target || 100;
-            activeTraining.done = now >= activeTraining.ends_at && (activeTraining.progress >= activeTraining.target);
+            activeTraining.done = now >= activeTraining.ends_at;
         }
 
         res.json({
