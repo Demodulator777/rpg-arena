@@ -2039,9 +2039,9 @@ router.post('/missions/collect', auth, async (req, res) => {
         // ── Skill tree passive bonuses ──────────────────────────────────────
         const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshChar.id]);
         const learnedIds = learnedRows.map(r => r.skill_id);
-        const skillPassives = computePassiveBonuses(freshChar.class, learnedIds);
-        const skillActives  = computeActiveCombatEffects(freshChar.class, learnedIds);
-        const skillMods     = computeClassModifiers(freshChar.class, learnedIds);
+        const skillPassives = await computePassiveBonusesWithProgress(db, freshChar.class, learnedIds, freshChar.id);
+const skillActives  = await computeActiveCombatEffectsWithProgress(db, freshChar.class, learnedIds, freshChar.id);
+const skillMods     = await computeClassModifiersWithProgress(db, freshChar.class, learnedIds, freshChar.id);
         
         // Rogue no-shield agility bonus
 let noShieldAgiBonus = 0;
