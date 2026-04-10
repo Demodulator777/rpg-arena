@@ -286,20 +286,23 @@
                         </div>
                     </div>
 
-                    <!-- Training Overlay -->
-<div id="training-overlay" class="travel-overlay hidden">
-    <div class="travel-overlay-inner">
-        <div class="mission-overlay-badge" style="border-color:rgba(155,89,182,0.4);color:#9b59b6">⚔️ SKILL TRAINING</div>
-        <div class="travel-overlay-name" style="color:var(--text-bright)">Training in Progress</div>
-        <div id="training-skill-name" class="travel-overlay-from"></div>
-        <div id="training-overlay-timer" class="mission-overlay-timer" style="color:#9b59b6">0:00</div>
-        <div class="mission-overlay-progress-track">
-            <div id="training-overlay-fill" class="mission-overlay-progress-fill" style="background:#9b59b6"></div>
+<!-- Training Overlay -->
+<div id="training-overlay" class="mission-overlay hidden">
+    <div class="mission-overlay-container">
+        <div class="mission-overlay-header">
+            <span class="mission-overlay-icon">⚔️</span>
+            <span id="training-skill-name" class="mission-overlay-title">Training...</span>
         </div>
-        <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
-        <button id="training-cancel-btn" class="btn-cancel-travel" 
-            style="border-color:rgba(231,76,60,0.5);color:#e74c3c;background:rgba(231,76,60,0.15)"
-            onclick="cancelTraining()">Cancel Training</button>
+        <div class="mission-overlay-timer-container">
+            <span id="training-overlay-timer" class="mission-overlay-timer">0:00</span>
+            <div class="mission-overlay-progress">
+                <div id="training-overlay-fill" class="mission-overlay-progress-fill" style="width:0%"></div>
+            </div>
+            <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
+        </div>
+        <div class="mission-overlay-actions">
+            <button onclick="stCancel()" class="btn-sm danger" style="background:rgba(231,76,60,0.2);border-color:#e74c3c;">Cancel</button>
+        </div>
     </div>
 </div>
 
