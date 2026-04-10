@@ -352,7 +352,7 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
 async function stCancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
