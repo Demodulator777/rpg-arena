@@ -82,6 +82,56 @@ const DEFAULT_THRESHOLDS = {
     }),
 };
 
+// Add these after DEFAULT_THRESHOLDS
+
+// Mage thresholds (arcane shards instead of iron)
+const MAGE_THRESHOLDS = {
+    tier2: createThresholds({
+        10: {}, 25: { arcane_shard: 2 }, 50: { arcane_shard: 4 }, 75: { void_shard: 2 }, 100: { void_shard: 3 }
+    }),
+    tier3: createThresholds({
+        10: {}, 25: { void_shard: 3 }, 50: { void_shard: 5 }, 75: { dragon_scale_shard: 2 }, 100: { dragon_scale_shard: 3 }
+    }),
+    tier4: createThresholds({
+        10: {}, 25: { dragon_scale_shard: 3 }, 50: { dragon_scale_shard: 5 }, 75: { void_crystal: 2 }, 100: { void_crystal: 3 }
+    }),
+    tier5: createThresholds({
+        10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 3 }, 75: { legendary_fragment: 5 }, 100: { demon_core: 2 }
+    }),
+};
+
+// Rogue thresholds (leather/shadow essence)
+const ROGUE_THRESHOLDS = {
+    tier2: createThresholds({
+        10: {}, 25: { tanned_hide: 3 }, 50: { tanned_hide: 5 }, 75: { shadow_essence: 2 }, 100: { shadow_essence: 3 }
+    }),
+    tier3: createThresholds({
+        10: {}, 25: { shadow_essence: 3 }, 50: { shadow_essence: 5 }, 75: { poison_extract: 3 }, 100: { poison_extract: 5 }
+    }),
+    tier4: createThresholds({
+        10: {}, 25: { poison_extract: 5 }, 50: { void_crystal: 2 }, 75: { void_crystal: 3 }, 100: { legendary_fragment: 2 }
+    }),
+    tier5: createThresholds({
+        10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { shadow_weave: 2 }, 100: { demon_core: 2 }
+    }),
+};
+
+// Paladin thresholds (holy essence)
+const PALADIN_THRESHOLDS = {
+    tier2: createThresholds({
+        10: {}, 25: { arcane_shard: 2 }, 50: { arcane_shard: 4 }, 75: { holy_essence: 2 }, 100: { holy_essence: 3 }
+    }),
+    tier3: createThresholds({
+        10: {}, 25: { holy_essence: 3 }, 50: { holy_essence: 5 }, 75: { dragon_scale_shard: 2 }, 100: { dragon_scale_shard: 3 }
+    }),
+    tier4: createThresholds({
+        10: {}, 25: { dragon_scale_shard: 3 }, 50: { dragon_scale_shard: 5 }, 75: { void_crystal: 2 }, 100: { void_crystal: 3 }
+    }),
+    tier5: createThresholds({
+        10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 3 }, 75: { legendary_fragment: 5 }, 100: { demon_alloy: 2 }
+    }),
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SKILL TREES
 // ═══════════════════════════════════════════════════════════════════════════════
