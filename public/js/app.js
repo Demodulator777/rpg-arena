@@ -736,13 +736,16 @@ async function checkTrainingStatus() {
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
         
-        // Fix: Check if status exists and has an id (not status.active)
+        // Fix: Check if status exists and has an id
         if (status && status.id) {
-            const remaining = status.remainingSeconds || (status.ends_at - Math.floor(Date.now() / 1000));
-            const progress = status.progress || 0;
+            // Use timeLeft instead of remainingSeconds
+            const remaining = status.timeLeft || 0;
+            // Use progress_current instead of progress
+            const progress = status.progress_current || 0;
+            const target = status.progress_target || 100;
+            const percent = target > 0 ? Math.floor((progress / target) * 100) : 0;
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
-            const percent = Math.floor(progress);
             
             const skillNameEl = document.getElementById('training-skill-name');
             const timerEl = document.getElementById('training-overlay-timer');
