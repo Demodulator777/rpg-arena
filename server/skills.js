@@ -2120,6 +2120,125 @@ router.post('/skills/train/tick', auth, async (req, res) => {
     }
 });
 
+// Add to skills.js - Progressive calculation helpers
+
+async function getSkillProgress(db, charId, skillId) {
+    const result = await db.execute({
+        sql: 'SELECT progress FROM character_skill_tree WHERE char_id = ? AND skill_id = ?',
+        args: [charId, skillId]
+    });
+    return result.rows[0]?.progress || 0;
+}
+
+async function getAllSkillProgress(db, charId) {
+    const result = await db.execute({
+        sql: 'SELECT skill_id, progress FROM character_skill_tree WHERE char_id = ?',
+        args: [charId]
+    });
+    const progressMap = {};
+    for (const row of result.rows) {
+        progressMap[row.skill_id] = row.progress;
+    }
+    return progressMap;
+}
+
+function calculateEffectiveEffects(skill, progress) {
+    const effectiveness = Math.min(1, progress / 100);
+    const effectiveEffects = [];
+    
+    for (const effect of (skill.effects || [])) {
+        const effectiveEffect = { ...effect };
+        
+        if (effect.dmg_bonus) effectiveEffect.dmg_bonus = effect.dmg_bonus * effectiveness;
+        if (effect.crit_bonus) effectiveEffect.crit_bonus = effect.crit_bonus * effectiveness;
+        if (effect.dodge_bonus) effectiveEffect.dodge_bonus = effect.dodge_bonus * effectiveness;
+        if (effect.block_bonus) effectiveEffect.block_bonus = effect.block_bonus * effectiveness;
+        if (effect.reflect_pct) effectiveEffect.reflect_pct = effect.reflect_pct * effectiveness;
+        if (effect.heal_pct) effectiveEffect.heal_pct = effect.heal_pct * effectiveness;
+        if (effect.dot_pct) effectiveEffect.dot_pct = effect.dot_pct * effectiveness;
+        if (effect.poison_pct) effectiveEffect.poison_pct = effect.poison_pct * effectiveness;
+        if (effect.counter_dmg_pct) effectiveEffect.counter_dmg_pct = effect.counter_dmg_pct * effectiveness;
+        if (effect.atk_dmg_bonus) effectiveEffect.atk_dmg_bonus = effect.atk_dmg_bonus * effectiveness;
+        if (effect.block_penalty) effectiveEffect.block_penalty = effect.block_penalty * effectiveness;
+        
+        effectiveEffects.push(effectiveEffect);
+    }
+    
+    return { effects: effectiveEffects, effectiveness };
+}
+
+async function computePassiveBonusesWithProgress(db, className, learnedSkillIds, charId) {
+    const tree = SKILL_TREES[className];
+    if (!tree) return {};
+    const bonuses = {};
+    const progressMap = await getAllSkillProgress(db, charId);
+    
+    for (const branch of Object.values(tree.branches)) {
+        for (const sk of Object.values(branch.skills)) {
+            if (!learnedSkillIds.includes(sk.id)) continue;
+            const progress = progressMap[sk.id] || 0;
+            const effectiveness = Math.min(1, progress / 100);
+            
+            for (const eff of (sk.effects || [])) {
+                if (eff.type === 'passive_pct') {
+                    bonuses[eff.stat] = (bonuses[eff.stat] || 0) + (eff.value * effectiveness);
+                } else if (eff.type === 'passive_stat') {
+                    bonuses[eff.stat] = (bonuses[eff.stat] || 0) + (eff.value * effectiveness);
+                } else if (eff.type === 'resist_bonus') {
+                    for (const elem of (eff.elems || [])) {
+                        bonuses[`${elem}_resist`] = (bonuses[`${elem}_resist`] || 0) + (eff.value * effectiveness);
+                    }
+                }
+            }
+        }
+    }
+    return bonuses;
+}
+
+async function computeActiveCombatEffectsWithProgress(db, className, learnedSkillIds, charId) {
+    const tree = SKILL_TREES[className];
+    if (!tree) return [];
+    const effects = [];
+    const progressMap = await getAllSkillProgress(db, charId);
+    
+    for (const branch of Object.values(tree.branches)) {
+        for (const sk of Object.values(branch.skills)) {
+            if (!learnedSkillIds.includes(sk.id)) continue;
+            const progress = progressMap[sk.id] || 0;
+            const { effects: effectiveEffects } = calculateEffectiveEffects(sk, progress);
+            
+            for (const eff of effectiveEffects) {
+                if (eff.type === 'active_combat') effects.push({ ...eff, sourceSkill: sk.id });
+            }
+        }
+    }
+    return effects;
+}
+
+async function computeClassModifiersWithProgress(db, className, learnedSkillIds, charId) {
+    const tree = SKILL_TREES[className];
+    if (!tree) return [];
+    const mods = [];
+    const progressMap = await getAllSkillProgress(db, charId);
+    
+    for (const branch of Object.values(tree.branches)) {
+        for (const sk of Object.values(branch.skills)) {
+            if (!learnedSkillIds.includes(sk.id)) continue;
+            const progress = progressMap[sk.id] || 0;
+            const effectiveness = Math.min(1, progress / 100);
+            
+            for (const eff of (sk.effects || [])) {
+                if (eff.type === 'class_modifier') {
+                    const effectiveEff = { ...eff };
+                    if (eff.off_hand_dmg_pct) effectiveEff.off_hand_dmg_pct = eff.off_hand_dmg_pct * effectiveness;
+                    mods.push(effectiveEff);
+                }
+            }
+        }
+    }
+    return mods;
+}
+
 module.exports = {
     router,
     SKILL_TREES,
