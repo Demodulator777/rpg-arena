@@ -2295,6 +2295,7 @@ module.exports = {
     SKILL_TRAIN_DURATIONS,
     UNLOCK_CONDITIONS,
     SKILL_TREE_MIGRATIONS,
+    // Old functions (keep for compatibility)
     computePassiveBonuses,
     computeActiveCombatEffects,
     computeClassModifiers,
@@ -2303,4 +2304,11 @@ module.exports = {
     magePath,
     meetsUnlockCondition,
     getVisibleSkillTree,
+    // NEW progressive functions
+    computePassiveBonusesWithProgress,
+    computeActiveCombatEffectsWithProgress,
+    computeClassModifiersWithProgress,
+    getSkillProgress,
+    getAllSkillProgress,
+    calculateEffectiveEffects,
 };
