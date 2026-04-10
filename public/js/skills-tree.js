@@ -21,11 +21,18 @@ async function renderSkillTreeTab() {
     if (!root) return;
     root.innerHTML = stSpinner('Loading skill tree...');
     try {
-        _stData = await api('GET', '/skills/tree');
-        try {
-            const status = await api('GET', '/skills/training/status');
-            _stData.activeTraining = status && status.active ? { ...(_stData.activeTraining || {}), ...status } : null;
-        } catch {}
+        _stData    = await api('GET', '/skills/tree');
+        if (_stData && _stData.activeTraining) {
+            _stData.activeTraining = {
+                ..._stData.activeTraining,
+                skill_id: _stData.activeTraining.skill_id || _stData.activeTraining.skillId,
+                skillName: _stData.activeTraining.skillName || _stData.activeTraining.skill_id || _stData.activeTraining.skillId,
+                timeLeft: _stData.activeTraining.timeLeft || _stData.activeTraining.remaining || 0,
+                remaining: _stData.activeTraining.remaining || _stData.activeTraining.timeLeft || 0
+            };
+            if (typeof startTrainingPolling === 'function') startTrainingPolling();
+            if (typeof checkTrainingStatus === 'function') checkTrainingStatus();
+        }
         _stLoading = false;
         renderSkillTreeUI(root);
     } catch (e) {
@@ -118,8 +125,8 @@ function renderSkillTreeUI(root) {
 
     // ── Active training session ───────────────────────────────────────────────
     if (activeTraining) {
-        const done = !!(activeTraining.done || activeTraining.collectible);
-        const left = activeTraining.remaining ?? activeTraining.timeLeft ?? 0;
+        const done = !!activeTraining.done;
+        const left = activeTraining.remaining || activeTraining.timeLeft || 0;
         const timeStr = stFormatTime(left);
         html += `
         <div id="st-training-bar" style="padding:14px 16px;border-radius:10px;
@@ -128,7 +135,7 @@ function renderSkillTreeUI(root) {
                   margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="flex:1">
                 <div style="font-weight:700;font-size:0.9rem;color:${done?'#2ecc71':accent}">
-                    ${done ? '✅ Training Complete!' : `⏳ Training: ${(activeTraining.skillName || activeTraining.skill_id || '').replace(/_/g,' ')}`}
+                    ${done ? '✅ Training Complete!' : `⏳ Training: ${(activeTraining.skillName || activeTraining.skill_id || activeTraining.skillId || '').replace(/_/g,' ')}`}
                 </div>
                 <div style="font-size:0.74rem;color:rgba(255,255,255,0.4);margin-top:3px">
                     ${done ? 'Collect your new skill below.' : `${timeStr} remaining`}
@@ -212,14 +219,14 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const learned = sk.learned;
     const trainable = sk.trainable;
     const locked = sk.locked;
-    const training = activeTraining?.skill_id === skillKey;
+    const training = (activeTraining?.skill_id || activeTraining?.skillId) === skillKey;
     const progress = sk.progress || 0;
     const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
     const maxHours = hasArcaneReservoir ? 12 : 8;
     const now = Math.floor(Date.now() / 1000);
     const hasActiveMission = window.activeMission === true; // You'll need to track this globally
-    const inBattleCooldown = (character?.attack_cooldown_until || 0) > now;
-    const isTraveling = !!activeTraining?.traveling;
+    const inBattleCooldown = character?.battle_cooldown_ends_at > now;
+    const isTraveling = false;
     const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
@@ -255,7 +262,6 @@ if (locked && !learned && !training) {
     let progressHtml = '';
     if (training && activeTraining) {
         const trainProgress = activeTraining.progress || 0;
-        const trainRemaining = activeTraining.remaining ?? activeTraining.timeLeft ?? 0;
         progressHtml = `
             <div style="margin-top: 8px;">
                 <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 4px; overflow: hidden;">
@@ -265,7 +271,7 @@ if (locked && !learned && !training) {
                     ${Math.floor(trainProgress)}% complete
                 </div>
                 <div style="font-size: 0.55rem; color: #f1c40f; text-align: center; margin-top: 2px;">
-                    ⏳ ${stFormatTime(trainRemaining)} remaining
+                    ⏳ ${stFormatTime(activeTraining.remaining || activeTraining.timeLeft || 0)} remaining
                 </div>
             </div>
         `;
@@ -342,23 +348,14 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
     if (learned) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
     } else if (training) {
-        if (activeTraining?.done || activeTraining?.collectible) {
-            btnHtml = `<button onclick="stCollect()"
-                style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #2ecc7166;
-                       background:rgba(46,204,113,0.15);color:#2ecc71;font-size:0.68rem;font-weight:700;
-                       cursor:pointer;transition:all 0.15s">
-                Collect Skill
-            </button>`;
-        } else {
-            btnHtml = `<button onclick="stCancel()"
-                style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
-                       background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
-                       cursor:pointer;transition:all 0.15s"
-                onmouseenter="this.style.background='rgba(231,76,60,0.3)'"
-                onmouseleave="this.style.background='rgba(231,76,60,0.15)'">
-                Cancel Training
-            </button>`;
-        }
+        btnHtml = `<button onclick="stCancelTraining()"
+            style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
+                   background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
+                   cursor:pointer;transition:all 0.15s"
+            onmouseenter="this.style.background='rgba(231,76,60,0.3)'"
+            onmouseleave="this.style.background='rgba(231,76,60,0.15)'">
+            Cancel Training
+        </button>`;
     } else if (trainable) {
         btnHtml = trainOptionsHtml;
     } else {
@@ -574,7 +571,17 @@ function startSkillTreePoll() {
         try {
             const status = await api('GET', '/skills/training/status');
             if (_stData) {
-                _stData.activeTraining = status && status.active ? { ...(_stData.activeTraining || {}), ...status } : null;
+                if (status && status.active) {
+                    _stData.activeTraining = {
+                        ...status,
+                        skill_id: status.skill_id || status.skillId,
+                        timeLeft: status.timeLeft || status.remaining || 0,
+                        remaining: status.remaining || status.timeLeft || 0,
+                        done: false
+                    };
+                } else {
+                    _stData.activeTraining = null;
+                }
                 renderSkillTreeUI(root);
             }
         } catch {}
