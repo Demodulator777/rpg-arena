@@ -3862,32 +3862,74 @@ function showShopItemTooltip(event, itemJson) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
-    
+
     let item;
     try {
         item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson;
-    } catch(e) {
+    } catch (e) {
         return;
     }
-    
-    const qColor = { legendary: '#ffd700', rare: '#9b59b6', common: 'rgba(255,255,255,0.5)' }[item.quality || 'common'];
-    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png` : null);
-    
-    // Calculate sell price with premium (for shop, we show buy price, not sell)
-    let buyPrice = item.price;
-    let priceType = item.priceType || 'gold';
-    let priceIcon = priceType === 'gems' ? '💎' : '💰';
-    
-    // Build stats HTML
-    let statsHtml = '';
-    if (item.stats) {
-        for (const [stat, value] of Object.entries(item.stats)) {
-            if (value === 0) continue;
-            const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
-            statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">+${value}</span></div>`;
+
+    const qColor = {
+        legendary: '#ffd700',
+        rare: '#9b59b6',
+        common: 'rgba(255,255,255,0.5)'
+    }[item.quality || 'common'];
+
+    const imgSrc =
+        item.img ||
+        (item.name && !item.consumable
+            ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`
+            : null);
+
+    const priceType = item.priceType || 'gold';
+    const priceIcon = priceType === 'gems' ? '💎' : '💰';
+    const buyPrice = item.price || 0;
+    const gemCost = item.gemCost || 0;
+
+    // Normalize slot for comparison
+    let itemSlot = item.slot || item.category || 'item';
+    let equippedItem = null;
+
+    if (character?.equipped) {
+        if (itemSlot === 'ring' || itemSlot === 'amulet') {
+            itemSlot = 'jewelry';
+            equippedItem = character.equipped.ring || character.equipped.amulet || null;
+        } else {
+            equippedItem = character.equipped[itemSlot] || null;
         }
     }
-    
+
+    // Build compared stat list like inventory tooltip
+    let statsHtml = '';
+    const allStats = new Set([
+        ...Object.keys(item.stats || {}),
+        ...Object.keys(equippedItem?.stats || {})
+    ].filter(k => !k.includes('type')));
+
+    for (const stat of allStats) {
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
+
+        const nv = item.stats?.[stat] || 0;
+        const ov = equippedItem?.stats?.[stat] || 0;
+        const diff = nv - ov;
+
+        // Skip useless empty rows
+        if (nv === 0 && ov === 0) continue;
+
+        const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
+        const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
+        const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
+
+        statsHtml += `
+            <div class="tt-stat">
+                <span class="tt-stat-name">${label}</span>
+                <span class="tt-stat-val">${nv > 0 ? '+' : ''}${nv}</span>
+                ${equippedItem && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}
+            </div>
+        `;
+    }
+
     // Effect for consumables
     let effectHtml = '';
     if (item.effect) {
@@ -3898,37 +3940,63 @@ function showShopItemTooltip(event, itemJson) {
         else if (e.type === 'mp') effectText = `🔮 Restores ${e.value} MP`;
         else if (e.type === 'temp_stat') effectText = `💪 +${e.value} ${e.stat} for 1 hour`;
         else if (e.type === 'xp') effectText = `⭐ +${e.value} XP`;
-        if (effectText) effectHtml = `<div class="tt-stat"><span class="tt-stat-name">Effect</span><span class="tt-stat-val">${effectText}</span></div>`;
+
+        if (effectText) {
+            effectHtml = `
+                <div class="tt-stat">
+                    <span class="tt-stat-name">Effect</span>
+                    <span class="tt-stat-val">${effectText}</span>
+                </div>
+            `;
+        }
     }
-    
+
     tooltip.innerHTML = `
         <div class="tt-preview">
-            ${imgSrc
-                ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
-                : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
+            ${
+                imgSrc
+                    ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
+                    : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
             }
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
-            <div class="tt-meta">${capitalize(item.slot || item.category || 'item')}${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}</div>
+            <div class="tt-meta">
+                ${capitalize(itemSlot || 'item')}
+                ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}
+            </div>
             ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
-            <div class="tt-stats">${statsHtml || effectHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
-            <div class="tt-price" style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);color:#f1c40f">
-                ${priceIcon} ${buyPrice.toLocaleString()} ${priceType === 'gems' ? 'gems' : 'gold'}
+            <div class="tt-stats">
+                ${statsHtml || `<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}
+                ${effectHtml}
+            </div>
+            ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+            <div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">
+                Buy: ${priceIcon} ${buyPrice.toLocaleString()}
+                ${gemCost > 0 ? ` + 💎 ${gemCost}` : ''}
             </div>
         </div>
+        <div class="tt-actions">
+            <button class="tt-btn tt-btn-primary" onclick="buyItem('${item.id}')">
+                Buy
+            </button>
+        </div>
     `;
-    
+
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
     tooltip.style.left = '-9999px';
     tooltip.style.top = '-9999px';
+
     const tw = tooltip.offsetWidth || 220;
-    const th = tooltip.offsetHeight || 320;
+    const th = tooltip.offsetHeight || 340;
+
     let left = r.right + 12;
     let top = r.top;
+
     if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
     if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+
     tooltip.style.left = Math.max(8, left) + 'px';
     tooltip.style.top = Math.max(8, top) + 'px';
 }
