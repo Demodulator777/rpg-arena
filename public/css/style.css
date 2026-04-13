@@ -2697,7 +2697,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 .profile-equipment-card {
-    overflow: hidden;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.profile-equipment-card .eq-stage {
+    margin: 0 auto;
+}
+
+.eq-slot.filled:hover,
+.profile-eq-slot.filled:hover,
+.eq-slot-small:hover {
+    transform: none !important;
+    background: transparent !important;
 }
 
 @media (max-width: 900px) {
