@@ -2449,26 +2449,20 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (max-width: 640px) {
     .eq-grid,
     .profile-eq-grid {
-        grid-template-columns: repeat(3, minmax(70px, auto)) !important;
-        gap: 6px !important;
+        grid-template-columns: repeat(3, minmax(84px, auto)) !important;
+        gap: 8px !important;
     }
 
     .eq-slot,
     .profile-eq-slot {
-        max-width: 75px !important;
-        padding: 4px !important;
+        max-width: 88px !important;
+        padding: 5px !important;
     }
 
     .eq-slot-icon img,
     .profile-eq-slot .eq-slot-icon img {
-        width: 40px !important;
-        height: 40px !important;
-    }
-
-    .eq-avatar-center img,
-    .profile-eq-avatar img {
-        max-width: 180px !important;
-        height: 240px !important;
+        width: 54px !important;
+        height: 54px !important;
     }
 
     .eq-slot-label {
@@ -2492,24 +2486,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (max-width: 480px) {
     .eq-grid,
     .profile-eq-grid {
-        gap: 4px !important;
+        grid-template-columns: repeat(3, minmax(80px, auto)) !important;
+        gap: 6px !important;
     }
 
     .eq-slot,
     .profile-eq-slot {
-        max-width: 65px !important;
+        max-width: 84px !important;
     }
 
     .eq-slot-icon img,
     .profile-eq-slot .eq-slot-icon img {
-        width: 32px !important;
-        height: 32px !important;
-    }
-
-    .eq-avatar-center img,
-    .profile-eq-avatar img {
-        max-width: 170px !important;
-        height: 224px !important;
+        width: 50px !important;
+        height: 50px !important;
     }
 
     .eq-slot-label {
