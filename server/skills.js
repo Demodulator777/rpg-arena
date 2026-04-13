@@ -2714,7 +2714,7 @@ async function computeClassModifiersWithProgress(db, className, learnedSkillIds,
 module.exports = {
     router,
     SKILL_TREES,
-    SKILL_TRAIN_DURATIONS,
+    SKILL_TRAIN_HOURS_TO_FULL,
     UNLOCK_CONDITIONS,
     SKILL_TREE_MIGRATIONS,
     // Old functions (keep for compatibility)
