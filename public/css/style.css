@@ -1164,7 +1164,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     filter: drop-shadow(0 16px 28px rgba(0,0,0,0.45));
 }
 
-.eq-grid > :nth-child(1) { left: 50%; top: 6px; transform: translateX(-50%); }
+.eq-grid > :nth-child(1) { left: 40%; top: 6px; }
 .eq-grid > :nth-child(2) { left: 28px; top: 104px; }
 .eq-grid > :nth-child(3) { left: 16px; bottom: 68px; }
 .eq-grid > :nth-child(4) { left: 50%; top: 50%; transform: translate(-50%, -50%); }
