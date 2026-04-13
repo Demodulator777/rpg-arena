@@ -33,7 +33,7 @@ async function renderSkillTreeTab() {
 function renderSkillTreeUI(root) {
     if (!_stData || !character) { root.innerHTML = stSpinner('Loading...'); return; }
     const { tree, learned, passiveBonuses, activeTraining, magePath: mPath, dualWieldUnlocked,
-            upgradePenalties, upgradeDiscounts, extraStats } = _stData;
+            upgradePenalties, upgradeDiscounts, extraStats, busyState } = _stData;
     const charClass = character.class || 'warrior';
 
     const classColors = { warrior:'#e74c3c', mage:'#9b59b6', rogue:'#2ecc71', paladin:'#f1c40f' };
@@ -142,7 +142,7 @@ function renderSkillTreeUI(root) {
         html += `<p style="color:rgba(255,255,255,0.4);padding:20px;text-align:center">No branches found for ${charClass}.</p>`;
     } else {
         for (const [branchId, branch] of Object.entries(tree.branches)) {
-            html += renderBranch(branchId, branch, accent, activeTraining, charClass);
+            html += renderBranch(branchId, branch, accent, activeTraining, charClass, busyState);
         }
     }
 
@@ -151,7 +151,7 @@ function renderSkillTreeUI(root) {
 }
 
 // ── Branch renderer ───────────────────────────────────────────────────────────
-function renderBranch(branchId, branch, accent, activeTraining, charClass) {
+function renderBranch(branchId, branch, accent, activeTraining, charClass, busyState) {
     const learnedCount = Object.values(branch.skills).filter(s => s.learned).length;
     const total        = Object.keys(branch.skills).length;
 
@@ -197,27 +197,27 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass) {
     for (let i = 0; i < sortedEntries.length; i++) {
         const [skillKey, sk] = sortedEntries[i];
         if (i > 0) html += renderConnector(sortedEntries[i-1][1], sk);
-        html += renderSkillCard(skillKey, sk, bc, activeTraining, branchId, charClass);
+        html += renderSkillCard(skillKey, sk, bc, activeTraining, branchId, charClass, busyState);
     }
 
     html += `</div></div>`;
     return html;
 }
 
-function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, charClass) {
+function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, charClass, busyState) {
     const learned = sk.learned;
     const trainable = sk.trainable;
     const locked = sk.locked;
     const activeSkillId = activeTraining?.skillId || activeTraining?.skill_id;
     const training = activeSkillId === skillKey;
-    const progress = sk.progress || 0;
+    const progress = Math.floor(sk.progress || 0);
     const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
     const maxHours = hasArcaneReservoir ? 12 : 8;
-    const now = Math.floor(Date.now() / 1000);
-    const hasActiveMission = window.activeMission === true; // You'll need to track this globally
-    const inBattleCooldown = character?.battle_cooldown_ends_at > now;
-    const isTraveling = false;
-    const isBusy = hasActiveMission || inBattleCooldown || isTraveling;
+    const missionActive = !!busyState?.missionBusy;
+    const missionReadyToCollect = !!busyState?.missionReadyToCollect;
+    const battleCooldownRemaining = Number(busyState?.battleCooldownRemaining || 0);
+    const isTraveling = !!busyState?.traveling;
+    const isBusy = missionActive || battleCooldownRemaining > 0 || isTraveling;
     let borderColor, bgColor, labelColor;
     if (learned) {
         borderColor = branchColor;
@@ -327,9 +327,15 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
         </div>
     `;
 } else if (trainable && !training && !learned && isBusy) {  // Added this else if
+    let busyLabel = 'Busy';
+    if (missionReadyToCollect) busyLabel = 'Collect mission reward first';
+    else if (missionActive) busyLabel = 'Mission in progress';
+    else if (battleCooldownRemaining > 0) busyLabel = 'Battle cooldown active';
+    else if (isTraveling) busyLabel = 'Traveling';
+
     trainOptionsHtml = `
         <div style="margin-top: 8px; text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.3); padding: 5px;">
-            🔒 ${hasActiveMission ? 'On a mission' : inBattleCooldown ? 'Battle cooldown' : 'Traveling'}
+            🔒 ${busyLabel}
         </div>
     `;
 }
