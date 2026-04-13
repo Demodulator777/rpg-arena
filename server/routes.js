@@ -197,7 +197,7 @@ const BLOCK_ZONES = {
     full_turtle:   { protects: ['chest','stomach'],         reduction: 0.70, special: 'next_round_hit_penalty' },
     weave_left:    { protects: ['head','left_arm'],         reduction: 0.80, special: 'attacker_miss_20' },
     weave_right:   { protects: ['head','right_arm'],        reduction: 0.80, special: 'attacker_miss_20' },
-    counter_stance:{ protects: ['any'],                     reduction: 0.60, special: 'counter_25' },
+    counter_stance:{ protects: ['chest','solar_plexus'],   reduction: 0.55, special: 'counter_25' },
     no_block:      { protects: [],                          reduction: 0.00, special: 'attacker_bonus_10' },
 };
 const DEFAULT_ATTACK_ZONES = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
