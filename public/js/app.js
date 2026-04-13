@@ -514,14 +514,16 @@ function renderCharacter() {
     const baseVit  = c.vitality    || 10;
     const baseHit  = c.hit_chance  || 0;
     const baseCrit = c.crit_chance || 0;
+    const totalStr = baseStr + (itemBonus.strength || 0);
+    const totalDef = baseDef + (itemBonus.defense || 0);
 
-    const baseDmgMin = Math.floor(baseStr * 0.5);
+    const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
     const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0), 0);
     const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0), 0);
     const finalDmgMin = baseDmgMin + gearDmgMin;
     const finalDmgMax = baseDmgMax + gearDmgMax;
-    const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${baseStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
+    const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
 
     function statRowBreakdown(icon, label, base, bonus, max, cls) {
         const total = base + bonus;
@@ -538,7 +540,7 @@ function renderCharacter() {
         </div>`;
     }
 
-    const baseArmor = Math.floor(baseDef / 4);
+    const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0);
 
     const elemDmgObj    = c.elem_dmg    || {};
