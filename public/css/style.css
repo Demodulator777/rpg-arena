@@ -2256,9 +2256,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-grid,
 .profile-eq-grid {
     display: grid !important;
-    grid-template-columns: repeat(3, minmax(70px, auto)) !important;
+    grid-template-columns: repeat(3, minmax(88px, auto)) !important;
     grid-template-rows: auto !important;
-    gap: 8px !important;
+    gap: 14px !important;
     justify-content: center !important;
     align-items: center !important;
     width: 100% !important;
@@ -2272,9 +2272,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-eq-grid::before {
     content: "" !important;
     position: absolute !important;
-    inset: -4px 34px 4px !important;
+    inset: -14px 24px -4px !important;
     background: url('/images/character-bg.png') center/contain no-repeat !important;
-    background-size: 108% auto !important;
+    background-size: 116% auto !important;
     opacity: 0.18 !important;
     -webkit-mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 50%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.32) 84%, transparent 100%) !important;
     mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 50%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.32) 84%, transparent 100%) !important;
@@ -2320,15 +2320,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-avatar-center img,
 .profile-eq-avatar img {
     width: 100% !important;
-    max-width: 180px !important;
-    height: 240px !important;
+    max-width: 230px !important;
+    height: 300px !important;
     object-fit: contain !important;
 }
 
 .eq-slot,
 .profile-eq-slot {
     width: 100% !important;
-    max-width: 90px !important;
+    max-width: 110px !important;
     height: auto !important;
     aspect-ratio: 1 / 1 !important;
     display: flex !important;
@@ -2373,8 +2373,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .eq-slot-icon img,
 .profile-eq-slot .eq-slot-icon img {
-    width: 60px !important;
-    height: 60px !important;
+    width: 76px !important;
+    height: 76px !important;
     object-fit: contain !important;
 }
 
@@ -2403,8 +2403,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-accessory-row,
 .profile-eq-accessory-row {
     position: absolute !important;
-    top: 10px !important;
-    left: 86px !important;
+    top: 14px !important;
+    left: 62px !important;
     display: flex !important;
     align-items: center !important;
     gap: 0 !important;
@@ -2415,10 +2415,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 .eq-slot-small {
-    width: 62px !important;
-    min-width: 62px !important;
-    max-width: 62px !important;
-    height: 62px !important;
+    width: 74px !important;
+    min-width: 74px !important;
+    max-width: 74px !important;
+    height: 74px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -2449,6 +2449,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (max-width: 640px) {
     .eq-grid,
     .profile-eq-grid {
+        grid-template-columns: repeat(3, minmax(70px, auto)) !important;
         gap: 6px !important;
     }
 
@@ -2471,7 +2472,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-accessory-row,
     .profile-eq-accessory-row {
         top: 6px !important;
-        left: 70px !important;
+        left: 58px !important;
     }
 
     .eq-slot-small {
