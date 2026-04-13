@@ -2686,7 +2686,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         radial-gradient(circle at center, rgba(255,255,255,0.18), rgba(14,18,27,0.04) 72%),
         url('/images/equipment-bg.png') center/contain no-repeat;
     filter: drop-shadow(0 8px 14px rgba(0,0,0,0.32));
-    opacity: 0.98;
+    opacity: 0.15;
     pointer-events: none;
 }
 
