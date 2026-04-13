@@ -154,6 +154,7 @@ function renderSkillTreeUI(root) {
 function renderBranch(branchId, branch, accent, activeTraining, charClass, busyState) {
     const learnedCount = Object.values(branch.skills).filter(s => s.learned).length;
     const total        = Object.keys(branch.skills).length;
+    const branchProgressCount = Object.values(branch.skills).filter(s => (s.progress || 0) > 0).length;
 
     // Branch header colour
     const branchColors = {
@@ -174,7 +175,7 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass, busyS
             <div style="flex:1">
                 <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:${bc}">
                     ${branch.name}
-                    ${activeTraining ? '' : `<button class="btn-respec-branch" onclick="stRespecBranch('${branchId}')" style="font-size:0.6rem;padding:2px 8px;margin-left:8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">⟳ Reset Branch</button>`}
+                    ${(!activeTraining && !branch.isStarter && branchProgressCount > 0) ? `<button class="btn-respec-branch" onclick="stUnlearnStep('${branchId}')" style="font-size:0.6rem;padding:2px 8px;margin-left:8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩ Unlearn Last</button>` : ''}
                     ${branch.exclusive_with
                         ? `<span style="font-size:0.6rem;padding:2px 6px;background:${bc}22;border-radius:4px;color:${bc};margin-left:6px;font-family:sans-serif">EXCLUSIVE</span>`
                         : ''}
@@ -540,10 +541,10 @@ async function stCancel() {
     }
 }
 
-async function stRespecBranch(branchId) {
-    if (!confirm(`Reset all skills in the "${branchId}" branch? This will refund 50% of gold and materials spent.`)) return;
+async function stUnlearnStep(branchId) {
+    if (!confirm(`Unlearn the last skill you trained in "${branchId}"? This removes one step at a time and refunds 50% of that skill's gold cost.`)) return;
     try {
-        const d = await api('POST', '/skills/respec', { branchId });
+        const d = await api('POST', '/skills/unlearn-step', { branchId });
         character = await api('GET', '/game/character');
         renderTopBar();
         renderCharacter();
@@ -595,3 +596,4 @@ window.renderSkillTreeTab = renderSkillTreeTab;
 window.stStartTrain       = stStartTrain;
 window.stCollect          = stCollect;
 window.stCancel           = stCancel;
+window.stUnlearnStep      = stUnlearnStep;
