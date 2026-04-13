@@ -35,23 +35,23 @@ async function loadAbyssData() {
 const STAT_LABELS = {
     dmg_min:        'Min Dmg',
     dmg_max:        'Max Dmg',
-    armor:          'рџ›Ў Armor',
-    hp_max:         'вќ¤пёЏ HP',
-    defense:        'рџ›ЎпёЏ Defense',
-    strength:       'рџ’Є Strength',
-    agility:        'вљЎ Agility',
-    magic:          'вњЁ Magic',
-    vitality:       'вќ¤пёЏ Vitality',
-    hit_chance:     'рџЋЇ Hit Chance',
-    crit_chance:    'рџ’Ґ Crit Chance',
-    pyro_dmg:       'рџ”Ґ Fire Dmg',
-    water_dmg:      'рџ’§ Water Dmg',
-    wind_dmg:       'рџЊЂ Wind Dmg',
-    electro_dmg:    'вљЎ Electro Dmg',
-    pyro_resist:    'рџ”Ґ Fire Resist',
-    water_resist:   'рџ’§ Water Resist',
-    wind_resist:    'рџЊЂ Wind Resist',
-    electro_resist: 'вљЎ Electro Resist',
+    armor:          'Armor',
+    hp_max:         'HP',
+    defense:        'Defense',
+    strength:       'Strength',
+    agility:        'Agility',
+    magic:          'Magic',
+    vitality:       'Vitality',
+    hit_chance:     'Hit Chance',
+    crit_chance:    'Crit Chance',
+    pyro_dmg:       'Fire Dmg',
+    water_dmg:      'Water Dmg',
+    wind_dmg:       'Wind Dmg',
+    electro_dmg:    'Electro Dmg',
+    pyro_resist:    'Fire Resist',
+    water_resist:   'Water Resist',
+    wind_resist:    'Wind Resist',
+    electro_resist: 'Electro Resist',
 };
 
 // в”Ђв”Ђ Hit & Block Zone Definitions в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -278,12 +278,12 @@ async function api(method, path, body=null) {
 }
 
 function formatTrainingProgressText(status) {
-    const total = Number(status?.progressPercent ?? status?.progressCurrent ?? status?.progress_current ?? 0);
-    const start = Number(status?.progressStart ?? status?.progress_start ?? total);
+    const total = Number(status?.progressPercent  -  status?.progressCurrent  -  status?.progress_current  -  0);
+    const start = Number(status?.progressStart  -  status?.progress_start  -  total);
     const gained = Math.max(0, total - start);
     const totalText = `${total < 10 ? total.toFixed(1) : Math.floor(total)}% total learned`;
     const gainText = gained >= 0.1 ? ` В· +${gained.toFixed(1)}% this session` : '';
-    const hoursToFull = Number(status?.hoursToFull ?? 0);
+    const hoursToFull = Number(status?.hoursToFull  -  0);
     return `${totalText}${gainText} В· ${hoursToFull.toFixed(1)}h to full`;
 }
 
@@ -400,7 +400,7 @@ function showTab(name) {
 function renderTopBar() {
     if (!character) return;
     const c=character;
-    const hpCur=c.hp_current??c.hp_max;
+    const hpCur=c.hp_current - c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
     const lxp=c.level*25;
     const xpPct=Math.min(100,Math.round((c.xp/lxp)*100));
@@ -411,14 +411,14 @@ function renderTopBar() {
     set('topbar-hp-text',el=>{ el.textContent=`${hpCur} / ${c.hp_max}`; });
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
     set('topbar-xp-text',el=>{ el.textContent=`${c.xp} / ${lxp} XP`; });
-    const mp=c.mission_points??0, mpMax=c.mp_max||240;
+    const mp=c.mission_points - 0, mpMax=c.mp_max||240;
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
-    const dms=c.daily_mp_spent??0, unl=c.skills_unlocked;
+    const dms=c.daily_mp_spent - 0, unl=c.skills_unlocked;
     set('topbar-mp-fill',el=>{ el.style.width=mpPct+'%'; });
     set('topbar-mp-text',el=>{ el.textContent=`${mp} / ${mpMax} MP`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`; });
-    set('topbar-mp',el=>{ el.textContent=unl?`рџ”® ${mp} вњЁ`:`рџ”® ${mp} (${dms}/60)`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`; });
-    set('topbar-gold',el=>{ el.textContent=`рџ’° ${c.gold.toLocaleString()}`; });
-    set('topbar-gems',el=>{ el.textContent=`рџ’Ћ ${(c.gems||0).toLocaleString()}`; });
+    set('topbar-mp',el=>{ el.textContent=unl?`MP ${mp} Ready`:`MP ${mp} (${dms}/60)`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`; });
+    set('topbar-gold',el=>{ el.textContent=`Gold ${c.gold.toLocaleString()}`; });
+    set('topbar-gems',el=>{ el.textContent=`Gems ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
     set('topbar-name',el=>{ el.textContent=c.name; });
     const evEl=document.getElementById('topbar-event');
@@ -494,7 +494,7 @@ function renderCharacter() {
     const eq = c.equipped||{};
     const lxp = c.level*25;
     const xpPct = Math.min(100,(c.xp/lxp)*100);
-    const hpCur = c.hp_current??c.hp_max;
+    const hpCur = c.hp_current ?? c.hp_max;
     const hpPct = Math.min(100,(hpCur/c.hp_max)*100);
     const hpColor = hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat = Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
@@ -561,12 +561,12 @@ function renderCharacter() {
     const elemResistStr = '';
 
     const eqSlots=[
-        {slot:'helmet', icon:'в›‘пёЏ', label:'Helmet'},
-        {slot:'armor',  icon:'рџ›ЎпёЏ', label:'Armor'},
-        {slot:'weapon', icon:'вљ”пёЏ', label:'Weapon'},
-        {slot:'amulet', icon:'рџ“ї', label:'Amulet / Ring'},
-        {slot:'shield', icon:'рџ›Ў', label:'Shield'},
-        {slot:'boots',  icon:'рџ‘ў', label:'Boots'},
+        {slot:'helmet', icon:'Helm', label:'Helmet'},
+        {slot:'armor',  icon:'Armor', label:'Armor'},
+        {slot:'weapon', icon:'Weapon', label:'Weapon'},
+        {slot:'amulet', icon:'Amulet', label:'Amulet / Ring'},
+        {slot:'shield', icon:'Shield', label:'Shield'},
+        {slot:'boots',  icon:'Boots', label:'Boots'},
     ];
     const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
 const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
@@ -593,7 +593,7 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
 const eqGrid = `
 <div class="eq-stage"><div class="eq-grid">${mainEqGrid}</div>
 <div class="eq-accessory-row">
-    ${buildEqSlotSmall('accessory', eq, 'рџ”®', 'Accessory')}
+    ${buildEqSlotSmall('accessory', eq, 'Accessory', 'Accessory')}
 </div></div>`;
 
     // FIX: Use c.mp_max from backend response (already includes premium bonus)
@@ -615,21 +615,21 @@ const eqGrid = `
           <div class="detail-slot-grid">
             ${detailSlots.join('')}
           </div>
-          ${statRowBreakdown('рџ’Є','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
-          ${statRowBreakdown('рџ›ЎпёЏ','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
-          ${statRowBreakdown('вљЎ','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
-          ${statRowBreakdown('вњЁ','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
-          ${statRowBreakdown('вќ¤пёЏ','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
-          ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('рџЋЇ','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
-          ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('рџ’Ґ','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
+          ${statRowBreakdown('STR','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
+          ${statRowBreakdown('DEF','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
+          ${statRowBreakdown('AGI','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
+          ${statRowBreakdown('MAG','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
+          ${statRowBreakdown('VIT','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
+          ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('HIT','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
+          ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('CRT','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
           <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <span title="${escHtml(dmgTooltip)}" style="cursor:help">
-              вљ”пёЏ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}вЂ“${finalDmgMax}</strong>
+              DMG: <strong style="color:var(--text-bright)">${finalDmgMin}-${finalDmgMax}</strong>
             </span>
-            <span>рџ›Ў Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+            <span>Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
             ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
             ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
-            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">вЏі +10% HP/hr</span>':''}
+            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">+10% HP/hr</span>':''}
           </div>
         </div>
         <div class="char-panel">
@@ -644,8 +644,8 @@ const eqGrid = `
             <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
           </div>
           ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
-          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">вЏі Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
-          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">вњ… Training done! Collect it.</div>`:''}
+          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
+          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">Training done! Collect it.</div>`:''}
         </div>
       </div>
     </div>`;
@@ -656,7 +656,7 @@ function statRow(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val">${val}</span></div>`;
 }
-function elemEmoji(t) { return {pyro:'рџ”Ґ',water:'рџ’§',wind:'рџЊЂ',electro:'вљЎ'}[t]||''; }
+function elemEmoji(t) { return {pyro:'Fire',water:'Water',wind:'Wind',electro:'Electro'}[t]||''; }
 
 // в”Ђв”Ђ Loadout Editor в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 // в”Ђв”Ђ Loadout visual config в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -787,7 +787,7 @@ async function checkTrainingStatus() {
 
         if (status && status.active) {
             const remaining = status.remainingSeconds || status.remaining || 0;
-            const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
+            const percent = Math.floor((status.progressPercent  -  status.progressCurrent  -  status.progress_current  -  0));
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
 
@@ -1019,7 +1019,7 @@ function renderTraining() {
     } else if (c.trainingActive) {
         if (statusEl) {
             statusEl.className = 'train-status-bar';
-            statusEl.textContent = `вЏі Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`;
+            statusEl.textContent = `Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`;
             statusEl.classList.remove('hidden');
         }
         if (allBtns.length) allBtns.forEach(b => b.disabled = true);
@@ -1041,19 +1041,19 @@ function renderUpgrade() {
     const hasStatDiscount = ev?.key === 'discount_stats';
     const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
     
-    document.getElementById('upgrade-gold').textContent = `рџ’° ${c.gold.toLocaleString()} Gold available`;
+    document.getElementById('upgrade-gold').textContent = `${c.gold.toLocaleString()} Gold available`;
     
-    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">рџ“‰ <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
-    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">рџ“љ <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
+    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f"><strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
+    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6"><strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
     
     const stats = [
-        { key: 'strength', icon: 'рџ’Є', label: 'Strength' },
-        { key: 'defense', icon: 'рџ›ЎпёЏ', label: 'Defense' },
-        { key: 'agility', icon: 'вљЎ', label: 'Agility', hint: 'Dodge incoming hits' },
-        { key: 'magic', icon: 'вњЁ', label: 'Magic' },
-        { key: 'vitality', icon: 'вќ¤пёЏ', label: 'Vitality', hint: 'Also boosts current HP' },
-        { key: 'hit_chance', icon: 'рџЋЇ', label: 'Hit Chance', hint: 'Accuracy vs agility' },
-        { key: 'crit_chance', icon: 'рџ’Ґ', label: 'Crit Chance', hint: '% chance to hit max dmg' },
+        { key: 'strength', icon: 'STR', label: 'Strength' },
+        { key: 'defense', icon: 'DEF', label: 'Defense' },
+        { key: 'agility', icon: 'AGI', label: 'Agility', hint: 'Dodge incoming hits' },
+        { key: 'magic', icon: 'MAG', label: 'Magic' },
+        { key: 'vitality', icon: 'VIT', label: 'Vitality', hint: 'Also boosts current HP' },
+        { key: 'hit_chance', icon: 'HIT', label: 'Hit Chance', hint: 'Accuracy vs agility' },
+        { key: 'crit_chance', icon: 'CRT', label: 'Crit Chance', hint: '% chance to hit max dmg' },
     ];
     
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
@@ -1075,8 +1075,8 @@ function renderUpgrade() {
                 <span class="upgrade-card-val">${c[s.key] || 0}</span>
             </div>
             ${s.hint ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>` : ''}
-            ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">рџ“‰ 30% event discount</div>` : ''}
-            ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">рџ“љ 20% apprentice discount</div>` : ''}
+            ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">30% event discount</div>` : ''}
+            ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">20% apprentice discount</div>` : ''}
             <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
             <button class="btn-upgrade" ${actionAttrs('upgradestat', s.key)} ${can ? '' : 'disabled'}>${can ? `+1 for ${cost}g` : `Need ${cost - c.gold} more`}</button>
         </div>`;
@@ -1113,17 +1113,17 @@ function renderEventBanner(containerId) {
     const timeStr=h>0?`${h}h ${m}m`:`${m}m`;
     el.classList.remove('hidden');
     el.style.display='flex';
-    el.innerHTML=`<span style="font-size:1.4rem">${ev.name?.split(' ')[0]||'рџЋ‰'}</span>
+    el.innerHTML=`<span style="font-size:1.4rem">${ev.name?.split(' ')[0]||'Event'}</span>
     <div><div style="font-weight:700;color:var(--gold)">${ev.name||'Event Active'}</div>
-    <div style="font-size:0.8rem;color:var(--text-dim)">${ev.desc||''} В· Ends in ${timeStr}</div></div>`;
+    <div style="font-size:0.8rem;color:var(--text-dim)">${ev.desc||''} - Ends in ${timeStr}</div></div>`;
 }
 
 // в”Ђв”Ђ Skills Tab в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 function renderSkills() {
     if (!character) return;
     const c=character;
-    const mp=character?.mission_points??0, mpMax=character?.mp_max||240;
-    const dailyMpSpent=character?.daily_mp_spent??0;
+    const mp=character?.mission_points - 0, mpMax=character?.mp_max||240;
+    const dailyMpSpent=character?.daily_mp_spent - 0;
     const unlocked=character?.skills_unlocked||(dailyMpSpent>=60);
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
     const unlockPct=Math.min(100,Math.round((dailyMpSpent/60)*100));
@@ -1132,7 +1132,7 @@ function renderSkills() {
     const mpEl=document.getElementById('skills-mp-bar');
     if (mpEl) mpEl.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-weight:700;color:#9b59b6">рџ”® Mission Points</span>
+            <span style="font-weight:700;color:#9b59b6">Mission Points</span>
             <span style="font-weight:700;color:#9b59b6">${mp} / ${mpMax}</span>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px">
@@ -1140,13 +1140,13 @@ function renderSkills() {
         </div>
         ${!unlocked?`
         <div style="margin-bottom:10px;padding:10px 14px;background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px">
-            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">рџ”’ Skills unlock by spending 60 MP on missions today</div>
+            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">Skills unlock by spending 60 MP on missions today</div>
             <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden">
                 <div style="width:${unlockPct}%;height:100%;background:#9b59b6;border-radius:4px"></div>
             </div>
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP spent today</div>
         </div>`:''}
-        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +10/hr В· Skill activation is <strong style="color:#9b59b6">free</strong> В· 1 skill per day В· 5h duration</div>`;
+        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +10/hr - Skill activation is <strong style="color:#9b59b6">free</strong> - 1 skill per day - 5h duration</div>`;
 
     renderEventBanner('skills-event-banner');
 
@@ -1167,11 +1167,11 @@ function renderSkills() {
         const expiresStr=expiresIn>=60?`${Math.floor(expiresIn/60)}h ${expiresIn%60}m`:`${expiresIn}m`;
         const canActivate=unlocked&&!isActive&&!anyUsedToday;
         let btnLabel, btnDisabled;
-        if (!unlocked)     { btnLabel=`рџ”’ Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
-        else if (isActive) { btnLabel=`вЏі Active вЂ” ${expiresStr} left`; btnDisabled=true; }
-        else if (anyUsedToday&&!usedToday){ btnLabel=`вњ… Another skill active today`; btnDisabled=true; }
-        else if (usedToday){ btnLabel=`вњ… Used today`; btnDisabled=true; }
-        else               { btnLabel=`вњЁ Activate (Free)`; btnDisabled=false; }
+        if (!unlocked)     { btnLabel=`Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
+        else if (isActive) { btnLabel=`Active - ${expiresStr} left`; btnDisabled=true; }
+        else if (anyUsedToday&&!usedToday){ btnLabel=`Another skill active today`; btnDisabled=true; }
+        else if (usedToday){ btnLabel=`Used today`; btnDisabled=true; }
+        else               { btnLabel=`Activate (Free)`; btnDisabled=false; }
         const cardBg=isActive
             ?'background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(142,68,173,0.15));border-color:rgba(155,89,182,0.5)'
             :(usedToday||anyUsedToday&&!isActive)
@@ -1183,8 +1183,8 @@ function renderSkills() {
                 <span style="font-size:1.8rem">${sk.emoji}</span>
                 <div>
                     <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${sk.name}</div>
-                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">вњЁ ACTIVE В· ${expiresStr} remaining</div>`:
-            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today вЂ” resets at midnight</div>`:''}
+                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">ACTIVE - ${expiresStr} remaining</div>`:
+            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today - resets at midnight</div>`:''}
                 </div>
             </div>
             <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45">${sk.desc}</div>
@@ -1420,7 +1420,7 @@ function openSpotMissions(zoneId, spotId) {
     
     const activeEl = document.getElementById('mission-location-active');
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
-    const mp = character?.mission_points ?? 0;
+    const mp = character?.mission_points  -  0;
     const sizes = [
         { key: 'small', label: 'Small', mpCost: 20, duration: '10 min', mult: '1Г—', desc: 'Quick mission, standard rewards' },
         { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8Г—', desc: 'Longer mission, better rewards' },
@@ -1536,7 +1536,7 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
     if (character?.location !== zoneId) { showMsg('missions-msg', 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
-    if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
+    if ((character?.hp_current  -  character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
     
     closeMissionModal2();
     const chosenMission = spot.missions[missionIdx] || spot.missions[0];
@@ -1682,7 +1682,7 @@ function showTrainingOverlay(skillName, endsAt, status = null) {
     if (skillEl) skillEl.textContent = skillName;
 
     if (status) {
-        const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
+        const percent = Math.floor((status.progressPercent  -  status.progressCurrent  -  status.progress_current  -  0));
         if (progressTextEl) progressTextEl.textContent = formatTrainingProgressText(status);
         if (fillEl) fillEl.style.width = `${percent}%`;
     }
@@ -3453,17 +3453,17 @@ function renderLeaderboard() {
     if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
     document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>{
         const rank=p.rank||(i+1), rc=rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
-        const rs=rank===1?'рџҐ‡':rank===2?'рџҐ€':rank===3?'рџҐ‰':`#${rank}`;
+        const rs=rank===1?'#1':rank===2?'#2':rank===3?'#3':`#${rank}`;
         // REMOVE the fallback - only use total_gold_earned
         const totalEarned = p.total_gold_earned || 0;
         return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} В· @${p.username}</div></div>
+            <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} - @${p.username}</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
-                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">рџ’° ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
             </div>
         </div>`;
     }).join('');
@@ -3475,11 +3475,11 @@ async function openProfile(id) {
     content.innerHTML='<p class="loading">Loading profile...</p>'; modal.classList.remove('hidden');
     try {
         const p=await api('GET',`/game/player/${id}`);
-        const classIcon={warrior:'рџ›ЎпёЏ',mage:'рџ”®',rogue:'рџ—ЎпёЏ',paladin:'вњЁ'}[p.class]||'вљ”пёЏ';
-        const name=p.name||'Unknown', uname=p.username||'???', level=p.level??'?';
+        const classIcon={warrior:'WAR',mage:'MAG',rogue:'ROG',paladin:'PAL'}[p.class]||'CLS';
+        const name=p.name||'Unknown', uname=p.username||' - ?', level=p.level - '?';
         const isMe=p.user_id===character?.user_id;
-        const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
-        const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
+        const wins=p.wins - 0, losses=p.losses - 0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
+        const str=p.strength - 0,def=p.defense - 0,agi=p.agility - 0,mag=p.magic - 0,vit=p.vitality - 10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const profileArmor = Math.floor(def / 4) + (p.armor || 0);
@@ -3503,12 +3503,12 @@ async function openProfile(id) {
 
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
         const profileSlots=[
-            {slot:'helmet', icon:'в›‘пёЏ', col:1, row:1},
-            {slot:'armor',  icon:'рџ›ЎпёЏ', col:1, row:2},
-            {slot:'weapon', icon:'вљ”пёЏ', col:1, row:3},
-            {slot:'amulet', icon:'рџ“ї', col:3, row:1},
-            {slot:'shield', icon:'рџ›Ў',  col:3, row:2},
-            {slot:'boots',  icon:'рџ‘ў', col:3, row:3},
+            {slot:'helmet', icon:'Helm', col:1, row:1},
+            {slot:'armor',  icon:'Armor', col:1, row:2},
+            {slot:'weapon', icon:'Weapon', col:1, row:3},
+            {slot:'amulet', icon:'Amulet', col:3, row:1},
+            {slot:'shield', icon:'Shield',  col:3, row:2},
+            {slot:'boots',  icon:'Boots', col:3, row:3},
         ];
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
@@ -3527,7 +3527,7 @@ async function openProfile(id) {
             </div>`;
         }).join('');
 
-        const smallSlots = [['accessory','рџ”®','Accessory']];
+        const smallSlots = [['accessory','Accessory','Accessory']];
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
             const item = eq[slot];
             if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
@@ -3538,7 +3538,7 @@ async function openProfile(id) {
                 data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip">
                 ${itemIcon(item,'1.2rem')}
                 <span style="color:${qc};font-size:0.7rem">${item.name}</span>
-                <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">В· ${label}</span>
+                <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">- ${label}</span>
             </div>`;
         }).join('');
 
@@ -3550,20 +3550,20 @@ async function openProfile(id) {
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
               <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
-              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} В· @${uname}</div></div>
+              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} - @${uname}</div></div>
             </div>
-            <button class="btn-secondary" ${actionAttrs('closeProfile')}>вњ•</button>
+            <button class="btn-secondary" ${actionAttrs('closeProfile')}>Close</button>
           </div>
           <div class="profile-grid">
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
-              ${miniStat('рџ’Є','STR',str,maxStat,'str')}
-              ${miniStat('рџ›ЎпёЏ','DEF',def,maxStat,'def')}
-              ${miniStat('вљЎ','AGI',agi,maxStat,'agi')}
-              ${miniStat('вњЁ','MAG',mag,maxStat,'mag')}
-              ${miniStat('вќ¤пёЏ','VIT',vit,maxStat,'vit')}
-              ${hc>0?miniStat('рџЋЇ','HIT',hc,maxStat,'hit'):''}
-              ${cc>0?miniStat('рџ’Ґ','CRIT',cc,maxStat,'crit'):''}
+              ${miniStat('STR','STR',str,maxStat,'str')}
+              ${miniStat('DEF','DEF',def,maxStat,'def')}
+              ${miniStat('AGI','AGI',agi,maxStat,'agi')}
+              ${miniStat('MAG','MAG',mag,maxStat,'mag')}
+              ${miniStat('VIT','VIT',vit,maxStat,'vit')}
+              ${hc>0?miniStat('HIT','HIT',hc,maxStat,'hit'):''}
+              ${cc>0?miniStat('CRT','CRIT',cc,maxStat,'crit'):''}
             </div>
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
@@ -3571,8 +3571,8 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
-                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">рџ’° ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">рџ’ё ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">${(p.total_gold_earned - p.gold - 0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">${(p.total_gold_lost - 0).toLocaleString()}</span></div>
               </div>
             </div>
           </div>
@@ -3581,7 +3581,7 @@ async function openProfile(id) {
             <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
             <div class="eq-stage profile-eq-stage">
               <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
-              <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, 'СЂСџвЂќВ®', 'Accessory')}</div>
+              <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, 'Accessory', 'Accessory')}</div>
             </div>
           </div>`:''}
           ${!isMe ? (() => {
@@ -3593,9 +3593,9 @@ async function openProfile(id) {
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
             const atkBtn=blocked
-                ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">рџ›ЎпёЏ ${reason}</button>`
-                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>вљ”пёЏ Attack</button>`;
-            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>вњ‰пёЏ Message</button></div>`;
+                ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">${reason}</button>`
+                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>Attack</button>`;
+            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>Message</button></div>`;
           })() : ''}
         </div>
       </div>`;
@@ -3627,7 +3627,7 @@ async function findOpponent(direction='similar') {
         const p = await api('GET', `/game/matchmaking?direction=${direction}`);
         _matchmakingTarget = p;
         if (!p) { if (box) box.innerHTML = '<p class="empty">No available opponents right now.</p>'; return; }
-        const ci={warrior:'рџ›ЎпёЏ',mage:'рџ”®',rogue:'рџ—ЎпёЏ',paladin:'вњЁ'};
+        const ci={warrior:'WAR',mage:'MAG',rogue:'ROG',paladin:'PAL'};
         const power = (p.strength||0)+(p.defense||0)+(p.agility||0)+(p.magic||0)+p.level*5;
         const myPower = character ? (character.strength+character.defense+character.agility+character.magic+character.level*5) : 0;
         const powerDiff = power - myPower;
@@ -3635,28 +3635,28 @@ async function findOpponent(direction='similar') {
         const attackBtn = myAttackBlockReason
             ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">Blocked: ${myAttackBlockReason}</button>`
             : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>Attack</button>`;
-        const diffLabel = powerDiff > 10 ? 'в¬†пёЏ Stronger' : powerDiff < -10 ? 'в¬‡пёЏ Weaker' : 'в†”пёЏ Similar';
+        const diffLabel = powerDiff > 10 ? 'Stronger' : powerDiff < -10 ? 'Weaker' : 'Similar';
         if (box) box.innerHTML = `
             <div class="matchmaking-card">
                 <div style="display:flex;align-items:center;gap:14px">
                     <img src="/images/class/${p.class}.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
                     <div style="flex:1">
                         <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ci[p.class]||'вљ”пёЏ'} ${escHtml(p.name)}</div>
-                        <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} В· ${p.wins}W/${p.losses}L</div>
-                        <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} В· Power ${power}</div>
+                        <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} - ${p.wins}W/${p.losses}L</div>
+                        <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} - Power ${power}</div>
                     </div>
                     ${attackBtn}
                 </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'weaker')}>в¬‡пёЏ Weaker</button>
-                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'similar')}>в†”пёЏ Similar</button>
-                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'stronger')}>в¬†пёЏ Stronger</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'weaker')}>Weaker</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'similar')}>Similar</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'stronger')}>Stronger</button>
             </div>`;
     } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
 async function attack(targetId,targetName) {
-    if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
+    if ((character?.hp_current - character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
     const blockReason = getMyAttackBlockReason();
     if (blockReason) { alert(blockReason); return; }
     try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName); }
@@ -3664,7 +3664,7 @@ async function attack(targetId,targetName) {
 }
 function showBattleResult(r, targetName) {
     const summary = r.won
-        ? `+${r.goldGained} gold В· +${r.xpGained} XP`
+        ? `+${r.goldGained} gold - +${r.xpGained} XP`
         : `-${r.goldLost} gold`;
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken);
 }
@@ -3702,8 +3702,8 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
     if (out) {
         out.className = won ? 'won' : 'lost';
         out.innerHTML = won
-            ? `рџЏ† VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} В· вљ”пёЏ ${dmgDealt ?? '?'} dmg dealt В· рџ’” ${dmgTaken ?? '?'} dmg taken</small>`
-            : `рџ’Ђ DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} В· вљ”пёЏ ${dmgDealt ?? '?'} dmg dealt В· рџ’” ${dmgTaken ?? '?'} dmg taken</small>`;
+            ? `рџЏ† VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} В· вљ”пёЏ ${dmgDealt  -  '?'} dmg dealt В· рџ’” ${dmgTaken  -  '?'} dmg taken</small>`
+            : `рџ’Ђ DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} В· вљ”пёЏ ${dmgDealt  -  '?'} dmg dealt В· рџ’” ${dmgTaken  -  '?'} dmg taken</small>`;
     }
     
     if (logEl) {
@@ -3847,8 +3847,8 @@ function itemIcon(item, size='2rem') {
     const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
-    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'рџ“¦'}</span>`;
-    return `<span style="${sStyle}">${item.emoji||'рџ“¦'}</span>`;
+    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'[item]'}</span>`;
+    return `<span style="${sStyle}">${item.emoji||'[item]'}</span>`;
 }
 
 // в”Ђв”Ђ Utils в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
@@ -4508,7 +4508,7 @@ async function updateTrainingStatus() {
         if (!indicator) return;
 
         if (status.active) {
-            const progress = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
+            const progress = Math.floor((status.progressPercent  -  status.progressCurrent  -  status.progress_current  -  0));
             const remaining = formatTrainingTime(status.remainingSeconds || status.remaining || 0);
             indicator.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
