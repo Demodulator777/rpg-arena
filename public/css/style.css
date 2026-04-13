@@ -916,7 +916,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .class-scene-paladin { --class-scene-tint: rgba(245, 207, 108, 0.24); }
 .class-scene-rogue { --class-scene-tint: rgba(101, 222, 173, 0.22); }
 
-.char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.char-grid {
+    display: grid;
+    grid-template-columns: minmax(340px, 420px) minmax(340px, 420px);
+    gap: 14px;
+    justify-content: center;
+    width: min(100%, 940px);
+    margin: 0 auto;
+}
 @media (max-width: 680px) { .char-grid { grid-template-columns: 1fr; } }
 
 .char-panel {
@@ -1056,6 +1063,23 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin: 0 auto;
 }
 
+.eq-grid::before {
+    content: '';
+    position: absolute;
+    inset: 52px 56px 48px;
+    background:
+        radial-gradient(circle at center, rgba(255,255,255,0.08), rgba(9,14,22,0.02) 72%),
+        url('/images/equipment-bg.webp'),
+        url('/images/equipment-bg.png'),
+        url('/images/equipment-bg.jpg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    opacity: 0.92;
+    pointer-events: none;
+    filter: drop-shadow(0 18px 30px rgba(0,0,0,0.26));
+}
+
 .eq-slot {
     position: absolute;
     width: 58px;
@@ -1086,15 +1110,35 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), rgba(12,18,30,0.78));
-    box-shadow: 0 12px 24px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
+    position: relative;
+    z-index: 1;
+    background: transparent;
+    box-shadow: none;
+}
+
+.eq-slot::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+    background:
+        radial-gradient(circle at center, rgba(255,255,255,0.14), rgba(9,14,22,0.04) 70%),
+        url('/images/equipment-bg.webp'),
+        url('/images/equipment-bg.png'),
+        url('/images/equipment-bg.jpg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    filter: drop-shadow(0 10px 16px rgba(0,0,0,0.28));
+    opacity: 0.92;
+    pointer-events: none;
+}
+
+.eq-slot.empty::before {
+    opacity: 0.28;
 }
 
 .eq-slot.empty .eq-slot-icon {
-    opacity: 0.45;
-    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.08), rgba(10,14,24,0.32));
-    border: 1px solid rgba(255,255,255,0.06);
+    opacity: 0.4;
 }
 
 .eq-slot-label {
@@ -1135,6 +1179,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     justify-content: center;
 }
 
+.eq-slot-icon img,
+.eq-slot-icon span {
+    position: relative;
+    z-index: 2;
+}
+
 /* Mobile - reduce sizes */
 @media (max-width: 640px) {
     .eq-grid {
@@ -1161,6 +1211,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-avatar-center {
         width: 156px;
         height: 228px;
+    }
+
+    .eq-grid::before {
+        inset: 44px 46px 42px;
     }
 
     .eq-grid > :nth-child(1) { top: 2px; }
