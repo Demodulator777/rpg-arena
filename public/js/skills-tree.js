@@ -253,13 +253,15 @@ if (locked && !learned && !training) {
     let progressHtml = '';
     if (training && activeTraining) {
         const trainProgress = (activeTraining.progressPercent ?? activeTraining.progressCurrent ?? activeTraining.progress_current ?? activeTraining.progress ?? 0);
+        const trainStart = Number(activeTraining.progressStart ?? activeTraining.progress_start ?? trainProgress);
+        const trainGain = Math.max(0, trainProgress - trainStart);
         progressHtml = `
             <div style="margin-top: 8px;">
                 <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 4px; overflow: hidden;">
                     <div style="width: ${trainProgress}%; height: 100%; background: ${branchColor}; border-radius: 4px; transition: width 0.3s;"></div>
                 </div>
                 <div style="font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-top: 2px; text-align: center;">
-                    ${Math.floor(trainProgress)}% complete
+                    ${trainProgress < 10 ? trainProgress.toFixed(1) : Math.floor(trainProgress)}% total learned${trainGain >= 0.1 ? ` · +${trainGain.toFixed(1)}% this session` : ''}
                 </div>
                 <div style="font-size: 0.55rem; color: #f1c40f; text-align: center; margin-top: 2px;">
                     ⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || activeTraining.timeLeft || 0)} remaining · ${(activeTraining.hoursToFull ?? 0).toFixed(1)}h to full
@@ -273,7 +275,7 @@ if (locked && !learned && !training) {
                     <div style="width: ${progress}%; height: 100%; background: ${branchColor}; border-radius: 4px;"></div>
                 </div>
                 <div style="font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-top: 2px; text-align: center;">
-                    ${Math.floor(progress)}% trained
+                    ${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% total learned
                 </div>
             </div>
         `;
