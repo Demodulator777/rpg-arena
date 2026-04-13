@@ -260,11 +260,9 @@ async function api(method, path, body=null) {
     const storedToken = localStorage.getItem('rpg_token');
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
     if (body) opts.body = JSON.stringify(body);
-    console.log(`[API] ${method} ${fullUrl}`, body ? body : '');
     
     try {
         const res = await fetch(fullUrl, opts);
-        console.log(`[API] ${method} ${fullUrl} → ${res.status}`);
         const text = await res.text();
         if (!res.ok) {
             console.error('[API ERROR]', res.status, text.substring(0, 300));
@@ -273,10 +271,20 @@ async function api(method, path, body=null) {
             catch { errMsg = text.trim() || `Request failed (${res.status})`; }
             throw new Error(errMsg);
         }
-        if (!text.trim()) { console.warn('[API] Empty response body'); return {}; }
-        try { const data = JSON.parse(text); console.log('[API] Response parsed:', data); return data; }
+        if (!text.trim()) return {};
+        try { const data = JSON.parse(text); return data; }
         catch (pe) { console.error('[API] JSON parse failed:', pe, 'Raw:', text.substring(0, 200)); throw new Error('Invalid response from server'); }
     } catch (err) { console.error('[API FAIL]', method, fullUrl, err); throw err; }
+}
+
+function formatTrainingProgressText(status) {
+    const total = Number(status?.progressPercent ?? status?.progressCurrent ?? status?.progress_current ?? 0);
+    const start = Number(status?.progressStart ?? status?.progress_start ?? total);
+    const gained = Math.max(0, total - start);
+    const totalText = `${total < 10 ? total.toFixed(1) : Math.floor(total)}% total learned`;
+    const gainText = gained >= 0.1 ? ` · +${gained.toFixed(1)}% this session` : '';
+    const hoursToFull = Number(status?.hoursToFull ?? 0);
+    return `${totalText}${gainText} · ${hoursToFull.toFixed(1)}h to full`;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
@@ -741,7 +749,6 @@ async function checkTrainingStatus() {
         if (status && status.active) {
             const remaining = status.remainingSeconds || status.remaining || 0;
             const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
-            const hoursToFull = Number(status.hoursToFull ?? 0);
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
 
@@ -753,7 +760,7 @@ async function checkTrainingStatus() {
             if (skillNameEl) skillNameEl.textContent = `Training: ${status.skillName || (status.skillId || status.skill_id || '').replace(/_/g, ' ')}`;
             if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
             if (fillEl) fillEl.style.width = `${percent}%`;
-            if (progressTextEl) progressTextEl.textContent = `${percent}% learned · ${hoursToFull.toFixed(1)}h to full`;
+            if (progressTextEl) progressTextEl.textContent = formatTrainingProgressText(status);
 
             overlay.classList.remove('hidden');
             return;
@@ -1632,8 +1639,7 @@ function showTrainingOverlay(skillName, endsAt, status = null) {
 
     if (status) {
         const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
-        const hoursToFull = Number(status.hoursToFull ?? 0);
-        if (progressTextEl) progressTextEl.textContent = `${percent}% learned · ${hoursToFull.toFixed(1)}h to full`;
+        if (progressTextEl) progressTextEl.textContent = formatTrainingProgressText(status);
         if (fillEl) fillEl.style.width = `${percent}%`;
     }
 
