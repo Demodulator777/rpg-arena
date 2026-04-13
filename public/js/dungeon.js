@@ -1199,7 +1199,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const t = getFloorTheme(fl);
     return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
         <div style="font-size:0.62rem;color:var(--dungeon-muted)">Floor ${fl}</div>
-        <img src="${boss.image}" alt="${boss.name}" style="width:48px;height:48px;object-fit:cover;border-radius:50%;margin:5px 0;border:1px solid ${t.theme}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <img src="${boss.image}" alt="${boss.name}" style="width:48px;height:48px;object-fit:cover;border-radius:50%;margin:5px 0;border:1px solid ${t.theme}" data-error-hide="true" data-error-next-display="block">
         <div style="display:none;font-size:1.4rem">${boss.icon}</div>
         <div style="font-size:0.62rem;color:#e2e8f0;text-align:center;line-height:1.3">${boss.name.split(' ').slice(0,2).join(' ')}</div>
         <div style="font-size:0.6rem;color:var(--dungeon-muted)">❤️${boss.hp}</div>
@@ -1226,7 +1226,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
             Next boss — Floor ${curFloor}
           </div>
 <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-    <img src="${nextBoss.image}" alt="${nextBoss.name}" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid ${nextTheme.theme}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <img src="${nextBoss.image}" alt="${nextBoss.name}" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid ${nextTheme.theme}" data-error-hide="true" data-error-next-display="flex">
     <div style="display:none;font-size:2.5rem">${nextBoss.icon}</div>
     <div>
         <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
@@ -1241,7 +1241,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         </div>
 
         <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
-            onclick="dungeonEnter('tower')">
+            ${actionAttrs('dungeonEnter', 'tower')}>
         ${hasAnyProgress ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
     </button>
       </div>
@@ -1289,7 +1289,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       <div class="dungeon-game" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
         <div class="dungeon-game-screen">
           ${roomImage ? `
-            <img class="dungeon-game-scene" src="${roomImage}" alt="Dungeon Scene" onerror="this.style.display='none'">
+            <img class="dungeon-game-scene" src="${roomImage}" alt="Dungeon Scene" data-error-hide="true">
           ` : `<div class="dungeon-game-scene dungeon-game-scene-fallback"></div>`}
           <div class="dungeon-game-vignette"></div>
 
@@ -1298,8 +1298,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
   <div id="dungeon-log-entries" class="dungeon-hud-log-inline"></div>
   <div class="dungeon-hud-floor">Floor ${D.floor}</div>
   <div class="dungeon-hud-actions">
-    <button class="dungeon-btn dungeon-btn-hud" onclick="openGuild()">🏛️ Guild</button>
-    <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" onclick="dungeonExit()">Exit</button>
+    <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>🏛️ Guild</button>
+    <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" ${actionAttrs('dungeonExit')}>Exit</button>
   </div>
 </div>
 
@@ -1347,7 +1347,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                 const text = explored ? `Room ${ci+1}` : 'Unknown';
                 return `
                   <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
-                          onclick="dungeonTravel(${ci})" ${D.isTraveling ? 'disabled' : ''}>
+                          ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
                     <span class="dungeon-path-btn-icon">${icon}</span>
                     <span class="dungeon-path-btn-text">${text}</span>
                   </button>
@@ -1452,7 +1452,7 @@ function renderRoomInfo(room) {
         const boss = def.boss;
         return `
             <div class="dungeon-boss-room">
-                <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" data-error-hide="true" data-error-next-display="block">
                 <div style="display:none;font-size:3rem">${boss.icon}</div>
                 <div class="boss-name-big">${boss.name}</div>
                 <div class="boss-stats">
@@ -1461,7 +1461,7 @@ function renderRoomInfo(room) {
                 <div class="boss-drop-preview">
                     Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} gold · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} gems · ✨ Random Premium Feature (${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]} days)
                 </div>
-                <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" onclick="dungeonFightBoss(${room.id})">
+                <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" ${actionAttrs('dungeonFightBoss', room.id)}>
                     ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
                 </button>
             </div>
@@ -1482,7 +1482,7 @@ function renderRoomInfo(room) {
                     <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def} · 🗝️ Costs ${m.tokenCost} tokens</div>
                 </div>
                 <div class="monster-btns">
-                    <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFightMiniBoss(${room.id})">⚔️ Challenge Mini-Boss</button>
+                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ Challenge Mini-Boss</button>
                 </div>
             </div>
         `;
@@ -1511,8 +1511,8 @@ function renderRoomInfo(room) {
                     ${monsterCount > 1 ? `<div class="monster-warning" style="font-size:0.65rem;color:#e74c3c;margin-top:4px">⚠️ All enemies attack together each round!</div>` : ''}
                 </div>
                 <div class="monster-btns">
-                    <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonFight(${room.id})">⚔️ Fight</button>
-                    <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRun(${room.id})">💨 Run (75%)</button>
+                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ Fight</button>
+                    <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRun', room.id)}>💨 Run (75%)</button>
                 </div>
                 ${m.stolenItems && m.stolenItems.length > 0 ? `
                     <div class="stolen-items-notice">
@@ -1606,8 +1606,8 @@ function renderRoomInfo(room) {
             <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
 
             <div class="combat-actions">
-                <button class="dungeon-btn dungeon-btn-fight" onclick="dungeonAttack()">⚔️ Strike</button>
-                <button class="dungeon-btn dungeon-btn-run" onclick="dungeonRunCombat()">💨 Flee (75%)</button>
+                <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonAttack')}>⚔️ Strike</button>
+                <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
             </div>
         </div>
     `;
@@ -1643,7 +1643,7 @@ function renderRoomInfo(room) {
         </div>
       </div>
       <div class="victory-next">Advancing to Floor ${D.floor}...</div>
-      <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeDungeonVictory()">Continue Delving</button>
+      <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('closeDungeonVictory')}>Continue Delving</button>
     </div>
   `;
 }
@@ -1712,7 +1712,7 @@ function dungeonExit() {
             <div class="guild-title">Adventurer's Guild</div>
             <div class="guild-subtitle">Exchange dungeon spoils for real rewards</div>
           </div>
-          <button class="dungeon-btn dungeon-btn-exit" onclick="closeGuild()">← Back to Dungeon</button>
+<button class="dungeon-btn dungeon-btn-exit" ${actionAttrs('closeGuild')}>← Back to Dungeon</button>
         </div>
         
         <div class="guild-stats">
@@ -1810,7 +1810,7 @@ function dungeonExit() {
                       ${exchange.reward.item ? `<span class="reward-item">📦 ${exchange.reward.item}</span>` : ''}
                       ${currentRank.discount > 0 ? `<span class="reward-discount">✨ +${currentRank.discount}% Gold Bonus (${currentRank.name})</span>` : ''}
                     </div>
-                    <button class="exchange-btn" onclick="exchangeAtGuild('${exchange.id}')" ${!canExchange ? 'disabled' : ''}>
+<button class="exchange-btn" ${actionAttrs('exchangeAtGuild', exchange.id)} ${!canExchange ? 'disabled' : ''}>
                       ${canExchange ? 'Exchange' : missingReason || 'Missing Requirements'}
                     </button>
                   </div>
@@ -1820,14 +1820,14 @@ function dungeonExit() {
           </div>
         </div>
         
-        <button class="dungeon-btn" onclick="closeGuild()" style="width:100%;margin-top:20px">Continue Exploring</button>
+<button class="dungeon-btn" ${actionAttrs('closeGuild')} style="width:100%;margin-top:20px">Continue Exploring</button>
       </div>
     `;
 
     // Fix: Ensure the overlay is properly positioned relative to body
     if (overlay) {
       overlay.innerHTML = `
-        <div class="dungeon-overlay-backdrop" onclick="closeGuild()"></div>
+<div class="dungeon-overlay-backdrop" ${actionAttrs('closeGuild')}></div>
         <div class="dungeon-overlay-card guild-overlay-card">
           ${guildHtml}
         </div>
