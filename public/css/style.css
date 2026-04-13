@@ -2265,9 +2265,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-eq-grid::before {
     content: "" !important;
     position: absolute !important;
-    inset: 10px 52px 22px !important;
+    inset: -4px 34px 4px !important;
     background: url('/images/character-bg.png') center/contain no-repeat !important;
-    opacity: 0.2 !important;
+    background-size: 108% auto !important;
+    opacity: 0.18 !important;
+    -webkit-mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 50%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.32) 84%, transparent 100%) !important;
+    mask-image: radial-gradient(circle at center, rgba(0,0,0,1) 50%, rgba(0,0,0,0.82) 68%, rgba(0,0,0,0.32) 84%, transparent 100%) !important;
     pointer-events: none !important;
 }
 
@@ -2328,8 +2331,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     gap: 4px !important;
     padding: 6px !important;
     border-radius: 10px !important;
-    border: 1px dashed rgba(255,255,255,0.1) !important;
-    background: rgba(255,255,255,0.025) !important;
+    border: none !important;
+    background: rgba(255,255,255,0.015) !important;
     overflow: hidden !important;
 }
 
@@ -2337,17 +2340,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-eq-slot::before {
     content: "" !important;
     position: absolute !important;
-    inset: 6px !important;
-    background: url('/images/equipment-bg.png') center/contain no-repeat !important;
+    inset: -1px !important;
+    background: url('/images/equipment-bg.png') center/112% no-repeat !important;
     opacity: 0.2 !important;
     pointer-events: none !important;
 }
 
 .eq-slot.filled,
 .profile-eq-slot.filled {
-    background: rgba(255,255,255,0.04) !important;
-    border-style: solid !important;
-    border-color: rgba(255,255,255,0.12) !important;
+    background: rgba(255,255,255,0.025) !important;
+    border: none !important;
 }
 
 .eq-slot-icon,
