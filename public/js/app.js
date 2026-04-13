@@ -20,6 +20,7 @@ let playerTravelStartTime = 0;
 const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
 let trainingInterval = null;
+let trainingOverlayInterval = null;
 
 async function loadAbyssData() {
     try {
@@ -730,17 +731,17 @@ function renderLoadoutRoundTabs() {
     }).join('');
 }
 
+
 async function checkTrainingStatus() {
     try {
         const status = await api('GET', '/skills/training/status');
         const overlay = document.getElementById('training-overlay');
         if (!overlay) return;
 
-        if (status && status.active && status.endsAt) {
-            const remaining = status.remainingSeconds ?? status.remaining ?? status.timeLeft ?? 0;
-            const progress = status.progress_current ?? status.progress ?? 0;
-            const target = status.progress_target ?? status.target ?? 100;
-            const percent = target > 0 ? Math.floor((progress / target) * 100) : 0;
+        if (status && status.active) {
+            const remaining = status.remainingSeconds || status.remaining || 0;
+            const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
+            const hoursToFull = Number(status.hoursToFull ?? 0);
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
 
@@ -749,18 +750,19 @@ async function checkTrainingStatus() {
             const fillEl = document.getElementById('training-overlay-fill');
             const progressTextEl = document.getElementById('training-progress-text');
 
-            if (skillNameEl) skillNameEl.textContent = `Training: ${status.skillName || (status.skill_id || status.skillId || '').replace(/_/g, ' ')}`;
+            if (skillNameEl) skillNameEl.textContent = `Training: ${status.skillName || (status.skillId || status.skill_id || '').replace(/_/g, ' ')}`;
             if (timerEl) timerEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
             if (fillEl) fillEl.style.width = `${percent}%`;
-            if (progressTextEl) progressTextEl.textContent = `${percent}% complete`;
+            if (progressTextEl) progressTextEl.textContent = `${percent}% learned · ${hoursToFull.toFixed(1)}h to full`;
 
             overlay.classList.remove('hidden');
-        } else {
-            overlay.classList.add('hidden');
-            if (trainingInterval) {
-                clearInterval(trainingInterval);
-                trainingInterval = null;
-            }
+            return;
+        }
+
+        overlay.classList.add('hidden');
+        if (trainingInterval) {
+            clearInterval(trainingInterval);
+            trainingInterval = null;
         }
     } catch(e) {
         console.error('Failed to check training status:', e);
@@ -771,6 +773,7 @@ async function checkTrainingStatus() {
 function startTrainingPolling() {
     if (trainingInterval) clearInterval(trainingInterval);
     trainingInterval = setInterval(checkTrainingStatus, 1000);
+    checkTrainingStatus();
 }
 
 function renderLoadoutDotGrid(type) {
@@ -1564,39 +1567,36 @@ async function collectMission() {
 }
 
 // ── Mission Overlay ───────────────────────────────────────────────────────
+
 async function checkAndShowMissionOverlay() {
     try {
-        // 1. Mission (highest priority)
         const activeMission = await api('GET', '/game/missions/active').catch(() => null);
         if (activeMission && activeMission.id) {
             window.activeMission = true;
             hideRestOverlay();
             hideTrainingOverlay();
-            hideTravelOverlay();           // ← added
+            hideTravelOverlay();
             showMissionOverlay(activeMission, activeMission.mission_name || activeMission.missionName || 'Mission');
             return;
         }
         window.activeMission = false;
 
-        // 2. Training
         const trainingStatus = await api('GET', '/skills/training/status').catch(() => null);
-        if (trainingStatus && trainingStatus.active && trainingStatus.endsAt) {
+        if (trainingStatus && trainingStatus.active) {
             hideRestOverlay();
             hideMissionOverlay();
-            hideTravelOverlay();           // ← added
+            hideTravelOverlay();
             showTrainingOverlay(
                 trainingStatus.skillName || 'Skill Training',
                 trainingStatus.endsAt,
-                trainingStatus.progress_current ?? trainingStatus.progress ?? 0,
-                trainingStatus.progress_target ?? trainingStatus.target ?? 100
+                trainingStatus
             );
             return;
         }
         hideTrainingOverlay();
 
-        // 3. Rest / Battle cooldown
         hideMissionOverlay();
-        hideTravelOverlay();               // ← added
+        hideTravelOverlay();
 
         const freshChar = await api('GET', '/game/character').catch(() => null);
         if (freshChar) character = freshChar;
@@ -1607,14 +1607,11 @@ async function checkAndShowMissionOverlay() {
 
         if (endsAt > now && lastBattle > 0) {
             showRestOverlay(lastBattle, endsAt);
-            return;                        // ← added to prevent falling through
-        } else {
-            hideRestOverlay();
+            return;
         }
 
-        // Nothing active
+        hideRestOverlay();
         hideTravelOverlay();
-
     } catch (e) {
         console.error('Error in checkAndShowMissionOverlay:', e);
         hideMissionOverlay();
@@ -1624,45 +1621,38 @@ async function checkAndShowMissionOverlay() {
     }
 }
 
-function showTrainingOverlay(skillName, endsAt, progress = 0, target = 100) {
+function showTrainingOverlay(skillName, endsAt, status = null) {
     const overlay = document.getElementById('training-overlay');
     if (!overlay) return;
 
-    if (trainingOverlayInterval) {
-        clearInterval(trainingOverlayInterval);
-        trainingOverlayInterval = null;
+    const skillEl = document.getElementById('training-skill-name');
+    const progressTextEl = document.getElementById('training-progress-text');
+    const fillEl = document.getElementById('training-overlay-fill');
+    if (skillEl) skillEl.textContent = skillName;
+
+    if (status) {
+        const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
+        const hoursToFull = Number(status.hoursToFull ?? 0);
+        if (progressTextEl) progressTextEl.textContent = `${percent}% learned · ${hoursToFull.toFixed(1)}h to full`;
+        if (fillEl) fillEl.style.width = `${percent}%`;
     }
 
-    const nameEl = document.getElementById('training-skill-name');
-    const timerEl = document.getElementById('training-overlay-timer');
-    const fillEl = document.getElementById('training-overlay-fill');
-    const progressTextEl = document.getElementById('training-progress-text');
-    if (nameEl) nameEl.textContent = skillName;
-
-    const update = () => {
-        const now = Math.floor(Date.now() / 1000);
-        const remaining = Math.max(0, (endsAt || 0) - now);
-        const pct = target > 0 ? Math.max(0, Math.min(100, Math.floor((progress / target) * 100))) : 0;
-        const m = Math.floor(remaining / 60);
-        const s = remaining % 60;
-        if (timerEl) timerEl.textContent = remaining === 0 ? '✅ Complete!' : `${m}:${String(s).padStart(2, '0')}`;
-        if (fillEl) fillEl.style.width = `${pct}%`;
-        if (progressTextEl) progressTextEl.textContent = `${pct}% complete`;
-        if (remaining === 0 && trainingOverlayInterval) {
-            clearInterval(trainingOverlayInterval);
-            trainingOverlayInterval = null;
-        }
-    };
-
-    update();
-    trainingOverlayInterval = setInterval(update, 1000);
     overlay.classList.remove('hidden');
+    window.currentTrainingEnd = endsAt;
+
+    if (trainingOverlayInterval) clearInterval(trainingOverlayInterval);
+    trainingOverlayInterval = setInterval(checkTrainingStatus, 1000);
+    checkTrainingStatus();
 }
 
 function hideTrainingOverlay() {
     const overlay = document.getElementById('training-overlay');
     if (overlay) overlay.classList.add('hidden');
-    if (trainingOverlayInterval) { clearInterval(trainingOverlayInterval); trainingOverlayInterval = null; }
+    window.currentTrainingEnd = null;
+    if (trainingOverlayInterval) {
+        clearInterval(trainingOverlayInterval);
+        trainingOverlayInterval = null;
+    }
 }
 
 function showRestOverlay(startedAt, endsAt) {
@@ -3881,32 +3871,74 @@ function showShopItemTooltip(event, itemJson) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
-    
+
     let item;
     try {
         item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson;
-    } catch(e) {
+    } catch (e) {
         return;
     }
-    
-    const qColor = { legendary: '#ffd700', rare: '#9b59b6', common: 'rgba(255,255,255,0.5)' }[item.quality || 'common'];
-    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png` : null);
-    
-    // Calculate sell price with premium (for shop, we show buy price, not sell)
-    let buyPrice = item.price;
-    let priceType = item.priceType || 'gold';
-    let priceIcon = priceType === 'gems' ? '💎' : '💰';
-    
-    // Build stats HTML
-    let statsHtml = '';
-    if (item.stats) {
-        for (const [stat, value] of Object.entries(item.stats)) {
-            if (value === 0) continue;
-            const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
-            statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">+${value}</span></div>`;
+
+    const qColor = {
+        legendary: '#ffd700',
+        rare: '#9b59b6',
+        common: 'rgba(255,255,255,0.5)'
+    }[item.quality || 'common'];
+
+    const imgSrc =
+        item.img ||
+        (item.name && !item.consumable
+            ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`
+            : null);
+
+    const priceType = item.priceType || 'gold';
+    const priceIcon = priceType === 'gems' ? '💎' : '💰';
+    const buyPrice = item.price || 0;
+    const gemCost = item.gemCost || 0;
+
+    // Normalize slot for comparison
+    let itemSlot = item.slot || item.category || 'item';
+    let equippedItem = null;
+
+    if (character?.equipped) {
+        if (itemSlot === 'ring' || itemSlot === 'amulet') {
+            itemSlot = 'jewelry';
+            equippedItem = character.equipped.ring || character.equipped.amulet || null;
+        } else {
+            equippedItem = character.equipped[itemSlot] || null;
         }
     }
-    
+
+    // Build compared stat list like inventory tooltip
+    let statsHtml = '';
+    const allStats = new Set([
+        ...Object.keys(item.stats || {}),
+        ...Object.keys(equippedItem?.stats || {})
+    ].filter(k => !k.includes('type')));
+
+    for (const stat of allStats) {
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
+
+        const nv = item.stats?.[stat] || 0;
+        const ov = equippedItem?.stats?.[stat] || 0;
+        const diff = nv - ov;
+
+        // Skip useless empty rows
+        if (nv === 0 && ov === 0) continue;
+
+        const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
+        const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
+        const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
+
+        statsHtml += `
+            <div class="tt-stat">
+                <span class="tt-stat-name">${label}</span>
+                <span class="tt-stat-val">${nv > 0 ? '+' : ''}${nv}</span>
+                ${equippedItem && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}
+            </div>
+        `;
+    }
+
     // Effect for consumables
     let effectHtml = '';
     if (item.effect) {
@@ -3917,37 +3949,63 @@ function showShopItemTooltip(event, itemJson) {
         else if (e.type === 'mp') effectText = `🔮 Restores ${e.value} MP`;
         else if (e.type === 'temp_stat') effectText = `💪 +${e.value} ${e.stat} for 1 hour`;
         else if (e.type === 'xp') effectText = `⭐ +${e.value} XP`;
-        if (effectText) effectHtml = `<div class="tt-stat"><span class="tt-stat-name">Effect</span><span class="tt-stat-val">${effectText}</span></div>`;
+
+        if (effectText) {
+            effectHtml = `
+                <div class="tt-stat">
+                    <span class="tt-stat-name">Effect</span>
+                    <span class="tt-stat-val">${effectText}</span>
+                </div>
+            `;
+        }
     }
-    
+
     tooltip.innerHTML = `
         <div class="tt-preview">
-            ${imgSrc
-                ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
-                : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
-            }
+            ${
+        imgSrc
+            ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
+            : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
+    }
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
-            <div class="tt-meta">${capitalize(item.slot || item.category || 'item')}${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}</div>
+            <div class="tt-meta">
+                ${capitalize(itemSlot || 'item')}
+                ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}
+            </div>
             ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
-            <div class="tt-stats">${statsHtml || effectHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
-            <div class="tt-price" style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.1);color:#f1c40f">
-                ${priceIcon} ${buyPrice.toLocaleString()} ${priceType === 'gems' ? 'gems' : 'gold'}
+            <div class="tt-stats">
+                ${statsHtml || `<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}
+                ${effectHtml}
+            </div>
+            ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+            <div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">
+                Buy: ${priceIcon} ${buyPrice.toLocaleString()}
+                ${gemCost > 0 ? ` + 💎 ${gemCost}` : ''}
             </div>
         </div>
+        <div class="tt-actions">
+            <button class="tt-btn tt-btn-primary" onclick="buyItem('${item.id}')">
+                Buy
+            </button>
+        </div>
     `;
-    
+
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
     tooltip.style.left = '-9999px';
     tooltip.style.top = '-9999px';
+
     const tw = tooltip.offsetWidth || 220;
-    const th = tooltip.offsetHeight || 320;
+    const th = tooltip.offsetHeight || 340;
+
     let left = r.right + 12;
     let top = r.top;
+
     if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
     if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+
     tooltip.style.left = Math.max(8, left) + 'px';
     tooltip.style.top = Math.max(8, top) + 'px';
 }
@@ -4125,15 +4183,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initBugReport();
 });
 
+
 async function updateTrainingStatus() {
     try {
         const status = await api('GET', '/skills/training/status');
         const indicator = document.getElementById('training-indicator');
         if (!indicator) return;
-        
+
         if (status.active) {
-            const progress = Math.floor(status.progress_current ?? status.progress ?? 0);
-            const remaining = formatTrainingTime(status.remainingSeconds ?? status.remaining ?? status.timeLeft ?? 0);
+            const progress = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
+            const remaining = formatTrainingTime(status.remainingSeconds || status.remaining || 0);
             indicator.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span style="font-size: 0.75rem;">⚔️ ${progress}%</span>
@@ -4161,10 +4220,11 @@ function formatTrainingTime(seconds) {
 }
 
 async function cancelTraining() {
-    if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
+    if (!confirm('Cancel current training? Partial progress is kept.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
+        hideTrainingOverlay();
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
