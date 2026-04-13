@@ -9,6 +9,24 @@ const { getDb } = require('./db');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "connect-src 'self'",
+    "img-src 'self' data: blob:",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'"
+  ];
+  res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // Import middleware and modules
 const auth = require('./middleware');  // This is your middleware
