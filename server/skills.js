@@ -33,14 +33,7 @@ function hasPremium(activePremium, featureId) {
 }
 
 // ── Training durations (seconds) ─────────────────────────────────────────────
-const SKILL_TRAIN_DURATIONS = {
-    novice:      3600,        //  1 hour
-    apprentice:  10800,       //  3 hours
-    journeyman:  28800,       //  8 hours
-    expert:      86400,       //  1 day
-    master:      259200,      //  3 days
-    grandmaster: 604800,      //  7 days
-};
+const SKILL_TRAIN_HOURS_TO_FULL = 100;
 
 // ── Quest / unlock conditions ─────────────────────────────────────────────────
 const UNLOCK_CONDITIONS = {
@@ -1758,14 +1751,8 @@ function getTrainingProgressNow(training, now = Math.floor(Date.now() / 1000)) {
     return Math.min(target, start + ((target - start) * pct));
 }
 
-function getSkillTotalDurationSeconds(skill = {}) {
-    const tier = Number(skill.tier || 1);
-    if (tier <= 1) return SKILL_TRAIN_DURATIONS.novice;
-    if (tier === 2) return SKILL_TRAIN_DURATIONS.apprentice;
-    if (tier === 3) return SKILL_TRAIN_DURATIONS.journeyman;
-    if (tier === 4) return SKILL_TRAIN_DURATIONS.expert;
-    if (tier === 5) return SKILL_TRAIN_DURATIONS.master;
-    return SKILL_TRAIN_DURATIONS.grandmaster;
+function getSkillTotalHoursToFull() {
+    return SKILL_TRAIN_HOURS_TO_FULL;
 }
 
 function getSkillByIds(className, branchId, skillId) {
@@ -1776,7 +1763,7 @@ function getSkillByIds(className, branchId, skillId) {
 
 function getHoursToFull(progress, skill, speed = 1) {
     const remainingPct = Math.max(0, 100 - Number(progress || 0));
-    const totalHours = Math.max(1 / 60, getSkillTotalDurationSeconds(skill) / 3600);
+    const totalHours = Math.max(1 / 60, getSkillTotalHoursToFull(skill));
     const perHour = (100 / totalHours) * speed;
     return remainingPct / Math.max(perHour, 0.0001);
 }
@@ -2251,8 +2238,8 @@ router.post('/train/start', async (req, res) => {
             await dbRun(db, 'INSERT INTO character_skill_tree (char_id, skill_id, branch_id, class, learned_at, progress) VALUES (?, ?, ?, ?, 0, ?)', [char.id, skillId, branchId, char.class, currentProgress]);
         }
 
-        const totalDurationSeconds = getSkillTotalDurationSeconds(sk);
-        const progressGain = ((chosenHours * 3600) / totalDurationSeconds) * 100 * speed;
+        const totalHoursToFull = getSkillTotalHoursToFull(sk);
+        const progressGain = (chosenHours / totalHoursToFull) * 100 * speed;
         const targetProgress = Math.min(100, currentProgress + progressGain);
         const duration = chosenHours * 3600;
 
