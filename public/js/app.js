@@ -589,10 +589,10 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
 }).join('');
 
 const eqGrid = `
-<div class="eq-grid">${mainEqGrid}</div>
+<div class="eq-stage"><div class="eq-grid">${mainEqGrid}</div>
 <div class="eq-accessory-row">
     ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
-</div>`;
+</div></div>`;
 
     // FIX: Use c.mp_max from backend response (already includes premium bonus)
     const mpCurrent = c.mission_points || 0;
@@ -3475,21 +3475,20 @@ async function openProfile(id) {
             {slot:'boots',  icon:'👢', col:3, row:3},
         ];
         const profileEqHtml =
-            `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
-                <img src="/images/class/${p.class}.png" style="width:240px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
+            `<div class="eq-avatar-center profile-eq-avatar">
+                <img src="/images/class/${p.class}.png" alt="${p.class}" onerror="this.style.opacity='0'">
             </div>`
-            + profileSlots.map(({slot,icon,col,row}) => {
+            + profileSlots.map(({slot,icon}) => {
                 const item = profileResolvedEq[slot];
-                const sq = `grid-column:${col};grid-row:${row};width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
-                if (!item) return `<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${icon}</span></div>`;
+                if (!item) return `<div class="eq-slot empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
                 const qc = item.quality === 'legendary' ? '#f1c40f' : item.quality === 'rare' ? '#9b59b6' : 'rgba(255,255,255,0.5)';
                 const itemData = escHtml(JSON.stringify(item));
-                return `<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
+                return `<div class="eq-slot filled profile-eq-slot" style="border-color:${qc}44"
                     data-item="${itemData}"
-                    onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
-                    onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
+                    onmouseenter="showEqTooltip(event,this.dataset.item)"
+                    onmouseleave="scheduleHideTooltip()"
                 >
-                    ${itemIcon(item, '60px')}
+                    <span class="eq-slot-icon">${itemIcon(item, 'slot')}</span>
                 </div>`;
             }).join('');
 
@@ -3545,8 +3544,10 @@ async function openProfile(id) {
           ${Object.keys(eq).length?`
           <div class="profile-card profile-equipment-card">
             <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
-            <div style="display:grid;grid-template-columns:80px 160px 80px;grid-template-rows:repeat(3,80px);gap:6px;align-items:center;justify-content:center;margin:0 auto;width:fit-content">${profileEqHtml}</div>
-            ${smallSlotsHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${smallSlotsHtml}</div>`:''}
+            <div class="eq-stage profile-eq-stage">
+              <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
+              ${smallSlotsHtml ? `<div class="eq-accessory-row profile-eq-accessory-row">${smallSlotsHtml}</div>` : ''}
+            </div>
           </div>`:''}
           ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
