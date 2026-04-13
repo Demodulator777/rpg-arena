@@ -2535,7 +2535,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-eq-avatar {
     position: absolute;
     left: 50%;
-    top: 53%;
+    top: 56%;
     transform: translate(-50%, -50%);
     width: 220px;
     height: 308px;
@@ -2618,46 +2618,46 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-slot--helmet,
 .profile-eq-slot.eq-slot--helmet {
     left: calc(50% - 41px);
-    top: 8px;
+    top: 39px;
     transform: none;
 }
 
 .eq-slot--armor,
 .profile-eq-slot.eq-slot--armor {
-    left: 16px;
-    top: 96px;
+    left: 34px;
+    top: 128px;
 }
 
 .eq-slot--weapon,
 .profile-eq-slot.eq-slot--weapon {
-    left: 4px;
+    left: 50px;
     top: 220px;
 }
 
 .eq-slot--amulet,
 .profile-eq-slot.eq-slot--amulet {
-    right: 16px;
-    top: 96px;
+    right: 34px;
+    top: 128px;
 }
 
 .eq-slot--shield,
 .profile-eq-slot.eq-slot--shield {
-    right: 4px;
+    right: 50px;
     top: 220px;
 }
 
 .eq-slot--boots,
 .profile-eq-slot.eq-slot--boots {
     left: calc(50% - 41px);
-    bottom: 18px;
+    bottom: 26px;
     transform: none;
 }
 
 .eq-accessory-row,
 .profile-eq-accessory-row {
     position: absolute;
-    right: 30px;
-    bottom: 82px;
+    right: 40px;
+    bottom: 104px;
     display: flex;
     justify-content: center;
     margin-top: 0;
