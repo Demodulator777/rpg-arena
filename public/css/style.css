@@ -2617,9 +2617,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .eq-slot--helmet,
 .profile-eq-slot.eq-slot--helmet {
-    left: 50%;
+    left: calc(50% - 41px);
     top: 8px;
-    transform: translateX(-50%);
+    transform: none;
 }
 
 .eq-slot--armor,
@@ -2648,9 +2648,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .eq-slot--boots,
 .profile-eq-slot.eq-slot--boots {
-    left: 50%;
+    left: calc(50% - 41px);
     bottom: 18px;
-    transform: translateX(-50%);
+    transform: none;
 }
 
 .eq-accessory-row,
@@ -2698,6 +2698,71 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .profile-equipment-card {
     overflow: hidden;
+}
+
+.profile-eq-stage {
+    width: min(100%, 360px);
+}
+
+.profile-eq-grid {
+    width: min(100%, 360px);
+    height: 396px;
+}
+
+.profile-eq-grid::before {
+    inset: 64px 54px 52px;
+}
+
+.profile-eq-avatar {
+    top: 54%;
+    width: 206px;
+    height: 288px;
+}
+
+.profile-eq-slot {
+    width: 76px;
+    height: 76px;
+}
+
+.profile-eq-slot .eq-slot-icon,
+.profile-eq-slot .eq-slot-icon img {
+    width: 62px;
+    height: 62px;
+}
+
+.profile-eq-slot.eq-slot--helmet {
+    left: calc(50% - 38px);
+    top: 10px;
+}
+
+.profile-eq-slot.eq-slot--armor {
+    left: 18px;
+    top: 92px;
+}
+
+.profile-eq-slot.eq-slot--weapon {
+    left: 2px;
+    top: 200px;
+}
+
+.profile-eq-slot.eq-slot--amulet {
+    right: 18px;
+    top: 92px;
+}
+
+.profile-eq-slot.eq-slot--shield {
+    right: 2px;
+    top: 200px;
+}
+
+.profile-eq-slot.eq-slot--boots {
+    left: calc(50% - 38px);
+    bottom: 16px;
+}
+
+.profile-eq-accessory-row {
+    right: 22px;
+    bottom: 78px;
 }
 
 @media (max-width: 900px) {
@@ -2749,6 +2814,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .eq-slot--helmet,
     .profile-eq-slot.eq-slot--helmet {
+        left: calc(50% - 33px);
         top: 4px;
     }
 
@@ -2778,6 +2844,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .eq-slot--boots,
     .profile-eq-slot.eq-slot--boots {
+        left: calc(50% - 33px);
         bottom: 12px;
     }
 
@@ -2790,5 +2857,69 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-slot-small {
         width: 60px;
         height: 60px;
+    }
+
+    .profile-eq-stage {
+        width: min(100%, 320px);
+    }
+
+    .profile-eq-grid {
+        width: min(100%, 320px);
+        height: 348px;
+    }
+
+    .profile-eq-avatar {
+        width: 184px;
+        height: 256px;
+    }
+
+    .profile-eq-slot {
+        width: 66px;
+        height: 66px;
+    }
+
+    .profile-eq-slot .eq-slot-icon,
+    .profile-eq-slot .eq-slot-icon img {
+        width: 56px;
+        height: 56px;
+    }
+
+    .profile-eq-grid::before {
+        inset: 58px 46px 44px;
+    }
+
+    .profile-eq-slot.eq-slot--helmet {
+        left: calc(50% - 33px);
+        top: 4px;
+    }
+
+    .profile-eq-slot.eq-slot--armor {
+        left: 8px;
+        top: 88px;
+    }
+
+    .profile-eq-slot.eq-slot--weapon {
+        left: 2px;
+        top: 184px;
+    }
+
+    .profile-eq-slot.eq-slot--amulet {
+        right: 8px;
+        top: 88px;
+    }
+
+    .profile-eq-slot.eq-slot--shield {
+        right: 2px;
+        top: 184px;
+    }
+
+    .profile-eq-slot.eq-slot--boots {
+        left: calc(50% - 33px);
+        bottom: 12px;
+    }
+
+    .profile-eq-accessory-row {
+        right: 18px;
+        bottom: 62px;
     }
 }
