@@ -1455,6 +1455,9 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
     const activeBranch = lockedBranchId;
 
     for (const [branchId, branch] of Object.entries(tree.branches)) {
+        const canSeeBranch = branchIsVisible(branchId, branch, activeBranch, learnedMap, progressMap, char, extraStats);
+        if (!canSeeBranch) continue;
+
         if (branch.hidden) {
             const anyVisible = Object.values(branch.skills).some(sk =>
                 meetsUnlockCondition(char, sk.unlockCondition, extraStats)
@@ -1503,7 +1506,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
             };
         }
 
-        if (hasVisibleSkill || activeBranch === branchId) {
+        if (hasVisibleSkill || activeBranch === branchId || branch.isStarter) {
             const starterSkillId = Object.keys(branch.skills)[0];
             result.branches[branchId] = {
                 ...branch,
@@ -1742,6 +1745,28 @@ async function setLockedBranchId(db, char, branchId) {
     return branchId;
 }
 
+async function clearLockedBranchId(db, charId) {
+    await dbRun(db, 'DELETE FROM character_skill_paths WHERE char_id = ?', [charId]);
+}
+
+function branchRequirementMet(branch, learnedMap = {}, progressMap = {}, char = {}, extraStats = {}) {
+    if (!branch?.requires) return true;
+    if (Array.isArray(branch.requires)) {
+        return branch.requires.every(skillId => Number(progressMap[skillId] || 0) >= 100 || !!learnedMap[skillId]);
+    }
+    if (typeof branch.requires === 'object') {
+        const reqSkill = branch.requires.skill;
+        const minProgress = Number(branch.requires.minProgress || 100);
+        const skillProgress = Number(progressMap[reqSkill] || 0);
+        if (reqSkill && skillProgress < minProgress && !learnedMap[reqSkill]) return false;
+        if (branch.requires.condition) {
+            return meetsUnlockCondition(char, branch.requires.condition, extraStats);
+        }
+        return true;
+    }
+    return true;
+}
+
 function getTrainingProgressNow(training, now = Math.floor(Date.now() / 1000)) {
     const totalDuration = Math.max(1, Number(training.ends_at || 0) - Number(training.started_at || 0));
     const elapsed = Math.max(0, Math.min(totalDuration, now - Number(training.started_at || 0)));
@@ -1759,6 +1784,27 @@ function getSkillByIds(className, branchId, skillId) {
     const tree = SKILL_TREES[className];
     const branch = tree?.branches?.[branchId];
     return branch?.skills?.[skillId] || null;
+}
+
+function getBranchSkillEntries(branch = {}, progressMap = {}) {
+    return Object.entries(branch.skills || {})
+        .map(([skillId, skill]) => ({
+            skillId,
+            skill,
+            progress: Number(progressMap[skillId] || 0),
+        }))
+        .filter(entry => entry.progress > 0)
+        .sort((a, b) => {
+            const tierDiff = Number(b.skill.tier || 0) - Number(a.skill.tier || 0);
+            if (tierDiff !== 0) return tierDiff;
+            return b.progress - a.progress;
+        });
+}
+
+function branchIsVisible(branchId, branch, activeBranch, learnedMap, progressMap, char, extraStats) {
+    if (branch.isStarter) return true;
+    if (activeBranch) return activeBranch === branchId;
+    return branchRequirementMet(branch, learnedMap, progressMap, char, extraStats);
 }
 
 function getHoursToFull(progress, skill, speed = 1) {
@@ -2082,7 +2128,7 @@ router.get('/training/status', async (req, res) => {
     }
 });
 
-router.post('/respec', async (req, res) => {
+router.post('/unlearn-step', async (req, res) => {
     try {
         const { getDb } = require('./db');
         const db = await getDb();
@@ -2090,50 +2136,49 @@ router.post('/respec', async (req, res) => {
         
         const char = (await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [req.user.userId] })).rows[0];
         if (!char) return res.status(404).json({ error: 'No character' });
+
+        const activeTraining = await dbGet(db, 'SELECT 1 FROM skill_training WHERE char_id = ?', [char.id]);
+        if (activeTraining) return res.status(400).json({ error: 'Cancel active training before unlearning a skill' });
         
-        // Get all skills in this branch that are learned
         const tree = SKILL_TREES[char.class];
         const branch = tree?.branches[branchId];
         if (!branch) return res.status(400).json({ error: 'Branch not found' });
-        
-        const learnedSkills = [];
-        let totalRefund = 0;
-        
-        for (const [skId, sk] of Object.entries(branch.skills)) {
-            const learned = await db.execute({
-                sql: 'SELECT * FROM character_skill_tree WHERE char_id=? AND skill_id=?',
-                args: [char.id, skId]
-            });
-            if (learned.rows.length) {
-                learnedSkills.push(skId);
-                totalRefund += Math.floor(sk.goldCost * 0.5);
+
+        if (branch.isStarter) {
+            return res.status(400).json({ error: 'Starter skills cannot be unlearned' });
+        }
+
+        const { progressMap } = await loadCharWithSkills(db, req.user.userId);
+        const branchEntries = getBranchSkillEntries(branch, progressMap);
+        if (!branchEntries.length) {
+            return res.status(400).json({ error: 'No learned or started skills in this branch' });
+        }
+
+        const latest = branchEntries[0];
+        const refund = Math.floor((latest.skill.goldCost || 0) * 0.5);
+
+        await dbRun(db, 'DELETE FROM character_skill_tree WHERE char_id = ? AND skill_id = ?', [char.id, latest.skillId]);
+        if (refund > 0) {
+            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+        }
+
+        const remainingEntries = getBranchSkillEntries(branch, {
+            ...progressMap,
+            [latest.skillId]: 0,
+        });
+        if (!remainingEntries.length) {
+            const lockedBranchId = await getLockedBranchId(db, char.id);
+            if (lockedBranchId === branchId) {
+                await clearLockedBranchId(db, char.id);
             }
         }
-        
-        if (learnedSkills.length === 0) {
-            return res.status(400).json({ error: 'No skills learned in this branch' });
-        }
-        
-        // Remove learned skills
-        for (const skId of learnedSkills) {
-            await db.execute({
-                sql: 'DELETE FROM character_skill_tree WHERE char_id=? AND skill_id=?',
-                args: [char.id, skId]
-            });
-        }
-        
-        // Refund gold
-        if (totalRefund > 0) {
-            await db.execute({
-                sql: 'UPDATE characters SET gold=gold+? WHERE id=?',
-                args: [totalRefund, char.id]
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: `Reset ${learnedSkills.length} skills. Refunded ${totalRefund} gold.`,
-            refund: totalRefund 
+
+        res.json({
+            success: true,
+            message: `Unlearned ${latest.skill.name}. Refunded ${refund} gold.${remainingEntries.length ? '' : ' Branch choice reopened.'}`,
+            refund,
+            skillId: latest.skillId,
+            branchUnlocked: remainingEntries.length === 0,
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -2212,17 +2257,11 @@ router.post('/train/start', async (req, res) => {
         }
 
         const lockedBranchId = await getLockedBranchId(db, char.id);
-        const exclusiveGroups = tree.exclusive_branches || [];
-        for (const group of exclusiveGroups) {
-            if (group.includes(branchId) && lockedBranchId && group.includes(lockedBranchId) && lockedBranchId !== branchId) {
-                return res.status(400).json({ error: `Branch locked to ${lockedBranchId.replace(/_/g, ' ')}` });
-            }
+        if (lockedBranchId && !branch.isStarter && lockedBranchId !== branchId) {
+            return res.status(400).json({ error: `Branch locked to ${lockedBranchId.replace(/_/g, ' ')}` });
         }
-        for (const group of exclusiveGroups) {
-            if (group.includes(branchId) && !lockedBranchId) {
-                await setLockedBranchId(db, char, branchId);
-                break;
-            }
+        if (!branch.isStarter && !lockedBranchId) {
+            await setLockedBranchId(db, char, branchId);
         }
 
         const extraGoldCost = doubleSpeed ? chosenHours * 500 : 0;
