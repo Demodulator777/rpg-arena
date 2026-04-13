@@ -2505,32 +2505,40 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 /* Equipment paper-doll overrides */
 .eq-stage {
-    width: min(100%, 380px);
+    position: relative;
+    width: min(100%, 390px);
     margin: 0 auto;
+    padding-bottom: 16px;
 }
 
 .eq-grid,
 .profile-eq-grid {
     position: relative;
-    width: min(100%, 380px);
-    height: 392px;
+    width: min(100%, 390px);
+    height: 420px;
     margin: 0 auto;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .eq-grid::before,
 .profile-eq-grid::before {
-    content: none;
+    content: "";
+    position: absolute;
+    inset: 70px 66px 58px;
+    background:
+        radial-gradient(circle at center, rgba(255,255,255,0.12), rgba(12,17,27,0.02) 72%);
+    filter: drop-shadow(0 20px 28px rgba(0,0,0,0.24));
+    pointer-events: none;
 }
 
 .eq-avatar-center,
 .profile-eq-avatar {
     position: absolute;
     left: 50%;
-    top: 50%;
+    top: 53%;
     transform: translate(-50%, -50%);
     width: 220px;
-    height: 300px;
+    height: 308px;
     z-index: 1;
     pointer-events: none;
 }
@@ -2547,8 +2555,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .eq-slot,
 .profile-eq-slot {
     position: absolute;
-    width: 76px;
-    height: 76px;
+    width: 82px;
+    height: 82px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2564,7 +2572,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     content: "";
     position: absolute;
     inset: -8px;
-    background: url('/images/equipment-bg.png') center/contain no-repeat;
+    background:
+        radial-gradient(circle at center, rgba(255,255,255,0.18), rgba(14,18,27,0.04) 72%),
+        url('/images/equipment-bg.png') center/contain no-repeat;
     filter: drop-shadow(0 10px 18px rgba(0,0,0,0.34));
     opacity: 0.98;
     pointer-events: none;
@@ -2579,8 +2589,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-eq-slot .eq-slot-icon {
     position: relative;
     z-index: 2;
-    width: 64px;
-    height: 64px;
+    width: 68px;
+    height: 68px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2589,8 +2599,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .eq-slot-icon img,
 .profile-eq-slot .eq-slot-icon img {
-    width: 64px;
-    height: 64px;
+    width: 68px;
+    height: 68px;
     object-fit: contain;
     display: block;
 }
@@ -2605,61 +2615,64 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: none !important;
 }
 
-.eq-grid > :nth-child(1),
-.profile-eq-grid > :nth-child(1) {
+.eq-slot--helmet,
+.profile-eq-slot.eq-slot--helmet {
     left: 50%;
-    top: 10px;
+    top: 8px;
     transform: translateX(-50%);
 }
 
-.eq-grid > :nth-child(2),
-.profile-eq-grid > :nth-child(2) {
-    left: 24px;
-    top: 112px;
-}
-
-.eq-grid > :nth-child(3),
-.profile-eq-grid > :nth-child(3) {
+.eq-slot--armor,
+.profile-eq-slot.eq-slot--armor {
     left: 16px;
-    top: 218px;
+    top: 96px;
 }
 
-.eq-grid > :nth-child(4),
-.profile-eq-grid > :nth-child(4) {
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+.eq-slot--weapon,
+.profile-eq-slot.eq-slot--weapon {
+    left: 4px;
+    top: 220px;
 }
 
-.eq-grid > :nth-child(5),
-.profile-eq-grid > :nth-child(5) {
-    right: 24px;
-    top: 112px;
-}
-
-.eq-grid > :nth-child(6),
-.profile-eq-grid > :nth-child(6) {
+.eq-slot--amulet,
+.profile-eq-slot.eq-slot--amulet {
     right: 16px;
-    top: 214px;
+    top: 96px;
 }
 
-.eq-grid > :nth-child(7),
-.profile-eq-grid > :nth-child(7) {
+.eq-slot--shield,
+.profile-eq-slot.eq-slot--shield {
+    right: 4px;
+    top: 220px;
+}
+
+.eq-slot--boots,
+.profile-eq-slot.eq-slot--boots {
     left: 50%;
-    bottom: 8px;
+    bottom: 18px;
     transform: translateX(-50%);
 }
 
 .eq-accessory-row,
 .profile-eq-accessory-row {
+    position: absolute;
+    right: 30px;
+    bottom: 82px;
     display: flex;
     justify-content: center;
-    margin-top: -12px;
+    margin-top: 0;
     padding: 0;
     border-top: none;
+    z-index: 3;
 }
 
 .eq-slot-small {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     border: none;
     box-shadow: none;
@@ -2669,7 +2682,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     content: "";
     position: absolute;
     inset: -6px;
-    background: url('/images/equipment-bg.png') center/contain no-repeat;
+    background:
+        radial-gradient(circle at center, rgba(255,255,255,0.18), rgba(14,18,27,0.04) 72%),
+        url('/images/equipment-bg.png') center/contain no-repeat;
     filter: drop-shadow(0 8px 14px rgba(0,0,0,0.32));
     opacity: 0.98;
     pointer-events: none;
@@ -2700,69 +2715,80 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-grid,
     .profile-eq-grid {
         width: min(100%, 320px);
-        height: 332px;
+        height: 348px;
     }
 
     .eq-avatar-center,
     .profile-eq-avatar {
-        width: 182px;
-        height: 248px;
+        width: 184px;
+        height: 256px;
     }
 
     .eq-slot,
     .profile-eq-slot {
-        width: 62px;
-        height: 62px;
+        width: 66px;
+        height: 66px;
     }
 
     .eq-slot-icon,
     .profile-eq-slot .eq-slot-icon {
-        width: 54px;
-        height: 54px;
+        width: 56px;
+        height: 56px;
     }
 
     .eq-slot-icon img,
     .profile-eq-slot .eq-slot-icon img {
-        width: 54px;
-        height: 54px;
+        width: 56px;
+        height: 56px;
     }
 
-    .eq-grid > :nth-child(1),
-    .profile-eq-grid > :nth-child(1) {
-        top: 6px;
+    .eq-grid::before,
+    .profile-eq-grid::before {
+        inset: 58px 46px 44px;
     }
 
-    .eq-grid > :nth-child(2),
-    .profile-eq-grid > :nth-child(2) {
+    .eq-slot--helmet,
+    .profile-eq-slot.eq-slot--helmet {
+        top: 4px;
+    }
+
+    .eq-slot--armor,
+    .profile-eq-slot.eq-slot--armor {
         left: 8px;
-        top: 96px;
+        top: 88px;
     }
 
-    .eq-grid > :nth-child(3),
-    .profile-eq-grid > :nth-child(3) {
-        left: 8px;
-        top: 186px;
-    }
-
-    .eq-grid > :nth-child(5),
-    .profile-eq-grid > :nth-child(5) {
-        right: 8px;
-        top: 96px;
-    }
-
-    .eq-grid > :nth-child(6),
-    .profile-eq-grid > :nth-child(6) {
-        right: 8px;
+    .eq-slot--weapon,
+    .profile-eq-slot.eq-slot--weapon {
+        left: 2px;
         top: 184px;
     }
 
-    .eq-grid > :nth-child(7),
-    .profile-eq-grid > :nth-child(7) {
-        bottom: 2px;
+    .eq-slot--amulet,
+    .profile-eq-slot.eq-slot--amulet {
+        right: 8px;
+        top: 88px;
+    }
+
+    .eq-slot--shield,
+    .profile-eq-slot.eq-slot--shield {
+        right: 2px;
+        top: 184px;
+    }
+
+    .eq-slot--boots,
+    .profile-eq-slot.eq-slot--boots {
+        bottom: 12px;
     }
 
     .eq-accessory-row,
     .profile-eq-accessory-row {
-        margin-top: -6px;
+        right: 18px;
+        bottom: 62px;
+    }
+
+    .eq-slot-small {
+        width: 60px;
+        height: 60px;
     }
 }
