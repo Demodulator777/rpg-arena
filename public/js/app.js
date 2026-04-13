@@ -1,4 +1,4 @@
-// в”Ђв”Ђ State в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── State ─────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('rpg_token');
 let username = localStorage.getItem('rpg_username');
 let character = null;
@@ -31,30 +31,30 @@ async function loadAbyssData() {
     }
 }
 
-// в”Ђв”Ђ Stat display labels в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Stat display labels ───────────────────────────────────────────────────
 const STAT_LABELS = {
     dmg_min:        'Min Dmg',
     dmg_max:        'Max Dmg',
-    armor:          'Armor',
-    hp_max:         'HP',
-    defense:        'Defense',
-    strength:       'Strength',
-    agility:        'Agility',
-    magic:          'Magic',
-    vitality:       'Vitality',
-    hit_chance:     'Hit Chance',
-    crit_chance:    'Crit Chance',
-    pyro_dmg:       'Fire Dmg',
-    water_dmg:      'Water Dmg',
-    wind_dmg:       'Wind Dmg',
-    electro_dmg:    'Electro Dmg',
-    pyro_resist:    'Fire Resist',
-    water_resist:   'Water Resist',
-    wind_resist:    'Wind Resist',
-    electro_resist: 'Electro Resist',
+    armor:          '🛡 Armor',
+    hp_max:         '❤️ HP',
+    defense:        '🛡️ Defense',
+    strength:       '💪 Strength',
+    agility:        '⚡ Agility',
+    magic:          '✨ Magic',
+    vitality:       '❤️ Vitality',
+    hit_chance:     '🎯 Hit Chance',
+    crit_chance:    '💥 Crit Chance',
+    pyro_dmg:       '🔥 Fire Dmg',
+    water_dmg:      '💧 Water Dmg',
+    wind_dmg:       '🌀 Wind Dmg',
+    electro_dmg:    '⚡ Electro Dmg',
+    pyro_resist:    '🔥 Fire Resist',
+    water_resist:   '💧 Water Resist',
+    wind_resist:    '🌀 Wind Resist',
+    electro_resist: '⚡ Electro Resist',
 };
 
-// в”Ђв”Ђ Hit & Block Zone Definitions в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Hit & Block Zone Definitions ──────────────────────────────────────────
 const HIT_ZONES = {
     head:         { label: 'Head',         dmgMult: 1.5,  hitChance: 0.60, desc: 'High risk, high reward. Devastating if it lands.' },
     throat:       { label: 'Throat',       dmgMult: 1.3,  hitChance: 0.65, desc: 'Strong damage with decent accuracy.' },
@@ -84,10 +84,10 @@ const BLOCK_ZONES = {
 const DEFAULT_ATTACK_ZONES = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
 const DEFAULT_BLOCK_ZONES  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
 
-// в”Ђв”Ђ Zone Definitions в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Zone Definitions ──────────────────────────────────────────────────────
 const ZONES = {
     forest: {
-        name: 'Whispering Forest', emoji: 'рџЊІ', minLevel: 1,
+        name: 'Whispering Forest', emoji: '🌲', minLevel: 1,
         mapImg: '/images/zones/forest.jpg', bgImg: '/images/zones/forest-bg.jpg',
         pos: { x: 22, y: 38 },
         description: 'A dense, ancient forest filled with wildlife and bandits.',
@@ -109,7 +109,7 @@ const ZONES = {
         xpBase: { easy:[1,5], medium:[5,10], hard:[10,15] }
     },
     swamp: {
-        name: 'Rotting Swamp', emoji: 'рџЊї', minLevel: 5,
+        name: 'Rotting Swamp', emoji: '🌿', minLevel: 5,
         mapImg: '/images/zones/swamp.jpg', bgImg: '/images/zones/swamp-bg.jpg',
         pos: { x: 40, y: 58 },
         description: 'A murky, poisonous swamp filled with dangerous creatures.',
@@ -131,7 +131,7 @@ const ZONES = {
         xpBase: { easy:[1,5], medium:[5,10], hard:[10,15] }
     },
     mountains: {
-        name: 'Frozen Mountains', emoji: 'в›°пёЏ', minLevel: 10,
+        name: 'Frozen Mountains', emoji: '⛰️', minLevel: 10,
         mapImg: '/images/zones/mountains.jpg', bgImg: '/images/zones/mountains-bg.jpg',
         pos: { x: 62, y: 25 },
         description: 'Snow-capped peaks with treacherous paths.',
@@ -153,7 +153,7 @@ const ZONES = {
         xpBase: { easy:[1,5], medium:[5,10], hard:[10,15] }
     },
     ruins: {
-        name: 'Ancient Ruins', emoji: 'рџЏљпёЏ', minLevel: 20,
+        name: 'Ancient Ruins', emoji: '🏚️', minLevel: 20,
         mapImg: '/images/zones/ruins.jpg', bgImg: '/images/zones/ruins-bg.jpg',
         pos: { x: 75, y: 52 },
         description: 'Remains of an ancient civilization, now haunted.',
@@ -175,7 +175,7 @@ const ZONES = {
         xpBase: { easy:[1,5], medium:[5,10], hard:[10,15] }
     },
     dark_city: {
-        name: 'Dark City', emoji: 'рџЏ™пёЏ', minLevel: 35,
+        name: 'Dark City', emoji: '🏙️', minLevel: 35,
         mapImg: '/images/zones/dark-city.jpg', bgImg: '/images/zones/dark-city-bg.jpg',
         pos: { x: 55, y: 72 },
         description: 'A corrupted city ruled by dark forces.',
@@ -206,7 +206,7 @@ const ZONE_ROUTES = {
     dark_city: { swamp:90, ruins:60 }
 };
 
-// в”Ђв”Ђ Component Upgrade Values (for frontend) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Component Upgrade Values (for frontend) ────────────────────────────────
 const COMPONENT_UPGRADE_VALUES = {
     iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot' },
     hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank' },
@@ -246,7 +246,7 @@ function getShortestPath(from, to) {
     return { path, time:dist[to] };
 }
 
-// в”Ђв”Ђ API в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── API ───────────────────────────────────────────────────────────────────
 async function api(method, path, body=null) {
     // Don't add /api prefix for skills routes
     let fullUrl;
@@ -278,16 +278,16 @@ async function api(method, path, body=null) {
 }
 
 function formatTrainingProgressText(status) {
-    const total = Number(status?.progressPercent  -  status?.progressCurrent  -  status?.progress_current  -  0);
-    const start = Number(status?.progressStart  -  status?.progress_start  -  total);
+    const total = Number(status?.progressPercent ?? status?.progressCurrent ?? status?.progress_current ?? 0);
+    const start = Number(status?.progressStart ?? status?.progress_start ?? total);
     const gained = Math.max(0, total - start);
     const totalText = `${total < 10 ? total.toFixed(1) : Math.floor(total)}% total learned`;
-    const gainText = gained >= 0.1 ? ` В· +${gained.toFixed(1)}% this session` : '';
-    const hoursToFull = Number(status?.hoursToFull  -  0);
-    return `${totalText}${gainText} В· ${hoursToFull.toFixed(1)}h to full`;
+    const gainText = gained >= 0.1 ? ` · +${gained.toFixed(1)}% this session` : '';
+    const hoursToFull = Number(status?.hoursToFull ?? 0);
+    return `${totalText}${gainText} · ${hoursToFull.toFixed(1)}h to full`;
 }
 
-// в”Ђв”Ђ Init в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
     bindLegacyInlineHandlers(document);
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
@@ -308,7 +308,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     } else showScreen('auth');
 });
 
-// в”Ђв”Ђ Auth в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Auth ──────────────────────────────────────────────────────────────────
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(tab==='login'?0:1)));
     document.getElementById('tab-login').classList.toggle('active',tab==='login');
@@ -347,7 +347,7 @@ function logout() {
     showScreen('auth');
 }
 
-// в”Ђв”Ђ Character Creation в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Character Creation ────────────────────────────────────────────────────
 let selectedClass=null;
 function selectClass(el) { document.querySelectorAll('.class-card').forEach(c=>c.classList.remove('selected')); el.classList.add('selected'); selectedClass=el.dataset.class; }
 async function createCharacter() {
@@ -362,7 +362,7 @@ async function createCharacter() {
     } catch(e) { setError('create-error',e.message); }
 }
 
-// в”Ђв”Ђ Screens & Tabs в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Screens & Tabs ────────────────────────────────────────────────────────
 function showScreen(name) {
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(`screen-${name}`).classList.add('active');
@@ -396,11 +396,11 @@ function showTab(name) {
     if (name === 'dungeon')     renderDungeonTab();
 }
 
-// в”Ђв”Ђ Top Bar в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Top Bar ───────────────────────────────────────────────────────────────
 function renderTopBar() {
     if (!character) return;
     const c=character;
-    const hpCur=c.hp_current - c.hp_max;
+    const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
     const lxp=c.level*25;
     const xpPct=Math.min(100,Math.round((c.xp/lxp)*100));
@@ -411,14 +411,14 @@ function renderTopBar() {
     set('topbar-hp-text',el=>{ el.textContent=`${hpCur} / ${c.hp_max}`; });
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
     set('topbar-xp-text',el=>{ el.textContent=`${c.xp} / ${lxp} XP`; });
-    const mp=c.mission_points - 0, mpMax=c.mp_max||240;
+    const mp=c.mission_points??0, mpMax=c.mp_max||240;
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
-    const dms=c.daily_mp_spent - 0, unl=c.skills_unlocked;
+    const dms=c.daily_mp_spent??0, unl=c.skills_unlocked;
     set('topbar-mp-fill',el=>{ el.style.width=mpPct+'%'; });
     set('topbar-mp-text',el=>{ el.textContent=`${mp} / ${mpMax} MP`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`; });
-    set('topbar-mp',el=>{ el.textContent=unl?`MP ${mp} Ready`:`MP ${mp} (${dms}/60)`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`; });
-    set('topbar-gold',el=>{ el.textContent=`Gold ${c.gold.toLocaleString()}`; });
-    set('topbar-gems',el=>{ el.textContent=`Gems ${(c.gems||0).toLocaleString()}`; });
+    set('topbar-mp',el=>{ el.textContent=unl?`🔮 ${mp} ✨`:`🔮 ${mp} (${dms}/60)`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`; });
+    set('topbar-gold',el=>{ el.textContent=`💰 ${c.gold.toLocaleString()}`; });
+    set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
     set('topbar-name',el=>{ el.textContent=c.name; });
     const evEl=document.getElementById('topbar-event');
@@ -430,7 +430,7 @@ function renderTopBar() {
     updatePotionBadge();
 }
 
-// в”Ђв”Ђ Polling в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Polling ───────────────────────────────────────────────────────────────
 function startPolling() {
     [trainTimer,unreadTimer].forEach(t=>clearInterval(t));
     trainTimer=setInterval(async()=>{
@@ -458,7 +458,7 @@ async function pollUnread() {
     } catch {}
 }
 
-// в”Ђв”Ђ Equipment slot helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Equipment slot helpers ────────────────────────────────────────────────
 
 function buildEqSlotSmall(slot, eq, icon, label) {
     const item = eq[slot];
@@ -494,7 +494,7 @@ function renderCharacter() {
     const eq = c.equipped||{};
     const lxp = c.level*25;
     const xpPct = Math.min(100,(c.xp/lxp)*100);
-    const hpCur = c.hp_current ?? c.hp_max;
+    const hpCur = c.hp_current??c.hp_max;
     const hpPct = Math.min(100,(hpCur/c.hp_max)*100);
     const hpColor = hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat = Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
@@ -561,12 +561,12 @@ function renderCharacter() {
     const elemResistStr = '';
 
     const eqSlots=[
-        {slot:'helmet', icon:'Helm', label:'Helmet'},
-        {slot:'armor',  icon:'Armor', label:'Armor'},
-        {slot:'weapon', icon:'Weapon', label:'Weapon'},
-        {slot:'amulet', icon:'Amulet', label:'Amulet / Ring'},
-        {slot:'shield', icon:'Shield', label:'Shield'},
-        {slot:'boots',  icon:'Boots', label:'Boots'},
+        {slot:'helmet', icon:'⛑️', label:'Helmet'},
+        {slot:'armor',  icon:'🛡️', label:'Armor'},
+        {slot:'weapon', icon:'⚔️', label:'Weapon'},
+        {slot:'amulet', icon:'📿', label:'Amulet / Ring'},
+        {slot:'shield', icon:'🛡', label:'Shield'},
+        {slot:'boots',  icon:'👢', label:'Boots'},
     ];
     const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
 const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
@@ -593,7 +593,7 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
 const eqGrid = `
 <div class="eq-stage"><div class="eq-grid">${mainEqGrid}</div>
 <div class="eq-accessory-row">
-    ${buildEqSlotSmall('accessory', eq, 'Accessory', 'Accessory')}
+    ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
 </div></div>`;
 
     // FIX: Use c.mp_max from backend response (already includes premium bonus)
@@ -615,21 +615,21 @@ const eqGrid = `
           <div class="detail-slot-grid">
             ${detailSlots.join('')}
           </div>
-          ${statRowBreakdown('STR','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
-          ${statRowBreakdown('DEF','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
-          ${statRowBreakdown('AGI','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
-          ${statRowBreakdown('MAG','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
-          ${statRowBreakdown('VIT','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
-          ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('HIT','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
-          ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('CRT','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
+          ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
+          ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
+          ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
+          ${statRowBreakdown('✨','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
+          ${statRowBreakdown('❤️','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
+          ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('🎯','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
+          ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('💥','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
           <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <span title="${escHtml(dmgTooltip)}" style="cursor:help">
-              DMG: <strong style="color:var(--text-bright)">${finalDmgMin}-${finalDmgMax}</strong>
+              ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
             </span>
-            <span>Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+            <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
             ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
             ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
-            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">+10% HP/hr</span>':''}
+            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
           </div>
         </div>
         <div class="char-panel">
@@ -644,8 +644,8 @@ const eqGrid = `
             <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
           </div>
           ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
-          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
-          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">Training done! Collect it.</div>`:''}
+          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
+          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
         </div>
       </div>
     </div>`;
@@ -656,10 +656,10 @@ function statRow(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val">${val}</span></div>`;
 }
-function elemEmoji(t) { return {pyro:'Fire',water:'Water',wind:'Wind',electro:'Electro'}[t]||''; }
+function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
 
-// в”Ђв”Ђ Loadout Editor в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
-// в”Ђв”Ђ Loadout visual config в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Loadout Editor ────────────────────────────────────────────────────────
+// ── Loadout visual config ─────────────────────────────────────────────────
 // Zone positions as % of figure container (left%, top%)
 // Anatomically placed on a generic humanoid silhouette
 const ZONE_POSITIONS = {
@@ -729,17 +729,17 @@ function renderLoadout() {
     if (!el) return;
     el.innerHTML = `
         <div style="margin-bottom:14px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:0.78rem;color:rgba(255,255,255,0.45)">
-            вљ”пёЏ Select a round, then click a zone dot to change it. Your opponent cannot see your choices.
+            ⚔️ Select a round, then click a zone dot to change it. Your opponent cannot see your choices.
         </div>
         <div id="loadout-rounds" style="display:flex;gap:5px;margin-bottom:20px;flex-wrap:wrap"></div>
         <div class="loadout-figures-row" style="margin-bottom:16px">
             <div class="loadout-figure-col">
-                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:10px">вљ”пёЏ Attack Zone</div>
+                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:10px">⚔️ Attack Zone</div>
                 <div id="loadout-atk-grid" class="loadout-dot-grid"></div>
                 <div id="loadout-atk-info" class="loadout-zone-info"></div>
             </div>
             <div class="loadout-figure-col">
-                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:10px">рџ›ЎпёЏ Block Zone</div>
+                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:10px">🛡️ Block Zone</div>
                 <div id="loadout-blk-grid" class="loadout-dot-grid"></div>
                 <div id="loadout-blk-info" class="loadout-zone-info"></div>
             </div>
@@ -787,7 +787,7 @@ async function checkTrainingStatus() {
 
         if (status && status.active) {
             const remaining = status.remainingSeconds || status.remaining || 0;
-            const percent = Math.floor((status.progressPercent  -  status.progressCurrent  -  status.progress_current  -  0));
+            const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
 
@@ -953,13 +953,13 @@ function updateLoadoutZoneInfo(type, zoneKey) {
         const z = HIT_ZONES[zoneKey]; if (!z) return;
         const color = ZONE_COLORS[zoneKey] || '#aaa';
         el.innerHTML = `<span style="color:${color};font-weight:700">${z.label}</span>
-            <span style="color:rgba(255,255,255,0.35)"> В· Г—${z.dmgMult} dmg В· ${Math.round(z.hitChance*100)}% hit</span>
+            <span style="color:rgba(255,255,255,0.35)"> · ×${z.dmgMult} dmg · ${Math.round(z.hitChance*100)}% hit</span>
             <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${z.desc}</div>`;
     } else {
         const z = BLOCK_ZONES[zoneKey]; if (!z) return;
         const color = BLOCK_COLORS[zoneKey] || '#aaa';
         el.innerHTML = `<span style="color:${color};font-weight:700">${z.label}</span>
-            <span style="color:rgba(255,255,255,0.35)"> В· ${Math.round(z.reduction*100)}% block</span>
+            <span style="color:rgba(255,255,255,0.35)"> · ${Math.round(z.reduction*100)}% block</span>
             <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${z.desc}</div>`;
     }
 }
@@ -985,7 +985,7 @@ async function saveLoadout() {
     } catch(e) { showMsg('loadout-msg',e.message,true); }
 }
 
-// в”Ђв”Ђ Training в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Training ──────────────────────────────────────────────────────────────
 function renderTraining() {
     if (!character) return;
     
@@ -1003,7 +1003,7 @@ function renderTraining() {
     if (c.trainingDone) {
         if (statusEl) {
             statusEl.className = 'train-status-bar ready';
-            statusEl.textContent = `вњ… ${capitalize(c.training_stat)} training complete!`;
+            statusEl.textContent = `✅ ${capitalize(c.training_stat)} training complete!`;
             statusEl.classList.remove('hidden');
         }
         if (allBtns.length) allBtns.forEach(b => b.disabled = true);
@@ -1012,14 +1012,14 @@ function renderTraining() {
             btn.id = 'collect-btn';
             btn.className = 'btn-primary';
             btn.style.cssText = 'grid-column:1/-1;margin-top:8px';
-            btn.textContent = `вљЎ Collect +1 ${capitalize(c.training_stat)}`;
+            btn.textContent = `⚡ Collect +1 ${capitalize(c.training_stat)}`;
             btn.addEventListener('click', collectTraining);
             document.getElementById('train-grid').after(btn);
         }
     } else if (c.trainingActive) {
         if (statusEl) {
             statusEl.className = 'train-status-bar';
-            statusEl.textContent = `Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`;
+            statusEl.textContent = `⏳ Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`;
             statusEl.classList.remove('hidden');
         }
         if (allBtns.length) allBtns.forEach(b => b.disabled = true);
@@ -1031,7 +1031,7 @@ function renderTraining() {
     }
 }
 
-// в”Ђв”Ђ Upgrade в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Upgrade ───────────────────────────────────────────────────────────────
 function renderUpgrade() {
     if (!character) return;
     const c = character;
@@ -1041,19 +1041,19 @@ function renderUpgrade() {
     const hasStatDiscount = ev?.key === 'discount_stats';
     const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
     
-    document.getElementById('upgrade-gold').textContent = `${c.gold.toLocaleString()} Gold available`;
+    document.getElementById('upgrade-gold').textContent = `💰 ${c.gold.toLocaleString()} Gold available`;
     
-    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f"><strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
-    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6"><strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
+    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
+    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
     
     const stats = [
-        { key: 'strength', icon: 'STR', label: 'Strength' },
-        { key: 'defense', icon: 'DEF', label: 'Defense' },
-        { key: 'agility', icon: 'AGI', label: 'Agility', hint: 'Dodge incoming hits' },
-        { key: 'magic', icon: 'MAG', label: 'Magic' },
-        { key: 'vitality', icon: 'VIT', label: 'Vitality', hint: 'Also boosts current HP' },
-        { key: 'hit_chance', icon: 'HIT', label: 'Hit Chance', hint: 'Accuracy vs agility' },
-        { key: 'crit_chance', icon: 'CRT', label: 'Crit Chance', hint: '% chance to hit max dmg' },
+        { key: 'strength', icon: '💪', label: 'Strength' },
+        { key: 'defense', icon: '🛡️', label: 'Defense' },
+        { key: 'agility', icon: '⚡', label: 'Agility', hint: 'Dodge incoming hits' },
+        { key: 'magic', icon: '✨', label: 'Magic' },
+        { key: 'vitality', icon: '❤️', label: 'Vitality', hint: 'Also boosts current HP' },
+        { key: 'hit_chance', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
+        { key: 'crit_chance', icon: '💥', label: 'Crit Chance', hint: '% chance to hit max dmg' },
     ];
     
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
@@ -1075,8 +1075,8 @@ function renderUpgrade() {
                 <span class="upgrade-card-val">${c[s.key] || 0}</span>
             </div>
             ${s.hint ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>` : ''}
-            ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">30% event discount</div>` : ''}
-            ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">20% apprentice discount</div>` : ''}
+            ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>` : ''}
+            ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>` : ''}
             <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
             <button class="btn-upgrade" ${actionAttrs('upgradestat', s.key)} ${can ? '' : 'disabled'}>${can ? `+1 for ${cost}g` : `Need ${cost - c.gold} more`}</button>
         </div>`;
@@ -1102,7 +1102,7 @@ async function upgradestat(stat) {
     }
 }
 
-// в”Ђв”Ђ Event Banner Helper в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Event Banner Helper ───────────────────────────────────────────────────
 function renderEventBanner(containerId) {
     const el=document.getElementById(containerId); if(!el) return;
     const ev=character?.active_event;
@@ -1113,17 +1113,17 @@ function renderEventBanner(containerId) {
     const timeStr=h>0?`${h}h ${m}m`:`${m}m`;
     el.classList.remove('hidden');
     el.style.display='flex';
-    el.innerHTML=`<span style="font-size:1.4rem">${ev.name?.split(' ')[0]||'Event'}</span>
+    el.innerHTML=`<span style="font-size:1.4rem">${ev.name?.split(' ')[0]||'🎉'}</span>
     <div><div style="font-weight:700;color:var(--gold)">${ev.name||'Event Active'}</div>
-    <div style="font-size:0.8rem;color:var(--text-dim)">${ev.desc||''} - Ends in ${timeStr}</div></div>`;
+    <div style="font-size:0.8rem;color:var(--text-dim)">${ev.desc||''} · Ends in ${timeStr}</div></div>`;
 }
 
-// в”Ђв”Ђ Skills Tab в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Skills Tab ────────────────────────────────────────────────────────────
 function renderSkills() {
     if (!character) return;
     const c=character;
-    const mp=character?.mission_points - 0, mpMax=character?.mp_max||240;
-    const dailyMpSpent=character?.daily_mp_spent - 0;
+    const mp=character?.mission_points??0, mpMax=character?.mp_max||240;
+    const dailyMpSpent=character?.daily_mp_spent??0;
     const unlocked=character?.skills_unlocked||(dailyMpSpent>=60);
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
     const unlockPct=Math.min(100,Math.round((dailyMpSpent/60)*100));
@@ -1132,7 +1132,7 @@ function renderSkills() {
     const mpEl=document.getElementById('skills-mp-bar');
     if (mpEl) mpEl.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-weight:700;color:#9b59b6">Mission Points</span>
+            <span style="font-weight:700;color:#9b59b6">🔮 Mission Points</span>
             <span style="font-weight:700;color:#9b59b6">${mp} / ${mpMax}</span>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px">
@@ -1140,13 +1140,13 @@ function renderSkills() {
         </div>
         ${!unlocked?`
         <div style="margin-bottom:10px;padding:10px 14px;background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px">
-            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">Skills unlock by spending 60 MP on missions today</div>
+            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔒 Skills unlock by spending 60 MP on missions today</div>
             <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden">
                 <div style="width:${unlockPct}%;height:100%;background:#9b59b6;border-radius:4px"></div>
             </div>
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP spent today</div>
         </div>`:''}
-        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +10/hr - Skill activation is <strong style="color:#9b59b6">free</strong> - 1 skill per day - 5h duration</div>`;
+        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +10/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration</div>`;
 
     renderEventBanner('skills-event-banner');
 
@@ -1167,11 +1167,11 @@ function renderSkills() {
         const expiresStr=expiresIn>=60?`${Math.floor(expiresIn/60)}h ${expiresIn%60}m`:`${expiresIn}m`;
         const canActivate=unlocked&&!isActive&&!anyUsedToday;
         let btnLabel, btnDisabled;
-        if (!unlocked)     { btnLabel=`Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
-        else if (isActive) { btnLabel=`Active - ${expiresStr} left`; btnDisabled=true; }
-        else if (anyUsedToday&&!usedToday){ btnLabel=`Another skill active today`; btnDisabled=true; }
-        else if (usedToday){ btnLabel=`Used today`; btnDisabled=true; }
-        else               { btnLabel=`Activate (Free)`; btnDisabled=false; }
+        if (!unlocked)     { btnLabel=`🔒 Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
+        else if (isActive) { btnLabel=`⏳ Active — ${expiresStr} left`; btnDisabled=true; }
+        else if (anyUsedToday&&!usedToday){ btnLabel=`✅ Another skill active today`; btnDisabled=true; }
+        else if (usedToday){ btnLabel=`✅ Used today`; btnDisabled=true; }
+        else               { btnLabel=`✨ Activate (Free)`; btnDisabled=false; }
         const cardBg=isActive
             ?'background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(142,68,173,0.15));border-color:rgba(155,89,182,0.5)'
             :(usedToday||anyUsedToday&&!isActive)
@@ -1183,8 +1183,8 @@ function renderSkills() {
                 <span style="font-size:1.8rem">${sk.emoji}</span>
                 <div>
                     <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${sk.name}</div>
-                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">ACTIVE - ${expiresStr} remaining</div>`:
-            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today - resets at midnight</div>`:''}
+                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">✨ ACTIVE · ${expiresStr} remaining</div>`:
+            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today — resets at midnight</div>`:''}
                 </div>
             </div>
             <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45">${sk.desc}</div>
@@ -1205,7 +1205,7 @@ async function activateSkill(skillId) {
     } catch(e) { showMsg('skills-msg',e.message,true); }
 }
 
-// в”Ђв”Ђ Missions в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Missions ──────────────────────────────────────────────────────────────
 async function loadMissions() {
     try {
         const char = character || await api('GET', '/game/character');
@@ -1258,7 +1258,7 @@ function renderWorldMap() {
         const isCurrent=currentZone===zoneId;
         const isTraveling=playerTravelTarget===zoneId;
         const pinStyle=`position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:${isUnlocked?'pointer':'not-allowed'};z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked?'opacity:0.4':''}`;
-        const badge=isCurrent?'рџ“Ќ':!isUnlocked?'рџ”’':isTraveling?'рџљ¶':'';
+        const badge=isCurrent?'📍':!isUnlocked?'🔒':isTraveling?'🚶':'';
         const ringStyle=`width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent?'#f1c40f':'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked?'filter:grayscale(1)':''}${isCurrent?';box-shadow:0 0 0 3px rgba(241,196,15,0.4)':''}${isTraveling?';animation:pulse 1.5s infinite':''}`;
         return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
             <div style="position:relative;display:inline-block">
@@ -1371,9 +1371,9 @@ function openLocationModal(zoneId) {
                 <div class="mz-hero-desc">${zone.description}</div>
                 <div class="mz-hero-actions">
                     ${isCurrent
-                        ? `<span class="mz-here-badge">рџ“Ќ You are here</span>`
+                        ? `<span class="mz-here-badge">📍 You are here</span>`
                         : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${isTraveling ? 'disabled' : ''}>
-                            рџљ¶ Travel here${travelInfo ? ' В· ' + travelInfo : ''}
+                            🚶 Travel here${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
                     }
                 </div>
@@ -1389,11 +1389,11 @@ function openLocationModal(zoneId) {
                     <div class="mz-spot-img-wrap">
                         <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" data-error-src="">
                         <span class="mz-spot-diff-badge" style="background:${db2[spot.difficulty]};color:${dc[spot.difficulty]}">${spot.difficulty.toUpperCase()}</span>
-                        ${locked ? '<div class="mz-spot-locked-overlay">рџ”’ Travel here first</div>' : ''}
+                        ${locked ? '<div class="mz-spot-locked-overlay">🔒 Travel here first</div>' : ''}
                     </div>
                     <div class="mz-spot-info">
                         <div class="mz-spot-name">${spot.name}</div>
-                        <div class="mz-spot-stats">рџ’° ${zone.payoutBase[spot.difficulty]?.[0] || 0}вЂ“${zone.payoutBase[spot.difficulty]?.[1] || 0} gold</div>
+                        <div class="mz-spot-stats">💰 ${zone.payoutBase[spot.difficulty]?.[0] || 0}–${zone.payoutBase[spot.difficulty]?.[1] || 0} gold</div>
                     </div>
                 </div>`;
             }).join('')}
@@ -1420,15 +1420,15 @@ function openSpotMissions(zoneId, spotId) {
     
     const activeEl = document.getElementById('mission-location-active');
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
-    const mp = character?.mission_points  -  0;
+    const mp = character?.mission_points ?? 0;
     const sizes = [
-        { key: 'small', label: 'Small', mpCost: 20, duration: '10 min', mult: '1Г—', desc: 'Quick mission, standard rewards' },
-        { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8Г—', desc: 'Longer mission, better rewards' },
-        { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '3Г—', desc: 'Epic mission, best rewards' },
+        { key: 'small', label: 'Small', mpCost: 20, duration: '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
+        { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8×', desc: 'Longer mission, better rewards' },
+        { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '3×', desc: 'Epic mission, best rewards' },
     ];
     
     activeEl.innerHTML = `
-        <div class="mz-section-label" style="margin-top:24px">${spot.name} вЂ” pick mission size</div>
+        <div class="mz-section-label" style="margin-top:24px">${spot.name} — pick mission size</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
             ${sizes.map(sz => {
                 const canAfford = mp >= sz.mpCost;
@@ -1438,27 +1438,27 @@ function openSpotMissions(zoneId, spotId) {
                 return `<div ${canAfford ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
                     style="border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
-                    <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">рџ”® ${sz.mpCost} MP</div>
-                    <div style="font-size:0.75rem;color:var(--text-dim)">вЏ± ${sz.duration}</div>
-                    <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">рџ’° ${sz.mult} gold</div>
-                    <div style="font-size:0.7rem;color:#f1c40f;margin-top:2px">в­ђ ${sz.key === 'small' ? '0-6' : sz.key === 'medium' ? '0-9' : '0-12'} XP</div>
+                    <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
+                    <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
+                    <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">💰 ${sz.mult} gold</div>
+                    <div style="font-size:0.7rem;color:#f1c40f;margin-top:2px">⭐ ${sz.key === 'small' ? '0-6' : sz.key === 'medium' ? '0-9' : '0-12'} XP</div>
                     ${!canAfford ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
                 </div>`;
             }).join('')}
         </div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 240}</strong> В· MP regenerates +10/hr</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 240}</strong> · MP regenerates +10/hr</div>
         <div class="mz-section-label">Choose a mission</div>
         <div class="mz-missions-grid" id="spot-missions-list">
             ${spot.missions.map((m, idx) => `
                 <div class="mz-mission-card" id="mission-opt-${idx}" style="opacity:0.4;pointer-events:none">
                     <div class="mz-mission-img-wrap">
                         <img class="mz-mission-img" src="${m.img}" alt="${m.name}" data-error-background="#1c2b38">
-                        <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">в–¶ Start</div></div>
+                        <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ Start</div></div>
                     </div>
                     <div class="mz-mission-info">
                         <div class="mz-mission-name">${m.name}</div>
                         <div class="mz-mission-reward" style="color:${dc[spot.difficulty]}">
-                            рџ’° ${zone.payoutBase[spot.difficulty][0]}вЂ“${zone.payoutBase[spot.difficulty][1]} gold
+                            💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]} gold
                         </div>
                     </div>
                 </div>
@@ -1505,7 +1505,7 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
                 freshCard.addEventListener('click', () => doStartMission(zoneId, spotId, idx, sizeKey));
                 const reward = freshCard.querySelector('.mz-mission-reward');
                 if (reward) {
-                    reward.innerHTML = `рџ’° ${Math.floor(zone.payoutBase[spot.difficulty][0] * mult)}вЂ“${Math.floor(zone.payoutBase[spot.difficulty][1] * mult)} gold`;
+                    reward.innerHTML = `💰 ${Math.floor(zone.payoutBase[spot.difficulty][0] * mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1] * mult)} gold`;
                 }
             }
         }
@@ -1536,7 +1536,7 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
     if (character?.location !== zoneId) { showMsg('missions-msg', 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
-    if ((character?.hp_current  -  character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
+    if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
     
     closeMissionModal2();
     const chosenMission = spot.missions[missionIdx] || spot.missions[0];
@@ -1605,19 +1605,19 @@ async function collectMission() {
         window.activeMission = false;  // <-- ADD THIS LINE
         hideMissionOverlay(); 
         renderTopBar();
-        let msg=`рџ’° +${d.goldEarned} gold`;
-        if (d.gemsFound) msg += ` В· рџ’Ћ +${d.gemsFound} gem${d.gemsFound > 1 ? 's' : ''}`;
-        msg += ` В· в­ђ +${d.xpEarned} XP`;
-        if (d.won===false) msg=`рџ’Ђ Defeated В· ${msg}`;
-        if (d.leveledUp) msg+=` В· рџЋ‰ LEVEL UP! Now Lv.${d.newLevel}`;
-        if (d.drops?.length) msg+=` В· рџ“¦ ${d.drops.map(dr=>`${dr.qty}Г— ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
+        let msg=`💰 +${d.goldEarned} gold`;
+        if (d.gemsFound) msg += ` · 💎 +${d.gemsFound} gem${d.gemsFound > 1 ? 's' : ''}`;
+        msg += ` · ⭐ +${d.xpEarned} XP`;
+        if (d.won===false) msg=`💀 Defeated · ${msg}`;
+        if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
+        if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken);
         else showMissionModal(msg);
         renderCurrentMap(); renderCharacter();
     } catch(e) { alert(e.message); }
 }
 
-// в”Ђв”Ђ Mission Overlay в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Mission Overlay ───────────────────────────────────────────────────────
 
 async function checkAndShowMissionOverlay() {
     try {
@@ -1682,7 +1682,7 @@ function showTrainingOverlay(skillName, endsAt, status = null) {
     if (skillEl) skillEl.textContent = skillName;
 
     if (status) {
-        const percent = Math.floor((status.progressPercent  -  status.progressCurrent  -  status.progress_current  -  0));
+        const percent = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
         if (progressTextEl) progressTextEl.textContent = formatTrainingProgressText(status);
         if (fillEl) fillEl.style.width = `${percent}%`;
     }
@@ -1723,7 +1723,7 @@ function showRestOverlay(startedAt, endsAt) {
         if (recoverBtn) {
             const hasGems = (character?.gems || 0) >= 1;
             recoverBtn.disabled = !hasGems;
-            recoverBtn.textContent = hasGems ? 'вљЎ Recover Now (1 рџ’Ћ)' : 'вљЎ Recover Now (need рџ’Ћ)';
+            recoverBtn.textContent = hasGems ? '⚡ Recover Now (1 💎)' : '⚡ Recover Now (need 💎)';
             recoverBtn.style.opacity = hasGems ? '1' : '0.4';
         }
         if (left <= 0) {
@@ -1744,10 +1744,10 @@ function hideRestOverlay() {
 async function instantBattleRecovery() {
     const gems = character?.gems || 0;
     if (gems < 1) {
-        showMsg('missions-msg', 'Need 1 рџ’Ћ gem to recover instantly!', true);
+        showMsg('missions-msg', 'Need 1 💎 gem to recover instantly!', true);
         return;
     }
-    if (!confirm('Skip battle cooldown for 1 рџ’Ћ?')) return;
+    if (!confirm('Skip battle cooldown for 1 💎?')) return;
     const btn = document.getElementById('rest-recover-btn');
     if (btn) btn.disabled = true;
     try {
@@ -1755,7 +1755,7 @@ async function instantBattleRecovery() {
         character = d.character;
         renderTopBar();
         hideRestOverlay();
-        showMsg('missions-msg', 'вљЎ Recovered! You can now start a mission.');
+        showMsg('missions-msg', '⚡ Recovered! You can now start a mission.');
     } catch(e) {
         showMsg('missions-msg', e.message, true);
         if (btn) btn.disabled = false;
@@ -1771,13 +1771,13 @@ function showMissionOverlay(active, displayName) {
     const fillEl=document.getElementById('overlay-progress-fill');
     const collectBtn=document.getElementById('overlay-collect-btn');
     if (nameEl) nameEl.textContent=displayName;
-    if (zoneEl) zoneEl.textContent='рџ“Ќ '+(ZONES[active.zone]?.name||active.zone||'');
+    if (zoneEl) zoneEl.textContent='📍 '+(ZONES[active.zone]?.name||active.zone||'');
     const totalDuration=active.ends_at-(active.started_at||(active.ends_at-600));
     function tick() {
         const now=Math.floor(Date.now()/1000), left=Math.max(0,active.ends_at-now);
         const m=Math.floor(left/60), s=left%60, done=left<=0;
         const pct=done?100:Math.min(100,((totalDuration-left)/Math.max(totalDuration,1))*100);
-        if (timerEl) { timerEl.textContent=done?'вњ… Complete!':`${m}:${String(s).padStart(2,'0')}`; timerEl.className='mission-overlay-timer'+(done?' done':''); }
+        if (timerEl) { timerEl.textContent=done?'✅ Complete!':`${m}:${String(s).padStart(2,'0')}`; timerEl.className='mission-overlay-timer'+(done?' done':''); }
         if (subtextEl) subtextEl.textContent=done?'Collect your rewards!':'Returning when complete...';
         if (fillEl) { fillEl.style.width=pct+'%'; fillEl.className='mission-overlay-progress-fill'+(done?' done':''); }
         if (collectBtn) collectBtn.disabled=!done;
@@ -1795,7 +1795,7 @@ function hideMissionOverlay() {
 }
 async function overlayCollectMission() { await collectMission(); }
 
-// в”Ђв”Ђ Travel Overlay в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Travel Overlay ────────────────────────────────────────────────────────
 function showTravelOverlay() {
     const overlay=document.getElementById('travel-overlay'); if(!overlay) return;
     if (travelOverlayInterval) { clearInterval(travelOverlayInterval); travelOverlayInterval=null; }
@@ -1818,7 +1818,7 @@ function showTravelOverlay() {
         if (cancelBtn) {
             const gems=character?.gems||0, canAfford=isFree||gems>=1;
             cancelBtn.disabled=!canAfford;
-            cancelBtn.textContent=isFree?'Cancel (Free)':`Cancel (1 рџ’Ћ)${gems<1?' вЂ” no gems':''}`;
+            cancelBtn.textContent=isFree?'Cancel (Free)':`Cancel (1 💎)${gems<1?' — no gems':''}`;
             cancelBtn.style.borderColor=isFree?'rgba(231,76,60,0.5)':'rgba(155,89,182,0.5)';
             cancelBtn.style.color=isFree?'#e74c3c':'#9b59b6';
             cancelBtn.style.background=isFree?'rgba(231,76,60,0.15)':'rgba(155,89,182,0.15)';
@@ -1844,7 +1844,7 @@ async function cancelTravel() {
         return;
     }
     
-    if (!confirm(isFreeCancel ? 'Cancel travel for free?' : 'Cancel travel for 1 рџ’Ћ?')) return;
+    if (!confirm(isFreeCancel ? 'Cancel travel for free?' : 'Cancel travel for 1 💎?')) return;
     
     try {
         await api('POST', '/game/travel/cancel', { paid: !isFreeCancel });
@@ -1863,7 +1863,7 @@ async function cancelTravel() {
         // Re-render the current map (stay in same zone)
         renderCurrentMap();
         
-        showMsg('missions-msg', isFreeCancel ? 'Travel cancelled.' : 'Travel cancelled (1 рџ’Ћ spent).');
+        showMsg('missions-msg', isFreeCancel ? 'Travel cancelled.' : 'Travel cancelled (1 💎 spent).');
     } catch (e) {
         showMsg('missions-msg', e.message, true);
     }
@@ -1882,7 +1882,7 @@ async function checkTravelStatus() {
     } catch(e) { console.error('Failed to check travel status:',e); return null; }
 }
 
-// в”Ђв”Ђ Mission timer в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Mission timer ─────────────────────────────────────────────────────────
 let missionTimerInterval=null;
 function initMissionTimer() { resumeMissionCountdown(); }
 function resumeMissionCountdown() {
@@ -1901,9 +1901,9 @@ function showMissionModal(message) {
 }
 function closeMissionModal() { const m=document.getElementById('mission-rewards-modal'); if(m) m.classList.add('hidden'); }
 
-// в”Ђв”Ђ Battle Report Modal в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Battle Report Modal ───────────────────────────────────────────────────
 
-// в”Ђв”Ђ Forge в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Forge ─────────────────────────────────────────────────────────────────
 async function loadForge() {
     document.getElementById('forge-content').innerHTML='<p class="loading">Loading forge...</p>';
     try { forgeData=await api('GET','/game/forge/recipes'); renderForge(); }
@@ -1912,17 +1912,17 @@ async function loadForge() {
 function setForgeTab(tab,btn) { forgeTab=tab; document.querySelectorAll('.forge-tabs .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderForge(); }
 function renderForge() {
     if (!forgeData) return;
-    document.getElementById('forge-gold').textContent=`рџ’° ${forgeData.gold.toLocaleString()} Gold`;
+    document.getElementById('forge-gold').textContent=`💰 ${forgeData.gold.toLocaleString()} Gold`;
     const el=document.getElementById('forge-content');
 
     if (forgeTab==='refine') {
         el.innerHTML=`<div class="forge-grid">${forgeData.components.map(c=>{
             const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{
                 const have=(forgeData.mats[mat]?.qty||0);
-                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}Г— ${mat.replace(/_/g,' ')} (have ${have})</span>`;
+                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${mat.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
             return `<div class="forge-card">
-                <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'вљ™пёЏ'}</span><span class="forge-card-name">${c.name}</span></div>
+                <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div>
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
                 <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold</div>
@@ -1940,10 +1940,10 @@ function renderForge() {
     }
 
     const rarityColor = { epic:'#9b59b6', legendary:'#f1c40f', rare:'#3498db', common:'#aaa' };
-    const slotIcon = { weapon:'вљ”пёЏ', armor:'рџ›ЎпёЏ', helmet:'в›‘пёЏ', shield:'рџ”°', boots:'рџ‘ў' };
+    const slotIcon = { weapon:'⚔️', armor:'🛡️', helmet:'⛑️', shield:'🔰', boots:'👢' };
 
     el.innerHTML = Object.entries(bySet).map(([setId, pieces]) => {
-        const setDef = sets[setId] || { name: setId, emoji:'вљ’пёЏ', bonus3:{desc:''}, bonus5:{desc:''} };
+        const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
         const ownedCount = pieces.filter(p => p.owned).length;
         const ownedPct = Math.round(ownedCount / pieces.length * 100);
 
@@ -1958,10 +1958,10 @@ function renderForge() {
         const bonusHtml = `
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px">
                 <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${ownedCount>=3?'var(--green)':'var(--text-dim)'}">
-                    вњ¦ 3/5: ${setDef.bonus3?.desc||'Set bonus'}
+                    ✦ 3/5: ${setDef.bonus3?.desc||'Set bonus'}
                 </div>
                 <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${ownedCount>=5?'var(--gold)':'var(--text-dim)'}">
-                    вњ¦ 5/5: ${setDef.bonus5?.desc||'Full set bonus'}
+                    ✦ 5/5: ${setDef.bonus5?.desc||'Full set bonus'}
                 </div>
             </div>`;
 
@@ -1970,34 +1970,34 @@ function renderForge() {
             const qColor = rarityColor[r.quality] || '#aaa';
             const compStr = Object.entries(r.components).map(([comp,qty]) => {
                 const have = (forgeData.mats[comp]?.qty||0);
-                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}Г— ${comp.replace(/_/g,' ')} (have ${have})</span>`;
+                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
             const statStr = Object.entries(r.stats||{})
                 .filter(([k,v]) => typeof v === 'number' && v !== 0)
                 .map(([k,v]) => {
-                    const label = {dmg_min:'Min',dmg_max:'Max',defense:'DEF',armor:'ARM',hp_max:'HP',strength:'STR',agility:'AGI',magic:'MAG',vitality:'VIT',hit_chance:'HIT',crit_chance:'CRIT',pyro_dmg:'рџ”Ґ',water_dmg:'рџ’§',wind_dmg:'рџЊЂ',electro_dmg:'вљЎ',pyro_resist:'рџ”ҐRES',water_resist:'рџ’§RES',wind_resist:'рџЊЂRES',electro_resist:'вљЎRES'}[k]||k;
+                    const label = {dmg_min:'Min',dmg_max:'Max',defense:'DEF',armor:'ARM',hp_max:'HP',strength:'STR',agility:'AGI',magic:'MAG',vitality:'VIT',hit_chance:'HIT',crit_chance:'CRIT',pyro_dmg:'🔥',water_dmg:'💧',wind_dmg:'🌀',electro_dmg:'⚡',pyro_resist:'🔥RES',water_resist:'💧RES',wind_resist:'🌀RES',electro_resist:'⚡RES'}[k]||k;
                     return `<span style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:0.65rem">${label} +${v}</span>`;
                 }).join(' ');
 
             return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.owned?qColor+'66':'rgba(255,255,255,0.08)'}">
-                ${r.owned ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">вњ“ OWNED</div>` : ''}
+                ${r.owned ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ OWNED</div>` : ''}
                 <div class="forge-card-header">
-                    <span style="font-size:1.3rem">${r.emoji||slotIcon[r.slot]||'вљ”пёЏ'}</span>
+                    <span style="font-size:1.3rem">${r.emoji||slotIcon[r.slot]||'⚔️'}</span>
                     <div>
                         <div style="display:flex;align-items:center;gap:6px">
                             <span class="forge-card-name">${r.name}</span>
                             <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:${qColor}22;color:${qColor};border:1px solid ${qColor}44;text-transform:uppercase;font-weight:700">${r.quality}</span>
                         </div>
-                        <div style="font-size:0.7rem;color:var(--text-dim)">${slotIcon[r.slot]||''} ${capitalize(r.slot)} В· Lv.${r.level}</div>
+                        <div style="font-size:0.7rem;color:var(--text-dim)">${slotIcon[r.slot]||''} ${capitalize(r.slot)} · Lv.${r.level}</div>
                     </div>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${statStr}</div>
                 ${locked
-                    ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">рџ”’ Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
+                    ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                     : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
                 <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
                 <button class="btn-forge ${r.owned?'btn-forge-owned':''}" ${actionAttrs('craftItem', r.id)} ${r.canCraft&&!r.owned?'':'disabled'}>
-                    ${locked?'рџ”’ Locked':r.owned?'вњ“ Already Crafted':r.canCraft?`вљ’пёЏ Craft ${r.name}`:'Missing materials'}
+                    ${locked?'🔒 Locked':r.owned?'✓ Already Crafted':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
                 </button>
             </div>`;
         }).join('');
@@ -2019,7 +2019,7 @@ function renderForge() {
 async function refine(componentId) { try { const d=await api('POST','/game/forge/refine',{componentId}); showMsg('forge-msg',d.message); loadForge(); } catch(e) { showMsg('forge-msg',e.message,true); } }
 async function craftItem(recipeId) { try { const d=await api('POST','/game/forge/craft',{recipeId}); showMsg('forge-msg',d.message); loadForge(); loadInventory(); } catch(e) { showMsg('forge-msg',e.message,true); } }
 
-// в”Ђв”Ђ Inventory в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Inventory ─────────────────────────────────────────────────────────────
 async function loadInventory() {
     document.getElementById('inventory-content').innerHTML='<p class="loading">Loading...</p>';
     try { const d=await api('GET','/game/inventory'); renderInventory(d); }
@@ -2056,7 +2056,7 @@ function renderGearGrid(el, gear, equipped) {
     const merchantPrince = hasVaultKeeper && hasApprentice;
     const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
     
-    el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;В·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
+    el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
@@ -2075,7 +2075,7 @@ function renderGearGrid(el, gear, equipped) {
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
                 <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>
-                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>в¬†пёЏ Upgrade</button>` : ''}
+                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
@@ -2132,7 +2132,7 @@ async function upgradeItem(inventoryId) {
                 message += `\n\nStats improved:\n`;
                 result.upgradedStats.forEach(s => {
                     const statName = s.stat.replace(/_/g, ' ');
-                    message += `вЂў ${statName}: ${s.oldValue} в†’ ${s.newValue} (+${s.increase})\n`;
+                    message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
                 });
             }
             showMsg('inv-msg', message);
@@ -2146,7 +2146,7 @@ async function upgradeItem(inventoryId) {
         showMsg('inv-msg', error.message, true);
     }
 }
-// в”Ђв”Ђ OPEN LOOT BOX WITH MODAL в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── OPEN LOOT BOX WITH MODAL ───────────────────────────────────────────────
 function renderInventory(data) {
     const el = document.getElementById('inventory-content');
 
@@ -2199,13 +2199,13 @@ function renderInventory(data) {
             return `<div class="inv-card">
                 <div class="inv-card-header">
                     <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" data-error-hide="true" data-error-next-display="inline">
-                    <span style="font-size:1.4rem;display:none">${d.emoji || 'рџЋЃ'}</span>
+                    <span style="font-size:1.4rem;display:none">${d.emoji || '🎁'}</span>
                     <span class="inv-card-name">${d.name}</span>
-                    <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">Г—${d.qty || 1}</span>
+                    <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×${d.qty || 1}</span>
                 </div>
                 <div class="inv-stat-str">${d.desc}</div>
                 <div style="display:flex;gap:8px;margin-top:10px">
-                    <button class="btn-primary" style="flex:1" ${actionAttrs('openLootBox', i.id, d.name)}>рџЋЃ Open</button>
+                    <button class="btn-primary" style="flex:1" ${actionAttrs('openLootBox', i.id, d.name)}>🎁 Open</button>
                     <button class="btn-sm danger" ${actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
@@ -2218,10 +2218,10 @@ function renderInventory(data) {
         el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
             const d = i.item_data;
             const eff = d.effect ? (
-                d.effect.type === 'heal' ? 'вќ¤пёЏ Restore ' + d.effect.value + ' HP' :
-                d.effect.type === 'heal_full' ? 'вќ¤пёЏ Full HP restore' :
-                d.effect.type === 'xp' ? 'в­ђ +' + d.effect.value + ' XP' :
-                d.effect.type === 'temp_stat' ? 'рџ’Є +' + d.effect.value + ' ' + d.effect.stat : ''
+                d.effect.type === 'heal' ? '❤️ Restore ' + d.effect.value + ' HP' :
+                d.effect.type === 'heal_full' ? '❤️ Full HP restore' :
+                d.effect.type === 'xp' ? '⭐ +' + d.effect.value + ' XP' :
+                d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat : ''
             ) : '';
             const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
             const sn = (d.name || '').replace(/'/g, "\\'");
@@ -2229,9 +2229,9 @@ function renderInventory(data) {
             return '<div class="inv-card">'
                 + '<div class="inv-card-header">'
                 + '<img src="' + itemImage + '" style="width:36px;height:36px;object-fit:contain;border-radius:8px" data-error-hide="true" data-error-next-display="inline">'
-                + '<span style="font-size:1.4rem;display:none">' + (d.emoji || 'рџ§Є') + '</span>'
+                + '<span style="font-size:1.4rem;display:none">' + (d.emoji || '🧪') + '</span>'
                 + '<span class="inv-card-name">' + (d.name || '') + '</span>'
-                + '<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">Г—' + (d.qty || 1) + '</span>'
+                + '<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×' + (d.qty || 1) + '</span>'
                 + '</div>'
                 + '<div class="inv-stat-str">' + eff + '</div>'
                 + '<div class="inv-slot" style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 10px">' + (d.desc || '') + '</div>'
@@ -2257,22 +2257,22 @@ function renderInventory(data) {
         
         // Define exchange rates
         const exchangeRates = {
-            wood: { name: 'Wood', emoji: 'рџЄµ', fragmentCost: 5 },
-            iron_ore: { name: 'Iron Ore', emoji: 'в›ЏпёЏ', fragmentCost: 5 },
-            wolf_pelt: { name: 'Wolf Pelt', emoji: 'рџђє', fragmentCost: 5 },
-            herbs: { name: 'Herbs', emoji: 'рџЊї', fragmentCost: 5 },
-            poison_gland: { name: 'Poison Gland', emoji: 'рџ§Є', fragmentCost: 10 },
-            swamp_crystal: { name: 'Swamp Crystal', emoji: 'рџ’Ћ', fragmentCost: 10 },
-            frost_essence: { name: 'Frost Essence', emoji: 'вќ„пёЏ', fragmentCost: 10 },
-            mithril_ore: { name: 'Mithril Ore', emoji: 'вњЁ', fragmentCost: 10 },
-            dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: 'рџђ‰', fragmentCost: 15 },
-            arcane_dust: { name: 'Arcane Dust', emoji: 'рџЊџ', fragmentCost: 15 },
-            void_shard: { name: 'Void Shard', emoji: 'рџЊ‘', fragmentCost: 15 },
-            shadow_essence: { name: 'Shadow Essence', emoji: 'рџ‘ЃпёЏ', fragmentCost: 20 },
-            demon_core: { name: 'Demon Core', emoji: 'рџ’Ђ', fragmentCost: 20 },
-            void_crystal: { name: 'Void Crystal', emoji: 'рџ”®', fragmentCost: 25 },
-            shadow_weave: { name: 'Shadow Weave', emoji: 'рџЊ™', fragmentCost: 25 },
-            demon_alloy: { name: 'Demon Alloy', emoji: 'вљ™пёЏ', fragmentCost: 25 },
+            wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
+            iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
+            wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
+            herbs: { name: 'Herbs', emoji: '🌿', fragmentCost: 5 },
+            poison_gland: { name: 'Poison Gland', emoji: '🧪', fragmentCost: 10 },
+            swamp_crystal: { name: 'Swamp Crystal', emoji: '💎', fragmentCost: 10 },
+            frost_essence: { name: 'Frost Essence', emoji: '❄️', fragmentCost: 10 },
+            mithril_ore: { name: 'Mithril Ore', emoji: '✨', fragmentCost: 10 },
+            dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: '🐉', fragmentCost: 15 },
+            arcane_dust: { name: 'Arcane Dust', emoji: '🌟', fragmentCost: 15 },
+            void_shard: { name: 'Void Shard', emoji: '🌑', fragmentCost: 15 },
+            shadow_essence: { name: 'Shadow Essence', emoji: '👁️', fragmentCost: 20 },
+            demon_core: { name: 'Demon Core', emoji: '💀', fragmentCost: 20 },
+            void_crystal: { name: 'Void Crystal', emoji: '🔮', fragmentCost: 25 },
+            shadow_weave: { name: 'Shadow Weave', emoji: '🌙', fragmentCost: 25 },
+            demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', fragmentCost: 25 },
         };
         
         // Separate owned materials (excluding legendary fragments from the owned display)
@@ -2281,35 +2281,35 @@ function renderInventory(data) {
         el.innerHTML = `
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <span style="font-size: 1.2rem;">в­ђ</span>
+                    <span style="font-size: 1.2rem;">⭐</span>
                     <strong>Legendary Fragments: ${fragmentCount}</strong>
                 </div>
                 <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials below</div>
             </div>
             
-            <div class="section-title">рџ“¦ Your Materials</div>
+            <div class="section-title">📦 Your Materials</div>
             <div class="mat-grid">
                 ${ownedMaterials.map(i => {
                     const d = i.item_data;
                     const itemImage = d.image || getItemImage(d.name);
                     return `<div class="mat-card">
                         <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" data-error-hide="true" data-error-next-display="block">
-                        <div style="font-size:1.6rem;display:none">${d.emoji || 'рџ“¦'}</div>
+                        <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
                         <div class="mat-name">${d.name || d.id}</div>
-                        <div class="mat-qty">Г— ${d.qty || 1}</div>
+                        <div class="mat-qty">× ${d.qty || 1}</div>
                         <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
                     </div>`;
                 }).join('')}
             </div>
             
-            <div class="section-title" style="margin-top: 24px;">в­ђ Exchange Fragments for Materials</div>
+            <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
             <div class="mat-grid">
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
                     const canAfford = fragmentCount >= rate.fragmentCost;
                     return `<div class="mat-card" style="position: relative;">
                         <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
                         <div class="mat-name">${rate.name}</div>
-                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} в­ђ</div>
+                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
                         <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 1)} ${!canAfford ? 'disabled' : ''} 
                             style="margin-top: 8px; width: 100%;">Exchange x1</button>
                         <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 5)} ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
@@ -2323,7 +2323,7 @@ function renderInventory(data) {
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
-// в”Ђв”Ђ Open Loot Box в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Open Loot Box ─────────────────────────────────────────────────────────
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
@@ -2353,7 +2353,7 @@ function showItemTooltip(event, itemId) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
         const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
-        const ds = diff>0?'в–І'+diff:diff<0?'в–ј'+Math.abs(diff):'';
+        const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
@@ -2364,12 +2364,12 @@ function showItemTooltip(event, itemId) {
     tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
-                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'рџ“¦'}</span>`
-                :`<span class="tt-preview-emoji">${d.emoji||'рџ“¦'}</span>`}
+                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+                :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
-            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' В· <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
@@ -2449,7 +2449,7 @@ function showItemTooltip(event, itemId) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
         const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
-        const ds = diff>0?'в–І'+diff:diff<0?'в–ј'+Math.abs(diff):'';
+        const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
@@ -2467,12 +2467,12 @@ function showItemTooltip(event, itemId) {
     tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
-                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'рџ“¦'}</span>`
-                :`<span class="tt-preview-emoji">${d.emoji||'рџ“¦'}</span>`}
+                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+                :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
-            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' В· <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
@@ -2515,11 +2515,11 @@ function showEqTooltip(event, itemJson) {
 
     tooltip.innerHTML = `
         <div class="tt-preview">
-            ${imgSrc?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji||'рџ“¦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'рџ“¦'}</span>`}
+            ${imgSrc?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${item.name||''}</div>
-            <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` В· <span style="color:${qColor}">${item.quality}</span>`:''}</div>
+            <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
             ${item.desc?`<div class="tt-desc">${item.desc}</div>`:''}
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
         </div>`;
@@ -2558,8 +2558,8 @@ function createLootboxModal() {
         <div id="lootbox-exclusive-modal" class="lootbox-modal-overlay">
             <div class="lootbox-modal-container">
                 <div class="lootbox-modal-header">
-                    <h3>рџЋЃ OPENING LOOTBOX</h3>
-                    <button id="lootbox-skip-all-btn" class="lootbox-skip-btn">вЏ© SKIP ALL</button>
+                    <h3>🎁 OPENING LOOTBOX</h3>
+                    <button id="lootbox-skip-all-btn" class="lootbox-skip-btn">⏩ SKIP ALL</button>
                 </div>
                 <div id="lootbox-stage-content" class="lootbox-stage">
                     <div class="lootbox-loader-spinner">
@@ -2568,7 +2568,7 @@ function createLootboxModal() {
                     </div>
                 </div>
                 <div class="lootbox-modal-footer">
-                    <button id="lootbox-close-btn" class="lootbox-close-btn" style="display: none;">вњЁ CLOSE вњЁ</button>
+                    <button id="lootbox-close-btn" class="lootbox-close-btn" style="display: none;">✨ CLOSE ✨</button>
                 </div>
             </div>
         </div>
@@ -2867,7 +2867,7 @@ function renderSingleLootboxItem(item) {
     const itemName = item.name || 'Unknown Item';
     const qtyText = (item.qty && item.qty > 1) ? ` x${item.qty}` : '';
     const imagePath = `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
-    const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : 'вњЁ Obtained!'));
+    const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
     
     return `
         <div class="lootbox-item-card">
@@ -2889,7 +2889,7 @@ function renderLootboxSummary(result, boxName) {
     let summaryHtml = `
         <div class="lootbox-summary-panel">
             <div class="lootbox-summary-header">
-                рџЋ‰ ${escapeHtml(boxName)} - UNBOXED! рџЋ‰
+                🎉 ${escapeHtml(boxName)} - UNBOXED! 🎉
             </div>
     `;
     
@@ -2946,10 +2946,10 @@ function startSequentialReveal(result, boxName, onComplete) {
     // Build queue: gold, gems, then items
     const queue = [];
     if (result.goldFound > 0) {
-        queue.push({ type: 'gold', name: `${result.goldFound} Gold`, emoji: 'рџ’°', amount: result.goldFound, desc: `Found ${result.goldFound} gold!` });
+        queue.push({ type: 'gold', name: `${result.goldFound} Gold`, emoji: '💰', amount: result.goldFound, desc: `Found ${result.goldFound} gold!` });
     }
     if (result.gemsFound > 0) {
-        queue.push({ type: 'gem', name: `${result.gemsFound} Gems`, emoji: 'рџ’Ћ', amount: result.gemsFound, desc: `Found ${result.gemsFound} gems!` });
+        queue.push({ type: 'gem', name: `${result.gemsFound} Gems`, emoji: '💎', amount: result.gemsFound, desc: `Found ${result.gemsFound} gems!` });
     }
     for (const lootItem of result.loot) {
         queue.push({
@@ -2967,7 +2967,7 @@ function startSequentialReveal(result, boxName, onComplete) {
     lootboxModalState.currentBoxName = boxName;
     
     if (queue.length === 0) {
-        stage.innerHTML = `<div class="lootbox-loader-spinner"><p>рџЋЃ The box seems empty...</p></div>`;
+        stage.innerHTML = `<div class="lootbox-loader-spinner"><p>🎁 The box seems empty...</p></div>`;
         if (onComplete) onComplete();
         return;
     }
@@ -2979,7 +2979,7 @@ function startSequentialReveal(result, boxName, onComplete) {
                 stage.innerHTML = renderLootboxSummary(result, boxName);
             } else {
                 // Completed all items naturally
-                stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">вњЁ All items collected! вњЁ</div>`;
+                stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">✨ All items collected! ✨</div>`;
             }
             if (onComplete) onComplete();
             return;
@@ -2994,7 +2994,7 @@ function startSequentialReveal(result, boxName, onComplete) {
         } else if (!lootboxModalState.skipRequested && lootboxModalState.currentIndex >= lootboxModalState.currentQueue.length) {
             lootboxModalState.revealTimer = setTimeout(() => {
                 if (!lootboxModalState.skipRequested) {
-                    stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">вњ… Loot secured!</div>`;
+                    stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">✅ Loot secured!</div>`;
                     if (onComplete) onComplete();
                 }
             }, 500);
@@ -3023,7 +3023,7 @@ if (document.readyState === 'loading') {
 } else {
     createLootboxModal();
 }
-// в”Ђв”Ђ OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION ───────────────────────────────
 async function openLootBox(itemId, itemName) {
     if (!confirm(`Open ${itemName}?`)) return;
     
@@ -3104,7 +3104,7 @@ async function openLootBox(itemId, itemName) {
                 
                 // Create item display with button
                 const itemHtml = renderSingleLootboxItem(item);
-                const buttonText = isLastItem ? 'вњЁ COMPLETE вњЁ' : 'в–¶ NEXT ITEM в–¶';
+                const buttonText = isLastItem ? '✨ COMPLETE ✨' : '▶ NEXT ITEM ▶';
                 
                 stage.innerHTML = `
                     <div style="width:100%">
@@ -3177,7 +3177,7 @@ async function equipItem(invId) {
                 const otherItem = character.equipped[otherSlot];
                 // Unequip the other jewelry slot first
                 await api('POST', `/game/unequip/${otherSlot}`);
-                console.log(`рџ”„ Replaced ${otherItem.name} with new item`);
+                console.log(`🔄 Replaced ${otherItem.name} with new item`);
             }
         }
         
@@ -3203,15 +3203,15 @@ async function useItem(invId, name) {
     catch(e) { showMsg('inv-msg',e.message,true); }
 }
 
-// в”Ђв”Ђ Shop в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Shop ──────────────────────────────────────────────────────────────────
 function loadShop() {
     if (!character) { api('GET','/game/character').then(c=>{character=c;renderShopContent();}).catch(()=>{}); }
     else renderShopContent();
 }
 function renderShopContent() {
     if (!character) return;
-    document.getElementById('shop-gold').textContent=`рџ’° ${character.gold.toLocaleString()} Gold`;
-    document.getElementById('shop-gems').textContent=`рџ’Ћ ${(character.gems||0).toLocaleString()} Gems`;
+    document.getElementById('shop-gold').textContent=`💰 ${character.gold.toLocaleString()} Gold`;
+    document.getElementById('shop-gems').textContent=`💎 ${(character.gems||0).toLocaleString()} Gems`;
     const ld=document.getElementById('current-level-display'); if(ld) ld.textContent=character.level;
     const pb=document.getElementById('level-progress-bar'); if(pb) pb.style.width=`${(character.level/50)*100}%`;
     refreshShop();
@@ -3238,7 +3238,7 @@ function renderShop() {
 
     if (!filtered.length) { el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`; return; }
     el.innerHTML=filtered.map(item=>{
-        const pt=item.priceType||'gold', ci=pt==='gems'?'рџ’Ћ':'рџ’°', cc=pt==='gems'?'#9b59b6':'var(--gold)';
+        const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
         const gemCost = item.gemCost || 0;
         const isAvail=character.level>=(item.level||1), classOk=!item.classes||item.classes.includes(character.class);
         const hasEnoughGold = pt==='gems' ? (character.gems||0)>=item.price : character.gold>=item.price;
@@ -3265,32 +3265,32 @@ function renderShop() {
             if(e.type==='heal') label=`Heals ${e.value} HP`;
             else if(e.type==='heal_full') label='Restores 100% HP';
             else if(e.type==='temp_stat') label=`+${e.value} ${capitalize(e.stat||'')}`;
-            else if(e.type==='xp_multiplier') label=`${e.value}Г— XP boost`;
-            else if(e.type==='gold_multiplier') label=`${e.value}Г— Gold boost`;
+            else if(e.type==='xp_multiplier') label=`${e.value}× XP boost`;
+            else if(e.type==='gold_multiplier') label=`${e.value}× Gold boost`;
             else if(e.type==='xp') label=`+${e.value} XP`;
             else label=`${e.type}${e.value?' '+e.value:''}`;
             return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
         })():'';
 
         const shopItemData = escHtml(JSON.stringify(item));
-        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">рџ’Ћ PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">вњЁ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">рџ‘‘ LEGENDARY</span>':''}
+        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}">
                 <span class="shop-card-icon">${itemIcon(item,'2rem')}</span>
                 <span class="shop-card-name">${item.name}</span>
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
             </div>
             <div class="shop-card-desc">${item.desc}</div>
-            <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>рџ”’ Required: Level ${item.level}</div>`:''} ${item.classes?`<div>рџ“‹ Classes: ${item.classes.join('/')}</div>`:''}</div>
+            <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer">
                 <div style="display:flex;flex-direction:column;gap:2px">
-                    <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}рџ’Ћ</span>`:''}</span>
+                    <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
                 <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough?'':'disabled'}>${
                     !isAvail ? `Level ${item.level}` :
                     !classOk ? 'Class Locked' :
                     !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
-                    !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} рџ’Ћ` :
+                    !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} 💎` :
                     'Buy'
                 }</button>
             </div>
@@ -3305,7 +3305,7 @@ async function buyItem(itemId) {
     if (item.classes&&!item.classes.includes(character.class)){showMsg('shop-msg',`Not available for ${capitalize(character.class)}!`,true);return;}
     if (pt==='gems'&&(character.gems||0)<item.price){showMsg('shop-msg','Not enough gems!',true);return;}
     if (pt!=='gems'&&character.gold<item.price){showMsg('shop-msg','Not enough gold!',true);return;}
-    if (gemCost>0&&(character.gems||0)<gemCost){showMsg('shop-msg',`This item also costs ${gemCost} рџ’Ћ вЂ” not enough gems!`,true);return;}
+    if (gemCost>0&&(character.gems||0)<gemCost){showMsg('shop-msg',`This item also costs ${gemCost} 💎 — not enough gems!`,true);return;}
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
     try {
@@ -3316,7 +3316,7 @@ async function buyItem(itemId) {
         character = refreshedChar;
         
         shopInventory=shopInventory.filter(i=>i.id!==itemId);
-        showMsg('shop-msg',`вњ… ${item.name} purchased and added to your inventory!`);
+        showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
         renderShop(); 
         renderTopBar();
         renderCharacter(); // Force re-render character sheet with correct HP
@@ -3339,7 +3339,7 @@ function setShopCategory(category, btn) {
 async function refreshShop() { if(!character)return; shopInventory=await generateShopInventory(character.level); renderShop(); }
 async function generateShopInventory(playerLevel) { try { const r=await api('GET','/game/shop/items'); return r.items; } catch { return []; } }
 
-// в”Ђв”Ђ Premium в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Premium ───────────────────────────────────────────────────────────────
 async function loadPremium() {
     const el = document.getElementById('premium-content');
     if (!el) return;
@@ -3359,21 +3359,21 @@ function renderPremium(data) {
 
     const ultimateBanner = ultimate ? `
         <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
-            <div style="font-size:1.5rem;margin-bottom:4px">рџЊџ ASCENDANT</div>
-            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">All 6 features active В· +50% XP from all sources В· +1% to all stats</div>
+            <div style="font-size:1.5rem;margin-bottom:4px">🌟 ASCENDANT</div>
+            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">All 6 features active · +50% XP from all sources · +1% to all stats</div>
         </div>` : (activeCount >= 2 ? `
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
-            ${activeCount}/6 features active${synergies.length ? ` В· <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} synergy active!</span>` : ' В· Activate more for synergy bonuses'}
+            ${activeCount}/6 features active${synergies.length ? ` · <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} synergy active!</span>` : ' · Activate more for synergy bonuses'}
         </div>` : `
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
-            ${activeCount}/6 features active В· Activate all 6 for the рџЊџ Ascendant ultimate bonus
+            ${activeCount}/6 features active · Activate all 6 for the 🌟 Ascendant ultimate bonus
         </div>`);
 
     const synergyHtml = synergies.length ? `
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
             ${synergies.map(s => `
             <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(241,196,15,0.08);border:1px solid rgba(241,196,15,0.3);border-radius:20px;font-size:0.76rem;color:var(--gold)">
-                ${s.emoji} <strong>${s.name}</strong> В· ${s.desc}
+                ${s.emoji} <strong>${s.name}</strong> · ${s.desc}
             </div>`).join('')}
         </div>` : '';
 
@@ -3389,14 +3389,14 @@ function renderPremium(data) {
                     <span style="font-size:2rem">${f.emoji}</span>
                     <div>
                         <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--text-bright)">${f.name}</div>
-                        <div style="font-size:0.62rem;color:var(--gold)">${f.cost} рџ’Ћ / 30 days</div>
+                        <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 days</div>
                     </div>
                 </div>
                 <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5">${f.desc}</div>
                 <button ${actionAttrs('activatePremium', f.id)}
                     style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s"
                     ${gems < f.cost && !isActive ? 'disabled' : ''}>
-                    ${isActive ? `вњ… Active В· Renew for ${f.cost} рџ’Ћ` : (gems >= f.cost ? `вњЁ Activate В· ${f.cost} рџ’Ћ` : `Need ${f.cost - gems} more рџ’Ћ`)}
+                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
                 </button>
             </div>`;
         }).join('')}
@@ -3405,7 +3405,7 @@ function renderPremium(data) {
     el.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:10px 14px;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.25);border-radius:var(--radius-sm)">
             <span style="font-size:0.82rem;color:var(--text-dim)">Your gems</span>
-            <span style="font-size:1.1rem;font-weight:700;color:#9b59b6">рџ’Ћ ${gems.toLocaleString()}</span>
+            <span style="font-size:1.1rem;font-weight:700;color:#9b59b6">💎 ${gems.toLocaleString()}</span>
         </div>
         ${ultimateBanner}
         ${synergyHtml}
@@ -3422,11 +3422,11 @@ async function activatePremium(featureId) {
     } catch(e) { showMsg('premium-msg', e.message, true); }
 }
 
-// в”Ђв”Ђ Shop Reroll в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Shop Reroll ────────────────────────────────────────────────────────────
 async function rerollShop() {
     if (!character) return;
-    if ((character.gems || 0) < 1) { showMsg('shop-msg', 'Need 1 рџ’Ћ gem to reroll the shop!', true); return; }
-    if (!confirm('Reroll the entire shop for 1 рџ’Ћ?')) return;
+    if ((character.gems || 0) < 1) { showMsg('shop-msg', 'Need 1 💎 gem to reroll the shop!', true); return; }
+    if (!confirm('Reroll the entire shop for 1 💎?')) return;
     try {
         const d = await api('POST', '/game/shop/reroll');
         shopInventory = d.items;
@@ -3437,7 +3437,7 @@ async function rerollShop() {
     } catch(e) { showMsg('shop-msg', e.message, true); }
 }
 
-// в”Ђв”Ђ Leaderboard в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Leaderboard ───────────────────────────────────────────────────────────
 function setLbSort(sort,btn) { lbSort=sort; document.querySelectorAll('.lb-filters .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadLeaderboard(); }
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
@@ -3453,33 +3453,33 @@ function renderLeaderboard() {
     if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
     document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>{
         const rank=p.rank||(i+1), rc=rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
-        const rs=rank===1?'#1':rank===2?'#2':rank===3?'#3':`#${rank}`;
+        const rs=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
         // REMOVE the fallback - only use total_gold_earned
         const totalEarned = p.total_gold_earned || 0;
         return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} - @${p.username}</div></div>
+            <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · @${p.username}</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
-                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
             </div>
         </div>`;
     }).join('');
 }
-// в”Ђв”Ђ Profile в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Profile ───────────────────────────────────────────────────────────────
 async function openProfile(id) {
     const modal=document.getElementById('profile-modal'), content=document.getElementById('profile-content');
     if (!modal||!content) return;
     content.innerHTML='<p class="loading">Loading profile...</p>'; modal.classList.remove('hidden');
     try {
         const p=await api('GET',`/game/player/${id}`);
-        const classIcon={warrior:'WAR',mage:'MAG',rogue:'ROG',paladin:'PAL'}[p.class]||'CLS';
-        const name=p.name||'Unknown', uname=p.username||' - ?', level=p.level - '?';
+        const classIcon={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[p.class]||'⚔️';
+        const name=p.name||'Unknown', uname=p.username||'???', level=p.level??'?';
         const isMe=p.user_id===character?.user_id;
-        const wins=p.wins - 0, losses=p.losses - 0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
-        const str=p.strength - 0,def=p.defense - 0,agi=p.agility - 0,mag=p.magic - 0,vit=p.vitality - 10;
+        const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
+        const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const profileArmor = Math.floor(def / 4) + (p.armor || 0);
@@ -3503,12 +3503,12 @@ async function openProfile(id) {
 
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
         const profileSlots=[
-            {slot:'helmet', icon:'Helm', col:1, row:1},
-            {slot:'armor',  icon:'Armor', col:1, row:2},
-            {slot:'weapon', icon:'Weapon', col:1, row:3},
-            {slot:'amulet', icon:'Amulet', col:3, row:1},
-            {slot:'shield', icon:'Shield',  col:3, row:2},
-            {slot:'boots',  icon:'Boots', col:3, row:3},
+            {slot:'helmet', icon:'⛑️', col:1, row:1},
+            {slot:'armor',  icon:'🛡️', col:1, row:2},
+            {slot:'weapon', icon:'⚔️', col:1, row:3},
+            {slot:'amulet', icon:'📿', col:3, row:1},
+            {slot:'shield', icon:'🛡',  col:3, row:2},
+            {slot:'boots',  icon:'👢', col:3, row:3},
         ];
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
@@ -3527,7 +3527,7 @@ async function openProfile(id) {
             </div>`;
         }).join('');
 
-        const smallSlots = [['accessory','Accessory','Accessory']];
+        const smallSlots = [['accessory','🔮','Accessory']];
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
             const item = eq[slot];
             if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
@@ -3538,7 +3538,7 @@ async function openProfile(id) {
                 data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip">
                 ${itemIcon(item,'1.2rem')}
                 <span style="color:${qc};font-size:0.7rem">${item.name}</span>
-                <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">- ${label}</span>
+                <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">· ${label}</span>
             </div>`;
         }).join('');
 
@@ -3550,20 +3550,20 @@ async function openProfile(id) {
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
               <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
-              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} - @${uname}</div></div>
+              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} · @${uname}</div></div>
             </div>
-            <button class="btn-secondary" ${actionAttrs('closeProfile')}>Close</button>
+            <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
           <div class="profile-grid">
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
-              ${miniStat('STR','STR',str,maxStat,'str')}
-              ${miniStat('DEF','DEF',def,maxStat,'def')}
-              ${miniStat('AGI','AGI',agi,maxStat,'agi')}
-              ${miniStat('MAG','MAG',mag,maxStat,'mag')}
-              ${miniStat('VIT','VIT',vit,maxStat,'vit')}
-              ${hc>0?miniStat('HIT','HIT',hc,maxStat,'hit'):''}
-              ${cc>0?miniStat('CRT','CRIT',cc,maxStat,'crit'):''}
+              ${miniStat('💪','STR',str,maxStat,'str')}
+              ${miniStat('🛡️','DEF',def,maxStat,'def')}
+              ${miniStat('⚡','AGI',agi,maxStat,'agi')}
+              ${miniStat('✨','MAG',mag,maxStat,'mag')}
+              ${miniStat('❤️','VIT',vit,maxStat,'vit')}
+              ${hc>0?miniStat('🎯','HIT',hc,maxStat,'hit'):''}
+              ${cc>0?miniStat('💥','CRIT',cc,maxStat,'crit'):''}
             </div>
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
@@ -3571,8 +3571,8 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
-                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">${(p.total_gold_earned - p.gold - 0).toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">${(p.total_gold_lost - 0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
               </div>
             </div>
           </div>
@@ -3581,21 +3581,21 @@ async function openProfile(id) {
             <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
             <div class="eq-stage profile-eq-stage">
               <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
-              <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, 'Accessory', 'Accessory')}</div>
+              <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, 'рџ”®', 'Accessory')}</div>
             </div>
           </div>`:''}
           ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
-            const myAttackBlockReason=getMyAttackBlockReason();
+            const myBattleCd=character?.battle_cooldown_remaining||0;
             let blocked=false, reason='';
             if(hpLow){blocked=true;reason='Too little HP';}
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
-            else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
+            else if(myBattleCd>0){blocked=true;const m=Math.ceil(myBattleCd/60);reason='Wait '+m+'m to fight again';}
             const atkBtn=blocked
-                ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">${reason}</button>`
-                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>Attack</button>`;
-            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>Message</button></div>`;
+                ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
+                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>⚔️ Attack</button>`;
+            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
           })() : ''}
         </div>
       </div>`;
@@ -3610,15 +3610,7 @@ function closeProfile() { document.getElementById('profile-modal').classList.add
 async function attackFromProfile(id,name) { closeProfile(); await attack(id,name); }
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
 
-function getMyAttackBlockReason() {
-    if (character?.trainingActive) return 'Training active';
-    if (character?.trainingDone) return 'Collect training first';
-    const myBattleCd = character?.battle_cooldown_remaining || 0;
-    if (myBattleCd > 0) return `Wait ${Math.ceil(myBattleCd / 60)}m to fight again`;
-    return '';
-}
-
-// в”Ђв”Ђ Matchmaking в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Matchmaking ────────────────────────────────────────────────────────────
 let _matchmakingTarget = null;
 async function findOpponent(direction='similar') {
     const box = document.getElementById('matchmaking-box');
@@ -3627,44 +3619,38 @@ async function findOpponent(direction='similar') {
         const p = await api('GET', `/game/matchmaking?direction=${direction}`);
         _matchmakingTarget = p;
         if (!p) { if (box) box.innerHTML = '<p class="empty">No available opponents right now.</p>'; return; }
-        const ci={warrior:'WAR',mage:'MAG',rogue:'ROG',paladin:'PAL'};
+        const ci={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'};
         const power = (p.strength||0)+(p.defense||0)+(p.agility||0)+(p.magic||0)+p.level*5;
         const myPower = character ? (character.strength+character.defense+character.agility+character.magic+character.level*5) : 0;
         const powerDiff = power - myPower;
-        const myAttackBlockReason = getMyAttackBlockReason();
-        const attackBtn = myAttackBlockReason
-            ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">Blocked: ${myAttackBlockReason}</button>`
-            : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>Attack</button>`;
-        const diffLabel = powerDiff > 10 ? 'Stronger' : powerDiff < -10 ? 'Weaker' : 'Similar';
+        const diffLabel = powerDiff > 10 ? '⬆️ Stronger' : powerDiff < -10 ? '⬇️ Weaker' : '↔️ Similar';
         if (box) box.innerHTML = `
             <div class="matchmaking-card">
                 <div style="display:flex;align-items:center;gap:14px">
                     <img src="/images/class/${p.class}.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
                     <div style="flex:1">
-                        <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ci[p.class]||'вљ”пёЏ'} ${escHtml(p.name)}</div>
-                        <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} - ${p.wins}W/${p.losses}L</div>
-                        <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} - Power ${power}</div>
+                        <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ci[p.class]||'⚔️'} ${escHtml(p.name)}</div>
+                        <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} · ${p.wins}W/${p.losses}L</div>
+                        <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} · Power ${power}</div>
                     </div>
-                    ${attackBtn}
+                    <button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>⚔️ Attack</button>
                 </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'weaker')}>Weaker</button>
-                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'similar')}>Similar</button>
-                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'stronger')}>Stronger</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'weaker')}>⬇️ Weaker</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'similar')}>↔️ Similar</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'stronger')}>⬆️ Stronger</button>
             </div>`;
     } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
 async function attack(targetId,targetName) {
-    if ((character?.hp_current - character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
-    const blockReason = getMyAttackBlockReason();
-    if (blockReason) { alert(blockReason); return; }
+    if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
     try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName); }
     catch(e) { alert(e.message); }
 }
 function showBattleResult(r, targetName) {
     const summary = r.won
-        ? `+${r.goldGained} gold - +${r.xpGained} XP`
+        ? `+${r.goldGained} gold · +${r.xpGained} XP`
         : `-${r.goldLost} gold`;
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken);
 }
@@ -3693,7 +3679,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
             </div>
             <div class="fighter-vs">VS</div>
             <div class="fighter-card">
-                <div class="fighter-avatar" style="font-size:2rem">рџ‘ѕ</div>
+                <div class="fighter-avatar" style="font-size:2rem">👾</div>
                 <div class="fighter-name">${enemyName}</div>
                 <div class="fighter-class">Enemy</div>
             </div>`;
@@ -3702,13 +3688,13 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
     if (out) {
         out.className = won ? 'won' : 'lost';
         out.innerHTML = won
-            ? `рџЏ† VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} В· вљ”пёЏ ${dmgDealt  -  '?'} dmg dealt В· рџ’” ${dmgTaken  -  '?'} dmg taken</small>`
-            : `рџ’Ђ DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} В· вљ”пёЏ ${dmgDealt  -  '?'} dmg dealt В· рџ’” ${dmgTaken  -  '?'} dmg taken</small>`;
+            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
+            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
     }
     
     if (logEl) {
         logEl.innerHTML = log.map(l => {
-            if (l === '---') return '<div class="battle-log-line separator">в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ</div>';
+            if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
             let className = '';
             if (l.startsWith(character?.name)) className = 'battle-log-player';
             else if (l.startsWith(enemyName)) className = 'battle-log-opponent';
@@ -3721,7 +3707,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
 
 function closeBattle() { document.getElementById('battle-result-modal').classList.add('hidden'); renderCharacter(); }
 
-// в”Ђв”Ђ History в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── History ───────────────────────────────────────────────────────────────
 async function loadHistory() {
     const list=document.getElementById('history-list'); list.innerHTML='<p class="loading">Loading...</p>';
     try {
@@ -3730,9 +3716,9 @@ async function loadHistory() {
         const myId=character.id;
         list.innerHTML=battles.map(b=>{
             const won=b.winner_id===myId, opp=b.attacker_id===myId?b.defender_name:b.attacker_name;
-            const type=b.battle_type==='mission'?'вљ”пёЏ Mission':b.attacker_id===myId?'вљ”пёЏ Attacked':'рџ›ЎпёЏ Defended vs';
+            const type=b.battle_type==='mission'?'⚔️ Mission':b.attacker_id===myId?'⚔️ Attacked':'🛡️ Defended vs';
             return `<div class="history-item" ${actionAttrs('showHistoryLog', b.log, b.attacker_name, b.defender_name)}>
-        <div class="history-header"><div class="history-vs">${type} <strong>${opp}</strong></div><div class="history-result ${won?'won':'lost'}">${won?'рџЏ† WIN':'рџ’Ђ LOSS'}</div></div>
+        <div class="history-header"><div class="history-vs">${type} <strong>${opp}</strong></div><div class="history-result ${won?'won':'lost'}">${won?'🏆 WIN':'💀 LOSS'}</div></div>
         <div class="history-date">${new Date(b.fought_at*1000).toLocaleDateString()}</div>
       </div>`;
         }).join('');
@@ -3741,19 +3727,19 @@ async function loadHistory() {
 function showHistoryLog(logJson,a,d) {
     const log=typeof logJson==='string'?JSON.parse(logJson):logJson;
     const out=document.getElementById('battle-outcome');
-    out.innerHTML=`рџ“њ ${a} vs ${d}`; out.className='';
-    document.getElementById('battle-log').innerHTML=log.map(l=>`<div class="battle-log-line${l==='---'?' separator':''}">${l==='---'?'в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ':l}</div>`).join('');
+    out.innerHTML=`📜 ${a} vs ${d}`; out.className='';
+    document.getElementById('battle-log').innerHTML=log.map(l=>`<div class="battle-log-line${l==='---'?' separator':''}">${l==='---'?'───────────────────':l}</div>`).join('');
     document.getElementById('battle-result-modal').classList.remove('hidden');
 }
 
-// в”Ђв”Ђ Inbox в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Inbox ─────────────────────────────────────────────────────────────────
 window._reportCache = {};
 async function loadInbox() {
     const el=document.getElementById('inbox-content'); el.innerHTML='<p class="loading">Loading...</p>';
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
-        let html=`<button class="compose-btn" ${actionAttrs('openCompose', null, null)}>вњ‰пёЏ New Message</button>`;
+        let html=`<button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button>`;
         if (!messages.length) html+='<p class="empty">Your inbox is empty.</p>';
         else html+=`<div class="inbox-list">${messages.map(m=>{
             const isReport = m.body && m.body.startsWith('BATTLE_REPORT:');
@@ -3762,7 +3748,7 @@ async function loadInbox() {
                 try { report = JSON.parse(m.body.slice('BATTLE_REPORT:'.length)); } catch {}
                 if (report) window._reportCache[m.id] = report;
                 const isMission = report?.type === 'mission';
-                const icon = isMission ? (report?.won ? 'вњ…' : 'рџ’Ђ') : (report?.won ? 'рџЏ†' : 'вљ”пёЏ');
+                const icon = isMission ? (report?.won ? '✅' : '💀') : (report?.won ? '🏆' : '⚔️');
                 const tag  = isMission ? 'Mission Report' : 'Battle Report';
                 const tagColor = isMission ? 'rgba(52,152,219,0.75)' : 'rgba(231,76,60,0.7)';
                 return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
@@ -3775,13 +3761,13 @@ async function loadInbox() {
                     </div>
                     ${report ? `<div style="font-size:0.73rem;color:rgba(255,255,255,0.4);margin-top:4px">
                         vs ${escHtml(report.opponentName||report.npcName||'?')}
-                        ${report.goldEarned ? ` В· рџ’° +${report.goldEarned}` : ''}
-                        ${report.goldLost   ? ` В· рџ’ё -${report.goldLost}`  : ''}
-                        ${report.xpEarned   ? ` В· в­ђ +${report.xpEarned} XP` : ''}
+                        ${report.goldEarned ? ` · 💰 +${report.goldEarned}` : ''}
+                        ${report.goldLost   ? ` · 💸 -${report.goldLost}`  : ''}
+                        ${report.xpEarned   ? ` · ⭐ +${report.xpEarned} XP` : ''}
                     </div>` : ''}
                     <div class="msg-actions-report" style="display:flex;gap:8px;margin-top:8px">
-                        <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>рџ“њ View Report</button>
-                        <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>рџ—‘ Delete</button>
+                        <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                        <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
                     </div>
                 </div>`;
             }
@@ -3789,7 +3775,7 @@ async function loadInbox() {
                 <div class="msg-header"><div class="msg-from ${m.read?'':'unread-from'}">From: ${m.sender_name}</div><div class="msg-date">${new Date(m.sent_at*1000).toLocaleDateString()}</div></div>
                 <div class="msg-subject">${escHtml(m.subject)}</div>
                 <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
-                <div class="msg-actions" style="display:none"><button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>в†© Reply</button><button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>рџ—‘ Delete</button></div>
+                <div class="msg-actions" style="display:none"><button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button><button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button></div>
             </div>`;
         }).join('')}</div>`;
         el.innerHTML=html;
@@ -3815,16 +3801,16 @@ function viewBattleReport(msgId) {
     const report = window._reportCache?.[msgId];
     if (!report) { alert('Report not found. Try reloading the inbox.'); return; }
     const summary = [
-        report.won ? 'вњ… Victory' : 'рџ’Ђ Defeated',
-        report.goldEarned ? `рџ’° ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
-        report.xpEarned ? `в­ђ +${report.xpEarned} XP` : null
+        report.won ? '✅ Victory' : '💀 Defeated',
+        report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
+        report.xpEarned ? `⭐ +${report.xpEarned} XP` : null
         // REMOVED: report.totalDmgDealt and report.totalDmgTaken from here
-    ].filter(Boolean).join(' В· ');
+    ].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken);
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
 
-// в”Ђв”Ђ Compose в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Compose ───────────────────────────────────────────────────────────────
 function openCompose(rid,rname) {
     document.getElementById('compose-receiver-id').value=rid||'';
     document.getElementById('compose-receiver-name').textContent=rname?`To: ${rname}`:'Select recipient via player profile';
@@ -3841,17 +3827,17 @@ async function sendMessage() {
     catch(e) { setError('compose-error',e.message); }
 }
 
-// в”Ђв”Ђ Item Icon Helper в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Item Icon Helper ──────────────────────────────────────────────────────
 function itemIcon(item, size='2rem') {
     if (!item) return '';
     const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
-    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'[item]'}</span>`;
-    return `<span style="${sStyle}">${item.emoji||'[item]'}</span>`;
+    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
+    return `<span style="${sStyle}">${item.emoji||'📦'}</span>`;
 }
 
-// в”Ђв”Ђ Utils в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Utils ─────────────────────────────────────────────────────────────────
 function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.toggle('hidden',!msg);}
 function showMsg(id,msg,isError=false){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.background=isError?'rgba(192,57,43,0.1)':'';el.style.borderColor=isError?'rgba(192,57,43,0.4)':'';el.style.color=isError?'var(--red-light)':'';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -4062,7 +4048,7 @@ const legacyHandlerObserver = new MutationObserver((mutations) => {
     }
 });
 
-// в”Ђв”Ђ Bug Report System в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Bug Report System ─────────────────────────────────────────────────────
 
 let bugReportScreenshot = null;
 
@@ -4209,7 +4195,7 @@ function showShopItemTooltip(event, itemJson) {
             : null);
 
     const priceType = item.priceType || 'gold';
-    const priceIcon = priceType === 'gems' ? 'рџ’Ћ' : 'рџ’°';
+    const priceIcon = priceType === 'gems' ? '💎' : '💰';
     const buyPrice = item.price || 0;
     const gemCost = item.gemCost || 0;
 
@@ -4244,7 +4230,7 @@ function showShopItemTooltip(event, itemJson) {
         if (nv === 0 && ov === 0) continue;
 
         const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
-        const ds = diff > 0 ? `в–І${diff}` : diff < 0 ? `в–ј${Math.abs(diff)}` : '';
+        const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
         const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
 
         statsHtml += `
@@ -4261,11 +4247,11 @@ function showShopItemTooltip(event, itemJson) {
     if (item.effect) {
         const e = item.effect;
         let effectText = '';
-        if (e.type === 'heal') effectText = `вќ¤пёЏ Restores ${e.value} HP`;
-        else if (e.type === 'heal_full') effectText = 'вќ¤пёЏ Fully restores HP';
-        else if (e.type === 'mp') effectText = `рџ”® Restores ${e.value} MP`;
-        else if (e.type === 'temp_stat') effectText = `рџ’Є +${e.value} ${e.stat} for 1 hour`;
-        else if (e.type === 'xp') effectText = `в­ђ +${e.value} XP`;
+        if (e.type === 'heal') effectText = `❤️ Restores ${e.value} HP`;
+        else if (e.type === 'heal_full') effectText = '❤️ Fully restores HP';
+        else if (e.type === 'mp') effectText = `🔮 Restores ${e.value} MP`;
+        else if (e.type === 'temp_stat') effectText = `💪 +${e.value} ${e.stat} for 1 hour`;
+        else if (e.type === 'xp') effectText = `⭐ +${e.value} XP`;
 
         if (effectText) {
             effectHtml = `
@@ -4281,15 +4267,15 @@ function showShopItemTooltip(event, itemJson) {
         <div class="tt-preview">
             ${
         imgSrc
-            ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji || 'рџ“¦'}</span>`
-            : `<span class="tt-preview-emoji">${item.emoji || 'рџ“¦'}</span>`
+            ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
+            : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
     }
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
             <div class="tt-meta">
                 ${capitalize(itemSlot || 'item')}
-                ${item.quality && item.quality !== 'common' ? ` В· <span style="color:${qColor}">${item.quality}</span>` : ''}
+                ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}
             </div>
             ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
             <div class="tt-stats">
@@ -4299,7 +4285,7 @@ function showShopItemTooltip(event, itemJson) {
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
             <div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">
                 Buy: ${priceIcon} ${buyPrice.toLocaleString()}
-                ${gemCost > 0 ? ` + рџ’Ћ ${gemCost}` : ''}
+                ${gemCost > 0 ? ` + 💎 ${gemCost}` : ''}
             </div>
         </div>
         <div class="tt-actions">
@@ -4394,11 +4380,11 @@ async function handleFile(file) {
 function showScreenshotPreview(dataUrl, sizeKB = null) {
     const preview = document.getElementById('screenshot-preview');
     if (preview) {
-        const sizeText = sizeKB ? `<div style="font-size: 10px; color: #9b59b6; margin-top: 4px; text-align: center;">рџ“ё ${sizeKB}KB</div>` : '';
+        const sizeText = sizeKB ? `<div style="font-size: 10px; color: #9b59b6; margin-top: 4px; text-align: center;">📸 ${sizeKB}KB</div>` : '';
         preview.innerHTML = `
             <div style="position: relative; display: inline-block;">
                 <img src="${dataUrl}" alt="Screenshot preview" style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid var(--border);">
-                <button ${actionAttrs('removeScreenshot')} style="position: absolute; top: -8px; right: -8px; background: #e74c3c; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; color: white; font-size: 14px; display: flex; align-items: center; justify-content: center;">вњ•</button>
+                <button ${actionAttrs('removeScreenshot')} style="position: absolute; top: -8px; right: -8px; background: #e74c3c; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; color: white; font-size: 14px; display: flex; align-items: center; justify-content: center;">✕</button>
                 ${sizeText}
             </div>
         `;
@@ -4475,7 +4461,7 @@ async function submitBugReport(event) {
         const result = await response.json();
         
         if (result.success) {
-            showBugReportStatus('вњ… Report submitted successfully! Thank you for helping improve the game.', 'success');
+            showBugReportStatus('✅ Report submitted successfully! Thank you for helping improve the game.', 'success');
             setTimeout(() => closeBugReport(), 2000);
         } else {
             showBugReportStatus(`Failed to submit: ${result.error}`, 'error');
@@ -4508,16 +4494,16 @@ async function updateTrainingStatus() {
         if (!indicator) return;
 
         if (status.active) {
-            const progress = Math.floor((status.progressPercent  -  status.progressCurrent  -  status.progress_current  -  0));
+            const progress = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? 0));
             const remaining = formatTrainingTime(status.remainingSeconds || status.remaining || 0);
             indicator.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
-                    <span style="font-size: 0.75rem;">вљ”пёЏ ${progress}%</span>
+                    <span style="font-size: 0.75rem;">⚔️ ${progress}%</span>
                     <div style="width: 50px; background: rgba(255,255,255,0.2); border-radius: 4px; height: 4px;">
                         <div style="width: ${progress}%; background: #9b59b6; height: 4px; border-radius: 4px;"></div>
                     </div>
                     <span style="font-size: 0.65rem;">${remaining}</span>
-                    <button ${actionAttrs('cancelTraining')} style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">вњ•</button>
+                    <button ${actionAttrs('cancelTraining')} style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">✕</button>
                 </div>
             `;
             indicator.classList.remove('hidden');
@@ -4551,7 +4537,7 @@ async function cancelTraining() {
     }
 }
 
-// в”Ђв”Ђ Convert MP to Special Mana Potion в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+// ── Convert MP to Special Mana Potion ─────────────────────────────────────
 let _convertingMp = false;
 
 async function convertMpToPotion() {
@@ -4563,7 +4549,7 @@ async function convertMpToPotion() {
     if (btn) {
         btn.disabled = true;
         btn.style.opacity = '0.6';
-        btn.innerHTML = 'вЏі Converting...';
+        btn.innerHTML = '⏳ Converting...';
     }
     
     try {
@@ -4590,7 +4576,7 @@ async function convertMpToPotion() {
         if (btn) {
             btn.disabled = false;
             btn.style.opacity = '1';
-            btn.innerHTML = 'рџ’ЋвњЁ Convert MP';
+            btn.innerHTML = '💎✨ Convert MP';
         }
         
         // Auto-hide status message after 3 seconds
@@ -4658,7 +4644,7 @@ async function openUpgradeModal(inventoryId) {
             const qty = compData.qty || 1;
             componentsHtml += `
                 <div class="upgrade-component-card" ${actionAttrs('selectComponent', compData.id, compData.name, qty)}>
-                    <div class="component-icon">${compData.emoji || 'рџ”§'}</div>
+                    <div class="component-icon">${compData.emoji || '🔧'}</div>
                     <div class="component-info">
                         <div class="component-name">${compData.name}</div>
                         <div class="component-qty">Owned: ${qty}</div>
@@ -4742,7 +4728,7 @@ async function confirmUpgrade() {
                 message += `\n\nStats improved:\n`;
                 result.upgradedStats.forEach(s => {
                     const statName = s.stat.replace(/_/g, ' ');
-                    message += `вЂў ${statName}: ${s.oldValue} в†’ ${s.newValue} (+${s.increase})\n`;
+                    message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
                 });
             }
             showMsg('inv-msg', message);
@@ -4776,7 +4762,7 @@ async function openExchangeModal() {
         
         let html = `
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px;">
-                <div style="font-size: 1.2rem; font-weight: bold; color: #f1c40f;">в­ђ Legendary Fragments: ${data.fragmentCount}</div>
+                <div style="font-size: 1.2rem; font-weight: bold; color: #f1c40f;">⭐ Legendary Fragments: ${data.fragmentCount}</div>
                 <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials</div>
             </div>
         `;
@@ -4800,7 +4786,7 @@ async function openExchangeModal() {
                             <span style="font-size: 1.3rem;">${mat.emoji}</span>
                             <span style="font-weight: bold;">${mat.name}</span>
                         </div>
-                        <div style="font-size: 0.7rem; color: #f1c40f;">Cost: ${mat.fragmentCost} в­ђ</div>
+                        <div style="font-size: 0.7rem; color: #f1c40f;">Cost: ${mat.fragmentCost} ⭐</div>
                         <div style="display: flex; gap: 4px; margin-top: 8px;">
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 1)} ${!mat.canAfford ? 'disabled' : ''}>x1</button>
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 5)} ${data.fragmentCount < mat.fragmentCost * 5 ? 'disabled' : ''}>x5</button>
@@ -4909,7 +4895,7 @@ function renderAbyssMap() {
         const isCurrent = currentZone === zoneId;
         const isTraveling = playerTravelTarget === zoneId;
         const pinStyle = `position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:${isUnlocked ? 'pointer' : 'not-allowed'};z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked ? 'opacity:0.4' : ''}`;
-        const badge = isCurrent ? 'рџ“Ќ' : !isUnlocked ? 'рџ”’' : isTraveling ? 'рџљ¶' : '';
+        const badge = isCurrent ? '📍' : !isUnlocked ? '🔒' : isTraveling ? '🚶' : '';
         const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? 'filter:grayscale(1)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
         
         return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
@@ -4926,7 +4912,7 @@ function renderAbyssMap() {
     const exitButton = `
         <div style="position:absolute;bottom:20px;right:20px;z-index:20;">
             <button class="btn-primary" ${actionAttrs('exitAbyss')} style="background:rgba(231,76,60,0.8);border-color:#e74c3c;">
-                рџљЄ Return to Dark City
+                🚪 Return to Dark City
             </button>
         </div>
     `;
