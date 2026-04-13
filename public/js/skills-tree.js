@@ -46,7 +46,7 @@ function renderSkillTreeUI(root) {
         <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding:16px;
                     background:rgba(255,255,255,0.03);border:1px solid ${accent}33;border-radius:12px">
             <img src="/images/class/${charClass}.png" style="width:56px;height:56px;border-radius:50%;
-                 object-fit:cover;border:2px solid ${accent}66" onerror="this.style.display='none'">
+                 object-fit:cover;border:2px solid ${accent}66" data-error-hide="true">
             <div style="flex:1">
                 <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:${accent}">
                     ${capitalize(charClass)} Skill Tree
@@ -131,8 +131,8 @@ function renderSkillTreeUI(root) {
                 </div>
             </div>
             ${done
-                ? `<button class="btn-primary" style="padding:8px 18px;font-size:0.82rem" onclick="stCollect()">⚡ Collect Skill</button>`
-                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" onclick="stCancel()">Cancel (50% refund)</button>`
+                ? `<button class="btn-primary" style="padding:8px 18px;font-size:0.82rem" ${actionAttrs('stCollect')}>⚡ Collect Skill</button>`
+                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" ${actionAttrs('stCancel')}>Cancel (50% refund)</button>`
             }
         </div>`;
     }
@@ -175,7 +175,7 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass, busyS
             <div style="flex:1">
                 <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:${bc}">
                     ${branch.name}
-                    ${(!activeTraining && !branch.isStarter && branchProgressCount > 0) ? `<button class="btn-respec-branch" onclick="stUnlearnStep('${branchId}')" style="font-size:0.6rem;padding:2px 8px;margin-left:8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩ Unlearn Last</button>` : ''}
+                    ${(!activeTraining && !branch.isStarter && branchProgressCount > 0) ? `<button class="btn-respec-branch" ${actionAttrs('stUnlearnStep', branchId)} style="font-size:0.6rem;padding:2px 8px;margin-left:8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩ Unlearn Last</button>` : ''}
                     ${branch.exclusive_with
                         ? `<span style="font-size:0.6rem;padding:2px 6px;background:${bc}22;border-radius:4px;color:${bc};margin-left:6px;font-family:sans-serif">EXCLUSIVE</span>`
                         : ''}
@@ -310,20 +310,16 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
             <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
                 ${hoursOptions.join('')}
             </select>
-            <button onclick="stStartTrain('${skillKey}','${branchId}', false)" 
+            <button ${actionAttrs('stStartTrain', skillKey, branchId, false)} 
                 style="flex:1; padding: 5px 6px; border-radius: 4px; border: 1px solid ${branchColor}66;
                        background: ${branchColor}18; color: ${branchColor}; font-size: 0.65rem; font-weight: 600;
-                       cursor: pointer; transition: all 0.15s;"
-                onmouseenter="this.style.background='${branchColor}33'"
-                onmouseleave="this.style.background='${branchColor}18'">
+                       cursor: pointer; transition: all 0.15s;">
                 Train
             </button>
-            <button onclick="stStartTrain('${skillKey}','${branchId}', true)" 
+            <button ${actionAttrs('stStartTrain', skillKey, branchId, true)} 
                 style="padding: 5px 6px; border-radius: 4px; border: 1px solid #f1c40f66;
                        background: rgba(241,196,15,0.15); color: #f1c40f; font-size: 0.65rem; font-weight: 600;
                        cursor: pointer; transition: all 0.15s;"
-                onmouseenter="this.style.background='rgba(241,196,15,0.3)'"
-                onmouseleave="this.style.background='rgba(241,196,15,0.15)'"
                 title="2x speed (costs 500 gold per hour)">
                 2x
             </button>
@@ -347,12 +343,10 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
     if (learned) {
         btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
     } else if (training) {
-        btnHtml = `<button onclick="stCancel()"
+        btnHtml = `<button ${actionAttrs('stCancel')}
             style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
                    background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
-                   cursor:pointer;transition:all 0.15s"
-            onmouseenter="this.style.background='rgba(231,76,60,0.3)'"
-            onmouseleave="this.style.background='rgba(231,76,60,0.15)'">
+                   cursor:pointer;transition:all 0.15s">
             Cancel Training
         </button>`;
     } else if (trainable) {
@@ -489,7 +483,7 @@ async function updateTrainingStatus() {
                         <div style="width: ${progress}%; background: #9b59b6; height: 4px; border-radius: 4px;"></div>
                     </div>
                     <span style="font-size: 0.7rem;">${remaining}</span>
-                    <button onclick="cancelTraining()" style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">✕</button>
+                    <button ${actionAttrs('cancelTraining')} style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">✕</button>
                 </div>
             `;
             document.getElementById('training-indicator').classList.remove('hidden');
