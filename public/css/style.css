@@ -2246,6 +2246,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 /* Final equipment lock: shared stable grid for character + profile */
+.eq-stage {
+    position: relative !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+}
+
 .eq-grid,
 .profile-eq-grid {
     display: grid !important;
@@ -2395,22 +2402,48 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .eq-accessory-row,
 .profile-eq-accessory-row {
+    position: absolute !important;
+    top: 10px !important;
+    left: calc(100% - 8px) !important;
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;
-    padding: 8px 2px 2px !important;
-    border-top: 1px solid rgba(255,255,255,0.06) !important;
-    margin-top: 6px !important;
+    gap: 0 !important;
+    padding: 0 !important;
+    border-top: none !important;
+    margin-top: 0 !important;
+    z-index: 2 !important;
 }
 
 .eq-slot-small {
+    width: 62px !important;
+    min-width: 62px !important;
+    max-width: 62px !important;
+    height: 62px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     border-radius: 8px !important;
-    border: 1px dashed rgba(255,255,255,0.1) !important;
-    background: rgba(255,255,255,0.02) !important;
+    border: none !important;
+    background: rgba(255,255,255,0.015) !important;
+    padding: 0 !important;
 }
 
 .eq-slot-small.filled {
-    background: rgba(255,255,255,0.04) !important;
+    background: rgba(255,255,255,0.025) !important;
+}
+
+.eq-slot-small::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: -1px !important;
+    background: url('/images/equipment-bg.png') center/112% no-repeat !important;
+    opacity: 0.2 !important;
+    pointer-events: none !important;
+}
+
+.eq-slot-small > * {
+    position: relative !important;
+    z-index: 1 !important;
 }
 
 @media (max-width: 640px) {
@@ -2434,6 +2467,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-slot-label {
         font-size: 0.45rem !important;
     }
+
+    .eq-accessory-row,
+    .profile-eq-accessory-row {
+        top: 6px !important;
+        left: calc(100% - 2px) !important;
+    }
+
+    .eq-slot-small {
+        width: 52px !important;
+        min-width: 52px !important;
+        max-width: 52px !important;
+        height: 52px !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -2455,5 +2501,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .eq-slot-label {
         display: none !important;
+    }
+
+    .eq-accessory-row,
+    .profile-eq-accessory-row {
+        top: 4px !important;
+        left: calc(100% - 4px) !important;
+    }
+
+    .eq-slot-small {
+        width: 46px !important;
+        min-width: 46px !important;
+        max-width: 46px !important;
+        height: 46px !important;
     }
 }
