@@ -3508,22 +3508,22 @@ async function openProfile(id) {
             {slot:'shield', icon:'🛡',  col:3, row:2},
             {slot:'boots',  icon:'👢', col:3, row:3},
         ];
-        const profileEqHtml =
-            `<div class="eq-avatar-center profile-eq-avatar">
-                <img src="/images/class/${p.class}.png" alt="${p.class}" data-error-opacity-zero="true">
-            </div>`
-            + profileSlots.map(({slot,icon}) => {
-                const item = profileResolvedEq[slot];
-                if (!item) return `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
-                const itemData = escHtml(JSON.stringify(item));
-                return `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
-                    data-item="${itemData}"
-                    data-hover-action="hoverEqTooltip"
-                    data-leave-action="scheduleHideTooltip"
-                >
-                    <span class="eq-slot-icon">${itemIcon(item, 'slot')}</span>
-                </div>`;
-            }).join('');
+        const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
+            const avatarDiv = idx === 3 ? `
+                <div class="eq-avatar-center profile-eq-avatar">
+                    <img src="/images/class/${p.class}.png" alt="${p.class}" data-error-opacity-zero="true">
+                </div>` : '';
+            const item = profileResolvedEq[slot];
+            if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
+            const itemData = escHtml(JSON.stringify(item));
+            return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
+                data-item="${itemData}"
+                data-hover-action="hoverEqTooltip"
+                data-leave-action="scheduleHideTooltip"
+            >
+                <span class="eq-slot-icon">${itemIcon(item, 'slot')}</span>
+            </div>`;
+        }).join('');
 
         const smallSlots = [['accessory','🔮','Accessory']];
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
