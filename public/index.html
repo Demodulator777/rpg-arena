@@ -22,8 +22,8 @@
             <p class="game-subtitle">Build. Train. Conquer.</p>
 
             <div class="auth-tabs">
-                <button class="tab-btn active" onclick="switchTab('login')">Login</button>
-                <button class="tab-btn" onclick="switchTab('register')">Register</button>
+                <button class="tab-btn active" data-action="switchTab" data-args='["login"]'>Login</button>
+                <button class="tab-btn" data-action="switchTab" data-args='["register"]'>Register</button>
             </div>
 
             <div id="auth-error" class="error-msg hidden"></div>
@@ -31,13 +31,13 @@
             <div id="tab-login" class="tab-content active">
                 <input type="text" id="login-user" placeholder="Username" class="input-field"/>
                 <input type="password" id="login-pass" placeholder="Password" class="input-field"/>
-                <button class="btn-primary" onclick="login()">Enter the Arena</button>
+                <button class="btn-primary" data-action="login">Enter the Arena</button>
             </div>
 
             <div id="tab-register" class="tab-content">
                 <input type="text" id="reg-user" placeholder="Choose a username" class="input-field"/>
                 <input type="password" id="reg-pass" placeholder="Choose a password" class="input-field"/>
-                <button class="btn-primary" onclick="register()">Create Account</button>
+                <button class="btn-primary" data-action="register">Create Account</button>
             </div>
         </div>
     </div>
@@ -50,32 +50,32 @@
             <input type="text" id="char-name" placeholder="Hero name..." class="input-field center" maxlength="20"/>
             <div id="create-error" class="error-msg hidden"></div>
             <div class="class-grid">
-                <div class="class-card" data-class="warrior" onclick="selectClass(this)">
+                <div class="class-card" data-class="warrior" data-action="selectClass">
                     <div class="class-icon">🛡️</div><div class="class-name">Warrior</div>
                     <div class="class-stats">STR 16 · DEF 14 · AGI 10 · MAG 5</div>
                     <div class="class-discounts">30% off STR · 15% off DEF upgrades</div>
                     <div class="class-desc">Unstoppable force, immovable object</div>
                 </div>
-                <div class="class-card" data-class="mage" onclick="selectClass(this)">
+                <div class="class-card" data-class="mage" data-action="selectClass">
                     <div class="class-icon">🔮</div><div class="class-name">Mage</div>
                     <div class="class-stats">STR 8 · DEF 8 · AGI 10 · MAG 20</div>
                     <div class="class-discounts">35% off MAG · 10% off AGI · 1.5× elemental dmg</div>
                     <div class="class-desc">Glass cannon of arcane destruction</div>
                 </div>
-                <div class="class-card" data-class="rogue" onclick="selectClass(this)">
+                <div class="class-card" data-class="rogue" data-action="selectClass">
                     <div class="class-icon">🗡️</div><div class="class-name">Rogue</div>
                     <div class="class-stats">STR 12 · DEF 8 · AGI 20 · MAG 6</div>
                     <div class="class-discounts">35% off AGI · 10% off STR upgrades</div>
                     <div class="class-desc">Strike fast, vanish faster</div>
                 </div>
-                <div class="class-card" data-class="paladin" onclick="selectClass(this)">
+                <div class="class-card" data-class="paladin" data-action="selectClass">
                     <div class="class-icon">✨</div><div class="class-name">Paladin</div>
                     <div class="class-stats">STR 12 · DEF 16 · AGI 8 · MAG 12</div>
                     <div class="class-discounts">25% off DEF · 20% off MAG upgrades</div>
                     <div class="class-desc">Holy blade and divine shield</div>
                 </div>
             </div>
-            <button class="btn-primary" onclick="createCharacter()">Forge My Hero</button>
+            <button class="btn-primary" data-action="createCharacter">Forge My Hero</button>
         </div>
     </div>
 
@@ -117,15 +117,15 @@
                 </div>
             </div>
             <div class="topbar-right">
-                <span id="topbar-event" class="topbar-currency hidden" style="cursor:pointer;border-color:rgba(201,146,42,0.3);background:rgba(201,146,42,0.08)" onclick="showTab('skills')" title="Event active!"></span>
-                <button id="convert-mp-btn" class="topbar-currency" style="cursor:pointer;border-color:rgba(155,89,182,0.3);background:rgba(155,89,182,0.08);gap:4px;position:relative" onclick="convertMpToPotion()" title="Convert 60 MP into a Special Mana Potion">
+                <span id="topbar-event" class="topbar-currency hidden" style="cursor:pointer;border-color:rgba(201,146,42,0.3);background:rgba(201,146,42,0.08)" data-action="showTab" data-args='["skills"]' title="Event active!"></span>
+                <button id="convert-mp-btn" class="topbar-currency" style="cursor:pointer;border-color:rgba(155,89,182,0.3);background:rgba(155,89,182,0.08);gap:4px;position:relative" data-action="convertMpToPotion" title="Convert 60 MP into a Special Mana Potion">
     💎✨ Convert MP
     <span id="potion-badge" class="potion-badge hidden">0</span>
 </button>
-                <span id="topbar-mp" class="topbar-currency" style="cursor:pointer;border-color:rgba(142,68,173,0.25);background:rgba(142,68,173,0.07)" onclick="showTab('skills')" title="Mission Points">🔮 –</span>
+                <span id="topbar-mp" class="topbar-currency" style="cursor:pointer;border-color:rgba(142,68,173,0.25);background:rgba(142,68,173,0.07)" data-action="showTab" data-args='["skills"]' title="Mission Points">🔮 –</span>
                 <span id="topbar-gold" class="topbar-currency">💰 0</span>
-                <span id="topbar-gems" class="topbar-currency topbar-gems-btn" onclick="showTab('shop')" title="Go to Shop">💎 0</span>
-                <button class="topbar-logout" onclick="logout()">Logout</button>
+                <span id="topbar-gems" class="topbar-currency topbar-gems-btn" data-action="showTab" data-args='["shop"]' title="Go to Shop">💎 0</span>
+                <button class="topbar-logout" data-action="logout">Logout</button>
             </div>
         </div>
 
@@ -142,43 +142,43 @@
             <img src="/images/leftside.png" alt="">
         </div>
         <div class="sidebar-buttons">
-            <button class="nav-btn" onclick="showTab('character')">
+            <button class="nav-btn" data-action="showTab" data-args='["character"]'>
                 <img src="/images/character.png" alt="Character">
             </button>
-            <button class="nav-btn" onclick="showTab('premium')">
+            <button class="nav-btn" data-action="showTab" data-args='["premium"]'>
                 <img src="/images/premium.png" alt="Premium">
             </button>
-            <button class="nav-btn" onclick="showTab('loadout')">
+            <button class="nav-btn" data-action="showTab" data-args='["loadout"]'>
                 <img src="/images/loadout.png" alt="Loadout">
             </button>
-            <button class="nav-btn" onclick="showTab('skills')">
+            <button class="nav-btn" data-action="showTab" data-args='["skills"]'>
                 <img src="/images/skills.png" alt="Skills">
             </button>
-            <button class="nav-btn" onclick="showTab('train')">
+            <button class="nav-btn" data-action="showTab" data-args='["train"]'>
                 <img src="/images/training.png" alt="Train">
             </button>
-            <button class="nav-btn" onclick="showTab('upgrade')">
+            <button class="nav-btn" data-action="showTab" data-args='["upgrade"]'>
                 <img src="/images/upgrade.png" alt="Upgrade">
             </button>
-            <button class="nav-btn" onclick="showTab('missions')">
+            <button class="nav-btn" data-action="showTab" data-args='["missions"]'>
                 <img src="/images/missions.png" alt="Missions">
             </button>
-            <button class="nav-btn" onclick="showTab('forge')">
+            <button class="nav-btn" data-action="showTab" data-args='["forge"]'>
                 <img src="/images/forge.png" alt="Forge">
             </button>
-            <button class="nav-btn" onclick="showTab('inventory')">
+            <button class="nav-btn" data-action="showTab" data-args='["inventory"]'>
                 <img src="/images/inventory.png" alt="Inventory">
             </button>
-            <button class="nav-btn" onclick="showTab('shop')">
+            <button class="nav-btn" data-action="showTab" data-args='["shop"]'>
                 <img src="/images/shop.png" alt="Shop">
             </button>
-            <button class="nav-btn" onclick="showTab('leaderboard')">
+            <button class="nav-btn" data-action="showTab" data-args='["leaderboard"]'>
                 <img src="/images/leaderboard.png" alt="Leaderboard">
             </button>
-            <button class="nav-btn" onclick="showTab('inbox')">
+            <button class="nav-btn" data-action="showTab" data-args='["inbox"]'>
                 <img src="/images/inbox.png" alt="Inbox">
             </button>
-            <button class="nav-btn" onclick="showTab('dungeon')">
+            <button class="nav-btn" data-action="showTab" data-args='["dungeon"]'>
                 <img src="/images/dungeon.png" alt="Dungeon">
             </button>
         </div>
@@ -234,7 +234,7 @@
                 <!-- MISSIONS -->
                 <div id="tab-missions" class="game-tab" style="position:relative">
                     <div id="world-map-container" class="world-map-container">
-                        <img id="world-map-bg" class="world-map-bg" src="/images/world-map.jpg" alt="World Map" onerror="this.style.background='#1a2332'">
+<img id="world-map-bg" class="world-map-bg" src="/images/world-map.jpg" alt="World Map" data-error-background="#1a2332">
                         <div id="map-nodes-layer" class="map-nodes-layer"></div>
                     </div>
                     <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
@@ -250,7 +250,7 @@
                                 <div id="overlay-progress-fill" class="mission-overlay-progress-fill"></div>
                             </div>
                             <div id="overlay-mission-subtext" class="mission-overlay-subtext">Return when complete...</div>
-                            <button id="overlay-collect-btn" class="btn-collect" onclick="overlayCollectMission()" disabled>Collect Rewards</button>
+<button id="overlay-collect-btn" class="btn-collect" data-action="overlayCollectMission" disabled>Collect Rewards</button>
                         </div>
                     </div>
 
@@ -265,7 +265,7 @@
                             <div class="mission-overlay-progress-track">
                                 <div id="travel-overlay-fill" class="mission-overlay-progress-fill travel"></div>
                             </div>
-                            <button id="travel-cancel-btn" class="btn-cancel-travel" onclick="cancelTravel()">Cancel (Free)</button>
+<button id="travel-cancel-btn" class="btn-cancel-travel" data-action="cancelTravel">Cancel (Free)</button>
                         </div>
                     </div>
 
@@ -282,7 +282,7 @@
                             <div class="mission-overlay-subtext">Cooldown clears automatically</div>
                             <button id="rest-recover-btn" class="btn-cancel-travel"
   style="border-color:rgba(155,89,182,0.5);color:#9b59b6;background:rgba(155,89,182,0.15)"
-  onclick="instantBattleRecovery()">⚡ Recover Now (1 💎)</button>
+data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                         </div>
                     </div>
 
@@ -300,7 +300,7 @@
         <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
         
         <div class="mission-overlay-actions">
-            <button onclick="stCancel()" class="btn-cancel-travel" style="border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,0.15)">
+<button data-action="stCancel" class="btn-cancel-travel" style="border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,0.15)">
                 Cancel Training (Free)
             </button>
         </div>
@@ -314,8 +314,8 @@
                     <div class="tab-header"><h2>🔨 Forge</h2></div>
                     <div id="forge-gold" class="gold-display"></div>
                     <div class="forge-tabs filter-tabs">
-                        <button class="filter-btn active" onclick="setForgeTab('refine',this)">Refine</button>
-                        <button class="filter-btn" onclick="setForgeTab('craft',this)">Craft</button>
+<button class="filter-btn active" data-action="setForgeTab" data-args='["refine"]'>Refine</button>
+<button class="filter-btn" data-action="setForgeTab" data-args='["craft"]'>Craft</button>
                     </div>
                     <div id="forge-content"></div>
                     <div id="forge-msg" class="msg-bar hidden"></div>
@@ -325,16 +325,16 @@
                 <div id="tab-inventory" class="game-tab">
                     <div class="tab-header"><h2>🎒 Inventory</h2></div>
                     <div class="filter-tabs">
-                        <button class="filter-btn active" onclick="setInvTab('weapons',this)">⚔️ Weapons</button>
-                        <button class="filter-btn" onclick="setInvTab('armor',this)">🛡️ Armor</button>
-                        <button class="filter-btn" onclick="setInvTab('helmets',this)">⛑️ Helmets</button>
-                        <button class="filter-btn" onclick="setInvTab('shields',this)">🔰 Shields</button>
-                        <button class="filter-btn" onclick="setInvTab('boots',this)">👢 Boots</button>
-                        <button class="filter-btn" onclick="setInvTab('jewelry',this)">📿 Jewelry</button>
-                        <button class="filter-btn" onclick="setInvTab('accessory',this)">🔮 Accessory</button>
-                        <button class="filter-btn" onclick="setInvTab('consumables',this)">🧪 Potions</button>
-                        <button class="filter-btn" onclick="setInvTab('materials',this)">📦 Materials</button>
-                        <button class="filter-btn" onclick="setInvTab('lootboxes',this)">🎁 Loot Boxes</button>
+<button class="filter-btn active" data-action="setInvTab" data-args='["weapons"]'>⚔️ Weapons</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["armor"]'>🛡️ Armor</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["helmets"]'>⛑️ Helmets</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["shields"]'>🔰 Shields</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["boots"]'>👢 Boots</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["jewelry"]'>📿 Jewelry</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["accessory"]'>🔮 Accessory</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["consumables"]'>🧪 Potions</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["materials"]'>📦 Materials</button>
+<button class="filter-btn" data-action="setInvTab" data-args='["lootboxes"]'>🎁 Loot Boxes</button>
                     </div>
                     <div id="inventory-content"></div>
                     <div id="inv-msg" class="msg-bar hidden"></div>
@@ -345,7 +345,7 @@
     <div class="modal-box" style="max-width: 500px;">
         <div class="modal-header">
             <h3>⬆️ Upgrade Equipment</h3>
-            <button class="modal-close" onclick="closeUpgradeModal()">✕</button>
+<button class="modal-close" data-action="closeUpgradeModal">✕</button>
         </div>
         <div id="upgrade-modal-content">
             <!-- Dynamic content will go here -->
@@ -359,7 +359,7 @@
                 <div id="tab-shop" class="game-tab">
                     <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
                         <h2>🛒 Shop</h2>
-                        <button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" onclick="rerollShop()">
+<button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" data-action="rerollShop">
                             🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
                         </button>
                     </div>
@@ -368,16 +368,16 @@
                         <span id="shop-gems"></span>
                     </div>
                     <div class="shop-tabs filter-tabs">
-                        <button class="filter-btn active" onclick="setShopCategory('weapons',this)">⚔️ Weapons</button>
-                        <button class="filter-btn" onclick="setShopCategory('armor',this)">🛡️ Armor</button>
-                        <button class="filter-btn" onclick="setShopCategory('helmets',this)">⛑️ Helmets</button>
-                        <button class="filter-btn" onclick="setShopCategory('shields',this)">🔰 Shields</button>
-                        <button class="filter-btn" onclick="setShopCategory('boots',this)">👢 Boots</button>
-                        <button class="filter-btn" onclick="setShopCategory('jewelry',this)">📿 Jewelry</button>
-                        <button class="filter-btn" onclick="setShopCategory('accessory',this)">🔮 Accessory</button>
-                        <button class="filter-btn" onclick="setShopCategory('consumables',this)">🧪 Potions</button>
-                        <button class="filter-btn" onclick="setShopCategory('premium',this)">💎 Premium</button>
-                        <button class="filter-btn" onclick="setShopCategory('lootboxes',this)">🎁 Loot Boxes</button>
+<button class="filter-btn active" data-action="setShopCategory" data-args='["weapons"]'>⚔️ Weapons</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["armor"]'>🛡️ Armor</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["helmets"]'>⛑️ Helmets</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["shields"]'>🔰 Shields</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["boots"]'>👢 Boots</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["jewelry"]'>📿 Jewelry</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["accessory"]'>🔮 Accessory</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["consumables"]'>🧪 Potions</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["premium"]'>💎 Premium</button>
+<button class="filter-btn" data-action="setShopCategory" data-args='["lootboxes"]'>🎁 Loot Boxes</button>
                     </div>
                     <div id="shop-content" class="shop-grid"></div>
                     <div id="shop-msg" class="msg-bar hidden"></div>
@@ -393,12 +393,12 @@
                     </div>
 
                     <div class="lb-controls">
-                        <input id="lb-search" type="text" placeholder="Search players..." oninput="filterLeaderboard()" class="lb-search">
+<input id="lb-search" type="text" placeholder="Search players..." data-input-action="filterLeaderboard" class="lb-search">
                         <div class="lb-filters filter-tabs">
-                            <button class="filter-btn active" onclick="setLbSort('total_gold_earned',this)">Gold</button>
-                            <button class="filter-btn" onclick="setLbSort('wins',this)">Wins</button>
-                            <button class="filter-btn" onclick="setLbSort('losses',this)">Losses</button>
-                            <button class="filter-btn" onclick="setLbSort('level',this)">Level</button>
+<button class="filter-btn active" data-action="setLbSort" data-args='["total_gold_earned"]'>Gold</button>
+<button class="filter-btn" data-action="setLbSort" data-args='["wins"]'>Wins</button>
+<button class="filter-btn" data-action="setLbSort" data-args='["losses"]'>Losses</button>
+<button class="filter-btn" data-action="setLbSort" data-args='["level"]'>Level</button>
                         </div>
                     </div>
                     <div id="leaderboard-list"></div>
@@ -429,7 +429,7 @@
         <!-- Mission location modal -->
         <div id="mission-location-modal" class="mission-modal-overlay hidden">
             <div class="mission-modal-inner">
-                <button class="mission-modal-close" onclick="closeMissionModal2()">✕</button>
+<button class="mission-modal-close" data-action="closeMissionModal2">✕</button>
                 <div id="mission-location-header"></div>
                 <div id="mission-spots-grid"></div>
                 <div id="mission-location-active"></div>
@@ -441,7 +441,7 @@
             <div class="modal-box mission-rewards-box" style="text-align:center">
                 <h3 style="margin:0 0 12px;color:#f1c40f">Mission Complete!</h3>
                 <div id="mission-rewards-message" style="font-size:1rem;color:#fff;line-height:1.6"></div>
-                <button class="btn-primary" style="margin-top:16px;width:100%" onclick="closeMissionModal()">Continue</button>
+<button class="btn-primary" style="margin-top:16px;width:100%" data-action="closeMissionModal">Continue</button>
             </div>
         </div>
 
@@ -451,7 +451,7 @@
         <div id="battle-fighters" class="battle-fighters"></div>
         <div id="battle-outcome" class="battle-outcome"></div>
         <div id="battle-log" class="battle-log"></div>
-        <button class="btn-secondary" style="width:100%;margin-top:4px" onclick="closeBattle()">Close</button>
+<button class="btn-secondary" style="width:100%;margin-top:4px" data-action="closeBattle">Close</button>
     </div>
 </div>
 
@@ -460,14 +460,14 @@
             <div class="modal-box">
                 <div class="modal-header">
                     <h3>Compose Message</h3>
-                    <button class="btn-secondary" onclick="closeCompose()">✕</button>
+<button class="btn-secondary" data-action="closeCompose">✕</button>
                 </div>
                 <div id="compose-receiver-name" style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin-bottom:12px"></div>
                 <input id="compose-receiver-id" type="hidden">
                 <input id="compose-subject" type="text" placeholder="Subject" class="auth-input" style="margin-bottom:10px">
                 <textarea id="compose-body" placeholder="Message..." class="auth-input" style="height:120px;resize:vertical;margin-bottom:10px"></textarea>
                 <div id="compose-error" class="error-msg hidden"></div>
-                <button class="btn-primary" onclick="sendMessage()" style="width:100%">Send</button>
+<button class="btn-primary" data-action="sendMessage" style="width:100%">Send</button>
             </div>
         </div>
 
@@ -476,7 +476,7 @@
   <div class="modal-box bug-report-modal">
     <div class="modal-header">
       <h2>🐛 Report a Bug</h2>
-      <button class="modal-close" onclick="closeBugReport()">✕</button>
+<button class="modal-close" data-action="closeBugReport">✕</button>
     </div>
     <div class="modal-body">
       <div class="bug-report-intro">
@@ -511,12 +511,12 @@
         </div>
         <div class="form-group checkbox-group">
           <label>
-            <input type="checkbox" id="include-screenshot" onchange="toggleScreenshotUpload()">
+          <input type="checkbox" id="include-screenshot" data-change-action="toggleScreenshotUpload">
             Include screenshot (paste image or drag & drop)
           </label>
         </div>
         <div id="screenshot-upload-area" class="screenshot-upload-area hidden">
-          <div class="upload-dropzone" id="screenshot-dropzone" onclick="document.getElementById('screenshot-file').click()">
+          <div class="upload-dropzone" id="screenshot-dropzone" data-action="clickElementById" data-args='["screenshot-file"]'>
             <span>📸</span>
             <span>Click or drag image here</span>
             <span class="upload-hint">PNG, JPG up to 5MB</span>
@@ -529,7 +529,7 @@
           <input type="text" id="bug-browser" placeholder="e.g., Chrome 120, Firefox 121">
         </div>
         <div class="form-actions">
-          <button type="button" class="btn-secondary" onclick="closeBugReport()">Cancel</button>
+          <button type="button" class="btn-secondary" data-action="closeBugReport">Cancel</button>
           <button type="submit" class="btn-primary">Submit Report</button>
         </div>
       </form>
@@ -541,7 +541,7 @@
     <div class="modal-box" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
         <div class="modal-header">
             <h3>⭐ Exchange Legendary Fragments</h3>
-            <button class="modal-close" onclick="closeExchangeModal()">✕</button>
+            <button class="modal-close" data-action="closeExchangeModal">✕</button>
         </div>
         <div id="exchange-content">
             <p class="loading">Loading exchanges...</p>
