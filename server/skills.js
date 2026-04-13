@@ -1758,10 +1758,50 @@ function getTrainingProgressNow(training, now = Math.floor(Date.now() / 1000)) {
     return Math.min(target, start + ((target - start) * pct));
 }
 
-function getHoursToFull(progress, maxHours, speed = 1) {
+function getSkillTotalDurationSeconds(skill = {}) {
+    const tier = Number(skill.tier || 1);
+    if (tier <= 1) return SKILL_TRAIN_DURATIONS.novice;
+    if (tier === 2) return SKILL_TRAIN_DURATIONS.apprentice;
+    if (tier === 3) return SKILL_TRAIN_DURATIONS.journeyman;
+    if (tier === 4) return SKILL_TRAIN_DURATIONS.expert;
+    if (tier === 5) return SKILL_TRAIN_DURATIONS.master;
+    return SKILL_TRAIN_DURATIONS.grandmaster;
+}
+
+function getSkillByIds(className, branchId, skillId) {
+    const tree = SKILL_TREES[className];
+    const branch = tree?.branches?.[branchId];
+    return branch?.skills?.[skillId] || null;
+}
+
+function getHoursToFull(progress, skill, speed = 1) {
     const remainingPct = Math.max(0, 100 - Number(progress || 0));
-    const perHour = (100 / maxHours) * speed;
+    const totalHours = Math.max(1 / 60, getSkillTotalDurationSeconds(skill) / 3600);
+    const perHour = (100 / totalHours) * speed;
     return remainingPct / Math.max(perHour, 0.0001);
+}
+
+async function getSkillTreeBusyState(db, char, now = Math.floor(Date.now() / 1000)) {
+    const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [char.id]);
+    const missionBusy = !!mission;
+    const missionReadyToCollect = !!(mission && Number(mission.ends_at || 0) <= now);
+
+    const activePrem = getActivePremium(char);
+    const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+    const battleCooldownUntil = Number(char.last_battle_at || 0) + pvpCd;
+    const battleCooldownRemaining = Math.max(0, battleCooldownUntil - now);
+
+    const traveling = !!(char.travel_target && Number(char.travel_end_time || 0) > now);
+
+    return {
+        missionBusy,
+        missionReadyToCollect,
+        missionEndsAt: mission ? Number(mission.ends_at || 0) : 0,
+        battleCooldownRemaining,
+        battleCooldownUntil: battleCooldownRemaining > 0 ? battleCooldownUntil : 0,
+        traveling,
+        travelingUntil: traveling ? Number(char.travel_end_time || 0) : 0,
+    };
 }
 
 
@@ -1781,7 +1821,23 @@ router.get('/tree', async (req, res) => {
             dungeon_no_death_run: char.dungeon_no_death_runs || 0,
         };
 
-        const trainingRow = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id=?', [char.id]);
+        let trainingRow = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id=?', [char.id]);
+        const now = Math.floor(Date.now() / 1000);
+        if (trainingRow && now >= Number(trainingRow.ends_at || 0)) {
+            const currentProgress = getTrainingProgressNow(trainingRow, now);
+            await dbRun(
+                db,
+                'UPDATE character_skill_tree SET progress = MAX(progress, ?), learned_at = CASE WHEN ? >= 100 THEN COALESCE(NULLIF(learned_at, 0), ?) ELSE learned_at END WHERE char_id = ? AND skill_id = ?',
+                [currentProgress, currentProgress, now, char.id, trainingRow.skill_id]
+            );
+            progressMap[trainingRow.skill_id] = Math.max(Number(progressMap[trainingRow.skill_id] || 0), currentProgress);
+            if (currentProgress >= 100) {
+                learnedMap[trainingRow.skill_id] = true;
+                if (!learned.includes(trainingRow.skill_id)) learned.push(trainingRow.skill_id);
+            }
+            await dbRun(db, 'DELETE FROM skill_training WHERE char_id = ?', [char.id]);
+            trainingRow = null;
+        }
         const lockedBranchId = await getLockedBranchId(db, char.id);
         const hasActiveTraining = !!trainingRow;
         const tree = getVisibleSkillTree(char.class, char, learnedMap, progressMap, extraStats, hasActiveTraining, lockedBranchId);
@@ -1793,9 +1849,8 @@ router.get('/tree', async (req, res) => {
 
         let activeTraining = null;
         if (trainingRow) {
-            const now = Math.floor(Date.now() / 1000);
             const currentProgress = getTrainingProgressNow(trainingRow, now);
-            const maxHours = hasPremium(getActivePremium(char), 'arcane_reservoir') ? 12 : 8;
+            const activeSkill = getSkillByIds(char.class, trainingRow.branch_id, trainingRow.skill_id);
             activeTraining = {
                 ...trainingRow,
                 skillId: trainingRow.skill_id,
@@ -1805,12 +1860,12 @@ router.get('/tree', async (req, res) => {
                 progressTarget: Number(trainingRow.progress_target || 100),
                 remainingSeconds: Math.max(0, Number(trainingRow.ends_at || 0) - now),
                 timeLeft: Math.max(0, Number(trainingRow.ends_at || 0) - now),
-                hoursToFull: getHoursToFull(currentProgress, maxHours, Number(trainingRow.double_speed) ? 2 : 1),
+                hoursToFull: getHoursToFull(currentProgress, activeSkill, Number(trainingRow.double_speed) ? 2 : 1),
                 done: now >= trainingRow.ends_at,
             };
         }
 
-        const now = Math.floor(Date.now() / 1000);
+        const busyState = await getSkillTreeBusyState(db, char, now);
         res.json({
             tree,
             learned,
@@ -1823,6 +1878,7 @@ router.get('/tree', async (req, res) => {
             upgradePenalties: SKILL_TREES[char.class]?.upgrade_penalties || {},
             upgradeDiscounts: SKILL_TREES[char.class]?.upgrade_discounts || {},
             activeTraining,
+            busyState,
             cooldownUntil: Number(char.training_cooldown_until || 0),
             cooldownRemaining: Math.max(0, Number(char.training_cooldown_until || 0) - now),
             extraStats,
@@ -2002,8 +2058,8 @@ router.get('/training/status', async (req, res) => {
 
         const currentProgress = getTrainingProgressNow(training, now);
         const remaining = Math.max(0, Number(training.ends_at || 0) - now);
-        const maxHours = hasPremium(getActivePremium(char), 'arcane_reservoir') ? 12 : 8;
-        const hoursToFull = getHoursToFull(currentProgress, maxHours, Number(training.double_speed) ? 2 : 1);
+        const activeSkill = getSkillByIds(char.class, training.branch_id, training.skill_id);
+        const hoursToFull = getHoursToFull(currentProgress, activeSkill, Number(training.double_speed) ? 2 : 1);
 
         if (remaining === 0) {
             await dbRun(db, 'UPDATE character_skill_tree SET progress = MAX(progress, ?), learned_at = CASE WHEN ? >= 100 THEN COALESCE(NULLIF(learned_at, 0), ?) ELSE learned_at END WHERE char_id = ? AND skill_id = ?', [currentProgress, currentProgress, now, char.id, training.skill_id]);
@@ -2111,9 +2167,28 @@ router.post('/train/start', async (req, res) => {
             return res.status(400).json({ error: 'Training is on cooldown' });
         }
 
-        const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ? AND ends_at > ?', [char.id, now]);
-        if (mission) return res.status(400).json({ error: 'Cannot train during a mission' });
-        if (char.travel_target && char.travel_end_time > now) return res.status(400).json({ error: 'Cannot train while traveling' });
+        const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [char.id]);
+        if (mission) {
+            const missionEnded = Number(mission.ends_at || 0) <= now;
+            return res.status(400).json({
+                error: missionEnded
+                    ? 'Collect your mission reward before starting skill training.'
+                    : 'Cannot train while a mission is active.'
+            });
+        }
+        if (char.travel_target && char.travel_end_time > now) {
+            return res.status(400).json({ error: 'Cannot train while traveling' });
+        }
+
+        const activePrem = getActivePremium(char);
+        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+        const battleCooldownEnds = Number(char.last_battle_at || 0) + pvpCd;
+        if (battleCooldownEnds > now) {
+            const wait = battleCooldownEnds - now;
+            return res.status(400).json({
+                error: `Cannot train during battle cooldown. Wait ${wait < 60 ? wait + 's' : Math.ceil(wait / 60) + 'm'}.`
+            });
+        }
 
         const existing = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
         if (existing) return res.status(400).json({ error: 'Already training a skill' });
@@ -2125,7 +2200,7 @@ router.post('/train/start', async (req, res) => {
         const sk = branch.skills[skillId];
         if (!sk) return res.status(400).json({ error: 'Skill not found' });
 
-        const maxHours = hasPremium(getActivePremium(char), 'arcane_reservoir') ? 12 : 8;
+        const maxHours = hasPremium(activePrem, 'arcane_reservoir') ? 12 : 8;
         const chosenHours = Math.max(1, Math.min(Number(hours || 1), maxHours));
         const speed = doubleSpeed ? 2 : 1;
 
@@ -2176,7 +2251,8 @@ router.post('/train/start', async (req, res) => {
             await dbRun(db, 'INSERT INTO character_skill_tree (char_id, skill_id, branch_id, class, learned_at, progress) VALUES (?, ?, ?, ?, 0, ?)', [char.id, skillId, branchId, char.class, currentProgress]);
         }
 
-        const progressGain = (chosenHours / maxHours) * 100 * speed;
+        const totalDurationSeconds = getSkillTotalDurationSeconds(sk);
+        const progressGain = ((chosenHours * 3600) / totalDurationSeconds) * 100 * speed;
         const targetProgress = Math.min(100, currentProgress + progressGain);
         const duration = chosenHours * 3600;
 
@@ -2196,7 +2272,7 @@ router.post('/train/start', async (req, res) => {
             progressTarget: targetProgress,
             progressGain,
             maxHours,
-            hoursToFull: getHoursToFull(targetProgress, maxHours, 1),
+            hoursToFull: getHoursToFull(targetProgress, sk, 1),
         });
     } catch (e) {
         console.error('skill train start error', e);
