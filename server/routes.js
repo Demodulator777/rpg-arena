@@ -4800,38 +4800,22 @@ router.post('/skills/train/cancel', auth, async (req, res) => {
         const db = await getDb();
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
-        
+
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
-        if (!training) {
-            return res.status(400).json({ error: 'No active training to cancel' });
-        }
-        
-        // Optional: Refund partial gold if double speed was paid
+        if (!training) return res.status(400).json({ error: 'No active training to cancel' });
+
         let refund = 0;
         if (training.double_speed) {
             const hoursElapsed = (Date.now() / 1000 - training.started_at) / 3600;
-            const hoursRemaining = training.hours_to_train - hoursElapsed;
-            if (hoursRemaining > 0) {
-                refund = Math.floor(hoursRemaining * 250); // 250 gold per hour refund (half of 500)
-            }
+            const hoursRemaining = Number(training.hours_to_train || 0) - hoursElapsed;
+            if (hoursRemaining > 0) refund = Math.floor(hoursRemaining * 250);
         }
-        
-        // Delete training session
+
         await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-        
-        // Clear training cooldown
         await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
-        
-        // Refund gold if applicable
-        if (refund > 0) {
-            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
-        }
-        
-        res.json({ 
-            success: true, 
-            message: `Training cancelled.${refund > 0 ? ` Refunded ${refund} gold.` : ''}`,
-            refund 
-        });
+        if (refund > 0) await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+
+        res.json({ success: true, message: `Training cancelled.${refund > 0 ? ` Refunded ${refund} gold.` : ''}`, refund });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
@@ -4851,18 +4835,34 @@ router.get('/skills/training/status', auth, async (req, res) => {
             WHERE c.user_id = ?
         `, [req.user.userId]);
 
-        if (!training || training.ends_at <= now) {
-            return res.json({ active: false });
+        if (!training) return res.json({ active: false });
+
+        const remaining = Math.max(0, Number(training.ends_at || 0) - now);
+        const elapsedSeconds = Math.max(0, now - Number(training.started_at || now));
+        const hoursElapsed = elapsedSeconds / 3600;
+        const progressRate = Number(training.double_speed) ? 2 : 1;
+        const progressCurrent = Math.min(Number(training.progress_target || 100), Number(training.progress_start || 0) + (hoursElapsed * progressRate));
+
+        if (remaining === 0) {
+            await dbRun(db, 'UPDATE character_skill_tree SET progress = ?, learned_at = CASE WHEN ? >= ? THEN ? ELSE learned_at END WHERE char_id = ? AND skill_id = ?', [progressCurrent, progressCurrent, Number(training.progress_target || 100), now, training.char_id, training.skill_id]);
+            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
+            return res.json({ active: false, finished: true, skillId: training.skill_id, skill_id: training.skill_id });
         }
 
         res.json({
             active: true,
-            endsAt: training.ends_at,           // ← This is what the overlay needs
-            remaining: training.ends_at - now,
+            id: training.id,
+            endsAt: Number(training.ends_at || 0),
+            remaining,
+            remainingSeconds: remaining,
             skillId: training.skill_id,
-            skillName: training.skill_id.replace(/_/g, ' '), // or lookup real name
-            progress: training.progress_current || 0,
-            target: training.progress_target || 100
+            skill_id: training.skill_id,
+            skillName: training.skill_id.replace(/_/g, ' '),
+            progress: progressCurrent,
+            progress_current: progressCurrent,
+            progress_target: Number(training.progress_target || 100),
+            target: Number(training.progress_target || 100),
+            timeLeft: remaining
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
