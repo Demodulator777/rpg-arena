@@ -479,6 +479,14 @@ function getClassThemeBackground(className) {
     return `url('/images/${theme}-bg.webp'), url('/images/${theme}-bg.png'), url('/images/${theme}-bg.jpg'), url('/images/class/${theme}.png')`;
 }
 
+function renderDetailSlot(icon, label, value, accent='var(--text-bright)', title='') {
+    const titleAttr = title ? ` title="${escHtml(title)}"` : '';
+    return `<div class="detail-slot"${titleAttr}>
+        <div class="detail-slot-label">${icon} ${label}</div>
+        <div class="detail-slot-value" style="color:${accent}">${value}</div>
+    </div>`;
+}
+
 function renderCharacter() {
     if (!character) return;
     const c = character;
@@ -506,14 +514,13 @@ function renderCharacter() {
     const baseHit  = c.hit_chance  || 0;
     const baseCrit = c.crit_chance || 0;
 
-    const wep = eq.weapon;
     const baseDmgMin = Math.floor(baseStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const weapDmgMin = wep?.stats?.dmg_min || 0;
-    const weapDmgMax = wep?.stats?.dmg_max || 0;
-    const finalDmgMin = baseDmgMin + weapDmgMin;
-    const finalDmgMax = baseDmgMax + weapDmgMax;
-    const dmgTooltip = `Base: ${baseDmgMin}–${baseDmgMax} (STR ${baseStr}×0.5) + Weapon: +${weapDmgMin}–${weapDmgMax}`;
+    const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0), 0);
+    const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0), 0);
+    const finalDmgMin = baseDmgMin + gearDmgMin;
+    const finalDmgMax = baseDmgMax + gearDmgMax;
+    const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${baseStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
 
     function statRowBreakdown(icon, label, base, bonus, max, cls) {
         const total = base + bonus;
@@ -535,11 +542,20 @@ function renderCharacter() {
 
     const elemDmgObj    = c.elem_dmg    || {};
     const elemResistObj = c.elem_resist || {};
-    const elemEmojis    = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' };
-    const activeDmg     = Object.entries(elemDmgObj).filter(([,v]) => v > 0);
-    const activeResist  = Object.entries(elemResistObj).filter(([,v]) => v > 0);
-    const elemDmgStr    = activeDmg.map(([e,v])   => `${elemEmojis[e]}+${v}`).join(' ');
-    const elemResistStr = activeResist.map(([e,v]) => `${elemEmojis[e]}${v}`).join(' ');
+    const detailSlots = [
+        renderDetailSlot('DMG', 'Damage', `${finalDmgMin}-${finalDmgMax}`, 'var(--text-bright)', dmgTooltip),
+        renderDetailSlot('ARM', 'Armor', armorVal, '#5dade2'),
+        renderDetailSlot('PY', 'Pyro Dmg', `+${elemDmgObj.pyro || 0}`, '#f1c40f'),
+        renderDetailSlot('WA', 'Water Dmg', `+${elemDmgObj.water || 0}`, '#f1c40f'),
+        renderDetailSlot('WI', 'Wind Dmg', `+${elemDmgObj.wind || 0}`, '#f1c40f'),
+        renderDetailSlot('EL', 'Electro Dmg', `+${elemDmgObj.electro || 0}`, '#f1c40f'),
+        renderDetailSlot('PY', 'Pyro Res', `+${elemResistObj.pyro || 0}`, '#5dade2'),
+        renderDetailSlot('WA', 'Water Res', `+${elemResistObj.water || 0}`, '#5dade2'),
+        renderDetailSlot('WI', 'Wind Res', `+${elemResistObj.wind || 0}`, '#5dade2'),
+        renderDetailSlot('EL', 'Electro Res', `+${elemResistObj.electro || 0}`, '#5dade2'),
+    ];
+    const elemDmgStr = '';
+    const elemResistStr = '';
 
     const eqSlots=[
         {slot:'helmet', icon:'⛑️', label:'Helmet'},
@@ -594,6 +610,9 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
+          <div class="detail-slot-grid">
+            ${detailSlots.join('')}
+          </div>
           ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
           ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
           ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
@@ -3427,6 +3446,21 @@ async function openProfile(id) {
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
+        const profileArmor = Math.floor(def / 4) + (p.armor || 0);
+        const profileElemDmg = p.elem_dmg || {};
+        const profileElemRes = p.elem_resist || {};
+        const profileDetailSlots = [
+            renderDetailSlot('DMG', 'Damage', p.damage_range || '?', 'var(--text-bright)'),
+            renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2'),
+            renderDetailSlot('PY', 'Pyro Dmg', `+${profileElemDmg.pyro || 0}`, '#f1c40f'),
+            renderDetailSlot('WA', 'Water Dmg', `+${profileElemDmg.water || 0}`, '#f1c40f'),
+            renderDetailSlot('WI', 'Wind Dmg', `+${profileElemDmg.wind || 0}`, '#f1c40f'),
+            renderDetailSlot('EL', 'Electro Dmg', `+${profileElemDmg.electro || 0}`, '#f1c40f'),
+            renderDetailSlot('PY', 'Pyro Res', `+${profileElemRes.pyro || 0}`, '#5dade2'),
+            renderDetailSlot('WA', 'Water Res', `+${profileElemRes.water || 0}`, '#5dade2'),
+            renderDetailSlot('WI', 'Wind Res', `+${profileElemRes.wind || 0}`, '#5dade2'),
+            renderDetailSlot('EL', 'Electro Res', `+${profileElemRes.electro || 0}`, '#5dade2'),
+        ];
         const eq=p.equipped||{};
         const classTheme = normalizeClassTheme(p.class);
         const classBackground = getClassThemeBackground(p.class);
