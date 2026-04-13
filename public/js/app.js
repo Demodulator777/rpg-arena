@@ -77,7 +77,7 @@ const BLOCK_ZONES = {
     full_turtle:   { label: 'Full Turtle',   protects: ['chest','stomach'],         reduction: 0.70, special: 'next_round_hit_penalty', desc: 'Heavy cover but slows your next attack by 15%.' },
     weave_left:    { label: 'Weave Left',    protects: ['head','left_arm'],         reduction: 0.80, special: 'attacker_miss_20', desc: 'Evasive. 20% chance the attacker misses entirely.' },
     weave_right:   { label: 'Weave Right',   protects: ['head','right_arm'],        reduction: 0.80, special: 'attacker_miss_20', desc: 'Mirror of weave left. Dodgy and unpredictable.' },
-    counter_stance:{ label: 'Counter Stance',protects: ['any'],                     reduction: 0.60, special: 'counter_25', desc: '25% chance to counter for 50% damage back. Risky.' },
+    counter_stance:{ label: 'Counter Stance',protects: ['chest','solar_plexus'],    reduction: 0.55, special: 'counter_25', desc: '25% chance to counter for 50% damage back. Covers center line only.' },
     no_block:      { label: 'No Block',      protects: [],                          reduction: 0.00, special: 'attacker_bonus_10', desc: 'Pure aggression. You take full hits but deal 10% more damage.' }
 };
 
@@ -462,10 +462,9 @@ async function pollUnread() {
 
 function buildEqSlotSmall(slot, eq, icon, label) {
     const item = eq[slot];
-    if (!item) return `<div class="eq-slot-small empty"><span style="font-size:1rem;opacity:0.3">${icon}</span><span class="eq-slot-label">${label}</span></div>`;
-    const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+    if (!item) return `<div class="eq-slot-small eq-slot--${slot} empty"><span style="font-size:1rem;opacity:0.3">${icon}</span><span class="eq-slot-label">${label}</span></div>`;
     const itemData = escHtml(JSON.stringify(item));
-    return `<div class="eq-slot-small filled" style="border-color:${qc}44"
+    return `<div class="eq-slot-small eq-slot--${slot} filled"
         data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip" data-item="${itemData}">
         <span style="font-size:1.1rem;line-height:1">${itemIcon(item,'slot')}</span>
     </div>`;
@@ -575,14 +574,13 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         </div>` : '';
     const item = resolvedEq[slot];
     if (!item) return avatarDiv + `
-        <div class="eq-slot empty">
+        <div class="eq-slot eq-slot--${slot} empty">
             <span class="eq-slot-icon">${icon}</span>
             <span class="eq-slot-label">${label}</span>
         </div>`;
-    const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
     const itemData = escHtml(JSON.stringify(item));
     return avatarDiv + `
-        <div class="eq-slot filled" style="border-color:${qc}44"
+        <div class="eq-slot eq-slot--${slot} filled"
             data-hover-action="hoverEqTooltip"
             data-leave-action="scheduleHideTooltip"
             data-item="${itemData}">
@@ -713,7 +711,7 @@ const BLOCK_HIGHLIGHT_ZONES = {
     full_turtle:   ['chest','stomach'],
     weave_left:    ['head','left_arm'],
     weave_right:   ['head','right_arm'],
-    counter_stance: Object.keys(ZONE_POSITIONS),
+    counter_stance: ['chest','solar_plexus'],
     no_block:      [],
 };
 
@@ -3516,10 +3514,9 @@ async function openProfile(id) {
             </div>`
             + profileSlots.map(({slot,icon}) => {
                 const item = profileResolvedEq[slot];
-                if (!item) return `<div class="eq-slot empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
-                const qc = item.quality === 'legendary' ? '#f1c40f' : item.quality === 'rare' ? '#9b59b6' : 'rgba(255,255,255,0.5)';
+                if (!item) return `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
                 const itemData = escHtml(JSON.stringify(item));
-                return `<div class="eq-slot filled profile-eq-slot" style="border-color:${qc}44"
+                return `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                     data-item="${itemData}"
                     data-hover-action="hoverEqTooltip"
                     data-leave-action="scheduleHideTooltip"
