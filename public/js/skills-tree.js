@@ -33,7 +33,7 @@ async function renderSkillTreeTab() {
 function renderSkillTreeUI(root) {
     if (!_stData || !character) { root.innerHTML = stSpinner('Loading...'); return; }
     const { tree, learned, passiveBonuses, activeTraining, magePath: mPath, dualWieldUnlocked,
-            upgradePenalties, upgradeDiscounts, extraStats, lockedBranchId } = _stData;
+            upgradePenalties, upgradeDiscounts, extraStats } = _stData;
     const charClass = character.class || 'warrior';
 
     const classColors = { warrior:'#e74c3c', mage:'#9b59b6', rogue:'#2ecc71', paladin:'#f1c40f' };
@@ -81,16 +81,6 @@ function renderSkillTreeUI(root) {
                     margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <span style="color:rgba(255,255,255,0.35)">Class stat costs:</span>
             ${[...pArr,...dArr].join(' &nbsp;·&nbsp; ')}
-        </div>`;
-    }
-
-    // ── Locked path notice ─────────────────────────────────────────────────────
-    if (lockedBranchId) {
-        html += `
-        <div style="padding:8px 14px;border-radius:8px;border:1px solid ${accent}55;
-                    background:${accent}11;font-size:0.78rem;color:${accent};
-                    margin-bottom:14px;font-weight:600">
-            Path locked: ${lockedBranchId.replace(/_/g, ' ')}
         </div>`;
     }
 
@@ -218,9 +208,10 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
     const learned = sk.learned;
     const trainable = sk.trainable;
     const locked = sk.locked;
-    const training = (activeTraining?.skill_id || activeTraining?.skillId) === skillKey;
+    const activeSkillId = activeTraining?.skillId || activeTraining?.skill_id;
+    const training = activeSkillId === skillKey;
     const progress = sk.progress || 0;
-    const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
+    const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
     const maxHours = hasArcaneReservoir ? 12 : 8;
     const now = Math.floor(Date.now() / 1000);
     const hasActiveMission = window.activeMission === true; // You'll need to track this globally
@@ -260,7 +251,7 @@ if (locked && !learned && !training) {
 
     let progressHtml = '';
     if (training && activeTraining) {
-        const trainProgress = activeTraining.progress_current ?? activeTraining.progress ?? 0;
+        const trainProgress = (activeTraining.progressPercent ?? activeTraining.progressCurrent ?? activeTraining.progress_current ?? activeTraining.progress ?? 0);
         progressHtml = `
             <div style="margin-top: 8px;">
                 <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 4px; overflow: hidden;">
@@ -270,7 +261,7 @@ if (locked && !learned && !training) {
                     ${Math.floor(trainProgress)}% complete
                 </div>
                 <div style="font-size: 0.55rem; color: #f1c40f; text-align: center; margin-top: 2px;">
-                    ⏳ ${stFormatTime(activeTraining.timeLeft ?? activeTraining.remainingSeconds ?? activeTraining.remaining ?? 0)} remaining
+                    ⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || activeTraining.timeLeft || 0)} remaining · ${(activeTraining.hoursToFull ?? 0).toFixed(1)}h to full
                 </div>
             </div>
         `;
@@ -376,7 +367,7 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
         ${!locked && sk.tier ? `<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>` : ''}
     </div>`;
 }
-async function stCancel() {
+async function stCancelLegacy() {
     if (!confirm('Cancel current training?')) return;
     try {
         await api('POST', '/skills/cancel');
@@ -441,7 +432,7 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
     const hoursSelect = document.getElementById(`train-hours-${skillId}`);
     const hours = hoursSelect ? parseInt(hoursSelect.value) : 8;
     
-    const hasArcaneReservoir = character?.premium_features?.arcane_reservoir;
+    const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
     const maxHours = hasArcaneReservoir ? 12 : 8;
     
     if (hours < 1 || hours > maxHours) {
@@ -470,9 +461,7 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
         await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
-        
-        // Start training overlay polling
-        startTrainingPolling();
+        if (typeof startTrainingPolling === 'function') startTrainingPolling();
     } catch (e) {
         showMsg('skill-tree-msg', e.message, true);
     }
@@ -482,8 +471,8 @@ async function updateTrainingStatus() {
     try {
         const status = await api('GET', '/skills/training/status');
         if (status.active) {
-            const progress = Math.floor(status.progress_current ?? status.progress ?? 0);
-            const remaining = formatTime(status.remainingSeconds ?? status.remaining ?? status.timeLeft ?? 0);
+            const progress = Math.floor((status.progressPercent ?? status.progressCurrent ?? status.progress_current ?? status.progress ?? 0));
+            const remaining = formatTime(status.remainingSeconds || status.remaining || 0);
             document.getElementById('training-indicator').innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
                     <span>⚔️ Training: ${progress}%</span>
@@ -513,7 +502,7 @@ function formatTime(seconds) {
 async function cancelTraining() {
     if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch(e) {
@@ -537,7 +526,7 @@ async function stCollect() {
 async function stCancel() {
     if (!confirm('Cancel training? You will receive a 50% gold refund. Materials are NOT returned.')) return;
     try {
-        const d = await api('POST', '/skills/train/cancel');
+        const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         await renderSkillTreeTab();
     } catch (e) {
