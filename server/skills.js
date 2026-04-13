@@ -1452,31 +1452,19 @@ function meetsUnlockCondition(char, condId, stats = {}) {
     return target >= cond.value;
 }
 
-function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, hasActiveTraining = false, lockedBranchId = null, progressMap = {}) {
+
+function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {}, extraStats = {}, hasActiveTraining = false, lockedBranchId = null) {
     const tree = SKILL_TREES[className];
     if (!tree) return null;
 
     const result = { ...tree, branches: {} };
     const exclusiveGroups = tree.exclusive_branches || [];
-    let activeBranch = lockedBranchId;
-
-    if (!activeBranch) {
-        for (const group of exclusiveGroups) {
-            for (const branchId of group) {
-                const branch = tree.branches[branchId];
-                if (branch && Object.keys(branch.skills).some(skillId => learnedMap[skillId] || (progressMap[skillId] || 0) > 0)) {
-                    activeBranch = branchId;
-                    break;
-                }
-            }
-            if (activeBranch) break;
-        }
-    }
+    const activeBranch = lockedBranchId;
 
     for (const [branchId, branch] of Object.entries(tree.branches)) {
         if (branch.hidden) {
-            const anyVisible = Object.entries(branch.skills).some(([skillId, sk]) =>
-                meetsUnlockCondition(char, sk.unlockCondition, extraStats) || (progressMap[skillId] || 0) > 0
+            const anyVisible = Object.values(branch.skills).some(sk =>
+                meetsUnlockCondition(char, sk.unlockCondition, extraStats)
             );
             if (!anyVisible) continue;
         }
@@ -1495,37 +1483,39 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, 
         let hasVisibleSkill = false;
 
         for (const [skId, sk] of Object.entries(branch.skills)) {
-            const learned = !!learnedMap[skId];
             const progress = Number(progressMap[skId] || 0);
-            const prereqsMet = sk.requires.every(r => !!learnedMap[r]);
+            const learned = progress >= 100 || !!learnedMap[skId];
+            const started = progress > 0;
+            const prereqsMet = sk.requires.every(r => Number(progressMap[r] || 0) >= 100 || !!learnedMap[r]);
             const condMet = meetsUnlockCondition(char, sk.unlockCondition, extraStats);
-            const isVisible = learned || progress > 0 || (!isExclusiveLocked && prereqsMet && condMet);
+
+            const isVisible = started || learned || (!isExclusiveLocked && prereqsMet && condMet);
             if (!isVisible) continue;
 
             hasVisibleSkill = true;
-            const trainable = !learned && prereqsMet && condMet && !hasActiveTraining && !isExclusiveLocked;
-            const isLocked = !learned && !trainable;
+            const trainable = !hasActiveTraining && !isExclusiveLocked && condMet && progress < 100 && (started || prereqsMet);
+            const isLocked = !started && !learned && !trainable;
 
             enrichedSkills[skId] = {
                 ...sk,
-                learned,
                 progress,
+                started,
+                learned,
                 trainable,
                 locked: isLocked || isExclusiveLocked,
                 exclusiveLocked: isExclusiveLocked && !learned,
                 prereqsMet,
                 condMet,
-                nextThresholdCost: getNextThresholdCostForProgress(sk, progress),
                 unlockConditionDesc: isLocked ? '???' : (sk.unlockConditionDesc || null),
             };
         }
 
         if (hasVisibleSkill || activeBranch === branchId) {
-            const knownBranch = Object.keys(branch.skills).some(skillId => learnedMap[skillId] || (progressMap[skillId] || 0) > 0);
+            const starterSkillId = Object.keys(branch.skills)[0];
             result.branches[branchId] = {
                 ...branch,
                 skills: enrichedSkills,
-                description: knownBranch ? branch.description : '???',
+                description: Number(progressMap[starterSkillId] || 0) > 0 ? branch.description : '???',
                 exclusiveLocked: isExclusiveLocked && activeBranch !== branchId,
             };
         }
@@ -1533,6 +1523,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, extraStats = {}, 
 
     return result;
 }
+
 
 // Get skill thresholds
 function getSkillThresholds(skillId, className) {
@@ -1676,6 +1667,7 @@ function magePath(learnedSkillIds) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DB SCHEMA ADDITIONS
 // ═══════════════════════════════════════════════════════════════════════════════
+
 const SKILL_TREE_MIGRATIONS = [
     `CREATE TABLE IF NOT EXISTS character_skill_tree (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1701,30 +1693,20 @@ const SKILL_TREE_MIGRATIONS = [
         ends_at          INTEGER NOT NULL,
         last_tick_at     INTEGER NOT NULL
     )`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_character_skill_tree_char_skill_unique ON character_skill_tree(char_id, skill_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_character_skill_tree_char_branch ON character_skill_tree(char_id, branch_id)`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_training_char_unique ON skill_training(char_id)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_skill_training_char_id_unique ON skill_training(char_id)`,
     `CREATE INDEX IF NOT EXISTS idx_skill_training_ends_at ON skill_training(ends_at)`,
     `CREATE TABLE IF NOT EXISTS character_skill_paths (
         char_id           INTEGER PRIMARY KEY,
-        class             TEXT    NOT NULL,
-        locked_branch_id  TEXT    NOT NULL,
-        locked_at         INTEGER NOT NULL,
-        FOREIGN KEY(char_id) REFERENCES characters(id)
+        class             TEXT NOT NULL,
+        locked_branch_id  TEXT NOT NULL,
+        locked_at         INTEGER NOT NULL
     )`,
-    `ALTER TABLE character_skill_tree ADD COLUMN progress REAL DEFAULT 0`,
-    `ALTER TABLE skill_training ADD COLUMN id INTEGER`,
-    `ALTER TABLE skill_training ADD COLUMN progress_start REAL DEFAULT 0`,
-    `ALTER TABLE skill_training ADD COLUMN progress_target REAL DEFAULT 100`,
-    `ALTER TABLE skill_training ADD COLUMN progress_current REAL DEFAULT 0`,
-    `ALTER TABLE skill_training ADD COLUMN hours_to_train INTEGER DEFAULT 8`,
-    `ALTER TABLE skill_training ADD COLUMN double_speed INTEGER DEFAULT 0`,
-    `ALTER TABLE skill_training ADD COLUMN last_tick_at INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN hard_missions_completed INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN total_missions_completed INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN wins_without_shield INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN elemental_kills INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN dungeon_no_death_runs INTEGER DEFAULT 0`,
+    `ALTER TABLE characters ADD COLUMN training_cooldown_until INTEGER DEFAULT 0`
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1734,166 +1716,115 @@ const SKILL_TREE_MIGRATIONS = [
 const express = require('express');
 const router = express.Router();
 
+
 async function loadCharWithSkills(db, userId) {
-    const charRow = await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [userId] });
-    const c = charRow.rows[0];
-    if (!c) return { char: null, learned: [], learnedMap: {}, progressMap: {}, skillRows: [], lockedBranchId: null };
-
+    const char = await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [userId] });
+    const c = char.rows[0];
+    if (!c) return { char: null, learned: [], learnedMap: {}, progressMap: {}, startedMap: {} };
     const rows = await db.execute({
-        sql: 'SELECT skill_id, branch_id, progress, learned_at FROM character_skill_tree WHERE char_id=?', args: [c.id]
+        sql: 'SELECT skill_id, progress, learned_at FROM character_skill_tree WHERE char_id=?', args: [c.id]
     });
-    const skillRows = rows.rows || [];
-    const learned = skillRows.filter(r => (r.learned_at || 0) > 0).map(r => r.skill_id);
+    const progressMap = {};
+    const startedMap = {};
+    const learned = [];
+    for (const row of rows.rows) {
+        const progress = Number(row.progress || 0);
+        progressMap[row.skill_id] = progress;
+        startedMap[row.skill_id] = progress > 0 || Number(row.learned_at || 0) > 0;
+        if (progress >= 100 || Number(row.learned_at || 0) > 0) learned.push(row.skill_id);
+    }
     const learnedMap = Object.fromEntries(learned.map(s => [s, true]));
-    const progressMap = Object.fromEntries(skillRows.map(r => [r.skill_id, Number(r.progress || 0)]));
-
-    const lockedPath = await db.execute({
-        sql: 'SELECT locked_branch_id FROM character_skill_paths WHERE char_id=?', args: [c.id]
-    });
-    const lockedBranchId = lockedPath.rows[0]?.locked_branch_id || null;
-
-    return { char: c, learned, learnedMap, progressMap, skillRows, lockedBranchId };
-}
-
-function getExclusiveGroupForBranch(tree, branchId) {
-    if (!tree?.exclusive_branches) return null;
-    return tree.exclusive_branches.find(group => group.includes(branchId)) || null;
+    return { char: c, learned, learnedMap, progressMap, startedMap };
 }
 
 async function getLockedBranchId(db, charId) {
-    const row = await db.execute({
-        sql: 'SELECT locked_branch_id FROM character_skill_paths WHERE char_id=?', args: [charId]
-    });
-    return row.rows[0]?.locked_branch_id || null;
+    const row = await dbGet(db, 'SELECT locked_branch_id FROM character_skill_paths WHERE char_id = ?', [charId]);
+    return row?.locked_branch_id || null;
 }
 
-async function ensureLockedBranch(db, char, tree, branchId) {
-    const group = getExclusiveGroupForBranch(tree, branchId);
-    if (!group) return null;
-
-    const existing = await getLockedBranchId(db, char.id);
-    if (existing) return existing;
-
-    await db.execute({
-        sql: 'INSERT OR REPLACE INTO character_skill_paths (char_id, class, locked_branch_id, locked_at) VALUES (?,?,?,?)',
-        args: [char.id, char.class, branchId, Math.floor(Date.now() / 1000)]
-    });
+async function setLockedBranchId(db, char, branchId) {
+    const existing = await dbGet(db, 'SELECT locked_branch_id FROM character_skill_paths WHERE char_id = ?', [char.id]);
+    if (existing) return existing.locked_branch_id;
+    await dbRun(db, 'INSERT OR REPLACE INTO character_skill_paths (char_id, class, locked_branch_id, locked_at) VALUES (?, ?, ?, ?)', [char.id, char.class, branchId, Math.floor(Date.now() / 1000)]);
     return branchId;
 }
 
-function getSkillDef(tree, branchId, skillId) {
-    const branch = tree?.branches?.[branchId];
-    if (!branch) return null;
-    const skill = branch.skills?.[skillId];
-    if (!skill) return null;
-    return { branch, skill };
+function getTrainingProgressNow(training, now = Math.floor(Date.now() / 1000)) {
+    const totalDuration = Math.max(1, Number(training.ends_at || 0) - Number(training.started_at || 0));
+    const elapsed = Math.max(0, Math.min(totalDuration, now - Number(training.started_at || 0)));
+    const start = Number(training.progress_start || 0);
+    const target = Number(training.progress_target || 100);
+    const pct = elapsed / totalDuration;
+    return Math.min(target, start + ((target - start) * pct));
 }
 
-function computeTrainingSnapshot(training, now = Math.floor(Date.now() / 1000)) {
-    if (!training) return null;
-    const remaining = Math.max(0, Number(training.ends_at || 0) - now);
-    const elapsedSeconds = Math.max(0, now - Number(training.started_at || now));
-    const hoursElapsed = elapsedSeconds / 3600;
-    const progressRate = Number(training.double_speed) ? 2 : 1;
-    const current = Math.min(
-        Number(training.progress_target || 100),
-        Number(training.progress_start || 0) + (hoursElapsed * progressRate)
-    );
-    return {
-        ...training,
-        progress_current: current,
-        progress: current,
-        progress_target: Number(training.progress_target || 100),
-        target: Number(training.progress_target || 100),
-        timeLeft: remaining,
-        remaining,
-        remainingSeconds: remaining,
-        endsAt: Number(training.ends_at || 0),
-        startedAt: Number(training.started_at || 0),
-        skill_id: training.skill_id,
-        skillId: training.skill_id,
-        branch_id: training.branch_id,
-        branchId: training.branch_id,
-        active: remaining > 0,
-        done: remaining <= 0,
-    };
+function getHoursToFull(progress, maxHours, speed = 1) {
+    const remainingPct = Math.max(0, 100 - Number(progress || 0));
+    const perHour = (100 / maxHours) * speed;
+    return remainingPct / Math.max(perHour, 0.0001);
 }
 
-function getNextThresholdCostForProgress(skill, progress) {
-    const thresholds = skill?.thresholds || {};
-    const next = Object.keys(thresholds)
-        .map(Number)
-        .sort((a, b) => a - b)
-        .find(t => t > progress);
-    if (!next) return {};
-    return thresholds[next]?.materials || {};
-}
 
-async function getInventoryQty(db, charId, itemId) {
-    const row = await db.execute({
-        sql: `SELECT * FROM inventory WHERE char_id=? AND (item_type='raw_mat' OR item_type='component') AND json_extract(item_data,'$.id')=?`,
-        args: [charId, itemId]
-    });
-    return row.rows[0] ? (JSON.parse(row.rows[0].item_data).qty || 1) : 0;
-}
-
-async function consumeMaterials(db, charId, mats) {
-    for (const [matId, qty] of Object.entries(mats || {})) {
-        if (!qty) continue;
-        const matRow = await db.execute({
-            sql: `SELECT * FROM inventory WHERE char_id=? AND (item_type='raw_mat' OR item_type='component') AND json_extract(item_data,'$.id')=?`,
-            args: [charId, matId]
-        });
-        if (!matRow.rows[0]) continue;
-        const d = JSON.parse(matRow.rows[0].item_data);
-        d.qty = (d.qty || 1) - qty;
-        if (d.qty <= 0) {
-            await db.execute({ sql: 'DELETE FROM inventory WHERE id=?', args: [matRow.rows[0].id] });
-        } else {
-            await db.execute({ sql: 'UPDATE inventory SET item_data=? WHERE id=?', args: [JSON.stringify(d), matRow.rows[0].id] });
-        }
-    }
-}
 
 router.get('/tree', async (req, res) => {
     try {
         const { getDb } = require('./db');
         const db = await getDb();
-        const { char, learned, learnedMap, progressMap, lockedBranchId } = await loadCharWithSkills(db, req.user.userId);
+        const { char, learned, learnedMap, progressMap } = await loadCharWithSkills(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
 
         const extraStats = {
-            wins_no_shield:       char.wins_without_shield          || 0,
-            hard_missions:        char.hard_missions_completed       || 0,
-            total_missions:       char.total_missions_completed      || 0,
-            elemental_kills:      char.elemental_kills               || 0,
-            dungeon_no_death_run: char.dungeon_no_death_runs         || 0,
+            wins_no_shield:       char.wins_without_shield || 0,
+            hard_missions:        char.hard_missions_completed || 0,
+            total_missions:       char.total_missions_completed || 0,
+            elemental_kills:      char.elemental_kills || 0,
+            dungeon_no_death_run: char.dungeon_no_death_runs || 0,
         };
 
-        const trainingRow = await db.execute({
-            sql: 'SELECT * FROM skill_training WHERE char_id=?', args: [char.id]
-        });
-        const hasActiveTraining = trainingRow.rows.length > 0 && trainingRow.rows[0].ends_at > Math.floor(Date.now() / 1000);
-
-        const tree = getVisibleSkillTree(char.class, char, learnedMap, extraStats, hasActiveTraining, lockedBranchId, progressMap);
-        const passives = computePassiveBonuses(char.class, learned);
-        const mods = computeClassModifiers(char.class, learned);
+        const trainingRow = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id=?', [char.id]);
+        const lockedBranchId = await getLockedBranchId(db, char.id);
+        const hasActiveTraining = !!trainingRow;
+        const tree = getVisibleSkillTree(char.class, char, learnedMap, progressMap, extraStats, hasActiveTraining, lockedBranchId);
+        const startedSkillIds = Object.keys(progressMap).filter(k => Number(progressMap[k] || 0) > 0);
+        const passives = await computePassiveBonusesWithProgress(db, char.class, startedSkillIds, char.id);
+        const mods = await computeClassModifiersWithProgress(db, char.class, startedSkillIds, char.id);
         const dualWield = char.class === 'rogue' && rogueHasDualWield(learned);
-        const mPath = char.class === 'mage' ? (lockedBranchId === 'shadow_path' ? 'shadow' : lockedBranchId === 'light_path' ? 'light' : magePath(learned)) : null;
+        const mPath = char.class === 'mage' ? magePath(learned) : null;
 
-        const activeTraining = computeTrainingSnapshot(trainingRow.rows[0] || null);
+        let activeTraining = null;
+        if (trainingRow) {
+            const now = Math.floor(Date.now() / 1000);
+            const currentProgress = getTrainingProgressNow(trainingRow, now);
+            const maxHours = hasPremium(getActivePremium(char), 'arcane_reservoir') ? 12 : 8;
+            activeTraining = {
+                ...trainingRow,
+                skillId: trainingRow.skill_id,
+                branchId: trainingRow.branch_id,
+                progressCurrent: currentProgress,
+                progressPercent: currentProgress,
+                progressTarget: Number(trainingRow.progress_target || 100),
+                remainingSeconds: Math.max(0, Number(trainingRow.ends_at || 0) - now),
+                timeLeft: Math.max(0, Number(trainingRow.ends_at || 0) - now),
+                hoursToFull: getHoursToFull(currentProgress, maxHours, Number(trainingRow.double_speed) ? 2 : 1),
+                done: now >= trainingRow.ends_at,
+            };
+        }
 
+        const now = Math.floor(Date.now() / 1000);
         res.json({
             tree,
             learned,
+            progressMap,
             passiveBonuses: passives,
             classModifiers: mods,
             dualWieldUnlocked: dualWield,
             magePath: mPath,
-            upgradePenalties:  SKILL_TREES[char.class]?.upgrade_penalties  || {},
-            upgradeDiscounts:  SKILL_TREES[char.class]?.upgrade_discounts   || {},
-            activeTraining,
             lockedBranchId,
+            upgradePenalties: SKILL_TREES[char.class]?.upgrade_penalties || {},
+            upgradeDiscounts: SKILL_TREES[char.class]?.upgrade_discounts || {},
+            activeTraining,
+            cooldownUntil: Number(char.training_cooldown_until || 0),
+            cooldownRemaining: Math.max(0, Number(char.training_cooldown_until || 0) - now),
             extraStats,
         });
     } catch (e) {
@@ -1906,7 +1837,7 @@ router.post('/train', async (req, res) => {
     try {
         const { getDb } = require('./db');
         const db = await getDb();
-        const { char, learned, learnedMap, progressMap, lockedBranchId } = await loadCharWithSkills(db, req.user.userId);
+        const { char, learned, learnedMap } = await loadCharWithSkills(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
 
         const { skillId, branchId } = req.body;
@@ -2018,121 +1949,92 @@ router.post('/train', async (req, res) => {
     }
 });
 
+
 router.post('/collect', async (req, res) => {
-    try {
-        const { getDb } = require('./db');
-        const db = await getDb();
-        const char = (await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [req.user.userId] })).rows[0];
-        if (!char) return res.status(404).json({ error: 'No character' });
-
-        const training = (await db.execute({ sql: 'SELECT * FROM skill_training WHERE char_id=?', args: [char.id] })).rows[0];
-        if (!training) return res.status(400).json({ error: 'No training in progress' });
-
-        // Get current progress from character_skill_tree
-        const progressRow = (await db.execute({ 
-            sql: 'SELECT progress FROM character_skill_tree WHERE char_id=? AND skill_id=?', 
-            args: [char.id, training.skill_id] 
-        })).rows[0];
-        
-        const currentProgress = progressRow?.progress || 0;
-        
-        // Check if progress has reached 100%
-        if (currentProgress < 100) {
-            return res.status(400).json({ error: `Skill not fully learned yet. Current progress: ${currentProgress}%. Continue training.` });
-        }
-
-        const tree = SKILL_TREES[char.class];
-        const branch = tree?.branches[training.branch_id];
-        const sk = branch?.skills[training.skill_id];
-
-        await db.execute({
-            sql: 'UPDATE character_skill_tree SET learned_at = ? WHERE char_id=? AND skill_id=?',
-            args: [Math.floor(Date.now() / 1000), char.id, training.skill_id]
-        });
-
-        if (sk) {
-            for (const eff of (sk.effects || [])) {
-                if (eff.type === 'passive_pct') {
-                    console.log(`Percentage bonus: ${eff.stat} +${eff.value * 100}%`);
-                } else if (eff.type === 'passive_stat') {
-                    await db.execute({
-                        sql: `UPDATE characters SET ${eff.stat} = COALESCE(${eff.stat},0) + ? WHERE id=?`,
-                        args: [eff.value, char.id]
-                    });
-                } else if (eff.type === 'resist_bonus') {
-                    for (const elem of (eff.elems || [])) {
-                        await db.execute({
-                            sql: `UPDATE characters SET elem_resist_${elem} = COALESCE(elem_resist_${elem},0) + ? WHERE id=?`,
-                            args: [eff.value, char.id]
-                        });
-                    }
-                }
-            }
-        }
-
-        await db.execute({ sql: 'DELETE FROM skill_training WHERE char_id=?', args: [char.id] });
-
-        res.json({
-            success: true,
-            message: `✅ ${sk?.name || training.skill_id} learned!`,
-            skillId: training.skill_id,
-        });
-    } catch (e) {
-        console.error('skill collect error', e);
-        res.status(500).json({ error: e.message });
-    }
+    res.json({ success: true, message: 'Skills apply automatically as training progress is earned.' });
 });
+
 
 router.post('/cancel', async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
-        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const now = Math.floor(Date.now() / 1000);
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character' });
 
-        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
-        if (!training) return res.status(400).json({ error: 'No active training to cancel' });
+        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id=?', [char.id]);
+        if (!training) return res.status(400).json({ error: 'No training in progress' });
 
-        const refund = Number(training.double_speed) ? Math.max(0, Math.floor((Number(training.hours_to_train || 0) - ((Date.now() / 1000 - training.started_at) / 3600)) * 250)) : 0;
-        await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-        if (refund > 0) await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+        const currentProgress = getTrainingProgressNow(training, now);
+        await dbRun(db, 'UPDATE character_skill_tree SET progress = MAX(progress, ?) WHERE char_id=? AND skill_id=?', [currentProgress, char.id, training.skill_id]);
 
-        res.json({ success: true, message: `Training cancelled.${refund > 0 ? ` Refunded ${refund} gold.` : ''}`, refund });
+        let refund = 0;
+        if (Number(training.double_speed)) {
+            const totalExtra = Number(training.hours_to_train || 0) * 500;
+            const totalDuration = Math.max(1, Number(training.ends_at) - Number(training.started_at));
+            const remainingRatio = Math.max(0, Number(training.ends_at) - now) / totalDuration;
+            refund = Math.floor(totalExtra * remainingRatio);
+            if (refund > 0) {
+                await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+            }
+        }
+
+        await dbRun(db, 'DELETE FROM skill_training WHERE char_id=?', [char.id]);
+        res.json({ success: true, message: `Training cancelled. Progress kept at ${Math.floor(currentProgress)}%.${refund > 0 ? ` Refunded ${refund} gold.` : ''}`, refund, progressCurrent: currentProgress });
     } catch (e) {
+        console.error('skill cancel error', e);
         res.status(500).json({ error: e.message });
     }
 });
 
 router.get('/training/status', async (req, res) => {
-
     try {
         const db = await getDb();
+        const now = Math.floor(Date.now() / 1000);
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
 
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
-        if (!training) return res.json({ active: false });
+        const cooldownUntil = Number(char.training_cooldown_until || 0);
+        const cooldownRemaining = Math.max(0, cooldownUntil - now);
 
-        const snapshot = computeTrainingSnapshot(training);
-        const tree = SKILL_TREES[char.class];
-        const branch = tree?.branches?.[training.branch_id];
-        const sk = branch?.skills?.[training.skill_id];
-        if (sk) snapshot.skillName = sk.name;
+        if (!training) return res.json({ active: false, cooldownUntil, cooldownRemaining });
 
-        // persist live progress to permanent progress table
-        await dbRun(db, `UPDATE character_skill_tree SET progress = ? WHERE char_id = ? AND skill_id = ?`, [snapshot.progress_current, char.id, training.skill_id]);
+        const currentProgress = getTrainingProgressNow(training, now);
+        const remaining = Math.max(0, Number(training.ends_at || 0) - now);
+        const maxHours = hasPremium(getActivePremium(char), 'arcane_reservoir') ? 12 : 8;
+        const hoursToFull = getHoursToFull(currentProgress, maxHours, Number(training.double_speed) ? 2 : 1);
 
-        if (!snapshot.active) {
-            const learnedAt = snapshot.progress_current >= snapshot.progress_target ? Math.floor(Date.now() / 1000) : 0;
-            if (learnedAt > 0) {
-                await dbRun(db, `UPDATE character_skill_tree SET progress = ?, learned_at = ? WHERE char_id = ? AND skill_id = ?`, [snapshot.progress_target, learnedAt, char.id, training.skill_id]);
-            }
-            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-            return res.json({ active: false, finished: true, skillId: training.skill_id, skill_id: training.skill_id });
+        if (remaining === 0) {
+            await dbRun(db, 'UPDATE character_skill_tree SET progress = MAX(progress, ?), learned_at = CASE WHEN ? >= 100 THEN COALESCE(NULLIF(learned_at, 0), ?) ELSE learned_at END WHERE char_id = ? AND skill_id = ?', [currentProgress, currentProgress, now, char.id, training.skill_id]);
+            await dbRun(db, 'DELETE FROM skill_training WHERE char_id = ?', [char.id]);
+            return res.json({ active: false, finished: true, skillId: training.skill_id, skill_id: training.skill_id, progressCurrent: currentProgress, progressPercent: currentProgress, fullyLearned: currentProgress >= 100, cooldownUntil, cooldownRemaining });
         }
 
-        res.json(snapshot);
-
+        res.json({
+            active: true,
+            id: training.id,
+            skillId: training.skill_id,
+            skill_id: training.skill_id,
+            skillName: training.skill_id.replace(/_/g, ' '),
+            branchId: training.branch_id,
+            endsAt: Number(training.ends_at || 0),
+            remaining,
+            remainingSeconds: remaining,
+            timeLeft: remaining,
+            progress: currentProgress,
+            progressCurrent: currentProgress,
+            progress_current: currentProgress,
+            progressPercent: currentProgress,
+            progressTarget: 100,
+            progress_target: 100,
+            target: 100,
+            hoursToFull,
+            cooldownUntil,
+            cooldownRemaining,
+        });
     } catch (e) {
+        console.error('skill status error', e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -2195,230 +2097,165 @@ router.post('/respec', async (req, res) => {
     }
 });
 
+
 router.post('/train/start', async (req, res) => {
     try {
-
         const db = await getDb();
         const now = Math.floor(Date.now() / 1000);
-
         const { skillId, branchId, hours, doubleSpeed } = req.body;
 
-        const data = await loadCharWithSkills(db, req.user.userId);
-        const { char, learned, learnedMap, progressMap, lockedBranchId } = data;
+        const { char, learnedMap, progressMap } = await loadCharWithSkills(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
 
-        const tree = SKILL_TREES[char.class];
-        if (!tree) return res.status(400).json({ error: 'No skill tree for class' });
+        if (Number(char.training_cooldown_until || 0) > now) {
+            return res.status(400).json({ error: 'Training is on cooldown' });
+        }
 
-        const entry = getSkillDef(tree, branchId, skillId);
-        if (!entry) return res.status(400).json({ error: 'Skill not found' });
-        const { branch, skill: sk } = entry;
-
-        if (learnedMap[skillId]) return res.status(400).json({ error: 'Skill already learned' });
-
-        // Mission / travel / existing training checks
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ? AND ends_at > ?', [char.id, now]);
         if (mission) return res.status(400).json({ error: 'Cannot train during a mission' });
         if (char.travel_target && char.travel_end_time > now) return res.status(400).json({ error: 'Cannot train while traveling' });
+
         const existing = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
         if (existing) return res.status(400).json({ error: 'Already training a skill' });
 
-        // Branch lock enforcement (Option B)
-        const lockedBranch = lockedBranchId || await getLockedBranchId(db, char.id);
-        const exclusiveGroup = getExclusiveGroupForBranch(tree, branchId);
-        if (exclusiveGroup && lockedBranch && lockedBranch !== branchId && exclusiveGroup.includes(lockedBranch)) {
-            return res.status(400).json({ error: `This character is locked to the ${lockedBranch.replace(/_/g, ' ')} path.` });
+        const tree = SKILL_TREES[char.class];
+        if (!tree) return res.status(400).json({ error: 'No skill tree for class' });
+        const branch = tree.branches[branchId];
+        if (!branch) return res.status(400).json({ error: 'Branch not found' });
+        const sk = branch.skills[skillId];
+        if (!sk) return res.status(400).json({ error: 'Skill not found' });
+
+        const maxHours = hasPremium(getActivePremium(char), 'arcane_reservoir') ? 12 : 8;
+        const chosenHours = Math.max(1, Math.min(Number(hours || 1), maxHours));
+        const speed = doubleSpeed ? 2 : 1;
+
+        const currentProgress = Number(progressMap[skillId] || 0);
+        if (currentProgress >= 100 || learnedMap[skillId]) {
+            return res.status(400).json({ error: 'Skill already fully learned' });
         }
 
-        const missingPrereq = (sk.requires || []).find(r => !learnedMap[r]);
-        if (missingPrereq) return res.status(400).json({ error: `Requires skill: ${missingPrereq.replace(/_/g, ' ')}` });
+        const prereqsMet = (sk.requires || []).every(r => Number(progressMap[r] || 0) >= 100 || !!learnedMap[r]);
+        if (!prereqsMet) return res.status(400).json({ error: `Requires previous skill to be fully learned` });
 
         const extraStats = {
-            wins_no_shield:       char.wins_without_shield       || 0,
-            hard_missions:        char.hard_missions_completed  || 0,
+            wins_no_shield:       char.wins_without_shield || 0,
+            hard_missions:        char.hard_missions_completed || 0,
             total_missions:       char.total_missions_completed || 0,
-            elemental_kills:      char.elemental_kills          || 0,
-            dungeon_no_death_run: char.dungeon_no_death_runs    || 0,
+            elemental_kills:      char.elemental_kills || 0,
+            dungeon_no_death_run: char.dungeon_no_death_runs || 0,
         };
         if (!meetsUnlockCondition(char, sk.unlockCondition, extraStats)) {
             const cond = UNLOCK_CONDITIONS[sk.unlockCondition];
             return res.status(400).json({ error: `Unlock requirement not met: ${cond?.desc || sk.unlockCondition}` });
         }
 
-        const activePremium = getActivePremium(char);
-        const maxHours = hasPremium(activePremium, 'arcane_reservoir') ? 12 : 8;
-        const trainHours = Math.max(1, Math.min(Number(hours || 1), maxHours));
-        if (Number(hours || 1) > maxHours) {
-            return res.status(400).json({ error: `You can train at most ${maxHours}h right now.` });
+        const lockedBranchId = await getLockedBranchId(db, char.id);
+        const exclusiveGroups = tree.exclusive_branches || [];
+        for (const group of exclusiveGroups) {
+            if (group.includes(branchId) && lockedBranchId && group.includes(lockedBranchId) && lockedBranchId !== branchId) {
+                return res.status(400).json({ error: `Branch locked to ${lockedBranchId.replace(/_/g, ' ')}` });
+            }
         }
-
-        const currentProgress = Number(progressMap[skillId] || 0);
-        const progressRate = doubleSpeed ? 2 : 1;
-        const progressGain = trainHours * progressRate;
-        const progressTarget = Math.min(100, currentProgress + progressGain);
-        if (currentProgress >= 100) return res.status(400).json({ error: 'Skill already mastered' });
-
-        // Threshold cost for the next unreached checkpoint only
-        const thresholdCost = getNextThresholdCostForProgress(sk, currentProgress);
-        for (const [matId, qty] of Object.entries(thresholdCost)) {
-            const have = await getInventoryQty(db, char.id, matId);
-            if (have < qty) {
-                return res.status(400).json({ error: `Need ${qty}× ${matId.replace(/_/g, ' ')} (you have ${have})` });
+        for (const group of exclusiveGroups) {
+            if (group.includes(branchId) && !lockedBranchId) {
+                await setLockedBranchId(db, char, branchId);
+                break;
             }
         }
 
-        const speedCost = doubleSpeed ? trainHours * 500 : 0;
-        const totalGoldCost = speedCost;
-        if ((char.gold || 0) < totalGoldCost) {
-            return res.status(400).json({ error: `Need ${totalGoldCost} gold (you have ${char.gold || 0})` });
+        const extraGoldCost = doubleSpeed ? chosenHours * 500 : 0;
+        if ((char.gold || 0) < extraGoldCost) {
+            return res.status(400).json({ error: `Need ${extraGoldCost} gold for double speed` });
+        }
+        if (extraGoldCost > 0) {
+            await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [extraGoldCost, char.id]);
         }
 
-        if (totalGoldCost > 0) await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [totalGoldCost, char.id]);
-        await consumeMaterials(db, char.id, thresholdCost);
-
-        await dbRun(db, `
-            INSERT INTO character_skill_tree (char_id, skill_id, branch_id, class, progress)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(char_id, skill_id) DO UPDATE SET progress = excluded.progress
-        `, [char.id, skillId, branchId, char.class, currentProgress]);
-
-        if (exclusiveGroup && !lockedBranch) {
-            await ensureLockedBranch(db, char, tree, branchId);
+        const existingRow = await dbGet(db, 'SELECT * FROM character_skill_tree WHERE char_id = ? AND skill_id = ?', [char.id, skillId]);
+        if (!existingRow) {
+            await dbRun(db, 'INSERT INTO character_skill_tree (char_id, skill_id, branch_id, class, learned_at, progress) VALUES (?, ?, ?, ?, 0, ?)', [char.id, skillId, branchId, char.class, currentProgress]);
         }
+
+        const progressGain = (chosenHours / maxHours) * 100 * speed;
+        const targetProgress = Math.min(100, currentProgress + progressGain);
+        const duration = chosenHours * 3600;
 
         await dbRun(db, `
             INSERT INTO skill_training
             (char_id, skill_id, branch_id, progress_start, progress_target, progress_current, hours_to_train, double_speed, started_at, ends_at, last_tick_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [char.id, skillId, branchId, currentProgress, progressTarget, currentProgress, trainHours, doubleSpeed ? 1 : 0, now, now + trainHours * 3600, now]);
+        `, [char.id, skillId, branchId, currentProgress, targetProgress, currentProgress, chosenHours, doubleSpeed ? 1 : 0, now, now + duration, now]);
 
         res.json({
             success: true,
-            message: `⚔️ Training started: ${sk.name} (${trainHours}h${doubleSpeed ? ', 2x speed' : ''})`,
+            message: `Training started: ${sk.name} (${chosenHours}h)` ,
             skillId,
-            skill_id: skillId,
             branchId,
-            branch_id: branchId,
-            endsAt: now + trainHours * 3600,
-            remaining: trainHours * 3600,
-            remainingSeconds: trainHours * 3600,
-            progress: currentProgress,
-            progress_current: currentProgress,
-            progress_target: progressTarget,
-            target: progressTarget
+            endsAt: now + duration,
+            progressStart: currentProgress,
+            progressTarget: targetProgress,
+            progressGain,
+            maxHours,
+            hoursToFull: getHoursToFull(targetProgress, maxHours, 1),
         });
-
     } catch (e) {
+        console.error('skill train start error', e);
         res.status(500).json({ error: e.message });
     }
 });
-
-
 
 // ========================================
 // CANCEL TRAINING
 // ========================================
 
 router.post('/train/cancel', async (req, res) => {
+
     try {
+
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
-        if (!char) return res.status(404).json({ error: 'Character not found' });
 
-        const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
-        if (!training) return res.status(400).json({ error: 'No active training to cancel' });
+        const char = await dbGet(
+            db,
+            'SELECT * FROM characters WHERE user_id = ?',
+            [req.user.userId]
+        );
 
-        const refund = Number(training.double_speed) ? Math.max(0, Math.floor((Number(training.hours_to_train || 0) - ((Date.now() / 1000 - training.started_at) / 3600)) * 250)) : 0;
-        await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-        if (refund > 0) await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+        const training = await dbGet(
+            db,
+            'SELECT * FROM skill_training WHERE char_id = ?',
+            [char.id]
+        );
 
-        res.json({ success: true, message: `Training cancelled.${refund > 0 ? ` Refunded ${refund} gold.` : ''}`, refund });
+        if (!training)
+            return res.status(400).json({ error: 'No training active' });
+
+        await dbRun(
+            db,
+            'DELETE FROM skill_training WHERE id = ?',
+            [training.id]
+        );
+
+        res.json({
+            success: true,
+            message: 'Training cancelled'
+        });
+
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
+
 router.post('/skills/train/tick', async (req, res) => {
     try {
         const db = await getDb();
         const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
-        
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
         if (!training) return res.json({ active: false });
-        
         const now = Math.floor(Date.now() / 1000);
-        if (now >= training.ends_at) {
-            // Calculate final progress
-            const hoursElapsed = training.hours_to_train;
-            const progressPerHour = training.double_speed ? 2 : 1;
-            const progressGain = hoursElapsed * progressPerHour;
-            const finalProgress = Math.min(training.progress_target, training.progress_start + progressGain);
-            
-            // Update skill progress in character_skill_tree
-            await dbRun(db, `
-                UPDATE character_skill_tree 
-                SET progress = ? 
-                WHERE char_id = ? AND skill_id = ?
-            `, [finalProgress, char.id, training.skill_id]);
-            
-            // Check if skill is now complete (100%)
-            if (finalProgress >= 100) {
-                // Mark as learned and apply effects
-                await dbRun(db, `
-                    UPDATE character_skill_tree 
-                    SET learned_at = ? 
-                    WHERE char_id = ? AND skill_id = ?
-                `, [now, char.id, training.skill_id]);
-                
-                // Apply skill effects here...
-            }
-            
-            // Delete training record and clear cooldown
-            await dbRun(db, 'DELETE FROM skill_training WHERE id = ?', [training.id]);
-            await dbRun(db, 'UPDATE characters SET training_cooldown_until = 0 WHERE id = ?', [char.id]);
-            
-            return res.json({ 
-                active: false, 
-                complete: true,
-                newProgress: finalProgress,
-                skillLearned: finalProgress >= 100
-            });
-        }
-        
-        // Calculate elapsed time since last tick
-        const lastTick = training.last_tick_at;
-        const elapsed = now - lastTick;
-        const hoursElapsed = elapsed / 3600;
-        const progressPerHour = training.double_speed ? 2 : 1;
-        const progressGain = hoursElapsed * progressPerHour;
-        
-        const newProgress = Math.min(training.progress_target, training.progress_start + progressGain);
-        
-        // Update progress
-        await dbRun(db, `
-            UPDATE skill_training 
-            SET progress_current = ?, last_tick_at = ? 
-            WHERE id = ?
-        `, [newProgress, now, training.id]);
-        
-        // Update character_skill_tree progress
-        await dbRun(db, `
-            UPDATE character_skill_tree 
-            SET progress = ? 
-            WHERE char_id = ? AND skill_id = ?
-        `, [newProgress, char.id, training.skill_id]);
-        
-        res.json({
-            active: true,
-            progress: newProgress,
-            target: training.progress_target,
-            endsAt: training.ends_at,
-            remaining: training.ends_at - now,
-            remainingSeconds: training.ends_at - now,
-            progress_current: newProgress,
-            progress_target: training.progress_target,
-            timeLeft: training.ends_at - now
-        });
+        const currentProgress = getTrainingProgressNow(training, now);
+        await dbRun(db, 'UPDATE skill_training SET progress_current = ?, last_tick_at = ? WHERE id = ?', [currentProgress, now, training.id]);
+        res.json({ active: true, progress: currentProgress, target: 100, endsAt: training.ends_at, remaining: Math.max(0, training.ends_at - now) });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
