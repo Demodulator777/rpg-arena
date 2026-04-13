@@ -469,6 +469,16 @@ function buildEqSlotSmall(slot, eq, icon, label) {
     </div>`;
 }
 
+function normalizeClassTheme(className) {
+    const normalized = String(className || '').trim().toLowerCase();
+    return ['mage', 'warrior', 'paladin', 'rogue'].includes(normalized) ? normalized : 'warrior';
+}
+
+function getClassThemeBackground(className) {
+    const theme = normalizeClassTheme(className);
+    return `url('/images/${theme}-bg.webp'), url('/images/${theme}-bg.png'), url('/images/${theme}-bg.jpg'), url('/images/class/${theme}.png')`;
+}
+
 function renderCharacter() {
     if (!character) return;
     const c = character;
@@ -575,40 +585,48 @@ const eqGrid = `
 
     const charSheet = document.getElementById('char-sheet');
     if (!charSheet) return;
+    const classTheme = normalizeClassTheme(c.class);
+    const classBackground = getClassThemeBackground(c.class);
     charSheet.innerHTML = `
-    <div class="char-panel">
-      <h3>STATS</h3>
-      ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
-      ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
-      ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
-      ${statRowBreakdown('✨','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
-      ${statRowBreakdown('❤️','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
-      ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('🎯','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
-      ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('💥','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
-      <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-        <span title="${escHtml(dmgTooltip)}" style="cursor:help">
-          ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
-        </span>
-        <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
-        ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
-        ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
-        ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
+    <div class="class-scene class-scene-${classTheme}" style="--class-bg:${classBackground}">
+      <div class="class-scene-backdrop"></div>
+      <div class="class-scene-glow"></div>
+      <div class="class-scene-content char-grid">
+        <div class="char-panel">
+          <h3>STATS</h3>
+          ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
+          ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
+          ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
+          ${statRowBreakdown('✨','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
+          ${statRowBreakdown('❤️','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
+          ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('🎯','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
+          ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('💥','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
+          <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            <span title="${escHtml(dmgTooltip)}" style="cursor:help">
+              ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
+            </span>
+            <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+            ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
+            ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
+            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
+          </div>
+        </div>
+        <div class="char-panel">
+          <h3>EQUIPMENT</h3>
+          ${eqGrid}
+        </div>
+        <div class="char-panel">
+          <h3>RECORD</h3>
+          <div class="record-row">
+            <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
+            <div class="record-item"><div class="record-num">${c.wins+c.losses}</div><div class="record-lbl">BATTLES</div></div>
+            <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
+          </div>
+          ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
+          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
+          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
+        </div>
       </div>
-    </div>
-    <div class="char-panel">
-      <h3>EQUIPMENT</h3>
-      ${eqGrid}
-    </div>
-    <div class="char-panel">
-      <h3>RECORD</h3>
-      <div class="record-row">
-        <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
-        <div class="record-item"><div class="record-num">${c.wins+c.losses}</div><div class="record-lbl">BATTLES</div></div>
-        <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
-      </div>
-      ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
-      ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
-      ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
     </div>`;
     renderTopBar();
 }
@@ -3410,6 +3428,8 @@ async function openProfile(id) {
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
         const eq=p.equipped||{};
+        const classTheme = normalizeClassTheme(p.class);
+        const classBackground = getClassThemeBackground(p.class);
 
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
         const profileSlots=[
@@ -3420,24 +3440,24 @@ async function openProfile(id) {
             {slot:'shield', icon:'🛡',  col:3, row:2},
             {slot:'boots',  icon:'👢', col:3, row:3},
         ];
-const profileEqHtml =
-    `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
-        <img src="/images/class/${p.class}.png" style="width:240px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
-    </div>`
-    + profileSlots.map(({slot,icon,col,row}) => {
-        const item = profileResolvedEq[slot];
-        const sq = `grid-column:${col};grid-row:${row};width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
-        if (!item) return `<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${icon}</span></div>`;
-        const qc = item.quality === 'legendary' ? '#f1c40f' : item.quality === 'rare' ? '#9b59b6' : 'rgba(255,255,255,0.5)';
-        const itemData = escHtml(JSON.stringify(item));
-        return `<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
-            data-item="${itemData}"
-            onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
-            onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
-        >
-            ${itemIcon(item, '60px')}
-        </div>`;
-    }).join('');
+        const profileEqHtml =
+            `<div style="grid-column:2;grid-row:1/4;display:flex;align-items:center;justify-content:center;">
+                <img src="/images/class/${p.class}.png" style="width:240px;height:210px;object-fit:contain;object-position:center top" onerror="this.style.opacity='0'">
+            </div>`
+            + profileSlots.map(({slot,icon,col,row}) => {
+                const item = profileResolvedEq[slot];
+                const sq = `grid-column:${col};grid-row:${row};width:80px;height:80px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px;position:relative;overflow:hidden;transition:all 0.15s;cursor:default;`;
+                if (!item) return `<div style="${sq}background:rgba(255,255,255,0.025);border:1px dashed rgba(255,255,255,0.1)"><span style="font-size:1.5rem;opacity:0.2">${icon}</span></div>`;
+                const qc = item.quality === 'legendary' ? '#f1c40f' : item.quality === 'rare' ? '#9b59b6' : 'rgba(255,255,255,0.5)';
+                const itemData = escHtml(JSON.stringify(item));
+                return `<div style="${sq}background:rgba(255,255,255,0.04);border:1px solid ${qc}33;"
+                    data-item="${itemData}"
+                    onmouseenter="this.style.background='rgba(255,255,255,0.09)';this.style.transform='translateY(-2px)';showEqTooltip(event,this.dataset.item)"
+                    onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.transform='';scheduleHideTooltip()"
+                >
+                    ${itemIcon(item, '60px')}
+                </div>`;
+            }).join('');
 
         const smallSlots = [['accessory','🔮','Accessory']];
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
@@ -3455,47 +3475,46 @@ const profileEqHtml =
         }).join('');
 
         content.innerHTML=`
-      <div class="profile-header">
-        <div style="display:flex;align-items:center;gap:12px">
-          <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" onerror="this.style.display='none'">
-          <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} · @${uname}</div></div>
-        </div>
-        <button class="btn-secondary" onclick="closeProfile()">✕</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-        <div style="background:var(--bg3);border-radius:8px;padding:14px">
-          <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
-          ${miniStat('💪','STR',str,maxStat,'str')}
-          ${miniStat('🛡️','DEF',def,maxStat,'def')}
-          ${miniStat('⚡','AGI',agi,maxStat,'agi')}
-          ${miniStat('✨','MAG',mag,maxStat,'mag')}
-          ${miniStat('❤️','VIT',vit,maxStat,'vit')}
-          ${hc>0?miniStat('🎯','HIT',hc,maxStat,'hit'):''}
-          ${cc>0?miniStat('💥','CRIT',cc,maxStat,'crit'):''}
-        </div>
-        <div style="background:var(--bg3);border-radius:8px;padding:14px">
-          <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
-          <div style="display:flex;flex-direction:column;gap:7px">
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
-            <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+      <div class="profile-scene class-scene class-scene-${classTheme}" style="--class-bg:${classBackground}">
+        <div class="class-scene-backdrop"></div>
+        <div class="class-scene-glow"></div>
+        <div class="class-scene-content">
+          <div class="profile-header">
+            <div style="display:flex;align-items:center;gap:12px">
+              <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" onerror="this.style.display='none'">
+              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} · @${uname}</div></div>
+            </div>
+            <button class="btn-secondary" onclick="closeProfile()">✕</button>
           </div>
-        </div>
-      </div>
-      ${Object.keys(eq).length?`
-      <div style="background:var(--bg3);border-radius:8px;padding:14px;margin-bottom:12px">
-        <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
-        <div style="display:grid;grid-template-columns:80px 160px 80px;grid-template-rows:repeat(3,80px);gap:6px;align-items:center;justify-content:center;margin:0 auto;width:fit-content">${profileEqHtml}</div>
-        ${smallSlotsHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${smallSlotsHtml}</div>`:''}
-      </div>`:''}
-      ${!isMe ? (() => {
-            // FIX: Check per-target cooldown (12h) BEFORE global cooldown (1h).
-            // ptc = your specific cooldown against this player (12h after attacking them)
-            // gc  = their global protection cooldown (1h, applies to all attackers)
-            // By checking ptc first, the profile correctly shows "Cooldown 12h" to the
-            // attacker who just hit them, rather than being hidden behind the 1h gc display.
+          <div class="profile-grid">
+            <div class="profile-card">
+              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
+              ${miniStat('💪','STR',str,maxStat,'str')}
+              ${miniStat('🛡️','DEF',def,maxStat,'def')}
+              ${miniStat('⚡','AGI',agi,maxStat,'agi')}
+              ${miniStat('✨','MAG',mag,maxStat,'mag')}
+              ${miniStat('❤️','VIT',vit,maxStat,'vit')}
+              ${hc>0?miniStat('🎯','HIT',hc,maxStat,'hit'):''}
+              ${cc>0?miniStat('💥','CRIT',cc,maxStat,'crit'):''}
+            </div>
+            <div class="profile-card">
+              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
+                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+              </div>
+            </div>
+          </div>
+          ${Object.keys(eq).length?`
+          <div class="profile-card profile-equipment-card">
+            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
+            <div style="display:grid;grid-template-columns:80px 160px 80px;grid-template-rows:repeat(3,80px);gap:6px;align-items:center;justify-content:center;margin:0 auto;width:fit-content">${profileEqHtml}</div>
+            ${smallSlotsHtml?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${smallSlotsHtml}</div>`:''}
+          </div>`:''}
+          ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
             const myBattleCd=character?.battle_cooldown_remaining||0;
             let blocked=false, reason='';
@@ -3507,7 +3526,9 @@ const profileEqHtml =
                 ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
                 :`<button class="btn-attack" onclick="closeProfile();attackFromProfile(${id},'${name.replace(/'/g,"\\'")}')">⚔️ Attack</button>`;
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" onclick="closeProfile();openCompose(${id},'${name.replace(/'/g,"\\'")}')">✉️ Message</button></div>`;
-        })() : ''}`;
+          })() : ''}
+        </div>
+      </div>`;
     } catch(e) { content.innerHTML=`<p class="error">Failed to load profile: ${e.message||'Unknown error'}</p>`; }
 }
 function miniStat(icon,label,val,max,cls) {
