@@ -3586,12 +3586,12 @@ async function openProfile(id) {
           </div>`:''}
           ${!isMe ? (() => {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
-            const myBattleCd=character?.battle_cooldown_remaining||0;
+            const myAttackBlockReason=getMyAttackBlockReason();
             let blocked=false, reason='';
             if(hpLow){blocked=true;reason='Too little HP';}
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
-            else if(myBattleCd>0){blocked=true;const m=Math.ceil(myBattleCd/60);reason='Wait '+m+'m to fight again';}
+            else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
             const atkBtn=blocked
                 ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
                 :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>⚔️ Attack</button>`;
@@ -3610,6 +3610,14 @@ function closeProfile() { document.getElementById('profile-modal').classList.add
 async function attackFromProfile(id,name) { closeProfile(); await attack(id,name); }
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
 
+function getMyAttackBlockReason() {
+    if (character?.trainingActive) return 'Training active';
+    if (character?.trainingDone) return 'Collect training first';
+    const myBattleCd = character?.battle_cooldown_remaining || 0;
+    if (myBattleCd > 0) return `Wait ${Math.ceil(myBattleCd / 60)}m to fight again`;
+    return '';
+}
+
 // ── Matchmaking ────────────────────────────────────────────────────────────
 let _matchmakingTarget = null;
 async function findOpponent(direction='similar') {
@@ -3623,6 +3631,10 @@ async function findOpponent(direction='similar') {
         const power = (p.strength||0)+(p.defense||0)+(p.agility||0)+(p.magic||0)+p.level*5;
         const myPower = character ? (character.strength+character.defense+character.agility+character.magic+character.level*5) : 0;
         const powerDiff = power - myPower;
+        const myAttackBlockReason = getMyAttackBlockReason();
+        const attackBtn = myAttackBlockReason
+            ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">🛡️ ${myAttackBlockReason}</button>`
+            : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>⚔️ Attack</button>`;
         const diffLabel = powerDiff > 10 ? '⬆️ Stronger' : powerDiff < -10 ? '⬇️ Weaker' : '↔️ Similar';
         if (box) box.innerHTML = `
             <div class="matchmaking-card">
@@ -3633,7 +3645,7 @@ async function findOpponent(direction='similar') {
                         <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} · ${p.wins}W/${p.losses}L</div>
                         <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} · Power ${power}</div>
                     </div>
-                    <button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>⚔️ Attack</button>
+                    ${attackBtn}
                 </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
@@ -3645,6 +3657,8 @@ async function findOpponent(direction='similar') {
 }
 async function attack(targetId,targetName) {
     if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
+    const blockReason = getMyAttackBlockReason();
+    if (blockReason) { alert(blockReason); return; }
     try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName); }
     catch(e) { alert(e.message); }
 }
