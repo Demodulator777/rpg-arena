@@ -2394,22 +2394,30 @@ function showItemTooltip(event, itemId) {
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
 
+function withCurrentTarget(event, el) {
+    return {
+        ...event,
+        currentTarget: el,
+        target: event?.target || el
+    };
+}
+
 function hoverItemTooltip(itemId, el, event) {
-    showItemTooltip(event, itemId);
+    showItemTooltip(withCurrentTarget(event, el), itemId);
 }
 
 function openItemTooltip(itemId, el, event) {
-    showItemTooltip(event, itemId);
+    showItemTooltip(withCurrentTarget(event, el), itemId);
 }
 
 function hoverEqTooltip(el, event) {
     if (!el?.dataset?.item) return;
-    showEqTooltip(event, el.dataset.item);
+    showEqTooltip(withCurrentTarget(event, el), el.dataset.item);
 }
 
 function hoverShopItemTooltip(el, event) {
     if (!el?.dataset?.shopitem) return;
-    showShopItemTooltip(event, el.dataset.shopitem);
+    showShopItemTooltip(withCurrentTarget(event, el), el.dataset.shopitem);
 }
 
 function showItemTooltip(event, itemId) {
