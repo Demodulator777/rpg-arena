@@ -467,7 +467,7 @@ function generateFloor(dungeonId, floor) {
       else if (floor >= 10) monsterCount = 2;
       else monsterCount = 1;
 
-      let monsters = null;
+      let monsters = [];
       
       // ONLY spawn monsters in non-start, non-boss rooms
       if (!isStart && !isBoss && availableMonsters.length > 0) {
@@ -868,50 +868,59 @@ function fightRound() {
     }
     
     if (monsterDead) {
-        log(`✅ ${D.combat.monsters[currentMonsterIndex].name} defeated!`, 'log-success');
-        
-        let nextIndex = -1;
-        for (let i = 0; i < D.combat.monsters.length; i++) {
-            if (D.combat.monsters[i].currentHp > 0) {
-                nextIndex = i;
-                break;
-            }
+    const defeatedMonster = D.combat.monsters[currentMonsterIndex];
+    log(`✅ ${defeatedMonster.name} defeated!`, 'log-success');
+
+    let nextIndex = -1;
+    for (let i = 0; i < D.combat.monsters.length; i++) {
+        if (D.combat.monsters[i].currentHp > 0) {
+            nextIndex = i;
+            break;
         }
-        
-        if (nextIndex === -1 || allMonstersDead) {
-            onRoomCleared(D.combat.roomIdx);
+    }
+
+    if (nextIndex === -1 || allMonstersDead) {
+        if (defeatedMonster.isBoss) {
+            onBossDefeated();
         } else {
-            D.combat.currentMonsterIndex = nextIndex;
-            renderCombatPanel();
+            onRoomCleared(D.combat.roomIdx);
         }
     } else {
+        D.combat.currentMonsterIndex = nextIndex;
         renderCombatPanel();
     }
+} else {
+    renderCombatPanel();
+}
 }
 
 function onRoomCleared(roomIdx) {
     const room = D.rooms[roomIdx];
-    
+    if (!room) return;
+
+    const monsters = Array.isArray(room.monsters) ? room.monsters : [];
+
     // Mark all monsters as killed
-    if (room.monsters) {
-        room.monsters.forEach(m => { m.lastKilled = Date.now(); });
-    }
-    
+    monsters.forEach(m => {
+        m.lastKilled = Date.now();
+        m.currentHp = 0;
+    });
+
     // Clear evaded flag if it was set
     room.monstersEvaded = false;
-    
+
     // Roll loot for each monster
     let totalGold = 0;
-    for (const monster of room.monsters) {
+    for (const monster of monsters) {
         const loot = rollMinorLoot(D.activeDungeon);
         if (loot.type === 'gold') totalGold += loot.amount;
         else applyLoot(loot);
     }
-    
+
     if (totalGold > 0) {
         applyLoot({ type: 'gold', amount: totalGold });
     }
-    
+
     D.combat = null;
     saveState();
     saveProgressToDB();
