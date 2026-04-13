@@ -289,6 +289,8 @@ function formatTrainingProgressText(status) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+    bindLegacyInlineHandlers(document);
+    legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
     if (!document.getElementById('item-tooltip')) {
         const tt=document.createElement('div');
         tt.id='item-tooltip'; tt.className='item-tooltip hidden';
@@ -404,7 +406,7 @@ function renderTopBar() {
     const xpPct=Math.min(100,Math.round((c.xp/lxp)*100));
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
-    set('topbar-avatar',el=>{ el.src=`/images/class/${c.class}.png`; el.alt=c.class; el.onerror=function(){this.style.display='none';}; });
+        set('topbar-avatar',el=>{ el.src=`/images/class/${c.class}.png`; el.alt=c.class; el.dataset.errorHide='true'; });
     set('topbar-hp-fill',el=>{ el.style.width=hpPct+'%'; el.style.background=hpColor; });
     set('topbar-hp-text',el=>{ el.textContent=`${hpCur} / ${c.hp_max}`; });
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
@@ -464,7 +466,7 @@ function buildEqSlotSmall(slot, eq, icon, label) {
     const qc = item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
     const itemData = escHtml(JSON.stringify(item));
     return `<div class="eq-slot-small filled" style="border-color:${qc}44"
-        onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()" data-item="${itemData}">
+        data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip" data-item="${itemData}">
         <span style="font-size:1.1rem;line-height:1">${itemIcon(item,'slot')}</span>
     </div>`;
 }
@@ -569,7 +571,7 @@ function renderCharacter() {
 const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
     const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
-            <img src="/images/class/${c.class}.png" alt="${c.class}" onerror="this.style.opacity='0'">
+            <img src="/images/class/${c.class}.png" alt="${c.class}" data-error-opacity-zero="true">
         </div>` : '';
     const item = resolvedEq[slot];
     if (!item) return avatarDiv + `
@@ -581,8 +583,8 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
     const itemData = escHtml(JSON.stringify(item));
     return avatarDiv + `
         <div class="eq-slot filled" style="border-color:${qc}44"
-            onmouseenter="showEqTooltip(event,this.dataset.item)"
-            onmouseleave="scheduleHideTooltip()"
+            data-hover-action="hoverEqTooltip"
+            data-leave-action="scheduleHideTooltip"
             data-item="${itemData}">
             <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
         </div>`;
@@ -745,7 +747,7 @@ function renderLoadout() {
         <div style="display:none" id="loadout-hidden-inputs">
             ${Array.from({length:10},(_,i)=>`<input id="atk-${i}" value="${_loadoutAttackZones[i]||'chest'}"><input id="blk-${i}" value="${_loadoutBlockZones[i]||'cross_guard'}">`).join('')}
         </div>
-        <button class="btn-primary" style="width:100%;margin-top:4px" onclick="saveLoadout()">Save Loadout</button>
+        <button class="btn-primary" style="width:100%;margin-top:4px" ${actionAttrs('saveLoadout')}>Save Loadout</button>
         <div id="loadout-msg" class="msg-bar hidden"></div>`;
     _loadoutActiveRound = 0;
     renderLoadoutRoundTabs();
@@ -763,7 +765,7 @@ function renderLoadoutRoundTabs() {
         const atkColor = ZONE_COLORS[atkZone]   || '#aaa';
         const blkColor = BLOCK_COLORS[blkZone]  || '#aaa';
         const isActive = i === _loadoutActiveRound;
-        return `<div onclick="selectLoadoutRound(${i})" style="
+        return `<div ${actionAttrs('selectLoadoutRound', i)} style="
             flex:1;min-width:42px;padding:7px 4px;border-radius:8px;cursor:pointer;text-align:center;
             border:2px solid ${isActive?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.1)'};
             background:${isActive?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.03)'};transition:all 0.15s">
@@ -846,7 +848,7 @@ function renderLoadoutDotGrid(type) {
         return `<div
             data-zone="${zoneKey}"
             title="${label}"
-            onclick="onLoadoutDotClick(event,'${type}','${zoneKey}')"
+            ${actionAttrs('onLoadoutDotClick', type, zoneKey)}
             style="position:absolute;
                 left:calc(${pos.x}% - ${size/2}px);
                 top:calc(${pos.y}% - ${size/2}px);
@@ -865,17 +867,17 @@ function renderLoadoutDotGrid(type) {
                  style="position:absolute;inset:0;width:100%;height:92%;
                         object-fit:contain;object-position:center top;
                         opacity:0.2;pointer-events:none;z-index:0"
-                 onerror="this.style.display='none'">
+                 data-error-hide="true">
             ${dots}
         </div>`;
 
     updateLoadoutZoneInfo(type, currentZone);
 }
 
-function onLoadoutDotClick(e, type, zoneKey) {
-    e.stopPropagation();
+function onLoadoutDotClick(type, zoneKey, el, event) {
+    event?.stopPropagation();
     closeLoadoutPopup();
-    const dot = e.currentTarget;
+    const dot = el;
     const rect = dot.getBoundingClientRect();
     showLoadoutPopup(type, rect);
 }
@@ -900,13 +902,11 @@ function showLoadoutPopup(type, anchorRect) {
         const stat  = isAtk
             ? `\u00d7${v.dmgMult} \u00b7 ${Math.round(v.hitChance*100)}% hit`
             : `${Math.round(v.reduction*100)}% block`;
-        return `<div onclick="pickLoadoutZone('${type}','${k}')"
+        return `<div ${actionAttrs('pickLoadoutZone', type, k)}
             style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
                    background:${isActive?`${color}22`:'transparent'};
                    border:1px solid ${isActive?color:'transparent'};
-                   transition:background 0.1s;margin-bottom:2px"
-            onmouseenter="this.style.background='rgba(255,255,255,0.07)'"
-            onmouseleave="this.style.background='${isActive?`${color}22`:'transparent'}'">
+                   transition:background 0.1s;margin-bottom:2px">
             <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
                 <div style="font-size:0.73rem;color:${isActive?'#fff':'rgba(255,255,255,0.75)'};font-weight:${isActive?'700':'400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.label}</div>
@@ -1013,7 +1013,7 @@ function renderTraining() {
             btn.className = 'btn-primary';
             btn.style.cssText = 'grid-column:1/-1;margin-top:8px';
             btn.textContent = `⚡ Collect +1 ${capitalize(c.training_stat)}`;
-            btn.onclick = collectTraining;
+            btn.addEventListener('click', collectTraining);
             document.getElementById('train-grid').after(btn);
         }
     } else if (c.trainingActive) {
@@ -1078,7 +1078,7 @@ function renderUpgrade() {
             ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>` : ''}
             ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>` : ''}
             <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
-            <button class="btn-upgrade" onclick="upgradestat('${s.key}')" ${can ? '' : 'disabled'}>${can ? `+1 for ${cost}g` : `Need ${cost - c.gold} more`}</button>
+            <button class="btn-upgrade" ${actionAttrs('upgradestat', s.key)} ${can ? '' : 'disabled'}>${can ? `+1 for ${cost}g` : `Need ${cost - c.gold} more`}</button>
         </div>`;
     }).join('');
 }
@@ -1188,7 +1188,7 @@ function renderSkills() {
                 </div>
             </div>
             <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45">${sk.desc}</div>
-            <button onclick="activateSkill('${sk.id}')" ${btnDisabled?'disabled':''}
+            <button ${actionAttrs('activateSkill', sk.id)} ${btnDisabled?'disabled':''}
                 style="width:100%;padding:8px;border-radius:8px;border:1px solid ${canActivate?'rgba(155,89,182,0.5)':'rgba(255,255,255,0.1)'};
                 background:${canActivate?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.04)'};
                 color:${canActivate?'#9b59b6':'var(--text-dim)'};cursor:${canActivate?'pointer':'not-allowed'};
@@ -1260,10 +1260,10 @@ function renderWorldMap() {
         const pinStyle=`position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:${isUnlocked?'pointer':'not-allowed'};z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked?'opacity:0.4':''}`;
         const badge=isCurrent?'📍':!isUnlocked?'🔒':isTraveling?'🚶':'';
         const ringStyle=`width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent?'#f1c40f':'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked?'filter:grayscale(1)':''}${isCurrent?';box-shadow:0 0 0 3px rgba(241,196,15,0.4)':''}${isTraveling?';animation:pulse 1.5s infinite':''}`;
-        return `<div style="${pinStyle}" onclick="onMapNodeClick('${zoneId}')" title="${zone.name}">
+        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
             <div style="position:relative;display:inline-block">
                 ${badge?`<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>`:''}
-                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" onerror="this.style.background='#2c3e50'">
+                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
             </div>
             <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
             <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):'Lv.'+zone.minLevel}</div>
@@ -1274,10 +1274,10 @@ function renderWorldMap() {
     if (playerLevel >= 39) {
         pinsHtml += `
             <div style="position:absolute;left:90%;top:85%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;" 
-                 onclick="onMapNodeClick('abyss_gate')" title="Abyss Gate">
+                 ${actionAttrs('onMapNodeClick', 'abyss_gate')} title="Abyss Gate">
                 <div style="position:relative;display:inline-block">
                     <img style="width:72px;height:72px;border-radius:50%;border:3px solid #9b59b6;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 15px rgba(155,89,182,0.5);animation:pulse 2s infinite;" 
-                         src="/images/zones/abyss_gate.jpg" alt="Abyss Gate" onerror="this.style.background='#2c3e50'">
+                         src="/images/zones/abyss_gate.jpg" alt="Abyss Gate" data-error-background="#2c3e50">
                 </div>
                 <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">Abyss Gate</div>
                 <div style="font-size:10px;color:rgba(155,89,182,0.8);text-align:center">Lv.39+</div>
@@ -1372,7 +1372,7 @@ function openLocationModal(zoneId) {
                 <div class="mz-hero-actions">
                     ${isCurrent
                         ? `<span class="mz-here-badge">📍 You are here</span>`
-                        : `<button class="mz-travel-btn" onclick="travelToZone('${zoneId}')" ${isTraveling ? 'disabled' : ''}>
+                        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${isTraveling ? 'disabled' : ''}>
                             🚶 Travel here${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
                     }
@@ -1385,9 +1385,9 @@ function openLocationModal(zoneId) {
         <div class="mz-spots-grid">
             ${zone.spots.map(spot => {
                 const locked = !isCurrent;
-                return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" onclick="${locked ? '' : ` openSpotMissions('${zoneId}','${spot.id}')`}">
+                return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" ${locked ? '' : actionAttrs('openSpotMissions', zoneId, spot.id)}>
                     <div class="mz-spot-img-wrap">
-                        <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" onerror="this.src=''">
+                        <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" data-error-src="">
                         <span class="mz-spot-diff-badge" style="background:${db2[spot.difficulty]};color:${dc[spot.difficulty]}">${spot.difficulty.toUpperCase()}</span>
                         ${locked ? '<div class="mz-spot-locked-overlay">🔒 Travel here first</div>' : ''}
                     </div>
@@ -1435,7 +1435,7 @@ function openSpotMissions(zoneId, spotId) {
                 const border = canAfford ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
                 const bg = canAfford ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
                 const opacity = canAfford ? '1' : '0.45';
-                return `<div onclick="${canAfford ? `pickMissionSize('${zoneId}','${spotId}','${sz.key}')` : ''}"
+                return `<div ${canAfford ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
                     style="border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
@@ -1452,7 +1452,7 @@ function openSpotMissions(zoneId, spotId) {
             ${spot.missions.map((m, idx) => `
                 <div class="mz-mission-card" id="mission-opt-${idx}" style="opacity:0.4;pointer-events:none">
                     <div class="mz-mission-img-wrap">
-                        <img class="mz-mission-img" src="${m.img}" alt="${m.name}" onerror="this.style.background='#1c2b38'">
+                        <img class="mz-mission-img" src="${m.img}" alt="${m.name}" data-error-background="#1c2b38">
                         <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ Start</div></div>
                     </div>
                     <div class="mz-mission-info">
@@ -1497,18 +1497,25 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
         if (card) {
             card.style.opacity = '1';
             card.style.pointerEvents = 'auto';
-            card.onclick = () => doStartMission(zoneId, spotId, idx, sizeKey);
-            const reward = card.querySelector('.mz-mission-reward');
-            if (reward) {
-                reward.innerHTML = `💰 ${Math.floor(zone.payoutBase[spot.difficulty][0] * mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1] * mult)} gold`;
+            card.replaceWith(card.cloneNode(true));
+            const freshCard = document.getElementById(`mission-opt-${idx}`);
+            if (freshCard) {
+                freshCard.style.opacity = '1';
+                freshCard.style.pointerEvents = 'auto';
+                freshCard.addEventListener('click', () => doStartMission(zoneId, spotId, idx, sizeKey));
+                const reward = freshCard.querySelector('.mz-mission-reward');
+                if (reward) {
+                    reward.innerHTML = `💰 ${Math.floor(zone.payoutBase[spot.difficulty][0] * mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1] * mult)} gold`;
+                }
             }
         }
     });
     
     // Highlight selected size
-    document.querySelectorAll('#mission-location-active [onclick^="pickMissionSize"]').forEach(el => {
-        el.style.background = el.getAttribute('onclick')?.includes(sizeKey) ? 'rgba(155,89,182,0.2)' : 'rgba(255,255,255,0.05)';
-        el.style.borderColor = el.getAttribute('onclick')?.includes(sizeKey) ? 'rgba(155,89,182,0.5)' : '';
+    document.querySelectorAll('#mission-location-active [data-mission-size]').forEach(el => {
+        const isSelected = el.getAttribute('data-mission-size') === sizeKey;
+        el.style.background = isSelected ? 'rgba(155,89,182,0.2)' : 'rgba(255,255,255,0.05)';
+        el.style.borderColor = isSelected ? 'rgba(155,89,182,0.5)' : '';
     });
 }
 
@@ -1919,7 +1926,7 @@ function renderForge() {
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
                 <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold</div>
-                <button class="btn-forge" onclick="refine('${c.id}')" ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button>
+                <button class="btn-forge" ${actionAttrs('refine', c.id)} ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button>
             </div>`;
         }).join('')}</div>`;
         return;
@@ -1989,7 +1996,7 @@ function renderForge() {
                     ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                     : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
                 <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
-                <button class="btn-forge ${r.owned?'btn-forge-owned':''}" onclick="craftItem('${r.id}')" ${r.canCraft&&!r.owned?'':'disabled'}>
+                <button class="btn-forge ${r.owned?'btn-forge-owned':''}" ${actionAttrs('craftItem', r.id)} ${r.canCraft&&!r.owned?'':'disabled'}>
                     ${locked?'🔒 Locked':r.owned?'✓ Already Crafted':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
                 </button>
             </div>`;
@@ -2060,15 +2067,15 @@ function renderGearGrid(el, gear, equipped) {
         return `
         <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;">
             <div class="inv-item-icon" 
-                 onmouseenter="showItemTooltip(event, ${i.id})" 
-                 onmouseleave="scheduleHideTooltip()"
-                 onclick="showItemTooltip(event, ${i.id})">${itemIcon(d,'64px')}</div>
+                 data-hover-action="hoverItemTooltip" data-args='[${i.id}]'
+                 data-leave-action="scheduleHideTooltip"
+                 ${actionAttrs('openItemTooltip', i.id)}>${itemIcon(d,'64px')}</div>
             ${upgradeBadge}
             ${isEquipped ? '<div class="inv-item-equipped-dot"></div>' : ''}
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
-                <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" onclick="event.stopPropagation(); toggleEquipItem(${i.id},'${d.slot}',${isEquipped})">${isEquipped ? 'Unequip' : 'Equip'}</button>
-                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" onclick="event.stopPropagation(); openUpgradeModal(${i.id})">⬆️ Upgrade</button>` : ''}
+                <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>
+                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
@@ -2191,15 +2198,15 @@ function renderInventory(data) {
             const itemImage = d.image || getItemImage(d.name);
             return `<div class="inv-card">
                 <div class="inv-card-header">
-                    <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline'">
+                    <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" data-error-hide="true" data-error-next-display="inline">
                     <span style="font-size:1.4rem;display:none">${d.emoji || '🎁'}</span>
                     <span class="inv-card-name">${d.name}</span>
                     <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×${d.qty || 1}</span>
                 </div>
                 <div class="inv-stat-str">${d.desc}</div>
                 <div style="display:flex;gap:8px;margin-top:10px">
-                    <button class="btn-primary" style="flex:1" onclick="openLootBox(${i.id}, '${d.name.replace(/'/g, "\\'")}')">🎁 Open</button>
-                    <button class="btn-sm danger" onclick="sellItem(${i.id}, '${d.name.replace(/'/g, "\\'")}', ${sp})">Sell ${sp}g</button>
+                    <button class="btn-primary" style="flex:1" ${actionAttrs('openLootBox', i.id, d.name)}>🎁 Open</button>
+                    <button class="btn-sm danger" ${actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
@@ -2221,7 +2228,7 @@ function renderInventory(data) {
             const itemImage = d.image || getItemImage(d.name);
             return '<div class="inv-card">'
                 + '<div class="inv-card-header">'
-                + '<img src="' + itemImage + '" style="width:36px;height:36px;object-fit:contain;border-radius:8px" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'inline\'">'
+                + '<img src="' + itemImage + '" style="width:36px;height:36px;object-fit:contain;border-radius:8px" data-error-hide="true" data-error-next-display="inline">'
                 + '<span style="font-size:1.4rem;display:none">' + (d.emoji || '🧪') + '</span>'
                 + '<span class="inv-card-name">' + (d.name || '') + '</span>'
                 + '<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×' + (d.qty || 1) + '</span>'
@@ -2229,8 +2236,8 @@ function renderInventory(data) {
                 + '<div class="inv-stat-str">' + eff + '</div>'
                 + '<div class="inv-slot" style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 10px">' + (d.desc || '') + '</div>'
                 + '<div style="display:flex;gap:8px">'
-                + '<button class="btn-sm" style="flex:1;background:rgba(39,174,96,0.15);border-color:rgba(39,174,96,0.4);color:#2ecc71" onclick="useItem(' + i.id + ',\'' + sn + '\')">Use</button>'
-                + '<button class="btn-sm danger" onclick="sellItem(' + i.id + ',\'' + sn + '\',' + sp + ')">Sell ' + sp + 'g</button>'
+                + '<button class="btn-sm" style="flex:1;background:rgba(39,174,96,0.15);border-color:rgba(39,174,96,0.4);color:#2ecc71" ' + actionAttrs('useItem', i.id, d.name || '') + '>Use</button>'
+                + '<button class="btn-sm danger" ' + actionAttrs('sellItem', i.id, d.name || '', sp) + '>Sell ' + sp + 'g</button>'
                 + '</div></div>';
         }).join('') + '</div>';
     } else if (invTab === 'materials') {
@@ -2286,7 +2293,7 @@ function renderInventory(data) {
                     const d = i.item_data;
                     const itemImage = d.image || getItemImage(d.name);
                     return `<div class="mat-card">
-                        <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" onerror="this.style.display='none';this.nextSibling.style.display='block'">
+                        <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" data-error-hide="true" data-error-next-display="block">
                         <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
                         <div class="mat-name">${d.name || d.id}</div>
                         <div class="mat-qty">× ${d.qty || 1}</div>
@@ -2303,9 +2310,9 @@ function renderInventory(data) {
                         <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
                         <div class="mat-name">${rate.name}</div>
                         <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
-                        <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 1)" ${!canAfford ? 'disabled' : ''} 
+                        <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 1)} ${!canAfford ? 'disabled' : ''} 
                             style="margin-top: 8px; width: 100%;">Exchange x1</button>
-                        <button class="btn-sm" onclick="exchangeFragmentForMaterial('${id}', 5)" ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
+                        <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 5)} ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
                             style="margin-top: 4px; width: 100%;">Exchange x5</button>
                     </div>`;
                 }).join('')}
@@ -2357,7 +2364,7 @@ function showItemTooltip(event, itemId) {
     tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
-                ?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
                 :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
@@ -2369,9 +2376,9 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-actions">
             ${isEquipped
-                ?`<button class="tt-btn tt-btn-secondary" onclick="unequipSlot('${d.slot}')">Unequip</button>`
-                :`<button class="tt-btn tt-btn-primary" onclick="equipItem(${itemId})">Equip</button>`}
-            <button class="tt-btn tt-btn-danger" onclick="sellItem(${itemId},'${sn}',${sp})" ${isEquipped?'disabled':''}>Sell ${sp}g</button>
+                ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
+                :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
+            <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sp)} ${isEquipped?'disabled':''}>Sell ${sp}g</button>
         </div>`;
 
     tooltip.classList.remove('hidden');
@@ -2386,6 +2393,24 @@ function showItemTooltip(event, itemId) {
 }
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
+
+function hoverItemTooltip(itemId, el, event) {
+    showItemTooltip(event, itemId);
+}
+
+function openItemTooltip(itemId, el, event) {
+    showItemTooltip(event, itemId);
+}
+
+function hoverEqTooltip(el, event) {
+    if (!el?.dataset?.item) return;
+    showEqTooltip(event, el.dataset.item);
+}
+
+function hoverShopItemTooltip(el, event) {
+    if (!el?.dataset?.shopitem) return;
+    showShopItemTooltip(event, el.dataset.shopitem);
+}
 
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
@@ -2434,7 +2459,7 @@ function showItemTooltip(event, itemId) {
     tooltip.innerHTML = `
         <div class="tt-preview">
             ${imgSrc
-                ?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
                 :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
@@ -2446,9 +2471,9 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-actions">
             ${isEquipped
-                ?`<button class="tt-btn tt-btn-secondary" onclick="unequipSlot('${d.slot}')">Unequip</button>`
-                :`<button class="tt-btn tt-btn-primary" onclick="equipItem(${itemId})">Equip</button>`}
-            <button class="tt-btn tt-btn-danger" onclick="sellItem(${itemId},'${sn}',${sellPrice})" ${isEquipped?'disabled':''}>
+                ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
+                :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
+            <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sellPrice)} ${isEquipped?'disabled':''}>
                 Sell ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
             </button>
         </div>`;
@@ -2482,7 +2507,7 @@ function showEqTooltip(event, itemJson) {
 
     tooltip.innerHTML = `
         <div class="tt-preview">
-            ${imgSrc?`<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
+            ${imgSrc?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${item.name||''}</div>
@@ -2838,7 +2863,7 @@ function renderSingleLootboxItem(item) {
     
     return `
         <div class="lootbox-item-card">
-            <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" onerror="this.src='/images/assets/prize.png'">
+            <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">
             <div class="lootbox-item-info">
                 <div class="lootbox-item-title">${escapeHtml(itemName)}${qtyText}</div>
                 <div class="lootbox-item-sub">${escapeHtml(descText)}</div>
@@ -2863,7 +2888,7 @@ function renderLootboxSummary(result, boxName) {
     if (goldAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/images/assets/gold-coin.png" onerror="this.src='/images/assets/prize.png'" alt="Gold">
+                <img class="lootbox-summary-img" src="/images/assets/gold-coin.png" data-error-src="/images/assets/prize.png" alt="Gold">
                 <div><strong>${goldAmount} Gold</strong></div>
             </div>
         `;
@@ -2872,7 +2897,7 @@ function renderLootboxSummary(result, boxName) {
     if (gemsAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/images/assets/gem.png" onerror="this.src='/images/assets/prize.png'" alt="Gems">
+                <img class="lootbox-summary-img" src="/images/assets/gem.png" data-error-src="/images/assets/prize.png" alt="Gems">
                 <div><strong>${gemsAmount} Gems</strong></div>
             </div>
         `;
@@ -2885,7 +2910,7 @@ function renderLootboxSummary(result, boxName) {
         
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="${imagePath}" onerror="this.src='/images/assets/prize.png'" alt="${escapeHtml(item.name)}">
+                <img class="lootbox-summary-img" src="${imagePath}" data-error-src="/images/assets/prize.png" alt="${escapeHtml(item.name)}">
                 <div>
                     <strong>${escapeHtml(item.name)}</strong> ${item.qty ? `x${item.qty}` : ''}
                 </div>
@@ -3084,33 +3109,36 @@ async function openLootBox(itemId, itemName) {
                 
                 const actionBtn = document.getElementById('lootbox-action-btn');
                 if (actionBtn) {
-                    actionBtn.onclick = () => {
+                    actionBtn.addEventListener('click', () => {
                         currentIndex++;
                         showCurrentItem();
-                    };
-                    actionBtn.onmouseenter = () => actionBtn.style.transform = 'scale(0.97)';
-                    actionBtn.onmouseleave = () => actionBtn.style.transform = 'scale(1)';
+                    }, { once: true });
+                    actionBtn.addEventListener('mouseenter', () => { actionBtn.style.transform = 'scale(0.97)'; });
+                    actionBtn.addEventListener('mouseleave', () => { actionBtn.style.transform = 'scale(1)'; });
                 }
             }
             
             // Skip button handler
-            skipBtn.onclick = () => {
+            skipBtn.replaceWith(skipBtn.cloneNode(true));
+            const freshSkipBtn = document.getElementById('lootbox-skip-btn');
+            freshSkipBtn.addEventListener('click', () => {
                 if (!skipRequested) {
                     skipRequested = true;
                     showSummary();
                 }
-            };
+            }, { once: true });
             
             // Close button handler (initially hidden, set up for later)
             const closeHandler = () => {
                 modal.classList.remove('active');
-                closeBtn.removeEventListener('click', closeHandler);
                 // Refresh inventory
                 loadInventory();
                 renderTopBar();
                 renderCharacter();
             };
-            closeBtn.onclick = closeHandler;
+            closeBtn.replaceWith(closeBtn.cloneNode(true));
+            const freshCloseBtn = document.getElementById('lootbox-close-btn');
+            freshCloseBtn.addEventListener('click', closeHandler, { once: true });
             
             // Start showing first item
             showCurrentItem();
@@ -3238,7 +3266,7 @@ function renderShop() {
 
         const shopItemData = escHtml(JSON.stringify(item));
         return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
-            <div class="shop-card-header" onmouseenter="showShopItemTooltip(event,this.dataset.shopitem)" onmouseleave="scheduleHideTooltip()" data-shopitem="${shopItemData}">
+            <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}">
                 <span class="shop-card-icon">${itemIcon(item,'2rem')}</span>
                 <span class="shop-card-name">${item.name}</span>
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
@@ -3250,7 +3278,7 @@ function renderShop() {
                 <div style="display:flex;flex-direction:column;gap:2px">
                     <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
-                <button class="btn-shop" onclick="buyItem('${item.id}')" ${isAvail&&classOk&&hasEnough?'':'disabled'}>${
+                <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough?'':'disabled'}>${
                     !isAvail ? `Level ${item.level}` :
                     !classOk ? 'Class Locked' :
                     !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
@@ -3357,7 +3385,7 @@ function renderPremium(data) {
                     </div>
                 </div>
                 <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5">${f.desc}</div>
-                <button onclick="activatePremium('${f.id}')"
+                <button ${actionAttrs('activatePremium', f.id)}
                     style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s"
                     ${gems < f.cost && !isActive ? 'disabled' : ''}>
                     ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
@@ -3420,9 +3448,9 @@ function renderLeaderboard() {
         const rs=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
         // REMOVE the fallback - only use total_gold_earned
         const totalEarned = p.total_gold_earned || 0;
-        return `<div class="lb-row" onclick="openProfile(${p.id})">
+        return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
-            <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" onerror="this.style.display='none'">
+            <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
             <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · @${p.username}</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
@@ -3476,7 +3504,7 @@ async function openProfile(id) {
         ];
         const profileEqHtml =
             `<div class="eq-avatar-center profile-eq-avatar">
-                <img src="/images/class/${p.class}.png" alt="${p.class}" onerror="this.style.opacity='0'">
+                <img src="/images/class/${p.class}.png" alt="${p.class}" data-error-opacity-zero="true">
             </div>`
             + profileSlots.map(({slot,icon}) => {
                 const item = profileResolvedEq[slot];
@@ -3485,8 +3513,8 @@ async function openProfile(id) {
                 const itemData = escHtml(JSON.stringify(item));
                 return `<div class="eq-slot filled profile-eq-slot" style="border-color:${qc}44"
                     data-item="${itemData}"
-                    onmouseenter="showEqTooltip(event,this.dataset.item)"
-                    onmouseleave="scheduleHideTooltip()"
+                    data-hover-action="hoverEqTooltip"
+                    data-leave-action="scheduleHideTooltip"
                 >
                     <span class="eq-slot-icon">${itemIcon(item, 'slot')}</span>
                 </div>`;
@@ -3500,7 +3528,7 @@ async function openProfile(id) {
             const itemData=escHtml(JSON.stringify(item));
             return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${qc}33;background:rgba(255,255,255,0.03);cursor:default"
                 data-item="${itemData}"
-                onmouseenter="showEqTooltip(event,this.dataset.item)" onmouseleave="scheduleHideTooltip()">
+                data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip">
                 ${itemIcon(item,'1.2rem')}
                 <span style="color:${qc};font-size:0.7rem">${item.name}</span>
                 <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">· ${label}</span>
@@ -3514,10 +3542,10 @@ async function openProfile(id) {
         <div class="class-scene-content">
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
-              <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" onerror="this.style.display='none'">
+              <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
               <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} · @${uname}</div></div>
             </div>
-            <button class="btn-secondary" onclick="closeProfile()">✕</button>
+            <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
           <div class="profile-grid">
             <div class="profile-card">
@@ -3559,8 +3587,8 @@ async function openProfile(id) {
             else if(myBattleCd>0){blocked=true;const m=Math.ceil(myBattleCd/60);reason='Wait '+m+'m to fight again';}
             const atkBtn=blocked
                 ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
-                :`<button class="btn-attack" onclick="closeProfile();attackFromProfile(${id},'${name.replace(/'/g,"\\'")}')">⚔️ Attack</button>`;
-            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" onclick="closeProfile();openCompose(${id},'${name.replace(/'/g,"\\'")}')">✉️ Message</button></div>`;
+                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>⚔️ Attack</button>`;
+            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
           })() : ''}
         </div>
       </div>`;
@@ -3572,7 +3600,8 @@ function miniStat(icon,label,val,max,cls) {
     <span class="stat-val" style="font-size:0.9rem">${val}</span></div>`;
 }
 function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
-async function attackFromProfile(id,name) { await attack(id,name); }
+async function attackFromProfile(id,name) { closeProfile(); await attack(id,name); }
+function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
 
 // ── Matchmaking ────────────────────────────────────────────────────────────
 let _matchmakingTarget = null;
@@ -3591,19 +3620,19 @@ async function findOpponent(direction='similar') {
         if (box) box.innerHTML = `
             <div class="matchmaking-card">
                 <div style="display:flex;align-items:center;gap:14px">
-                    <img src="/images/class/${p.class}.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" onerror="this.style.display='none'">
+                    <img src="/images/class/${p.class}.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
                     <div style="flex:1">
-                        <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" onclick="openProfile(${p.id})">${ci[p.class]||'⚔️'} ${escHtml(p.name)}</div>
+                        <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ci[p.class]||'⚔️'} ${escHtml(p.name)}</div>
                         <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} · ${p.wins}W/${p.losses}L</div>
                         <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} · Power ${power}</div>
                     </div>
-                    <button class="btn-attack" onclick="attack(${p.id},'${p.name}')">⚔️ Attack</button>
+                    <button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>⚔️ Attack</button>
                 </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                <button class="btn-secondary" style="flex:1" onclick="findOpponent('weaker')">⬇️ Weaker</button>
-                <button class="btn-secondary" style="flex:1" onclick="findOpponent('similar')">↔️ Similar</button>
-                <button class="btn-secondary" style="flex:1" onclick="findOpponent('stronger')">⬆️ Stronger</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'weaker')}>⬇️ Weaker</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'similar')}>↔️ Similar</button>
+                <button class="btn-secondary" style="flex:1" ${actionAttrs('findOpponent', 'stronger')}>⬆️ Stronger</button>
             </div>`;
     } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
@@ -3637,7 +3666,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
     if (fighters && character) {
         fighters.innerHTML = `
             <div class="fighter-card">
-                <img src="/images/class/${character.class}.png" class="fighter-avatar" onerror="this.style.display='none'">
+                <img src="/images/class/${character.class}.png" class="fighter-avatar" data-error-hide="true">
                 <div class="fighter-name">${character.name}</div>
                 <div class="fighter-class">${capitalize(character.class)} Lv.${character.level}</div>
             </div>
@@ -3681,7 +3710,7 @@ async function loadHistory() {
         list.innerHTML=battles.map(b=>{
             const won=b.winner_id===myId, opp=b.attacker_id===myId?b.defender_name:b.attacker_name;
             const type=b.battle_type==='mission'?'⚔️ Mission':b.attacker_id===myId?'⚔️ Attacked':'🛡️ Defended vs';
-            return `<div class="history-item" onclick="showHistoryLog(${JSON.stringify(b.log).replace(/"/g,'&quot;')},'${b.attacker_name}','${b.defender_name}')">
+            return `<div class="history-item" ${actionAttrs('showHistoryLog', b.log, b.attacker_name, b.defender_name)}>
         <div class="history-header"><div class="history-vs">${type} <strong>${opp}</strong></div><div class="history-result ${won?'won':'lost'}">${won?'🏆 WIN':'💀 LOSS'}</div></div>
         <div class="history-date">${new Date(b.fought_at*1000).toLocaleDateString()}</div>
       </div>`;
@@ -3703,7 +3732,7 @@ async function loadInbox() {
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
-        let html=`<button class="compose-btn" onclick="openCompose(null,null)">✉️ New Message</button>`;
+        let html=`<button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button>`;
         if (!messages.length) html+='<p class="empty">Your inbox is empty.</p>';
         else html+=`<div class="inbox-list">${messages.map(m=>{
             const isReport = m.body && m.body.startsWith('BATTLE_REPORT:');
@@ -3730,8 +3759,8 @@ async function loadInbox() {
                         ${report.xpEarned   ? ` · ⭐ +${report.xpEarned} XP` : ''}
                     </div>` : ''}
                     <div class="msg-actions-report" style="display:flex;gap:8px;margin-top:8px">
-                        <button class="btn-sm" onclick="viewBattleReport(${m.id})">📜 View Report</button>
-                        <button class="btn-sm danger" onclick="deleteMessage(${m.id})">🗑 Delete</button>
+                        <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                        <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
                     </div>
                 </div>`;
             }
@@ -3739,7 +3768,7 @@ async function loadInbox() {
                 <div class="msg-header"><div class="msg-from ${m.read?'':'unread-from'}">From: ${m.sender_name}</div><div class="msg-date">${new Date(m.sent_at*1000).toLocaleDateString()}</div></div>
                 <div class="msg-subject">${escHtml(m.subject)}</div>
                 <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
-                <div class="msg-actions" style="display:none"><button class="btn-sm" onclick="openCompose(${m.sender_id},'${m.sender_name}')">↩ Reply</button><button class="btn-sm danger" onclick="deleteMessage(${m.id})">🗑 Delete</button></div>
+                <div class="msg-actions" style="display:none"><button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button><button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button></div>
             </div>`;
         }).join('')}</div>`;
         el.innerHTML=html;
@@ -3797,7 +3826,7 @@ function itemIcon(item, size='2rem') {
     const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
-    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
+    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
     return `<span style="${sStyle}">${item.emoji||'📦'}</span>`;
 }
 
@@ -3806,6 +3835,211 @@ function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.
 function showMsg(id,msg,isError=false){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.background=isError?'rgba(192,57,43,0.1)':'';el.style.borderColor=isError?'rgba(192,57,43,0.4)':'';el.style.color=isError?'var(--red-light)':'';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+
+function encodeActionArgs(args = []) {
+    return escHtml(JSON.stringify(args));
+}
+
+function actionAttrs(action, ...args) {
+    const attr = [`data-action="${escHtml(action)}"`];
+    if (args.length) attr.push(`data-args="${encodeActionArgs(args)}"`);
+    return attr.join(' ');
+}
+
+function parseActionArgs(el) {
+    const raw = el?.dataset?.args;
+    if (!raw) return [];
+    try {
+        return JSON.parse(raw);
+    } catch (err) {
+        console.warn('Failed to parse action args for', el, err);
+        return [];
+    }
+}
+
+function callNamedAction(actionName, args, event, el) {
+    const fn = globalThis[actionName];
+    if (typeof fn !== 'function') {
+        console.warn(`Action "${actionName}" is not available`);
+        return;
+    }
+    return fn(...args, el, event);
+}
+
+function handleDelegatedAction(event, attrName) {
+    const selector = `[${attrName}]`;
+    const trigger = event.target.closest(selector);
+    if (!trigger) return false;
+    if (trigger.disabled || trigger.getAttribute('aria-disabled') === 'true') return true;
+    const actionName = trigger.getAttribute(attrName);
+    const args = parseActionArgs(trigger);
+    callNamedAction(actionName, args, event, trigger);
+    return true;
+}
+
+function clickElementById(id) {
+    document.getElementById(id)?.click();
+}
+
+document.addEventListener('click', (event) => {
+    handleDelegatedAction(event, 'data-action');
+});
+
+document.addEventListener('input', (event) => {
+    handleDelegatedAction(event, 'data-input-action');
+});
+
+document.addEventListener('change', (event) => {
+    handleDelegatedAction(event, 'data-change-action');
+});
+
+document.addEventListener('mouseover', (event) => {
+    handleDelegatedAction(event, 'data-hover-action');
+});
+
+document.addEventListener('mouseout', (event) => {
+    handleDelegatedAction(event, 'data-leave-action');
+});
+
+document.addEventListener('error', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+    if (target.dataset.errorHide === 'true') {
+        target.style.display = 'none';
+    }
+    if (target.dataset.errorOpacityZero === 'true') {
+        target.style.opacity = '0';
+    }
+    if (target.dataset.errorBackground) {
+        target.style.background = target.dataset.errorBackground;
+    }
+    if (target.dataset.errorSrc) {
+        const nextSrc = target.dataset.errorSrc;
+        if (target.src !== nextSrc) {
+            target.src = nextSrc;
+        }
+    }
+    if (target.dataset.errorNextDisplay && target.nextElementSibling) {
+        target.nextElementSibling.style.display = target.dataset.errorNextDisplay;
+    }
+}, true);
+
+function splitLegacyArgs(argsString) {
+    const args = [];
+    let current = '';
+    let quote = null;
+    for (let i = 0; i < argsString.length; i++) {
+        const ch = argsString[i];
+        if (quote) {
+            current += ch;
+            if (ch === quote && argsString[i - 1] !== '\\') quote = null;
+            continue;
+        }
+        if (ch === '\'' || ch === '"') {
+            quote = ch;
+            current += ch;
+            continue;
+        }
+        if (ch === ',') {
+            args.push(current.trim());
+            current = '';
+            continue;
+        }
+        current += ch;
+    }
+    if (current.trim()) args.push(current.trim());
+    return args;
+}
+
+function parseLegacyArg(token, el, event) {
+    const value = token.trim();
+    if (!value) return undefined;
+    if (value === 'this') return el;
+    if (value === 'event') return event;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (value === 'null') return null;
+    if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+    if ((value.startsWith('\'') && value.endsWith('\'')) || (value.startsWith('"') && value.endsWith('"'))) {
+        return value.slice(1, -1).replace(/\\'/g, '\'').replace(/\\"/g, '"');
+    }
+    return value;
+}
+
+function parseLegacyHandler(raw, attrName, el) {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if (attrName === 'onerror') {
+        return { type: 'error', raw: trimmed };
+    }
+    let stopPropagation = false;
+    let expression = trimmed;
+    if (expression.startsWith('event.stopPropagation();')) {
+        stopPropagation = true;
+        expression = expression.replace('event.stopPropagation();', '').trim();
+    }
+    const match = expression.match(/^([A-Za-z_$][\w$]*)\((.*)\)$/);
+    if (!match) return null;
+    const [, actionName, argList] = match;
+    const rawArgs = argList.trim() ? splitLegacyArgs(argList) : [];
+    return { type: attrName.slice(2), actionName, rawArgs, stopPropagation, el };
+}
+
+function applyLegacyErrorBehavior(el, raw) {
+    if (!raw || el.dataset.legacyErrorBound === 'true') return;
+    if (raw.includes("this.style.display='none'")) el.dataset.errorHide = 'true';
+    if (raw.includes('this.style.opacity=\'0\'') || raw.includes('this.style.opacity="0"')) el.dataset.errorOpacityZero = 'true';
+    const bgMatch = raw.match(/this\.style\.background=['"]([^'"]+)['"]/);
+    if (bgMatch) el.dataset.errorBackground = bgMatch[1];
+    const srcMatch = raw.match(/this\.(?:src|style\.backgroundImage)=['"]([^'"]+)['"]/);
+    if (srcMatch && !srcMatch[1].includes('backgroundImage')) el.dataset.errorSrc = srcMatch[1];
+    const nextDisplayMatch = raw.match(/next(?:ElementSibling|Sibling)\.style\.display=['"]([^'"]+)['"]/);
+    if (nextDisplayMatch) el.dataset.errorNextDisplay = nextDisplayMatch[1];
+    el.dataset.legacyErrorBound = 'true';
+}
+
+function bindLegacyInlineHandlers(root = document) {
+    const scope = root instanceof Element || root instanceof Document ? root : document;
+    const elements = [];
+    if (scope instanceof Element && scope.matches('[onclick],[onchange],[oninput],[onerror]')) {
+        elements.push(scope);
+    }
+    elements.push(...scope.querySelectorAll('[onclick],[onchange],[oninput],[onerror]'));
+    for (const el of elements) {
+        for (const attrName of ['onclick', 'onchange', 'oninput', 'onerror']) {
+            const raw = el.getAttribute(attrName);
+            if (!raw) continue;
+            if (attrName === 'onerror') {
+                applyLegacyErrorBehavior(el, raw);
+                el.removeAttribute(attrName);
+                continue;
+            }
+            if (el.dataset[`legacyBound${attrName}`] === 'true') {
+                el.removeAttribute(attrName);
+                continue;
+            }
+            const parsed = parseLegacyHandler(raw, attrName, el);
+            if (!parsed) continue;
+            el.addEventListener(parsed.type, (event) => {
+                if (parsed.stopPropagation) event.stopPropagation();
+                const args = parsed.rawArgs.map((token) => parseLegacyArg(token, el, event)).filter((v) => v !== undefined);
+                callNamedAction(parsed.actionName, args, event, el);
+            });
+            el.dataset[`legacyBound${attrName}`] = 'true';
+            el.removeAttribute(attrName);
+        }
+    }
+}
+
+const legacyHandlerObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+            if (node instanceof Element) {
+                bindLegacyInlineHandlers(node);
+            }
+        }
+    }
+});
 
 // ── Bug Report System ─────────────────────────────────────────────────────
 
@@ -4026,7 +4260,7 @@ function showShopItemTooltip(event, itemJson) {
         <div class="tt-preview">
             ${
         imgSrc
-            ? `<img src="${imgSrc}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
+            ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji || '📦'}</span>`
             : `<span class="tt-preview-emoji">${item.emoji || '📦'}</span>`
     }
         </div>
@@ -4048,7 +4282,7 @@ function showShopItemTooltip(event, itemJson) {
             </div>
         </div>
         <div class="tt-actions">
-            <button class="tt-btn tt-btn-primary" onclick="buyItem('${item.id}')">
+            <button class="tt-btn tt-btn-primary" ${actionAttrs('buyItem', item.id)}>
                 Buy
             </button>
         </div>
@@ -4143,7 +4377,7 @@ function showScreenshotPreview(dataUrl, sizeKB = null) {
         preview.innerHTML = `
             <div style="position: relative; display: inline-block;">
                 <img src="${dataUrl}" alt="Screenshot preview" style="max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid var(--border);">
-                <button onclick="removeScreenshot()" style="position: absolute; top: -8px; right: -8px; background: #e74c3c; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; color: white; font-size: 14px; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button ${actionAttrs('removeScreenshot')} style="position: absolute; top: -8px; right: -8px; background: #e74c3c; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; color: white; font-size: 14px; display: flex; align-items: center; justify-content: center;">✕</button>
                 ${sizeText}
             </div>
         `;
@@ -4262,7 +4496,7 @@ async function updateTrainingStatus() {
                         <div style="width: ${progress}%; background: #9b59b6; height: 4px; border-radius: 4px;"></div>
                     </div>
                     <span style="font-size: 0.65rem;">${remaining}</span>
-                    <button onclick="cancelTraining()" style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">✕</button>
+                    <button ${actionAttrs('cancelTraining')} style="background: rgba(231,76,60,0.3); border: none; border-radius: 12px; padding: 2px 6px; font-size: 0.6rem; cursor: pointer;">✕</button>
                 </div>
             `;
             indicator.classList.remove('hidden');
@@ -4402,7 +4636,7 @@ async function openUpgradeModal(inventoryId) {
             const compData = comp.item_data;
             const qty = compData.qty || 1;
             componentsHtml += `
-                <div class="upgrade-component-card" onclick="selectComponent('${compData.id}', '${compData.name}', ${qty})">
+                <div class="upgrade-component-card" ${actionAttrs('selectComponent', compData.id, compData.name, qty)}>
                     <div class="component-icon">${compData.emoji || '🔧'}</div>
                     <div class="component-info">
                         <div class="component-name">${compData.name}</div>
@@ -4426,7 +4660,7 @@ async function openUpgradeModal(inventoryId) {
             <div id="upgrade-selected-info" class="upgrade-selected-info hidden">
                 <div class="upgrade-selected-title">Selected Component:</div>
                 <div id="selected-component-details"></div>
-                <button class="btn-primary" onclick="confirmUpgrade()" style="margin-top: 16px;">Confirm Upgrade</button>
+                <button class="btn-primary" ${actionAttrs('confirmUpgrade')} style="margin-top: 16px;">Confirm Upgrade</button>
             </div>
         `;
         
@@ -4441,7 +4675,7 @@ async function openUpgradeModal(inventoryId) {
 let selectedComponentId = null;
 let selectedComponentName = null;
 
-function selectComponent(componentId, componentName, qty) {
+function selectComponent(componentId, componentName, qty, el) {
     if (qty < 1) {
         showMsg('inv-msg', `You don't have any ${componentName}!`, true);
         return;
@@ -4454,7 +4688,7 @@ function selectComponent(componentId, componentName, qty) {
     document.querySelectorAll('.upgrade-component-card').forEach(card => {
         card.classList.remove('selected');
     });
-    event.currentTarget.classList.add('selected');
+    el?.classList.add('selected');
     
     // Show selected info
     const selectedInfo = document.getElementById('upgrade-selected-info');
@@ -4547,9 +4781,9 @@ async function openExchangeModal() {
                         </div>
                         <div style="font-size: 0.7rem; color: #f1c40f;">Cost: ${mat.fragmentCost} ⭐</div>
                         <div style="display: flex; gap: 4px; margin-top: 8px;">
-                            <button class="btn-sm" onclick="exchangeFragments('${mat.id}', 1)" ${!mat.canAfford ? 'disabled' : ''}>x1</button>
-                            <button class="btn-sm" onclick="exchangeFragments('${mat.id}', 5)" ${data.fragmentCount < mat.fragmentCost * 5 ? 'disabled' : ''}>x5</button>
-                            <button class="btn-sm" onclick="exchangeFragments('${mat.id}', 10)" ${data.fragmentCount < mat.fragmentCost * 10 ? 'disabled' : ''}>x10</button>
+                            <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 1)} ${!mat.canAfford ? 'disabled' : ''}>x1</button>
+                            <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 5)} ${data.fragmentCount < mat.fragmentCost * 5 ? 'disabled' : ''}>x5</button>
+                            <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 10)} ${data.fragmentCount < mat.fragmentCost * 10 ? 'disabled' : ''}>x10</button>
                         </div>
                     </div>
                 `;
@@ -4657,10 +4891,10 @@ function renderAbyssMap() {
         const badge = isCurrent ? '📍' : !isUnlocked ? '🔒' : isTraveling ? '🚶' : '';
         const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? 'filter:grayscale(1)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
         
-        return `<div style="${pinStyle}" onclick="onMapNodeClick('${zoneId}')" title="${zone.name}">
+        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
             <div style="position:relative;display:inline-block">
                 ${badge ? `<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>` : ''}
-                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" onerror="this.style.background='#2c3e50'">
+                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
             </div>
             <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
             <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? 'HERE' : '') : 'Lv.' + zone.minLevel}</div>
@@ -4670,7 +4904,7 @@ function renderAbyssMap() {
     // Add exit button
     const exitButton = `
         <div style="position:absolute;bottom:20px;right:20px;z-index:20;">
-            <button class="btn-primary" onclick="exitAbyss()" style="background:rgba(231,76,60,0.8);border-color:#e74c3c;">
+            <button class="btn-primary" ${actionAttrs('exitAbyss')} style="background:rgba(231,76,60,0.8);border-color:#e74c3c;">
                 🚪 Return to Dark City
             </button>
         </div>
