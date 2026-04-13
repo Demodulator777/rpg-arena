@@ -2465,6 +2465,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: 40px !important;
     }
 
+    .eq-avatar-center img,
+    .profile-eq-avatar img {
+        max-width: 180px !important;
+        height: 240px !important;
+    }
+
     .eq-slot-label {
         font-size: 0.45rem !important;
     }
@@ -2498,6 +2504,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-eq-slot .eq-slot-icon img {
         width: 32px !important;
         height: 32px !important;
+    }
+
+    .eq-avatar-center img,
+    .profile-eq-avatar img {
+        max-width: 170px !important;
+        height: 224px !important;
     }
 
     .eq-slot-label {
