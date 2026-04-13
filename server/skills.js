@@ -357,6 +357,15 @@ const SKILL_TREES = {
                         unlockCondition: 'wins_50',
                         thresholds: DEFAULT_THRESHOLDS.tier4,
                     },
+                },
+            },
+            commander_executioner: {
+                name: 'Executioner Doctrine',
+                emoji: '💀',
+                parent_branch: 'battle_commander',
+                description: 'Finish wounded enemies with ruthless precision.',
+                requires: { skill: 'war_cry', minProgress: 100 },
+                skills: {
                     execute: {
                         id: 'execute', tier: 5, name: 'Execute', emoji: '💀',
                         type: 'progressive',
@@ -366,6 +375,29 @@ const SKILL_TREES = {
                         unlockCondition: 'wins_150',
                         thresholds: DEFAULT_THRESHOLDS.tier5,
                     },
+                    death_sentence: {
+                        id: 'death_sentence', tier: 5, name: 'Death Sentence', emoji: '⚔️',
+                        type: 'progressive',
+                        desc: 'Execute now triggers below 40% HP and grants +20% crit damage.',
+                        effects: [
+                            { type: 'active_combat', id: 'execute', hp_threshold: 0.40, dmg_bonus: 1.80 },
+                            { type: 'passive_pct', stat: 'crit_dmg', value: 0.20 }
+                        ],
+                        requires: ['execute'],
+                        unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 2 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { shadow_weave: 2 }
+                        }),
+                    },
+                },
+            },
+            commander_warlord: {
+                name: 'Warlord Doctrine',
+                emoji: '👑',
+                parent_branch: 'battle_commander',
+                description: 'Turn perfect discipline into sustained battlefield control.',
+                requires: { skill: 'war_cry', minProgress: 100 },
+                skills: {
                     supreme_commander: {
                         id: 'supreme_commander', tier: 5, name: 'Supreme Commander', emoji: '👑',
                         type: 'progressive',
@@ -376,7 +408,20 @@ const SKILL_TREES = {
                             { type: 'passive_pct', stat: 'crit_dmg', value: 0.25 },
                             { type: 'class_modifier', id: 'tie_breaker' }
                         ],
-                        requires: ['execute'],
+                        requires: ['war_cry'],
+                        unlockCondition: 'wins_150',
+                        thresholds: DEFAULT_THRESHOLDS.tier5,
+                    },
+                    grand_strategy: {
+                        id: 'grand_strategy', tier: 5, name: 'Grand Strategy', emoji: '🧠',
+                        type: 'progressive',
+                        desc: '+20% Hit Chance. War Cry lasts 5 rounds and grants +30% crit chance.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'hit_chance', value: 0.20 },
+                            { type: 'active_combat', id: 'war_cry', no_miss_rounds: 5, crit_bonus: 0.30 },
+                            { type: 'passive_pct', stat: 'crit_dmg', value: 0.10 }
+                        ],
+                        requires: ['supreme_commander'],
                         unlockCondition: 'wins_500',
                         thresholds: createThresholds({
                             10: {}, 25: { void_crystal: 2 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { shadow_weave: 2 }
@@ -523,6 +568,15 @@ const SKILL_TREES = {
                         unlockCondition: 'level_20',
                         thresholds: MAGE_THRESHOLDS.tier4,
                     },
+                },
+            },
+            pyromancer_fire_lord: {
+                name: 'Fire Lord Path',
+                emoji: '👑',
+                parent_branch: 'pyromancer',
+                description: 'Rule the battlefield through overwhelming flame and burn pressure.',
+                requires: { skill: 'inferno', minProgress: 100 },
+                skills: {
                     fire_lord: {
                         id: 'fire_lord', tier: 5, name: 'Fire Lord', emoji: '👑',
                         type: 'progressive',
@@ -545,6 +599,42 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'inferno', magic_mult: 3.0, ignore_resist: true, uses: 2 }
                         ],
                         requires: ['fire_lord'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { demon_core: 3 }
+                        }),
+                    },
+                },
+            },
+            pyromancer_phoenix: {
+                name: 'Phoenix Path',
+                emoji: '🕊️',
+                parent_branch: 'pyromancer',
+                description: 'Turn flame into survival, renewal, and long-fight control.',
+                requires: { skill: 'inferno', minProgress: 100 },
+                skills: {
+                    phoenix_soul: {
+                        id: 'phoenix_soul', tier: 5, name: 'Phoenix Soul', emoji: '🕊️',
+                        type: 'progressive',
+                        desc: '+20% Fire Damage, +20% Max HP. Heal 8% HP whenever Inferno is cast.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'pyro_dmg', value: 0.20 },
+                            { type: 'passive_pct', stat: 'hp_max', value: 0.20 },
+                            { type: 'active_combat', id: 'phoenix_soul', heal_pct: 0.08 }
+                        ],
+                        requires: ['inferno'],
+                        unlockCondition: 'level_35',
+                        thresholds: MAGE_THRESHOLDS.tier5,
+                    },
+                    rebirth_flame: {
+                        id: 'rebirth_flame', tier: 5, name: 'Rebirth Flame', emoji: '🔥🕊️',
+                        type: 'progressive',
+                        desc: '+25% Fire Damage. Once per battle, survive a lethal hit at 20% HP and ignite the enemy.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'pyro_dmg', value: 0.25 },
+                            { type: 'active_combat', id: 'rebirth_flame', revive_hp_pct: 0.20, burn_dot: 0.10 }
+                        ],
+                        requires: ['phoenix_soul'],
                         unlockCondition: 'level_60',
                         thresholds: createThresholds({
                             10: {}, 25: { void_crystal: 3 }, 50: { legendary_fragment: 4 }, 75: { legendary_fragment: 6 }, 100: { demon_core: 3 }
@@ -907,6 +997,15 @@ const SKILL_TREES = {
                         unlockCondition: 'wins_50',
                         thresholds: ROGUE_THRESHOLDS.tier4,
                     },
+                },
+            },
+            assassin_reaper: {
+                name: 'Reaper Path',
+                emoji: '💀',
+                parent_branch: 'assassin',
+                description: 'Commit to instant kills, armor piercing, and brutal finishers.',
+                requires: { skill: 'venomfang', minProgress: 100 },
+                skills: {
                     death_mark: {
                         id: 'death_mark', tier: 5, name: 'Death Mark', emoji: '☠️',
                         type: 'progressive',
@@ -927,6 +1026,41 @@ const SKILL_TREES = {
                             { type: 'class_modifier', id: 'crit_armour_pierce', pct: 0.50 }
                         ],
                         requires: ['death_mark'],
+                        unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { shadow_weave: 2 }, 100: { demon_core: 3 }
+                        }),
+                    },
+                },
+            },
+            assassin_venom: {
+                name: 'Venom Path',
+                emoji: '🧪',
+                parent_branch: 'assassin',
+                description: 'Trade burst execution for deadly poisons and attrition kills.',
+                requires: { skill: 'venomfang', minProgress: 100 },
+                skills: {
+                    toxin_mastery: {
+                        id: 'toxin_mastery', tier: 5, name: 'Toxin Mastery', emoji: '🧪',
+                        type: 'progressive',
+                        desc: '+15% Agility. Venomfang poison deals 14% damage per round.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'agility', value: 0.15 },
+                            { type: 'active_combat', id: 'venomfang', poison_pct: 0.14 }
+                        ],
+                        requires: ['venomfang'],
+                        unlockCondition: 'wins_150',
+                        thresholds: ROGUE_THRESHOLDS.tier5,
+                    },
+                    plague_sovereign: {
+                        id: 'plague_sovereign', tier: 5, name: 'Plague Sovereign', emoji: '☣️',
+                        type: 'progressive',
+                        desc: '+20% Crit Chance. Poisoned enemies deal 20% less damage and take 20% more crit damage.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'crit_chance', value: 0.20 },
+                            { type: 'active_combat', id: 'plague_sovereign', enemy_dmg_debuff: 0.20, poison_crit_bonus: 0.20 }
+                        ],
+                        requires: ['toxin_mastery'],
                         unlockCondition: 'wins_500',
                         thresholds: createThresholds({
                             10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { shadow_weave: 2 }, 100: { demon_core: 3 }
@@ -1226,6 +1360,44 @@ const SKILL_TREES = {
                 },
             },
 
+            protector_bastion: {
+                name: 'Bastion Path',
+                emoji: '🛡️',
+                parent_branch: 'protector',
+                description: 'An alternate shield doctrine focused on active protection and counter-blocking.',
+                requires: { skill: 'fortress_stance', minProgress: 100 },
+                skills: {
+                    bastion_heart: {
+                        id: 'bastion_heart', tier: 5, name: 'Bastion Heart', emoji: '🛡️',
+                        type: 'progressive',
+                        desc: '+20% Defense, +20% Block Effectiveness. Blocked hits heal 6% max HP.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'defense', value: 0.20 },
+                            { type: 'passive_pct', stat: 'block_effectiveness', value: 0.20 },
+                            { type: 'active_combat', id: 'bastion_heart', block_heal_pct: 0.06 }
+                        ],
+                        requires: ['fortress_stance'],
+                        unlockCondition: 'level_35',
+                        thresholds: PALADIN_THRESHOLDS.tier5,
+                    },
+                    sacred_bastion: {
+                        id: 'sacred_bastion', tier: 5, name: 'Sacred Bastion', emoji: '✨🛡️',
+                        type: 'progressive',
+                        desc: '+25% Defense, +15% Armor. The first two hits each battle are auto-blocked.',
+                        effects: [
+                            { type: 'passive_pct', stat: 'defense', value: 0.25 },
+                            { type: 'passive_pct', stat: 'armor', value: 0.15 },
+                            { type: 'active_combat', id: 'sacred_bastion', auto_blocks: 2 }
+                        ],
+                        requires: ['bastion_heart'],
+                        unlockCondition: 'level_60',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { demon_alloy: 2 }, 100: { demon_alloy: 3 }
+                        }),
+                    },
+                },
+            },
+
             // BRANCH 2: Divine Warrior
             divine_warrior: {
                 name: 'Divine Warrior',
@@ -1455,7 +1627,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
     const activeBranch = lockedBranchId;
 
     for (const [branchId, branch] of Object.entries(tree.branches)) {
-        const canSeeBranch = branchIsVisible(branchId, branch, activeBranch, learnedMap, progressMap, char, extraStats);
+        const canSeeBranch = branchIsVisible(tree, branchId, branch, activeBranch, learnedMap, progressMap, char, extraStats);
         if (!canSeeBranch) continue;
 
         if (branch.hidden) {
@@ -1801,10 +1973,53 @@ function getBranchSkillEntries(branch = {}, progressMap = {}) {
         });
 }
 
-function branchIsVisible(branchId, branch, activeBranch, learnedMap, progressMap, char, extraStats) {
+function getBranchRootId(tree, branchId) {
+    let currentId = branchId;
+    let current = tree?.branches?.[currentId];
+    while (current?.parent_branch) {
+        currentId = current.parent_branch;
+        current = tree?.branches?.[currentId];
+    }
+    return currentId;
+}
+
+function branchMatchesRoot(tree, branchId, rootId) {
+    return getBranchRootId(tree, branchId) === rootId;
+}
+
+function getChildBranchIds(tree, parentBranchId) {
+    return Object.entries(tree?.branches || {})
+        .filter(([, branch]) => branch.parent_branch === parentBranchId)
+        .map(([branchId]) => branchId);
+}
+
+function branchTreeHasProgress(tree, branchId, progressMap = {}) {
+    const branch = tree?.branches?.[branchId];
+    if (!branch) return false;
+
+    const selfHasProgress = Object.keys(branch.skills || {}).some(skillId => Number(progressMap[skillId] || 0) > 0);
+    if (selfHasProgress) return true;
+
+    return getChildBranchIds(tree, branchId).some(childBranchId => branchTreeHasProgress(tree, childBranchId, progressMap));
+}
+
+function getChosenChildBranchId(tree, parentBranchId, progressMap = {}) {
+    const childIds = getChildBranchIds(tree, parentBranchId);
+    return childIds.find(childId => branchTreeHasProgress(tree, childId, progressMap)) || null;
+}
+
+function branchIsVisible(tree, branchId, branch, activeBranch, learnedMap, progressMap, char, extraStats) {
     if (branch.isStarter) return true;
-    if (activeBranch) return activeBranch === branchId;
-    return branchRequirementMet(branch, learnedMap, progressMap, char, extraStats);
+    if (activeBranch) return branchMatchesRoot(tree, branchId, activeBranch);
+    const meetsBranchReq = branchRequirementMet(branch, learnedMap, progressMap, char, extraStats);
+    if (!meetsBranchReq) return false;
+
+    if (branch.parent_branch) {
+        const chosenSiblingBranchId = getChosenChildBranchId(tree, branch.parent_branch, progressMap);
+        if (chosenSiblingBranchId && chosenSiblingBranchId !== branchId) return false;
+    }
+
+    return true;
 }
 
 function getHoursToFull(progress, skill, speed = 1) {
@@ -2162,13 +2377,19 @@ router.post('/unlearn-step', async (req, res) => {
             await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
         }
 
-        const remainingEntries = getBranchSkillEntries(branch, {
+        const remainingProgressMap = {
             ...progressMap,
             [latest.skillId]: 0,
-        });
+        };
+        const remainingEntries = getBranchSkillEntries(branch, remainingProgressMap);
         if (!remainingEntries.length) {
             const lockedBranchId = await getLockedBranchId(db, char.id);
-            if (lockedBranchId === branchId) {
+            const branchRootId = getBranchRootId(tree, branchId);
+            const rootStillHasProgress = Object.entries(tree.branches)
+                .filter(([candidateId, candidateBranch]) => !candidateBranch.isStarter && getBranchRootId(tree, candidateId) === branchRootId)
+                .some(([candidateId, candidateBranch]) => getBranchSkillEntries(candidateBranch, remainingProgressMap).length > 0);
+
+            if (lockedBranchId === branchRootId && !rootStillHasProgress) {
                 await clearLockedBranchId(db, char.id);
             }
         }
@@ -2232,6 +2453,13 @@ router.post('/train/start', async (req, res) => {
         const sk = branch.skills[skillId];
         if (!sk) return res.status(400).json({ error: 'Skill not found' });
 
+        if (branch.parent_branch) {
+            const chosenSiblingBranchId = getChosenChildBranchId(tree, branch.parent_branch, progressMap);
+            if (chosenSiblingBranchId && chosenSiblingBranchId !== branchId) {
+                return res.status(400).json({ error: `Path locked to ${chosenSiblingBranchId.replace(/_/g, ' ')}` });
+            }
+        }
+
         const maxHours = hasPremium(activePrem, 'arcane_reservoir') ? 12 : 8;
         const chosenHours = Math.max(1, Math.min(Number(hours || 1), maxHours));
         const speed = doubleSpeed ? 2 : 1;
@@ -2257,11 +2485,12 @@ router.post('/train/start', async (req, res) => {
         }
 
         const lockedBranchId = await getLockedBranchId(db, char.id);
-        if (lockedBranchId && !branch.isStarter && lockedBranchId !== branchId) {
+        const branchRootId = getBranchRootId(tree, branchId);
+        if (lockedBranchId && !branch.isStarter && lockedBranchId !== branchRootId) {
             return res.status(400).json({ error: `Branch locked to ${lockedBranchId.replace(/_/g, ' ')}` });
         }
         if (!branch.isStarter && !lockedBranchId) {
-            await setLockedBranchId(db, char, branchId);
+            await setLockedBranchId(db, char, branchRootId);
         }
 
         const extraGoldCost = doubleSpeed ? chosenHours * 500 : 0;
