@@ -959,10 +959,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: 100%;
         min-width: 0;
     }
-    .element-strip-row {
-        align-items: center;
-        flex-wrap: nowrap;
-    }
     .char-panel {
         padding: 16px;
     }
@@ -1007,10 +1003,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         margin-top: 10px;
         gap: 6px;
     }
-    .element-strip-label {
-        width: 42px;
+    .element-strip-heading {
         font-size: 0.56rem;
-        flex-shrink: 0;
+        letter-spacing: 0.1em;
     }
     .element-badge-row {
         gap: 6px;
@@ -1271,15 +1266,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     gap: 8px;
 }
 
-.element-strip-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.element-strip-label {
-    width: 58px;
-    flex-shrink: 0;
+.element-strip-heading {
     font-size: 0.62rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1290,7 +1277,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    flex: 1;
 }
 
 .element-entry {
