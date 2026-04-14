@@ -73,6 +73,27 @@ const GUILD_EXCHANGES = [
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
         }
+        try {
+            const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
+            const charSql = charTable?.sql || '';
+            const hasLegacySingleCharConstraint =
+                /user_id\s+INTEGER\s+UNIQUE\s+NOT\s+NULL/i.test(charSql) ||
+                /user_id\s+INTEGER\s+NOT\s+NULL\s+UNIQUE/i.test(charSql);
+            if (hasLegacySingleCharConstraint) {
+                const rebuiltSql = charSql
+                    .replace(/^CREATE TABLE\s+characters/i, 'CREATE TABLE characters_new')
+                    .replace(/user_id\s+INTEGER\s+UNIQUE\s+NOT\s+NULL/i, 'user_id INTEGER NOT NULL')
+                    .replace(/user_id\s+INTEGER\s+NOT\s+NULL\s+UNIQUE/i, 'user_id INTEGER NOT NULL');
+                await db.execute({ sql: 'PRAGMA foreign_keys = OFF', args: [] });
+                await db.execute({ sql: rebuiltSql, args: [] });
+                await db.execute({ sql: 'INSERT INTO characters_new SELECT * FROM characters', args: [] });
+                await db.execute({ sql: 'DROP TABLE characters', args: [] });
+                await db.execute({ sql: 'ALTER TABLE characters_new RENAME TO characters', args: [] });
+                await db.execute({ sql: 'PRAGMA foreign_keys = ON', args: [] });
+            }
+        } catch (e) {
+            console.error('Character schema migration error:', e.message);
+        }
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS global_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_key TEXT NOT NULL,
