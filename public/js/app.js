@@ -634,14 +634,10 @@ const eqGrid = `
             ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
           </div>
           <div class="element-strip">
-            <div class="element-strip-row">
-              <span class="element-strip-label">Damage</span>
-              <div class="element-badge-row">${elementDamageBadges.join('')}</div>
-            </div>
-            <div class="element-strip-row">
-              <span class="element-strip-label">Resist</span>
-              <div class="element-badge-row">${elementResistBadges.join('')}</div>
-            </div>
+            <div class="element-strip-heading">Damage</div>
+            <div class="element-badge-row">${elementDamageBadges.join('')}</div>
+            <div class="element-strip-heading">Resist</div>
+            <div class="element-badge-row">${elementResistBadges.join('')}</div>
           </div>
           <button class="achievement-launch-btn" ${actionAttrs('openAchievementsModal')}>
             <span>🏆 Achievements</span>
