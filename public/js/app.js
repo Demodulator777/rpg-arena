@@ -644,7 +644,7 @@ const eqGrid = `
             </div>
           </div>
         </div>
-        <div class="char-panel">
+        <div class="char-panel char-panel-equipment">
           <h3>EQUIPMENT</h3>
           ${eqGrid}
         </div>
