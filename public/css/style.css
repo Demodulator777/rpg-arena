@@ -2162,9 +2162,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .topbar-currency { font-size: 0.72rem; padding: 3px 8px; white-space: nowrap; flex-shrink: 0; }
     .topbar-logout { font-size: 0.65rem; padding: 4px 10px; flex-shrink: 0; margin-left: auto; }
 
-    .char-hero-content { flex-direction: column; text-align: center; padding: 18px; gap: 14px; }
+    .char-hero-content { flex-direction: row; text-align: left; padding: 18px; gap: 12px; align-items: center; }
     .char-avatar-ring { width: 88px; height: 88px; }
     .char-hero-name { font-size: 1.45rem; }
+    .char-hero-left { flex-shrink: 0; }
+    .char-hero-right { min-width: 0; }
 
     .mission-overlay, .travel-overlay { position: absolute; inset: 0; z-index: 500; padding: 20px; }
     .mission-overlay-inner, .travel-overlay-inner { padding: 28px 24px; min-width: unset; width: 90%; max-width: 340px; }
@@ -2185,7 +2187,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 @media (max-width: 500px) {
-    .char-hero-content { padding: 16px; gap: 12px; }
+    .char-hero-content { padding: 16px; gap: 10px; }
     .char-avatar-ring { width: 78px; height: 78px; }
 }
 /* Fix for desktop game screen */
