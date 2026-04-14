@@ -444,7 +444,7 @@ function startPolling() {
             if (document.getElementById('tab-upgrade')?.classList.contains('active'))   renderUpgrade();
             if (document.getElementById('tab-missions')?.classList.contains('active')) {
                 await checkTravelStatus();
-                renderWorldMap();
+                renderCurrentMap();
                 await checkAndShowMissionOverlay();
             }
         } catch {}
@@ -1494,7 +1494,7 @@ async function enterAbyssGate() {
             character.current_map = 'abyss';
             // Refresh the map view
             await checkTravelStatus();
-            renderWorldMap();
+            renderCurrentMap();
             showMsg('missions-msg', 'You step through the Abyss Gate into darkness...');
         }
     } catch (e) {
@@ -1751,7 +1751,7 @@ async function doTravelToZone(zoneId) {
     try {
         const result=await api('POST','/game/travel/start',{targetZone:zoneId});
         playerTravelTarget=zoneId; playerTravelEndTime=result.travelEnd; playerTravelStartTime=result.travelStart||Math.floor(Date.now()/1000);
-        closeMissionModal2(); showTravelOverlay(); renderWorldMap();
+        closeMissionModal2(); showTravelOverlay(); renderCurrentMap();
     } catch(e) { showMsg('missions-msg',e.message,true); }
 }
 
@@ -2000,7 +2000,7 @@ function showTravelOverlay() {
             cancelBtn.style.color=isFree?'#e74c3c':'#9b59b6';
             cancelBtn.style.background=isFree?'rgba(231,76,60,0.15)':'rgba(155,89,182,0.15)';
         }
-        if (left<=0) { clearInterval(travelOverlayInterval); travelOverlayInterval=null; hideTravelOverlay(); checkTravelStatus().then(()=>renderWorldMap()); }
+        if (left<=0) { clearInterval(travelOverlayInterval); travelOverlayInterval=null; hideTravelOverlay(); checkTravelStatus().then(()=>renderCurrentMap()); }
     }
     tick();
     travelOverlayInterval=setInterval(tick,1000);
