@@ -2781,7 +2781,15 @@ router.get('/forge/recipes', auth, async (req, res) => {
             const zoneUnlocked = completedZones.has(rec.requiredZone) || char.level >= (ZONES[rec.requiredZone]?.minLevel || 1);
             const canCraft = zoneUnlocked && char.gold >= rec.goldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
             const owned = ownedRecipeIds.has(rec.id);
-            return { ...rec, zoneUnlocked, canCraft, owned };
+            const scaledPreview = scaleItemToLevel(rec, char.level);
+            return {
+                ...rec,
+                ...scaledPreview,
+                goldCost: rec.goldCost,
+                zoneUnlocked,
+                canCraft,
+                owned
+            };
         });
         res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
