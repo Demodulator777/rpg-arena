@@ -675,6 +675,9 @@ function statRow(icon,label,val,max,cls) {
     <span class="stat-val">${val}</span></div>`;
 }
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
+function getSkillImagePath(skillId) {
+    return `/images/assets/skills/${String(skillId || '').replace(/_/g, '-')}.png`;
+}
 
 async function loadAchievements() {
     const summaryEl = document.getElementById('achievements-summary-inline');
@@ -1350,9 +1353,13 @@ function renderSkills() {
                 ?'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);opacity:0.6'
                 :unlocked?'background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)'
                     :'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.05);opacity:0.5';
+        const skillImg = getSkillImagePath(sk.id);
         return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg}">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-                <span style="font-size:1.8rem">${sk.emoji}</span>
+            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px">
+                <div style="width:100%;max-width:213px;height:320px;margin:0 auto;border-radius:14px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;overflow:hidden">
+                    <img src="${skillImg}" alt="${escHtml(sk.name)}" style="width:213px;height:320px;object-fit:cover;display:block" data-error-hide="true" data-error-next-display="flex">
+                    <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:4rem">${sk.emoji}</span>
+                </div>
                 <div>
                     <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${sk.name}</div>
                     ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">✨ ACTIVE · ${expiresStr} remaining</div>`:
