@@ -1956,6 +1956,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: linear-gradient(145deg, var(--bg2), var(--bg3));
     border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
     transition: all 0.2s; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; height: 100%;
 }
 .shop-card::before {
     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
@@ -1980,7 +1981,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .shop-card-requirements { font-size: 0.7rem; margin-bottom: 9px; padding: 6px 8px; background: rgba(0,0,0,0.2); border-radius: 5px; }
 .shop-card-requirements.met { color: var(--green); border-left: 2px solid var(--green); }
 .shop-card-requirements.not-met { color: var(--red-light); border-left: 2px solid var(--red-light); }
-.shop-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.shop-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; }
 .shop-card-price { font-size: 0.98rem; color: var(--gold); font-weight: 700; }
 .free-gems-modal-box {
     max-width: 460px;
