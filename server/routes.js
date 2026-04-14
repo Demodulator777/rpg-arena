@@ -4363,7 +4363,7 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
     const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
     if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
     
-    const char = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold, guild_reputation');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
     
     if (exchange.cost.dungeonGold && (char.dungeon_gold || 0) < exchange.cost.dungeonGold) {
       return res.status(400).json({ error: `Need ${exchange.cost.dungeonGold} dungeon gold` });
