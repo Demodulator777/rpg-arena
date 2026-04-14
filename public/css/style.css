@@ -168,6 +168,29 @@ body {
 
 .tab-content { display: none; flex-direction: column; gap: 12px; width: 100%; }
 .tab-content.active { display: flex; }
+.auth-legal-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+    font-size: 0.76rem;
+}
+.auth-legal-link {
+    appearance: none;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.62);
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: color 0.18s ease;
+}
+.auth-legal-link:hover { color: var(--gold); }
+.auth-legal-sep { color: rgba(255,255,255,0.22); }
 
 .input-field, .auth-input {
     width: 100%; padding: 12px 16px;
@@ -182,6 +205,73 @@ body {
 .input-field:focus, .auth-input:focus {
     border-color: var(--gold);
     background: rgba(255,255,255,0.07);
+}
+.auth-legal-modal {
+    max-width: 760px;
+    width: min(94vw, 760px);
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background:
+        radial-gradient(circle at top, rgba(201,146,42,0.12), transparent 34%),
+        linear-gradient(180deg, rgba(18,24,37,0.98), rgba(10,14,22,0.98));
+    box-shadow: 0 30px 70px rgba(0,0,0,0.55);
+}
+.auth-legal-header { margin-bottom: 18px; }
+.auth-legal-header h2 {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: 1.35rem;
+    color: var(--text-bright);
+}
+.auth-legal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    color: var(--text);
+}
+.auth-legal-section {
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.auth-legal-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 0.95rem;
+    color: var(--gold);
+}
+.auth-legal-section p {
+    margin: 0 0 8px 0;
+    font-size: 0.84rem;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.82);
+}
+.auth-legal-section p:last-child { margin-bottom: 0; }
+.auth-legal-section ul {
+    margin: 0 0 8px 0;
+    padding-left: 18px;
+    color: rgba(255,255,255,0.82);
+}
+.auth-legal-section li {
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+.auth-legal-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    color: var(--text-bright);
+    margin-bottom: 6px;
+}
+.auth-legal-updated {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
 }
 textarea.auth-input { resize: vertical; min-height: 80px; }
 
