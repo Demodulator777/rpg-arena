@@ -68,6 +68,7 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
+            'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -620,6 +621,41 @@ function eventHas(bonus) {
 async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
 async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows; }
 async function dbRun(db, sql, args = []) { return db.execute({ sql, args }); }
+
+async function listUserCharacters(db, userId) {
+    return dbAll(db, `SELECT id, user_id, name, class, level, xp, gold, gems, wins, losses, location, current_map
+        FROM characters WHERE user_id = ? ORDER BY id ASC`, [userId]);
+}
+
+async function ensureActiveCharacter(db, userId, preferredCharacterId = null) {
+    const user = await dbGet(db, 'SELECT active_character_id FROM users WHERE id = ?', [userId]);
+    let activeCharacterId = preferredCharacterId || user?.active_character_id || null;
+
+    if (activeCharacterId) {
+        const existing = await dbGet(db, 'SELECT id FROM characters WHERE id = ? AND user_id = ?', [activeCharacterId, userId]);
+        if (existing) {
+            if (user?.active_character_id !== activeCharacterId) {
+                await dbRun(db, 'UPDATE users SET active_character_id = ? WHERE id = ?', [activeCharacterId, userId]);
+            }
+            return activeCharacterId;
+        }
+    }
+
+    const fallback = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? ORDER BY id ASC LIMIT 1', [userId]);
+    if (!fallback) {
+        await dbRun(db, 'UPDATE users SET active_character_id = NULL WHERE id = ?', [userId]);
+        return null;
+    }
+
+    await dbRun(db, 'UPDATE users SET active_character_id = ? WHERE id = ?', [fallback.id, userId]);
+    return fallback.id;
+}
+
+async function getCurrentCharacter(db, userId, fields = '*') {
+    const activeCharacterId = await ensureActiveCharacter(db, userId);
+    if (!activeCharacterId) return null;
+    return dbGet(db, `SELECT ${fields} FROM characters WHERE id = ? AND user_id = ?`, [activeCharacterId, userId]);
+}
 
 // ── MP Regen ──────────────────────────────────────────────────────────────
 async function applyMpRegen(db, characterId) {
@@ -2265,11 +2301,11 @@ router.post('/character', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { name, class: characterClass } = req.body;
-        const user = await dbGet(db, 'SELECT id FROM users WHERE username = ?', [req.user.username]);
-        if (!user) return res.status(401).json({ error: 'User not found' });
-        const userId = user.id;
-        const existing = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [userId]);
-        if (existing) return res.status(400).json({ error: 'Character already exists' });
+        const userId = req.user.userId;
+        const existingCount = await dbGet(db, 'SELECT COUNT(*) AS count FROM characters WHERE user_id = ?', [userId]);
+        if ((existingCount?.count || 0) >= 4) return res.status(400).json({ error: 'You can only create up to 4 characters on one account.' });
+        const existingClass = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ?', [userId, characterClass]);
+        if (existingClass) return res.status(400).json({ error: `You already have a ${characterClass} character.` });
         await dbRun(db, `
             INSERT INTO characters (
                 user_id, name, class, level, xp, gold,
@@ -2282,8 +2318,10 @@ router.post('/character', auth, async (req, res) => {
                 elem_resist_pyro, elem_resist_water, elem_resist_wind, elem_resist_electro
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [userId, name, characterClass, 1, 0, 5000, 10, 10, 10, 10, 10, 100, 100, 0, 0, null, null, 0, 0, 500, 0, 0, 'forest', null, 0, 0, 0, 0, 0]);
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
-        res.json(character);
+        const created = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ? ORDER BY id DESC LIMIT 1', [userId, characterClass]);
+        await ensureActiveCharacter(db, userId, created?.id || null);
+        const character = await getCurrentCharacter(db, userId);
+        res.json(await buildCharacterResponse(character, db));
     } catch (e) {
         console.error('❌ Character creation error:', e);
         res.status(500).json({ error: e.message });
@@ -2291,10 +2329,36 @@ router.post('/character', auth, async (req, res) => {
 });
 
 // ── Get character ─────────────────────────────────────────────────────────
+router.get('/characters', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const activeCharacterId = await ensureActiveCharacter(db, req.user.userId);
+        const characters = await listUserCharacters(db, req.user.userId);
+        res.json({ activeCharacterId, maxCharacters: 4, availableClasses: Object.keys(CLASSES), characters });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/character/select', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const characterId = Number(req.body?.characterId || 0);
+        if (!characterId) return res.status(400).json({ error: 'Character id required.' });
+        const target = await dbGet(db, 'SELECT id FROM characters WHERE id = ? AND user_id = ?', [characterId, req.user.userId]);
+        if (!target) return res.status(404).json({ error: 'Character not found.' });
+        await ensureActiveCharacter(db, req.user.userId, characterId);
+        const current = await getCurrentCharacter(db, req.user.userId);
+        res.json({ success: true, character: await buildCharacterResponse(current, db) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.get('/character', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
         await applyHpRegen(db, char.id);
         await applyMpRegen(db, char.id);
@@ -2306,7 +2370,7 @@ router.get('/character', auth, async (req, res) => {
 router.get('/achievements', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
         res.json(await getCharacterAchievements(db, char));
     } catch (e) {
@@ -2317,7 +2381,7 @@ router.get('/achievements', auth, async (req, res) => {
 router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
 
         const achievement = ACHIEVEMENTS.find(item => item.id === req.params.achievementId);
@@ -2360,7 +2424,7 @@ router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
 router.post('/upgrade', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const { stat } = req.body;
         if (!['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].includes(stat))
@@ -2399,7 +2463,7 @@ router.post('/upgrade', auth, async (req, res) => {
             await dbRun(db, 'UPDATE characters SET hp_current = hp_current + ? WHERE id = ?', [hpIncrease, char.id]);
         }
         
-        const updated = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const updated = await getCurrentCharacter(db, req.user.userId);
         res.json({ message: `+1 ${stat}! Spent ${cost} gold.`, character: await buildCharacterResponse(updated, db) });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -2408,7 +2472,7 @@ router.post('/upgrade', auth, async (req, res) => {
 router.post('/train', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const now = Math.floor(Date.now() / 1000);
         if (char.training_stat && char.training_ends_at && now >= char.training_ends_at) {
@@ -2428,7 +2492,7 @@ router.post('/train', auth, async (req, res) => {
 router.post('/train/collect', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char || !char.training_stat) return res.status(400).json({ error: 'Not training' });
         const now = Math.floor(Date.now() / 1000);
         if (now < char.training_ends_at) return res.status(400).json({ error: `${char.training_ends_at - now}s remaining.` });
@@ -2447,7 +2511,7 @@ router.post('/loadout', auth, async (req, res) => {
         if (!Array.isArray(blockZones)  || blockZones.length  !== 10) return res.status(400).json({ error: 'blockZones must be array of 10' });
         for (const z of attackZones) { if (!HIT_ZONES[z])   return res.status(400).json({ error: `Invalid attack zone: ${z}` }); }
         for (const z of blockZones)  { if (!BLOCK_ZONES[z]) return res.status(400).json({ error: `Invalid block zone: ${z}` }); }
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         await dbRun(db, 'UPDATE characters SET attack_zones=?, block_zones=? WHERE id=?', [JSON.stringify(attackZones), JSON.stringify(blockZones), char.id]);
         res.json({ message: 'Loadout saved.' });
@@ -2458,7 +2522,7 @@ router.post('/loadout', auth, async (req, res) => {
 router.get('/missions', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         
         const active = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id=?', [char.id]);
@@ -2490,7 +2554,7 @@ router.post('/missions/start', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [userId]);
+        const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
             [character.id, Math.floor(Date.now() / 1000)]);
@@ -2623,7 +2687,7 @@ router.post('/missions/start', auth, async (req, res) => {
 router.post('/missions/collect', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         await applyHpRegen(db, character.id);
         await applyMpRegen(db, character.id);
@@ -2888,7 +2952,7 @@ const payload = JSON.stringify({
 router.get('/missions/active', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
         res.json(mission || null);
@@ -2898,7 +2962,7 @@ router.get('/missions/active', auth, async (req, res) => {
 router.post('/battle/recover', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to recover instantly' });
         const now = Math.floor(Date.now() / 1000);
@@ -2916,7 +2980,7 @@ router.post('/battle/recover', auth, async (req, res) => {
 router.get('/inventory', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const items = await dbAll(db, 'SELECT * FROM inventory WHERE char_id = ? ORDER BY item_type, acquired_at DESC', [char.id]);
         const equipped = await getEquippedItems(db, char.id);
@@ -2930,7 +2994,7 @@ router.post('/inventory/add', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { item } = req.body || {};
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         if (!item || typeof item !== 'object') return res.status(400).json({ error: 'Invalid item data' });
 
@@ -3012,7 +3076,7 @@ router.post('/inventory/add', auth, async (req, res) => {
 router.get('/forge/recipes', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const completedRows = await dbAll(db, 'SELECT DISTINCT zone FROM missions WHERE char_id=? AND collected=1', [char.id]);
         const completedZones = new Set(completedRows.map(r => r.zone));
@@ -3051,7 +3115,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
 router.post('/forge/refine', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const { componentId } = req.body;
         const comp = COMPONENTS[componentId];
@@ -3084,7 +3148,7 @@ router.post('/forge/refine', auth, async (req, res) => {
 router.post('/forge/craft', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const { recipeId } = req.body;
         const recipe = EQUIPMENT_RECIPES.find(r => r.id === recipeId);
@@ -3196,7 +3260,7 @@ function scaleItemToLevel(recipe, playerLevel) {
 router.post('/equip/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
         if (!item || item.item_type !== 'equipment') return res.status(400).json({ error: 'Item not found' });
@@ -3215,7 +3279,7 @@ router.post('/equip/:inventoryId', auth, async (req, res) => {
 router.post('/unequip/:slot', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const slot = req.params.slot;
         if (!EQUIPMENT_SLOTS.includes(slot)) return res.status(400).json({ error: 'Invalid slot' });
@@ -3229,7 +3293,7 @@ router.post('/travel/start', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { targetZone } = req.body;
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         const currentMap = character.current_map || 'overworld';
@@ -3279,7 +3343,7 @@ router.post('/travel/cancel', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { paid } = req.body;
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const now = Math.floor(Date.now() / 1000);
         if (!char.travel_target || !char.travel_end_time || char.travel_end_time <= now)
@@ -3401,7 +3465,7 @@ function getAllZones(currentMap = 'overworld') {
 router.post('/sell/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
         if (!item) return res.status(404).json({ error: 'Item not found' });
@@ -3434,7 +3498,7 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
 router.post('/use/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
         if (!item || item.item_type !== 'consumable') return res.status(400).json({ error: 'Item not found' });
@@ -3505,7 +3569,7 @@ router.post('/shop/buy', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { item, price, priceType } = req.body;
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'No character' });
         if (!item) return res.status(400).json({ error: 'Invalid item data' });
 
@@ -3547,7 +3611,7 @@ router.post('/shop/buy', auth, async (req, res) => {
 router.get('/shop/items', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         const now = Math.floor(Date.now() / 1000);
         const userId = req.user.userId;
@@ -3635,7 +3699,7 @@ function shouldResetShop(lastGenerationDate) {
 router.get('/matchmaking', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const me = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const me = await getCurrentCharacter(db, req.user.userId);
         if (!me) return res.status(404).json({ error: 'No character' });
         const direction = req.query.direction || 'similar';
         const now = Math.floor(Date.now() / 1000);
@@ -3677,7 +3741,7 @@ router.get('/matchmaking', auth, async (req, res) => {
 router.post('/attack/:targetId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const attacker = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const attacker = await getCurrentCharacter(db, req.user.userId);
         if (!attacker) return res.status(404).json({ error: 'No character' });
         const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
             [attacker.id, Math.floor(Date.now() / 1000)]);
@@ -3908,8 +3972,8 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,u.username
-            FROM characters c JOIN users u ON c.user_id=u.id ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses
+            FROM characters c ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         res.json(players.map((p,i) => ({ ...p, rank:i+1 })));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -3918,11 +3982,11 @@ router.get('/leaderboard', auth, async (req, res) => {
 router.get('/player/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const me = await dbGet(db, 'SELECT id FROM characters WHERE user_id=?', [req.user.userId]);
+        const me = await getCurrentCharacter(db, req.user.userId, 'id');
 
         await applyHpRegen(db, req.params.id);
 
-        const player = await dbGet(db, 'SELECT c.*,u.username FROM characters c JOIN users u ON c.user_id=u.id WHERE c.id=?', [req.params.id]);
+        const player = await dbGet(db, 'SELECT c.* FROM characters c WHERE c.id=?', [req.params.id]);
         if (!player) return res.status(404).json({ error: 'Not found' });
 
         const now = Math.floor(Date.now() / 1000);
@@ -3944,7 +4008,7 @@ router.get('/player/:id', auth, async (req, res) => {
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
         res.json({
-            id:player.id, name:player.name, class:player.class, level:player.level, username:player.username,
+            id:player.id, name:player.name, class:player.class, level:player.level,
             strength:player.strength, defense:player.defense, agility:player.agility,
             magic:player.magic, vitality:player.vitality||10,
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
@@ -3962,7 +4026,7 @@ router.get('/player/:id', auth, async (req, res) => {
 router.get('/battles', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,a.class as attacker_class,d.name as defender_name,d.class as defender_class,w.name as winner_name
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
@@ -3975,7 +4039,7 @@ router.get('/battles', auth, async (req, res) => {
 router.get('/messages', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const messages = await dbAll(db, `SELECT m.*,s.name as sender_name,r.name as receiver_name FROM messages m
             JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
@@ -3986,7 +4050,7 @@ router.get('/messages', auth, async (req, res) => {
 router.get('/messages/unread-count', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.json({ count:0 });
         const row = await dbGet(db, 'SELECT COUNT(*) as count FROM messages WHERE receiver_id=? AND read=0', [char.id]);
         res.json({ count: row?.count || 0 });
@@ -3995,7 +4059,7 @@ router.get('/messages/unread-count', auth, async (req, res) => {
 router.post('/messages/send', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const sender = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const sender = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!sender) return res.status(404).json({ error: 'No character' });
         const { receiver_id, subject, body } = req.body;
         if (!receiver_id || !subject || !body) return res.status(400).json({ error: 'Missing fields' });
@@ -4007,7 +4071,7 @@ router.post('/messages/send', auth, async (req, res) => {
 router.post('/messages/:id/read', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ ok: false });
         await dbRun(db, 'UPDATE messages SET read=1 WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
         res.json({ ok:true });
@@ -4016,7 +4080,7 @@ router.post('/messages/:id/read', auth, async (req, res) => {
 router.delete('/messages/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ ok: false });
         await dbRun(db, 'DELETE FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
         res.json({ ok:true });
@@ -4027,7 +4091,7 @@ router.delete('/messages/:id', auth, async (req, res) => {
 router.get('/dungeon/data', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
     
     const tokens = char.dungeon_tokens || 0;
@@ -4058,7 +4122,9 @@ router.post('/dungeon/tokens', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { tokens } = req.body;
-    await dbRun(db, 'UPDATE characters SET dungeon_tokens = ? WHERE user_id = ?', [tokens, req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    await dbRun(db, 'UPDATE characters SET dungeon_tokens = ? WHERE id = ?', [tokens, char.id]);
     res.json({ success: true, tokens });
   } catch (e) {
     console.error(e);
@@ -4070,6 +4136,8 @@ router.post('/dungeon/progress', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { floor, highestFloor, progress, activeDungeon, combat } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
     
     const progressData = {
       activeDungeon: activeDungeon || null,
@@ -4084,8 +4152,8 @@ router.post('/dungeon/progress', auth, async (req, res) => {
       dungeon_floor = ?,
       dungeon_highest_floor = ?,
       dungeon_progress = ?
-      WHERE user_id = ?`,
-      [floor, highestFloor, JSON.stringify(progressData), req.user.userId]
+      WHERE id = ?`,
+      [floor, highestFloor, JSON.stringify(progressData), char.id]
     );
     
     res.json({ success: true });
@@ -4102,15 +4170,17 @@ router.post('/dungeon/mp-spent', auth, async (req, res) => {
     const tokensEarned = Math.floor(mpSpent / 20);
     
     if (tokensEarned > 0) {
+      const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_tokens');
+      if (!char) return res.status(404).json({ error: 'Character not found' });
       const result = await dbRun(db, `
         UPDATE characters 
         SET dungeon_tokens = dungeon_tokens + ?
-        WHERE user_id = ?
+        WHERE id = ?
         RETURNING dungeon_tokens
-      `, [tokensEarned, req.user.userId]);
+      `, [tokensEarned, char.id]);
       
-      const char = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE user_id = ?', [req.user.userId]);
-      res.json({ success: true, tokensEarned, totalTokens: char.dungeon_tokens });
+      const updatedChar = await getCurrentCharacter(db, req.user.userId, 'dungeon_tokens');
+      res.json({ success: true, tokensEarned, totalTokens: updatedChar.dungeon_tokens });
     } else {
       res.json({ success: true, tokensEarned: 0, totalTokens: null });
     }
@@ -4124,8 +4194,10 @@ router.post('/dungeon/add-gold', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { amount } = req.body;
-    await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold + ? WHERE user_id = ?', 
-      [amount, req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold + ? WHERE id = ?', 
+      [amount, char.id]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -4136,7 +4208,9 @@ router.post('/dungeon/update-health', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { hp } = req.body;
-    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE user_id = ?', [hp, req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [hp, char.id]);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -4148,22 +4222,22 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
     const db = await getDb();
     const { loot, newFloor, highestFloor } = req.body || {};
 
-    const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     let message = '';
     
     if (loot && typeof loot === 'object') {
       if (loot.gold) {
-        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
-          [loot.gold, req.user.userId]);
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', 
+          [loot.gold, char.id]);
         message += `💰 +${loot.gold} gold! `;
       }
       
       if (loot.gems) {
         const cappedGems = Math.min(15, loot.gems);
-        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE user_id = ?', 
-          [cappedGems, req.user.userId]);
+        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', 
+          [cappedGems, char.id]);
         message += `💎 +${cappedGems} gems! `;
       }
       
@@ -4181,8 +4255,8 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
         const newExpiry = Math.max(currentExpiry, now) + (loot.premium.days * 24 * 3600);
         activePrem[loot.premium.id] = newExpiry;
         
-        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE user_id = ?', 
-          [JSON.stringify(activePrem), req.user.userId]);
+        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', 
+          [JSON.stringify(activePrem), char.id]);
         
         message += `✨ ${loot.premium.emoji} ${loot.premium.name} activated for ${loot.premium.days} days! `;
       }
@@ -4192,8 +4266,8 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
       const hf = highestFloor || newFloor;
       await dbRun(
         db,
-        'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE user_id = ?',
-        [newFloor, hf, req.user.userId]
+        'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?',
+        [newFloor, hf, char.id]
       );
     }
     
@@ -4222,7 +4296,7 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
 router.get('/dungeon/gold', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const char = await dbGet(db, 'SELECT dungeon_gold FROM characters WHERE user_id = ?', [req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold');
     res.json({ success: true, dungeonGold: char?.dungeon_gold || 0 });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -4232,7 +4306,7 @@ router.get('/dungeon/gold', auth, async (req, res) => {
 router.get('/dungeon/guild', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
     res.json({ 
       success: true, 
       dungeonGold: char?.dungeon_gold || 0,
@@ -4250,25 +4324,25 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
     const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
     if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
     
-    const char = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    const char = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold, guild_reputation');
     
     if (exchange.cost.dungeonGold && (char.dungeon_gold || 0) < exchange.cost.dungeonGold) {
       return res.status(400).json({ error: `Need ${exchange.cost.dungeonGold} dungeon gold` });
     }
     
     if (exchange.cost.dungeonGold) {
-      await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE user_id = ?', 
-        [exchange.cost.dungeonGold, req.user.userId]);
+      await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE id = ?', 
+        [exchange.cost.dungeonGold, char.id]);
     }
     
     if (exchange.reward.gold) {
-      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE user_id = ?', 
-        [exchange.reward.gold, req.user.userId]);
+      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', 
+        [exchange.reward.gold, char.id]);
     }
     
     if (exchange.reward.reputation) {
-      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE user_id = ?', 
-        [exchange.reward.reputation, req.user.userId]);
+      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE id = ?', 
+        [exchange.reward.reputation, char.id]);
     }
     
     if (exchange.reward.item) {
@@ -4282,7 +4356,7 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
         [char.id, 'consumable', JSON.stringify(item)]);
     }
     
-    const updated = await dbGet(db, 'SELECT dungeon_gold, guild_reputation FROM characters WHERE user_id = ?', [req.user.userId]);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold, guild_reputation');
     
     res.json({ 
       success: true, 
@@ -4299,7 +4373,7 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
 router.post('/skills/activate', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         await applyMpRegen(db, char.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
@@ -4765,7 +4839,7 @@ router.get('/bug-report/screenshot/:reportId', async (req, res) => {
 router.post('/convert-mp-to-potion', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         await applyMpRegen(db, character.id);
@@ -4838,7 +4912,7 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
 router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         const inventoryItem = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
@@ -5100,7 +5174,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { componentId } = req.body;
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
@@ -5235,7 +5309,7 @@ router.post('/exchange/fragments', auth, async (req, res) => {
         const db = await getDb();
         const { materialId, quantity = 1 } = req.body;
         
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         const exchange = MATERIAL_EXCHANGES[materialId];
@@ -5397,7 +5471,7 @@ function getNPCNameFromMission(missionName) {
 router.get('/exchange/fragments/list', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         // Get player's legendary fragment count
@@ -5442,7 +5516,7 @@ router.get('/exchange/fragments/list', auth, async (req, res) => {
 router.post('/travel/abyss/enter', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         // Check level requirement
@@ -5473,7 +5547,7 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
 router.post('/travel/abyss/exit', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         // Check if in Abyss
@@ -5499,7 +5573,7 @@ router.post('/travel/abyss/exit', auth, async (req, res) => {
 router.get('/abyss/data', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT current_map, level FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'current_map, level');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
         res.json({
@@ -5533,3 +5607,4 @@ async function isCharacterTraining(db, characterId) {
 }
 
 module.exports = router;
+
