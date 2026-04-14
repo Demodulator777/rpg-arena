@@ -3246,8 +3246,8 @@ async function openLootBox(itemId, itemName) {
             
             // Open modal
             modal.classList.add('active');
-            closeBtn.style.display = 'none';
-            skipBtn.style.display = 'inline-flex';
+            if (closeBtn) closeBtn.style.display = 'none';
+            if (skipBtn) skipBtn.style.display = 'inline-flex';
             
             // Clear any existing content
             stage.innerHTML = '';
@@ -3255,8 +3255,10 @@ async function openLootBox(itemId, itemName) {
             // Function to show summary (skip or complete)
             function showSummary() {
                 stage.innerHTML = renderLootboxSummary(result, itemName);
-                skipBtn.style.display = 'none';
-                closeBtn.style.display = 'block';
+                const liveSkipBtn = document.getElementById('lootbox-skip-all-btn');
+                const liveCloseBtn = document.getElementById('lootbox-close-btn');
+                if (liveSkipBtn) liveSkipBtn.style.display = 'none';
+                if (liveCloseBtn) liveCloseBtn.style.display = 'block';
             }
             
             // Function to show current item
