@@ -2465,7 +2465,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: absolute !important;
     inset: -1px !important;
     background: url('/images/equipment-bg.png') center/112% no-repeat !important;
-    opacity: 0.2 !important;
+    opacity: 0.1 !important;
     pointer-events: none !important;
 }
 
@@ -2553,7 +2553,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: absolute !important;
     inset: -1px !important;
     background: url('/images/equipment-bg.png') center/112% no-repeat !important;
-    opacity: 0.2 !important;
+    opacity: 0.1 !important;
     pointer-events: none !important;
 }
 
