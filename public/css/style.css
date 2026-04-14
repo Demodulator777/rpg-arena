@@ -3189,7 +3189,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-accessory-row,
     .profile-eq-accessory-row {
         top: 6px !important;
-        left: 78px !important;
+        left: 90px !important;
     }
 
     .eq-slot-small {
