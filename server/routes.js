@@ -3072,8 +3072,9 @@ function scaleItemToLevel(recipe, playerLevel) {
     const level = Math.max(recipe.minLevel || 1, playerLevel);
     const item = { ...recipe };
     
-    const baseStats = { ...recipe.baseStats };
+    const baseStats = { ...(recipe.baseStats || recipe.stats || {}) };
     delete item.baseStats;
+    delete item.stats;
     
     item.level = level;
     item.tier = Math.min(5, Math.ceil(level / 15) + 1);
