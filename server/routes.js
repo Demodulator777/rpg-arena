@@ -82,6 +82,12 @@ const GUILD_EXCHANGES = [
             expires_at INTEGER,
             PRIMARY KEY (attacker_id, defender_id)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_achievements (
+            char_id INTEGER NOT NULL,
+            achievement_id TEXT NOT NULL,
+            claimed_at INTEGER NOT NULL,
+            PRIMARY KEY (char_id, achievement_id)
+        )`, args: [] });
         
         // Skill tree migrations
         const { SKILL_TREE_MIGRATIONS } = require('./skills');
@@ -346,6 +352,207 @@ function applyPremiumFeatureToCharacter(char, featureId, durationSeconds) {
     activePrem[featureId] = newExpiry;
     
     return activePrem;
+}
+
+const ACHIEVEMENTS = [
+    {
+        id: 'wins_1',
+        category: 'victories',
+        name: 'First Blood',
+        desc: 'Win your first PvP battle.',
+        icon: '⚔️',
+        metric: 'wins',
+        target: 1,
+        rewards: { gold: 1000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'wins_10',
+        category: 'victories',
+        name: 'Arena Regular',
+        desc: 'Reach 10 victories.',
+        icon: '🛡️',
+        metric: 'wins',
+        target: 10,
+        rewards: { gold: 5000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'wins_25',
+        category: 'victories',
+        name: 'Battle-Tested',
+        desc: 'Reach 25 victories.',
+        icon: '🏅',
+        metric: 'wins',
+        target: 25,
+        rewards: { gold: 12000, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'wins_50',
+        category: 'victories',
+        name: 'Champion Spark',
+        desc: 'Reach 50 victories.',
+        icon: '🔥',
+        metric: 'wins',
+        target: 50,
+        rewards: { gold: 25000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'wins_100',
+        category: 'victories',
+        name: 'Centurion of the Arena',
+        desc: 'Reach 100 victories.',
+        icon: '💎',
+        metric: 'wins',
+        target: 100,
+        rewards: { gold: 50000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'wins_500',
+        category: 'victories',
+        name: 'Warpath',
+        desc: 'Reach 500 victories.',
+        icon: '👑',
+        metric: 'wins',
+        target: 500,
+        rewards: { gold: 200000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'wins_1000',
+        category: 'victories',
+        name: 'Legend of Steel',
+        desc: 'Reach 1,000 victories.',
+        icon: '🌟',
+        metric: 'wins',
+        target: 1000,
+        rewards: { gold: 500000, gems: 80, premium: { id: 'apprentice', days: 7 } },
+    },
+    {
+        id: 'wins_2500',
+        category: 'victories',
+        name: 'Mythic Conqueror',
+        desc: 'Reach 2,500 victories.',
+        icon: '🏆',
+        metric: 'wins',
+        target: 2500,
+        rewards: { gold: 1500000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
+    },
+    {
+        id: 'battles_25',
+        category: 'battles',
+        name: 'Scarred Veteran',
+        desc: 'Fight 25 total battles.',
+        icon: '🗡️',
+        metric: 'battles',
+        target: 25,
+        rewards: { gold: 4000, consumable: { id: 'potion_mana', qty: 1 } },
+    },
+    {
+        id: 'battles_100',
+        category: 'battles',
+        name: 'Seasoned Duelist',
+        desc: 'Fight 100 total battles.',
+        icon: '📜',
+        metric: 'battles',
+        target: 100,
+        rewards: { gold: 15000, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'battles_500',
+        category: 'battles',
+        name: 'Arena Fixture',
+        desc: 'Fight 500 total battles.',
+        icon: '⚜️',
+        metric: 'battles',
+        target: 500,
+        rewards: { gold: 100000, consumable: { id: 'special_mana_potion', qty: 2 } },
+    },
+    {
+        id: 'gold_10000',
+        category: 'wealth',
+        name: 'First Fortune',
+        desc: 'Earn 10,000 total gold.',
+        icon: '💰',
+        metric: 'gold_earned',
+        target: 10000,
+        rewards: { gold: 3000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'gold_100000',
+        category: 'wealth',
+        name: 'Treasure Hoard',
+        desc: 'Earn 100,000 total gold.',
+        icon: '🪙',
+        metric: 'gold_earned',
+        target: 100000,
+        rewards: { gold: 25000, gems: 5, consumable: { id: 'potion_mana', qty: 3 } },
+    },
+    {
+        id: 'gold_1000000',
+        category: 'wealth',
+        name: 'Golden Legend',
+        desc: 'Earn 1,000,000 total gold.',
+        icon: '🏦',
+        metric: 'gold_earned',
+        target: 1000000,
+        rewards: { gold: 200000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'floor_5',
+        category: 'dungeon',
+        name: 'Into the Deep',
+        desc: 'Reach dungeon floor 5.',
+        icon: '🕳️',
+        metric: 'dungeon_floor',
+        target: 5,
+        rewards: { gold: 7500, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'floor_10',
+        category: 'dungeon',
+        name: 'Abyss Diver',
+        desc: 'Reach dungeon floor 10.',
+        icon: '🌑',
+        metric: 'dungeon_floor',
+        target: 10,
+        rewards: { gold: 20000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'floor_25',
+        category: 'dungeon',
+        name: 'Underworld Walker',
+        desc: 'Reach dungeon floor 25.',
+        icon: '👁️',
+        metric: 'dungeon_floor',
+        target: 25,
+        rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'floor_50',
+        category: 'dungeon',
+        name: 'Abyss Sovereign',
+        desc: 'Reach dungeon floor 50.',
+        icon: '👹',
+        metric: 'dungeon_floor',
+        target: 50,
+        rewards: { gold: 250000, gems: 60, premium: { id: 'iron_fortress', days: 10 } },
+    },
+];
+
+function getAchievementMetricValue(char, metric) {
+    if (metric === 'wins') return char.wins || 0;
+    if (metric === 'battles') return (char.wins || 0) + (char.losses || 0);
+    if (metric === 'gold_earned') return char.total_gold_earned || 0;
+    if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
+    return 0;
+}
+
+function buildAchievementRewardSummary(rewards) {
+    const parts = [];
+    if (rewards.gold) parts.push(`💰 ${rewards.gold.toLocaleString()} gold`);
+    if (rewards.gems) parts.push(`💎 ${rewards.gems}`);
+    if (rewards.lootbox) parts.push(`📦 ${rewards.lootbox.qty}x ${LOOT_BOXES.find(b => b.id === rewards.lootbox.id)?.name || 'Loot Box'}`);
+    if (rewards.consumable) parts.push(`🧪 ${rewards.consumable.qty}x ${rewards.consumable.id === 'special_mana_potion' ? 'Special Mana Potion' : 'Mana Potion'}`);
+    if (rewards.premium) parts.push(`✨ ${PREMIUM_FEATURES[rewards.premium.id]?.name || rewards.premium.id} (${rewards.premium.days}d)`);
+    return parts;
 }
 
 // ── All equipment slots ───────────────────────────────────────────────────
@@ -1607,6 +1814,101 @@ async function getInventoryMaterials(db, charId) {
     return map;
 }
 
+function makeConsumableRewardItem(itemId) {
+    if (itemId === 'special_mana_potion') {
+        return {
+            id: 'special_mana_potion',
+            name: 'Special Mana Potion',
+            emoji: '💎',
+            desc: 'Restores 60 MP. Crafted from your own MP reserve.',
+            effect: { type: 'mp', value: 60 },
+            consumable: true,
+            category: 'consumable',
+            qty: 1
+        };
+    }
+    return {
+        id: 'potion_mana',
+        name: 'Mana Potion',
+        emoji: '💧',
+        desc: 'Restores 100 MP.',
+        effect: { type: 'mp', value: 100 },
+        consumable: true,
+        category: 'consumable',
+        qty: 1
+    };
+}
+
+async function addStackableInventoryItem(db, charId, itemType, itemData, qty = 1) {
+    const existing = await dbGet(
+        db,
+        `SELECT * FROM inventory WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?`,
+        [charId, itemType, itemData.id]
+    );
+    if (existing) {
+        const current = JSON.parse(existing.item_data);
+        current.qty = (current.qty || 1) + qty;
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(current), existing.id]);
+        return;
+    }
+    await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [
+        charId,
+        itemType,
+        JSON.stringify({ ...itemData, qty })
+    ]);
+}
+
+async function grantAchievementRewards(db, char, rewards) {
+    if (rewards.gold) {
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [rewards.gold, char.id]);
+    }
+    if (rewards.gems) {
+        await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [rewards.gems, rewards.gems, char.id]);
+    }
+    if (rewards.lootbox) {
+        const lootBox = LOOT_BOXES.find(box => box.id === rewards.lootbox.id);
+        if (lootBox) {
+            await addStackableInventoryItem(db, char.id, 'consumable', lootBox, rewards.lootbox.qty || 1);
+        }
+    }
+    if (rewards.consumable) {
+        await addStackableInventoryItem(db, char.id, 'consumable', makeConsumableRewardItem(rewards.consumable.id), rewards.consumable.qty || 1);
+    }
+    if (rewards.premium) {
+        const refreshedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        const activePrem = applyPremiumFeatureToCharacter(refreshedChar, rewards.premium.id, rewards.premium.days * 24 * 3600);
+        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', [JSON.stringify(activePrem), char.id]);
+    }
+}
+
+async function getCharacterAchievements(db, char) {
+    const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
+    const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
+    const items = ACHIEVEMENTS.map(def => {
+        const progress = getAchievementMetricValue(char, def.metric);
+        const completed = progress >= def.target;
+        const claimedAt = claimedMap.get(def.id) || null;
+        return {
+            ...def,
+            progress,
+            completed,
+            claimed: !!claimedAt,
+            claimable: completed && !claimedAt,
+            claimed_at: claimedAt,
+            reward_summary: buildAchievementRewardSummary(def.rewards)
+        };
+    });
+    return {
+        items,
+        totals: {
+            completed: items.filter(item => item.completed).length,
+            claimed: items.filter(item => item.claimed).length,
+            claimable: items.filter(item => item.claimable).length,
+            total: items.length
+        }
+    };
+}
+
 async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
@@ -1733,6 +2035,59 @@ router.get('/character', auth, async (req, res) => {
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json(await buildCharacterResponse(freshChar, db));
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/achievements', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        res.json(await getCharacterAchievements(db, char));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const achievement = ACHIEVEMENTS.find(item => item.id === req.params.achievementId);
+        if (!achievement) return res.status(404).json({ error: 'Achievement not found' });
+
+        const progress = getAchievementMetricValue(char, achievement.metric);
+        if (progress < achievement.target) {
+            return res.status(400).json({ error: 'Achievement not completed yet' });
+        }
+
+        const existingClaim = await dbGet(
+            db,
+            'SELECT achievement_id FROM character_achievements WHERE char_id = ? AND achievement_id = ?',
+            [char.id, achievement.id]
+        );
+        if (existingClaim) {
+            return res.status(400).json({ error: 'Achievement already claimed' });
+        }
+
+        await grantAchievementRewards(db, char, achievement.rewards);
+        await dbRun(
+            db,
+            'INSERT INTO character_achievements (char_id, achievement_id, claimed_at) VALUES (?, ?, ?)',
+            [char.id, achievement.id, Math.floor(Date.now() / 1000)]
+        );
+
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({
+            success: true,
+            message: `Claimed ${achievement.name}!`,
+            character: await buildCharacterResponse(freshChar, db),
+            achievementId: achievement.id
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // ── Upgrade (UPDATED with skill tree cost modifier) ───────────────────────
