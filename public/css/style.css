@@ -1472,7 +1472,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .profile-name { font-family: 'Cinzel',serif; font-size: 1.35rem; color: var(--text-bright); }
 .profile-class { font-style: italic; color: var(--text-dim); font-size: 0.86rem; }
-.profile-actions { display: flex; gap: 8px; margin-top: 16px; }
+.profile-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
 .profile-scene .class-scene-content { padding: 20px; }
 .profile-grid {
     display: grid;
