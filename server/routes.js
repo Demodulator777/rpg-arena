@@ -65,6 +65,7 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN dungeon_gold INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
         ];
@@ -1203,6 +1204,68 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
         activeSkills: {},
     };
 }
+
+async function buildCombatFighter(db, char) {
+    const equippedArray = await getEquippedItemsArray(db, char.id);
+    const hpCurrent = char.hp_current ?? calcHpMax(char, equippedArray);
+    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
+    const charActiveSkills = getActiveSkills(char);
+    const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+    const learnedIds = learnedRows.map(r => r.skill_id);
+    const skillPassives = await computePassiveBonusesWithProgress(db, char.class, learnedIds, char.id);
+    const skillActives = await computeActiveCombatEffectsWithProgress(db, char.class, learnedIds, char.id);
+    const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedIds, char.id);
+
+    let noShieldAgiBonus = 0;
+    if (char.class === 'rogue') {
+        const hasShield = equippedArray.some(item => {
+            try {
+                const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+                return data?.slot === 'shield';
+            } catch {
+                return false;
+            }
+        });
+        if (!hasShield) noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+    }
+
+    const elemDmg = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
+    return {
+        id: char.id,
+        name: char.name,
+        class: char.class,
+        hp: hpCurrent,
+        dmgMin: dmgMin + (skillPassives.dmg_min || 0),
+        dmgMax: dmgMax + (skillPassives.dmg_max || 0),
+        strength: (char.strength || 0) + (skillPassives.strength || 0),
+        agility: (char.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
+        magic: (char.magic || 0) + (skillPassives.magic || 0),
+        defense: (char.defense || 0) + (skillPassives.defense || 0),
+        hit_chance: (char.hit_chance || 0) + (skillPassives.hit_chance || 0),
+        crit_chance: (char.crit_chance || 0) + (skillPassives.crit_chance || 0),
+        armor: calcArmorValue(char, equippedArray) + (skillPassives.armor || 0),
+        elem_dmg: {
+            pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
+            water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
+            wind: (elemDmg.wind || 0) + (skillPassives.wind_dmg || 0),
+            electro: (elemDmg.electro || 0) + (skillPassives.electro_dmg || 0),
+        },
+        elem_resist: {
+            pyro: (elemResist.pyro || 0) + (skillPassives.pyro_resist || 0),
+            water: (elemResist.water || 0) + (skillPassives.water_resist || 0),
+            wind: (elemResist.wind || 0) + (skillPassives.wind_resist || 0),
+            electro: (elemResist.electro || 0) + (skillPassives.electro_resist || 0),
+        },
+        skillEffects: skillActives,
+        skillMods,
+        activeSkills: charActiveSkills,
+        attackZones: JSON.parse(char.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
+        blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+        dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
+    };
+}
 const cfgNames = {
     easy: 'Raider',
     medium: 'Warlord', 
@@ -1216,6 +1279,132 @@ const ZONE_LEVELS = {
     ruins: 20,
     dark_city: 35,
 };
+
+const OVERWORLD_TRAVEL_ROUTES = {
+    forest: { swamp: 60, mountains: 90 },
+    swamp: { forest: 60, mountains: 90, ruins: 120, dark_city: 90 },
+    mountains: { forest: 90, swamp: 90, ruins: 120 },
+    ruins: { swamp: 120, mountains: 120, dark_city: 60 },
+    dark_city: { swamp: 90, ruins: 60 }
+};
+
+const TRAVEL_GUARDIANS = {
+    overworld: {
+        swamp: { difficulty: 'medium', name: 'Bog Warden' },
+        mountains: { difficulty: 'hard', name: 'Frost Sentinel' },
+        ruins: { difficulty: 'hard', name: 'Crypt Keeper' },
+        dark_city: { difficulty: 'nightmare', name: 'Shadow Gatekeeper' },
+    },
+    abyss: {
+        crimson: { difficulty: 'nightmare', name: 'Crimson Gatekeeper' },
+        void: { difficulty: 'nightmare', name: 'Void Gatekeeper' },
+        citadel: { difficulty: 'nightmare', name: 'Citadel Watcher' },
+        eternal_dark: { difficulty: 'nightmare', name: 'Eternal Warden' },
+    }
+};
+
+function parseTravelUnlocks(raw) {
+    const defaults = { overworld: ['forest'], abyss: ['shadowfen'] };
+    if (!raw) return defaults;
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return { ...defaults, overworld: Array.from(new Set([...defaults.overworld, ...parsed])) };
+        }
+        return {
+            overworld: Array.from(new Set([...(defaults.overworld || []), ...((parsed && parsed.overworld) || [])])),
+            abyss: Array.from(new Set([...(defaults.abyss || []), ...((parsed && parsed.abyss) || [])])),
+        };
+    } catch {
+        return defaults;
+    }
+}
+
+function stringifyTravelUnlocks(unlocks) {
+    return JSON.stringify({
+        overworld: Array.from(new Set(unlocks.overworld || ['forest'])),
+        abyss: Array.from(new Set(unlocks.abyss || ['shadowfen'])),
+    });
+}
+
+function getTravelUnlockSet(char, currentMap = 'overworld') {
+    const unlocks = parseTravelUnlocks(char?.unlocked_zones);
+    const key = currentMap === 'abyss' ? 'abyss' : 'overworld';
+    const set = new Set(unlocks[key] || []);
+    if (currentMap === 'abyss') set.add('shadowfen');
+    else set.add('forest');
+    if (char?.location) set.add(char.location);
+    return set;
+}
+
+async function unlockTravelZone(db, char, targetZone, currentMap = 'overworld') {
+    const unlocks = parseTravelUnlocks(char?.unlocked_zones);
+    const key = currentMap === 'abyss' ? 'abyss' : 'overworld';
+    unlocks[key] = Array.from(new Set([...(unlocks[key] || []), targetZone]));
+    const encoded = stringifyTravelUnlocks(unlocks);
+    await dbRun(db, 'UPDATE characters SET unlocked_zones=? WHERE id=?', [encoded, char.id]);
+    char.unlocked_zones = encoded;
+    return unlocks;
+}
+
+function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = null) {
+    const zoneMap = currentMap === 'abyss' ? ABYSS_ZONES : ZONES;
+    const guardianDef = (TRAVEL_GUARDIANS[currentMap] || {})[targetZone];
+    if (!guardianDef) return null;
+    const zone = zoneMap[targetZone];
+    const zoneLevel = zone?.minLevel || 1;
+    const npc = buildNpc(guardianDef.difficulty, playerLevel, zoneLevel, playerStats);
+    npc.name = guardianDef.name;
+    npc.class = 'npc';
+    return npc;
+}
+
+function getTravelGraph(currentMap) {
+    return currentMap === 'abyss' ? ABYSS_ROUTES : OVERWORLD_TRAVEL_ROUTES;
+}
+
+function getShortestTravel(currentMap, fromZone, toZone, allowedNodes = null) {
+    if (fromZone === toZone) return { time: 0, path: [fromZone] };
+    const graph = getTravelGraph(currentMap);
+    const dist = {};
+    const prev = {};
+    const nodes = new Set(Object.keys(graph));
+    nodes.add(fromZone);
+    nodes.add(toZone);
+    for (const node of nodes) dist[node] = Infinity;
+    dist[fromZone] = 0;
+
+    const unvisited = new Set(nodes);
+    while (unvisited.size) {
+        let current = null;
+        for (const node of unvisited) {
+            if (current === null || dist[node] < dist[current]) current = node;
+        }
+        if (current === null || dist[current] === Infinity) break;
+        unvisited.delete(current);
+        if (current === toZone) break;
+
+        for (const [neighbor, cost] of Object.entries(graph[current] || {})) {
+            if (allowedNodes && neighbor !== toZone && !allowedNodes.has(neighbor)) continue;
+            const alt = dist[current] + cost;
+            if (alt < (dist[neighbor] ?? Infinity)) {
+                dist[neighbor] = alt;
+                prev[neighbor] = current;
+                unvisited.add(neighbor);
+            }
+        }
+    }
+
+    if (!Number.isFinite(dist[toZone])) return null;
+    const path = [];
+    let cursor = toZone;
+    while (cursor) {
+        path.unshift(cursor);
+        cursor = prev[cursor];
+    }
+    if (path[0] !== fromZone) return null;
+    return { time: dist[toZone], path };
+}
 
 // ── Item Generators ─────────────────────────────────────────────────────────
 // ELEMENTS already defined at top
@@ -2958,17 +3147,20 @@ router.post('/travel/start', auth, async (req, res) => {
         // Check if target is in Abyss or Overworld
         if (currentMap === 'abyss' && ABYSS_ZONES[targetZone]) {
             zone = ABYSS_ZONES[targetZone];
-            travelTime = getTravelTime(character.location, targetZone, 'abyss');
         } else if (ZONES[targetZone]) {
             zone = ZONES[targetZone];
-            travelTime = zone.travelTime;
         } else {
             return res.status(400).json({ error: 'Invalid zone' });
         }
         
         if (!zone) return res.status(400).json({ error: 'Invalid zone' });
         if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
-        if (character.level < zone.minLevel) return res.status(400).json({ error: `Requires level ${zone.minLevel}` });
+        const allowedNodes = getTravelUnlockSet(character, currentMap);
+        allowedNodes.add(character.location);
+        allowedNodes.add(targetZone);
+        const route = getShortestTravel(currentMap, character.location, targetZone, allowedNodes);
+        if (!route) return res.status(400).json({ error: 'You must unlock the connecting zones first.' });
+        travelTime = route.time;
         
         const now = Math.floor(Date.now() / 1000);
         if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
@@ -2977,29 +3169,20 @@ router.post('/travel/start', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET travel_target=?,travel_end_time=?,travel_start_time=? WHERE id=?', 
             [targetZone, travelEnd, now, character.id]);
         
-        res.json({ success: true, message: `Traveling to ${zone.name}`, travelEnd, travelStart: now, duration: travelTime });
+        const unlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
+        res.json({
+            success: true,
+            message: unlocked ? `Traveling to ${zone.name}` : `Traveling to ${zone.name} — a gatekeeper may intercept you`,
+            travelEnd,
+            travelStart: now,
+            duration: travelTime,
+            requiresUnlockFight: !unlocked
+        });
     } catch (e) { 
         console.error(e); 
         res.status(500).json({ error: e.message }); 
     }
 });
-
-// Helper to get travel time between zones
-function getTravelTime(fromZone, toZone, currentMap) {
-    // If traveling within Abyss
-    if (currentMap === 'abyss' && ABYSS_ROUTES[fromZone] && ABYSS_ROUTES[fromZone][toZone]) {
-        return ABYSS_ROUTES[fromZone][toZone];
-    }
-    // If entering Abyss from Dark City
-    if (currentMap === 'overworld' && fromZone === 'dark_city' && ABYSS_ENTRY.dark_city && ABYSS_ENTRY.dark_city[toZone]) {
-        return ABYSS_ENTRY.dark_city[toZone];
-    }
-    // Normal overworld travel
-    if (ZONES[fromZone] && ZONES[fromZone].routes && ZONES[fromZone].routes[toZone]) {
-        return ZONES[fromZone].routes[toZone];
-    }
-    return null;
-}
 
 router.post('/travel/cancel', auth, async (req, res) => {
     try {
@@ -3025,24 +3208,69 @@ router.post('/travel/cancel', auth, async (req, res) => {
 router.get('/travel/status', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT id, location, travel_target, travel_end_time, travel_start_time, current_map FROM characters WHERE user_id=?', [req.user.userId]);
+        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         const now = Math.floor(Date.now() / 1000);
         let currentMap = character.current_map || 'overworld';
+        let encounterResult = null;
         
         // Check if travel completed
         if (character.travel_target && character.travel_end_time && character.travel_end_time <= now) {
             let targetZone = character.travel_target;
-            
-            // Update location
-            await dbRun(db, 'UPDATE characters SET location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?', 
-                [targetZone, character.id]);
-            character.location = targetZone;
+            const zoneUnlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
+
+            if (!zoneUnlocked) {
+                await applyHpRegen(db, character.id);
+                const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+                const playerFighter = await buildCombatFighter(db, freshChar);
+                const guardian = buildTravelGuardian(targetZone, currentMap, freshChar.level, playerFighter);
+
+                if (guardian) {
+                    const battle = runBattle(playerFighter, guardian);
+                    const playerWon = battle.winnerId === freshChar.id;
+                    const newHp = Math.max(0, battle.hpRemainingA);
+
+                    if (playerWon) {
+                        await unlockTravelZone(db, freshChar, targetZone, currentMap);
+                        await dbRun(db, 'UPDATE characters SET location=?, hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
+                            [targetZone, newHp, freshChar.id]);
+                        character.unlocked_zones = freshChar.unlocked_zones;
+                        character.location = targetZone;
+                    } else {
+                        await dbRun(db, 'UPDATE characters SET hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
+                            [newHp, freshChar.id]);
+                    }
+
+                    encounterResult = {
+                        type: 'travel_guardian',
+                        won: playerWon,
+                        guardianName: guardian.name,
+                        targetZone,
+                        unlocked: playerWon,
+                        log: battle.log,
+                        totalDmgDealt: battle.totalDmgToB,
+                        totalDmgTaken: battle.totalDmgToA,
+                    };
+                } else {
+                    await unlockTravelZone(db, character, targetZone, currentMap);
+                    await dbRun(db, 'UPDATE characters SET location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
+                        [targetZone, character.id]);
+                    character.location = targetZone;
+                }
+            } else {
+                await dbRun(db, 'UPDATE characters SET location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?', 
+                    [targetZone, character.id]);
+                character.location = targetZone;
+            }
+
             character.travel_target = null;
             character.travel_end_time = 0;
             character.travel_start_time = 0;
         }
+        const unlocks = parseTravelUnlocks(character.unlocked_zones);
+        const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', character.current_map === 'overworld' ? character.location : null].filter(Boolean)));
+        const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), 'shadowfen', character.current_map === 'abyss' ? character.location : null].filter(Boolean)));
         
         res.json({
             location: character.location || 'forest',
@@ -3052,6 +3280,9 @@ router.get('/travel/status', auth, async (req, res) => {
             travelStartTime: character.travel_start_time || 0,
             traveling: !!character.travel_target,
             timeRemaining: character.travel_target ? Math.max(0, character.travel_end_time - now) : 0,
+            unlockedZones: overworldUnlocked,
+            unlockedAbyssZones: abyssUnlocked,
+            encounterResult,
         });
     } catch (e) { 
         console.error(e); 
