@@ -1354,7 +1354,7 @@ function renderSkills() {
                 :unlocked?'background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)'
                     :'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.05);opacity:0.5';
         const skillImg = getSkillImagePath(sk.id);
-        return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg}">
+        return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg};display:flex;flex-direction:column;height:100%">
             <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px">
                 <div style="width:100%;max-width:213px;height:320px;margin:0 auto;border-radius:14px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;overflow:hidden">
                     <img src="${skillImg}" alt="${escHtml(sk.name)}" style="width:213px;height:320px;object-fit:cover;display:block" data-error-hide="true" data-error-next-display="flex">
@@ -1366,10 +1366,10 @@ function renderSkills() {
             usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today — resets at midnight</div>`:''}
                 </div>
             </div>
-            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45">${sk.desc}</div>
+            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45;flex:1">${sk.desc}</div>
             <button ${actionAttrs('activateSkill', sk.id)} ${btnDisabled?'disabled':''}
                 style="width:100%;padding:8px;border-radius:8px;border:1px solid ${canActivate?'rgba(155,89,182,0.5)':'rgba(255,255,255,0.1)'};
-                background:${canActivate?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.04)'};
+                background:${canActivate?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.04)'};margin-top:auto;
                 color:${canActivate?'#9b59b6':'var(--text-dim)'};cursor:${canActivate?'pointer':'not-allowed'};
                 font-size:0.82rem;font-weight:600;transition:all 0.2s">${btnLabel}</button>
         </div>`;
