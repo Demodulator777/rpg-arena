@@ -413,7 +413,8 @@ const EQUIPMENT_RECIPES = [
         slot:'weapon',
         desc:'A scythe wreathed in void energy, harvesting souls with each swing.',
         stats:{ dmg_min:22, dmg_max:42, magic:14, crit_chance:12, hit_chance:8,
-                pyro_dmg:18, electro_dmg:12, pyro_resist:28, electro_resist:22 },
+                pyro_dmg:8, water_dmg:8, wind_dmg:8, electro_dmg:8,
+                pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15 },
         components:{ void_crystal:3, shadow_weave:2, demon_alloy:1 }, goldCost:18000,
     },
     {
@@ -422,7 +423,7 @@ const EQUIPMENT_RECIPES = [
         slot:'armor',
         desc:'Robes threaded with void crystal fibers. Reality warps around the wearer.',
         stats:{ defense:28, armor:16, hp_max:130, magic:12, vitality:8,
-                pyro_resist:22, water_resist:22, wind_resist:22, electro_resist:22 },
+                pyro_dmg:10, pyro_resist:12 },
         components:{ void_crystal:2, shadow_weave:4, arcane_shard:2 }, goldCost:22000,
     },
     {
@@ -431,7 +432,7 @@ const EQUIPMENT_RECIPES = [
         slot:'helmet',
         desc:'A crown forged from void alloy. The wearer sees through all illusions.',
         stats:{ defense:18, armor:10, hp_max:80, magic:10, crit_chance:14, hit_chance:10,
-                electro_dmg:10, electro_resist:24 },
+                electro_dmg:10, electro_resist:12 },
         components:{ void_crystal:2, shadow_weave:2, arcane_shard:2 }, goldCost:16000,
     },
     {
@@ -440,7 +441,7 @@ const EQUIPMENT_RECIPES = [
         slot:'shield',
         desc:'A pulsing void shield that absorbs energy attacks entirely.',
         stats:{ defense:32, armor:20, hp_max:100, magic:8,
-                pyro_resist:30, water_resist:28, wind_resist:26, electro_resist:30 },
+                water_dmg:10, water_resist:12 },
         components:{ void_crystal:4, demon_alloy:2 }, goldCost:24000,
     },
     {
@@ -449,7 +450,7 @@ const EQUIPMENT_RECIPES = [
         slot:'boots',
         desc:'Boots that phase partially into the void, allowing impossible movement.',
         stats:{ defense:16, armor:9, agility:16, crit_chance:10, hit_chance:8,
-                wind_dmg:8, wind_resist:20 },
+                wind_dmg:10, wind_resist:12 },
         components:{ void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:14000,
     },
 ];
