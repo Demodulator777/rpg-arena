@@ -4570,28 +4570,57 @@ const fragmentItem = await dbGet(db, `
             }
         }
         
-        // Add the requested material
-        const existingMat = await dbGet(db, `
-            SELECT * FROM inventory 
-            WHERE char_id = ? AND item_type = 'raw_mat' 
+        // Add the requested material/component.
+        // Some exchange targets are real components (for example demon_alloy),
+        // so we must preserve their proper inventory type and metadata.
+        const targetType = COMPONENTS[materialId] ? 'component' : 'raw_mat';
+        const targetDef = COMPONENTS[materialId] || RAW_MATERIALS[materialId];
+        if (!targetDef) {
+            return res.status(400).json({ error: 'Unknown exchange target' });
+        }
+
+        // Repair older bugged rows too: if this item was previously inserted as the
+        // wrong type, merge all quantities into one correctly typed row.
+        const existingRows = await dbAll(db, `
+            SELECT * FROM inventory
+            WHERE char_id = ?
+            AND item_type IN ('raw_mat', 'component')
             AND json_extract(item_data, '$.id') = ?
         `, [char.id, materialId]);
-        
-        if (existingMat) {
-            const matData = JSON.parse(existingMat.item_data);
-            matData.qty = (matData.qty || 1) + quantity;
-            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', 
-                [JSON.stringify(matData), existingMat.id]);
+
+        const totalExistingQty = existingRows.reduce((sum, row) => {
+            const data = JSON.parse(row.item_data);
+            return sum + (data.qty || 1);
+        }, 0);
+
+        const desiredData = {
+            id: materialId,
+            ...targetDef,
+            qty: totalExistingQty + quantity
+        };
+
+        const correctRow = existingRows.find(row => row.item_type === targetType) || null;
+
+        if (correctRow) {
+            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [
+                JSON.stringify(desiredData),
+                correctRow.id
+            ]);
+
+            for (const row of existingRows) {
+                if (row.id !== correctRow.id) {
+                    await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [row.id]);
+                }
+            }
         } else {
-            const newMaterial = {
-                id: materialId,
-                name: exchange.name,
-                emoji: exchange.emoji,
-                qty: quantity,
-                rarity: exchange.rarity === 1 ? 'common' : exchange.rarity === 2 ? 'uncommon' : exchange.rarity === 3 ? 'rare' : exchange.rarity === 4 ? 'epic' : 'legendary'
-            };
-            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', 
-                [char.id, 'raw_mat', JSON.stringify(newMaterial)]);
+            for (const row of existingRows) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [row.id]);
+            }
+            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [
+                char.id,
+                targetType,
+                JSON.stringify(desiredData)
+            ]);
         }
         
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
