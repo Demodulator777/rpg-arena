@@ -3214,8 +3214,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .eq-slot-icon img,
     .profile-eq-slot .eq-slot-icon img {
-        width: 75px !important;
-        height: 75px !important;
+        width: 105px !important;
+        height: 105px !important;
     }
 
     .eq-avatar-center img,
