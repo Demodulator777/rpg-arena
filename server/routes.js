@@ -913,6 +913,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const blk = BLOCK_ZONES[blkZone] || BLOCK_ZONES.cross_guard;
     const atkSkills = attacker.activeSkills || {};
     const defSkills = defender.activeSkills || {};
+    const ignoreDefenderZones = !!attacker.ignoreDefenderZones;
 
     // Rogue weapon penalty - check if attacker has a weapon property
     let rogueWeaponPenalty = 1.0;
@@ -934,6 +935,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
+    if (ignoreDefenderZones) atkHitChance = 1.0;
 
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const atkAgi = attacker.agility || 0;
@@ -941,6 +943,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     let dodgeChance = Math.min(0.10, agiDiff / 200);
     if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
+    if (ignoreDefenderZones) dodgeChance = 0;
 
     let forceMiss = false;
     if (Math.random() < dodgeChance) forceMiss = true;
@@ -951,7 +954,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
     // REMOVED duplicate dodge check
-    if (!forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
+    if (!ignoreDefenderZones && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
 
     let divineNegate = false;
     if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
@@ -984,7 +987,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
         physicalDmg += damageBonus;
 
-        const blockCovers = blk.protects.includes(atkZone) || blk.protects.includes('any');
+        const blockCovers = !ignoreDefenderZones && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
         const blockFails = Math.random() < 0.001;
 
         // Elemental damage
@@ -1472,6 +1475,7 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
     const npc = buildNpc(guardianDef.difficulty, playerLevel, zoneLevel, playerStats);
     npc.name = guardianDef.name;
     npc.class = 'npc';
+    npc.ignoreDefenderZones = true;
     return npc;
 }
 
