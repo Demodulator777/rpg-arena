@@ -2150,23 +2150,23 @@ function renderForge() {
 
     el.innerHTML = Object.entries(bySet).map(([setId, pieces]) => {
         const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
-        const ownedCount = pieces.filter(p => p.owned).length;
-        const ownedPct = Math.round(ownedCount / pieces.length * 100);
+        const equippedCount = pieces.filter(p => p.equipped).length;
+        const equippedPct = Math.round(equippedCount / pieces.length * 100);
 
         const progressBar = `
             <div style="margin:8px 0 4px;display:flex;align-items:center;gap:8px">
                 <div style="flex:1;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
-                    <div style="height:100%;width:${ownedPct}%;background:${rarityColor[pieces[0].quality]||'#9b59b6'};border-radius:3px;transition:width 0.3s"></div>
+                    <div style="height:100%;width:${equippedPct}%;background:${rarityColor[pieces[0].quality]||'#9b59b6'};border-radius:3px;transition:width 0.3s"></div>
                 </div>
-                <span style="font-size:0.7rem;color:var(--text-dim)">${ownedCount}/${pieces.length}</span>
+                <span style="font-size:0.7rem;color:var(--text-dim)">${equippedCount}/${pieces.length}</span>
             </div>`;
 
         const bonusHtml = `
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px">
-                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${ownedCount>=3?'var(--green)':'var(--text-dim)'}">
+                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=3?'var(--green)':'var(--text-dim)'}">
                     ✦ 3/5: ${setDef.bonus3?.desc||'Set bonus'}
                 </div>
-                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${ownedCount>=5?'var(--gold)':'var(--text-dim)'}">
+                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=5?'var(--gold)':'var(--text-dim)'}">
                     ✦ 5/5: ${setDef.bonus5?.desc||'Full set bonus'}
                 </div>
             </div>`;
@@ -2180,8 +2180,8 @@ function renderForge() {
                 return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
 
-            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.owned?qColor+'66':'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
-                ${r.owned ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ OWNED</div>` : ''}
+            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?qColor+'66':'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
+                ${r.equipped ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ EQUIPPED</div>` : ''}
                 <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
                     <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
                     <div>
@@ -2197,8 +2197,8 @@ function renderForge() {
                     ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                     : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
                 <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
-                <button class="btn-forge ${r.owned?'btn-forge-owned':''}" style="margin-top:auto" ${actionAttrs('craftItem', r.id)} ${r.canCraft&&!r.owned?'':'disabled'}>
-                    ${locked?'🔒 Locked':r.owned?'✓ Already Crafted':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
+                <button class="btn-forge" style="margin-top:auto" ${actionAttrs('craftItem', r.id)} ${r.canCraft?'':'disabled'}>
+                    ${locked?'🔒 Locked':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
                 </button>
             </div>`;
         }).join('');
@@ -2208,7 +2208,7 @@ function renderForge() {
                 <span style="font-size:1.4rem">${setDef.emoji}</span>
                 <div>
                     <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${setDef.name}</div>
-                    <div style="font-size:0.72rem;color:var(--text-dim)">Collect all 5 pieces for full set bonuses</div>
+                    <div style="font-size:0.72rem;color:var(--text-dim)">Equip pieces to activate 3/5 and 5/5 set bonuses</div>
                 </div>
             </div>
             ${progressBar}
