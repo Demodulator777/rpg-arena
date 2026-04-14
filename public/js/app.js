@@ -9,6 +9,7 @@ let forgeData = null;
 let lbSort = 'total_gold_earned';
 let shopInventory = [];
 let currentShopCategory = 'weapons';
+let monthlyFreeGemsStatus = null;
 let activeMissionInterval = null;
 let overlayInterval = null;
 let travelOverlayInterval = null;
@@ -3679,7 +3680,95 @@ function renderShopContent() {
     document.getElementById('shop-gems').textContent=`💎 ${(character.gems||0).toLocaleString()} Gems`;
     const ld=document.getElementById('current-level-display'); if(ld) ld.textContent=character.level;
     const pb=document.getElementById('level-progress-bar'); if(pb) pb.style.width=`${(character.level/50)*100}%`;
+    updateFreeGemsCta();
+    loadMonthlyFreeGemsStatus();
     refreshShop();
+}
+function formatFreeGemsRefreshTime(unixTs) {
+    if (!unixTs) return 'next month';
+    return new Date(unixTs * 1000).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+function updateFreeGemsCta() {
+    const btn = document.querySelector('.shop-gems-cta');
+    if (!btn) return;
+    if (!monthlyFreeGemsStatus) {
+        btn.textContent = 'Claim Free Gems';
+        btn.disabled = false;
+        return;
+    }
+    if (monthlyFreeGemsStatus.eligible) {
+        btn.textContent = 'Claim 500 Free Gems';
+        btn.disabled = false;
+        return;
+    }
+    btn.textContent = `Free Gems Claimed · ${formatFreeGemsRefreshTime(monthlyFreeGemsStatus.nextClaimAt)}`;
+    btn.disabled = false;
+}
+async function loadMonthlyFreeGemsStatus() {
+    try {
+        monthlyFreeGemsStatus = await api('GET', '/game/gems/monthly-claim/status');
+    } catch {
+        monthlyFreeGemsStatus = null;
+    }
+    updateFreeGemsCta();
+}
+function renderFreeGemsModalContent() {
+    const el = document.getElementById('free-gems-modal-content');
+    if (!el) return;
+    if (!monthlyFreeGemsStatus) {
+        el.innerHTML = '<p class="loading">Loading...</p>';
+        return;
+    }
+    const eligible = !!monthlyFreeGemsStatus.eligible;
+    const claimedText = eligible
+        ? 'Your monthly stash is ready.'
+        : `Already claimed. Refreshes on ${formatFreeGemsRefreshTime(monthlyFreeGemsStatus.nextClaimAt)}.`;
+    el.innerHTML = `
+        <div class="free-gems-hero">
+            <div class="free-gems-amount">💎 ${monthlyFreeGemsStatus.amount || 500}</div>
+            <div class="free-gems-copy">Claim a free gem pack once each month for this character.</div>
+        </div>
+        <div class="free-gems-status ${eligible ? 'ready' : 'locked'}">${claimedText}</div>
+        <button class="btn-primary free-gems-claim-btn" ${actionAttrs('claimMonthlyFreeGems')} ${eligible ? '' : 'disabled'}>
+            ${eligible ? 'Claim Gems' : 'Already Claimed'}
+        </button>
+    `;
+}
+async function openFreeGemsModal() {
+    const modal = document.getElementById('free-gems-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    renderFreeGemsModalContent();
+    await loadMonthlyFreeGemsStatus();
+    renderFreeGemsModalContent();
+}
+function closeFreeGemsModal() {
+    document.getElementById('free-gems-modal')?.classList.add('hidden');
+}
+async function claimMonthlyFreeGems() {
+    try {
+        const response = await api('POST', '/game/gems/monthly-claim');
+        character = response.character || character;
+        monthlyFreeGemsStatus = {
+            amount: response.amount || 500,
+            eligible: false,
+            claimedAt: Math.floor(Date.now() / 1000),
+            nextClaimAt: response.nextClaimAt
+        };
+        renderTopBar();
+        renderCharacter();
+        renderShopContent();
+        renderFreeGemsModalContent();
+        showMsg('shop-msg', response.message || 'Claimed free gems.');
+    } catch (e) {
+        showMsg('shop-msg', e.message, true);
+        await loadMonthlyFreeGemsStatus();
+        renderFreeGemsModalContent();
+    }
 }
 function renderShop() {
     if (!character||!shopInventory.length) return;
