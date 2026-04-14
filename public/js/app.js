@@ -320,6 +320,7 @@ function renderCharacterSwitcherButton() {
 }
 
 function syncCreateClassAvailability() {
+    ensureCreateClassArt();
     const usedClasses = new Set(accountCharacters.map(c => String(c.class || '').toLowerCase()));
     document.querySelectorAll('.class-card').forEach(card => {
         const className = String(card.dataset.class || '').toLowerCase();
@@ -331,6 +332,29 @@ function syncCreateClassAvailability() {
             selectedClass = null;
             card.classList.remove('selected');
         }
+    });
+}
+
+function ensureCreateClassArt() {
+    document.querySelectorAll('.class-card').forEach(card => {
+        if (card.dataset.artReady === 'true') return;
+        const className = String(card.dataset.class || '').toLowerCase();
+        const fallbackMap = {
+            warrior: '🛡️',
+            mage: '🔮',
+            rogue: '🗡️',
+            paladin: '✨',
+        };
+        const oldIcon = card.querySelector('.class-icon');
+        const art = document.createElement('div');
+        art.className = 'class-art';
+        art.innerHTML = `
+            <img src="/images/class/${className}-st.png" alt="${capitalize(className)} art" class="class-art-img" data-error-hide="true" data-error-next-display="flex">
+            <div class="class-art-fallback" style="display:none">${fallbackMap[className] || '⚔️'}</div>
+        `;
+        if (oldIcon) oldIcon.replaceWith(art);
+        else card.prepend(art);
+        card.dataset.artReady = 'true';
     });
 }
 
@@ -453,6 +477,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         if(uel) uel.addEventListener('keypress',e=>{if(e.key==='Enter'){e.preventDefault();fn();}});
         if(pel) pel.addEventListener('keypress',e=>{if(e.key==='Enter'){e.preventDefault();fn();}});
     });
+    ensureCreateClassArt();
 });
 function logout() {
     token=null; username=null; character=null;
