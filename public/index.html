@@ -360,9 +360,14 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                 <div id="tab-shop" class="game-tab">
                     <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
                         <h2>🛒 Shop</h2>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<button class="btn-secondary shop-gems-cta" data-action="openFreeGemsModal">
+                            Claim Free Gems
+                        </button>
 <button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" data-action="rerollShop">
                             🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
                         </button>
+                        </div>
                     </div>
                     <div class="shop-currency-row">
                         <span id="shop-gold"></span>
@@ -382,6 +387,16 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                     </div>
                     <div id="shop-content" class="shop-grid"></div>
                     <div id="shop-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <div id="free-gems-modal" class="modal-overlay hidden">
+                    <div class="modal-box free-gems-modal-box">
+                        <div class="free-gems-modal-header">
+                            <h3>Free Monthly Gems</h3>
+                            <button class="btn-secondary" data-action="closeFreeGemsModal">✕</button>
+                        </div>
+                        <div id="free-gems-modal-content" class="free-gems-modal-content"></div>
+                    </div>
                 </div>
 
                 <!-- LEADERBOARD -->
