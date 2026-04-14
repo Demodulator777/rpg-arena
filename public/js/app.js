@@ -659,9 +659,15 @@ const eqGrid = `
           ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
           ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
         </div>
+        <div class="char-panel char-panel-achievements">
+          <h3>ACHIEVEMENTS</h3>
+          <div id="achievements-panel-content" class="achievements-panel-loading">Loading achievements...</div>
+          <div id="achievements-msg" class="msg-bar hidden" style="margin-top:12px"></div>
+        </div>
       </div>
     </div>`;
     renderTopBar();
+    loadAchievements();
 }
 function statRow(icon,label,val,max,cls) {
     return `<div class="stat-row"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span>
@@ -669,6 +675,82 @@ function statRow(icon,label,val,max,cls) {
     <span class="stat-val">${val}</span></div>`;
 }
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
+
+async function loadAchievements() {
+    const el = document.getElementById('achievements-panel-content');
+    if (!el) return;
+    el.innerHTML = '<div class="achievements-panel-loading">Loading achievements...</div>';
+    try {
+        const data = await api('GET', '/game/achievements');
+        renderAchievementsPanel(data);
+    } catch (e) {
+        el.innerHTML = `<div class="achievements-panel-loading">${escHtml(e.message)}</div>`;
+    }
+}
+
+function renderAchievementRewardSummary(achievement) {
+    return (achievement.reward_summary || []).map(text => `<span class="achievement-reward-chip">${escHtml(text)}</span>`).join('');
+}
+
+function renderAchievementsPanel(data) {
+    const el = document.getElementById('achievements-panel-content');
+    if (!el) return;
+    const items = data?.items || [];
+    const totals = data?.totals || { claimed: 0, total: 0, claimable: 0 };
+    if (!items.length) {
+        el.innerHTML = '<div class="achievements-panel-loading">No achievements yet.</div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <div class="achievements-summary">
+            <div><strong>${totals.claimed}</strong> claimed</div>
+            <div><strong>${totals.claimable}</strong> ready</div>
+            <div><strong>${totals.total}</strong> total</div>
+        </div>
+        <div class="achievements-list">
+            ${items.map(achievement => {
+                const pct = Math.max(0, Math.min(100, Math.round((achievement.progress / Math.max(achievement.target, 1)) * 100)));
+                const cardClass = achievement.claimed ? 'claimed' : achievement.claimable ? 'claimable' : 'locked';
+                const progressText = achievement.claimed
+                    ? 'Claimed'
+                    : achievement.claimable
+                        ? 'Ready to claim'
+                        : `${achievement.progress.toLocaleString()} / ${achievement.target.toLocaleString()}`;
+                return `<div class="achievement-card ${cardClass}">
+                    <div class="achievement-card-head">
+                        <div class="achievement-icon">${achievement.icon}</div>
+                        <div class="achievement-copy">
+                            <div class="achievement-name">${escHtml(achievement.name)}</div>
+                            <div class="achievement-desc">${escHtml(achievement.desc)}</div>
+                        </div>
+                    </div>
+                    <div class="achievement-progress-row">
+                        <div class="achievement-progress-bar"><div class="achievement-progress-fill" style="width:${pct}%"></div></div>
+                        <div class="achievement-progress-text">${progressText}</div>
+                    </div>
+                    <div class="achievement-rewards">${renderAchievementRewardSummary(achievement)}</div>
+                    ${achievement.claimed
+                        ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
+                        : achievement.claimable
+                            ? `<button class="achievement-claim-btn" ${actionAttrs('claimAchievement', achievement.id)}>Claim Reward</button>`
+                            : '<button class="achievement-claim-btn locked" disabled>In Progress</button>'}
+                </div>`;
+            }).join('')}
+        </div>`;
+}
+
+async function claimAchievement(achievementId) {
+    try {
+        const result = await api('POST', `/game/achievements/${achievementId}/claim`);
+        character = result.character;
+        renderTopBar();
+        renderCharacter();
+        showMsg('achievements-msg', result.message);
+    } catch (e) {
+        showMsg('achievements-msg', e.message, true);
+    }
+}
 
 // ── Loadout Editor ────────────────────────────────────────────────────────
 // ── Loadout visual config ─────────────────────────────────────────────────
