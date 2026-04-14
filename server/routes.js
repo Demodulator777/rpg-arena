@@ -3986,12 +3986,34 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET attack_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
         try {
             const defSubject = attackerWon ? `⚔️ ${freshA.name} attacked and defeated you! (-${defGoldStake} gold)` : `🛡️ You defended against ${freshA.name} and won! (+${atkGoldStake} gold)`;
-            const defPayload = JSON.stringify({ log: battle.log, won: !attackerWon, goldEarned: defGoldChange>0?defGoldChange:0, goldLost: defGoldChange<0?-defGoldChange:0, xpEarned:0, type:'pvp', opponentName:freshA.name });
+            const defPayload = JSON.stringify({
+                log: battle.log,
+                won: !attackerWon,
+                goldEarned: defGoldChange>0?defGoldChange:0,
+                goldLost: defGoldChange<0?-defGoldChange:0,
+                xpEarned:0,
+                type:'pvp',
+                opponentName:freshA.name,
+                opponentClass:freshA.class,
+                totalDmgDealt:battle.totalDmgToA,
+                totalDmgTaken:battle.totalDmgToB
+            });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshD.id, defSubject, `BATTLE_REPORT:${defPayload}`]);
         } catch (e) { console.error('Failed to send defender report:', e); }
         try {
             const atkSubject = attackerWon ? `⚔️ You defeated ${freshD.name}! (+${defGoldStake} gold)` : `💀 You lost to ${freshD.name}. (-${atkGoldStake} gold)`;
-            const atkPayload = JSON.stringify({ log: battle.log, won: attackerWon, goldEarned: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, xpEarned:xpGained, type:'pvp', opponentName:freshD.name });
+            const atkPayload = JSON.stringify({
+                log: battle.log,
+                won: attackerWon,
+                goldEarned: goldGained>0?goldGained:0,
+                goldLost: goldGained<0?-goldGained:0,
+                xpEarned:xpGained,
+                type:'pvp',
+                opponentName:freshD.name,
+                opponentClass:freshD.class,
+                totalDmgDealt:battle.totalDmgToB,
+                totalDmgTaken:battle.totalDmgToA
+            });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshA.id, atkSubject, `BATTLE_REPORT:${atkPayload}`]);
         } catch (e) { console.error('Failed to send attacker report:', e); }
         const updatedAttacker = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [freshA.id]);
