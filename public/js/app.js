@@ -643,6 +643,10 @@ const eqGrid = `
               <div class="element-badge-row">${elementResistBadges.join('')}</div>
             </div>
           </div>
+          <button class="achievement-launch-btn" ${actionAttrs('openAchievementsModal')}>
+            <span>🏆 Achievements</span>
+            <span id="achievements-summary-inline" class="achievement-launch-meta">Loading...</span>
+          </button>
         </div>
         <div class="char-panel char-panel-equipment">
           <h3>EQUIPMENT</h3>
@@ -659,13 +663,9 @@ const eqGrid = `
           ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
           ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
         </div>
-        <div class="char-panel char-panel-achievements">
-          <h3>ACHIEVEMENTS</h3>
-          <div id="achievements-panel-content" class="achievements-panel-loading">Loading achievements...</div>
-          <div id="achievements-msg" class="msg-bar hidden" style="margin-top:12px"></div>
-        </div>
       </div>
     </div>`;
+    ensureAchievementsModal();
     renderTopBar();
     loadAchievements();
 }
@@ -677,14 +677,14 @@ function statRow(icon,label,val,max,cls) {
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
 
 async function loadAchievements() {
-    const el = document.getElementById('achievements-panel-content');
-    if (!el) return;
-    el.innerHTML = '<div class="achievements-panel-loading">Loading achievements...</div>';
+    const summaryEl = document.getElementById('achievements-summary-inline');
+    if (summaryEl) summaryEl.textContent = 'Loading...';
     try {
         const data = await api('GET', '/game/achievements');
-        renderAchievementsPanel(data);
+        window._achievementsData = data;
+        renderAchievementsSummary(data);
     } catch (e) {
-        el.innerHTML = `<div class="achievements-panel-loading">${escHtml(e.message)}</div>`;
+        if (summaryEl) summaryEl.textContent = 'Unavailable';
     }
 }
 
@@ -692,10 +692,43 @@ function renderAchievementRewardSummary(achievement) {
     return (achievement.reward_summary || []).map(text => `<span class="achievement-reward-chip">${escHtml(text)}</span>`).join('');
 }
 
-function renderAchievementsPanel(data) {
-    const el = document.getElementById('achievements-panel-content');
+function getVisibleAchievements(items) {
+    const groups = new Map();
+    for (const item of items) {
+        const key = item.metric || item.id;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+    }
+
+    const visible = [];
+    for (const group of groups.values()) {
+        group.sort((a, b) => (a.target || 0) - (b.target || 0));
+        const nextUnclaimed = group.find(item => !item.claimed);
+        if (nextUnclaimed) {
+            visible.push(nextUnclaimed);
+        } else if (group.length) {
+            visible.push(group[group.length - 1]);
+        }
+    }
+
+    return visible.sort((a, b) => {
+        if (a.claimable !== b.claimable) return a.claimable ? -1 : 1;
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        return (a.target || 0) - (b.target || 0);
+    });
+}
+
+function renderAchievementsSummary(data) {
+    const el = document.getElementById('achievements-summary-inline');
     if (!el) return;
-    const items = data?.items || [];
+    const totals = data?.totals || { claimable: 0, claimed: 0, total: 0 };
+    el.textContent = totals.claimable > 0 ? `${totals.claimable} ready` : `${totals.claimed}/${totals.total} claimed`;
+}
+
+function renderAchievementsPanel(data, targetId='achievements-modal-content') {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const items = getVisibleAchievements(data?.items || []);
     const totals = data?.totals || { claimed: 0, total: 0, claimable: 0 };
     if (!items.length) {
         el.innerHTML = '<div class="achievements-panel-loading">No achievements yet.</div>';
@@ -717,12 +750,16 @@ function renderAchievementsPanel(data) {
                     : achievement.claimable
                         ? 'Ready to claim'
                         : `${achievement.progress.toLocaleString()} / ${achievement.target.toLocaleString()}`;
+                const nextLabel = achievement.claimed
+                    ? 'Max tier cleared'
+                    : `Next milestone: ${achievement.target.toLocaleString()}`;
                 return `<div class="achievement-card ${cardClass}">
                     <div class="achievement-card-head">
                         <div class="achievement-icon">${achievement.icon}</div>
                         <div class="achievement-copy">
                             <div class="achievement-name">${escHtml(achievement.name)}</div>
                             <div class="achievement-desc">${escHtml(achievement.desc)}</div>
+                            <div class="achievement-tier-note">${nextLabel}</div>
                         </div>
                     </div>
                     <div class="achievement-progress-row">
@@ -740,11 +777,52 @@ function renderAchievementsPanel(data) {
         </div>`;
 }
 
+function ensureAchievementsModal() {
+    if (document.getElementById('achievements-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="achievements-modal" class="modal-overlay hidden">
+            <div class="modal-box achievements-modal-box">
+                <div class="modal-header">
+                    <h3>Achievements</h3>
+                    <button class="btn-secondary" ${actionAttrs('closeAchievementsModal')}>✕</button>
+                </div>
+                <div id="achievements-modal-content" class="achievements-panel-loading">Loading achievements...</div>
+                <div id="achievements-msg" class="msg-bar hidden" style="margin-top:12px"></div>
+            </div>
+        </div>
+    `);
+}
+
+async function openAchievementsModal() {
+    ensureAchievementsModal();
+    const modal = document.getElementById('achievements-modal');
+    const content = document.getElementById('achievements-modal-content');
+    if (!modal || !content) return;
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="achievements-panel-loading">Loading achievements...</div>';
+    try {
+        const data = await api('GET', '/game/achievements');
+        window._achievementsData = data;
+        renderAchievementsSummary(data);
+        renderAchievementsPanel(data, 'achievements-modal-content');
+    } catch (e) {
+        content.innerHTML = `<div class="achievements-panel-loading">${escHtml(e.message)}</div>`;
+    }
+}
+
+function closeAchievementsModal() {
+    document.getElementById('achievements-modal')?.classList.add('hidden');
+}
+
 async function claimAchievement(achievementId) {
     try {
         const result = await api('POST', `/game/achievements/${achievementId}/claim`);
         character = result.character;
         renderTopBar();
+        const data = await api('GET', '/game/achievements');
+        window._achievementsData = data;
+        renderAchievementsSummary(data);
+        renderAchievementsPanel(data, 'achievements-modal-content');
         renderCharacter();
         showMsg('achievements-msg', result.message);
     } catch (e) {
