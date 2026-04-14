@@ -66,6 +66,7 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -3596,6 +3597,77 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
 });
 
 // ── Shop ──────────────────────────────────────────────────────────────────
+function getMonthlyGemsClaimWindow(now = Math.floor(Date.now() / 1000)) {
+    const nowDate = new Date(now * 1000);
+    const year = nowDate.getUTCFullYear();
+    const month = nowDate.getUTCMonth();
+    const monthStart = Math.floor(Date.UTC(year, month, 1) / 1000);
+    const nextMonthStart = Math.floor(Date.UTC(year, month + 1, 1) / 1000);
+    return { monthStart, nextMonthStart };
+}
+
+function hasClaimedMonthlyGems(claimedAt, now = Math.floor(Date.now() / 1000)) {
+    if (!claimedAt) return false;
+    const { monthStart } = getMonthlyGemsClaimWindow(now);
+    return Number(claimedAt) >= monthStart;
+}
+
+router.get('/gems/monthly-claim/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const now = Math.floor(Date.now() / 1000);
+        const claimedAt = Number(character.last_free_gems_claim_at || 0);
+        const eligible = !hasClaimedMonthlyGems(claimedAt, now);
+        const { nextMonthStart } = getMonthlyGemsClaimWindow(now);
+        res.json({
+            amount: 500,
+            eligible,
+            claimedAt,
+            nextClaimAt: eligible ? now : nextMonthStart
+        });
+    } catch (e) {
+        console.error('Monthly gems status error:', e);
+        res.status(500).json({ error: e.message || 'Failed to load monthly gems status' });
+    }
+});
+
+router.post('/gems/monthly-claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+
+        const now = Math.floor(Date.now() / 1000);
+        const claimedAt = Number(character.last_free_gems_claim_at || 0);
+        const { nextMonthStart } = getMonthlyGemsClaimWindow(now);
+        if (hasClaimedMonthlyGems(claimedAt, now)) {
+            return res.status(400).json({
+                error: 'Free gems already claimed this month.',
+                nextClaimAt: nextMonthStart
+            });
+        }
+
+        await dbRun(
+            db,
+            'UPDATE characters SET gems = gems + 500, total_gems_earned = COALESCE(total_gems_earned, 0) + 500, last_free_gems_claim_at = ? WHERE id = ?',
+            [now, character.id]
+        );
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        res.json({
+            success: true,
+            amount: 500,
+            nextClaimAt: nextMonthStart,
+            character: await buildCharacterResponse(updatedChar, db),
+            message: 'Claimed 500 free gems for this month.'
+        });
+    } catch (e) {
+        console.error('Monthly gems claim error:', e);
+        res.status(500).json({ error: e.message || 'Failed to claim free gems' });
+    }
+});
+
 router.post('/shop/buy', auth, async (req, res) => {
     try {
         const db = await getDb();
