@@ -1256,7 +1256,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .char-panel.full { grid-column: 1 / -1; }
 .char-panel-record { grid-column: 2; }
 
-.char-panel::after,
 .profile-card::before,
 .shop-card::after,
 .upgrade-card::after,
@@ -1270,7 +1269,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     opacity: 0.05;
 }
 
-.char-panel::after,
 .profile-card::before,
 .shop-card::after,
 .upgrade-card::after,
@@ -1282,7 +1280,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     z-index: 0;
 }
 
-.char-panel > *,
 .profile-card > *,
 .shop-card > *,
 .upgrade-card > *,
