@@ -2127,12 +2127,12 @@ function renderForge() {
                 const have=(forgeData.mats[mat]?.qty||0);
                 return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${mat.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
-            return `<div class="forge-card">
+            return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:220px">
                 <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div>
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
                 <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold</div>
-                <button class="btn-forge" ${actionAttrs('refine', c.id)} ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button>
+                <button class="btn-forge" style="margin-top:auto" ${actionAttrs('refine', c.id)} ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button>
             </div>`;
         }).join('')}</div>`;
         return;
@@ -2180,7 +2180,7 @@ function renderForge() {
                 return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
 
-            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.owned?qColor+'66':'rgba(255,255,255,0.08)'}">
+            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.owned?qColor+'66':'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
                 ${r.owned ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ OWNED</div>` : ''}
                 <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
                     <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
@@ -2197,7 +2197,7 @@ function renderForge() {
                     ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                     : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
                 <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
-                <button class="btn-forge ${r.owned?'btn-forge-owned':''}" ${actionAttrs('craftItem', r.id)} ${r.canCraft&&!r.owned?'':'disabled'}>
+                <button class="btn-forge ${r.owned?'btn-forge-owned':''}" style="margin-top:auto" ${actionAttrs('craftItem', r.id)} ${r.canCraft&&!r.owned?'':'disabled'}>
                     ${locked?'🔒 Locked':r.owned?'✓ Already Crafted':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
                 </button>
             </div>`;
