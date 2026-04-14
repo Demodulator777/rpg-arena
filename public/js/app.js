@@ -2251,8 +2251,16 @@ function updateTravelStatusBar() { if(playerTravelTarget) showTravelOverlay(); e
 async function checkTravelStatus() {
     try {
         const status=await api('GET','/game/travel/status');
-        if (character) character.location=status.location; else character={location:status.location};
-        if (character) character.current_map = status.currentMap || character.current_map;
+        if (status.character) {
+            character = status.character;
+            renderTopBar();
+            if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
+        } else if (character) {
+            character.location=status.location;
+            character.current_map = status.currentMap || character.current_map;
+        } else {
+            character={location:status.location,current_map:status.currentMap||'overworld'};
+        }
         playerLocation=status.location;
         playerTravelTarget=status.travelTarget||null;
         playerTravelEndTime=status.travelEndTime||0;
@@ -4003,7 +4011,11 @@ async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
     const mmBox = document.getElementById('matchmaking-box');
     if (mmBox && !mmBox.dataset.loaded) { mmBox.dataset.loaded='1'; findOpponent('similar'); }
-    try { lbData=await api('GET',`/game/leaderboard?sort=${lbSort}`); renderLeaderboard(); }
+    try {
+        character = await api('GET','/game/character');
+        lbData=await api('GET',`/game/leaderboard?sort=${lbSort}`);
+        renderLeaderboard();
+    }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
 function filterLeaderboard() { renderLeaderboard(); }
@@ -4034,6 +4046,7 @@ async function openProfile(id) {
     if (!modal||!content) return;
     content.innerHTML='<p class="loading">Loading profile...</p>'; modal.classList.remove('hidden');
     try {
+        character = await api('GET','/game/character');
         const p=await api('GET',`/game/player/${id}`);
         const classIcon={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[p.class]||'⚔️';
         const name=p.name||'Unknown', level=p.level??'?';
@@ -4322,7 +4335,13 @@ async function attack(targetId,targetName,targetClass=null) {
     if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
     const blockReason = getMyAttackBlockReason();
     if (blockReason) { alert(blockReason); return; }
-    try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName,targetClass); }
+    try {
+        const r=await api('POST',`/game/attack/${targetId}`);
+        character=r.character;
+        renderTopBar();
+        if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
+        showBattleResult(r,targetName,targetClass);
+    }
     catch(e) { alert(e.message); }
 }
 function showBattleResult(r, targetName, targetClass=null) {
