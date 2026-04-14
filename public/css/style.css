@@ -1255,6 +1255,42 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .char-panel:hover { border-color: var(--border-mid); }
 .char-panel.full { grid-column: 1 / -1; }
 .char-panel-record { grid-column: 2; }
+
+.char-panel::after,
+.profile-card::before,
+.shop-card::after,
+.upgrade-card::after,
+.modal-box::before,
+.tab-content-area::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: url('/images/rune-bg.png') center/cover no-repeat;
+    opacity: 0.3;
+}
+
+.char-panel::after,
+.profile-card::before,
+.shop-card::after,
+.upgrade-card::after,
+.modal-box::before {
+    z-index: 0;
+}
+
+.tab-content-area::after {
+    z-index: 0;
+}
+
+.char-panel > *,
+.profile-card > *,
+.shop-card > *,
+.upgrade-card > *,
+.modal-box > *,
+.tab-content-area > * {
+    position: relative;
+    z-index: 1;
+}
 .achievement-launch-btn {
     margin-top: 14px;
     width: 100%;
