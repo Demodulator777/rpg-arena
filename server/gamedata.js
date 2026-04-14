@@ -469,7 +469,11 @@ const CRAFTING_SETS = {
     voidborn: {
         name:'Voidborn Set', emoji:'🌑',
         bonus3:{ magic:12, crit_chance:8,  desc:'3/5: +12 MAG · +8 Crit' },
-        bonus5:{ magic:25, crit_chance:18, hit_chance:12, desc:'5/5: +25 MAG · +18 Crit · +12 Hit · +20 all Elem Resist' },
+        bonus5:{
+            magic:25, crit_chance:18, hit_chance:12,
+            pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
+            desc:'5/5: +25 MAG · +18 Crit · +12 Hit · +20 all Elem Resist'
+        },
     },
 };
 
