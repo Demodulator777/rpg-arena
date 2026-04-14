@@ -525,6 +525,7 @@ function renderCharacter() {
         if (!item?.stats) return;
         STAT_KEYS.forEach(k => { if (item.stats[k]) itemBonus[k] += item.stats[k]; });
     });
+    const setBonus = c.equipped_set_bonuses || {};
 
     const baseStr  = c.strength    || 0;
     const baseDef  = c.defense     || 0;
@@ -533,8 +534,15 @@ function renderCharacter() {
     const baseVit  = c.vitality    || 10;
     const baseHit  = c.hit_chance  || 0;
     const baseCrit = c.crit_chance || 0;
-    const totalStr = baseStr + (itemBonus.strength || 0);
-    const totalDef = baseDef + (itemBonus.defense || 0);
+    const bonusStr  = (itemBonus.strength || 0) + (setBonus.strength || 0);
+    const bonusDef  = (itemBonus.defense || 0) + (setBonus.defense || 0);
+    const bonusAgi  = (itemBonus.agility || 0) + (setBonus.agility || 0) + (c.no_shield_agi_bonus || 0);
+    const bonusMag  = (itemBonus.magic || 0) + (setBonus.magic || 0);
+    const bonusVit  = (itemBonus.vitality || 0) + (setBonus.vitality || 0);
+    const bonusHit  = (itemBonus.hit_chance || 0) + (setBonus.hit_chance || 0);
+    const bonusCrit = (itemBonus.crit_chance || 0) + (setBonus.crit_chance || 0);
+    const totalStr = baseStr + bonusStr;
+    const totalDef = baseDef + bonusDef;
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
@@ -560,7 +568,7 @@ function renderCharacter() {
     }
 
     const baseArmor = Math.floor(totalDef / 4);
-    const armorVal  = baseArmor + (itemBonus.armor || 0);
+    const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
     const elemDmgObj    = c.elem_dmg    || {};
     const elemResistObj = c.elem_resist || {};
@@ -629,13 +637,13 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
-          ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
-          ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
-          ${statRowBreakdown('✨','Magic',    baseMag,  itemBonus.magic||0,    maxStat,'mag')}
-          ${statRowBreakdown('❤️','Vitality', baseVit,  itemBonus.vitality||0, maxStat,'vit')}
-          ${baseHit>0||itemBonus.hit_chance?statRowBreakdown('🎯','Hit Chance',  baseHit,  itemBonus.hit_chance||0,  maxStat,'hit'):''}
-          ${baseCrit>0||itemBonus.crit_chance?statRowBreakdown('💥','Crit Chance',baseCrit, itemBonus.crit_chance||0, maxStat,'crit'):''}
+          ${statRowBreakdown('💪','Strength', baseStr, bonusStr, maxStat,'str')}
+          ${statRowBreakdown('🛡️','Defense',  baseDef,  bonusDef,  maxStat,'def')}
+          ${statRowBreakdown('⚡','Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
+          ${statRowBreakdown('✨','Magic',    baseMag,  bonusMag,  maxStat,'mag')}
+          ${statRowBreakdown('❤️','Vitality', baseVit,  bonusVit, maxStat,'vit')}
+          ${baseHit>0||bonusHit?statRowBreakdown('🎯','Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown('💥','Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
           <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <span title="${escHtml(dmgTooltip)}" style="cursor:help">
               ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
