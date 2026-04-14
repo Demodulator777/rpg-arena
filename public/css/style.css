@@ -1267,7 +1267,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     inset: 0;
     pointer-events: none;
     background: url('/images/rune-bg.png') center/cover no-repeat;
-    opacity: 0.3;
+    opacity: 0.05;
 }
 
 .char-panel::after,
