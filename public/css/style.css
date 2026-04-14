@@ -960,6 +960,69 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         min-width: 0;
     }
     .element-strip-row { align-items: flex-start; }
+    .char-panel {
+        padding: 16px;
+    }
+    .char-panel h3 {
+        margin-bottom: 12px;
+        font-size: 0.64rem;
+        letter-spacing: 0.1em;
+    }
+    .stat-row {
+        grid-template-columns: 20px 82px minmax(56px, 1fr) 48px 30px;
+        column-gap: 7px;
+        padding: 6px 0;
+    }
+    .stat-icon {
+        width: 18px;
+        font-size: 0.88rem;
+    }
+    .stat-label {
+        font-size: 0.72rem;
+    }
+    .stat-val,
+    .stat-total {
+        font-size: 0.72rem;
+    }
+    .stat-bonus {
+        font-size: 0.54rem;
+    }
+    .stat-bar {
+        height: 5px;
+    }
+    .element-strip {
+        margin-top: 10px;
+        gap: 6px;
+    }
+    .element-strip-label {
+        width: 46px;
+        font-size: 0.56rem;
+    }
+    .element-badge-row {
+        gap: 6px;
+    }
+    .element-entry {
+        gap: 4px;
+    }
+    .element-badge {
+        min-width: 46px;
+        padding: 5px 8px;
+    }
+    .element-badge-icon {
+        font-size: 0.8rem;
+    }
+    .element-badge-value {
+        min-width: 20px;
+        font-size: 0.74rem;
+    }
+    .achievement-launch-btn {
+        margin-top: 12px;
+        padding: 10px 12px;
+        font-size: 0.74rem;
+    }
+    .achievement-launch-meta {
+        font-size: 0.66rem;
+    }
 }
 
 .char-panel {
