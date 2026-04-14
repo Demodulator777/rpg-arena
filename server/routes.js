@@ -113,6 +113,32 @@ const GUILD_EXCHANGES = [
             expires_at INTEGER,
             PRIMARY KEY (attacker_user_id, defender_user_id)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_timestamp TEXT NOT NULL,
+            username TEXT,
+            character_name TEXT,
+            character_level INTEGER DEFAULT 0,
+            character_class TEXT,
+            category TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            steps_to_reproduce TEXT,
+            browser TEXT,
+            game_location TEXT,
+            game_hp INTEGER DEFAULT 0,
+            game_gold INTEGER DEFAULT 0,
+            game_level INTEGER DEFAULT 0,
+            has_screenshot INTEGER DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_screenshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bug_report_id INTEGER NOT NULL,
+            filename TEXT,
+            image_data BLOB NOT NULL,
+            mime_type TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_achievements (
             char_id INTEGER NOT NULL,
             achievement_id TEXT NOT NULL,
@@ -4634,6 +4660,9 @@ router.post('/bug-report', async (req, res) => {
         const db = await getDb();
         const report = req.body;
         const timestamp = new Date().toISOString();
+        if (!report?.report?.category || !report?.report?.title || !report?.report?.description) {
+            return res.status(400).json({ success: false, error: 'Missing required bug report fields' });
+        }
         
         const result = await dbRun(db, `
             INSERT INTO bug_reports (
@@ -4644,20 +4673,29 @@ router.post('/bug-report', async (req, res) => {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             timestamp,
-            report.user.username, report.user.character_name, report.user.character_level, report.user.character_class,
+            report.user?.username || 'guest',
+            report.user?.character_name || 'unknown',
+            report.user?.character_level || 0,
+            report.user?.character_class || 'unknown',
             report.report.category, report.report.title, report.report.description, 
             report.report.steps_to_reproduce || null, report.report.browser || null,
-            report.game_state.location, report.game_state.hp, report.game_state.gold, report.game_state.level,
+            report.game_state?.location || 'unknown',
+            report.game_state?.hp || 0,
+            report.game_state?.gold || 0,
+            report.game_state?.level || 0,
             report.screenshot ? 1 : 0
         ]);
         
         const bugReportId = result.lastInsertRowid;
         
         if (report.screenshot) {
+            const mimeMatch = report.screenshot.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,/);
             const base64Data = report.screenshot.split(',')[1];
-            const mimeMatch = report.screenshot.match(/^data:image\/(\w+);base64,/);
+            if (!base64Data) {
+                return res.status(400).json({ success: false, error: 'Invalid screenshot payload' });
+            }
             const mimeType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png';
-            const ext = mimeMatch?.[1] || 'png';
+            const ext = (mimeMatch?.[1] || 'png').replace(/[^a-zA-Z0-9]/g, '');
             const screenshotBuffer = Buffer.from(base64Data, 'base64');
             const filename = `bug_${bugReportId}.${ext}`;
             
@@ -4667,7 +4705,7 @@ router.post('/bug-report', async (req, res) => {
             `, [bugReportId, filename, screenshotBuffer, mimeType]);
         }
         
-        console.log(`🐛 Bug report #${bugReportId} saved from ${report.user.username}`);
+        console.log(`Bug report #${bugReportId} saved from ${report.user?.username || 'guest'}`);
         
         res.json({ 
             success: true, 
