@@ -3299,8 +3299,8 @@ async function openLootBox(itemId, itemName) {
             }
             
             // Skip button handler
-            skipBtn.replaceWith(skipBtn.cloneNode(true));
-            const freshSkipBtn = document.getElementById('lootbox-skip-btn');
+            const freshSkipBtn = skipBtn.cloneNode(true);
+            skipBtn.replaceWith(freshSkipBtn);
             freshSkipBtn.addEventListener('click', () => {
                 if (!skipRequested) {
                     skipRequested = true;
@@ -3316,8 +3316,8 @@ async function openLootBox(itemId, itemName) {
                 renderTopBar();
                 renderCharacter();
             };
-            closeBtn.replaceWith(closeBtn.cloneNode(true));
-            const freshCloseBtn = document.getElementById('lootbox-close-btn');
+            const freshCloseBtn = closeBtn.cloneNode(true);
+            closeBtn.replaceWith(freshCloseBtn);
             freshCloseBtn.addEventListener('click', closeHandler, { once: true });
             
             // Start showing first item
