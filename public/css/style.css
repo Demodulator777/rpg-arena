@@ -1455,6 +1455,85 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .inv-item-icon img { width: 64px; height: 64px; object-fit: contain; display: block; }
 .inv-item-name-label { font-size: 0.56rem; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 3px; }
 .inv-item-equipped-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 5px rgba(201,146,42,0.8); }
+.inv-consumable-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+}
+.inv-consumable-card {
+    background: linear-gradient(145deg, rgba(12,18,30,0.92), rgba(10,15,24,0.72));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 210px;
+}
+.inv-consumable-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.inv-consumable-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.inv-consumable-icon img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+}
+.inv-consumable-copy {
+    min-width: 0;
+    flex: 1;
+}
+.inv-consumable-name {
+    color: var(--text-bright);
+    font-weight: 700;
+    font-size: 0.84rem;
+    line-height: 1.25;
+}
+.inv-consumable-qty {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    margin-top: 3px;
+}
+.inv-consumable-effect {
+    color: var(--gold);
+    font-size: 0.74rem;
+    font-weight: 600;
+    min-height: 18px;
+}
+.inv-consumable-desc {
+    color: var(--text-dim);
+    font-size: 0.74rem;
+    line-height: 1.45;
+    flex: 1;
+}
+.inv-consumable-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+.inv-consumable-btn {
+    width: 100%;
+    justify-content: center;
+}
+.inv-consumable-use {
+    background: rgba(39,174,96,0.15);
+    border-color: rgba(39,174,96,0.4);
+    color: #2ecc71;
+}
+.lootbox-card .inv-consumable-icon {
+    background: linear-gradient(145deg, rgba(201,146,42,0.12), rgba(255,255,255,0.03));
+}
 .mat-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(108px,1fr)); gap: 9px; }
 .mat-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px; text-align: center; }
 .mat-name { font-size: 0.74rem; color: var(--text-bright); margin: 5px 0 2px; }
