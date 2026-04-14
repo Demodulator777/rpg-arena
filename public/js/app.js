@@ -2174,21 +2174,16 @@ function renderForge() {
         const pieceCards = pieces.map(r => {
             const locked = !r.zoneUnlocked;
             const qColor = rarityColor[r.quality] || '#aaa';
+            const forgeItemData = escHtml(JSON.stringify(r));
             const compStr = Object.entries(r.components).map(([comp,qty]) => {
                 const have = (forgeData.mats[comp]?.qty||0);
                 return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
-            const statStr = Object.entries(r.stats||{})
-                .filter(([k,v]) => typeof v === 'number' && v !== 0)
-                .map(([k,v]) => {
-                    const label = {dmg_min:'Min',dmg_max:'Max',defense:'DEF',armor:'ARM',hp_max:'HP',strength:'STR',agility:'AGI',magic:'MAG',vitality:'VIT',hit_chance:'HIT',crit_chance:'CRIT',pyro_dmg:'🔥',water_dmg:'💧',wind_dmg:'🌀',electro_dmg:'⚡',pyro_resist:'🔥RES',water_resist:'💧RES',wind_resist:'🌀RES',electro_resist:'⚡RES'}[k]||k;
-                    return `<span style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:0.65rem">${label} +${v}</span>`;
-                }).join(' ');
 
             return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.owned?qColor+'66':'rgba(255,255,255,0.08)'}">
                 ${r.owned ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ OWNED</div>` : ''}
-                <div class="forge-card-header">
-                    <span style="font-size:1.3rem">${r.emoji||slotIcon[r.slot]||'⚔️'}</span>
+                <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
+                    <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
                     <div>
                         <div style="display:flex;align-items:center;gap:6px">
                             <span class="forge-card-name">${r.name}</span>
@@ -2197,7 +2192,7 @@ function renderForge() {
                         <div style="font-size:0.7rem;color:var(--text-dim)">${slotIcon[r.slot]||''} ${capitalize(r.slot)} · Lv.${r.level}</div>
                     </div>
                 </div>
-                <div style="display:flex;flex-wrap:wrap;gap:4px;margin:6px 0">${statStr}</div>
+                <div style="font-size:0.72rem;color:var(--text-dim);margin:6px 0 2px">Hover the item header to preview scaled stats</div>
                 ${locked
                     ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                     : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
@@ -2561,7 +2556,7 @@ function showItemTooltip(event, itemId) {
     
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
-    const imgSrc = d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
     for (const stat of allStats) {
@@ -2633,6 +2628,11 @@ function hoverEqTooltip(el, event) {
 function hoverShopItemTooltip(el, event) {
     if (!el?.dataset?.shopitem) return;
     showShopItemTooltip(withCurrentTarget(event, el), el.dataset.shopitem);
+}
+
+function hoverForgeItemTooltip(el, event) {
+    if (!el?.dataset?.forgeitem) return;
+    showForgeItemTooltip(withCurrentTarget(event, el), el.dataset.forgeitem);
 }
 
 function showItemTooltip(event, itemId) {
@@ -2718,7 +2718,7 @@ function showEqTooltip(event, itemJson) {
     if (!tooltip) return;
     let item; try { item = typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
     const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
-    const imgSrc = item.img||(item.name?`/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+    const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
 
     let statsHtml = Object.entries(item.stats||{})
         .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
@@ -2747,6 +2747,76 @@ function showEqTooltip(event, itemJson) {
     if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
     tooltip.style.left = Math.max(8,left)+'px';
     tooltip.style.top  = Math.max(8,top)+'px';
+}
+
+function showForgeItemTooltip(event, itemJson) {
+    cancelHideTooltip();
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+
+    let item;
+    try {
+        item = typeof itemJson === 'string' ? JSON.parse(itemJson) : itemJson;
+    } catch {
+        return;
+    }
+
+    const qColor = {legendary:'#ffd700',rare:'#9b59b6',epic:'#3498db',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
+
+    let equippedItem = null;
+    if (character?.equipped) {
+        if (item.slot === 'ring' || item.slot === 'amulet') equippedItem = character.equipped.ring || character.equipped.amulet || null;
+        else equippedItem = character.equipped[item.slot] || null;
+    }
+
+    const allStats = new Set([
+        ...Object.keys(item.stats || {}),
+        ...Object.keys(equippedItem?.stats || {})
+    ].filter(k => !k.includes('type')));
+
+    const statsHtml = Array.from(allStats)
+        .filter(stat => stat !== 'elem_dmg' && stat !== 'elem_dmg_type' && stat !== 'elem_resist')
+        .map(stat => {
+            const nv = item.stats?.[stat] || 0;
+            const ov = equippedItem?.stats?.[stat] || 0;
+            const diff = nv - ov;
+            const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
+            const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
+            const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv > 0 ? '+' : ''}${nv}</span>${equippedItem && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+        }).join('');
+
+    const compText = item.components
+        ? Object.entries(item.components).map(([comp, qty]) => `${qty}x ${comp.replace(/_/g, ' ')}`).join(', ')
+        : '';
+
+    tooltip.innerHTML = `
+        <div class="tt-preview">
+            ${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>` : `<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
+        </div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
+            <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
+            ${item.desc?`<div class="tt-desc">${item.desc}</div>`:''}
+            <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+            ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+            ${compText ? `<div class="tt-vs">Components: <strong>${compText}</strong></div>` : ''}
+            ${item.goldCost ? `<div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">Craft Cost: 💰 ${Number(item.goldCost).toLocaleString()}</div>` : ''}
+        </div>`;
+
+    tooltip.classList.remove('hidden');
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px';
+    tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth || 220;
+    const th = tooltip.offsetHeight || 340;
+    let left = r.right + 12;
+    let top = r.top;
+    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
+    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+    tooltip.style.left = Math.max(8, left) + 'px';
+    tooltip.style.top = Math.max(8, top) + 'px';
 }
 // ============================================
 // LOOT BOX MODAL SYSTEM WITH IMAGE SUPPORT
@@ -4059,9 +4129,18 @@ async function sendMessage() {
 }
 
 // ── Item Icon Helper ──────────────────────────────────────────────────────
+function getAssetImagePath(name, basePath='/images/assets') {
+    const slug = String(name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug ? `${basePath}/${slug}.png` : null;
+}
+
 function itemIcon(item, size='2rem') {
     if (!item) return '';
-    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
+    const imgSrc = item.img || (item.name && !item.consumable ? getAssetImagePath(item.name) : null);
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
     if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
@@ -4422,7 +4501,7 @@ function showShopItemTooltip(event, itemJson) {
     const imgSrc =
         item.img ||
         (item.name && !item.consumable
-            ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`
+            ? getAssetImagePath(item.name)
             : null);
 
     const priceType = item.priceType || 'gold';
