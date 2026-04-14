@@ -3173,7 +3173,8 @@ function scaleItemToLevel(recipe, playerLevel) {
             scaledValue = Math.min(70, scaledValue);
         } else if (stat.includes('_resist')) {
             scaledValue = Math.floor(value + (level * 0.11 * qualityScale));
-            scaledValue = Math.min(34, scaledValue);
+            const resistCap = item.setId === 'voidborn' && item.slot === 'weapon' ? 40 : 34;
+            scaledValue = Math.min(resistCap, scaledValue);
         }
         
         if (scaledValue > 0) scaledStats[stat] = scaledValue;
