@@ -458,6 +458,12 @@ function switchTab(tab) {
     document.getElementById('tab-register').classList.toggle('active',tab==='register');
     setError('auth-error','');
 }
+function openAuthLegalModal() {
+    document.getElementById('auth-legal-modal')?.classList.remove('hidden');
+}
+function closeAuthLegalModal() {
+    document.getElementById('auth-legal-modal')?.classList.add('hidden');
+}
 async function login() {
     try {
         const data=await api('POST','/auth/login',{username:document.getElementById('login-user').value.trim(),password:document.getElementById('login-pass').value});
