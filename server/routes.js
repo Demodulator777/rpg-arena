@@ -3481,21 +3481,23 @@ router.get('/travel/status', auth, async (req, res) => {
             character.travel_end_time = 0;
             character.travel_start_time = 0;
         }
-        const unlocks = parseTravelUnlocks(character.unlocked_zones);
-        const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', character.current_map === 'overworld' ? character.location : null].filter(Boolean)));
-        const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), 'shadowfen', character.current_map === 'abyss' ? character.location : null].filter(Boolean)));
+        const responseCharacter = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+        const unlocks = parseTravelUnlocks(responseCharacter.unlocked_zones);
+        const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', responseCharacter.current_map === 'overworld' ? responseCharacter.location : null].filter(Boolean)));
+        const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), 'shadowfen', responseCharacter.current_map === 'abyss' ? responseCharacter.location : null].filter(Boolean)));
         
         res.json({
-            location: character.location || 'forest',
-            currentMap: currentMap,
-            travelTarget: character.travel_target,
-            travelEndTime: character.travel_end_time || 0,
-            travelStartTime: character.travel_start_time || 0,
-            traveling: !!character.travel_target,
-            timeRemaining: character.travel_target ? Math.max(0, character.travel_end_time - now) : 0,
+            location: responseCharacter.location || 'forest',
+            currentMap: responseCharacter.current_map || currentMap,
+            travelTarget: responseCharacter.travel_target,
+            travelEndTime: responseCharacter.travel_end_time || 0,
+            travelStartTime: responseCharacter.travel_start_time || 0,
+            traveling: !!responseCharacter.travel_target,
+            timeRemaining: responseCharacter.travel_target ? Math.max(0, responseCharacter.travel_end_time - now) : 0,
             unlockedZones: overworldUnlocked,
             unlockedAbyssZones: abyssUnlocked,
             encounterResult,
+            character: await buildCharacterResponse(responseCharacter, db),
         });
     } catch (e) { 
         console.error(e); 
