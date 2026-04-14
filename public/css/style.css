@@ -923,7 +923,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: min(100%, 1120px);
     margin: 0 auto;
 }
-@media (max-width: 680px) { .char-grid { grid-template-columns: 1fr; } }
+@media (max-width: 680px) {
+    .char-grid { grid-template-columns: 1fr; }
+    .char-panel-record { grid-column: auto; }
+    .element-strip-row { align-items: flex-start; }
+}
 
 .char-panel {
     background: linear-gradient(145deg, rgba(10,16,28,0.9), rgba(12,19,31,0.72));
@@ -938,6 +942,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .char-panel:hover { border-color: var(--border-mid); }
 .char-panel.full { grid-column: 1 / -1; }
+.char-panel-record { grid-column: 2; }
 .char-panel h3 {
     color: var(--gold); margin-bottom: 16px;
     font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 700;
@@ -1052,6 +1057,65 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-bright);
+}
+
+.element-strip {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.element-strip-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.element-strip-label {
+    width: 58px;
+    flex-shrink: 0;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.element-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1;
+}
+
+.element-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 58px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(10,15,24,0.35));
+}
+
+.element-badge-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+.element-badge-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-bright);
+}
+
+.element-badge-value-damage {
+    color: #f1c40f;
+}
+
+.element-badge-value-resist {
+    color: #5dade2;
 }
 
 
