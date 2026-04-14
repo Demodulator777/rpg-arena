@@ -1230,7 +1230,11 @@ function renderUpgrade() {
     const hasStatDiscount = ev?.key === 'discount_stats';
     const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
     
-    document.getElementById('upgrade-gold').textContent = `💰 ${c.gold.toLocaleString()} Gold available`;
+    document.getElementById('upgrade-gold').innerHTML = `
+        <div class="upgrade-wallet">
+            <span class="upgrade-wallet-label">War Chest</span>
+            <span class="upgrade-wallet-value">💰 ${c.gold.toLocaleString()}</span>
+        </div>`;
     
     const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
     const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
@@ -1256,18 +1260,40 @@ function renderUpgrade() {
         
         const can = c.gold >= cost;
         const displayName = s.label || capitalize(s.key);
+        const currentValue = c[s.key] || 0;
+        const projectedValue = typeof cost === 'number' ? currentValue + 1 : currentValue;
+        const statusText = can ? 'Ready to ascend' : `${Math.max(0, cost - c.gold).toLocaleString()} gold short`;
         
         return `<div class="upgrade-card">
+            <div class="upgrade-card-aura"></div>
             <div class="upgrade-card-header">
-                <span class="upgrade-card-icon">${s.icon}</span>
-                <span class="upgrade-card-name">${displayName}</span>
-                <span class="upgrade-card-val">${c[s.key] || 0}</span>
+                <div class="upgrade-card-badge">
+                    <span class="upgrade-card-icon">${s.icon}</span>
+                </div>
+                <div class="upgrade-card-title-group">
+                    <span class="upgrade-card-name">${displayName}</span>
+                    <span class="upgrade-card-status ${can ? 'ready' : 'locked'}">${statusText}</span>
+                </div>
+                <span class="upgrade-card-val">${currentValue}</span>
             </div>
-            ${s.hint ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0 4px">${s.hint}</div>` : ''}
-            ${hasStatDiscount ? `<div class="upgrade-discount" style="color:#f1c40f">📉 30% event discount</div>` : ''}
-            ${hasApprentice ? `<div class="upgrade-discount" style="color:#9b59b6">📚 20% apprentice discount</div>` : ''}
-            <div class="upgrade-cost">Next: <strong>${cost} gold</strong></div>
-            <button class="btn-upgrade" ${actionAttrs('upgradestat', s.key)} ${can ? '' : 'disabled'}>${can ? `+1 for ${cost}g` : `Need ${cost - c.gold} more`}</button>
+            ${s.hint ? `<div class="upgrade-card-hint">${s.hint}</div>` : ''}
+            <div class="upgrade-discount-row">
+                ${hasStatDiscount ? `<div class="upgrade-discount sale">📉 30% event discount</div>` : ''}
+                ${hasApprentice ? `<div class="upgrade-discount premium">📚 20% apprentice discount</div>` : ''}
+            </div>
+            <div class="upgrade-stat-track">
+                <div class="upgrade-stat-fill" style="width:${Math.min(100, Math.round((currentValue / Math.max(currentValue + 25, 25)) * 100))}%"></div>
+            </div>
+            <div class="upgrade-card-footer">
+                <div class="upgrade-cost-block">
+                    <span class="upgrade-cost-label">Next Rank</span>
+                    <span class="upgrade-cost-value">${currentValue} → ${projectedValue}</span>
+                    <span class="upgrade-cost-price">💰 ${typeof cost === 'number' ? cost.toLocaleString() : cost}</span>
+                </div>
+                <button class="btn-upgrade" ${actionAttrs('upgradestat', s.key)} ${can ? '' : 'disabled'}>
+                    ${can ? 'Ascend +1' : 'Insufficient Gold'}
+                </button>
+            </div>
         </div>`;
     }).join('');
 }
