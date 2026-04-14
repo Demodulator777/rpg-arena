@@ -1088,11 +1088,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     flex: 1;
 }
 
-.element-badge {
+.element-entry {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-width: 58px;
+}
+
+.element-badge {
+    display: inline-flex;
+    justify-content: center;
+    min-width: 54px;
     padding: 6px 10px;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.07);
@@ -1108,13 +1113,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-bright);
+    display: inline-block;
+    min-width: 26px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
 }
 
-.element-badge-value-damage {
+.element-badge.element-badge-value-damage .element-badge-value {
     color: #f1c40f;
 }
 
-.element-badge-value-resist {
+.element-badge.element-badge-value-resist .element-badge-value {
     color: #5dade2;
 }
 
