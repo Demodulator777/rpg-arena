@@ -941,7 +941,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: linear-gradient(90deg, transparent, rgba(201,146,42,0.18), transparent);
     z-index: 1;
 }
-.char-panel::after {
+.char-panel-equipment::after,
+.profile-equipment-card::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -953,7 +954,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     opacity: 0.16;
     pointer-events: none;
 }
-.char-panel > * {
+.char-panel-equipment > *,
+.profile-equipment-card > * {
     position: relative;
     z-index: 2;
 }
