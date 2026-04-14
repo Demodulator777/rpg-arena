@@ -17,6 +17,8 @@ let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
 let playerTravelStartTime = 0;
+let unlockedTravelZones = new Set(['forest']);
+let unlockedAbyssZones = new Set(['shadowfen']);
 const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
 let trainingInterval = null;
@@ -1429,19 +1431,19 @@ function renderWorldMap() {
     svgLines+='</svg>';
     
     let pinsHtml=Object.entries(ZONES).map(([zoneId,zone])=>{
-        const isUnlocked=playerLevel>=zone.minLevel;
+        const isUnlocked=unlockedTravelZones.has(zoneId) || currentZone===zoneId;
         const isCurrent=currentZone===zoneId;
         const isTraveling=playerTravelTarget===zoneId;
-        const pinStyle=`position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:${isUnlocked?'pointer':'not-allowed'};z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked?'opacity:0.4':''}`;
-        const badge=isCurrent?'📍':!isUnlocked?'🔒':isTraveling?'🚶':'';
-        const ringStyle=`width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent?'#f1c40f':'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked?'filter:grayscale(1)':''}${isCurrent?';box-shadow:0 0 0 3px rgba(241,196,15,0.4)':''}${isTraveling?';animation:pulse 1.5s infinite':''}`;
+        const pinStyle=`position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked?'opacity:0.82':''}`;
+        const badge=isCurrent?'📍':isTraveling?'🚶':!isUnlocked?'⚔️':'';
+        const ringStyle=`width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent?'#f1c40f':!isUnlocked?'rgba(231,76,60,0.7)':'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked?';filter:saturate(0.85);box-shadow:0 0 0 2px rgba(231,76,60,0.2)':''}${isCurrent?';box-shadow:0 0 0 3px rgba(241,196,15,0.4)':''}${isTraveling?';animation:pulse 1.5s infinite':''}`;
         return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
             <div style="position:relative;display:inline-block">
                 ${badge?`<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>`:''}
                 <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
             </div>
             <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):'Lv.'+zone.minLevel}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):'Gatekeeper'}</div>
         </div>`;
     }).join('');
     
@@ -1481,10 +1483,6 @@ function onMapNodeClick(zoneId) {
     }
     
     if (!zone) return;
-    if ((character?.level || 1) < zone.minLevel) { 
-        showMsg('missions-msg', `Requires level ${zone.minLevel}`, true); 
-        return; 
-    }
     openLocationModal(zoneId);
 }
 
@@ -1530,10 +1528,14 @@ function openLocationModal(zoneId) {
     const isCurrent = currentZone === zoneId;
     const isTraveling = !!playerTravelTarget;
     
+    const isUnlocked = currentMap === 'abyss'
+        ? (unlockedAbyssZones.has(zoneId) || isCurrent)
+        : (unlockedTravelZones.has(zoneId) || isCurrent);
     let travelInfo = '';
     if (!isCurrent) {
-        // For now, show simple travel message (you can implement proper travel time later)
-        travelInfo = `Travel required to reach ${zone.name}`;
+        travelInfo = isUnlocked
+            ? `Travel required to reach ${zone.name}`
+            : `Defeat the gatekeeper to unlock ${zone.name}`;
     }
     
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
@@ -1548,7 +1550,7 @@ function openLocationModal(zoneId) {
                     ${isCurrent
                         ? `<span class="mz-here-badge">📍 You are here</span>`
                         : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${isTraveling ? 'disabled' : ''}>
-                            🚶 Travel here${travelInfo ? ' · ' + travelInfo : ''}
+                            ${isUnlocked ? '🚶 Travel here' : '⚔️ Challenge for entry'}${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
                     }
                 </div>
@@ -2048,11 +2050,23 @@ async function checkTravelStatus() {
     try {
         const status=await api('GET','/game/travel/status');
         if (character) character.location=status.location; else character={location:status.location};
+        if (character) character.current_map = status.currentMap || character.current_map;
         playerLocation=status.location;
         playerTravelTarget=status.travelTarget||null;
         playerTravelEndTime=status.travelEndTime||0;
         playerTravelStartTime=status.travelStartTime||0;
+        unlockedTravelZones = new Set(status.unlockedZones || ['forest']);
+        unlockedAbyssZones = new Set(status.unlockedAbyssZones || ['shadowfen']);
         if (playerTravelTarget) showTravelOverlay(); else hideTravelOverlay();
+        if (status.encounterResult) {
+            const result = status.encounterResult;
+            const zoneLabel = (ZONES[result.targetZone]?.name || abyssData?.zones?.[result.targetZone]?.name || result.targetZone || 'the zone');
+            const summary = result.won
+                ? `Unlocked ${zoneLabel} · ⚔️ ${result.guardianName} defeated`
+                : `${result.guardianName} drove you back from ${zoneLabel}`;
+            showBattleReportModal(result.log || [], result.won, summary, result.totalDmgDealt, result.totalDmgTaken);
+            showMsg('missions-msg', result.won ? `${zoneLabel} unlocked.` : `You were forced back to ${status.location}.`, !result.won);
+        }
         return status;
     } catch(e) { console.error('Failed to check travel status:',e); return null; }
 }
@@ -5091,12 +5105,12 @@ function renderAbyssMap() {
     
     // Render Abyss zones
     const pinsHtml = Object.entries(zones).map(([zoneId, zone]) => {
-        const isUnlocked = playerLevel >= zone.minLevel;
+        const isUnlocked = unlockedAbyssZones.has(zoneId) || currentZone === zoneId;
         const isCurrent = currentZone === zoneId;
         const isTraveling = playerTravelTarget === zoneId;
-        const pinStyle = `position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:${isUnlocked ? 'pointer' : 'not-allowed'};z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked ? 'opacity:0.4' : ''}`;
-        const badge = isCurrent ? '📍' : !isUnlocked ? '🔒' : isTraveling ? '🚶' : '';
-        const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? 'filter:grayscale(1)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
+        const pinStyle = `position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked ? 'opacity:0.82' : ''}`;
+        const badge = isCurrent ? '📍' : isTraveling ? '🚶' : !isUnlocked ? '⚔️' : '';
+        const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : !isUnlocked ? 'rgba(231,76,60,0.7)' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? ';filter:saturate(0.85);box-shadow:0 0 0 2px rgba(231,76,60,0.2)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
         
         return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
             <div style="position:relative;display:inline-block">
@@ -5104,7 +5118,7 @@ function renderAbyssMap() {
                 <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
             </div>
             <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? 'HERE' : '') : 'Lv.' + zone.minLevel}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? 'HERE' : '') : 'Gatekeeper'}</div>
         </div>`;
     }).join('');
     
