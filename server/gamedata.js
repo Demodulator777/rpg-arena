@@ -541,6 +541,61 @@ function randBetween(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function weightedPick(entries) {
+    const totalWeight = entries.reduce((sum, entry) => sum + Math.max(0, entry.weight || 0), 0);
+    if (totalWeight <= 0) return entries[0]?.id || null;
+    let roll = Math.random() * totalWeight;
+    for (const entry of entries) {
+        roll -= Math.max(0, entry.weight || 0);
+        if (roll <= 0) return entry.id;
+    }
+    return entries[entries.length - 1]?.id || null;
+}
+
+function buildZoneLocalMaterialPool(zone) {
+    return (zone.rawMats || []).map(id => {
+        const rarity = RAW_MATERIALS[id]?.rarity || 'common';
+        const rarityWeight = {
+            common: 14,
+            uncommon: 10,
+            rare: 6,
+            epic: 3,
+            legendary: 1
+        }[rarity] || 1;
+        return { id, weight: rarityWeight };
+    });
+}
+
+function buildBonusMaterialPool(zone) {
+    const localSet = new Set(zone.rawMats || []);
+    return Object.entries(RAW_MATERIALS)
+        .filter(([id, def]) => !localSet.has(id) && def.rarity !== 'common')
+        .map(([id, def]) => ({
+            id,
+            weight: {
+                uncommon: 8,
+                rare: 6,
+                epic: 3,
+                legendary: 1
+            }[def.rarity] || 1
+        }));
+}
+
+function rollMissionMaterial(zone, difficulty, slotIndex, totalCount) {
+    const localPool = buildZoneLocalMaterialPool(zone);
+    if (!localPool.length) return null;
+
+    const bonusEligible = difficulty === 'hard' && slotIndex === totalCount - 1;
+    if (!bonusEligible) return weightedPick(localPool);
+
+    const bonusPool = buildBonusMaterialPool(zone);
+    const bonusChance = 0.22;
+    if (bonusPool.length && Math.random() < bonusChance) {
+        return weightedPick(bonusPool);
+    }
+    return weightedPick(localPool);
+}
+
 function generateMission(zoneId, spotId, charLevel) {
     const zone = ZONES[zoneId];
     const spot = zone?.spots.find(s => s.id === spotId);
@@ -555,7 +610,8 @@ function generateMission(zoneId, spotId, charLevel) {
     if (Math.random() < zone.matDropChance) {
         const count = randBetween(zone.matDropCount[0], zone.matDropCount[1]);
         for (let i = 0; i < count; i++) {
-            const mat = zone.rawMats[Math.floor(Math.random() * zone.rawMats.length)];
+            const mat = rollMissionMaterial(zone, difficulty, i, count);
+            if (!mat) continue;
             const existing = drops.find(d => d.mat === mat);
             if (existing) existing.qty++;
             else drops.push({ mat, qty:1 });
