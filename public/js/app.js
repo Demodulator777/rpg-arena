@@ -372,8 +372,8 @@ function showScreen(name) {
         renderTopBar();
         renderCharacter();
         startPolling();
-        showTab('character');
         checkTravelStatus().then(() => {
+            showTab(playerTravelTarget ? 'missions' : 'character');
             if (playerTravelTarget) showTravelOverlay();
         }).catch(() => {});
     }
