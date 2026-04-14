@@ -677,7 +677,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 /* ── Desktop base (applies ≥ 641 px) ── */
 .sidebar {
     width: 100%;
-    background: linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98));
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), transparent 42%),
+        linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98));
     border-bottom: 1px solid rgba(201,146,42,0.15);
     overflow-x: auto;
     overflow-y: hidden;
@@ -687,6 +689,28 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: relative;
     scrollbar-width: thin;
     scrollbar-color: rgba(201,146,42,0.3) transparent;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.18);
+}
+.sidebar::before,
+.sidebar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+}
+.sidebar::before {
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,146,42,0.4), transparent);
+}
+.sidebar::after {
+    top: 0;
+    bottom: 0;
+    background:
+        radial-gradient(circle at 15% 50%, rgba(201,146,42,0.08), transparent 18%),
+        radial-gradient(circle at 85% 50%, rgba(52,152,219,0.08), transparent 18%);
+    opacity: 0.9;
 }
 .sidebar::-webkit-scrollbar { height: 4px; }
 .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
@@ -718,6 +742,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    position: relative;
+    gap: 4px;
+    padding: 0 12px;
 }
 
 .nav-btn {
@@ -733,6 +760,27 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     transition: filter 0.2s, transform 0.2s;
     position: relative;
     overflow: visible;
+    border-radius: 16px;
+    isolation: isolate;
+}
+.nav-btn::before,
+.nav-btn::after {
+    content: '';
+    position: absolute;
+    inset: 6px 4px;
+    border-radius: 14px;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+.nav-btn::before {
+    background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.01));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.nav-btn::after {
+    inset: 4px 2px;
+    border: 1px solid rgba(201,146,42,0.16);
+    background: linear-gradient(180deg, rgba(201,146,42,0.08), rgba(52,152,219,0.05));
 }
 .nav-btn img {
     display: block;
@@ -745,8 +793,20 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     filter: brightness(1.15);
     transform: translateY(-2px);
 }
+.nav-btn:hover::before,
+.nav-btn:hover::after {
+    opacity: 1;
+}
 .nav-btn.active {
-    filter: drop-shadow(0 0 8px rgba(52,152,219,0.55));
+    filter: drop-shadow(0 0 8px rgba(52,152,219,0.45));
+}
+.nav-btn.active::before,
+.nav-btn.active::after {
+    opacity: 1;
+}
+.nav-btn.active::after {
+    border-color: rgba(201,146,42,0.34);
+    box-shadow: 0 0 18px rgba(201,146,42,0.16), inset 0 0 14px rgba(52,152,219,0.08);
 }
 
 .unread-badge {
