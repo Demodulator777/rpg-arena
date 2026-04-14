@@ -4092,6 +4092,9 @@ function getBattleFighterArt(className, preferredMode='splash') {
 
 function buildBattleFighterCard({ name, className, level, splash = false, fallback = '⚔️', side = 'left' }) {
     const artSrc = getBattleFighterArt(className, splash ? 'splash' : 'portrait');
+    const fighterClassText = className
+        ? `${capitalize(className)}${level ? ` Lv.${level}` : ''}`
+        : (level ? `Lv.${level}` : 'Battle Opponent');
     const media = artSrc
         ? `<img src="${artSrc}" alt="${escHtml(className || 'fighter')}" data-error-hide="true" data-error-next-display="flex"><span class="battle-fighter-fallback" style="display:none">${fallback}</span>`
         : `<span class="battle-fighter-fallback">${fallback}</span>`;
@@ -4100,7 +4103,7 @@ function buildBattleFighterCard({ name, className, level, splash = false, fallba
             ${media}
         </div>
         <div class="fighter-name">${escHtml(name || 'Unknown')}</div>
-        <div class="fighter-class">${className ? `${capitalize(className)}${level ? ` Lv.${level}` : ''}` : 'Unknown foe'}</div>
+        <div class="fighter-class">${fighterClassText}</div>
     </div>`;
 }
 
@@ -4385,10 +4388,10 @@ function viewBattleReport(msgId) {
         report.won ? '✅ Victory' : '💀 Defeated',
         report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
         report.xpEarned ? `⭐ +${report.xpEarned} XP` : null
-        // REMOVED: report.totalDmgDealt and report.totalDmgTaken from here
     ].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
         enemyName: report.opponentName || report.npcName || 'Enemy',
+        enemyClass: report.opponentClass || null,
         battleType: report.type === 'pvp' ? 'pvp' : 'mission'
     });
 }
