@@ -1406,6 +1406,15 @@ function getShortestTravel(currentMap, fromZone, toZone, allowedNodes = null) {
     return { time: dist[toZone], path };
 }
 
+function getAssetImagePath(name, basePath = '/images/assets') {
+    const slug = String(name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug ? `${basePath}/${slug}.png` : null;
+}
+
 // ── Item Generators ─────────────────────────────────────────────────────────
 // ELEMENTS already defined at top
 
@@ -3094,6 +3103,7 @@ function scaleItemToLevel(recipe, playerLevel) {
     const priceScale = 1 + (levelDiff * 0.05);
     item.price = Math.floor(recipe.goldCost * priceScale);
     item.goldCost = item.price;
+    item.img = item.img || getAssetImagePath(item.name);
     
     item.desc = `${recipe.desc} (Crafted at level ${level})`;
     
