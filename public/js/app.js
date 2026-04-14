@@ -13,6 +13,10 @@ let activeMissionInterval = null;
 let overlayInterval = null;
 let travelOverlayInterval = null;
 let restOverlayInterval = null;
+let battlePlaybackTimer = null;
+let battlePlaybackQueue = [];
+let battlePlaybackIndex = 0;
+let battlePlaybackMeta = null;
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -4055,7 +4059,7 @@ async function openProfile(id) {
             else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
             const atkBtn=blocked
                 ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
-                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name)}>⚔️ Attack</button>`;
+                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`;
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
           })() : ''}
         </div>
@@ -4068,8 +4072,108 @@ function miniStat(icon,label,val,max,cls) {
     <span class="stat-val" style="font-size:0.9rem">${val}</span></div>`;
 }
 function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
-async function attackFromProfile(id,name) { closeProfile(); await attack(id,name); }
+async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
+
+function clearBattlePlaybackTimer() {
+    if (battlePlaybackTimer) {
+        clearTimeout(battlePlaybackTimer);
+        battlePlaybackTimer = null;
+    }
+}
+
+function getBattleFighterArt(className, preferredMode='splash') {
+    const normalized = String(className || '').trim().toLowerCase();
+    if (!['warrior', 'mage', 'rogue', 'paladin'].includes(normalized)) return null;
+    return preferredMode === 'splash'
+        ? `/images/class/${normalized}-st.png`
+        : `/images/class/${normalized}.png`;
+}
+
+function buildBattleFighterCard({ name, className, level, splash = false, fallback = '⚔️', side = 'left' }) {
+    const artSrc = getBattleFighterArt(className, splash ? 'splash' : 'portrait');
+    const media = artSrc
+        ? `<img src="${artSrc}" alt="${escHtml(className || 'fighter')}" data-error-hide="true" data-error-next-display="flex"><span class="battle-fighter-fallback" style="display:none">${fallback}</span>`
+        : `<span class="battle-fighter-fallback">${fallback}</span>`;
+    return `<div class="fighter-card fighter-card-${side}">
+        <div class="fighter-avatar ${splash ? 'fighter-avatar-splash' : ''}">
+            ${media}
+        </div>
+        <div class="fighter-name">${escHtml(name || 'Unknown')}</div>
+        <div class="fighter-class">${className ? `${capitalize(className)}${level ? ` Lv.${level}` : ''}` : 'Unknown foe'}</div>
+    </div>`;
+}
+
+function renderBattleLogLine(line, enemyName='Enemy') {
+    if (line === '---') return '<div class="battle-log-line separator">───────────────────</div>';
+    let className = '';
+    if (line.startsWith(character?.name || '')) className = 'battle-log-player';
+    else if (enemyName && line.startsWith(enemyName)) className = 'battle-log-opponent';
+    return `<div class="battle-log-line ${className}">${escHtml(line)}</div>`;
+}
+
+function updateBattlePlaybackStatus(text, done=false) {
+    const statusEl = document.getElementById('battle-playback-status');
+    const skipBtn = document.getElementById('battle-skip-btn');
+    if (statusEl) statusEl.textContent = text;
+    if (skipBtn) {
+        skipBtn.classList.toggle('hidden', done);
+        skipBtn.disabled = done;
+    }
+}
+
+function finalizeBattlePlayback() {
+    clearBattlePlaybackTimer();
+    const logEl = document.getElementById('battle-log');
+    const out = document.getElementById('battle-outcome');
+    if (!battlePlaybackMeta || !logEl || !out) return;
+    const { log, enemyName, won, summary, dmgDealt, dmgTaken } = battlePlaybackMeta;
+    logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName)).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+    out.className = won ? 'won battle-outcome battle-outcome-visible' : 'lost battle-outcome battle-outcome-visible';
+    out.innerHTML = won
+        ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
+        : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
+    updateBattlePlaybackStatus('Battle complete', true);
+}
+
+function scheduleBattlePlaybackStep() {
+    clearBattlePlaybackTimer();
+    if (!battlePlaybackMeta) return;
+    const logEl = document.getElementById('battle-log');
+    if (!logEl) return;
+    if (battlePlaybackIndex >= battlePlaybackQueue.length) {
+        finalizeBattlePlayback();
+        return;
+    }
+    const line = battlePlaybackQueue[battlePlaybackIndex++];
+    logEl.insertAdjacentHTML('beforeend', renderBattleLogLine(line, battlePlaybackMeta.enemyName));
+    logEl.scrollTop = logEl.scrollHeight;
+    const isSeparator = line === '---';
+    const delay = isSeparator ? 450 : 1200;
+    updateBattlePlaybackStatus(isSeparator ? 'Resetting stance...' : 'Action unfolding...');
+    battlePlaybackTimer = setTimeout(scheduleBattlePlaybackStep, delay);
+}
+
+function startBattlePlayback(log, meta) {
+    clearBattlePlaybackTimer();
+    battlePlaybackMeta = { ...meta, log };
+    battlePlaybackQueue = Array.isArray(log) ? [...log] : [];
+    battlePlaybackIndex = 0;
+    const logEl = document.getElementById('battle-log');
+    const out = document.getElementById('battle-outcome');
+    if (logEl) logEl.innerHTML = '';
+    if (out) {
+        out.className = `battle-outcome ${meta.won ? 'won' : 'lost'}`;
+        out.innerHTML = '<span class="battle-outcome-pending">Battle in progress...</span>';
+    }
+    updateBattlePlaybackStatus('Battle starting...', false);
+    scheduleBattlePlaybackStep();
+}
+
+function skipBattlePlayback() {
+    finalizeBattlePlayback();
+}
 
 function getMyAttackBlockReason() {
     if (character?.trainingActive) return 'Training active';
@@ -4095,7 +4199,7 @@ async function findOpponent(direction='similar') {
         const myAttackBlockReason = getMyAttackBlockReason();
         const attackBtn = myAttackBlockReason
             ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">🛡️ ${myAttackBlockReason}</button>`
-            : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name)}>⚔️ Attack</button>`;
+            : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name, p.class)}>⚔️ Attack</button>`;
         const diffLabel = powerDiff > 10 ? '⬆️ Stronger' : powerDiff < -10 ? '⬇️ Weaker' : '↔️ Similar';
         if (box) box.innerHTML = `
             <div class="matchmaking-card">
@@ -4116,71 +4220,73 @@ async function findOpponent(direction='similar') {
             </div>`;
     } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
-async function attack(targetId,targetName) {
+async function attack(targetId,targetName,targetClass=null) {
     if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
     const blockReason = getMyAttackBlockReason();
     if (blockReason) { alert(blockReason); return; }
-    try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName); }
+    try { const r=await api('POST',`/game/attack/${targetId}`); character=r.character; renderTopBar(); showBattleResult(r,targetName,targetClass); }
     catch(e) { alert(e.message); }
 }
-function showBattleResult(r, targetName) {
+function showBattleResult(r, targetName, targetClass=null) {
     const summary = r.won
         ? `+${r.goldGained} gold · +${r.xpGained} XP`
         : `-${r.goldLost} gold`;
-    showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken);
+    showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken, {
+        enemyName: targetName,
+        enemyClass: targetClass,
+        battleType: 'pvp'
+    });
 }
 
-function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken) {
+function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = {}) {
     const modal = document.getElementById('battle-result-modal');
     if (!modal) { showMissionModal(summary); return; }
     
     const fighters = document.getElementById('battle-fighters');
-    const out = document.getElementById('battle-outcome');
-    const logEl = document.getElementById('battle-log');
+    const battleLog = Array.isArray(log) ? log : [];
     
-    let enemyName = 'Enemy';
-    const vsLine = log.find(l => l.includes(' vs '));
+    let enemyName = options.enemyName || 'Enemy';
+    const vsLine = battleLog.find(l => l.includes(' vs '));
     if (vsLine) {
         const parts = vsLine.split(' vs ');
         if (parts[1]) enemyName = parts[1].trim();
     }
+    const enemyClass = options.enemyClass || null;
+    const isPvp = options.battleType === 'pvp';
     
     if (fighters && character) {
         fighters.innerHTML = `
-            <div class="fighter-card">
-                <img src="/images/class/${character.class}.png" class="fighter-avatar" data-error-hide="true">
-                <div class="fighter-name">${character.name}</div>
-                <div class="fighter-class">${capitalize(character.class)} Lv.${character.level}</div>
-            </div>
+            ${buildBattleFighterCard({
+                name: character.name,
+                className: character.class,
+                level: character.level,
+                splash: isPvp,
+                fallback: '⚔️',
+                side: 'left'
+            })}
             <div class="fighter-vs">VS</div>
-            <div class="fighter-card">
-                <div class="fighter-avatar" style="font-size:2rem">👾</div>
-                <div class="fighter-name">${enemyName}</div>
-                <div class="fighter-class">Enemy</div>
-            </div>`;
-    }
-    
-    if (out) {
-        out.className = won ? 'won' : 'lost';
-        out.innerHTML = won
-            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
-            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
-    }
-    
-    if (logEl) {
-        logEl.innerHTML = log.map(l => {
-            if (l === '---') return '<div class="battle-log-line separator">───────────────────</div>';
-            let className = '';
-            if (l.startsWith(character?.name)) className = 'battle-log-player';
-            else if (l.startsWith(enemyName)) className = 'battle-log-opponent';
-            return `<div class="battle-log-line ${className}">${l}</div>`;
-        }).join('');
+            ${buildBattleFighterCard({
+                name: enemyName,
+                className: enemyClass,
+                level: options.enemyLevel || null,
+                splash: !!(isPvp && enemyClass),
+                fallback: enemyClass ? '⚔️' : '👾',
+                side: 'right'
+            })}`;
     }
     
     modal.classList.remove('hidden');
+    startBattlePlayback(battleLog, { won, summary, dmgDealt, dmgTaken, enemyName });
 }
 
-function closeBattle() { document.getElementById('battle-result-modal').classList.add('hidden'); renderCharacter(); }
+function closeBattle() {
+    clearBattlePlaybackTimer();
+    battlePlaybackQueue = [];
+    battlePlaybackIndex = 0;
+    battlePlaybackMeta = null;
+    document.getElementById('battle-result-modal').classList.add('hidden');
+    renderCharacter();
+}
 
 // ── History ───────────────────────────────────────────────────────────────
 async function loadHistory() {
@@ -4201,10 +4307,10 @@ async function loadHistory() {
 }
 function showHistoryLog(logJson,a,d) {
     const log=typeof logJson==='string'?JSON.parse(logJson):logJson;
-    const out=document.getElementById('battle-outcome');
-    out.innerHTML=`📜 ${a} vs ${d}`; out.className='';
-    document.getElementById('battle-log').innerHTML=log.map(l=>`<div class="battle-log-line${l==='---'?' separator':''}">${l==='---'?'───────────────────':l}</div>`).join('');
-    document.getElementById('battle-result-modal').classList.remove('hidden');
+    showBattleReportModal(log, false, `📜 ${a} vs ${d}`, null, null, {
+        enemyName: d,
+        battleType: 'history'
+    });
 }
 
 // ── Inbox ─────────────────────────────────────────────────────────────────
@@ -4281,7 +4387,10 @@ function viewBattleReport(msgId) {
         report.xpEarned ? `⭐ +${report.xpEarned} XP` : null
         // REMOVED: report.totalDmgDealt and report.totalDmgTaken from here
     ].filter(Boolean).join(' · ');
-    showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken);
+    showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
+        enemyName: report.opponentName || report.npcName || 'Enemy',
+        battleType: report.type === 'pvp' ? 'pvp' : 'mission'
+    });
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
 
