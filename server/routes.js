@@ -3155,15 +3155,14 @@ router.post('/travel/start', auth, async (req, res) => {
         
         if (!zone) return res.status(400).json({ error: 'Invalid zone' });
         if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
+        const now = Math.floor(Date.now() / 1000);
+        if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
         const allowedNodes = getTravelUnlockSet(character, currentMap);
         allowedNodes.add(character.location);
         allowedNodes.add(targetZone);
         const route = getShortestTravel(currentMap, character.location, targetZone, allowedNodes);
         if (!route) return res.status(400).json({ error: 'You must unlock the connecting zones first.' });
         travelTime = route.time;
-        
-        const now = Math.floor(Date.now() / 1000);
-        if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
         
         const travelEnd = now + travelTime;
         await dbRun(db, 'UPDATE characters SET travel_target=?,travel_end_time=?,travel_start_time=? WHERE id=?', 
