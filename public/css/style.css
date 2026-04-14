@@ -3189,14 +3189,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .eq-accessory-row,
     .profile-eq-accessory-row {
         top: 6px !important;
-        left: 58px !important;
+        left: 78px !important;
     }
 
     .eq-slot-small {
-        width: 52px !important;
-        min-width: 52px !important;
-        max-width: 52px !important;
-        height: 52px !important;
+        width: 25px !important;
+        min-width: 25px !important;
+        max-width: 25px !important;
+        height: 25px !important;
     }
 }
 
@@ -3214,8 +3214,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .eq-slot-icon img,
     .profile-eq-slot .eq-slot-icon img {
-        width: 50px !important;
-        height: 50px !important;
+        width: 25px !important;
+        height: 25px !important;
     }
 
     .eq-avatar-center img,
