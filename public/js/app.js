@@ -3938,7 +3938,7 @@ async function openProfile(id) {
         const p=await api('GET',`/game/player/${id}`);
         const classIcon={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[p.class]||'⚔️';
         const name=p.name||'Unknown', level=p.level??'?';
-        const isMe=p.id===character?.id;
+        const isMe=p.user_id===character?.user_id;
         const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
