@@ -2189,7 +2189,6 @@ async function buildCharacterResponse(char, db) {
     const mpMaxMult       = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
     const effectiveMpMax  = MP_MAX * mpMaxMult;
     const upgradeDiscount = hasPremium(activePremium, 'apprentice') ? 0.20 : 0;
-    const ultMult         = ultimateActive ? 1.01 : 1.0;
 
     const lastBattle = char.last_battle_at || 0;
     const pvpCd = hasPremium(activePremium, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
@@ -2224,16 +2223,16 @@ if (char.class === 'rogue') {  // Use 'char' here since that's the parameter nam
 
     return {
         ...withTrain,
-        vitality:     Math.floor(((char.vitality    || 10) + (setBonuses.vitality || 0)) * ultMult),
+        vitality:     (char.vitality    || 10) + (setBonuses.vitality || 0),
         gems:         char.gems        || 0,
         hp_max:       hpMax,
         hp_current:   hpCurrent,
-        strength:     Math.floor(((char.strength    || 0) + (setBonuses.strength || 0))  * ultMult),
-        defense:      Math.floor(((char.defense     || 0) + (setBonuses.defense || 0))  * ultMult),
-        agility:      Math.floor(((char.agility     || 0) + (setBonuses.agility || 0))  * ultMult) + noShieldAgiBonus,
-        magic:        Math.floor(((char.magic       || 0) + (setBonuses.magic || 0))  * ultMult),
-        hit_chance:   Math.floor(((char.hit_chance  || 0) + (setBonuses.hit_chance || 0))  * ultMult),
-        crit_chance:  Math.floor(((char.crit_chance || 0) + (setBonuses.crit_chance || 0))  * ultMult),
+        strength:     (char.strength    || 0) + (setBonuses.strength || 0),
+        defense:      (char.defense     || 0) + (setBonuses.defense || 0),
+        agility:      (char.agility     || 0) + (setBonuses.agility || 0) + noShieldAgiBonus,
+        magic:        (char.magic       || 0) + (setBonuses.magic || 0),
+        hit_chance:   (char.hit_chance  || 0) + (setBonuses.hit_chance || 0),
+        crit_chance:  (char.crit_chance || 0) + (setBonuses.crit_chance || 0),
         mission_points: Math.min(effectiveMpMax, char.mission_points ?? 0),
         mp_max:       effectiveMpMax,
         daily_mp_spent: dailyMpSpent,
