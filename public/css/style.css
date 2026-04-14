@@ -948,8 +948,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin: 0 auto;
 }
 @media (max-width: 680px) {
-    .char-grid { grid-template-columns: 1fr; }
-    .char-panel-record { grid-column: auto; }
+    .char-grid {
+        grid-template-columns: 1fr !important;
+        width: 100%;
+    }
+    .char-panel,
+    .char-panel-record,
+    .char-panel-equipment {
+        grid-column: auto !important;
+        width: 100%;
+        min-width: 0;
+    }
     .element-strip-row { align-items: flex-start; }
 }
 
