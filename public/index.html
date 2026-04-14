@@ -32,12 +32,135 @@
                 <input type="text" id="login-user" placeholder="Username" class="input-field"/>
                 <input type="password" id="login-pass" placeholder="Password" class="input-field"/>
                 <button class="btn-primary" data-action="login">Enter the Arena</button>
+                <div class="auth-legal-links">
+                    <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service (Beta)</button>
+                    <span class="auth-legal-sep">•</span>
+                    <button class="auth-legal-link" data-action="openAuthLegalModal">Privacy Notice</button>
+                </div>
             </div>
 
             <div id="tab-register" class="tab-content">
                 <input type="text" id="reg-user" placeholder="Choose a username" class="input-field"/>
                 <input type="password" id="reg-pass" placeholder="Choose a password" class="input-field"/>
                 <button class="btn-primary" data-action="register">Create Account</button>
+                <div class="auth-legal-links">
+                    <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service (Beta)</button>
+                    <span class="auth-legal-sep">•</span>
+                    <button class="auth-legal-link" data-action="openAuthLegalModal">Privacy Notice</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="auth-legal-modal" class="modal-overlay hidden">
+        <div class="modal-box auth-legal-modal">
+            <div class="modal-header auth-legal-header">
+                <h2>Battle Arena Terms & Privacy</h2>
+                <button class="modal-close" data-action="closeAuthLegalModal">✕</button>
+            </div>
+            <div class="auth-legal-body">
+                <div class="auth-legal-section">
+                    <div class="auth-legal-title">Battle Arena - Terms of Service (Beta)</div>
+                    <div class="auth-legal-updated">Last updated: April 14, 2026</div>
+                    <p>Welcome to Battle Arena. By creating an account and playing the game, you agree to the following terms.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>1. Beta Disclaimer</h3>
+                    <p>Battle Arena is currently in beta testing. This means:</p>
+                    <ul>
+                        <li>Features may change, break, or be removed at any time</li>
+                        <li>Progress, characters, items, or accounts may be reset without notice</li>
+                        <li>The game may be unavailable or unstable</li>
+                    </ul>
+                    <p>You agree to use the game with this understanding.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>2. Accounts</h3>
+                    <ul>
+                        <li>You only need a username and password to create an account</li>
+                        <li>No email is collected, and there is no password recovery system</li>
+                    </ul>
+                    <p><strong>Important:</strong> If you forget your password, your account cannot be recovered. You are fully responsible for keeping your login details safe.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>3. Gameplay & Conduct</h3>
+                    <p>By playing Battle Arena, you agree:</p>
+                    <ul>
+                        <li>Not to exploit bugs, cheats, or unintended mechanics</li>
+                        <li>Not to use bots, scripts, or automation</li>
+                        <li>Not to attempt to disrupt the game or other players</li>
+                        <li>Not to impersonate others or abuse the system</li>
+                    </ul>
+                    <p>We reserve the right to suspend or remove accounts that violate these rules.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>4. Game Data & Progress</h3>
+                    <ul>
+                        <li>All characters, items, gold, and progress exist only within the game</li>
+                        <li>They have no real-world value</li>
+                        <li>We may modify, reset, or remove game data at any time during beta</li>
+                    </ul>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>5. Availability</h3>
+                    <p>We do not guarantee:</p>
+                    <ul>
+                        <li>Continuous uptime</li>
+                        <li>Data preservation</li>
+                        <li>Bug-free gameplay</li>
+                    </ul>
+                    <p>The game is provided "as is" during testing.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>6. Termination</h3>
+                    <p>We may suspend or delete accounts:</p>
+                    <ul>
+                        <li>For rule violations</li>
+                        <li>For abuse or exploitation</li>
+                        <li>For any reason necessary to maintain the game</li>
+                    </ul>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>7. Changes to Terms</h3>
+                    <p>These terms may be updated at any time. Continued use of the game means you accept any changes.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <h3>8. Contact</h3>
+                    <p>If you encounter bugs or issues, please report them through the in-game bug report system.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <p>By playing Battle Arena, you acknowledge that this is a beta game and agree to these terms.</p>
+                </div>
+
+                <div class="auth-legal-section">
+                    <div class="auth-legal-title">Privacy Notice</div>
+                    <p>Battle Arena collects minimal data:</p>
+                    <ul>
+                        <li>Username</li>
+                        <li>Encrypted password (argon2id hash)</li>
+                    </ul>
+                    <p>We do not collect:</p>
+                    <ul>
+                        <li>Email addresses</li>
+                        <li>Personal information</li>
+                    </ul>
+                    <p>Your data is used only to:</p>
+                    <ul>
+                        <li>Manage your account</li>
+                        <li>Save your game progress</li>
+                    </ul>
+                    <p>We do not sell or share your data.</p>
+                    <p>Because no email is collected, account recovery is not possible if login credentials are lost.</p>
+                </div>
             </div>
         </div>
     </div>
