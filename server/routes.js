@@ -64,6 +64,7 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN dungeon_progress TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN dungeon_gold INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
         ];
@@ -220,6 +221,7 @@ const MISSION_SIZES = {
 };
 const SKILL_DURATION = 5 * 3600;
 const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
+const HEALTH_POTION_COOLDOWN = 30 * 60;
 
 // ── Premium Features ───────────────────────────────────────────────────────
 const PREMIUM_FEATURES = {
@@ -543,6 +545,16 @@ function getAchievementMetricValue(char, metric) {
     if (metric === 'gold_earned') return char.total_gold_earned || 0;
     if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
     return 0;
+}
+
+function formatDurationShort(seconds) {
+    const total = Math.max(0, Math.ceil(seconds));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
 }
 
 function buildAchievementRewardSummary(rewards) {
@@ -3101,18 +3113,27 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         
         const equippedArray = await getEquippedItemsArray(db, char.id);
         const trueHpMax = calcHpMax(char, equippedArray);
+        const now = Math.floor(Date.now() / 1000);
         
         let message = '';
         let updated = false;
+        const isHealthPotion = data.effect.type === 'heal' || data.effect.type === 'heal_full';
+        if (isHealthPotion) {
+            const lastUse = char.last_health_potion_at || 0;
+            const cooldownLeft = (lastUse + HEALTH_POTION_COOLDOWN) - now;
+            if (cooldownLeft > 0) {
+                return res.status(400).json({ error: `Health potions are on cooldown for ${formatDurationShort(cooldownLeft)}.` });
+            }
+        }
         
         if (data.effect.type === 'heal') {
             const currentHp = char.hp_current ?? trueHpMax;
             const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
-            await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, char.id]);
+            await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, char.id]);
             message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
             updated = true;
         } else if (data.effect.type === 'heal_full') {
-            await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [trueHpMax, char.id]);
+            await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [trueHpMax, now, char.id]);
             message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
             updated = true;
         } else if (data.effect.type === 'temp_stat') {
