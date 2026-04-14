@@ -492,7 +492,7 @@ function renderElementBadge(icon, value, type) {
     return `<div class="element-entry">
         <span class="element-badge-icon">${icon}</span>
         <span class="element-badge element-badge-value-${type}">
-            <span class="element-badge-value">(${value})</span>
+            <span class="element-badge-value">${value}</span>
         </span>
     </div>`;
 }
