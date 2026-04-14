@@ -3569,7 +3569,7 @@ function renderPremium(data) {
             const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
             const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
             const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
-            return `<div style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);padding:18px;position:relative;overflow:hidden">
+            return `<div style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:228px">
                 ${isActive ? `<div style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
                     <span style="font-size:2rem">${f.emoji}</span>
@@ -3578,9 +3578,9 @@ function renderPremium(data) {
                         <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 days</div>
                     </div>
                 </div>
-                <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5">${f.desc}</div>
+                <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5;flex:1 1 auto">${f.desc}</div>
                 <button ${actionAttrs('activatePremium', f.id)}
-                    style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s"
+                    style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
                     ${gems < f.cost && !isActive ? 'disabled' : ''}>
                     ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
                 </button>
