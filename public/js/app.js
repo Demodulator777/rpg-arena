@@ -1832,6 +1832,11 @@ async function checkAndShowMissionOverlay() {
         hideTrainingOverlay();
 
         hideMissionOverlay();
+        if (playerTravelTarget) {
+            hideRestOverlay();
+            showTravelOverlay();
+            return;
+        }
         hideTravelOverlay();
 
         const freshChar = await api('GET', '/game/character').catch(() => null);
@@ -1847,6 +1852,10 @@ async function checkAndShowMissionOverlay() {
         }
 
         hideRestOverlay();
+        if (playerTravelTarget) {
+            showTravelOverlay();
+            return;
+        }
         hideTravelOverlay();
     } catch (e) {
         console.error('Error in checkAndShowMissionOverlay:', e);
