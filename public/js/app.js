@@ -489,9 +489,11 @@ function renderDetailSlot(icon, label, value, accent='var(--text-bright)', title
 }
 
 function renderElementBadge(icon, value, type) {
-    return `<div class="element-badge">
+    return `<div class="element-entry">
         <span class="element-badge-icon">${icon}</span>
-        <span class="element-badge-value element-badge-value-${type}">${value}</span>
+        <span class="element-badge element-badge-value-${type}">
+            <span class="element-badge-value">(${value})</span>
+        </span>
     </div>`;
 }
 
