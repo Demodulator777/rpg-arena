@@ -106,6 +106,12 @@ const GUILD_EXCHANGES = [
             expires_at INTEGER,
             PRIMARY KEY (attacker_id, defender_id)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS account_attack_cooldowns (
+            attacker_user_id INTEGER,
+            defender_user_id INTEGER,
+            expires_at INTEGER,
+            PRIMARY KEY (attacker_user_id, defender_user_id)
+        )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_achievements (
             char_id INTEGER NOT NULL,
             achievement_id TEXT NOT NULL,
@@ -3731,8 +3737,9 @@ router.get('/matchmaking', auth, async (req, res) => {
                    (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
             FROM characters c JOIN users u ON c.user_id=u.id
             WHERE c.id != ?
+              AND c.user_id != ?
               AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
-        `, [me.id, now]);
+        `, [me.id, req.user.userId, now]);
 
         await Promise.all(candidates.map(c => applyHpRegen(db, c.id)));
 
@@ -3741,13 +3748,14 @@ router.get('/matchmaking', auth, async (req, res) => {
                    (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
             FROM characters c JOIN users u ON c.user_id=u.id
             WHERE c.id != ?
+              AND c.user_id != ?
               AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
-        `, [me.id, now]);
+        `, [me.id, req.user.userId, now]);
 
-        const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
-        const myCooldowns = myCooldownRows.map(r => r.defender_id);
-        candidates = candidates.filter(c => !myCooldowns.includes(c.id));
+        const myCooldownRows = await dbAll(db, 'SELECT defender_user_id FROM account_attack_cooldowns WHERE attacker_user_id=? AND expires_at>?', [req.user.userId, now]);
+        const myCooldowns = new Set(myCooldownRows.map(r => r.defender_user_id));
+        candidates = candidates.filter(c => !myCooldowns.has(c.user_id));
 
         if (!candidates.length) return res.json({ active: false });
         let target;
@@ -3771,7 +3779,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         }
         const defender = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [req.params.targetId]);
         if (!defender) return res.status(404).json({ error: 'Target not found' });
-        if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'Cannot attack yourself' });
+        if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'You cannot attack characters on your own account.' });
         const now = Math.floor(Date.now() / 1000);
         const atkMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [attacker.id]);
         if (atkMission) return res.status(400).json({ error: 'Cannot attack while on a mission.' });
@@ -3790,7 +3798,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             const mins = Math.ceil((defGlobalCooldown - now) / 60);
             return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
         }
-        const perTarget = await dbGet(db, 'SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
+        const perTarget = await dbGet(db, 'SELECT expires_at FROM account_attack_cooldowns WHERE attacker_user_id=? AND defender_user_id=?', [req.user.userId, defender.user_id]);
         if (perTarget && perTarget.expires_at > now) {
             const secs = perTarget.expires_at - now;
             return res.status(400).json({ error: `Cannot attack ${defender.name} again for ${secs < 3600 ? Math.ceil(secs/60)+'m' : Math.ceil(secs/3600)+'h'}.` });
@@ -3964,7 +3972,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             try { await dbRun(db, 'INSERT INTO battles (attacker_id,defender_id,winner_id,log) VALUES (?,?,?,?)', [freshA.id, freshD.id, battle.winnerId, JSON.stringify(battle.log)]); } catch {}
         }
         await dbRun(db, 'UPDATE characters SET last_battle_at=? WHERE id=?', [now, freshA.id]);
-        try { await dbRun(db, 'INSERT OR REPLACE INTO attack_cooldowns (attacker_id,defender_id,expires_at) VALUES (?,?,?)', [freshA.id, freshD.id, now + 43200]); } catch {}
+        try {
+            await dbRun(
+                db,
+                'INSERT OR REPLACE INTO account_attack_cooldowns (attacker_user_id,defender_user_id,expires_at) VALUES (?,?,?)',
+                [req.user.userId, freshD.user_id, now + 43200]
+            );
+        } catch {}
         await dbRun(db, 'UPDATE characters SET attack_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
         try {
             const defSubject = attackerWon ? `⚔️ ${freshA.name} attacked and defeated you! (-${defGoldStake} gold)` : `🛡️ You defended against ${freshA.name} and won! (+${atkGoldStake} gold)`;
@@ -4015,7 +4029,7 @@ router.get('/player/:id', auth, async (req, res) => {
         let perTargetCooldown = 0;
         if (me) {
             try {
-                const cd = await dbGet(db, 'SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?', [me.id, player.id]);
+                const cd = await dbGet(db, 'SELECT expires_at FROM account_attack_cooldowns WHERE attacker_user_id=? AND defender_user_id=?', [req.user.userId, player.user_id]);
                 if (cd && cd.expires_at > now) perTargetCooldown = cd.expires_at - now;
             } catch {}
         }
@@ -4029,7 +4043,7 @@ router.get('/player/:id', auth, async (req, res) => {
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
         res.json({
-            id:player.id, name:player.name, class:player.class, level:player.level,
+            id:player.id, user_id: player.user_id, name:player.name, class:player.class, level:player.level,
             strength:player.strength, defense:player.defense, agility:player.agility,
             magic:player.magic, vitality:player.vitality||10,
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
