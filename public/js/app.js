@@ -23,6 +23,10 @@ const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
 let trainingInterval = null;
 let trainingOverlayInterval = null;
+let accountCharacters = [];
+let activeCharacterId = null;
+let maxCharacterSlots = 4;
+let availableCharacterClasses = ['warrior', 'mage', 'rogue', 'paladin'];
 
 async function loadAbyssData() {
     try {
@@ -289,6 +293,114 @@ function formatTrainingProgressText(status) {
     return `${totalText}${gainText} · ${hoursToFull.toFixed(1)}h to full`;
 }
 
+async function loadCharacterRoster() {
+    if (!token) return;
+    try {
+        const data = await api('GET', '/game/characters');
+        accountCharacters = data.characters || [];
+        activeCharacterId = data.activeCharacterId || character?.id || null;
+        maxCharacterSlots = data.maxCharacters || 4;
+        availableCharacterClasses = data.availableClasses || availableCharacterClasses;
+        renderCharacterSwitcherButton();
+        renderCharacterSwitcher();
+        syncCreateClassAvailability();
+    } catch (e) {
+        console.error('Failed to load character roster:', e);
+    }
+}
+
+function renderCharacterSwitcherButton() {
+    const btn = document.getElementById('topbar-character-switch');
+    if (!btn) return;
+    const total = accountCharacters.length || 0;
+    btn.textContent = `🧭 ${total}/${maxCharacterSlots}`;
+    btn.title = total > 0
+        ? `Switch character (${total}/${maxCharacterSlots})`
+        : 'Create your first character';
+}
+
+function syncCreateClassAvailability() {
+    const usedClasses = new Set(accountCharacters.map(c => String(c.class || '').toLowerCase()));
+    document.querySelectorAll('.class-card').forEach(card => {
+        const className = String(card.dataset.class || '').toLowerCase();
+        const taken = usedClasses.has(className);
+        card.classList.toggle('class-card-taken', taken);
+        card.style.pointerEvents = taken ? 'none' : '';
+        card.title = taken ? 'You already have this class' : '';
+        if (taken && selectedClass === className) {
+            selectedClass = null;
+            card.classList.remove('selected');
+        }
+    });
+}
+
+function openCharacterCreation() {
+    closeCharacterSwitcher();
+    selectedClass = null;
+    document.getElementById('char-name').value = '';
+    setError('create-error', '');
+    document.querySelectorAll('.class-card').forEach(card => card.classList.remove('selected'));
+    syncCreateClassAvailability();
+    showScreen('create');
+}
+
+function openCharacterSwitcher() {
+    renderCharacterSwitcher();
+    document.getElementById('character-switch-modal')?.classList.remove('hidden');
+}
+
+function closeCharacterSwitcher() {
+    document.getElementById('character-switch-modal')?.classList.add('hidden');
+}
+
+function renderCharacterSwitcher() {
+    const content = document.getElementById('character-switch-content');
+    if (!content) return;
+    const remaining = Math.max(0, maxCharacterSlots - accountCharacters.length);
+    content.innerHTML = `
+        <div class="character-switch-header">
+            <div>
+                <div class="character-switch-title">Your Characters</div>
+                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} slots used</div>
+            </div>
+            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ New Character</button>` : ''}
+        </div>
+        <div class="character-switch-grid">
+            ${accountCharacters.map(c => {
+                const isActive = (c.id === (activeCharacterId || character?.id));
+                return `<button class="character-switch-card ${isActive ? 'active' : ''}" ${isActive ? 'disabled' : actionAttrs('selectCharacter', c.id)}>
+                    <img src="/images/class/${c.class}.png" alt="${c.class}" class="character-switch-avatar" data-error-hide="true">
+                    <div class="character-switch-info">
+                        <div class="character-switch-name">${escHtml(c.name)}</div>
+                        <div class="character-switch-meta">Lv.${c.level} ${capitalize(c.class)}</div>
+                    </div>
+                    <div class="character-switch-state">${isActive ? 'Active' : 'Play'}</div>
+                </button>`;
+            }).join('')}
+            ${Array.from({ length: remaining }, (_, i) => `
+                <button class="character-switch-card empty" ${actionAttrs('openCharacterCreation')}>
+                    <div class="character-switch-empty">Empty Slot ${accountCharacters.length + i + 1}</div>
+                    <div class="character-switch-meta">Create another class</div>
+                </button>
+            `).join('')}
+        </div>`;
+}
+
+async function selectCharacter(characterId) {
+    try {
+        const data = await api('POST', '/game/character/select', { characterId });
+        character = data.character;
+        activeCharacterId = character.id;
+        await loadCharacterRoster();
+        closeCharacterSwitcher();
+        renderTopBar();
+        const activeTab = TAB_ORDER.find(name => document.getElementById(`tab-${name}`)?.classList.contains('active')) || 'character';
+        showTab(activeTab);
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
     bindLegacyInlineHandlers(document);
@@ -302,9 +414,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     initMissionTimer();
     if (token) {
-        try { character=await api('GET','/game/character'); showScreen('game'); }
+        try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); }
         catch (e) {
-            if (e.message==='No character found') showScreen('create');
+            if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); }
             else { token=null; localStorage.removeItem('rpg_token'); showScreen('auth'); }
         }
     } else showScreen('auth');
@@ -322,7 +434,7 @@ async function login() {
         const data=await api('POST','/auth/login',{username:document.getElementById('login-user').value.trim(),password:document.getElementById('login-pass').value});
         token=data.token; username=data.username;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
-        try { character=await api('GET','/game/character'); showScreen('game'); } catch { showScreen('create'); }
+        try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); } catch { await loadCharacterRoster(); showScreen('create'); }
     } catch(e) { setError('auth-error',e.message); }
 }
 async function register() {
@@ -344,6 +456,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 function logout() {
     token=null; username=null; character=null;
+    accountCharacters=[]; activeCharacterId=null;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
     [trainTimer,unreadTimer].forEach(t=>clearInterval(t));
     showScreen('auth');
@@ -357,10 +470,10 @@ async function createCharacter() {
     if (!name) return setError('create-error','Enter a name');
     if (!selectedClass) return setError('create-error','Choose a class');
     try {
-        await api('POST','/game/character',{name,class:selectedClass});
-        localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
-        alert('Character created! Please log in again.');
-        showScreen('auth');
+        character=await api('POST','/game/character',{name,class:selectedClass});
+        activeCharacterId = character?.id || null;
+        await loadCharacterRoster();
+        showScreen('game');
     } catch(e) { setError('create-error',e.message); }
 }
 
@@ -368,6 +481,7 @@ async function createCharacter() {
 function showScreen(name) {
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(`screen-${name}`).classList.add('active');
+    if (name === 'create') syncCreateClassAvailability();
     if (name==='game') {
         renderTopBar();
         renderCharacter();
@@ -431,6 +545,7 @@ function renderTopBar() {
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
     set('topbar-name',el=>{ el.textContent=c.name; });
+    renderCharacterSwitcherButton();
     const evEl=document.getElementById('topbar-event');
     if (evEl) {
         const ev=c.active_event;
@@ -3770,7 +3885,7 @@ async function loadLeaderboard() {
 function filterLeaderboard() { renderLeaderboard(); }
 function renderLeaderboard() {
     const q=(document.getElementById('lb-search')?.value||'').toLowerCase();
-    const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)||p.username.toLowerCase().includes(q)):lbData;
+    const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)):lbData;
     if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
     document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>{
         const rank=p.rank||(i+1), rc=rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
@@ -3780,7 +3895,7 @@ function renderLeaderboard() {
         return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.username===username?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · @${p.username}</div></div>
+            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)}</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
@@ -3797,8 +3912,8 @@ async function openProfile(id) {
     try {
         const p=await api('GET',`/game/player/${id}`);
         const classIcon={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[p.class]||'⚔️';
-        const name=p.name||'Unknown', uname=p.username||'???', level=p.level??'?';
-        const isMe=p.user_id===character?.user_id;
+        const name=p.name||'Unknown', level=p.level??'?';
+        const isMe=p.id===character?.id;
         const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
@@ -3871,7 +3986,7 @@ async function openProfile(id) {
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
               <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
-              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')} · @${uname}</div></div>
+              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
             </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
