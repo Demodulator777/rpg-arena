@@ -538,14 +538,14 @@ function renderCharacter() {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
         const bonusTag = bonus !== 0
-            ? `<span style="font-size:0.62rem;color:${bonus>0?'#2ecc71':'#e74c3c'};margin-left:3px">${bonus>0?'+':''}${bonus}</span>`
+            ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+':''}${bonus}</span>`
             : '';
         return `<div class="stat-row">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
             <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${pct}%"></div></div></div>
             <span class="stat-val">${base}${bonusTag}</span>
-            <span style="font-size:0.8rem;font-weight:700;color:var(--text-bright);min-width:36px;text-align:right">${total}</span>
+            <span class="stat-total">${total}</span>
         </div>`;
     }
 
