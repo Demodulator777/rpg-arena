@@ -678,6 +678,10 @@ async function applyHpRegen(db, characterId) {
 
 function calcHpMax(char, equippedItems) {
     let base = 50 + ((char.vitality || 10) * 25) + ((char.defense || 0) * 2);
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    if (setBonuses.hp_max) base += setBonuses.hp_max;
+    if (setBonuses.vitality) base += setBonuses.vitality * 25;
+    if (setBonuses.defense) base += setBonuses.defense * 2;
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -688,8 +692,12 @@ function calcHpMax(char, equippedItems) {
 }
 
 function calcBaseDamage(char, equippedItems) {
-    let dmgMin = Math.floor((char.strength || 1) * 0.5);
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    const totalStrength = (char.strength || 1) + (setBonuses.strength || 0);
+    let dmgMin = Math.floor(totalStrength * 0.5);
     let dmgMax = dmgMin + 4;
+    if (setBonuses.dmg_min) dmgMin += setBonuses.dmg_min;
+    if (setBonuses.dmg_max) dmgMax += setBonuses.dmg_max;
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -702,7 +710,9 @@ function calcBaseDamage(char, equippedItems) {
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
 function calcArmorValue(char, equippedItems) {
-    let armor = Math.floor((char.defense || 0) / 4);
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0)) / 4);
+    if (setBonuses.armor) armor += setBonuses.armor;
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -714,6 +724,10 @@ function calcArmorValue(char, equippedItems) {
 
 function calcElemDmg(equippedItems) {
     const dmg = { pyro:0, water:0, wind:0, electro:0 };
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    for (const elem of ELEMENTS) {
+        dmg[elem] += setBonuses[`${elem}_dmg`] || 0;
+    }
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -728,6 +742,10 @@ function calcElemDmg(equippedItems) {
 
 function calcElemResist(char, equippedItems) {
     const resist = { pyro:0, water:0, wind:0, electro:0 };
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    for (const elem of ELEMENTS) {
+        resist[elem] += setBonuses[`${elem}_resist`] || 0;
+    }
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -738,6 +756,40 @@ function calcElemResist(char, equippedItems) {
         } catch {}
     }
     return resist;
+}
+
+function getEquippedSetCounts(equippedItems) {
+    const counts = {};
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (!data?.setId) continue;
+            counts[data.setId] = (counts[data.setId] || 0) + 1;
+        } catch {}
+    }
+    return counts;
+}
+
+function getEquippedSetBonuses(equippedItems) {
+    const counts = getEquippedSetCounts(equippedItems);
+    const total = {};
+    for (const [setId, count] of Object.entries(counts)) {
+        const def = CRAFTING_SETS[setId];
+        if (!def) continue;
+        if (count >= 3 && def.bonus3) {
+            for (const [key, value] of Object.entries(def.bonus3)) {
+                if (key === 'desc' || typeof value !== 'number') continue;
+                total[key] = (total[key] || 0) + value;
+            }
+        }
+        if (count >= 5 && def.bonus5) {
+            for (const [key, value] of Object.entries(def.bonus5)) {
+                if (key === 'desc' || typeof value !== 'number') continue;
+                total[key] = (total[key] || 0) + value;
+            }
+        }
+    }
+    return total;
 }
 
 function getEquippedWeaponData(equippedItems) {
@@ -1207,6 +1259,7 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
 
 async function buildCombatFighter(db, char) {
     const equippedArray = await getEquippedItemsArray(db, char.id);
+    const setBonuses = getEquippedSetBonuses(equippedArray);
     const hpCurrent = char.hp_current ?? calcHpMax(char, equippedArray);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
@@ -1239,12 +1292,12 @@ async function buildCombatFighter(db, char) {
         hp: hpCurrent,
         dmgMin: dmgMin + (skillPassives.dmg_min || 0),
         dmgMax: dmgMax + (skillPassives.dmg_max || 0),
-        strength: (char.strength || 0) + (skillPassives.strength || 0),
-        agility: (char.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
-        magic: (char.magic || 0) + (skillPassives.magic || 0),
-        defense: (char.defense || 0) + (skillPassives.defense || 0),
-        hit_chance: (char.hit_chance || 0) + (skillPassives.hit_chance || 0),
-        crit_chance: (char.crit_chance || 0) + (skillPassives.crit_chance || 0),
+        strength: (char.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
+        agility: (char.agility || 0) + (setBonuses.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
+        magic: (char.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0),
+        defense: (char.defense || 0) + (setBonuses.defense || 0) + (skillPassives.defense || 0),
+        hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + (skillPassives.hit_chance || 0),
+        crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0),
         armor: calcArmorValue(char, equippedArray) + (skillPassives.armor || 0),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
@@ -2122,6 +2175,8 @@ async function getCharacterAchievements(db, char) {
 async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
+    const setBonuses = getEquippedSetBonuses(equippedArray);
+    const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
     const hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
     const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent });
@@ -2169,16 +2224,16 @@ if (char.class === 'rogue') {  // Use 'char' here since that's the parameter nam
 
     return {
         ...withTrain,
-        vitality:     Math.floor((char.vitality    || 10) * ultMult),
+        vitality:     Math.floor(((char.vitality    || 10) + (setBonuses.vitality || 0)) * ultMult),
         gems:         char.gems        || 0,
         hp_max:       hpMax,
         hp_current:   hpCurrent,
-        strength:     Math.floor((char.strength    || 0)  * ultMult),
-        defense:      Math.floor((char.defense     || 0)  * ultMult),
-        agility:      Math.floor((char.agility     || 0)  * ultMult) + noShieldAgiBonus,
-        magic:        Math.floor((char.magic       || 0)  * ultMult),
-        hit_chance:   Math.floor((char.hit_chance  || 0)  * ultMult),
-        crit_chance:  Math.floor((char.crit_chance || 0)  * ultMult),
+        strength:     Math.floor(((char.strength    || 0) + (setBonuses.strength || 0))  * ultMult),
+        defense:      Math.floor(((char.defense     || 0) + (setBonuses.defense || 0))  * ultMult),
+        agility:      Math.floor(((char.agility     || 0) + (setBonuses.agility || 0))  * ultMult) + noShieldAgiBonus,
+        magic:        Math.floor(((char.magic       || 0) + (setBonuses.magic || 0))  * ultMult),
+        hit_chance:   Math.floor(((char.hit_chance  || 0) + (setBonuses.hit_chance || 0))  * ultMult),
+        crit_chance:  Math.floor(((char.crit_chance || 0) + (setBonuses.crit_chance || 0))  * ultMult),
         mission_points: Math.min(effectiveMpMax, char.mission_points ?? 0),
         mp_max:       effectiveMpMax,
         daily_mp_spent: dailyMpSpent,
@@ -2201,6 +2256,8 @@ if (char.class === 'rogue') {  // Use 'char' here since that's the parameter nam
         premium_ultimate:  ultimateActive,
         upgrade_discount:  upgradeDiscount,
         no_shield_agi_bonus: noShieldAgiBonus,
+        equipped_set_counts: setCounts,
+        equipped_set_bonuses: setBonuses,
     };
 }
 
@@ -2602,6 +2659,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax = calcHpMax(freshChar, equippedArray);
         const hpCurrent = freshChar.hp_current ?? hpMax;
+        const setBonuses = getEquippedSetBonuses(equippedArray);
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
         
@@ -2628,12 +2686,12 @@ if (freshChar.class === 'rogue') {
             hp: hpCurrent,
             dmgMin: dmgMin + (skillPassives.dmg_min || 0),
             dmgMax: dmgMax + (skillPassives.dmg_max || 0),
-            strength: (freshChar.strength || 0) + (skillPassives.strength || 0),
-            agility: (freshChar.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
-            magic: (freshChar.magic || 0) + (skillPassives.magic || 0),
-            defense: (freshChar.defense || 0) + (skillPassives.defense || 0),
-            hit_chance: (freshChar.hit_chance || 0) + (skillPassives.hit_chance || 0),
-            crit_chance: (freshChar.crit_chance || 0) + (skillPassives.crit_chance || 0),
+            strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
+            agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
+            magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0),
+            defense: (freshChar.defense || 0) + (setBonuses.defense || 0) + (skillPassives.defense || 0),
+            hit_chance: (freshChar.hit_chance || 0) + (setBonuses.hit_chance || 0) + (skillPassives.hit_chance || 0),
+            crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0),
             armor: calcArmorValue(freshChar, equippedArray) + (skillPassives.armor || 0),
             elem_dmg: {
                 pyro:    (calcElemDmg(equippedArray).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
@@ -2961,14 +3019,13 @@ router.get('/forge/recipes', auth, async (req, res) => {
         const completedZones = new Set(completedRows.map(r => r.zone));
         const mats = await getInventoryMaterials(db, char.id);
 
-        const ownedRecipeIds = new Set();
-        const allItems = await dbAll(db, `SELECT item_data FROM inventory WHERE char_id=? AND item_type='equipment'`, [char.id]);
-        for (const row of allItems) {
-            try { const d = JSON.parse(row.item_data); if (d.id) ownedRecipeIds.add(d.id); } catch {}
-        }
         const equippedArray = await getEquippedItemsArray(db, char.id);
+        const equippedRecipeIds = new Set();
         for (const row of equippedArray) {
-            try { const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data; if (d.id) ownedRecipeIds.add(d.id); } catch {}
+            try {
+                const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data;
+                if (d.id) equippedRecipeIds.add(d.id);
+            } catch {}
         }
 
         const components = Object.entries(COMPONENTS).map(([id, comp]) => {
@@ -2978,7 +3035,6 @@ router.get('/forge/recipes', auth, async (req, res) => {
         const equipment = EQUIPMENT_RECIPES.map(rec => {
             const zoneUnlocked = completedZones.has(rec.requiredZone) || char.level >= (ZONES[rec.requiredZone]?.minLevel || 1);
             const canCraft = zoneUnlocked && char.gold >= rec.goldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
-            const owned = ownedRecipeIds.has(rec.id);
             const scaledPreview = scaleItemToLevel(rec, char.level);
             return {
                 ...rec,
@@ -2986,7 +3042,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
                 goldCost: rec.goldCost,
                 zoneUnlocked,
                 canCraft,
-                owned
+                equipped: equippedRecipeIds.has(rec.id)
             };
         });
         res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS });
@@ -3079,28 +3135,53 @@ function scaleItemToLevel(recipe, playerLevel) {
     item.level = level;
     item.tier = Math.min(5, Math.ceil(level / 15) + 1);
     
-    const levelDiff = Math.max(0, level - (recipe.minLevel || 1));
-    const scaleFactor = 1 + (levelDiff * 0.03);
+    const qualityScale =
+        item.quality === 'legendary' ? 1.15 :
+        item.quality === 'epic' ? 1.0 :
+        item.quality === 'rare' ? 0.9 : 0.8;
     
     const scaledStats = {};
     for (const [stat, value] of Object.entries(baseStats)) {
-        let scaledValue = Math.floor(value * scaleFactor);
-        
-        if (stat === 'dmg_min') scaledValue = Math.min(200, scaledValue);
-        if (stat === 'dmg_max') scaledValue = Math.min(350, scaledValue);
-        if (stat === 'strength' || stat === 'agility' || stat === 'magic') scaledValue = Math.min(80, scaledValue);
-        if (stat === 'defense') scaledValue = Math.min(120, scaledValue);
-        if (stat === 'armor') scaledValue = Math.min(60, scaledValue);
-        if (stat === 'hp_max') scaledValue = Math.min(400, scaledValue);
-        if (stat === 'hit_chance' || stat === 'crit_chance') scaledValue = Math.min(25, scaledValue);
-        if (stat.includes('_dmg')) scaledValue = Math.min(50, scaledValue);
-        if (stat.includes('_resist')) scaledValue = Math.min(80, scaledValue);
+        let scaledValue = value;
+
+        if (stat === 'dmg_min') {
+            scaledValue = Math.floor(value + (level * 1.0 * qualityScale));
+            scaledValue = Math.min(220, scaledValue);
+        } else if (stat === 'dmg_max') {
+            scaledValue = Math.floor(value + (level * 2.3 * qualityScale));
+            scaledValue = Math.min(380, scaledValue);
+        } else if (stat === 'strength' || stat === 'agility' || stat === 'magic') {
+            scaledValue = Math.floor(value + (level * 0.20 * qualityScale));
+            scaledValue = Math.min(90, scaledValue);
+        } else if (stat === 'vitality') {
+            scaledValue = Math.floor(value + (level * 0.10 * qualityScale));
+            scaledValue = Math.min(45, scaledValue);
+        } else if (stat === 'defense') {
+            scaledValue = Math.floor(value + (level * 0.68 * qualityScale));
+            scaledValue = Math.min(140, scaledValue);
+        } else if (stat === 'armor') {
+            scaledValue = Math.floor(value + (level * 0.42 * qualityScale));
+            scaledValue = Math.min(70, scaledValue);
+        } else if (stat === 'hp_max') {
+            scaledValue = Math.floor(value + (level * 2.0 * qualityScale));
+            scaledValue = Math.min(480, scaledValue);
+        } else if (stat === 'hit_chance' || stat === 'crit_chance') {
+            scaledValue = Math.floor(value + (level * 0.15 * qualityScale));
+            scaledValue = Math.min(35, scaledValue);
+        } else if (stat.includes('_dmg')) {
+            scaledValue = Math.floor(value + (level * 0.24 * qualityScale));
+            scaledValue = Math.min(70, scaledValue);
+        } else if (stat.includes('_resist')) {
+            scaledValue = Math.floor(value + (level * 0.11 * qualityScale));
+            scaledValue = Math.min(34, scaledValue);
+        }
         
         if (scaledValue > 0) scaledStats[stat] = scaledValue;
     }
     
     item.stats = scaledStats;
     
+    const levelDiff = Math.max(0, level - (recipe.minLevel || 1));
     const priceScale = 1 + (levelDiff * 0.05);
     item.price = Math.floor(recipe.goldCost * priceScale);
     item.goldCost = item.price;
@@ -3685,17 +3766,18 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             if (!hasShield) noShieldAgiBonusD = 5;
         }
 
+        const setBonusesA = getEquippedSetBonuses(equippedA);
         const fighterA = {
             id: freshA.id, name: freshA.name, class: freshA.class,
             hp: hpA,
             dmgMin: dmgMinA + (skillPassivesA.dmg_min || 0),
             dmgMax: dmgMaxA + (skillPassivesA.dmg_max || 0),
-            strength: (freshA.strength || 0) + (skillPassivesA.strength || 0),
-            agility: (freshA.agility || 0) + (skillPassivesA.agility || 0) + noShieldAgiBonusA,
-            magic: (freshA.magic || 0) + (skillPassivesA.magic || 0),
-            defense: (freshA.defense || 0) + (skillPassivesA.defense || 0),
-            hit_chance: (freshA.hit_chance || 0) + (skillPassivesA.hit_chance || 0) + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
-            crit_chance: (freshA.crit_chance || 0) + (skillPassivesA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
+            strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + (skillPassivesA.strength || 0),
+            agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + (skillPassivesA.agility || 0) + noShieldAgiBonusA,
+            magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + (skillPassivesA.magic || 0),
+            defense: (freshA.defense || 0) + (setBonusesA.defense || 0) + (skillPassivesA.defense || 0),
+            hit_chance: (freshA.hit_chance || 0) + (setBonusesA.hit_chance || 0) + (skillPassivesA.hit_chance || 0) + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
+            crit_chance: (freshA.crit_chance || 0) + (setBonusesA.crit_chance || 0) + (skillPassivesA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
             armor: armorA + (skillPassivesA.armor || 0) + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
             agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus: (hasPremium(premA, 'warlord') ? 0.15 : 0) + (skillPassivesA.dmg_bonus || 0),
@@ -3719,17 +3801,18 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             dualWield: freshA.class === 'rogue' && rogueHasDualWield(learnedIdsA),
         };
         
+        const setBonusesD = getEquippedSetBonuses(equippedD);
         const fighterB = {
             id: freshD.id, name: freshD.name,
             hp: freshD.hp_current ?? hpMaxD,
             dmgMin: dmgMinD + (skillPassivesD.dmg_min || 0),
             dmgMax: dmgMaxD + (skillPassivesD.dmg_max || 0),
-            strength: (freshD.strength || 0) + (skillPassivesD.strength || 0),
-            agility: (freshD.agility || 0) + (skillPassivesD.agility || 0) + noShieldAgiBonusD,
-            magic: (freshD.magic || 0) + (skillPassivesD.magic || 0),
-            defense: (freshD.defense || 0) + (skillPassivesD.defense || 0),
-            hit_chance: (freshD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + (hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0),
-            crit_chance: (freshD.crit_chance || 0) + (skillPassivesD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
+            strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + (skillPassivesD.strength || 0),
+            agility: (freshD.agility || 0) + (setBonusesD.agility || 0) + (skillPassivesD.agility || 0) + noShieldAgiBonusD,
+            magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + (skillPassivesD.magic || 0),
+            defense: (freshD.defense || 0) + (setBonusesD.defense || 0) + (skillPassivesD.defense || 0),
+            hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + (hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0),
+            crit_chance: (freshD.crit_chance || 0) + (setBonusesD.crit_chance || 0) + (skillPassivesD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
             armor: armorD + (skillPassivesD.armor || 0) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.01)) : 0),
             agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus: (hasPremium(premD, 'warlord') ? 0.15 : 0) + (skillPassivesD.dmg_bonus || 0),
