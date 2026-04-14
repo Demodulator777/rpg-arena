@@ -368,7 +368,15 @@ async function createCharacter() {
 function showScreen(name) {
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(`screen-${name}`).classList.add('active');
-    if (name==='game') { renderTopBar(); renderCharacter(); startPolling(); showTab('character'); }
+    if (name==='game') {
+        renderTopBar();
+        renderCharacter();
+        startPolling();
+        showTab('character');
+        checkTravelStatus().then(() => {
+            if (playerTravelTarget) showTravelOverlay();
+        }).catch(() => {});
+    }
 }
 const TAB_ORDER=['character','premium','loadout','skills','train','upgrade','missions','forge','inventory','shop','leaderboard','inbox', 'dungeon'];
 function showTab(name) {
