@@ -959,7 +959,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: 100%;
         min-width: 0;
     }
-    .element-strip-row { align-items: flex-start; }
+    .element-strip-row {
+        align-items: center;
+        flex-wrap: nowrap;
+    }
     .char-panel {
         padding: 16px;
     }
@@ -969,8 +972,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         letter-spacing: 0.1em;
     }
     .stat-row {
-        grid-template-columns: 20px 82px minmax(56px, 1fr) 48px 30px;
-        column-gap: 7px;
+        grid-template-columns: 20px minmax(0, 1fr) 50px 32px;
+        column-gap: 6px;
         padding: 6px 0;
     }
     .stat-icon {
@@ -978,11 +981,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         font-size: 0.88rem;
     }
     .stat-label {
-        font-size: 0.72rem;
+        display: none;
+    }
+    .stat-bar-wrap {
+        grid-column: 2;
+        min-width: 0;
     }
     .stat-val,
     .stat-total {
         font-size: 0.72rem;
+    }
+    .stat-val {
+        grid-column: 3;
+    }
+    .stat-total {
+        grid-column: 4;
     }
     .stat-bonus {
         font-size: 0.54rem;
@@ -995,14 +1008,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         gap: 6px;
     }
     .element-strip-label {
-        width: 46px;
+        width: 42px;
         font-size: 0.56rem;
+        flex-shrink: 0;
     }
     .element-badge-row {
         gap: 6px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
     }
+    .element-badge-row::-webkit-scrollbar { display: none; }
     .element-entry {
         gap: 4px;
+        flex: 0 0 auto;
     }
     .element-badge {
         min-width: 46px;
