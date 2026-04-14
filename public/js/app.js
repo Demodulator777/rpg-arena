@@ -2364,21 +2364,25 @@ function renderInventory(data) {
             el.innerHTML = '<p class="empty">No loot boxes. Buy them from the shop!</p>';
             return;
         }
-        el.innerHTML = '<div class="inv-grid">' + lootBoxes.map(i => {
+        el.innerHTML = '<div class="inv-consumable-grid">' + lootBoxes.map(i => {
             const d = i.item_data;
             const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
             const itemImage = d.image || getItemImage(d.name);
-            return `<div class="inv-card">
-                <div class="inv-card-header">
-                    <img src="${itemImage}" style="width:36px;height:36px;object-fit:contain;border-radius:8px" data-error-hide="true" data-error-next-display="inline">
-                    <span style="font-size:1.4rem;display:none">${d.emoji || '🎁'}</span>
-                    <span class="inv-card-name">${d.name}</span>
-                    <span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×${d.qty || 1}</span>
+            return `<div class="inv-consumable-card lootbox-card">
+                <div class="inv-consumable-top">
+                    <div class="inv-consumable-icon">
+                        <img src="${itemImage}" data-error-hide="true" data-error-next-display="inline">
+                        <span style="font-size:2rem;display:none">${d.emoji || '🎁'}</span>
+                    </div>
+                    <div class="inv-consumable-copy">
+                        <div class="inv-consumable-name">${d.name}</div>
+                        <div class="inv-consumable-qty">×${d.qty || 1}</div>
+                    </div>
                 </div>
-                <div class="inv-stat-str">${d.desc}</div>
-                <div style="display:flex;gap:8px;margin-top:10px">
-                    <button class="btn-primary" style="flex:1" ${actionAttrs('openLootBox', i.id, d.name)}>🎁 Open</button>
-                    <button class="btn-sm danger" ${actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
+                <div class="inv-consumable-desc">${d.desc}</div>
+                <div class="inv-consumable-actions">
+                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>🎁 Open</button>
+                    <button class="btn-sm danger inv-consumable-btn" ${actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
@@ -2387,30 +2391,35 @@ function renderInventory(data) {
         // CONSUMABLES TAB
         const cons = data.items.filter(i => i.item_type === 'consumable' && !isLootBox(i));
         if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
-        el.innerHTML = '<div class="inv-grid">' + cons.map(i => {
+        el.innerHTML = '<div class="inv-consumable-grid">' + cons.map(i => {
             const d = i.item_data;
             const eff = d.effect ? (
                 d.effect.type === 'heal' ? '❤️ Restore ' + d.effect.value + ' HP' :
                 d.effect.type === 'heal_full' ? '❤️ Full HP restore' :
                 d.effect.type === 'xp' ? '⭐ +' + d.effect.value + ' XP' :
-                d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat : ''
+                d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat :
+                d.effect.type === 'mp' ? '🔮 Restore ' + d.effect.value + ' MP' : ''
             ) : '';
             const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
-            const sn = (d.name || '').replace(/'/g, "\\'");
             const itemImage = d.image || getItemImage(d.name);
-            return '<div class="inv-card">'
-                + '<div class="inv-card-header">'
-                + '<img src="' + itemImage + '" style="width:36px;height:36px;object-fit:contain;border-radius:8px" data-error-hide="true" data-error-next-display="inline">'
-                + '<span style="font-size:1.4rem;display:none">' + (d.emoji || '🧪') + '</span>'
-                + '<span class="inv-card-name">' + (d.name || '') + '</span>'
-                + '<span style="font-size:0.75rem;color:var(--text-dim);margin-left:auto">×' + (d.qty || 1) + '</span>'
-                + '</div>'
-                + '<div class="inv-stat-str">' + eff + '</div>'
-                + '<div class="inv-slot" style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 10px">' + (d.desc || '') + '</div>'
-                + '<div style="display:flex;gap:8px">'
-                + '<button class="btn-sm" style="flex:1;background:rgba(39,174,96,0.15);border-color:rgba(39,174,96,0.4);color:#2ecc71" ' + actionAttrs('useItem', i.id, d.name || '') + '>Use</button>'
-                + '<button class="btn-sm danger" ' + actionAttrs('sellItem', i.id, d.name || '', sp) + '>Sell ' + sp + 'g</button>'
-                + '</div></div>';
+            return `<div class="inv-consumable-card">
+                <div class="inv-consumable-top">
+                    <div class="inv-consumable-icon">
+                        <img src="${itemImage}" data-error-hide="true" data-error-next-display="inline">
+                        <span style="font-size:2rem;display:none">${d.emoji || '🧪'}</span>
+                    </div>
+                    <div class="inv-consumable-copy">
+                        <div class="inv-consumable-name">${d.name || ''}</div>
+                        <div class="inv-consumable-qty">×${d.qty || 1}</div>
+                    </div>
+                </div>
+                <div class="inv-consumable-effect">${eff}</div>
+                <div class="inv-consumable-desc">${d.desc || ''}</div>
+                <div class="inv-consumable-actions">
+                    <button class="btn-sm inv-consumable-btn inv-consumable-use" ${actionAttrs('useItem', i.id, d.name || '')}>Use</button>
+                    <button class="btn-sm danger inv-consumable-btn" ${actionAttrs('sellItem', i.id, d.name || '', sp)}>Sell ${sp}g</button>
+                </div>
+            </div>`;
         }).join('') + '</div>';
     } else if (invTab === 'materials') {
         // MATERIALS TAB with exchange options
