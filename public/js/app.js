@@ -488,6 +488,13 @@ function renderDetailSlot(icon, label, value, accent='var(--text-bright)', title
     </div>`;
 }
 
+function renderElementBadge(icon, value, type) {
+    return `<div class="element-badge">
+        <span class="element-badge-icon">${icon}</span>
+        <span class="element-badge-value element-badge-value-${type}">${value}</span>
+    </div>`;
+}
+
 function renderCharacter() {
     if (!character) return;
     const c = character;
@@ -545,20 +552,18 @@ function renderCharacter() {
 
     const elemDmgObj    = c.elem_dmg    || {};
     const elemResistObj = c.elem_resist || {};
-    const detailSlots = [
-        renderDetailSlot('DMG', 'Damage', `${finalDmgMin}-${finalDmgMax}`, 'var(--text-bright)', dmgTooltip),
-        renderDetailSlot('ARM', 'Armor', armorVal, '#5dade2'),
-        renderDetailSlot('PY', 'Pyro Dmg', `+${elemDmgObj.pyro || 0}`, '#f1c40f'),
-        renderDetailSlot('WA', 'Water Dmg', `+${elemDmgObj.water || 0}`, '#f1c40f'),
-        renderDetailSlot('WI', 'Wind Dmg', `+${elemDmgObj.wind || 0}`, '#f1c40f'),
-        renderDetailSlot('EL', 'Electro Dmg', `+${elemDmgObj.electro || 0}`, '#f1c40f'),
-        renderDetailSlot('PY', 'Pyro Res', `+${elemResistObj.pyro || 0}`, '#5dade2'),
-        renderDetailSlot('WA', 'Water Res', `+${elemResistObj.water || 0}`, '#5dade2'),
-        renderDetailSlot('WI', 'Wind Res', `+${elemResistObj.wind || 0}`, '#5dade2'),
-        renderDetailSlot('EL', 'Electro Res', `+${elemResistObj.electro || 0}`, '#5dade2'),
+    const elementDamageBadges = [
+        renderElementBadge('🔥', elemDmgObj.pyro || 0, 'damage'),
+        renderElementBadge('💧', elemDmgObj.water || 0, 'damage'),
+        renderElementBadge('🌀', elemDmgObj.wind || 0, 'damage'),
+        renderElementBadge('⚡', elemDmgObj.electro || 0, 'damage'),
     ];
-    const elemDmgStr = '';
-    const elemResistStr = '';
+    const elementResistBadges = [
+        renderElementBadge('🔥', elemResistObj.pyro || 0, 'resist'),
+        renderElementBadge('💧', elemResistObj.water || 0, 'resist'),
+        renderElementBadge('🌀', elemResistObj.wind || 0, 'resist'),
+        renderElementBadge('⚡', elemResistObj.electro || 0, 'resist'),
+    ];
 
     const eqSlots=[
         {slot:'helmet', icon:'⛑️', label:'Helmet'},
@@ -612,9 +617,6 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          <div class="detail-slot-grid">
-            ${detailSlots.join('')}
-          </div>
           ${statRowBreakdown('💪','Strength', baseStr, itemBonus.strength||0, maxStat,'str')}
           ${statRowBreakdown('🛡️','Defense',  baseDef,  itemBonus.defense||0,  maxStat,'def')}
           ${statRowBreakdown('⚡','Agility',  baseAgi,  itemBonus.agility||0,  maxStat,'agi')}
@@ -627,16 +629,24 @@ const eqGrid = `
               ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
             </span>
             <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
-            ${elemDmgStr    ? `<span style="color:#f1c40f">${elemDmgStr}</span>`    : ''}
-            ${elemResistStr ? `<span style="color:#5dade2">Res: ${elemResistStr}</span>` : ''}
             ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
+          </div>
+          <div class="element-strip">
+            <div class="element-strip-row">
+              <span class="element-strip-label">Damage</span>
+              <div class="element-badge-row">${elementDamageBadges.join('')}</div>
+            </div>
+            <div class="element-strip-row">
+              <span class="element-strip-label">Resist</span>
+              <div class="element-badge-row">${elementResistBadges.join('')}</div>
+            </div>
           </div>
         </div>
         <div class="char-panel">
           <h3>EQUIPMENT</h3>
           ${eqGrid}
         </div>
-        <div class="char-panel">
+        <div class="char-panel char-panel-record">
           <h3>RECORD</h3>
           <div class="record-row">
             <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
