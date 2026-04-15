@@ -1242,6 +1242,23 @@ async function recordMonsterDefeat(db, { charId, source = 'mission', monsterKey,
     }
 }
 
+function hasShieldEquipped(items = []) {
+    return (items || []).some(item => {
+        try {
+            const raw = item?.item_data ? JSON.parse(item.item_data) : item;
+            return raw?.slot === 'shield';
+        } catch {
+            return false;
+        }
+    });
+}
+
+async function recordShieldlessWin(db, char, equippedItems) {
+    if (!char?.id || char.class !== 'rogue') return;
+    if (hasShieldEquipped(equippedItems)) return;
+    await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+}
+
 async function listUserCharacters(db, userId) {
     return dbAll(db, `SELECT id, user_id, name, class, level, xp, gold, gems, wins, losses, location, current_map
         FROM characters WHERE user_id = ? ORDER BY id ASC`, [userId]);
@@ -3427,6 +3444,7 @@ if (freshChar.class === 'rogue') {
                 count: 1,
                 now
             });
+            await recordShieldlessWin(db, freshChar, equippedArray);
         }
         
         let goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
@@ -4622,15 +4640,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const battle = runBattle(fighterA, fighterB);
         const attackerWon = battle.winnerId === freshA.id;
         
-        // ── Track wins without shield for rogue dual-wield unlock ────────────
-        if (attackerWon && freshA.class === 'rogue') {
-            const hasShield = equippedA.some(i => {
-                try { return JSON.parse(i.item_data).slot === 'shield'; } 
-                catch { return false; }
-            });
-            if (!hasShield) {
-                await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [freshA.id]);
-            }
+        if (attackerWon) {
+            await recordShieldlessWin(db, freshA, equippedA);
+        } else {
+            await recordShieldlessWin(db, freshD, equippedD);
         }
         
         function calculateBattleXP(winnerLevel, loserLevel) {
