@@ -111,6 +111,17 @@ body {
     color: var(--text-dim); font-style: italic; font-size: 0.95rem;
     letter-spacing: 0.25em; text-align: center;
 }
+.auth-beta-notice {
+    width: 100%;
+    text-align: center;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(201,146,42,0.18);
+    background: linear-gradient(180deg, rgba(201,146,42,0.12), rgba(255,255,255,0.03));
+    color: rgba(255,245,214,0.88);
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
 
 .game-logo {
     position: relative;
