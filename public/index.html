@@ -33,6 +33,8 @@
                 <input type="password" id="login-pass" placeholder="Password" class="input-field"/>
                 <button class="btn-primary" data-action="login">Enter the Arena</button>
                 <div class="auth-legal-links">
+                    <button class="auth-legal-link" data-action="openGameGuide">Game Guide</button>
+                    <span class="auth-legal-sep">•</span>
                     <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service (Beta)</button>
                     <span class="auth-legal-sep">•</span>
                     <button class="auth-legal-link" data-action="openAuthLegalModal">Privacy Notice</button>
@@ -44,9 +46,183 @@
                 <input type="password" id="reg-pass" placeholder="Choose a password" class="input-field"/>
                 <button class="btn-primary" data-action="register">Create Account</button>
                 <div class="auth-legal-links">
+                    <button class="auth-legal-link" data-action="openGameGuide">Game Guide</button>
+                    <span class="auth-legal-sep">•</span>
                     <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service (Beta)</button>
                     <span class="auth-legal-sep">•</span>
                     <button class="auth-legal-link" data-action="openAuthLegalModal">Privacy Notice</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-guide-modal" class="modal-overlay hidden">
+        <div class="modal-box game-guide-modal">
+            <div class="modal-header auth-legal-header">
+                <h2>Battle Arena Guide</h2>
+                <button class="modal-close" data-action="closeGameGuide">✕</button>
+            </div>
+            <div class="game-guide-body">
+                <div class="game-guide-hero">
+                    <div class="game-guide-kicker">Start Here</div>
+                    <div class="game-guide-title">What Battle Arena Is</div>
+                    <p>Battle Arena is a build-focused RPG where you raise characters through missions, gear, crafting, dungeon runs, and PvP. The heart of the game is turning one class into a sharp build instead of spreading everything evenly.</p>
+                </div>
+
+                <div class="game-guide-grid">
+                    <div class="game-guide-card">
+                        <h3>Core Loop</h3>
+                        <ul>
+                            <li>Create a character and choose a direction for its stats.</li>
+                            <li>Run missions for gold, XP, gems, materials, and achievements.</li>
+                            <li>Buy, craft, and upgrade gear to strengthen your build.</li>
+                            <li>Push dungeon content and test your character in PvP.</li>
+                        </ul>
+                    </div>
+                    <div class="game-guide-card">
+                        <h3>Character Slots</h3>
+                        <ul>
+                            <li>One account can hold up to four characters, one per class.</li>
+                            <li>Each class has different starting stats, skill trees, and best stat priorities.</li>
+                            <li>You can swap characters later from the menu, so experimenting is encouraged.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Class Roles</h3>
+                    <div class="guide-class-grid">
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Warrior</div>
+                            <p>Highest early Strength and strong Defense. Best for simple, reliable physical damage and solid frontline PvP.</p>
+                            <div class="guide-class-tip">Start with Strength, then Defense, then Vitality.</div>
+                        </div>
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Mage</div>
+                            <p>Highest Magic and lowest HP. Best for elemental damage, resist shredding, and scaling through magical gear.</p>
+                            <div class="guide-class-tip">Start with Magic, then Hit Chance or Agility for consistency.</div>
+                        </div>
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Rogue</div>
+                            <p>Highest Agility. Best for dodge, crit pressure, fast builds, and no-shield progression paths.</p>
+                            <div class="guide-class-tip">Start with Agility, then Crit/Hit, then enough Strength to finish fights.</div>
+                        </div>
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Paladin</div>
+                            <p>Balanced hybrid with strong Defense and HP. Great for sustain, reflect, and durable mixed damage setups.</p>
+                            <div class="guide-class-tip">Start with Defense and Vitality, then lean toward Strength or Magic.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>How Building Works</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle">Primary Stats</div>
+                            <ul>
+                                <li><strong>Strength</strong> drives physical damage.</li>
+                                <li><strong>Defense</strong> feeds armor and helps against physical hits.</li>
+                                <li><strong>Agility</strong> supports evasive and rogue-heavy setups.</li>
+                                <li><strong>Magic</strong> matters for mage/paladin scaling and elemental-focused gear.</li>
+                                <li><strong>Vitality</strong> improves survivability through max HP value.</li>
+                            </ul>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle">Support Stats</div>
+                            <ul>
+                                <li><strong>Hit Chance</strong> makes attacks connect more reliably.</li>
+                                <li><strong>Crit Chance</strong> boosts burst and pressure.</li>
+                                <li><strong>Armor</strong> is mostly built from Defense and gear.</li>
+                                <li><strong>Elemental Damage / Resist</strong> mostly come from equipment and set bonuses.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Combat Rules That Matter</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li>You prepare attack zones and block zones in your loadout.</li>
+                            <li>Battles last up to 10 rounds.</li>
+                            <li>If nobody dies, the winner is decided by <strong>total damage dealt</strong>, not remaining HP.</li>
+                            <li>Armor reduces physical damage.</li>
+                            <li>Elemental resistance reduces elemental damage by flat subtraction, so resist is strong but does not create permanent immunity.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Missions and Daily Progress</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle">Mission Points</div>
+                            <ul>
+                                <li>Small missions cost 20 MP, Medium 40 MP, Large 60 MP.</li>
+                                <li>You regenerate MP over time.</li>
+                                <li>Spending 60 MP in a day unlocks class skill use for that day.</li>
+                                <li>You can also convert MP into Special Mana Potions from the menu.</li>
+                            </ul>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle">World Progression</div>
+                            <ul>
+                                <li>The overworld moves from Forest to Swamp, Mountains, Ruins, and Dark City.</li>
+                                <li>Each zone has easy, medium, and hard mission spots with different rewards.</li>
+                                <li>Travel unlocks are gated by one-time gatekeeper fights, then movement becomes free.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Gear, Crafting, and Sets</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li>Shop gear gives stable upgrades. Crafted sets give more specialized power.</li>
+                            <li>Set bonuses activate from equipped pieces, not from simply crafting them.</li>
+                            <li>Elemental lines mostly come from equipment, not basic stat upgrades.</li>
+                            <li>Upgrading items to +5 is expensive, so focus your best gear instead of trying to perfect everything at once.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Skills and Hidden Paths</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle">Class Skills</div>
+                            <p>Every class gets timed active skills: warriors gain damage and block tools, mages gain elemental and dodge magic, rogues gain dodge, crit, and poison pressure, and paladins gain shielding, sustain, and reflect tools.</p>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle">Skill Tree</div>
+                            <p>The skill tree unlocks through wins, levels, missions, elemental kills, dungeon goals, and special conditions. Some branches are hidden or exclusive, so your build path changes what you can become.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Dungeon and Long-Term Goals</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li>The dungeon tracks monster kills, guild bounties, floor progress, and special rewards.</li>
+                            <li>Achievements pay gold, gems, loot boxes, potions, and sometimes premium rewards, so they matter from day one.</li>
+                            <li>If you want to grow fast, missions fund your build, crafting sharpens it, and dungeon/PvP reveal its weaknesses.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3>Best Starter Advice</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li>Do not level every stat evenly early. Pick two main stats and one support stat.</li>
+                            <li>Use early missions to fund upgrades instead of sitting on gold.</li>
+                            <li>Once you get decent gear, start paying attention to elemental lines and set bonuses.</li>
+                            <li>Use PvP to test whether your build can actually finish fights in 10 rounds.</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
