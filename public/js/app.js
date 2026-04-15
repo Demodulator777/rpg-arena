@@ -4164,6 +4164,7 @@ async function openProfile(id) {
         const isMe=p.user_id===character?.user_id;
         const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
         const achievementsCompleted = p.achievements_completed || 0;
+        const dungeonHighestFloor = p.dungeon_highest_floor || 0;
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
@@ -4256,6 +4257,7 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Dungeon Floor</span><span style="color:#8fd3ff;font-weight:600">🕯️ ${dungeonHighestFloor}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Achievements</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
