@@ -2944,6 +2944,8 @@ router.post('/character', auth, async (req, res) => {
         const db = await getDb();
         const { name, class: characterClass } = req.body;
         const userId = req.user.userId;
+        const classDef = CLASSES[characterClass];
+        if (!classDef) return res.status(400).json({ error: 'Invalid class.' });
         const existingCount = await dbGet(db, 'SELECT COUNT(*) AS count FROM characters WHERE user_id = ?', [userId]);
         if ((existingCount?.count || 0) >= 4) return res.status(400).json({ error: 'You can only create up to 4 characters on one account.' });
         const existingClass = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ?', [userId, characterClass]);
@@ -2959,7 +2961,37 @@ router.post('/character', auth, async (req, res) => {
                 location, travel_target, travel_end_time,
                 elem_resist_pyro, elem_resist_water, elem_resist_wind, elem_resist_electro
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [userId, name, characterClass, 1, 0, 5000, 10, 10, 10, 10, 10, 100, 100, 0, 0, null, null, 0, 0, 500, 0, 0, 'forest', null, 0, 0, 0, 0, 0]);
+        `, [
+            userId,
+            name,
+            characterClass,
+            1,
+            0,
+            5000,
+            classDef.strength,
+            classDef.defense,
+            classDef.agility,
+            classDef.magic,
+            10,
+            classDef.hp_max,
+            classDef.hp_max,
+            0,
+            0,
+            null,
+            null,
+            0,
+            0,
+            500,
+            0,
+            0,
+            'forest',
+            null,
+            0,
+            0,
+            0,
+            0,
+            0
+        ]);
         const created = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ? ORDER BY id DESC LIMIT 1', [userId, characterClass]);
         await ensureActiveCharacter(db, userId, created?.id || null);
         const character = await getCurrentCharacter(db, userId);
