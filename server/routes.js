@@ -462,6 +462,7 @@ function applyPremiumFeatureToCharacter(char, featureId, durationSeconds) {
 const ACHIEVEMENTS = [
     {
         id: 'wins_1',
+        chain: 'wins',
         category: 'victories',
         name: 'First Blood',
         desc: 'Win your first PvP battle.',
@@ -472,6 +473,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_10',
+        chain: 'wins',
         category: 'victories',
         name: 'Arena Regular',
         desc: 'Reach 10 victories.',
@@ -482,6 +484,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_25',
+        chain: 'wins',
         category: 'victories',
         name: 'Battle-Tested',
         desc: 'Reach 25 victories.',
@@ -492,6 +495,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_50',
+        chain: 'wins',
         category: 'victories',
         name: 'Champion Spark',
         desc: 'Reach 50 victories.',
@@ -502,6 +506,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_100',
+        chain: 'wins',
         category: 'victories',
         name: 'Centurion of the Arena',
         desc: 'Reach 100 victories.',
@@ -512,6 +517,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_500',
+        chain: 'wins',
         category: 'victories',
         name: 'Warpath',
         desc: 'Reach 500 victories.',
@@ -522,6 +528,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_1000',
+        chain: 'wins',
         category: 'victories',
         name: 'Legend of Steel',
         desc: 'Reach 1,000 victories.',
@@ -532,6 +539,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'wins_2500',
+        chain: 'wins',
         category: 'victories',
         name: 'Mythic Conqueror',
         desc: 'Reach 2,500 victories.',
@@ -542,6 +550,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'battles_25',
+        chain: 'battles',
         category: 'battles',
         name: 'Scarred Veteran',
         desc: 'Fight 25 total battles.',
@@ -552,6 +561,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'battles_100',
+        chain: 'battles',
         category: 'battles',
         name: 'Seasoned Duelist',
         desc: 'Fight 100 total battles.',
@@ -562,6 +572,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'battles_500',
+        chain: 'battles',
         category: 'battles',
         name: 'Arena Fixture',
         desc: 'Fight 500 total battles.',
@@ -572,6 +583,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'gold_10000',
+        chain: 'gold_earned',
         category: 'wealth',
         name: 'First Fortune',
         desc: 'Earn 10,000 total gold.',
@@ -582,6 +594,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'gold_100000',
+        chain: 'gold_earned',
         category: 'wealth',
         name: 'Treasure Hoard',
         desc: 'Earn 100,000 total gold.',
@@ -592,6 +605,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'gold_1000000',
+        chain: 'gold_earned',
         category: 'wealth',
         name: 'Golden Legend',
         desc: 'Earn 1,000,000 total gold.',
@@ -602,6 +616,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'floor_5',
+        chain: 'dungeon_floor',
         category: 'dungeon',
         name: 'Into the Deep',
         desc: 'Reach dungeon floor 5.',
@@ -612,6 +627,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'floor_10',
+        chain: 'dungeon_floor',
         category: 'dungeon',
         name: 'Abyss Diver',
         desc: 'Reach dungeon floor 10.',
@@ -622,6 +638,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'floor_25',
+        chain: 'dungeon_floor',
         category: 'dungeon',
         name: 'Underworld Walker',
         desc: 'Reach dungeon floor 25.',
@@ -632,6 +649,7 @@ const ACHIEVEMENTS = [
     },
     {
         id: 'floor_50',
+        chain: 'dungeon_floor',
         category: 'dungeon',
         name: 'Abyss Sovereign',
         desc: 'Reach dungeon floor 50.',
@@ -640,14 +658,416 @@ const ACHIEVEMENTS = [
         target: 50,
         rewards: { gold: 250000, gems: 60, premium: { id: 'iron_fortress', days: 10 } },
     },
+    {
+        id: 'mp_60',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Mana Investor',
+        desc: 'Spend 60 total MP on missions and conversions.',
+        icon: '🔮',
+        metric: 'mp_spent',
+        target: 60,
+        rewards: { gold: 2500, consumable: { id: 'potion_mana', qty: 1 } },
+    },
+    {
+        id: 'mp_300',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Mission Addict',
+        desc: 'Spend 300 total MP.',
+        icon: '✨',
+        metric: 'mp_spent',
+        target: 300,
+        rewards: { gold: 10000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'mp_1000',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Arcane Workhorse',
+        desc: 'Spend 1,000 total MP.',
+        icon: '🧪',
+        metric: 'mp_spent',
+        target: 1000,
+        rewards: { gold: 40000, gems: 8, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'mp_5000',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Master of Endurance',
+        desc: 'Spend 5,000 total MP.',
+        icon: '🌌',
+        metric: 'mp_spent',
+        target: 5000,
+        rewards: { gold: 175000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'mission_wins_10',
+        chain: 'mission_wins_total',
+        category: 'missions',
+        name: 'Field Operative',
+        desc: 'Win 10 missions.',
+        icon: '🗺️',
+        metric: 'mission_wins_total',
+        target: 10,
+        rewards: { gold: 5000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'mission_wins_50',
+        chain: 'mission_wins_total',
+        category: 'missions',
+        name: 'Contract Finisher',
+        desc: 'Win 50 missions.',
+        icon: '📜',
+        metric: 'mission_wins_total',
+        target: 50,
+        rewards: { gold: 25000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'mission_wins_250',
+        chain: 'mission_wins_total',
+        category: 'missions',
+        name: 'Mercenary Legend',
+        desc: 'Win 250 missions.',
+        icon: '⚔️',
+        metric: 'mission_wins_total',
+        target: 250,
+        rewards: { gold: 125000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'mission_spots_3',
+        chain: 'mission_spots_discovered',
+        category: 'missions',
+        name: 'Trailblazer',
+        desc: 'Fight in 3 different mission locations.',
+        icon: '🧭',
+        metric: 'mission_spots_discovered',
+        target: 3,
+        rewards: { gold: 3500, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'mission_spots_10',
+        chain: 'mission_spots_discovered',
+        category: 'missions',
+        name: 'Worldwalker',
+        desc: 'Fight in 10 different mission locations.',
+        icon: '🌍',
+        metric: 'mission_spots_discovered',
+        target: 10,
+        rewards: { gold: 30000, gems: 6, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'forest_camp_wins_10',
+        chain: 'mission_spot_forest_camp_wins',
+        category: 'missions',
+        name: 'Keeper of the Camp',
+        desc: 'Win 10 missions at Hunting Camp.',
+        icon: '🌲',
+        metric: 'mission_spot_wins',
+        metric_key: 'forest_camp',
+        metric_label: 'Hunting Camp',
+        target: 10,
+        rewards: { gold: 8000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'city_palace_wins_10',
+        chain: 'mission_spot_city_palace_wins',
+        category: 'missions',
+        name: 'Shadowbreaker',
+        desc: 'Win 10 missions at Shadow Palace.',
+        icon: '🏙️',
+        metric: 'mission_spot_wins',
+        metric_key: 'city_palace',
+        metric_label: 'Shadow Palace',
+        target: 10,
+        rewards: { gold: 90000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'forest_bandits_wins_10',
+        chain: 'mission_spot_forest_bandits_wins',
+        category: 'missions',
+        name: 'Banditbane',
+        desc: 'Win 10 missions at Bandit Hideout.',
+        icon: '🪓',
+        metric: 'mission_spot_wins',
+        metric_key: 'forest_bandits',
+        metric_label: 'Bandit Hideout',
+        target: 10,
+        rewards: { gold: 9000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'forest_ruins_wins_10',
+        chain: 'mission_spot_forest_ruins_wins',
+        category: 'missions',
+        name: 'Relic Seeker',
+        desc: 'Win 10 missions at Old Ruins.',
+        icon: '🏚️',
+        metric: 'mission_spot_wins',
+        metric_key: 'forest_ruins',
+        metric_label: 'Old Ruins',
+        target: 10,
+        rewards: { gold: 12000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'swamp_edge_wins_10',
+        chain: 'mission_spot_swamp_edge_wins',
+        category: 'missions',
+        name: 'Bog Skimmer',
+        desc: 'Win 10 missions at Swamp Edge.',
+        icon: '🌿',
+        metric: 'mission_spot_wins',
+        metric_key: 'swamp_edge',
+        metric_label: 'Swamp Edge',
+        target: 10,
+        rewards: { gold: 15000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'swamp_village_wins_10',
+        chain: 'mission_spot_swamp_village_wins',
+        category: 'missions',
+        name: 'Marsh Reclaimer',
+        desc: 'Win 10 missions at Abandoned Village.',
+        icon: '🏚️',
+        metric: 'mission_spot_wins',
+        metric_key: 'swamp_village',
+        metric_label: 'Abandoned Village',
+        target: 10,
+        rewards: { gold: 20000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'swamp_heart_wins_10',
+        chain: 'mission_spot_swamp_heart_wins',
+        category: 'missions',
+        name: 'Heart of the Mire',
+        desc: 'Win 10 missions at Swamp Heart.',
+        icon: '🧫',
+        metric: 'mission_spot_wins',
+        metric_key: 'swamp_heart',
+        metric_label: 'Swamp Heart',
+        target: 10,
+        rewards: { gold: 32000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'mountain_base_wins_10',
+        chain: 'mission_spot_mountain_base_wins',
+        category: 'missions',
+        name: 'Foothill Forger',
+        desc: 'Win 10 missions at Mountain Base.',
+        icon: '⛰️',
+        metric: 'mission_spot_wins',
+        metric_key: 'mountain_base',
+        metric_label: 'Mountain Base',
+        target: 10,
+        rewards: { gold: 25000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'mountain_peak_wins_10',
+        chain: 'mission_spot_mountain_peak_wins',
+        category: 'missions',
+        name: 'Storm Summit',
+        desc: 'Win 10 missions at Frozen Peak.',
+        icon: '❄️',
+        metric: 'mission_spot_wins',
+        metric_key: 'mountain_peak',
+        metric_label: 'Frozen Peak',
+        target: 10,
+        rewards: { gold: 35000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'ice_cavern_wins_10',
+        chain: 'mission_spot_ice_cavern_wins',
+        category: 'missions',
+        name: 'Frost Delver',
+        desc: 'Win 10 missions at Ice Cavern.',
+        icon: '🧊',
+        metric: 'mission_spot_wins',
+        metric_key: 'ice_cavern',
+        metric_label: 'Ice Cavern',
+        target: 10,
+        rewards: { gold: 50000, gems: 6, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'ruins_perimeter_wins_10',
+        chain: 'mission_spot_ruins_perimeter_wins',
+        category: 'missions',
+        name: 'Outer Wallbreaker',
+        desc: 'Win 10 missions at Ruins Perimeter.',
+        icon: '🧱',
+        metric: 'mission_spot_wins',
+        metric_key: 'ruins_perimeter',
+        metric_label: 'Ruins Perimeter',
+        target: 10,
+        rewards: { gold: 60000, gems: 6, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'ruins_temple_wins_10',
+        chain: 'mission_spot_ruins_temple_wins',
+        category: 'missions',
+        name: 'Sunken Ritebreaker',
+        desc: 'Win 10 missions at Sunken Temple.',
+        icon: '🛕',
+        metric: 'mission_spot_wins',
+        metric_key: 'ruins_temple',
+        metric_label: 'Sunken Temple',
+        target: 10,
+        rewards: { gold: 85000, gems: 8, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'ruins_crypt_wins_10',
+        chain: 'mission_spot_ruins_crypt_wins',
+        category: 'missions',
+        name: 'Crypt Unsealer',
+        desc: 'Win 10 missions at Ancient Crypt.',
+        icon: '⚰️',
+        metric: 'mission_spot_wins',
+        metric_key: 'ruins_crypt',
+        metric_label: 'Ancient Crypt',
+        target: 10,
+        rewards: { gold: 115000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'city_outskirts_wins_10',
+        chain: 'mission_spot_city_outskirts_wins',
+        category: 'missions',
+        name: 'Street Purger',
+        desc: 'Win 10 missions at City Outskirts.',
+        icon: '🏘️',
+        metric: 'mission_spot_wins',
+        metric_key: 'city_outskirts',
+        metric_label: 'City Outskirts',
+        target: 10,
+        rewards: { gold: 150000, gems: 10, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'city_cathedral_wins_10',
+        chain: 'mission_spot_city_cathedral_wins',
+        category: 'missions',
+        name: 'Cathedral Cleanser',
+        desc: 'Win 10 missions at Dark Cathedral.',
+        icon: '⛪',
+        metric: 'mission_spot_wins',
+        metric_key: 'city_cathedral',
+        metric_label: 'Dark Cathedral',
+        target: 10,
+        rewards: { gold: 220000, gems: 15, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'dungeon_kills_25',
+        chain: 'dungeon_kills',
+        category: 'dungeon',
+        name: 'Crypt Cleaner',
+        desc: 'Defeat 25 dungeon monsters.',
+        icon: '💀',
+        metric: 'monster_kills_total',
+        metric_source: 'dungeon',
+        target: 25,
+        rewards: { gold: 9000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'dungeon_kills_100',
+        chain: 'dungeon_kills',
+        category: 'dungeon',
+        name: 'Dungeon Exterminator',
+        desc: 'Defeat 100 dungeon monsters.',
+        icon: '🕷️',
+        metric: 'monster_kills_total',
+        metric_source: 'dungeon',
+        target: 100,
+        rewards: { gold: 40000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'dungeon_kills_300',
+        chain: 'dungeon_kills',
+        category: 'dungeon',
+        name: 'Terror of the Underdeep',
+        desc: 'Defeat 300 dungeon monsters.',
+        icon: '👁️',
+        metric: 'monster_kills_total',
+        metric_source: 'dungeon',
+        target: 300,
+        rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'skeleton_kills_15',
+        chain: 'monster_skeleton',
+        category: 'dungeon',
+        name: 'Bonebreaker',
+        desc: 'Defeat 15 Skeleton Warriors in the dungeon.',
+        icon: '🦴',
+        metric: 'monster_kills',
+        metric_source: 'dungeon',
+        metric_key: 'skeleton',
+        metric_label: 'Skeleton Warrior',
+        target: 15,
+        rewards: { gold: 12000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'void_wraith_kills_10',
+        chain: 'monster_void_wraith',
+        category: 'dungeon',
+        name: 'Wraithbane',
+        desc: 'Defeat 10 Void Wraiths in the dungeon.',
+        icon: '👻',
+        metric: 'monster_kills',
+        metric_source: 'dungeon',
+        metric_key: 'void_wraith',
+        metric_label: 'Void Wraith',
+        target: 10,
+        rewards: { gold: 50000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
 ];
 
-function getAchievementMetricValue(char, metric) {
+async function getAchievementMetricValue(db, char, achievement) {
+    const metric = achievement.metric;
     if (metric === 'wins') return char.wins || 0;
     if (metric === 'battles') return (char.wins || 0) + (char.losses || 0);
     if (metric === 'gold_earned') return char.total_gold_earned || 0;
     if (metric === 'mp_spent') return char.total_mp_spent || 0;
     if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
+
+    if (metric === 'mission_wins_total' || metric === 'mission_fights_total' || metric === 'mission_spots_discovered') {
+        const rows = await dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]);
+        if (metric === 'mission_wins_total') return rows.reduce((sum, row) => sum + (row.wins || 0), 0);
+        if (metric === 'mission_fights_total') return rows.reduce((sum, row) => sum + (row.fights || 0), 0);
+        return rows.length;
+    }
+
+    if (metric === 'mission_spot_wins' || metric === 'mission_spot_fights') {
+        if (!achievement.metric_key) return 0;
+        const row = await dbGet(
+            db,
+            'SELECT fights, wins FROM character_mission_spot_stats WHERE char_id = ? AND spot_id = ?',
+            [char.id, achievement.metric_key]
+        );
+        if (!row) return 0;
+        return metric === 'mission_spot_wins' ? (row.wins || 0) : (row.fights || 0);
+    }
+
+    if (metric === 'monster_kills_total' || metric === 'monster_types_total') {
+        const rows = achievement.metric_source
+            ? await dbAll(db, 'SELECT monster_key, kills FROM character_monster_stats WHERE char_id = ? AND source = ?', [char.id, achievement.metric_source])
+            : await dbAll(db, 'SELECT monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]);
+        if (metric === 'monster_kills_total') return rows.reduce((sum, row) => sum + (row.kills || 0), 0);
+        return rows.length;
+    }
+
+    if (metric === 'monster_kills') {
+        if (!achievement.metric_key) return 0;
+        const row = achievement.metric_source
+            ? await dbGet(
+                db,
+                'SELECT kills FROM character_monster_stats WHERE char_id = ? AND source = ? AND monster_key = ?',
+                [char.id, achievement.metric_source, achievement.metric_key]
+            )
+            : await dbGet(
+                db,
+                'SELECT SUM(kills) AS kills FROM character_monster_stats WHERE char_id = ? AND monster_key = ?',
+                [char.id, achievement.metric_key]
+            );
+        return row?.kills || 0;
+    }
+
     return 0;
 }
 
@@ -2387,11 +2807,12 @@ async function grantAchievementRewards(db, char, rewards) {
 async function getCharacterAchievements(db, char) {
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
-    const items = ACHIEVEMENTS.map(def => {
-        const progress = getAchievementMetricValue(char, def.metric);
+    const items = [];
+    for (const def of ACHIEVEMENTS) {
+        const progress = await getAchievementMetricValue(db, char, def);
         const completed = progress >= def.target;
         const claimedAt = claimedMap.get(def.id) || null;
-        return {
+        items.push({
             ...def,
             progress,
             completed,
@@ -2399,8 +2820,8 @@ async function getCharacterAchievements(db, char) {
             claimable: completed && !claimedAt,
             claimed_at: claimedAt,
             reward_summary: buildAchievementRewardSummary(def.rewards)
-        };
-    });
+        });
+    }
     return {
         items,
         totals: {
@@ -2591,7 +3012,7 @@ router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
         const achievement = ACHIEVEMENTS.find(item => item.id === req.params.achievementId);
         if (!achievement) return res.status(404).json({ error: 'Achievement not found' });
 
-        const progress = getAchievementMetricValue(char, achievement.metric);
+        const progress = await getAchievementMetricValue(db, char, achievement);
         if (progress < achievement.target) {
             return res.status(400).json({ error: 'Achievement not completed yet' });
         }
@@ -4298,7 +4719,8 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,
+            (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
             FROM characters c ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         res.json(players.map((p,i) => ({ ...p, rank:i+1 })));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -4330,6 +4752,7 @@ router.get('/player/:id', auth, async (req, res) => {
         const hpLow = (player.hp_current ?? hpMax) < 10;
 
         const equipped = await getEquippedItems(db, player.id);
+        const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
@@ -4341,6 +4764,7 @@ router.get('/player/:id', auth, async (req, res) => {
             hp_max:hpMax,
             hp_current: player.hp_current ?? hpMax,
             wins:player.wins, losses:player.losses,
+            achievements_completed: achievementCountRow?.count || 0,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
             globalCooldown, perTargetCooldown, hpLow, equipped,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
