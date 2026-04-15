@@ -899,6 +899,14 @@ function onRoomCleared(roomIdx) {
     if (!room) return;
 
     const monsters = Array.isArray(room.monsters) ? room.monsters : [];
+    const defeatedMonsters = monsters.reduce((acc, monster) => {
+        const key = monster.id || monster.name;
+        if (!key) return acc;
+        const existing = acc.find(entry => entry.id === key);
+        if (existing) existing.count += 1;
+        else acc.push({ id: monster.id || monster.name, name: monster.name || monster.id, count: 1 });
+        return acc;
+    }, []);
 
     // Mark all monsters as killed
     monsters.forEach(m => {
@@ -919,6 +927,11 @@ function onRoomCleared(roomIdx) {
 
     if (totalGold > 0) {
         applyLoot({ type: 'gold', amount: totalGold });
+    }
+
+    if (defeatedMonsters.length) {
+        apiFetch('POST', '/game/dungeon/monster-defeated', { monsters: defeatedMonsters })
+            .catch(e => console.error('Failed to sync dungeon monster defeats:', e));
     }
 
     D.combat = null;
@@ -1076,6 +1089,8 @@ function onBossDefeated() {
     newFloor: D.floor,
     highestFloor: D.highestFloor,
     tokens: D.tokens,
+    bossId: boss.id || boss.name,
+    bossName: boss.name,
     loot: {
       gold: loot.gold,
       gems: loot.gems,
@@ -1690,6 +1705,7 @@ function dungeonExit() {
   apiFetch('GET', '/game/dungeon/guild').then(guildData => {
     const reputation = guildData.guildReputation || 0;
     const dungeonGold = guildData.dungeonGold || 0;
+    const bounty = guildData.bounty || null;
     
     // Calculate current rank
     let currentRank = GUILD_RANKS[0];
@@ -1703,6 +1719,7 @@ function dungeonExit() {
     const nextRank = GUILD_RANKS[Math.min(currentRank.rank + 1, GUILD_RANKS.length - 1)];
     const repNeeded = nextRank.rank > currentRank.rank ? nextRank.reputationNeeded - reputation : 0;
     const repProgress = nextRank.rank > currentRank.rank ? (reputation / nextRank.reputationNeeded) * 100 : 100;
+    const bountyProgress = bounty ? Math.min(100, Math.round(((bounty.progress || 0) / Math.max(1, bounty.target_count || 1)) * 100)) : 0;
     
     const guildHtml = `
       <div class="guild-container">
@@ -1740,6 +1757,31 @@ function dungeonExit() {
           </div>
           <div class="rep-bar-text">${repNeeded > 0 ? repNeeded + ' reputation needed' : 'MAX RANK'}</div>
         </div>
+        
+        ${bounty ? `
+        <div class="guild-exchanges" style="margin-top:18px">
+          <div class="guild-section-title">🎯 Active Bounty</div>
+          <div class="exchange-card exchange-available">
+            <div class="exchange-icon">🎯</div>
+            <div class="exchange-info">
+              <div class="exchange-name">Hunt ${bounty.target_name}</div>
+              <div class="exchange-desc">Defeat ${bounty.target_count}x ${bounty.target_name} in dungeon rooms and report back here for your payout.</div>
+              <div class="exchange-cost">
+                <span class="cost-item">Progress: ${bounty.progress || 0}/${bounty.target_count || 0}</span>
+              </div>
+              <div class="rep-bar-track" style="margin:10px 0 8px">
+                <div class="rep-bar-fill" style="width: ${bountyProgress}%"></div>
+              </div>
+              <div class="exchange-reward">
+                <span class="reward-gold">💰 ${(bounty.reward_gold || 0).toLocaleString()} Gold</span>
+                <span class="reward-rep">⭐ +${bounty.reward_reputation || 0} Reputation</span>
+              </div>
+<button class="exchange-btn" ${actionAttrs('claimGuildBounty')} ${(bounty.progress || 0) < (bounty.target_count || 0) ? 'disabled' : ''}>
+                ${(bounty.progress || 0) < (bounty.target_count || 0) ? 'Bounty In Progress' : 'Claim Bounty'}
+              </button>
+            </div>
+          </div>
+        </div>` : ''}
         
         <div class="guild-exchanges">
           <div class="guild-section-title">📜 Available Exchanges</div>
@@ -1871,6 +1913,18 @@ function exchangeAtGuild(exchangeId) {
     .catch(e => console.error('Exchange failed:', e));
 }
 
+function claimGuildBounty() {
+  apiFetch('POST', '/game/dungeon/guild/bounty/claim', {})
+    .then(response => {
+      if (response.success) {
+        log(response.message, 'log-success');
+        renderGuild();
+        refreshCharacter();
+      }
+    })
+    .catch(e => console.error('Bounty claim failed:', e));
+}
+
   async function fightMiniBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isMiniBoss) return;
@@ -1981,6 +2035,7 @@ global.debugDungeonDetails = function() {
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
+global.claimGuildBounty = claimGuildBounty;
   global.dungeonEnter        = enterDungeon;
   global.dungeonTravel       = travelToRoom;
   global.dungeonFight        = initiateFight;
