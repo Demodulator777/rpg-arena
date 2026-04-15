@@ -33,6 +33,17 @@ const GUILD_EXCHANGES = [
     { id: 'exchange_legendary', name: 'Legendary Exchange', cost: { abyssal_core: 2, titan_heart: 1 }, reward: { gold: 2000, reputation: 20, item: 'Legendary Item Chest' } },
 ];
 
+const DUNGEON_GUILD_BOUNTY_POOL = [
+    { id: 'bounty_skeleton', monsterKey: 'skeleton', monsterName: 'Skeleton Warrior', minCount: 5, maxCount: 9, rewardGold: 450, rewardReputation: 3 },
+    { id: 'bounty_ghost', monsterKey: 'ghost', monsterName: 'Wailing Ghost', minCount: 5, maxCount: 8, rewardGold: 480, rewardReputation: 3 },
+    { id: 'bounty_zombie', monsterKey: 'zombie', monsterName: 'Rotting Zombie', minCount: 5, maxCount: 8, rewardGold: 500, rewardReputation: 3 },
+    { id: 'bounty_fire_imp', monsterKey: 'fire_imp', monsterName: 'Fire Imp', minCount: 4, maxCount: 7, rewardGold: 600, rewardReputation: 4 },
+    { id: 'bounty_void_wraith', monsterKey: 'void_wraith', monsterName: 'Void Wraith', minCount: 4, maxCount: 6, rewardGold: 720, rewardReputation: 5 },
+    { id: 'bounty_abyssal_eye', monsterKey: 'abyssal_eye', monsterName: 'Abyssal Eye', minCount: 3, maxCount: 5, rewardGold: 850, rewardReputation: 6 },
+    { id: 'bounty_shadow_lord', monsterKey: 'shadow_lord', monsterName: 'Shadow Lord', minCount: 2, maxCount: 4, rewardGold: 1100, rewardReputation: 8 },
+    { id: 'bounty_dread_knight', monsterKey: 'dread_knight', monsterName: 'Dread Knight', minCount: 2, maxCount: 4, rewardGold: 1400, rewardReputation: 10 },
+];
+
 // ── DB Migrations ─────────────────────────────────────────────────────────
 (async () => {
     try {
@@ -53,6 +64,7 @@ const GUILD_EXCHANGES = [
             'ALTER TABLE characters ADD COLUMN mission_points INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mp_last_regen_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN total_mp_earned INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN total_mp_spent INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN daily_mp_spent INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN daily_mp_reset_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN active_skills TEXT DEFAULT NULL',
@@ -144,6 +156,41 @@ const GUILD_EXCHANGES = [
             achievement_id TEXT NOT NULL,
             claimed_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, achievement_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_mission_spot_stats (
+            char_id INTEGER NOT NULL,
+            map_type TEXT NOT NULL DEFAULT 'overworld',
+            zone_id TEXT NOT NULL,
+            spot_id TEXT NOT NULL,
+            fights INTEGER NOT NULL DEFAULT 0,
+            wins INTEGER NOT NULL DEFAULT 0,
+            last_fought_at INTEGER NOT NULL DEFAULT 0,
+            last_won_at INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (char_id, map_type, spot_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_monster_stats (
+            char_id INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            monster_key TEXT NOT NULL,
+            monster_name TEXT NOT NULL,
+            kills INTEGER NOT NULL DEFAULT 0,
+            wins INTEGER NOT NULL DEFAULT 0,
+            last_defeated_at INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (char_id, source, monster_key)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_guild_bounties (
+            char_id INTEGER PRIMARY KEY,
+            bounty_id TEXT NOT NULL,
+            target_source TEXT NOT NULL,
+            target_key TEXT NOT NULL,
+            target_name TEXT NOT NULL,
+            target_count INTEGER NOT NULL DEFAULT 0,
+            progress INTEGER NOT NULL DEFAULT 0,
+            reward_gold INTEGER NOT NULL DEFAULT 0,
+            reward_reputation INTEGER NOT NULL DEFAULT 0,
+            completed_at INTEGER NOT NULL DEFAULT 0,
+            claimed_at INTEGER NOT NULL DEFAULT 0,
+            rolled_at INTEGER NOT NULL DEFAULT 0
         )`, args: [] });
         
         // Skill tree migrations
@@ -599,6 +646,7 @@ function getAchievementMetricValue(char, metric) {
     if (metric === 'wins') return char.wins || 0;
     if (metric === 'battles') return (char.wins || 0) + (char.losses || 0);
     if (metric === 'gold_earned') return char.total_gold_earned || 0;
+    if (metric === 'mp_spent') return char.total_mp_spent || 0;
     if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
     return 0;
 }
@@ -675,6 +723,104 @@ function eventHas(bonus) {
 async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
 async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows; }
 async function dbRun(db, sql, args = []) { return db.execute({ sql, args }); }
+
+function normalizeMonsterKey(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'unknown';
+}
+
+async function recordTotalMpSpent(db, charId, amount) {
+    const spent = Math.max(0, Number(amount) || 0);
+    if (!spent) return;
+    await dbRun(db, 'UPDATE characters SET total_mp_spent = COALESCE(total_mp_spent, 0) + ? WHERE id = ?', [spent, charId]);
+}
+
+async function recordMissionSpotResult(db, { charId, mapType = 'overworld', zoneId, spotId, won, now }) {
+    if (!charId || !zoneId || !spotId) return;
+    const ts = now || Math.floor(Date.now() / 1000);
+    const didWin = won ? 1 : 0;
+    await dbRun(db, `INSERT INTO character_mission_spot_stats
+        (char_id, map_type, zone_id, spot_id, fights, wins, last_fought_at, last_won_at)
+        VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+        ON CONFLICT(char_id, map_type, spot_id) DO UPDATE SET
+            zone_id = excluded.zone_id,
+            fights = fights + 1,
+            wins = wins + excluded.wins,
+            last_fought_at = excluded.last_fought_at,
+            last_won_at = CASE WHEN excluded.wins > 0 THEN excluded.last_won_at ELSE last_won_at END`,
+        [charId, mapType, zoneId, spotId, didWin, ts, didWin ? ts : 0]
+    );
+}
+
+async function ensureActiveGuildBounty(db, charId) {
+    let bounty = await dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+    if (bounty && !bounty.claimed_at) return bounty;
+
+    const template = DUNGEON_GUILD_BOUNTY_POOL[Math.floor(Math.random() * DUNGEON_GUILD_BOUNTY_POOL.length)];
+    const targetCount = template.minCount + Math.floor(Math.random() * (template.maxCount - template.minCount + 1));
+    const now = Math.floor(Date.now() / 1000);
+    const nextBounty = {
+        bountyId: `${template.id}_${now}`,
+        targetSource: 'dungeon',
+        targetKey: template.monsterKey,
+        targetName: template.monsterName,
+        targetCount,
+        rewardGold: template.rewardGold + (targetCount - template.minCount) * 60,
+        rewardReputation: template.rewardReputation + Math.max(0, targetCount - template.minCount > 1 ? 1 : 0),
+        progress: 0,
+        completedAt: 0,
+        claimedAt: 0,
+        rolledAt: now
+    };
+
+    await dbRun(db, `INSERT INTO character_guild_bounties
+        (char_id, bounty_id, target_source, target_key, target_name, target_count, progress, reward_gold, reward_reputation, completed_at, claimed_at, rolled_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(char_id) DO UPDATE SET
+            bounty_id = excluded.bounty_id,
+            target_source = excluded.target_source,
+            target_key = excluded.target_key,
+            target_name = excluded.target_name,
+            target_count = excluded.target_count,
+            progress = excluded.progress,
+            reward_gold = excluded.reward_gold,
+            reward_reputation = excluded.reward_reputation,
+            completed_at = excluded.completed_at,
+            claimed_at = excluded.claimed_at,
+            rolled_at = excluded.rolled_at`,
+        [charId, nextBounty.bountyId, nextBounty.targetSource, nextBounty.targetKey, nextBounty.targetName, nextBounty.targetCount, nextBounty.progress, nextBounty.rewardGold, nextBounty.rewardReputation, nextBounty.completedAt, nextBounty.claimedAt, nextBounty.rolledAt]
+    );
+    return dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+}
+
+async function recordMonsterDefeat(db, { charId, source = 'mission', monsterKey, monsterName, count = 1, now }) {
+    const kills = Math.max(1, Number(count) || 1);
+    const key = normalizeMonsterKey(monsterKey || monsterName);
+    const name = String(monsterName || monsterKey || 'Unknown Monster');
+    const ts = now || Math.floor(Date.now() / 1000);
+    if (!charId || !key) return;
+
+    await dbRun(db, `INSERT INTO character_monster_stats
+        (char_id, source, monster_key, monster_name, kills, wins, last_defeated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(char_id, source, monster_key) DO UPDATE SET
+            monster_name = excluded.monster_name,
+            kills = kills + excluded.kills,
+            wins = wins + excluded.wins,
+            last_defeated_at = excluded.last_defeated_at`,
+        [charId, source, key, name, kills, kills, ts]
+    );
+
+    const bounty = await ensureActiveGuildBounty(db, charId);
+    if (bounty && !bounty.claimed_at && bounty.target_source === source && bounty.target_key === key) {
+        const nextProgress = Math.min((bounty.progress || 0) + kills, bounty.target_count || 0);
+        const completedAt = nextProgress >= (bounty.target_count || 0) ? (bounty.completed_at || ts) : 0;
+        await dbRun(db, 'UPDATE character_guild_bounties SET progress = ?, completed_at = ? WHERE char_id = ?', [nextProgress, completedAt, charId]);
+    }
+}
 
 async function listUserCharacters(db, userId) {
     return dbAll(db, `SELECT id, user_id, name, class, level, xp, gold, gems, wins, losses, location, current_map
@@ -2713,6 +2859,7 @@ router.post('/missions/start', auth, async (req, res) => {
         
         await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
             [effectiveMpCost, effectiveMpCost, character.id]);
+        await recordTotalMpSpent(db, character.id, effectiveMpCost);
         
         res.json({
             success: true,
@@ -2842,6 +2989,24 @@ if (freshChar.class === 'rogue') {
         
         const battle = runBattle(playerFighter, npc);
         const playerWon = battle.winnerId === freshChar.id;
+        await recordMissionSpotResult(db, {
+            charId: freshChar.id,
+            mapType: mission.map_type || 'overworld',
+            zoneId: mission.zone,
+            spotId: mission.spot,
+            won: playerWon,
+            now
+        });
+        if (playerWon) {
+            await recordMonsterDefeat(db, {
+                charId: freshChar.id,
+                source: mission.map_type === 'abyss' ? 'abyss_mission' : 'mission',
+                monsterKey: npcName,
+                monsterName: npcName,
+                count: 1,
+                now
+            });
+        }
         
         let goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
 let xpEarned = playerWon ? mission.xp_reward : 0;
@@ -4378,13 +4543,51 @@ router.post('/dungeon/update-health', auth, async (req, res) => {
   }
 });
 
+router.post('/dungeon/monster-defeated', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const monsters = Array.isArray(req.body?.monsters) ? req.body.monsters : [];
+    const now = Math.floor(Date.now() / 1000);
+    for (const monster of monsters) {
+      const count = Math.max(1, Number(monster?.count) || 1);
+      const monsterKey = normalizeMonsterKey(monster?.id || monster?.name);
+      const monsterName = String(monster?.name || monster?.id || 'Unknown Monster');
+      await recordMonsterDefeat(db, {
+        charId: char.id,
+        source: 'dungeon',
+        monsterKey,
+        monsterName,
+        count,
+        now
+      });
+    }
+
+    const bounty = await ensureActiveGuildBounty(db, char.id);
+    res.json({ success: true, bounty });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/dungeon/boss-defeated', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const { loot, newFloor, highestFloor } = req.body || {};
+    const { loot, newFloor, highestFloor, bossName, bossId } = req.body || {};
 
     const char = await getCurrentCharacter(db, req.user.userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
+    const now = Math.floor(Date.now() / 1000);
+    await recordMonsterDefeat(db, {
+      charId: char.id,
+      source: 'dungeon_boss',
+      monsterKey: bossId || bossName || `floor_${newFloor || char.dungeon_floor || 1}_boss`,
+      monsterName: bossName || `Floor ${newFloor || char.dungeon_floor || 1} Boss`,
+      count: 1,
+      now
+    });
 
     let message = '';
     
@@ -4468,10 +4671,13 @@ router.get('/dungeon/guild', auth, async (req, res) => {
   try {
     const db = await getDb();
     const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const bounty = await ensureActiveGuildBounty(db, char.id);
     res.json({ 
       success: true, 
       dungeonGold: char?.dungeon_gold || 0,
-      guildReputation: char?.guild_reputation || 0 
+      guildReputation: char?.guild_reputation || 0,
+      bounty
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -4524,6 +4730,43 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
       message: `Exchanged for ${exchange.reward.gold ? exchange.reward.gold + ' gold' : ''}${exchange.reward.reputation ? ' + ' + exchange.reward.reputation + ' reputation' : ''}!`,
       dungeonGold: updated.dungeon_gold,
       guildReputation: updated.guild_reputation
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/bounty/claim', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, guild_reputation, gold');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const bounty = await ensureActiveGuildBounty(db, char.id);
+    if (!bounty) return res.status(404).json({ error: 'No active bounty found' });
+    if ((bounty.progress || 0) < (bounty.target_count || 0)) {
+      return res.status(400).json({ error: `Bounty incomplete: ${bounty.progress || 0}/${bounty.target_count || 0}` });
+    }
+    if (bounty.claimed_at) {
+      return res.status(400).json({ error: 'This bounty was already claimed' });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    await dbRun(
+      db,
+      'UPDATE characters SET gold = gold + ?, guild_reputation = guild_reputation + ? WHERE id = ?',
+      [bounty.reward_gold || 0, bounty.reward_reputation || 0, char.id]
+    );
+    await dbRun(db, 'UPDATE character_guild_bounties SET claimed_at = ? WHERE char_id = ?', [now, char.id]);
+    const nextBounty = await ensureActiveGuildBounty(db, char.id);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'gold, guild_reputation');
+
+    res.json({
+      success: true,
+      message: `Bounty complete! +${bounty.reward_gold || 0} gold and +${bounty.reward_reputation || 0} reputation.`,
+      gold: updated?.gold || 0,
+      guildReputation: updated?.guild_reputation || 0,
+      bounty: nextBounty
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -5044,6 +5287,7 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
         }
         
         await dbRun(db, 'UPDATE characters SET mission_points = mission_points - 60 WHERE id = ?', [freshChar.id]);
+        await recordTotalMpSpent(db, freshChar.id, 60);
         
         const potionData = {
             id: 'special_mana_potion',
