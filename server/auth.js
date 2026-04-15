@@ -5,6 +5,7 @@ const { getDb } = require('./db');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'rpg-arena-secret-change-in-prod';
+const MAX_REGISTERED_USERS = 500;
 
 router.post('/register', async (req, res) => {
   const { username, password } = req.body;
@@ -14,8 +15,7 @@ router.post('/register', async (req, res) => {
 
   try {
     const db = await getDb();
-    const hash = await bcrypt.hash(password, 10);
-    
+
     // Check if username already exists
     const existingUser = await db.execute({
       sql: 'SELECT id FROM users WHERE username = ?',
@@ -25,6 +25,14 @@ router.post('/register', async (req, res) => {
     if (existingUser.rows.length > 0) {
       return res.status(400).json({ error: 'Username already taken' });
     }
+
+    const userCountResult = await db.execute('SELECT COUNT(*) AS count FROM users');
+    const userCount = Number(userCountResult.rows?.[0]?.count || 0);
+    if (userCount >= MAX_REGISTERED_USERS) {
+      return res.status(403).json({ error: `Server is currently full. The beta user limit of ${MAX_REGISTERED_USERS} accounts has been reached.` });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
     
     // Insert new user
     const result = await db.execute({
