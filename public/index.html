@@ -240,17 +240,9 @@
                 </div>
             </div>
             <div class="topbar-right">
-                <span id="topbar-event" class="topbar-currency hidden" style="cursor:pointer;border-color:rgba(201,146,42,0.3);background:rgba(201,146,42,0.08)" data-action="showTab" data-args='["skills"]' title="Event active!"></span>
-                <button id="topbar-character-switch" class="topbar-switcher" data-action="openCharacterSwitcher" title="Switch character">🧭 0/4</button>
-                <button id="convert-mp-btn" class="topbar-currency" style="cursor:pointer;border-color:rgba(155,89,182,0.3);background:rgba(155,89,182,0.08);gap:4px;position:relative" data-action="convertMpToPotion" title="Convert 60 MP into a Special Mana Potion">
-                    💎✨ Convert MP
-                    <span id="potion-badge" class="potion-badge hidden">0</span>
-                </button>
-                <span id="topbar-mp" class="topbar-currency" style="cursor:pointer;border-color:rgba(142,68,173,0.25);background:rgba(142,68,173,0.07)" data-action="showTab" data-args='["skills"]' title="Mission Points">🔮 –</span>
                 <span id="topbar-gold" class="topbar-currency">💰 0</span>
                 <span id="topbar-gems" class="topbar-currency topbar-gems-btn" data-action="showTab" data-args='["shop"]' title="Go to Shop">💎 0</span>
-                <button id="bug-report-btn" class="topbar-bug-report" title="Report a bug or issue">Bug Report</button>
-                <button class="topbar-logout" data-action="logout">Logout</button>
+                <button id="topbar-menu-btn" class="topbar-menu-btn" data-action="openTopbarMenu" title="Open menu">Menu</button>
             </div>
         </div>
 
@@ -573,6 +565,16 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                     <button class="btn-secondary" data-action="closeCharacterSwitcher">✕</button>
                 </div>
                 <div id="character-switch-content"></div>
+            </div>
+        </div>
+
+        <div id="topbar-menu-modal" class="modal-overlay hidden">
+            <div class="modal-box topbar-menu-modal-box">
+                <div class="modal-header">
+                    <h3>Game Menu</h3>
+                    <button class="btn-secondary" data-action="closeTopbarMenu">✕</button>
+                </div>
+                <div id="topbar-menu-content" class="topbar-menu-content"></div>
             </div>
         </div>
 
