@@ -4809,6 +4809,7 @@ router.get('/player/:id', auth, async (req, res) => {
             hp_max:hpMax,
             hp_current: player.hp_current ?? hpMax,
             wins:player.wins, losses:player.losses,
+            dungeon_highest_floor: player.dungeon_highest_floor || 0,
             achievements_completed: achievementCountRow?.count || 0,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
             globalCooldown, perTargetCooldown, hpLow, equipped,
