@@ -813,31 +813,31 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
-.topbar-right { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.topbar-right { display: flex; align-items: center; gap: 9px; flex-shrink: 0; margin-left: auto; }
 .topbar-currency {
     font-size: 0.8rem; color: var(--text); white-space: nowrap; font-weight: 600;
     padding: 4px 10px; border-radius: 6px; border: 1px solid transparent; transition: all 0.15s;
 }
 .topbar-gems-btn { cursor: pointer; border-color: rgba(142,68,173,0.3); background: rgba(142,68,173,0.08); }
 .topbar-gems-btn:hover { background: rgba(142,68,173,0.2); border-color: rgba(142,68,173,0.5); }
-.topbar-switcher {
-    font-size: 0.72rem; padding: 6px 12px; border-radius: var(--radius-sm);
-    border: 1px solid rgba(201,146,42,0.26); background: rgba(201,146,42,0.08);
-    color: var(--gold); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+.topbar-menu-btn {
+    font-size: 0.74rem;
+    padding: 6px 13px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(201,146,42,0.28);
+    background: linear-gradient(180deg, rgba(201,146,42,0.15), rgba(201,146,42,0.07));
+    color: var(--gold);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    font-weight: 700;
+    letter-spacing: 0.04em;
 }
-.topbar-switcher:hover { background: rgba(201,146,42,0.16); border-color: rgba(201,146,42,0.45); }
-.topbar-bug-report {
-    font-size: 0.7rem; padding: 6px 12px; border-radius: var(--radius-sm);
-    border: 1px solid rgba(91,192,222,0.26); background: rgba(91,192,222,0.08);
-    color: #8bdcff; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+.topbar-menu-btn:hover {
+    background: linear-gradient(180deg, rgba(201,146,42,0.24), rgba(201,146,42,0.1));
+    border-color: rgba(201,146,42,0.5);
+    transform: translateY(-1px);
 }
-.topbar-bug-report:hover { background: rgba(91,192,222,0.16); border-color: rgba(91,192,222,0.45); }
-.topbar-logout {
-    font-size: 0.7rem; padding: 6px 13px; border-radius: var(--radius-sm);
-    border: 1px solid var(--border-mid); background: rgba(255,255,255,0.03);
-    color: var(--text-dim); cursor: pointer; transition: all 0.15s; white-space: nowrap;
-}
-.topbar-logout:hover { background: rgba(224,82,82,0.1); color: var(--red-light); border-color: rgba(224,82,82,0.3); }
 
 /* ════════════════════════════════════════════════════════════════════════
    GAME LAYOUT
@@ -2145,8 +2145,110 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     max-width: 720px;
     width: 100%;
 }
+.topbar-menu-modal-box {
+    max-width: 680px;
+    width: 100%;
+}
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-header h3 { font-family: 'Cinzel',serif; font-size: 0.98rem; font-weight: 700; color: var(--text-bright); }
+.topbar-menu-content {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.topbar-menu-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.topbar-menu-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.42);
+    font-weight: 700;
+}
+.topbar-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.topbar-menu-info-card,
+.topbar-menu-action,
+.topbar-menu-toggle {
+    position: relative;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    padding: 14px 16px;
+}
+.topbar-menu-info-title {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.46);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+}
+.topbar-menu-info-value {
+    font-size: 0.95rem;
+    color: var(--text-bright);
+    font-weight: 700;
+}
+.topbar-menu-action,
+.topbar-menu-toggle {
+    text-align: left;
+    color: var(--text-bright);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+.topbar-menu-action:hover,
+.topbar-menu-toggle:hover {
+    border-color: rgba(201,146,42,0.28);
+    background: linear-gradient(180deg, rgba(201,146,42,0.12), rgba(255,255,255,0.03));
+    transform: translateY(-1px);
+}
+.topbar-menu-action {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 78px;
+    justify-content: center;
+}
+.topbar-menu-meta {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.58);
+}
+.topbar-menu-action-mp {
+    border-color: rgba(155,89,182,0.22);
+}
+.topbar-menu-action-danger {
+    border-color: rgba(224,82,82,0.2);
+    color: #ffb4b4;
+}
+.topbar-menu-action-danger:hover {
+    border-color: rgba(224,82,82,0.36);
+    background: linear-gradient(180deg, rgba(224,82,82,0.12), rgba(255,255,255,0.03));
+}
+.topbar-menu-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.topbar-menu-toggle.active {
+    border-color: rgba(46,204,113,0.35);
+    background: linear-gradient(180deg, rgba(46,204,113,0.14), rgba(255,255,255,0.03));
+}
+.topbar-menu-toggle-state {
+    min-width: 52px;
+    text-align: center;
+    border-radius: 999px;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.07);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
 .character-switch-header {
     display: flex;
     align-items: center;
@@ -2648,9 +2750,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     .topbar-right::-webkit-scrollbar { display: none; }
     .topbar-currency { font-size: 0.72rem; padding: 3px 8px; white-space: nowrap; flex-shrink: 0; }
-    .topbar-switcher { font-size: 0.68rem; padding: 4px 9px; flex-shrink: 0; }
-    .topbar-bug-report { font-size: 0.66rem; padding: 4px 9px; flex-shrink: 0; }
-    .topbar-logout { font-size: 0.65rem; padding: 4px 10px; flex-shrink: 0; margin-left: auto; }
+    .topbar-menu-btn { font-size: 0.68rem; padding: 4px 10px; flex-shrink: 0; margin-left: auto; }
+    .topbar-menu-grid { grid-template-columns: 1fr; }
+    .topbar-menu-toggle { align-items: flex-start; flex-direction: column; }
+    .topbar-menu-toggle-state { min-width: 0; }
 
     .char-hero-content { flex-direction: row; text-align: left; padding: 18px; gap: 12px; align-items: center; }
     .char-avatar-ring { width: 88px; height: 88px; }
