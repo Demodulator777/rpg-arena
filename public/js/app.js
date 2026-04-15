@@ -10,6 +10,7 @@ let lbSort = 'total_gold_earned';
 let shopInventory = [];
 let currentShopCategory = 'weapons';
 let monthlyFreeGemsStatus = null;
+let specialManaPotionCount = 0;
 let activeMissionInterval = null;
 let overlayInterval = null;
 let travelOverlayInterval = null;
@@ -18,6 +19,7 @@ let battlePlaybackTimer = null;
 let battlePlaybackQueue = [];
 let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
+let alwaysSkipBattleAnimations = localStorage.getItem('battle_arena_skip_battle_animations') === '1';
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -374,12 +376,109 @@ function openCharacterCreation() {
 }
 
 function openCharacterSwitcher() {
+    closeTopbarMenu();
     renderCharacterSwitcher();
     document.getElementById('character-switch-modal')?.classList.remove('hidden');
 }
 
 function closeCharacterSwitcher() {
     document.getElementById('character-switch-modal')?.classList.add('hidden');
+}
+
+function getSkillUnlockMenuState() {
+    const mp = character?.mission_points ?? 0;
+    const mpMax = character?.mp_max || 240;
+    const dailySpent = character?.daily_mp_spent ?? 0;
+    const unlocked = !!character?.skills_unlocked;
+    return {
+        mp,
+        mpMax,
+        dailySpent,
+        unlocked,
+        remaining: Math.max(0, 60 - dailySpent)
+    };
+}
+
+function renderTopbarMenu() {
+    const content = document.getElementById('topbar-menu-content');
+    if (!content || !character) return;
+    const eventName = character?.active_event?.name || 'No active event right now';
+    const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
+    const switcherLabel = `🧭 Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
+    const mpLabel = unlocked
+        ? `Skills unlocked today · ${mp}/${mpMax} MP`
+        : `Spend ${remaining} more MP to unlock skills · ${mp}/${mpMax} MP`;
+
+    content.innerHTML = `
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Live Status</div>
+            <div class="topbar-menu-info-card">
+                <div class="topbar-menu-info-title">Active Event</div>
+                <div class="topbar-menu-info-value">${escHtml(eventName)}</div>
+            </div>
+            <div class="topbar-menu-info-card">
+                <div class="topbar-menu-info-title">Skill Unlock</div>
+                <div class="topbar-menu-info-value">${escHtml(mpLabel)}</div>
+                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'skills')}>
+                    ${unlocked ? 'Open Skills' : `Go to Skills (${dailySpent}/60)`}
+                </button>
+            </div>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Quick Actions</div>
+            <div class="topbar-menu-grid">
+                <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
+                    ${switcherLabel}
+                </button>
+                <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
+                    💎✨ Convert MP
+                    <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
+                </button>
+                <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
+                    🐛 Report a Bug
+                </button>
+                <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
+                    Logout
+                </button>
+            </div>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Settings</div>
+            <button class="topbar-menu-toggle ${alwaysSkipBattleAnimations ? 'active' : ''}" ${actionAttrs('toggleAlwaysSkipBattleAnimations')}>
+                <span>Always skip battle animations</span>
+                <span class="topbar-menu-toggle-state">${alwaysSkipBattleAnimations ? 'On' : 'Off'}</span>
+            </button>
+        </div>`;
+}
+
+function openTopbarMenu() {
+    renderTopbarMenu();
+    document.getElementById('topbar-menu-modal')?.classList.remove('hidden');
+}
+
+function closeTopbarMenu() {
+    document.getElementById('topbar-menu-modal')?.classList.add('hidden');
+}
+
+function showTabAndCloseMenu(tabName) {
+    closeTopbarMenu();
+    showTab(tabName);
+}
+
+function openBugReportFromMenu() {
+    closeTopbarMenu();
+    openBugReport();
+}
+
+function logoutFromMenu() {
+    closeTopbarMenu();
+    logout();
+}
+
+function toggleAlwaysSkipBattleAnimations() {
+    alwaysSkipBattleAnimations = !alwaysSkipBattleAnimations;
+    localStorage.setItem('battle_arena_skip_battle_animations', alwaysSkipBattleAnimations ? '1' : '0');
+    renderTopbarMenu();
 }
 
 function renderCharacterSwitcher() {
@@ -588,6 +687,7 @@ function renderTopBar() {
         if (ev) { evEl.textContent=ev.name||''; evEl.classList.remove('hidden'); }
         else evEl.classList.add('hidden');
     }
+    renderTopbarMenu();
     updatePotionBadge();
 }
 
@@ -4278,6 +4378,10 @@ function startBattlePlayback(log, meta) {
         out.className = `battle-outcome ${meta.won ? 'won' : 'lost'}`;
         out.innerHTML = '<span class="battle-outcome-pending">Battle in progress...</span>';
     }
+    if (alwaysSkipBattleAnimations) {
+        finalizeBattlePlayback();
+        return;
+    }
     updateBattlePlaybackStatus('Battle starting...', false);
     scheduleBattlePlaybackStep();
 }
@@ -4819,6 +4923,7 @@ function initBugReport() {
 }
 
 function openBugReport() {
+    closeTopbarMenu();
     const modal = document.getElementById('bug-report-modal');
     if (modal) {
         modal.classList.remove('hidden');
@@ -5307,6 +5412,7 @@ async function updatePotionBadge() {
                 total += data.qty || 1;
             }
         }
+        specialManaPotionCount = total;
         
         const badge = document.getElementById('potion-badge');
         if (badge) {
@@ -5317,6 +5423,7 @@ async function updatePotionBadge() {
                 badge.classList.add('hidden');
             }
         }
+        renderTopbarMenu();
     } catch (e) {
         console.error('Failed to update potion badge:', e);
     }
