@@ -3904,6 +3904,7 @@ async function equipItem(invId) {
 }
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function sellItem(invId, name, price) {
+    hideItemTooltip();
     const shouldSell = await openGameConfirmDialog({
         title: 'Sell Item',
         message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Sell <strong>${escHtml(name)}</strong> for <strong>${Number(price || 0).toLocaleString()} gold</strong>?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">This action cannot be undone.</div>`,
