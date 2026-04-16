@@ -5594,9 +5594,11 @@ async function confirmUpgrade() {
                     message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
                 });
             }
+            character = await api('GET', '/game/character');
+            renderTopBar();
             showMsg('inv-msg', message);
             closeUpgradeModal();
-            loadInventory();
+            await loadInventory();
             if (typeof renderCharacter === 'function') renderCharacter();
         } else {
             showMsg('inv-msg', result.message, true);
