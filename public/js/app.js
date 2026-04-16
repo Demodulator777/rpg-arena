@@ -736,9 +736,14 @@ function buildEqSlotSmall(slot, eq, icon, label) {
     const item = eq[slot];
     if (!item) return `<div class="eq-slot-small eq-slot--${slot} empty"><span style="font-size:1rem;opacity:0.3">${icon}</span><span class="eq-slot-label">${label}</span></div>`;
     const itemData = escHtml(JSON.stringify(item));
+    const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
     return `<div class="eq-slot-small eq-slot--${slot} filled"
         data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip" data-item="${itemData}">
-        <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
+        <span class="eq-slot-icon eq-slot-small-icon">
+            ${imgSrc
+                ? `<img src="${imgSrc}" style="max-width:100%;max-height:100%;object-fit:contain;display:block" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1rem;line-height:1">${icon}</span>`
+                : `<span style="font-size:1rem;line-height:1">${icon}</span>`}
+        </span>
     </div>`;
 }
 
