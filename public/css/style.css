@@ -3637,6 +3637,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: relative !important;
     z-index: 1 !important;
 }
+.eq-slot-small-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-style: normal !important;
+}
 
 @media (max-width: 640px) {
     .eq-grid,
