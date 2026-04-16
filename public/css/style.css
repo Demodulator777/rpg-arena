@@ -2515,8 +2515,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     min-width: 0;
 }
 .profile-card .stat-row {
-    grid-template-columns: 22px 44px minmax(0, 1fr) max-content;
-    column-gap: 8px;
+    grid-template-columns: 22px 40px minmax(0, 1.35fr) max-content;
+    column-gap: 6px;
     padding: 6px 0;
     width: 100%;
 }
@@ -2544,7 +2544,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-name { font-size: 1.05rem; line-height: 1.2; word-break: break-word; }
     .profile-class { font-size: 0.78rem; }
     .profile-card .stat-row {
-        grid-template-columns: 20px 40px minmax(0, 1fr) max-content;
+        grid-template-columns: 20px 36px minmax(0, 1.45fr) max-content;
         column-gap: 6px;
     }
     .profile-card .stat-label {
