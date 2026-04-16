@@ -734,7 +734,7 @@ async function pollUnread() {
 
 function buildEqSlotSmall(slot, eq, icon, label) {
     const item = eq[slot];
-    if (!item) return `<div class="eq-slot-small eq-slot--${slot} empty"><span class="eq-slot-small-icon" style="font-size:1rem;opacity:0.3">${icon}</span></div>`;
+    if (!item) return `<div class="eq-slot-small eq-slot--${slot} empty" aria-hidden="true"></div>`;
     const itemData = escHtml(JSON.stringify(item));
     const imgSrc = item.img || (item.name && !item.consumable ? `/images/assets/${item.name.toLowerCase().replace(/\s+/g,'-')}.png` : null);
     return `<div class="eq-slot-small eq-slot--${slot} filled"
