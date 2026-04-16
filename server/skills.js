@@ -15,6 +15,21 @@ async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, arg
 async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows; }
 async function dbRun(db, sql, args = []) { return db.execute({ sql, args }); }
 
+async function getCurrentCharacter(db, userId) {
+    const user = await dbGet(db, 'SELECT active_character_id FROM users WHERE id = ?', [userId]);
+    let char = null;
+    if (user?.active_character_id) {
+        char = await dbGet(db, 'SELECT * FROM characters WHERE id = ? AND user_id = ?', [user.active_character_id, userId]);
+    }
+    if (!char) {
+        char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ? ORDER BY id LIMIT 1', [userId]);
+        if (char && user?.active_character_id !== char.id) {
+            await dbRun(db, 'UPDATE users SET active_character_id = ? WHERE id = ?', [char.id, userId]);
+        }
+    }
+    return char;
+}
+
 function getActivePremium(char) {
     if (!char.premium_features) return {};
     try {
@@ -1886,8 +1901,7 @@ const router = express.Router();
 
 
 async function loadCharWithSkills(db, userId) {
-    const char = await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [userId] });
-    const c = char.rows[0];
+    const c = await getCurrentCharacter(db, userId);
     if (!c) return { char: null, learned: [], learnedMap: {}, progressMap: {}, startedMap: {} };
     const rows = await db.execute({
         sql: 'SELECT skill_id, progress, learned_at FROM character_skill_tree WHERE char_id=?', args: [c.id]
@@ -2097,7 +2111,7 @@ router.get('/tree', async (req, res) => {
 
         let activeTraining = null;
         if (trainingRow) {
-            const currentProgress = getTrainingProgressNow(trainingRow, now);
+            const currentProgress = getTrainingProgressow(trainingRow, now);
             const activeSkill = getSkillByIds(char.class, trainingRow.branch_id, trainingRow.skill_id);
             activeTraining = {
                 ...trainingRow,
@@ -2264,7 +2278,7 @@ router.post('/cancel', async (req, res) => {
     try {
         const db = await getDb();
         const now = Math.floor(Date.now() / 1000);
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
 
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id=?', [char.id]);
@@ -2296,7 +2310,7 @@ router.get('/training/status', async (req, res) => {
     try {
         const db = await getDb();
         const now = Math.floor(Date.now() / 1000);
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
 
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
@@ -2351,7 +2365,7 @@ router.post('/unlearn-step', async (req, res) => {
         const db = await getDb();
         const { branchId } = req.body;
         
-        const char = (await db.execute({ sql: 'SELECT * FROM characters WHERE user_id=?', args: [req.user.userId] })).rows[0];
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
 
         const activeTraining = await dbGet(db, 'SELECT 1 FROM skill_training WHERE char_id = ?', [char.id]);
@@ -2547,11 +2561,7 @@ router.post('/train/cancel', async (req, res) => {
 
         const db = await getDb();
 
-        const char = await dbGet(
-            db,
-            'SELECT * FROM characters WHERE user_id = ?',
-            [req.user.userId]
-        );
+        const char = await getCurrentCharacter(db, req.user.userId);
 
         const training = await dbGet(
             db,
@@ -2581,7 +2591,7 @@ router.post('/train/cancel', async (req, res) => {
 router.post('/skills/train/tick', async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ?', [char.id]);
         if (!training) return res.json({ active: false });
