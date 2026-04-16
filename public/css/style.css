@@ -2546,6 +2546,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 }
 @media (max-width: 560px) {
+    .profile-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+    }
+    .profile-grid .profile-card:first-child {
+        order: 2;
+    }
+    .profile-grid .profile-card:nth-child(2) {
+        order: 1;
+    }
     .profile-actions {
         flex-direction: column;
     }
