@@ -2416,6 +2416,69 @@ function showMissionModal(message) {
 }
 function closeMissionModal() { const m=document.getElementById('mission-rewards-modal'); if(m) m.classList.add('hidden'); }
 
+let gameDialogResolver = null;
+
+function ensureGameDialogModal() {
+    if (document.getElementById('game-dialog-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="game-dialog-modal" class="modal-overlay hidden">
+            <div class="modal-box game-dialog-box">
+                <div class="modal-header">
+                    <h3 id="game-dialog-title">Notice</h3>
+                    <button class="btn-secondary" ${actionAttrs('closeGameDialog')}>✕</button>
+                </div>
+                <div id="game-dialog-message" class="game-dialog-message"></div>
+                <div class="game-dialog-actions">
+                    <button id="game-dialog-cancel" class="btn-secondary" ${actionAttrs('resolveGameDialog', false)}>Cancel</button>
+                    <button id="game-dialog-confirm" class="btn-primary" ${actionAttrs('resolveGameDialog', true)}>Continue</button>
+                </div>
+            </div>
+        </div>`);
+}
+
+function openGameDialog({ title = 'Notice', message = '', confirmLabel = 'Continue', cancelLabel = 'Cancel', showCancel = false, danger = false } = {}) {
+    ensureGameDialogModal();
+    const modal = document.getElementById('game-dialog-modal');
+    const titleEl = document.getElementById('game-dialog-title');
+    const msgEl = document.getElementById('game-dialog-message');
+    const cancelBtn = document.getElementById('game-dialog-cancel');
+    const confirmBtn = document.getElementById('game-dialog-confirm');
+    if (!modal || !titleEl || !msgEl || !confirmBtn || !cancelBtn) return Promise.resolve(false);
+
+    titleEl.textContent = title;
+    msgEl.innerHTML = message;
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.classList.toggle('hidden', !showCancel);
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.classList.toggle('btn-danger', !!danger);
+    confirmBtn.classList.toggle('btn-primary', !danger);
+    modal.classList.remove('hidden');
+
+    return new Promise((resolve) => {
+        gameDialogResolver = resolve;
+    });
+}
+
+function resolveGameDialog(confirmed) {
+    const modal = document.getElementById('game-dialog-modal');
+    if (modal) modal.classList.add('hidden');
+    const resolver = gameDialogResolver;
+    gameDialogResolver = null;
+    if (resolver) resolver(!!confirmed);
+}
+
+function closeGameDialog() {
+    resolveGameDialog(false);
+}
+
+function openGameConfirmDialog(options = {}) {
+    return openGameDialog({ ...options, showCancel: true });
+}
+
+function openGameNoticeDialog(options = {}) {
+    return openGameDialog({ ...options, showCancel: false });
+}
+
 // ── Battle Report Modal ───────────────────────────────────────────────────
 
 // ── Forge ─────────────────────────────────────────────────────────────────
@@ -3642,7 +3705,13 @@ if (document.readyState === 'loading') {
 }
 // ── OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION ───────────────────────────────
 async function openLootBox(itemId, itemName) {
-    if (!confirm(`Open ${itemName}?`)) return;
+    const shouldOpen = await openGameConfirmDialog({
+        title: 'Open Loot Box',
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Open <strong>${escHtml(itemName)}</strong> now?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">The rewards will be revealed in the loot box animation.</div>`,
+        confirmLabel: 'Open',
+        cancelLabel: 'Cancel'
+    });
+    if (!shouldOpen) return;
     
     // Create modal if not exists
     if (!document.getElementById('lootbox-exclusive-modal')) {
@@ -3771,11 +3840,19 @@ async function openLootBox(itemId, itemName) {
             showCurrentItem();
             
         } else {
-            alert('Failed to open loot box: ' + (result.error || 'Unknown error'));
+            await openGameNoticeDialog({
+                title: 'Loot Box Failed',
+                message: `<div style="font-size:0.92rem;line-height:1.6;color:var(--text-bright)">Failed to open this loot box.</div><div style="margin-top:8px;color:var(--text-dim)">${escHtml(result.error || 'Unknown error')}</div>`,
+                confirmLabel: 'Close'
+            });
         }
     } catch (error) {
         console.error('Loot box error:', error);
-        alert('Failed to open loot box: ' + error.message);
+        await openGameNoticeDialog({
+            title: 'Loot Box Failed',
+            message: `<div style="font-size:0.92rem;line-height:1.6;color:var(--text-bright)">Failed to open this loot box.</div><div style="margin-top:8px;color:var(--text-dim)">${escHtml(error.message || 'Unknown error')}</div>`,
+            confirmLabel: 'Close'
+        });
         if (modal) modal.classList.remove('active');
     }
 }
@@ -3813,7 +3890,14 @@ async function equipItem(invId) {
 }
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function sellItem(invId, name, price) {
-    if (!confirm(`Sell ${name} for ${price} gold?`)) return;
+    const shouldSell = await openGameConfirmDialog({
+        title: 'Sell Item',
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Sell <strong>${escHtml(name)}</strong> for <strong>${Number(price || 0).toLocaleString()} gold</strong>?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">This action cannot be undone.</div>`,
+        confirmLabel: 'Sell Item',
+        cancelLabel: 'Keep Item',
+        danger: true
+    });
+    if (!shouldSell) return;
     try {
         const d=await api('POST',`/game/sell/${invId}`);
         character=d.character;
