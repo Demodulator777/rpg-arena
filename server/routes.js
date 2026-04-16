@@ -130,6 +130,7 @@ const WEEKLY_TASKS = [
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
+            'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -245,7 +246,8 @@ const WEEKLY_TASKS = [
             week_start INTEGER NOT NULL,
             mp_spent_base INTEGER NOT NULL DEFAULT 0,
             wins_base INTEGER NOT NULL DEFAULT 0,
-            losses_base INTEGER NOT NULL DEFAULT 0
+            losses_base INTEGER NOT NULL DEFAULT 0,
+            mission_fights_base INTEGER NOT NULL DEFAULT 0
         )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_claims (
             char_id INTEGER NOT NULL,
@@ -1156,26 +1158,33 @@ function getNextWeekStart(now = Math.floor(Date.now() / 1000)) {
     return getCurrentWeekStart(now) + 7 * 24 * 3600;
 }
 
+async function getMissionFightTotal(db, charId) {
+    const row = await dbGet(db, 'SELECT COALESCE(SUM(fights), 0) AS total FROM character_mission_spot_stats WHERE char_id = ?', [charId]);
+    return Number(row?.total || 0);
+}
+
 async function ensureWeeklyTaskState(db, char) {
     const weekStart = getCurrentWeekStart();
     const existing = await dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
     if (existing && Number(existing.week_start) === weekStart) return existing;
+    const missionFightsBase = await getMissionFightTotal(db, char.id);
 
     await dbRun(db, `INSERT INTO character_weekly_state
-        (char_id, week_start, mp_spent_base, wins_base, losses_base)
-        VALUES (?, ?, ?, ?, ?)
+        (char_id, week_start, mp_spent_base, wins_base, losses_base, mission_fights_base)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(char_id) DO UPDATE SET
             week_start = excluded.week_start,
             mp_spent_base = excluded.mp_spent_base,
             wins_base = excluded.wins_base,
-            losses_base = excluded.losses_base`,
-        [char.id, weekStart, char.total_mp_spent || 0, char.wins || 0, char.losses || 0]
+            losses_base = excluded.losses_base,
+            mission_fights_base = excluded.mission_fights_base`,
+        [char.id, weekStart, char.total_mp_spent || 0, char.wins || 0, char.losses || 0, missionFightsBase]
     );
     await dbRun(db, 'DELETE FROM character_weekly_claims WHERE char_id = ? AND week_start <> ?', [char.id, weekStart]);
     return dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
 }
 
-function getWeeklyTaskProgress(char, weeklyState, metric) {
+async function getWeeklyTaskProgress(db, char, weeklyState, metric) {
     if (!weeklyState) return 0;
     if (metric === 'mp_spent') {
         return Math.max(0, (char.total_mp_spent || 0) - (weeklyState.mp_spent_base || 0));
@@ -1184,9 +1193,9 @@ function getWeeklyTaskProgress(char, weeklyState, metric) {
         return Math.max(0, (char.wins || 0) - (weeklyState.wins_base || 0));
     }
     if (metric === 'battles') {
-        const totalBattles = (char.wins || 0) + (char.losses || 0);
-        const baseBattles = (weeklyState.wins_base || 0) + (weeklyState.losses_base || 0);
-        return Math.max(0, totalBattles - baseBattles);
+        const pvpBattles = Math.max(0, ((char.wins || 0) + (char.losses || 0)) - ((weeklyState.wins_base || 0) + (weeklyState.losses_base || 0)));
+        const missionBattles = Math.max(0, (await getMissionFightTotal(db, char.id)) - (weeklyState.mission_fights_base || 0));
+        return pvpBattles + missionBattles;
     }
     return 0;
 }
@@ -1221,8 +1230,8 @@ async function getWeeklyTasksPayload(db, char) {
     const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
     const claimedRows = await dbAll(db, 'SELECT task_id, claimed_at FROM character_weekly_claims WHERE char_id = ? AND week_start = ?', [char.id, weekStart]);
     const claimedMap = new Map(claimedRows.map((row) => [row.task_id, Number(row.claimed_at || 0)]));
-    const items = WEEKLY_TASKS.map((task) => {
-        const progress = getWeeklyTaskProgress(char, weeklyState, task.metric);
+    const items = await Promise.all(WEEKLY_TASKS.map(async (task) => {
+        const progress = await getWeeklyTaskProgress(db, char, weeklyState, task.metric);
         const claimedAt = claimedMap.get(task.id) || 0;
         return {
             ...task,
@@ -1233,7 +1242,7 @@ async function getWeeklyTasksPayload(db, char) {
             reward_summary: buildWeeklyRewardSummary(task.rewards),
             material_choices: task.rewards?.choose_material ? getWeeklyTaskMaterialChoices(task) : []
         };
-    });
+    }));
     return {
         weekStart,
         nextResetAt: getNextWeekStart(),
@@ -1329,6 +1338,12 @@ async function recordMissionSpotResult(db, { charId, mapType = 'overworld', zone
     if (!charId || !zoneId || !spotId) return;
     const ts = now || Math.floor(Date.now() / 1000);
     const didWin = won ? 1 : 0;
+    const char = await dbGet(
+        db,
+        'SELECT id, total_mp_spent, wins, losses FROM characters WHERE id = ?',
+        [charId]
+    );
+    if (char) await ensureWeeklyTaskState(db, char);
     await dbRun(db, `INSERT INTO character_mission_spot_stats
         (char_id, map_type, zone_id, spot_id, fights, wins, last_fought_at, last_won_at)
         VALUES (?, ?, ?, ?, 1, ?, ?, ?)
@@ -3283,7 +3298,7 @@ router.post('/weekly-tasks/:taskId/claim', auth, async (req, res) => {
 
         const weeklyState = await ensureWeeklyTaskState(db, char);
         const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
-        const progress = getWeeklyTaskProgress(char, weeklyState, task.metric);
+        const progress = await getWeeklyTaskProgress(db, char, weeklyState, task.metric);
         if (progress < task.target) {
             return res.status(400).json({ error: 'Weekly task not completed yet' });
         }
