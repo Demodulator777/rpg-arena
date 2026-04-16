@@ -44,6 +44,53 @@ const DUNGEON_GUILD_BOUNTY_POOL = [
     { id: 'bounty_dread_knight', monsterKey: 'dread_knight', monsterName: 'Dread Knight', minCount: 2, maxCount: 4, rewardGold: 1400, rewardReputation: 10 },
 ];
 
+const WEEKLY_TASK_MATERIAL_OPTIONS = [
+    'mithril_ore',
+    'frost_essence',
+    'dragon_scale_shard',
+    'arcane_dust',
+    'void_shard'
+];
+
+const WEEKLY_TASKS = [
+    {
+        id: 'weekly_mp_1000',
+        name: 'Arcane Expenditure',
+        icon: '🔮',
+        desc: 'Spend 1,000 MP this week.',
+        metric: 'mp_spent',
+        target: 1000,
+        rewards: { gems: 5 }
+    },
+    {
+        id: 'weekly_wins_12',
+        name: 'Victor\'s Purse',
+        icon: '⚔️',
+        desc: 'Win 12 battles this week.',
+        metric: 'wins',
+        target: 12,
+        rewards: { gold: 25000 }
+    },
+    {
+        id: 'weekly_material_choice',
+        name: 'Quartermaster\'s Pick',
+        icon: '🧱',
+        desc: 'Complete 10 battles this week and choose rare materials.',
+        metric: 'battles',
+        target: 10,
+        rewards: { choose_material: { qty: 5, options: WEEKLY_TASK_MATERIAL_OPTIONS } }
+    },
+    {
+        id: 'weekly_battles_25',
+        name: 'Warpath',
+        icon: '🎁',
+        desc: 'Complete 25 battles this week.',
+        metric: 'battles',
+        target: 25,
+        rewards: { lootbox: { id: 'lootbox_rare', qty: 1 } }
+    }
+];
+
 // ── DB Migrations ─────────────────────────────────────────────────────────
 (async () => {
     try {
@@ -192,6 +239,20 @@ const DUNGEON_GUILD_BOUNTY_POOL = [
             completed_at INTEGER NOT NULL DEFAULT 0,
             claimed_at INTEGER NOT NULL DEFAULT 0,
             rolled_at INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_state (
+            char_id INTEGER PRIMARY KEY,
+            week_start INTEGER NOT NULL,
+            mp_spent_base INTEGER NOT NULL DEFAULT 0,
+            wins_base INTEGER NOT NULL DEFAULT 0,
+            losses_base INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_claims (
+            char_id INTEGER NOT NULL,
+            week_start INTEGER NOT NULL,
+            task_id TEXT NOT NULL,
+            claimed_at INTEGER NOT NULL,
+            PRIMARY KEY (char_id, week_start, task_id)
         )`, args: [] });
         
         // Skill tree migrations
@@ -1082,6 +1143,109 @@ function formatDurationShort(seconds) {
     return `${secs}s`;
 }
 
+function getCurrentWeekStart(now = Math.floor(Date.now() / 1000)) {
+    const date = new Date(now * 1000);
+    const utcDay = date.getUTCDay();
+    const diffToMonday = utcDay === 0 ? 6 : utcDay - 1;
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - diffToMonday);
+    return Math.floor(date.getTime() / 1000);
+}
+
+function getNextWeekStart(now = Math.floor(Date.now() / 1000)) {
+    return getCurrentWeekStart(now) + 7 * 24 * 3600;
+}
+
+async function ensureWeeklyTaskState(db, char) {
+    const weekStart = getCurrentWeekStart();
+    const existing = await dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
+    if (existing && Number(existing.week_start) === weekStart) return existing;
+
+    await dbRun(db, `INSERT INTO character_weekly_state
+        (char_id, week_start, mp_spent_base, wins_base, losses_base)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(char_id) DO UPDATE SET
+            week_start = excluded.week_start,
+            mp_spent_base = excluded.mp_spent_base,
+            wins_base = excluded.wins_base,
+            losses_base = excluded.losses_base`,
+        [char.id, weekStart, char.total_mp_spent || 0, char.wins || 0, char.losses || 0]
+    );
+    await dbRun(db, 'DELETE FROM character_weekly_claims WHERE char_id = ? AND week_start <> ?', [char.id, weekStart]);
+    return dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
+}
+
+function getWeeklyTaskProgress(char, weeklyState, metric) {
+    if (!weeklyState) return 0;
+    if (metric === 'mp_spent') {
+        return Math.max(0, (char.total_mp_spent || 0) - (weeklyState.mp_spent_base || 0));
+    }
+    if (metric === 'wins') {
+        return Math.max(0, (char.wins || 0) - (weeklyState.wins_base || 0));
+    }
+    if (metric === 'battles') {
+        const totalBattles = (char.wins || 0) + (char.losses || 0);
+        const baseBattles = (weeklyState.wins_base || 0) + (weeklyState.losses_base || 0);
+        return Math.max(0, totalBattles - baseBattles);
+    }
+    return 0;
+}
+
+function buildWeeklyRewardSummary(rewards) {
+    const parts = [];
+    if (rewards.gold) parts.push(`💰 ${rewards.gold.toLocaleString()} gold`);
+    if (rewards.gems) parts.push(`💎 ${rewards.gems}`);
+    if (rewards.lootbox) parts.push(`📦 ${rewards.lootbox.qty}x ${LOOT_BOXES.find(b => b.id === rewards.lootbox.id)?.name || 'Loot Box'}`);
+    if (rewards.choose_material) parts.push(`🧱 Choose ${rewards.choose_material.qty}x rare material`);
+    return parts;
+}
+
+function getWeeklyTaskMaterialChoices(task) {
+    const options = task?.rewards?.choose_material?.options || [];
+    return options
+        .map((id) => {
+            const def = RAW_MATERIALS[id];
+            if (!def) return null;
+            return {
+                id,
+                name: def.name || id.replace(/_/g, ' '),
+                emoji: def.emoji || '🧱',
+                rarity: def.rarity || 'rare'
+            };
+        })
+        .filter(Boolean);
+}
+
+async function getWeeklyTasksPayload(db, char) {
+    const weeklyState = await ensureWeeklyTaskState(db, char);
+    const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
+    const claimedRows = await dbAll(db, 'SELECT task_id, claimed_at FROM character_weekly_claims WHERE char_id = ? AND week_start = ?', [char.id, weekStart]);
+    const claimedMap = new Map(claimedRows.map((row) => [row.task_id, Number(row.claimed_at || 0)]));
+    const items = WEEKLY_TASKS.map((task) => {
+        const progress = getWeeklyTaskProgress(char, weeklyState, task.metric);
+        const claimedAt = claimedMap.get(task.id) || 0;
+        return {
+            ...task,
+            progress,
+            claimed: !!claimedAt,
+            claimed_at: claimedAt,
+            claimable: !claimedAt && progress >= task.target,
+            reward_summary: buildWeeklyRewardSummary(task.rewards),
+            material_choices: task.rewards?.choose_material ? getWeeklyTaskMaterialChoices(task) : []
+        };
+    });
+    return {
+        weekStart,
+        nextResetAt: getNextWeekStart(),
+        totals: {
+            total: items.length,
+            claimable: items.filter((item) => item.claimable).length,
+            claimed: items.filter((item) => item.claimed).length
+        },
+        items
+    };
+}
+
 function buildAchievementRewardSummary(rewards) {
     const parts = [];
     if (rewards.gold) parts.push(`💰 ${rewards.gold.toLocaleString()} gold`);
@@ -1156,6 +1320,8 @@ function normalizeMonsterKey(value) {
 async function recordTotalMpSpent(db, charId, amount) {
     const spent = Math.max(0, Number(amount) || 0);
     if (!spent) return;
+    const char = await dbGet(db, 'SELECT id, total_mp_spent, wins, losses FROM characters WHERE id = ?', [charId]);
+    if (char) await ensureWeeklyTaskState(db, char);
     await dbRun(db, 'UPDATE characters SET total_mp_spent = COALESCE(total_mp_spent, 0) + ? WHERE id = ?', [spent, charId]);
 }
 
@@ -3095,6 +3261,83 @@ router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
     }
 });
 
+router.get('/weekly-tasks', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        res.json(await getWeeklyTasksPayload(db, char));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/weekly-tasks/:taskId/claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const task = WEEKLY_TASKS.find((item) => item.id === req.params.taskId);
+        if (!task) return res.status(404).json({ error: 'Weekly task not found' });
+
+        const weeklyState = await ensureWeeklyTaskState(db, char);
+        const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
+        const progress = getWeeklyTaskProgress(char, weeklyState, task.metric);
+        if (progress < task.target) {
+            return res.status(400).json({ error: 'Weekly task not completed yet' });
+        }
+
+        const existingClaim = await dbGet(
+            db,
+            'SELECT task_id FROM character_weekly_claims WHERE char_id = ? AND week_start = ? AND task_id = ?',
+            [char.id, weekStart, task.id]
+        );
+        if (existingClaim) {
+            return res.status(400).json({ error: 'Weekly task already claimed' });
+        }
+
+        if (task.rewards.gold) {
+            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [task.rewards.gold, char.id]);
+        }
+        if (task.rewards.gems) {
+            await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [task.rewards.gems, task.rewards.gems, char.id]);
+        }
+        if (task.rewards.lootbox) {
+            const lootBox = LOOT_BOXES.find((box) => box.id === task.rewards.lootbox.id);
+            if (lootBox) {
+                await addStackableInventoryItem(db, char.id, 'consumable', lootBox, task.rewards.lootbox.qty || 1);
+            }
+        }
+        if (task.rewards.choose_material) {
+            const materialId = String(req.body?.materialId || '').trim();
+            const optionSet = new Set(task.rewards.choose_material.options || []);
+            if (!materialId || !optionSet.has(materialId)) {
+                return res.status(400).json({ error: 'Choose a valid material reward first' });
+            }
+            const mat = RAW_MATERIALS[materialId];
+            if (!mat) return res.status(400).json({ error: 'Material reward is unavailable' });
+            await addStackableInventoryItem(db, char.id, 'raw_mat', { id: materialId, ...mat }, task.rewards.choose_material.qty || 1);
+        }
+
+        await dbRun(
+            db,
+            'INSERT INTO character_weekly_claims (char_id, week_start, task_id, claimed_at) VALUES (?, ?, ?, ?)',
+            [char.id, weekStart, task.id, Math.floor(Date.now() / 1000)]
+        );
+
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({
+            success: true,
+            message: `Claimed ${task.name}!`,
+            character: await buildCharacterResponse(freshChar, db),
+            weekly: await getWeeklyTasksPayload(db, freshChar)
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ── Upgrade (UPDATED with skill tree cost modifier) ───────────────────────
 router.post('/upgrade', auth, async (req, res) => {
     try {
@@ -4697,6 +4940,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const newHpD = Math.max(0, battle.hpRemainingB);
         let atkXp = Math.max(0, (freshA.xp || 0) + xpGained), atkLevel = freshA.level, leveledUp = false;
         while (atkXp >= LEVEL_XP(atkLevel)) { atkXp -= LEVEL_XP(atkLevel); atkLevel++; leveledUp = true; }
+        await ensureWeeklyTaskState(db, freshA);
+        await ensureWeeklyTaskState(db, freshD);
         await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
             [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, newHpA, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
