@@ -447,6 +447,10 @@ function renderTopbarMenu() {
                     📘 Open Game Guide
                     <span class="topbar-menu-meta">How progression, classes, and builds work</span>
                 </button>
+                <button class="topbar-menu-action" ${actionAttrs('openWeeklyTasksModal')}>
+                    📅 Weekly Tasks
+                    <span class="topbar-menu-meta">Earn gems, gold, materials, and loot boxes</span>
+                </button>
                 <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
                     💎✨ Convert MP
                     <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
@@ -1125,6 +1129,133 @@ async function claimAchievement(achievementId) {
         showMsg('achievements-msg', result.message);
     } catch (e) {
         showMsg('achievements-msg', e.message, true);
+    }
+}
+
+function renderWeeklyTaskRewardSummary(task) {
+    return (task.reward_summary || []).map(text => `<span class="achievement-reward-chip">${escHtml(text)}</span>`).join('');
+}
+
+function formatWeeklyResetTime(unixTs) {
+    if (!unixTs) return 'soon';
+    return new Date(unixTs * 1000).toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+}
+
+function renderWeeklyTasksPanel(data, targetId='weekly-tasks-modal-content') {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const items = data?.items || [];
+    const totals = data?.totals || { total: 0, claimed: 0, claimable: 0 };
+    if (!items.length) {
+        el.innerHTML = '<div class="achievements-panel-loading">No weekly tasks right now.</div>';
+        return;
+    }
+
+    el.innerHTML = `
+        <div class="achievements-summary weekly-tasks-summary">
+            <div><strong>${totals.claimed}</strong> claimed</div>
+            <div><strong>${totals.claimable}</strong> ready</div>
+            <div><strong>${totals.total}</strong> tasks</div>
+            <div><strong>${formatWeeklyResetTime(data?.nextResetAt)}</strong> reset</div>
+        </div>
+        <div class="achievements-list">
+            ${items.map(task => {
+                const pct = Math.max(0, Math.min(100, Math.round((task.progress / Math.max(task.target, 1)) * 100)));
+                const cardClass = task.claimed ? 'claimed' : task.claimable ? 'claimable' : 'locked';
+                const progressText = task.claimed
+                    ? 'Claimed'
+                    : task.claimable
+                        ? 'Ready to claim'
+                        : `${task.progress.toLocaleString()} / ${task.target.toLocaleString()}`;
+                const materialChoices = task.material_choices?.length ? `
+                    <div class="weekly-task-materials">
+                        ${task.material_choices.map(choice => `
+                            <button class="weekly-task-material-btn" ${actionAttrs('claimWeeklyTask', task.id, choice.id)}>
+                                <span>${choice.emoji}</span>
+                                <span>${escHtml(choice.name)}</span>
+                            </button>
+                        `).join('')}
+                    </div>` : '';
+                const actionHtml = task.claimed
+                    ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
+                    : task.claimable
+                        ? (task.material_choices?.length
+                            ? `<div class="weekly-task-claim-block"><div class="weekly-task-choice-note">Choose your material reward:</div>${materialChoices}</div>`
+                            : `<button class="achievement-claim-btn" ${actionAttrs('claimWeeklyTask', task.id)}>Claim Reward</button>`)
+                        : '<button class="achievement-claim-btn locked" disabled>In Progress</button>';
+                return `<div class="achievement-card ${cardClass}">
+                    <div class="achievement-card-head">
+                        <div class="achievement-icon">${task.icon}</div>
+                        <div class="achievement-copy">
+                            <div class="achievement-name">${escHtml(task.name)}</div>
+                            <div class="achievement-desc">${escHtml(task.desc)}</div>
+                            <div class="achievement-tier-note">Weekly objective</div>
+                        </div>
+                    </div>
+                    <div class="achievement-progress-row">
+                        <div class="achievement-progress-bar"><div class="achievement-progress-fill" style="width:${pct}%"></div></div>
+                        <div class="achievement-progress-text">${progressText}</div>
+                    </div>
+                    <div class="achievement-rewards">${renderWeeklyTaskRewardSummary(task)}</div>
+                    ${actionHtml}
+                </div>`;
+            }).join('')}
+        </div>`;
+}
+
+function ensureWeeklyTasksModal() {
+    if (document.getElementById('weekly-tasks-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="weekly-tasks-modal" class="modal-overlay hidden">
+            <div class="modal-box achievements-modal-box">
+                <div class="modal-header">
+                    <h3>Weekly Tasks</h3>
+                    <button class="btn-secondary" ${actionAttrs('closeWeeklyTasksModal')}>✕</button>
+                </div>
+                <div id="weekly-tasks-modal-content" class="achievements-panel-loading">Loading weekly tasks...</div>
+                <div id="weekly-tasks-msg" class="msg-bar hidden" style="margin-top:12px"></div>
+            </div>
+        </div>
+    `);
+}
+
+async function openWeeklyTasksModal() {
+    closeTopbarMenu();
+    ensureWeeklyTasksModal();
+    const modal = document.getElementById('weekly-tasks-modal');
+    const content = document.getElementById('weekly-tasks-modal-content');
+    if (!modal || !content) return;
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="achievements-panel-loading">Loading weekly tasks...</div>';
+    try {
+        const data = await api('GET', '/game/weekly-tasks');
+        window._weeklyTasksData = data;
+        renderWeeklyTasksPanel(data);
+    } catch (e) {
+        content.innerHTML = `<div class="achievements-panel-loading">${escHtml(e.message)}</div>`;
+    }
+}
+
+function closeWeeklyTasksModal() {
+    document.getElementById('weekly-tasks-modal')?.classList.add('hidden');
+}
+
+async function claimWeeklyTask(taskId, materialId = null) {
+    try {
+        const result = await api('POST', `/game/weekly-tasks/${taskId}/claim`, materialId ? { materialId } : {});
+        character = result.character;
+        renderTopBar();
+        renderCharacter();
+        window._weeklyTasksData = result.weekly;
+        renderWeeklyTasksPanel(result.weekly);
+        showMsg('weekly-tasks-msg', result.message);
+    } catch (e) {
+        showMsg('weekly-tasks-msg', e.message, true);
     }
 }
 
