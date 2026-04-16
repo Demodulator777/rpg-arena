@@ -5970,6 +5970,29 @@ function generateLootFromBox(boxType, playerLevel) {
     };
     
     const boxDrops = drops[boxType];
+    const createMaterialDrop = () => {
+        const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
+        let roll = Math.random() * totalWeight;
+        let selected = boxDrops.materials[0];
+        for (const mat of boxDrops.materials) {
+            if (roll < mat.weight) {
+                selected = mat;
+                break;
+            }
+            roll -= mat.weight;
+        }
+
+        const qty = Math.floor(Math.random() * (selected.qty[1] - selected.qty[0] + 1) + selected.qty[0]);
+        return {
+            id: selected.id,
+            name: selected.name,
+            emoji: selected.emoji,
+            type: 'raw_mat',
+            qty: qty,
+            stackable: true,
+            rarity: 'common'
+        };
+    };
     
     if (Math.random() < 0.6) {
         const goldAmount = Math.floor(Math.random() * (boxDrops.goldRange[1] - boxDrops.goldRange[0] + 1) + boxDrops.goldRange[0]);
@@ -5985,27 +6008,7 @@ function generateLootFromBox(boxType, playerLevel) {
         const isMaterial = Math.random() < 0.6;
         
         if (isMaterial) {
-            const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
-            let roll = Math.random() * totalWeight;
-            let selected = boxDrops.materials[0];
-            for (const mat of boxDrops.materials) {
-                if (roll < mat.weight) {
-                    selected = mat;
-                    break;
-                }
-                roll -= mat.weight;
-            }
-            
-            const qty = Math.floor(Math.random() * (selected.qty[1] - selected.qty[0] + 1) + selected.qty[0]);
-            result.items.push({
-                id: selected.id,
-                name: selected.name,
-                emoji: selected.emoji,
-                type: 'raw_mat',
-                qty: qty,
-                stackable: true,
-                rarity: 'common'
-            });
+            result.items.push(createMaterialDrop());
         } else {
             let roll = Math.random();
             let selectedQuality = null;
@@ -6029,6 +6032,8 @@ function generateLootFromBox(boxType, playerLevel) {
                     stackable: false,
                     qty: 1
                 });
+            } else {
+                result.items.push(createMaterialDrop());
             }
         }
     }
