@@ -5494,7 +5494,14 @@ function formatTrainingTime(seconds) {
 }
 
 async function cancelTraining() {
-    if (!confirm('Cancel current training? Partial progress is kept.')) return;
+    const shouldCancel = await openGameConfirmDialog({
+        title: 'Cancel Training',
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Cancel current training?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">Your partial progress will be kept.</div>`,
+        confirmLabel: 'Cancel Training',
+        cancelLabel: 'Keep Training',
+        danger: true
+    });
+    if (!shouldCancel) return;
     try {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
