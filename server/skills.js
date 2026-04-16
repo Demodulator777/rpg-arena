@@ -2111,7 +2111,7 @@ router.get('/tree', async (req, res) => {
 
         let activeTraining = null;
         if (trainingRow) {
-            const currentProgress = getTrainingProgressow(trainingRow, now);
+            const currentProgress = getTrainingProgressNow(trainingRow, now);
             const activeSkill = getSkillByIds(char.class, trainingRow.branch_id, trainingRow.skill_id);
             activeTraining = {
                 ...trainingRow,
