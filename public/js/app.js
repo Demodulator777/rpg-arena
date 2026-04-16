@@ -4269,7 +4269,7 @@ async function openProfile(id) {
             <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
             <div class="eq-stage profile-eq-stage">
               <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
-              <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, 'рџ”®', 'Accessory')}</div>
+              <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}</div>
             </div>
           </div>`:''}
           ${!isMe ? (() => {
