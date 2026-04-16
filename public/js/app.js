@@ -4009,6 +4009,7 @@ async function buyItem(itemId) {
     const item=shopInventory.find(i=>i.id===itemId); if(!item){showMsg('shop-msg','Item not found!',true);return;}
     const pt=item.priceType||'gold';
     const gemCost=item.gemCost||0;
+    const staysInShop = !!(item.alwaysAvailable || item.consumable || item.category === 'premium');
     if (character.level<(item.level||1)){showMsg('shop-msg',`Requires level ${item.level}!`,true);return;}
     if (item.classes&&!item.classes.includes(character.class)){showMsg('shop-msg',`Not available for ${capitalize(character.class)}!`,true);return;}
     if (pt==='gems'&&(character.gems||0)<item.price){showMsg('shop-msg','Not enough gems!',true);return;}
@@ -4025,7 +4026,11 @@ async function buyItem(itemId) {
         character = refreshedChar;
 
         showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
-        item._buying=false;
+        if (staysInShop) {
+            item._buying=false;
+        } else {
+            shopInventory = shopInventory.filter(i => i.id !== item.id);
+        }
         renderShop(); 
         renderTopBar();
         renderCharacter(); // Force re-render character sheet with correct HP
