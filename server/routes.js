@@ -82,6 +82,7 @@ const DUNGEON_GUILD_BOUNTY_POOL = [
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
+            'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -4368,7 +4369,7 @@ router.post('/shop/buy', auth, async (req, res) => {
             }
         } else {
             await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'equipment',?)`, [character.id, JSON.stringify(item)]);
-            try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE user_id=? AND json_extract(item_data,'$.id')=?`, [req.user.userId, item.id]); } catch {}
+            try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND json_extract(item_data,'$.id')=?`, [character.id, item.id]); } catch {}
         }
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         res.json({ success:true, newGold:updatedChar.gold, newGems:updatedChar.gems, character:updatedChar, message:`Purchased ${item.name}!` });
@@ -4381,9 +4382,9 @@ router.get('/shop/items', auth, async (req, res) => {
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         const now = Math.floor(Date.now() / 1000);
-        const userId = req.user.userId;
-        const userLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE user_id=?', [userId]);
-        const lastDate = userLastGenRow?.last_date;
+        const charId = character.id;
+        const charLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE char_id=?', [charId]);
+        const lastDate = charLastGenRow?.last_date;
         
         const lootBoxes = LOOT_BOXES.map(box => ({
             ...box,
@@ -4393,15 +4394,15 @@ router.get('/shop/items', auth, async (req, res) => {
         let equipmentItems = [];
         
         if (!lastDate || shouldResetShop(lastDate)) {
-            await dbRun(db, 'DELETE FROM shop_items WHERE user_id=?', [userId]);
+            await dbRun(db, 'DELETE FROM shop_items WHERE char_id=?', [charId]);
             const newItems = generateBackendInventory(character.level);
             const equipOnly = newItems.filter(i => !i.consumable);
             for (const item of equipOnly) {
-                await dbRun(db, 'INSERT INTO shop_items (user_id,item_data,generation_date) VALUES (?,?,?)', [userId, JSON.stringify(item), now]);
+                await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,item_data,generation_date) VALUES (?,?,?,?)', [req.user.userId, charId, JSON.stringify(item), now]);
             }
             equipmentItems = equipOnly;
         } else {
-            const rows = await dbAll(db, 'SELECT item_data,sold FROM shop_items WHERE user_id=? ORDER BY id', [userId]);
+            const rows = await dbAll(db, 'SELECT item_data,sold FROM shop_items WHERE char_id=? ORDER BY id', [charId]);
             equipmentItems = rows.filter(r => !r.sold).map(row => JSON.parse(row.item_data));
         }
         
@@ -5344,17 +5345,17 @@ router.post('/premium/activate', auth, async (req, res) => {
 router.post('/shop/reroll', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to reroll the shop' });
         await dbRun(db, 'UPDATE characters SET gems=gems-1 WHERE id=?', [char.id]);
-        await dbRun(db, 'DELETE FROM shop_items WHERE user_id=?', [req.user.userId]);
+        await dbRun(db, 'DELETE FROM shop_items WHERE char_id=?', [char.id]);
         const now = Math.floor(Date.now() / 1000);
         const newItems = generateBackendInventory(char.level);
         const equipOnly = newItems.filter(i => !i.consumable);
         for (const item of equipOnly) {
-            await dbRun(db, 'INSERT INTO shop_items (user_id,item_data,generation_date) VALUES (?,?,?)',
-                [req.user.userId, JSON.stringify(item), now]);
+            await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,item_data,generation_date) VALUES (?,?,?,?)',
+                [req.user.userId, char.id, JSON.stringify(item), now]);
         }
         const potions = getPotionsForLevel(char.level);
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
