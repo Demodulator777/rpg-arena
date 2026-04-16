@@ -2514,6 +2514,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
     min-width: 0;
 }
+.profile-card .stat-row {
+    grid-template-columns: 22px 44px minmax(0, 1fr) 38px;
+    column-gap: 8px;
+    padding: 6px 0;
+}
+.profile-card .stat-label {
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+.profile-card .stat-val {
+    font-size: 0.8rem;
+}
 .profile-equipment-card { margin-bottom: 12px; }
 @media (max-width: 860px) {
     .profile-grid { grid-template-columns: 1fr; }
@@ -2522,6 +2534,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-header > div { min-width: 0; }
     .profile-name { font-size: 1.05rem; line-height: 1.2; word-break: break-word; }
     .profile-class { font-size: 0.78rem; }
+    .profile-card .stat-row {
+        grid-template-columns: 20px 40px minmax(0, 1fr) 34px;
+        column-gap: 6px;
+    }
+    .profile-card .stat-label {
+        font-size: 0.68rem;
+    }
+    .profile-card .stat-val {
+        font-size: 0.75rem;
+    }
 }
 @media (max-width: 560px) {
     .profile-actions {
