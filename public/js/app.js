@@ -3814,7 +3814,14 @@ async function equipItem(invId) {
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
 async function sellItem(invId, name, price) {
     if (!confirm(`Sell ${name} for ${price} gold?`)) return;
-    try { const d=await api('POST',`/game/sell/${invId}`); character=d.character; renderTopBar(); loadInventory(); showMsg('inv-msg',d.message); }
+    try {
+        const d=await api('POST',`/game/sell/${invId}`);
+        character=d.character;
+        renderTopBar();
+        hideItemTooltip();
+        await loadInventory();
+        showMsg('inv-msg',d.message);
+    }
     catch(e) { showMsg('inv-msg',e.message,true); }
 }
 async function useItem(invId, name) {
