@@ -316,6 +316,18 @@ async function loadCharacterRoster() {
     }
 }
 
+async function syncActiveCharacterState() {
+    if (!token) return;
+    try {
+        character = await api('GET', '/game/character');
+        activeCharacterId = character?.id || null;
+        await loadCharacterRoster();
+        renderTopBar();
+    } catch (e) {
+        console.error('Failed to sync active character state:', e);
+    }
+}
+
 function renderCharacterSwitcherButton() {
     const btn = document.getElementById('topbar-character-switch');
     if (!btn) return;
@@ -375,8 +387,9 @@ function openCharacterCreation() {
     showScreen('create');
 }
 
-function openCharacterSwitcher() {
+async function openCharacterSwitcher() {
     closeTopbarMenu();
+    await syncActiveCharacterState();
     renderCharacterSwitcher();
     document.getElementById('character-switch-modal')?.classList.remove('hidden');
 }
@@ -455,7 +468,8 @@ function renderTopbarMenu() {
         </div>`;
 }
 
-function openTopbarMenu() {
+async function openTopbarMenu() {
+    await syncActiveCharacterState();
     renderTopbarMenu();
     document.getElementById('topbar-menu-modal')?.classList.remove('hidden');
 }
