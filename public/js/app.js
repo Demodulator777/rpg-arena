@@ -2526,8 +2526,31 @@ function renderForge() {
         </div>`;
     }).join('');
 }
-async function refine(componentId) { try { const d=await api('POST','/game/forge/refine',{componentId}); showMsg('forge-msg',d.message); loadForge(); } catch(e) { showMsg('forge-msg',e.message,true); } }
-async function craftItem(recipeId) { try { const d=await api('POST','/game/forge/craft',{recipeId}); showMsg('forge-msg',d.message); loadForge(); loadInventory(); } catch(e) { showMsg('forge-msg',e.message,true); } }
+async function refine(componentId) {
+    try {
+        const d = await api('POST','/game/forge/refine',{componentId});
+        character = await api('GET','/game/character');
+        renderTopBar();
+        renderCharacter();
+        await loadForge();
+        showMsg('forge-msg', d.message);
+    } catch(e) {
+        showMsg('forge-msg',e.message,true);
+    }
+}
+async function craftItem(recipeId) {
+    try {
+        const d = await api('POST','/game/forge/craft',{recipeId});
+        character = await api('GET','/game/character');
+        renderTopBar();
+        renderCharacter();
+        await loadForge();
+        await loadInventory();
+        showMsg('forge-msg', d.message);
+    } catch(e) {
+        showMsg('forge-msg',e.message,true);
+    }
+}
 
 // ── Inventory ─────────────────────────────────────────────────────────────
 async function loadInventory() {
@@ -3970,7 +3993,8 @@ function renderShop() {
                 <div style="display:flex;flex-direction:column;gap:2px">
                     <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
-                <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough?'':'disabled'}>${
+                <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough&&!item._buying?'':'disabled'}>${
+                    item._buying ? 'Buying...' :
                     !isAvail ? `Level ${item.level}` :
                     !classOk ? 'Class Locked' :
                     !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
@@ -3992,15 +4016,16 @@ async function buyItem(itemId) {
     if (gemCost>0&&(character.gems||0)<gemCost){showMsg('shop-msg',`This item also costs ${gemCost} 💎 — not enough gems!`,true);return;}
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
+    renderShop();
     try {
         await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item});
         
         // Refresh character properly from the game endpoint instead of using result.character
         const refreshedChar = await api('GET','/game/character');
         character = refreshedChar;
-        
-        shopInventory=shopInventory.filter(i=>i.id!==itemId);
+
         showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
+        item._buying=false;
         renderShop(); 
         renderTopBar();
         renderCharacter(); // Force re-render character sheet with correct HP
@@ -4011,6 +4036,7 @@ async function buyItem(itemId) {
         }
     } catch(e) { 
         item._buying=false; 
+        renderShop();
         showMsg('shop-msg',e.message,true); 
     }
 }
