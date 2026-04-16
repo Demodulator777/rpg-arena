@@ -2519,12 +2519,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     column-gap: 8px;
     padding: 6px 0;
 }
+.profile-card .stat-bar-wrap {
+    justify-self: end;
+}
 .profile-card .stat-label {
     font-size: 0.72rem;
     white-space: nowrap;
+    text-align: right;
 }
 .profile-card .stat-val {
     font-size: 0.8rem;
+    text-align: right;
 }
 .profile-equipment-card { margin-bottom: 12px; }
 @media (max-width: 860px) {
@@ -2547,9 +2552,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 560px) {
     .profile-grid {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 8px;
-        align-items: start;
+        grid-template-columns: 1fr;
     }
     .profile-grid .profile-card:first-child {
         order: 2;
