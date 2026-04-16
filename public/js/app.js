@@ -738,7 +738,7 @@ function buildEqSlotSmall(slot, eq, icon, label) {
     const itemData = escHtml(JSON.stringify(item));
     return `<div class="eq-slot-small eq-slot--${slot} filled"
         data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip" data-item="${itemData}">
-        <span style="font-size:1.1rem;line-height:1">${itemIcon(item,'slot')}</span>
+        <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
     </div>`;
 }
 
