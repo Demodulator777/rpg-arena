@@ -5300,7 +5300,7 @@ router.get('/events/active', auth, async (req, res) => {
 router.get('/premium/features', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const active = getActivePremium(char);
         const synergies = getActiveSynergies(active);
@@ -5323,7 +5323,7 @@ router.get('/premium/features', auth, async (req, res) => {
 router.post('/premium/activate', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const { featureId } = req.body;
         const feature = PREMIUM_FEATURES[featureId];
