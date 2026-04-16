@@ -1704,6 +1704,50 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     gap: 10px;
 }
 
+.weekly-tasks-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.weekly-task-claim-block {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.weekly-task-choice-note {
+    font-size: 0.76rem;
+    color: var(--text-dim);
+}
+
+.weekly-task-materials {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+}
+
+.weekly-task-material-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(52,152,219,0.25);
+    background: rgba(52,152,219,0.08);
+    color: var(--text-bright);
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.weekly-task-material-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(52,152,219,0.42);
+    background: rgba(52,152,219,0.14);
+}
+
 .achievement-card {
     padding: 12px;
     border-radius: 12px;
