@@ -2518,9 +2518,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     grid-template-columns: 22px 44px minmax(0, 1fr) 38px;
     column-gap: 8px;
     padding: 6px 0;
+    width: 100%;
 }
 .profile-card .stat-bar-wrap {
-    justify-self: end;
+    width: 100%;
 }
 .profile-card .stat-label {
     font-size: 0.72rem;
@@ -2530,6 +2531,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-card .stat-val {
     font-size: 0.8rem;
     text-align: right;
+    justify-self: end;
+    width: 100%;
 }
 .profile-equipment-card { margin-bottom: 12px; }
 @media (max-width: 860px) {
