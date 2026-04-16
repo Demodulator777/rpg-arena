@@ -4057,7 +4057,7 @@ router.post('/travel/cancel', auth, async (req, res) => {
 router.get('/travel/status', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const character = await dbGet(db, 'SELECT * FROM characters WHERE user_id=?', [req.user.userId]);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
         const now = Math.floor(Date.now() / 1000);
