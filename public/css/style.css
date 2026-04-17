@@ -3861,9 +3861,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 
     .eq-slot-small {
-        width: 46px !important;
-        min-width: 46px !important;
-        max-width: 46px !important;
-        height: 46px !important;
+        width: 25px !important;
+        min-width: 25px !important;
+        max-width: 25px !important;
+        height: 25px !important;
     }
 }
