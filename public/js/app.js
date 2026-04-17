@@ -221,17 +221,17 @@ const ZONE_ROUTES = {
 
 // ── Component Upgrade Values (for frontend) ────────────────────────────────
 const COMPONENT_UPGRADE_VALUES = {
-    iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot', emoji: '🔩', recipe: { iron_ore: 3 }, source: 'Forest, Swamp, Mountains' },
-    hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank', emoji: '🪚', recipe: { wood: 3 }, source: 'Forest, Swamp' },
-    tanned_hide: { bonus: 2, goldCost: 5000, name: 'Tanned Hide', emoji: '🧶', recipe: { wolf_pelt: 2, herbs: 1 }, source: 'Forest, Swamp' },
-    poison_extract: { bonus: 3, goldCost: 8000, name: 'Poison Extract', emoji: '⚗️', recipe: { poison_gland: 2 }, source: 'Swamp' },
-    frost_core: { bonus: 3, goldCost: 8000, name: 'Frost Core', emoji: '🧊', recipe: { frost_essence: 2 }, source: 'Mountains' },
-    mithril_ingot: { bonus: 4, goldCost: 12000, name: 'Mithril Ingot', emoji: '⚙️', recipe: { mithril_ore: 3 }, source: 'Mountains, Ruins' },
-    arcane_shard: { bonus: 4, goldCost: 12000, name: 'Arcane Shard', emoji: '💠', recipe: { swamp_crystal: 2, arcane_dust: 1 }, source: 'Swamp, Ruins, Dark City' },
-    dragon_plate: { bonus: 6, goldCost: 20000, name: 'Dragon Plate', emoji: '🛡️', recipe: { dragon_scale_shard: 3, mithril_ore: 2 }, source: 'Mountains' },
-    void_crystal: { bonus: 6, goldCost: 20000, name: 'Void Crystal', emoji: '🔮', recipe: { void_shard: 2, rune_fragment: 1 }, source: 'Ruins, Dark City' },
-    shadow_weave: { bonus: 8, goldCost: 30000, name: 'Shadow Weave', emoji: '🕸️', recipe: { shadow_essence: 2, arcane_dust: 2 }, source: 'Dark City' },
-    demon_alloy: { bonus: 10, goldCost: 50000, name: 'Demon Alloy', emoji: '⚡', recipe: { demon_core: 1, mithril_ore: 3 }, source: 'Dark City' }
+    iron_ingot: { bonus: 2, goldCost: 20, name: 'Iron Ingot', emoji: '🔩', recipe: { iron_ore: 3 }, source: 'Forest, Swamp, Mountains' },
+    hardwood_plank: { bonus: 2, goldCost: 15, name: 'Hardwood Plank', emoji: '🪚', recipe: { wood: 3 }, source: 'Forest, Swamp' },
+    tanned_hide: { bonus: 2, goldCost: 25, name: 'Tanned Hide', emoji: '🧶', recipe: { wolf_pelt: 2, herbs: 1 }, source: 'Forest, Swamp' },
+    poison_extract: { bonus: 3, goldCost: 40, name: 'Poison Extract', emoji: '⚗️', recipe: { poison_gland: 2 }, source: 'Swamp' },
+    frost_core: { bonus: 3, goldCost: 150, name: 'Frost Core', emoji: '🧊', recipe: { frost_essence: 2 }, source: 'Mountains' },
+    mithril_ingot: { bonus: 4, goldCost: 80, name: 'Mithril Ingot', emoji: '⚙️', recipe: { mithril_ore: 3 }, source: 'Mountains, Ruins' },
+    arcane_shard: { bonus: 4, goldCost: 120, name: 'Arcane Shard', emoji: '💠', recipe: { swamp_crystal: 2, arcane_dust: 1 }, source: 'Swamp, Ruins, Dark City' },
+    dragon_plate: { bonus: 6, goldCost: 300, name: 'Dragon Plate', emoji: '🛡️', recipe: { dragon_scale_shard: 3, mithril_ore: 2 }, source: 'Mountains' },
+    void_crystal: { bonus: 6, goldCost: 500, name: 'Void Crystal', emoji: '🔮', recipe: { void_shard: 2, rune_fragment: 1 }, source: 'Ruins, Dark City' },
+    shadow_weave: { bonus: 8, goldCost: 800, name: 'Shadow Weave', emoji: '🕸️', recipe: { shadow_essence: 2, arcane_dust: 2 }, source: 'Dark City' },
+    demon_alloy: { bonus: 10, goldCost: 1200, name: 'Demon Alloy', emoji: '⚡', recipe: { demon_core: 1, mithril_ore: 3 }, source: 'Dark City' }
 };
 
 const RAW_MATERIAL_INFO = {
@@ -5765,6 +5765,7 @@ async function craftComponentDirectly(componentId, name) {
         showMsg('upgrade-msg', e.message, true);
     }
 }
+window.craftComponentDirectly = craftComponentDirectly;
 
 async function openUpgradeModal(inventoryId) {
     currentUpgradeItemId = inventoryId;
@@ -5819,7 +5820,7 @@ async function openUpgradeModal(inventoryId) {
 
             componentsHtml += `
                 <div class="upgrade-component-card ${owned > 0 ? '' : 'unowned'} ${selectedComponentId === id ? 'selected' : ''}" 
-                     ${owned > 0 ? `onclick="selectComponent('${id}', '${info.name}', ${owned}, this)"` : ''}>
+                     ${owned > 0 ? actionAttrs('selectComponent', id, info.name, owned) : ''}>
                     <div class="component-icon-wrap">
                         <div class="component-icon">${info.emoji || '🔧'}</div>
                         <div class="component-owned-badge">${owned}</div>
@@ -5829,7 +5830,7 @@ async function openUpgradeModal(inventoryId) {
                         <div class="component-source">📍 Source: ${info.source}</div>
                         ${recipeInfo}
                     </div>
-                    ${owned === 0 && canCraft ? `
+                    ${canCraft ? `
                         <button class="btn-craft-direct" ${actionAttrs('craftComponentDirectly', id, info.name)}>⚒️ Craft</button>
                     ` : ''}
                 </div>
