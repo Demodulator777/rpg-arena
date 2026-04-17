@@ -541,6 +541,12 @@ async function selectCharacter(characterId) {
         const data = await api('POST', '/game/character/select', { characterId });
         character = data.character;
         activeCharacterId = character.id;
+
+        // Reset dungeon state to prevent old floor/rooms from showing
+        if (typeof resetDungeonState === 'function') {
+            resetDungeonState();
+        }
+
         await loadCharacterRoster();
         closeCharacterSwitcher();
         renderTopBar();
