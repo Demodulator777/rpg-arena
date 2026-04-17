@@ -3393,6 +3393,93 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     text-align: center;
     box-shadow: 0 0 6px rgba(155,89,182,0.5);
 }
+.upgrade-item-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(201,146,42,0.1), rgba(0,0,0,0.3));
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(201,146,42,0.15);
+}
+
+.upgrade-item-preview {
+    width: 64px;
+    height: 64px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.upgrade-item-details { flex: 1; }
+.upgrade-item-name { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+.upgrade-item-level-row { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; }
+.upgrade-item-current { color: var(--text-dim); }
+.upgrade-item-arrow { color: var(--gold); }
+.upgrade-item-next { color: #2ecc71; }
+
+.upgrade-section-title { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; font-weight: 700; }
+
+.upgrade-components-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 6px;
+    margin-bottom: 20px;
+}
+
+.upgrade-component-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.upgrade-component-card:hover:not(.unowned) { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+.upgrade-component-card.selected { background: rgba(155,89,182,0.12); border-color: rgba(155,89,182,0.45); box-shadow: 0 0 15px rgba(155,89,182,0.1); }
+.upgrade-component-card.unowned { opacity: 0.65; cursor: default; filter: grayscale(0.4); }
+
+.component-icon-wrap { position: relative; }
+.component-icon { font-size: 2rem; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.04); border-radius: 10px; }
+.component-owned-badge { position: absolute; top: -6px; right: -6px; background: var(--blue); color: #fff; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+
+.component-info { flex: 1; min-width: 0; }
+.component-name { font-size: 0.88rem; font-weight: 700; color: var(--text-bright); margin-bottom: 2px; }
+.component-bonus-tag { font-size: 0.68rem; color: #2ecc71; margin-left: 6px; font-weight: 600; opacity: 0.85; }
+.component-source { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 4px; }
+.upgrade-component-recipe { font-size: 0.7rem; color: var(--text-dim); opacity: 0.9; line-height: 1.4; }
+
+.btn-craft-direct {
+    background: rgba(46,204,113,0.15);
+    border: 1px solid rgba(46,204,113,0.35);
+    color: #2ecc71;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.btn-craft-direct:hover { background: rgba(46,204,113,0.25); border-color: rgba(46,204,113,0.5); transform: translateY(-1px); }
+
+.upgrade-selected-info { margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; }
+.upgrade-selected-box { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#selected-component-details { font-size: 0.8rem; color: var(--text-bright); font-weight: 600; }
+.btn-confirm-upgrade { flex-shrink: 0; padding: 10px 24px; font-size: 0.88rem; box-shadow: 0 4px 15px rgba(155,89,182,0.3); }
+
 .upgrade-badge {
     position: absolute;
     top: 5px;
@@ -3408,19 +3495,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     box-shadow: 0 0 5px rgba(155,89,182,0.5);
     z-index: 2;
 }
-.upgrade-item-info {
-    text-align: center;
-    padding: 12px;
-    background: rgba(0,0,0,0.2);
-    border-radius: 8px;
-    margin-bottom: 16px;
-}
 
-.upgrade-item-name {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--gold);
-}
+.inv-item-equipped-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 5px rgba(201,146,42,0.8); }
 
 .upgrade-item-current, .upgrade-item-next {
     font-size: 0.8rem;
@@ -3834,9 +3910,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 
     .eq-slot-small {
-        width: 25px !important;
-        min-width: 25px !important;
-        max-width: 25px !important;
-        height: 25px !important;
+        width: 46px !important;
+        min-width: 46px !important;
+        max-width: 46px !important;
+        height: 46px !important;
     }
 }
