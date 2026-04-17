@@ -1707,22 +1707,15 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const defSkills = defender.activeSkills || {};
     const ignoreDefenderZones = !!attacker.ignoreDefenderZones;
 
-    // Rogue weapon penalty - check if attacker has a weapon property
     let rogueWeaponPenalty = 1.0;
     if (attacker.class === 'rogue') {
-        // Check if attacker has a weapon and if it's a dagger
         const weapon = attacker.weapon || null;
         const isDagger = weapon && (weapon.name?.toLowerCase().includes('dagger') || weapon.type === 'dagger');
-        if (!isDagger && weapon) {
-            rogueWeaponPenalty = 0.60;
-        }
+        if (!isDagger && weapon) rogueWeaponPenalty = 0.60;
     }
     
-    // MAGE PHYSICAL DAMAGE PENALTY
     let physicalDamagePenalty = 1.0;
-    if (attacker.class === 'mage') {
-        physicalDamagePenalty = 0.40;
-    }
+    if (attacker.class === 'mage') physicalDamagePenalty = 0.40;
 
     let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
     if (atkPenalty) atkHitChance *= 0.85;
@@ -1737,22 +1730,20 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
     if (ignoreDefenderZones) dodgeChance = 0;
 
-    let forceMiss = false;
-    if (Math.random() < dodgeChance) forceMiss = true;
+    let forceMiss = Math.random() < dodgeChance;
 
     let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
     if (attacker.dmg_bonus) atkBonusDmg *= (1 + attacker.dmg_bonus);
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
-    // REMOVED duplicate dodge check
     if (!ignoreDefenderZones && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
 
     let divineNegate = false;
     if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
 
     const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
-    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0;
+    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
 
     if (!atkHit) {
         if (divineNegate) logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
@@ -1764,27 +1755,18 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
         const isCrit = Math.random() < Math.min(0.95, baseCritChance + critBonus);
         
-        // Calculate physical damage
         rawPhysicalDmg = isCrit ? attacker.dmgMax : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
-        
-        // Apply rogue weapon penalty
         rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
-        
-        // Apply mage physical damage penalty
         let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
-        
-        // Apply hit multiplier to physical damage
         physicalDmg = Math.floor(physicalDmg * hit.dmgMult * atkBonusDmg);
         
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
-        physicalDmg += damageBonus;
+        physicalDmg = Math.max(0, physicalDmg + damageBonus - resistance);
 
         const blockCovers = !ignoreDefenderZones && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
         const blockFails = Math.random() < 0.001;
 
-        // Elemental damage
         const elemDmgs = attacker.elem_dmg || {};
-        let totalElemDmg = 0;
         for (const elem of ELEMENTS) {
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
@@ -1799,13 +1781,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const critTag = isCrit ? ' ⚡CRIT' : '';
 
         if (blockCovers && !blockFails) {
-            finalDmg = 0;
-            totalElemDmg = 0;
             logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
+            totalElemDmg = 0; 
         } else {
             finalDmg = physicalDmg;
 
-            // Force Field Absorption
             let justAbsorbed = false;
             let absorbedAmount = 0;
             if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
@@ -1816,41 +1796,27 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 justAbsorbed = true;
             }
 
-            // Armor reduction
             if (finalDmg > 0 && (defender.armor || 0) > 0) {
                 const physReduction = Math.min(finalDmg - 1, defender.armor);
                 finalDmg = Math.max(1, finalDmg - physReduction);
             }
 
-            // Add elemental after armor
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
+            if (hasSkill(atkSkills, 'venomfang')) finalDmg += 5;
 
-            // Log with penalty indicators
-            let penaltyNote = '';
-            if (attacker.class === 'mage' && rawPhysicalDmg > 0) {
-                penaltyNote = ` (${Math.round(physicalDamagePenalty * 100)}% physical penalty)`;
-            } else if (attacker.class === 'rogue' && rogueWeaponPenalty < 1.0) {
-                penaltyNote = ` (${Math.round((1 - rogueWeaponPenalty) * 100)}% non-dagger penalty)`;
-            }
-            
-            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag}${penaltyNote} — ${Math.floor(finalDmg)} damage`;
+            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
+            if (hasSkill(atkSkills, 'venomfang')) logLine += ' ☠️ (+5 poison)';
 
-            // Override log if force field triggered
             if (justAbsorbed) {
-                if (finalDmg <= 0 && totalElemDmg === 0) {
+                if (finalDmg <= 0) {
                     logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
                 } else {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.floor(finalDmg - totalElemDmg)} gets through`;
-                    if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.floor(finalDmg)} gets through`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
             }
 
-            if (hasSkill(atkSkills, 'venomfang')) {
-                finalDmg += 5;
-                logLine += ' ☠️ +5 poison';
-            }
             if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
                 healBack = Math.floor(finalDmg * 0.10);
                 logLine += ` 💚 +${healBack} heal`;
@@ -1858,26 +1824,25 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (hasSkill(defSkills, 'consecrate') && finalDmg > 0) {
                 const reflect = Math.floor(finalDmg * 0.15);
                 logLine += ` 🌿 ${reflect} reflected`;
-                return { logLine, damageDealt: finalDmg, damageCounter: reflect, nextAtkPenalty, healBack };
+                damageCounter += reflect;
             }
             if (blk.special === 'next_round_hit_penalty') nextAtkPenalty = true;
             if (blk.special === 'counter_25' && Math.random() < 0.25) {
                 const counterDmg = Math.floor(finalDmg * 0.50);
                 logLine += ` — COUNTERED for ${counterDmg}`;
-                return { logLine, damageDealt: finalDmg, damageCounter: counterDmg, nextAtkPenalty, healBack };
+                damageCounter += counterDmg;
             }
         }
     }
-    return { logLine, damageDealt: atkHit ? finalDmg : 0, damageCounter: 0, nextAtkPenalty, healBack };
+    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg };
 }
 function runBattle(fighterA, fighterB) {
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
     let penaltyA = false, penaltyB = false;
     let totalDmgToA = 0, totalDmgToB = 0;
-    let totalElemDmgDealt = 0; // Track elemental damage for skill unlocks
+    let totalElemDmgDealtA = 0;
     
-    // Initialize magic shields at battle start
     let shieldA = calculateMagicShield(fighterB, fighterA);
     let shieldB = calculateMagicShield(fighterA, fighterB);
     shieldA.usedInBattle = false;
@@ -1889,12 +1854,8 @@ function runBattle(fighterA, fighterB) {
     if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
     if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
     
-    if (shieldA.active) {
-        log.push(`✨ ${fighterA.name}'s magic creates a force field worth ${shieldA.value} damage!`);
-    }
-    if (shieldB.active) {
-        log.push(`✨ ${fighterB.name}'s magic creates a force field worth ${shieldB.value} damage!`);
-    }
+    if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field worth ${shieldA.value} damage!`);
+    if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field worth ${shieldB.value} damage!`);
     log.push('---');
 
     for (let round = 1; round <= 10; round++) {
@@ -1909,47 +1870,38 @@ function runBattle(fighterA, fighterB) {
         const dmgToB = resA.damageDealt + resB.damageCounter;
         const dmgToA = resB.damageDealt + resA.damageCounter;
         
-        // Track elemental damage for skill unlocks
-        if (fighterA.elem_dmg) {
-            const elemTotal = Object.values(fighterA.elem_dmg).reduce((a,b) => a + b, 0);
-            if (elemTotal > 0 && dmgToB > 0) totalElemDmgDealt += Math.min(dmgToB, elemTotal);
-        }
-        if (fighterB.elem_dmg) {
-            const elemTotal = Object.values(fighterB.elem_dmg).reduce((a,b) => a + b, 0);
-            if (elemTotal > 0 && dmgToA > 0) totalElemDmgDealt += Math.min(dmgToA, elemTotal);
-        }
+        totalElemDmgDealtA += resA.totalElemDmg;
         
         totalDmgToA += dmgToA;
         totalDmgToB += dmgToB;
-        hpA = Math.max(0, hpA - dmgToA + (resA.healBack || 0));
-        hpB = Math.max(0, hpB - dmgToB + (resB.healBack || 0));
+        
+        hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
+        hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
+        
         log.push(resA.logLine);
         log.push(resB.logLine);
         penaltyA = resB.nextAtkPenalty;
         penaltyB = resA.nextAtkPenalty;
         
-        // Check if someone died during the round
         if (hpA <= 0 || hpB <= 0) {
             if (hpA <= 0 && hpB <= 0) {
                 log.push(`Round ${round}: Both fighters fall simultaneously!`);
-                // Both died, compare damage dealt
                 const winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
                 log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins by dealing more damage!`);
-                return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
+                return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
             } else if (hpA <= 0) {
                 log.push(`Round ${round}: ${fighterA.name} has fallen!`);
                 log.push(`🏆 ${fighterB.name} wins!`);
-                return { log, winnerId: fighterB.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
+                return { log, winnerId: fighterB.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
             } else {
                 log.push(`Round ${round}: ${fighterB.name} has fallen!`);
                 log.push(`🏆 ${fighterA.name} wins!`);
-                return { log, winnerId: fighterA.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
+                return { log, winnerId: fighterA.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
             }
         }
         if (round < 10) log.push('---');
     }
     
-    // After 10 rounds, compare TOTAL DAMAGE DEALT (not remaining HP)
     log.push('---');
     let winnerId;
     if (totalDmgToB >= totalDmgToA) {
@@ -1962,7 +1914,7 @@ function runBattle(fighterA, fighterB) {
         log.push(`🏆 ${fighterB.name} wins by dealing more damage!`);
     }
     
-    return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt };
+    return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
 }
 
 function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
@@ -2099,6 +2051,7 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
         id: -1, 
         name: zonePrefix ? `${zonePrefix} ${cfg.name}` : cfg.name,
         hp: hp,
+        hpMax: hp,
         dmgMin: dmgMin,
         dmgMax: dmgMax,
         agility: agility,
@@ -2118,7 +2071,8 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
 async function buildCombatFighter(db, char) {
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const setBonuses = getEquippedSetBonuses(equippedArray);
-    const hpCurrent = char.hp_current ?? calcHpMax(char, equippedArray);
+    const hpMax = calcHpMax(char, equippedArray);
+    const hpCurrent = char.hp_current ?? hpMax;
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -2140,13 +2094,24 @@ async function buildCombatFighter(db, char) {
         if (!hasShield) noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
     }
 
-    const elemDmg = calcElemDmg(equippedArray);
-    const elemResist = calcElemResist(char, equippedArray);
+    const weaponItem = equippedArray.find(item => {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            return data?.slot === 'weapon';
+        } catch { return false; }
+    });
+    let weapon = null;
+    if (weaponItem) {
+        try {
+            weapon = typeof weaponItem.item_data === 'string' ? JSON.parse(weaponItem.item_data) : weaponItem.item_data;
+        } catch {}
+    }
 
     return {
         id: char.id,
         name: char.name,
         class: char.class,
+        weapon: weapon,
         hp: hpCurrent,
         dmgMin: dmgMin + (skillPassives.dmg_min || 0),
         dmgMax: dmgMax + (skillPassives.dmg_max || 0),
@@ -3679,8 +3644,9 @@ if (freshChar.class === 'rogue') {
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
-            class: freshChar.class,  // ADD CLASS FOR MAGE PENALTY
+            class: freshChar.class,
             hp: hpCurrent,
+            hpMax: hpMax,
             dmgMin: dmgMin + (skillPassives.dmg_min || 0),
             dmgMax: dmgMax + (skillPassives.dmg_max || 0),
             strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
