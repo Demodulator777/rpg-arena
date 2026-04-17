@@ -2810,6 +2810,7 @@ function renderGearGrid(el, gear, equipped) {
         const upgradeLevel = i.upgrade_level || 0;
         const qc = d.quality==='legendary'?'inv-legendary':d.quality==='rare'?'inv-rare':'';
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
+        const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
         
         return `
         <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;">
@@ -2822,7 +2823,7 @@ function renderGearGrid(el, gear, equipped) {
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
                 <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>
-                ${upgradeLevel < 5 ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
+                ${upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
@@ -2838,9 +2839,11 @@ async function upgradeItem(inventoryId) {
         
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
-        
-        if (currentUpgrade >= 5) {
-            showMsg('inv-msg', 'Item already at max upgrade level (+5)!', true);
+        const quality = itemData.quality || 'common';
+        const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
+
+        if (currentUpgrade >= maxUpgrade) {
+            showMsg('inv-msg', `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`, true);
             return;
         }
         
@@ -5741,9 +5744,11 @@ async function openUpgradeModal(inventoryId) {
         
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
-        
-        if (currentUpgrade >= 5) {
-            showMsg('inv-msg', 'Item already at max upgrade level (+5)!', true);
+        const quality = itemData.quality || 'common';
+        const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
+
+        if (currentUpgrade >= maxUpgrade) {
+            showMsg('inv-msg', `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`, true);
             return;
         }
         
