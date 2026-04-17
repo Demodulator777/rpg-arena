@@ -127,7 +127,7 @@ function resolveBattle(attacker, defender, aEquipRaw, dEquipRaw) {
         sHp = Math.max(0, sHp - h1.totalDmg);
         let msg1 = `  ${first.name} → ${second.name}: ${h1.physDmg} phys`;
         if (h1.magicBurst) msg1 += ` + ${h1.burstDmg} magic burst`;
-        if (h1.elemDmg > 0) msg1 += ` + ${h1.elemDmg} ${ELEM_EMOJIS[h1.elemType]}`;
+        if ((h1.elemDmg || 0) > 0) msg1 += ` + ${h1.elemDmg} ${ELEM_EMOJIS[h1.elemType]}`;
         if (h1.dodged) msg1 += ` (dodged!)`;
         msg1 += ` = ${h1.totalDmg} total | ${second.name} ${sHp}HP`;
         log.push(msg1);
@@ -140,7 +140,7 @@ function resolveBattle(attacker, defender, aEquipRaw, dEquipRaw) {
         fHp = Math.max(0, fHp - h2.totalDmg);
         let msg2 = `  ${second.name} → ${first.name}: ${h2.physDmg} phys`;
         if (h2.magicBurst) msg2 += ` + ${h2.burstDmg} magic burst`;
-        if (h2.elemDmg > 0) msg2 += ` + ${h2.elemDmg} ${ELEM_EMOJIS[h2.elemType]}`;
+        if ((h2.elemDmg || 0) > 0) msg2 += ` + ${h2.elemDmg} ${ELEM_EMOJIS[h2.elemType]}`;
         if (h2.dodged) msg2 += ` (dodged!)`;
         msg2 += ` = ${h2.totalDmg} total | ${first.name} ${fHp}HP`;
         log.push(msg2);
