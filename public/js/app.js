@@ -2533,6 +2533,14 @@ async function cancelTravel() {
     }
 }
 function updateTravelStatusBar() { if(playerTravelTarget) showTravelOverlay(); else hideTravelOverlay(); }
+const ABYSS_ZONES = {
+    shadowfen: { name: 'Shadowfen Depths', emoji: '🌑', minLevel: 39 },
+    crimson:   { name: 'Crimson Wasteland', emoji: '🌋', minLevel: 45 },
+    void:      { name: 'Abyssal Void', emoji: '🕳️', minLevel: 55 },
+    citadel:   { name: 'The Dark Citadel', emoji: '🏰', minLevel: 70 },
+    eternal_dark: { name: 'Eternal Darkness', emoji: '🌌', minLevel: 85 }
+};
+
 async function checkTravelStatus() {
     try {
         const status=await api('GET','/game/travel/status');
@@ -2552,18 +2560,31 @@ async function checkTravelStatus() {
         playerTravelStartTime=status.travelStartTime||0;
         unlockedTravelZones = new Set(status.unlockedZones || ['forest']);
         unlockedAbyssZones = new Set(status.unlockedAbyssZones || ['shadowfen']);
+        
         if (playerTravelTarget) showTravelOverlay(); else hideTravelOverlay();
+        
         if (status.encounterResult) {
             const result = status.encounterResult;
-            const zoneLabel = (ZONES[result.targetZone]?.name || abyssData?.zones?.[result.targetZone]?.name || result.targetZone || 'the zone');
+            const currentMap = status.currentMap || character?.current_map || 'overworld';
+            const zoneMap = currentMap === 'abyss' ? ABYSS_ZONES : ZONES;
+            const zoneDef = zoneMap[result.targetZone];
+            const zoneLabel = zoneDef ? zoneDef.name : (result.targetZone || 'the zone');
+            
             const summary = result.won
                 ? `Unlocked ${zoneLabel} · ⚔️ ${result.guardianName} defeated`
                 : `${result.guardianName} drove you back from ${zoneLabel}`;
+                
             showBattleReportModal(result.log || [], result.won, summary, result.totalDmgDealt, result.totalDmgTaken);
             showMsg('missions-msg', result.won ? `${zoneLabel} unlocked.` : `You were forced back to ${status.location}.`, !result.won);
+            
+            // Re-render map to show progress
+            renderCurrentMap();
         }
         return status;
-    } catch(e) { console.error('Failed to check travel status:',e); return null; }
+    } catch(e) { 
+        console.error('Failed to check travel status:', e); 
+        return null; 
+    }
 }
 
 // ── Mission timer ─────────────────────────────────────────────────────────
@@ -4856,50 +4877,65 @@ async function loadInbox() {
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
-        let html=`<button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button>`;
+        let html=`<div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>`;
         if (!messages.length) html+='<p class="empty">Your inbox is empty.</p>';
         else html+=`<div class="inbox-list">${messages.map(m=>{
             const isReport = m.body && m.body.startsWith('BATTLE_REPORT:');
+            const dateStr = formatDate(m.sent_at);
+            
             if (isReport) {
                 let report = null;
                 try { report = JSON.parse(m.body.slice('BATTLE_REPORT:'.length)); } catch {}
                 if (report) window._reportCache[m.id] = report;
                 const isMission = report?.type === 'mission';
                 const icon = isMission ? (report?.won ? '✅' : '💀') : (report?.won ? '🏆' : '⚔️');
-                const tag  = isMission ? 'Mission Report' : 'Battle Report';
-                const tagColor = isMission ? 'rgba(52,152,219,0.75)' : 'rgba(231,76,60,0.7)';
-                return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
+                const tag  = isMission ? 'Mission' : 'Battle';
+                const tagClass = isMission ? 'tag-mission' : 'tag-battle';
+                
+                return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
                     <div class="msg-header">
-                        <div class="msg-from ${m.read?'':'unread-from'}" style="display:flex;align-items:center;gap:7px">
-                            <span style="font-size:0.65rem;padding:2px 8px;border-radius:4px;background:${tagColor};color:#fff;font-weight:700;letter-spacing:0.04em">${tag}</span>
+                        <div class="msg-meta">
+                            <span class="msg-tag ${tagClass}">${tag}</span>
+                            <span class="msg-date">${dateStr}</span>
+                        </div>
+                        <div class="msg-from ${m.read?'':'unread-from'}">
                             ${icon} ${escHtml(m.subject)}
                         </div>
-                        <div class="msg-date">${new Date(m.sent_at*1000).toLocaleDateString()}</div>
                     </div>
-                    ${report ? `<div style="font-size:0.73rem;color:rgba(255,255,255,0.4);margin-top:4px">
+                    ${report ? `<div class="msg-summary-line">
                         vs ${escHtml(report.opponentName||report.npcName||'?')}
-                        ${report.goldEarned ? ` · 💰 +${report.goldEarned}` : ''}
-                        ${report.goldLost   ? ` · 💸 -${report.goldLost}`  : ''}
-                        ${report.xpEarned   ? ` · ⭐ +${report.xpEarned} XP` : ''}
+                        ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
+                        ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
+                        ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
                     </div>` : ''}
-                    <div class="msg-actions-report" style="display:flex;gap:8px;margin-top:8px">
+                    <div class="msg-actions" style="display:flex;">
                         <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
-                        <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
+                        <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
                     </div>
                 </div>`;
             }
+            
             return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
-                <div class="msg-header"><div class="msg-from ${m.read?'':'unread-from'}">From: ${m.sender_name}</div><div class="msg-date">${new Date(m.sent_at*1000).toLocaleDateString()}</div></div>
+                <div class="msg-header">
+                    <div class="msg-meta">
+                        <span class="msg-tag tag-personal">Message</span>
+                        <span class="msg-date">${dateStr}</span>
+                    </div>
+                    <div class="msg-from ${m.read?'':'unread-from'}">From: ${escHtml(m.sender_name)}</div>
+                </div>
                 <div class="msg-subject">${escHtml(m.subject)}</div>
                 <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
-                <div class="msg-actions" style="display:none"><button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button><button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button></div>
+                <div class="msg-actions" style="display:none">
+                    <button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>
+                    <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
+                </div>
             </div>`;
         }).join('')}</div>`;
         el.innerHTML=html;
         messages.filter(m=>!m.body?.startsWith('BATTLE_REPORT:')).forEach(m=>{
             const row=document.getElementById(`msg-${m.id}`); if(!row) return;
             row.addEventListener('click',async(e)=>{
-                if (e.target.tagName==='BUTTON') return;
+                if (e.target.tagName==='BUTTON' || e.target.closest('button')) return;
                 const b=row.querySelector('.msg-body-full'),ac=row.querySelector('.msg-actions'),exp=b.style.display!=='none';
                 b.style.display=exp?'none':'block'; ac.style.display=exp?'none':'flex';
                 if(!m.read&&!exp){m.read=1;row.classList.remove('unread');row.querySelector('.msg-from').classList.remove('unread-from');await api('POST',`/game/messages/${m.id}/read`);pollUnread();}
@@ -4970,6 +5006,14 @@ function itemIcon(item, size='2rem') {
 function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.toggle('hidden',!msg);}
 function showMsg(id,msg,isError=false){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.background=isError?'rgba(192,57,43,0.1)':'';el.style.borderColor=isError?'rgba(192,57,43,0.4)':'';el.style.color=isError?'var(--red-light)':'';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function formatDate(ts) {
+    const d = new Date(ts * 1000);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    if (isToday) return `Today, ${time}`;
+    return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+}
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 
 function encodeActionArgs(args = []) {
