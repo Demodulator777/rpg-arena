@@ -221,17 +221,35 @@ const ZONE_ROUTES = {
 
 // ── Component Upgrade Values (for frontend) ────────────────────────────────
 const COMPONENT_UPGRADE_VALUES = {
-    iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot' },
-    hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank' },
-    tanned_hide: { bonus: 2, goldCost: 5000, name: 'Tanned Hide' },
-    poison_extract: { bonus: 3, goldCost: 8000, name: 'Poison Extract' },
-    frost_core: { bonus: 3, goldCost: 8000, name: 'Frost Core' },
-    mithril_ingot: { bonus: 4, goldCost: 12000, name: 'Mithril Ingot' },
-    arcane_shard: { bonus: 4, goldCost: 12000, name: 'Arcane Shard' },
-    dragon_plate: { bonus: 6, goldCost: 20000, name: 'Dragon Plate' },
-    void_crystal: { bonus: 6, goldCost: 20000, name: 'Void Crystal' },
-    shadow_weave: { bonus: 8, goldCost: 30000, name: 'Shadow Weave' },
-    demon_alloy: { bonus: 10, goldCost: 50000, name: 'Demon Alloy' }
+    iron_ingot: { bonus: 2, goldCost: 5000, name: 'Iron Ingot', emoji: '🔩', recipe: { iron_ore: 3 }, source: 'Forest, Swamp, Mountains' },
+    hardwood_plank: { bonus: 2, goldCost: 5000, name: 'Hardwood Plank', emoji: '🪚', recipe: { wood: 3 }, source: 'Forest, Swamp' },
+    tanned_hide: { bonus: 2, goldCost: 5000, name: 'Tanned Hide', emoji: '🧶', recipe: { wolf_pelt: 2, herbs: 1 }, source: 'Forest, Swamp' },
+    poison_extract: { bonus: 3, goldCost: 8000, name: 'Poison Extract', emoji: '⚗️', recipe: { poison_gland: 2 }, source: 'Swamp' },
+    frost_core: { bonus: 3, goldCost: 8000, name: 'Frost Core', emoji: '🧊', recipe: { frost_essence: 2 }, source: 'Mountains' },
+    mithril_ingot: { bonus: 4, goldCost: 12000, name: 'Mithril Ingot', emoji: '⚙️', recipe: { mithril_ore: 3 }, source: 'Mountains, Ruins' },
+    arcane_shard: { bonus: 4, goldCost: 12000, name: 'Arcane Shard', emoji: '💠', recipe: { swamp_crystal: 2, arcane_dust: 1 }, source: 'Swamp, Ruins, Dark City' },
+    dragon_plate: { bonus: 6, goldCost: 20000, name: 'Dragon Plate', emoji: '🛡️', recipe: { dragon_scale_shard: 3, mithril_ore: 2 }, source: 'Mountains' },
+    void_crystal: { bonus: 6, goldCost: 20000, name: 'Void Crystal', emoji: '🔮', recipe: { void_shard: 2, rune_fragment: 1 }, source: 'Ruins, Dark City' },
+    shadow_weave: { bonus: 8, goldCost: 30000, name: 'Shadow Weave', emoji: '🕸️', recipe: { shadow_essence: 2, arcane_dust: 2 }, source: 'Dark City' },
+    demon_alloy: { bonus: 10, goldCost: 50000, name: 'Demon Alloy', emoji: '⚡', recipe: { demon_core: 1, mithril_ore: 3 }, source: 'Dark City' }
+};
+
+const RAW_MATERIAL_INFO = {
+    iron_ore: { name: 'Iron Ore', source: 'Forest, Swamp, Mountains' },
+    wood: { name: 'Wood', source: 'Forest, Swamp' },
+    wolf_pelt: { name: 'Wolf Pelt', source: 'Forest' },
+    herbs: { name: 'Herbs', source: 'Forest, Swamp' },
+    poison_gland: { name: 'Poison Gland', source: 'Swamp' },
+    swamp_crystal: { name: 'Swamp Crystal', source: 'Swamp' },
+    frost_essence: { name: 'Frost Essence', source: 'Mountains' },
+    mithril_ore: { name: 'Mithril Ore', source: 'Mountains, Ruins' },
+    arcane_dust: { name: 'Arcane Dust', source: 'Ruins, Dark City' },
+    dragon_scale_shard: { name: 'Dragon Scale Shard', source: 'Mountains' },
+    void_shard: { name: 'Void Shard', source: 'Ruins, Dark City' },
+    rune_fragment: { name: 'Rune Fragment', source: 'Ruins' },
+    shadow_essence: { name: 'Shadow Essence', source: 'Dark City' },
+    demon_core: { name: 'Demon Core', source: 'Dark City' },
+    legendary_fragment: { name: 'Legendary Fragment', source: 'Dark City, Bosses' }
 };
 
 const POSSIBLE_STATS = [
@@ -5734,14 +5752,30 @@ async function updatePotionBadge() {
 }
 let currentUpgradeItemId = null;
 
+async function craftComponentDirectly(componentId, name) {
+    try {
+        const d = await api('POST', '/game/forge/refine', { componentId });
+        character = await api('GET', '/game/character');
+        renderTopBar();
+        renderCharacter();
+        showMsg('upgrade-msg', d.message);
+        // Refresh the upgrade modal
+        if (currentUpgradeItemId) openUpgradeModal(currentUpgradeItemId);
+    } catch (e) {
+        showMsg('upgrade-msg', e.message, true);
+    }
+}
+
 async function openUpgradeModal(inventoryId) {
     currentUpgradeItemId = inventoryId;
-    
+    selectedComponentId = null;
+    selectedComponentName = null;
+
     try {
         const invData = await api('GET', '/game/inventory');
         const item = invData.items.find(i => i.id === inventoryId);
         if (!item) return;
-        
+
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
         const quality = itemData.quality || 'common';
@@ -5751,51 +5785,85 @@ async function openUpgradeModal(inventoryId) {
             showMsg('inv-msg', `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`, true);
             return;
         }
-        
-        // Get available components
-        const components = invData.items.filter(i => i.item_type === 'component');
-        
-        if (components.length === 0) {
-            showMsg('inv-msg', 'You need components to upgrade! Craft them in the forge.', true);
-            return;
-        }
-        
-        // Build component list HTML
+
+        // Get owned components count
+        const ownedComponents = {};
+        invData.items.filter(i => i.item_type === 'component').forEach(c => {
+            const d = c.item_data;
+            ownedComponents[d.id] = (ownedComponents[d.id] || 0) + (d.qty || 1);
+        });
+
+        // Get owned raw materials count
+        const ownedRawMats = {};
+        invData.items.filter(i => i.item_type === 'raw_mat').forEach(m => {
+            const d = m.item_data;
+            ownedRawMats[d.id] = (ownedRawMats[d.id] || 0) + (d.qty || 1);
+        });
+
+        // Build component list HTML showing all possible upgrade materials
         let componentsHtml = '';
-        components.forEach(comp => {
-            const compData = comp.item_data;
-            const qty = compData.qty || 1;
+        Object.entries(COMPONENT_UPGRADE_VALUES).forEach(([id, info]) => {
+            const owned = ownedComponents[id] || 0;
+            const canCraft = info.recipe && Object.entries(info.recipe).every(([mat, qty]) => (ownedRawMats[mat] || 0) >= qty) && (character?.gold || 0) >= (info.goldCost || 0);
+            
+            // Build recipe string for hint
+            let recipeInfo = '';
+            if (info.recipe) {
+                recipeInfo = `<div class="upgrade-component-recipe">Recipe: ${Object.entries(info.recipe).map(([mat, qty]) => {
+                    const has = ownedRawMats[mat] || 0;
+                    const color = has >= qty ? '#2ecc71' : '#e74c3c';
+                    const matName = RAW_MATERIAL_INFO[mat]?.name || mat.replace(/_/g, ' ');
+                    return `<span style="color:${color}">${qty} ${matName}</span>`;
+                }).join(', ')}</div>`;
+            }
+
             componentsHtml += `
-                <div class="upgrade-component-card" ${actionAttrs('selectComponent', compData.id, compData.name, qty)}>
-                    <div class="component-icon">${compData.emoji || '🔧'}</div>
-                    <div class="component-info">
-                        <div class="component-name">${compData.name}</div>
-                        <div class="component-qty">Owned: ${qty}</div>
+                <div class="upgrade-component-card ${owned > 0 ? '' : 'unowned'} ${selectedComponentId === id ? 'selected' : ''}" 
+                     ${owned > 0 ? `onclick="selectComponent('${id}', '${info.name}', ${owned}, this)"` : ''}>
+                    <div class="component-icon-wrap">
+                        <div class="component-icon">${info.emoji || '🔧'}</div>
+                        <div class="component-owned-badge">${owned}</div>
                     </div>
+                    <div class="component-info">
+                        <div class="component-name">${info.name} <span class="component-bonus-tag">+${info.bonus} stats</span></div>
+                        <div class="component-source">📍 Source: ${info.source}</div>
+                        ${recipeInfo}
+                    </div>
+                    ${owned === 0 && canCraft ? `
+                        <button class="btn-craft-direct" ${actionAttrs('craftComponentDirectly', id, info.name)}>⚒️ Craft</button>
+                    ` : ''}
                 </div>
             `;
         });
-        
+
         const modalContent = document.getElementById('upgrade-modal-content');
         modalContent.innerHTML = `
             <div class="upgrade-item-info">
-                <div class="upgrade-item-name">${itemData.name}</div>
-                <div class="upgrade-item-current">Current Level: +${currentUpgrade}</div>
-                <div class="upgrade-item-next">Next Level: +${currentUpgrade + 1}</div>
+                <div class="upgrade-item-preview">${itemIcon(itemData, '48px')}</div>
+                <div class="upgrade-item-details">
+                    <div class="upgrade-item-name">${itemData.name}</div>
+                    <div class="upgrade-item-level-row">
+                        <span class="upgrade-item-current">Level +${currentUpgrade}</span>
+                        <span class="upgrade-item-arrow">➜</span>
+                        <span class="upgrade-item-next">Level +${currentUpgrade + 1}</span>
+                    </div>
+                </div>
             </div>
-            <div class="upgrade-section-title">Select a component to use:</div>
+            <div class="upgrade-section-title">Select a component to consume:</div>
             <div class="upgrade-components-grid">
                 ${componentsHtml}
             </div>
             <div id="upgrade-selected-info" class="upgrade-selected-info hidden">
-                <div class="upgrade-selected-title">Selected Component:</div>
-                <div id="selected-component-details"></div>
-                <button class="btn-primary" ${actionAttrs('confirmUpgrade')} style="margin-top: 16px;">Confirm Upgrade</button>
+                <div class="upgrade-selected-box">
+                    <div id="selected-component-details"></div>
+                    <button class="btn-primary btn-confirm-upgrade" ${actionAttrs('confirmUpgrade')}>Confirm Upgrade</button>
+                </div>
             </div>
+            <div id="upgrade-msg" class="msg-bar hidden" style="margin-top:12px"></div>
         `;
-        
+
         document.getElementById('upgrade-modal').classList.remove('hidden');
-        
+
     } catch (error) {
         console.error('Error opening upgrade modal:', error);
         showMsg('inv-msg', error.message, true);
@@ -5805,30 +5873,27 @@ async function openUpgradeModal(inventoryId) {
 let selectedComponentId = null;
 let selectedComponentName = null;
 
-function selectComponent(componentId, componentName, qty, el) {
+function selectComponent(id, name, qty, el) {
     if (qty < 1) {
-        showMsg('inv-msg', `You don't have any ${componentName}!`, true);
+        showMsg('inv-msg', `You don't have any ${name}!`, true);
         return;
     }
-    
-    selectedComponentId = componentId;
-    selectedComponentName = componentName;
-    
+
+    selectedComponentId = id;
+    selectedComponentName = name;
+
     // Highlight selected card
-    document.querySelectorAll('.upgrade-component-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    el?.classList.add('selected');
-    
-    // Show selected info
+    document.querySelectorAll('.upgrade-component-card').forEach(card => card.classList.remove('selected'));
+    if (el) el.classList.add('selected');
+
     const selectedInfo = document.getElementById('upgrade-selected-info');
     const detailsDiv = document.getElementById('selected-component-details');
-    
-    // Get upgrade info from backend (or estimate)
+    const info = COMPONENT_UPGRADE_VALUES[id] || {};
+
     detailsDiv.innerHTML = `
-        <div class="selected-component-name">${componentName}</div>
-        <div class="selected-component-bonus">Bonus: +? stats</div>
-        <div class="selected-component-cost">Gold Cost: ?</div>
+        <div class="selected-comp-name">${info.emoji || '🔧'} ${name}</div>
+        <div class="selected-comp-bonus">Bonus: +${info.bonus} to random stat</div>
+        <div class="selected-comp-owned">You have ${qty} available</div>
     `;
     
     selectedInfo.classList.remove('hidden');
