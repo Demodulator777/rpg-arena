@@ -2032,6 +2032,28 @@ global.debugDungeonDetails = function() {
     }
     console.log('Monster creation would happen', monsterCount, 'out of 100 times');
 };
+  function resetDungeonState() {
+    D = {
+      tokens: 0,
+      activeDungeon: null,
+      floor: 1,
+      highestFloor: 1,
+      rooms: [],
+      playerPos: 0,
+      exploredRooms: new Set(),
+      combat: null,
+      travelTimer: null,
+      isTraveling: false,
+      dungeonLog: [],
+      savedProgress: {},
+      dungeonInventory: [],
+      blacksmithUnlocked: false,
+      guildReputation: 0,
+    };
+    try { localStorage.removeItem('dungeon_state'); } catch(e) {}
+  }
+
+  global.resetDungeonState = resetDungeonState;
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
