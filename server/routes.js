@@ -1673,8 +1673,11 @@ function calculateMagicShield(attacker, defender) {
             remaining: shieldValue,
             usedInBattle: false
         };
-    }
-    
+}
+
+    const elemDmg = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
     return {
         active: false,
         value: 0,
