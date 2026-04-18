@@ -3042,7 +3042,7 @@ async function buildCharacterResponse(char, db) {
     const activeEvent = getActiveEvent();
     const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
 
-const armorValue = calcArmorValue(char, equippedArray);
+    const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg = calcElemDmg(equippedArray || []);
     const elemResist = calcElemResist(char, equippedArray || []);
     
