@@ -20,6 +20,7 @@ let battlePlaybackQueue = [];
 let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = localStorage.getItem('battle_arena_skip_battle_animations') === '1';
+let assistantEnabled = localStorage.getItem('rpg_assistant_enabled') !== '0';
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -34,6 +35,8 @@ let accountCharacters = [];
 let activeCharacterId = null;
 let maxCharacterSlots = 4;
 let availableCharacterClasses = ['warrior', 'mage', 'rogue', 'paladin'];
+let assistantSuggestions = [];
+let assistantEnabled = true;
 
 async function loadAbyssData() {
     try {
@@ -487,6 +490,10 @@ function renderTopbarMenu() {
                 <span>Always skip battle animations</span>
                 <span class="topbar-menu-toggle-state">${alwaysSkipBattleAnimations ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
+                <span>Assistant helper</span>
+                <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
+            </button>
         </div>`;
 }
 
@@ -519,6 +526,18 @@ function toggleAlwaysSkipBattleAnimations() {
     alwaysSkipBattleAnimations = !alwaysSkipBattleAnimations;
     localStorage.setItem('battle_arena_skip_battle_animations', alwaysSkipBattleAnimations ? '1' : '0');
     renderTopbarMenu();
+}
+
+function toggleAssistant() {
+    assistantEnabled = !assistantEnabled;
+    localStorage.setItem('rpg_assistant_enabled', assistantEnabled ? '1' : '0');
+    renderTopbarMenu();
+    if (assistantEnabled) {
+        loadAssistantSuggestions();
+    } else {
+        document.getElementById('assistant-notification')?.classList.add('hidden');
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
+    }
 }
 
 function renderCharacterSwitcher() {
@@ -587,6 +606,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         document.body.appendChild(tt);
     }
     initMissionTimer();
+    loadAssistantSuggestions();
     if (token) {
         try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); }
         catch (e) {
@@ -688,6 +708,9 @@ function showTab(name) {
     const idx = TAB_ORDER.indexOf(name);
     if (idx >= 0) document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
     
+    // Update assistant highlight after tab change
+    updateAssistantUI();
+    
     if (name === 'character')   renderCharacter();
     if (name === 'premium')     loadPremium();
     if (name === 'loadout')     renderLoadout();
@@ -699,7 +722,7 @@ function showTab(name) {
     }
     if (name === 'upgrade')     renderUpgrade();
     if (name === 'skills')      renderSkills();
-    if (name === 'missions')    loadMissions();
+    if (name === 'missions')    { loadMissions(); loadAssistantSuggestions(); }
     if (name === 'forge')       loadForge();
     if (name === 'inventory')   { syncInvTabButtons(); loadInventory(); }
     if (name === 'leaderboard') loadLeaderboard();
@@ -770,6 +793,64 @@ async function pollUnread() {
         const b=document.getElementById('unread-badge');
         if (d.count>0){b.textContent=d.count;b.classList.remove('hidden');}else b.classList.add('hidden');
     } catch {}
+}
+
+async function loadAssistantSuggestions() {
+    if (!assistantEnabled) return;
+    try {
+        const d = await api('GET', '/game/assistant/suggestions');
+        assistantSuggestions = d.suggestions || [];
+        assistantEnabled = d.enabled !== false && localStorage.getItem('rpg_assistant_enabled') !== '0';
+        updateAssistantUI();
+    } catch (e) {
+        console.error('Failed to load assistant suggestions:', e);
+    }
+}
+
+function updateAssistantUI() {
+    if (!assistantEnabled || assistantSuggestions.length === 0) {
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
+        return;
+    }
+    
+    const tabsToHighlight = assistantSuggestions.map(s => s.tab);
+    
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        const tabArg = btn.getAttribute('data-args');
+        if (tabArg && tabsToHighlight.some(t => tabArg.includes(t))) {
+            btn.classList.add('assistant-highlight');
+        } else {
+            btn.classList.remove('assistant-highlight');
+        }
+    });
+    
+    if (assistantSuggestions.length > 0) {
+        showAssistantNotification();
+    }
+}
+
+function showAssistantNotification() {
+    const msg = assistantSuggestions[0]?.message;
+    if (!msg) return;
+    
+    const notif = document.getElementById('assistant-notification');
+    if (!notif) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="assistant-notification" class="assistant-notification hidden">
+                <span class="assistant-icon">🤖</span>
+                <span class="assistant-message"></span>
+                <button class="assistant-close" onclick="this.parentElement.classList.add('hidden')">✕</button>
+            </div>
+        `);
+    }
+    
+    const notifEl = document.getElementById('assistant-notification');
+    notifEl.querySelector('.assistant-message').textContent = msg;
+    notifEl.classList.remove('hidden');
+    
+    setTimeout(() => {
+        notifEl.classList.add('hidden');
+    }, 8000);
 }
 
 // ── Equipment slot helpers ────────────────────────────────────────────────
