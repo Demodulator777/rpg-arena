@@ -2295,19 +2295,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     justify-content: flex-end;
     margin-bottom: 20px;
 }
-.inbox-section {
-    margin-bottom: 24px;
+.inbox-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
 }
-.inbox-section-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--text-dim);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+.inbox-tab, .compose-btn {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: transparent; color: var(--text-dim); cursor: pointer; font-size: 0.76rem;
+    transition: all 0.14s;
 }
+.inbox-tab:hover, .compose-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); border-color: var(--border-mid); }
+.inbox-tab.active { background: rgba(52,143,209,0.12); border-color: rgba(52,143,209,0.32); color: var(--blue); font-weight: 600; }
 .msg-row {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
