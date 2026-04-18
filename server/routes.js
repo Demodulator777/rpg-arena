@@ -1578,12 +1578,14 @@ function calcArmorValue(char, equippedItems) {
 }
 
 function calcElemDmg(equippedItems) {
+    if (!equippedItems) equippedItems = [];
     const dmg = { pyro:0, water:0, wind:0, electro:0 };
     const setBonuses = getEquippedSetBonuses(equippedItems);
     for (const elem of ELEMENTS) {
         dmg[elem] += setBonuses[`${elem}_dmg`] || 0;
     }
     for (const item of equippedItems) {
+        if (!item) continue;
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!data?.stats) continue;
@@ -1596,12 +1598,14 @@ function calcElemDmg(equippedItems) {
 }
 
 function calcElemResist(char, equippedItems) {
+    if (!equippedItems) equippedItems = [];
     const resist = { pyro:0, water:0, wind:0, electro:0 };
     const setBonuses = getEquippedSetBonuses(equippedItems);
     for (const elem of ELEMENTS) {
         resist[elem] += setBonuses[`${elem}_resist`] || 0;
     }
     for (const item of equippedItems) {
+        if (!item) continue;
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!data?.stats) continue;
@@ -3039,7 +3043,7 @@ async function buildCharacterResponse(char, db) {
     const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
 
     const armorValue = calcArmorValue(char, equippedArray);
-    const elemDmg    = calcElemDmg(equippedArray);
+const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
     
     // Rogue no-shield agility bonus
