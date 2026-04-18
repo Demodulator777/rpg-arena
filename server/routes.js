@@ -3685,8 +3685,24 @@ if (freshChar.class === 'rogue') {
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
         
+        // Force win for new characters (first 4 battles)
+        let forcePlayerWin = false;
+        if ((freshChar.wins || 0) < 4) {
+            forcePlayerWin = true;
+        }
+        
         const battle = runBattle(playerFighter, npc);
-        const playerWon = battle.winnerId === freshChar.id;
+        let playerWon = battle.winnerId === freshChar.id;
+        
+        // Override result for new players
+        if (forcePlayerWin && !playerWon) {
+            playerWon = true;
+            battle.winnerId = freshChar.id;
+            battle.hpRemainingA = Math.max(1, Math.floor(battle.hpRemainingA * 0.3) + Math.floor(battle.hpRemainingB * 0.7));
+            battle.hpRemainingB = 0;
+            battle.log.push('✨ Tutorial victory - experience gained!');
+        }
+        
         await recordMissionSpotResult(db, {
             charId: freshChar.id,
             mapType: mission.map_type || 'overworld',
@@ -4304,8 +4320,24 @@ router.get('/travel/status', auth, async (req, res) => {
                 const guardian = buildTravelGuardian(targetZone, currentMap, freshChar.level, playerFighter);
 
                 if (guardian) {
+                    // Force win for new characters (first 4 battles)
+                    let forcePlayerWin = false;
+                    if ((freshChar.wins || 0) < 4) {
+                        forcePlayerWin = true;
+                    }
+                    
                     const battle = runBattle(playerFighter, guardian);
-                    const playerWon = battle.winnerId === freshChar.id;
+                    let playerWon = battle.winnerId === freshChar.id;
+                    
+                    // Override result for new players
+                    if (forcePlayerWin && !playerWon) {
+                        playerWon = true;
+                        battle.winnerId = freshChar.id;
+                        battle.hpRemainingA = Math.max(1, Math.floor(battle.hpRemainingA * 0.3) + Math.floor(battle.hpRemainingB * 0.7));
+                        battle.hpRemainingB = 0;
+                        battle.log.push('✨ Tutorial victory!');
+                    }
+                    
                     const newHp = Math.max(0, battle.hpRemainingA);
 
                     if (playerWon) {
@@ -6712,6 +6744,113 @@ router.get('/abyss/data', auth, async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/assistant/suggestions', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const userId = req.user.userId;
+        
+        let assistantEnabled = true;
+        try {
+            const userResult = await db.execute({
+                sql: 'SELECT assistant_enabled FROM users WHERE id = ?',
+                args: [userId]
+            });
+            assistantEnabled = userResult.rows?.[0]?.assistant_enabled === 1;
+        } catch (e) {
+            // Column doesn't exist yet, default to enabled
+            assistantEnabled = true;
+        }
+        
+        if (!assistantEnabled) {
+            return res.json({ suggestions: [], enabled: false });
+        }
+        
+        const char = await getCurrentCharacter(db, userId);
+        if (!char) return res.json({ suggestions: [], enabled: true });
+        
+        const suggestions = [];
+        
+        const charResponse = await buildCharacterResponse(char, db);
+        const canTrain = char.training_ends_at && char.training_ends_at <= Math.floor(Date.now() / 1000);
+        const hasUnclaimedTrain = canTrain;
+        
+        const missionsResult = await db.execute({
+            sql: 'SELECT * FROM character_missions WHERE char_id = ? AND status = "active" LIMIT 1',
+            args: [char.id]
+        });
+        const hasActiveMission = missionsResult.rows?.length > 0;
+        
+        const missionsForLevel = generateMission(char.level, char.class, charResponse);
+        const hasAvailableMission = !hasActiveMission && missionsForLevel;
+        
+        const unclaimedResult = await db.execute({
+            sql: 'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND body LIKE "BATTLE_REPORT:%" AND read = 0',
+            args: [char.id]
+        });
+        const hasUnclaimedRewards = Number(unclaimedResult.rows?.[0]?.count || 0) > 0;
+        
+        const canUpgradeStats = (charResponse.strength < 20 * char.level) || 
+                               (charResponse.defense < 15 * char.level) ||
+                               (charResponse.agility < 18 * char.level) ||
+                               (charResponse.magic < 12 * char.level);
+        
+        if (hasUnclaimedTrain) {
+            suggestions.push({
+                type: 'training',
+                message: 'Training complete! Collect your stat bonus.',
+                action: 'train',
+                tab: 'train'
+            });
+        }
+        
+        if (!hasActiveMission && hasAvailableMission) {
+            suggestions.push({
+                type: 'mission',
+                message: 'You have an available mission! Start it to earn rewards.',
+                action: 'missions',
+                tab: 'missions'
+            });
+        }
+        
+        if (hasUnclaimedRewards) {
+            suggestions.push({
+                type: 'rewards',
+                message: 'You have unclaimed battle rewards in your inbox.',
+                action: 'inbox',
+                tab: 'inbox'
+            });
+        }
+        
+        if (canUpgradeStats && char.level < 5) {
+            suggestions.push({
+                type: 'upgrade',
+                message: 'Visit the Trainer to upgrade your stats!',
+                action: 'train',
+                tab: 'train'
+            });
+        }
+        
+        const firstFourWins = char.wins < 4;
+        if (firstFourWins) {
+            suggestions.push({
+                type: 'newbie',
+                message: 'Complete your first battles to unlock more features!',
+                action: 'missions',
+                tab: 'missions'
+            });
+        }
+        
+        res.json({ 
+            suggestions, 
+            enabled: true,
+            highlightTabs: suggestions.map(s => s.tab)
+        });
+    } catch (e) {
+        console.error('Assistant error:', e);
+        res.json({ suggestions: [], enabled: true });
     }
 });
 
