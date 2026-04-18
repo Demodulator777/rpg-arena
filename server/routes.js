@@ -6306,13 +6306,9 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         }
         
         const currentUpgrade = item.upgrade_level || 0;
-        const quality = itemData.quality || 'common';
-        let maxUpgrade = 3;
-        if (quality === 'legendary') maxUpgrade = 5;
-        else if (quality === 'epic' || quality === 'rare') maxUpgrade = 4;
-
-        if (currentUpgrade >= maxUpgrade) {
-            return res.status(400).json({ error: `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!` });
+        
+        if (currentUpgrade >= 5) {
+            return res.status(400).json({ error: 'Item already at max upgrade level (+5)!' });
         }
         
         const component = await dbGet(db, `
