@@ -1532,12 +1532,14 @@ async function applyHpRegen(db, characterId) {
 }
 
 function calcHpMax(char, equippedItems) {
+    if (!equippedItems) equippedItems = [];
     let base = 50 + ((char.vitality || 10) * 25) + ((char.defense || 0) * 2);
     const setBonuses = getEquippedSetBonuses(equippedItems);
     if (setBonuses.hp_max) base += setBonuses.hp_max;
     if (setBonuses.vitality) base += setBonuses.vitality * 25;
     if (setBonuses.defense) base += setBonuses.defense * 2;
     for (const item of equippedItems) {
+        if (!item) continue;
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.hp_max) base += data.stats.hp_max;
@@ -1547,6 +1549,7 @@ function calcHpMax(char, equippedItems) {
 }
 
 function calcBaseDamage(char, equippedItems) {
+    if (!equippedItems) equippedItems = [];
     const setBonuses = getEquippedSetBonuses(equippedItems);
     const totalStrength = (char.strength || 1) + (setBonuses.strength || 0);
     let dmgMin = Math.floor(totalStrength * 0.5);
@@ -1554,6 +1557,7 @@ function calcBaseDamage(char, equippedItems) {
     if (setBonuses.dmg_min) dmgMin += setBonuses.dmg_min;
     if (setBonuses.dmg_max) dmgMax += setBonuses.dmg_max;
     for (const item of equippedItems) {
+        if (!item) continue;
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.dmg_min) dmgMin += data.stats.dmg_min;
@@ -1565,10 +1569,12 @@ function calcBaseDamage(char, equippedItems) {
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
 function calcArmorValue(char, equippedItems) {
+    if (!equippedItems) equippedItems = [];
     const setBonuses = getEquippedSetBonuses(equippedItems);
     let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0)) / 4);
     if (setBonuses.armor) armor += setBonuses.armor;
     for (const item of equippedItems) {
+        if (!item) continue;
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.armor) armor += data.stats.armor;
@@ -1618,15 +1624,17 @@ function calcElemResist(char, equippedItems) {
 }
 
 function getEquippedSetCounts(equippedItems) {
+    if (!equippedItems) return {};
     const counts = {};
     for (const item of equippedItems) {
+        if (!item) continue;
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!data?.setId) continue;
             counts[data.setId] = (counts[data.setId] || 0) + 1;
         } catch {}
     }
-    return counts;
+return counts;
 }
 
 function getEquippedSetBonuses(equippedItems) {
