@@ -4928,121 +4928,165 @@ async function loadInbox() {
         battlesList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
         missionsList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
         
-        let html=`<div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>`;
+        let html=`<div class="inbox-tabs">
+            <button class="inbox-tab active" ${actionAttrs('filterInbox', 'messages')}>💬 Messages (${messagesList.length})</button>
+            <button class="inbox-tab" ${actionAttrs('filterInbox', 'battles')}>⚔️ Battles (${battlesList.length})</button>
+            <button class="inbox-tab" ${actionAttrs('filterInbox', 'missions')}>🎯 Missions (${missionsList.length})</button>
+        </div>
+        <div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>
+        <div id="inbox-filtered-content"></div>`;
         
-        // Render each section
-        const renderMsgRow = (m) => {
-            const dateStr = formatDate(m.sent_at);
-            return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
-                <div class="msg-header">
-                    <div class="msg-meta">
-                        <span class="msg-tag tag-personal">Message</span>
-                        <span class="msg-date">${dateStr}</span>
-                    </div>
-                    <div class="msg-from ${m.read?'':'unread-from'}">From: ${escHtml(m.sender_name)}</div>
-                </div>
-                <div class="msg-subject">${escHtml(m.subject)}</div>
-                <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
-                <div class="msg-actions" style="display:none">
-                    <button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>
-                    <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
-                </div>
-            </div>`;
-        };
-        
-        const renderBattleRow = (m) => {
-            const report = m.report;
-            const dateStr = formatDate(m.sent_at);
-            const icon = report?.won ? '🏆' : '⚔️';
-            return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
-                <div class="msg-header">
-                    <div class="msg-meta">
-                        <span class="msg-tag tag-battle">Battle</span>
-                        <span class="msg-date">${dateStr}</span>
-                    </div>
-                    <div class="msg-from ${m.read?'':'unread-from'}">
-                        ${icon} ${escHtml(m.subject)}
-                    </div>
-                </div>
-                ${report ? `<div class="msg-summary-line">
-                    vs ${escHtml(report.opponentName||report.npcName||'?')}
-                    ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
-                    ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
-                    ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
-                </div>` : ''}
-                <div class="msg-actions" style="display:flex;">
-                    <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
-                    <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
-                </div>
-            </div>`;
-        };
-        
-        const renderMissionRow = (m) => {
-            const report = m.report;
-            const dateStr = formatDate(m.sent_at);
-            const icon = report?.won ? '✅' : '💀';
-            return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
-                <div class="msg-header">
-                    <div class="msg-meta">
-                        <span class="msg-tag tag-mission">Mission</span>
-                        <span class="msg-date">${dateStr}</span>
-                    </div>
-                    <div class="msg-from ${m.read?'':'unread-from'}">
-                        ${icon} ${escHtml(m.subject)}
-                    </div>
-                </div>
-                ${report ? `<div class="msg-summary-line">
-                    vs ${escHtml(report.opponentName||report.npcName||'?')}
-                    ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
-                    ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
-                    ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
-                </div>` : ''}
-                <div class="msg-actions" style="display:flex;">
-                    <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
-                    <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
-                </div>
-            </div>`;
-        };
-        
-        // Messages section
-        if (messagesList.length) {
-            html += `<div class="inbox-section"><div class="inbox-section-title">💬 Messages (${messagesList.length})</div>
-                <div class="inbox-list">${messagesList.map(renderMsgRow).join('')}</div></div>`;
-        }
-        
-        // Battles section
-        if (battlesList.length) {
-            html += `<div class="inbox-section"><div class="inbox-section-title">⚔️ Battles (${battlesList.length})</div>
-                <div class="inbox-list">${battlesList.map(renderBattleRow).join('')}</div></div>`;
-        }
-        
-        // Missions section
-        if (missionsList.length) {
-            html += `<div class="inbox-section"><div class="inbox-section-title">🎯 Missions (${missionsList.length})</div>
-                <div class="inbox-list">${missionsList.map(renderMissionRow).join('')}</div></div>`;
-        }
-        
-        if (!messages.length) html += '<p class="empty">Your inbox is empty.</p>';
+        // Store for filtering
+        window._inboxData = { messages: messagesList, battles: battlesList, missions: missionsList };
         
         el.innerHTML=html;
-        messages.filter(m=>!m.body?.startsWith('BATTLE_REPORT:')).forEach(m=>{
-            const row=document.getElementById(`msg-${m.id}`); if(!row) return;
-            row.addEventListener('click',async(e)=>{
-                if (e.target.tagName==='BUTTON' || e.target.closest('button')) return;
-                const b=row.querySelector('.msg-body-full'),ac=row.querySelector('.msg-actions'),exp=b.style.display!=='none';
-                b.style.display=exp?'none':'block'; ac.style.display=exp?'none':'flex';
-                if(!m.read&&!exp){m.read=1;row.classList.remove('unread');row.querySelector('.msg-from').classList.remove('unread-from');await api('POST',`/game/messages/${m.id}/read`);pollUnread();}
-            });
-        });
-        messages.filter(m=>m.body?.startsWith('BATTLE_REPORT:')&&!m.read).forEach(async m=>{
+        
+        // Render default (messages)
+        renderInboxFilter('messages');
+        
+        // Mark messages as read
+        messagesList.filter(m=>!m.read).forEach(async m=>{
             m.read=1;
             const row=document.getElementById(`msg-${m.id}`);
             if(row){row.classList.remove('unread');const f=row.querySelector('.msg-from');if(f)f.classList.remove('unread-from');}
             try{await api('POST',`/game/messages/${m.id}/read`);}catch{}
         });
+        
         pollUnread();
     } catch(e) { el.innerHTML=`<p class="loading">${e.message}</p>`; }
 }
+function filterInbox(filter) {
+    renderInboxFilter(filter);
+}
+
+function renderInboxFilter(filter) {
+    const data = window._inboxData || {};
+    const list = data[filter] || [];
+    const container = document.getElementById('inbox-filtered-content');
+    if (!container) return;
+    
+    const renderMsgRow = (m) => {
+        const dateStr = formatDate(m.sent_at);
+        return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
+            <div class="msg-header">
+                <div class="msg-meta">
+                    <span class="msg-tag tag-personal">Message</span>
+                    <span class="msg-date">${dateStr}</span>
+                </div>
+                <div class="msg-from ${m.read?'':'unread-from'}">From: ${escHtml(m.sender_name)}</div>
+            </div>
+            <div class="msg-subject">${escHtml(m.subject)}</div>
+            <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
+            <div class="msg-actions" style="display:none">
+                <button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>
+                <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
+            </div>
+        </div>`;
+    };
+    
+    const renderBattleRow = (m) => {
+        const report = m.report;
+        const dateStr = formatDate(m.sent_at);
+        const icon = report?.won ? '🏆' : '⚔️';
+        return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
+            <div class="msg-header">
+                <div class="msg-meta">
+                    <span class="msg-tag tag-battle">Battle</span>
+                    <span class="msg-date">${dateStr}</span>
+                </div>
+                <div class="msg-from ${m.read?'':'unread-from'}">${icon} ${escHtml(m.subject)}</div>
+            </div>
+            ${report ? `<div class="msg-summary-line">
+                vs ${escHtml(report.opponentName||report.npcName||'?')}
+                ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
+                ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
+                ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
+            </div>` : ''}
+            <div class="msg-actions" style="display:flex;">
+                <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
+            </div>
+        </div>`;
+    };
+    
+    const renderMissionRow = (m) => {
+        const report = m.report;
+        const dateStr = formatDate(m.sent_at);
+        const icon = report?.won ? '✅' : '💀';
+        return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
+            <div class="msg-header">
+                <div class="msg-meta">
+                    <span class="msg-tag tag-mission">Mission</span>
+                    <span class="msg-date">${dateStr}</span>
+                </div>
+                <div class="msg-from ${m.read?'':'unread-from'}">${icon} ${escHtml(m.subject)}</div>
+            </div>
+            ${report ? `<div class="msg-summary-line">
+                vs ${escHtml(report.opponentName||report.npcName||'?')}
+                ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
+                ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
+                ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
+            </div>` : ''}
+            <div class="msg-actions" style="display:flex;">
+                <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
+            </div>
+        </div>`;
+    };
+    
+    if (!list.length) {
+        container.innerHTML = '<p class="empty">No items in this category.</p>';
+        return;
+    }
+    
+    const renderFn = filter === 'messages' ? renderMsgRow : (filter === 'battles' ? renderBattleRow : renderMissionRow);
+    container.innerHTML = `<div class="inbox-list">${list.map(renderFn).join('')}</div>`;
+    
+    // Re-attach click handlers for messages
+    if (filter === 'messages') {
+        list.forEach(m => {
+            const row = document.getElementById(`msg-${m.id}`);
+            if (!row) return;
+            row.addEventListener('click', async (e) => {
+                if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                const b = row.querySelector('.msg-body-full');
+                const ac = row.querySelector('.msg-actions');
+                const exp = b.style.display !== 'none';
+                b.style.display = exp ? 'none' : 'block';
+                ac.style.display = exp ? 'none' : 'flex';
+                if (!m.read && !exp) {
+                    m.read = 1;
+                    row.classList.remove('unread');
+                    row.querySelector('.msg-from').classList.remove('unread-from');
+                    await api('POST', `/game/messages/${m.id}/read`);
+                    pollUnread();
+                }
+            });
+        });
+    }
+    
+    // Mark reports as read
+    if (filter !== 'messages') {
+        list.filter(m => !m.read).forEach(async m => {
+            m.read = 1;
+            const row = document.getElementById(`msg-${m.id}`);
+            if (row) {
+                row.classList.remove('unread');
+                const f = row.querySelector('.msg-from');
+                if (f) f.classList.remove('unread-from');
+            }
+            try { await api('POST', `/game/messages/${m.id}/read`); } catch {}
+        });
+    }
+    
+    pollUnread();
+    
+    // Update tab UI
+    document.querySelectorAll('.inbox-tab').forEach(t => {
+        t.classList.toggle('active', t.getAttribute('data-action-arg') === filter);
+    });
+}
+
 function viewBattleReport(msgId) {
     const report = window._reportCache?.[msgId];
     if (!report) { alert('Report not found. Try reloading the inbox.'); return; }
