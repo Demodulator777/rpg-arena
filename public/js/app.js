@@ -2235,6 +2235,22 @@ async function doTravelToZone(zoneId) {
 
 async function travelToZone(zoneId) {
     try {
+        // Check if target zone has a gatekeeper and show warning
+        const guardianZones = {
+            overworld: { swamp: 'Bog Warden', mountains: 'Frost Sentinel', ruins: 'Crypt Keeper', dark_city: 'Shadow Gatekeeper' },
+            abyss: { crimson: 'Crimson Gatekeeper', void: 'Void Gatekeeper', citadel: 'Citadel Watcher', eternal_dark: 'Eternal Warden' }
+        };
+        const currentMap = character?.current_map || 'overworld';
+        const guardian = guardianZones[currentMap]?.[zoneId];
+        
+        if (guardian) {
+            const hpCurrent = character?.hp_current || 0;
+            const hpMax = character?.hp_max || 1;
+            const hpPercent = Math.round((hpCurrent / hpMax) * 100);
+            const warning = `⚠️ THREAT DETECTED: ${guardian}\n\nThis gatekeeper will challenge you to combat!\nIf you lose, you may lose gold and your health will be depleted.\n\nCurrent HP: ${hpCurrent}/${hpMax} (${hpPercent}%)\n\nAre you sure you want to proceed?`;
+            if (!confirm(warning)) return;
+        }
+        
         // Close the modal first
         closeMissionModal2();
         
