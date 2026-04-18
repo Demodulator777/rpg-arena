@@ -2295,6 +2295,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     justify-content: flex-end;
     margin-bottom: 20px;
 }
+.inbox-section {
+    margin-bottom: 24px;
+}
+.inbox-section-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
 .msg-row {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
