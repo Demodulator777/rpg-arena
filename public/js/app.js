@@ -4903,44 +4903,36 @@ async function loadInbox() {
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
-        let html=`<div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>`;
-        if (!messages.length) html+='<p class="empty">Your inbox is empty.</p>';
-        else html+=`<div class="inbox-list">${messages.map(m=>{
+        
+        // Separate messages into categories
+        const messagesList = [];
+        const battlesList = [];
+        const missionsList = [];
+        
+        messages.forEach(m => {
             const isReport = m.body && m.body.startsWith('BATTLE_REPORT:');
-            const dateStr = formatDate(m.sent_at);
-            
             if (isReport) {
                 let report = null;
                 try { report = JSON.parse(m.body.slice('BATTLE_REPORT:'.length)); } catch {}
                 if (report) window._reportCache[m.id] = report;
                 const isMission = report?.type === 'mission';
-                const icon = isMission ? (report?.won ? '✅' : '💀') : (report?.won ? '🏆' : '⚔️');
-                const tag  = isMission ? 'Mission' : 'Battle';
-                const tagClass = isMission ? 'tag-mission' : 'tag-battle';
-                
-                return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
-                    <div class="msg-header">
-                        <div class="msg-meta">
-                            <span class="msg-tag ${tagClass}">${tag}</span>
-                            <span class="msg-date">${dateStr}</span>
-                        </div>
-                        <div class="msg-from ${m.read?'':'unread-from'}">
-                            ${icon} ${escHtml(m.subject)}
-                        </div>
-                    </div>
-                    ${report ? `<div class="msg-summary-line">
-                        vs ${escHtml(report.opponentName||report.npcName||'?')}
-                        ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
-                        ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
-                        ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
-                    </div>` : ''}
-                    <div class="msg-actions" style="display:flex;">
-                        <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
-                        <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
-                    </div>
-                </div>`;
+                if (isMission) missionsList.push({ ...m, report });
+                else battlesList.push({ ...m, report });
+            } else {
+                messagesList.push(m);
             }
-            
+        });
+        
+        // Sort each by date (newest first)
+        messagesList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
+        battlesList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
+        missionsList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
+        
+        let html=`<div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>`;
+        
+        // Render each section
+        const renderMsgRow = (m) => {
+            const dateStr = formatDate(m.sent_at);
             return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
                 <div class="msg-header">
                     <div class="msg-meta">
@@ -4956,7 +4948,82 @@ async function loadInbox() {
                     <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
                 </div>
             </div>`;
-        }).join('')}</div>`;
+        };
+        
+        const renderBattleRow = (m) => {
+            const report = m.report;
+            const dateStr = formatDate(m.sent_at);
+            const icon = report?.won ? '🏆' : '⚔️';
+            return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
+                <div class="msg-header">
+                    <div class="msg-meta">
+                        <span class="msg-tag tag-battle">Battle</span>
+                        <span class="msg-date">${dateStr}</span>
+                    </div>
+                    <div class="msg-from ${m.read?'':'unread-from'}">
+                        ${icon} ${escHtml(m.subject)}
+                    </div>
+                </div>
+                ${report ? `<div class="msg-summary-line">
+                    vs ${escHtml(report.opponentName||report.npcName||'?')}
+                    ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
+                    ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
+                    ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
+                </div>` : ''}
+                <div class="msg-actions" style="display:flex;">
+                    <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                    <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
+                </div>
+            </div>`;
+        };
+        
+        const renderMissionRow = (m) => {
+            const report = m.report;
+            const dateStr = formatDate(m.sent_at);
+            const icon = report?.won ? '✅' : '💀';
+            return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
+                <div class="msg-header">
+                    <div class="msg-meta">
+                        <span class="msg-tag tag-mission">Mission</span>
+                        <span class="msg-date">${dateStr}</span>
+                    </div>
+                    <div class="msg-from ${m.read?'':'unread-from'}">
+                        ${icon} ${escHtml(m.subject)}
+                    </div>
+                </div>
+                ${report ? `<div class="msg-summary-line">
+                    vs ${escHtml(report.opponentName||report.npcName||'?')}
+                    ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
+                    ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
+                    ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
+                </div>` : ''}
+                <div class="msg-actions" style="display:flex;">
+                    <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                    <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
+                </div>
+            </div>`;
+        };
+        
+        // Messages section
+        if (messagesList.length) {
+            html += `<div class="inbox-section"><div class="inbox-section-title">💬 Messages (${messagesList.length})</div>
+                <div class="inbox-list">${messagesList.map(renderMsgRow).join('')}</div></div>`;
+        }
+        
+        // Battles section
+        if (battlesList.length) {
+            html += `<div class="inbox-section"><div class="inbox-section-title">⚔️ Battles (${battlesList.length})</div>
+                <div class="inbox-list">${battlesList.map(renderBattleRow).join('')}</div></div>`;
+        }
+        
+        // Missions section
+        if (missionsList.length) {
+            html += `<div class="inbox-section"><div class="inbox-section-title">🎯 Missions (${missionsList.length})</div>
+                <div class="inbox-list">${missionsList.map(renderMissionRow).join('')}</div></div>`;
+        }
+        
+        if (!messages.length) html += '<p class="empty">Your inbox is empty.</p>';
+        
         el.innerHTML=html;
         messages.filter(m=>!m.body?.startsWith('BATTLE_REPORT:')).forEach(m=>{
             const row=document.getElementById(`msg-${m.id}`); if(!row) return;
