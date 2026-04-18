@@ -6,6 +6,43 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Assistant */
+.assistant-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, rgba(155,89,182,0.95), rgba(142,68,173,0.95));
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(155,89,182,0.4);
+    z-index: 1000;
+    animation: slideUp 0.3s ease-out;
+    max-width: 90%;
+}
+@keyframes slideUp {
+    from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+.assistant-icon { font-size: 1.2rem; }
+.assistant-message { font-size: 0.9rem; font-weight: 500; flex: 1; }
+.assistant-close {
+    background: none; border: none; color: rgba(255,255,255,0.7);
+    cursor: pointer; font-size: 1rem; padding: 4px;
+}
+.assistant-close:hover { color: #fff; }
+.assistant-highlight {
+    animation: pulse-glow 1.5s infinite;
+}
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(155,89,182,0); }
+    50% { box-shadow: 0 0 12px 4px rgba(155,89,182,0.6); }
+}
+
 /* ── CSS Variables ── */
 :root {
     --bg0:   #070b10;
