@@ -34,10 +34,10 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     
-    // Insert new user
+    // Insert new user with assistant enabled by default
     const result = await db.execute({
-      sql: 'INSERT INTO users (username, password_hash) VALUES (?, ?)',
-      args: [username, hash]
+      sql: 'INSERT INTO users (username, password_hash, assistant_enabled) VALUES (?, ?, ?)',
+      args: [username, hash, 1]
     });
     
     const token = jwt.sign(
