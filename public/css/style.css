@@ -2873,9 +2873,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
     background: transparent; color: var(--text-dim); cursor: pointer; font-size: 0.76rem;
     transition: all 0.14s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 .filter-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.85); border-color: var(--border-mid); }
 .filter-btn.active { background: rgba(52,143,209,0.12); border-color: rgba(52,143,209,0.32); color: var(--blue); font-weight: 600; }
+.tab-icon { width: 18px; height: 18px; object-fit: contain; }
 .loading { color: var(--text-dim); font-style: italic; text-align: center; padding: 24px; font-size: 0.83rem; }
 .empty { color: var(--text-dim); font-style: italic; text-align: center; padding: 32px; font-size: 0.83rem; }
 .lb-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 13px; }
