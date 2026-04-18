@@ -2247,8 +2247,18 @@ async function travelToZone(zoneId) {
             const hpCurrent = character?.hp_current || 0;
             const hpMax = character?.hp_max || 1;
             const hpPercent = Math.round((hpCurrent / hpMax) * 100);
-            const warning = `⚠️ THREAT DETECTED: ${guardian}\n\nThis gatekeeper will challenge you to combat!\nIf you lose, you may lose gold and your health will be depleted.\n\nCurrent HP: ${hpCurrent}/${hpMax} (${hpPercent}%)\n\nAre you sure you want to proceed?`;
-            if (!confirm(warning)) return;
+            const proceed = await openGameDialog({
+                title: '⚠️ Gatekeeper Warning',
+                message: `<p><strong>${guardian}</strong> guards this location!</p>
+                          <p>This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.</p>
+                          <p><strong>Current HP:</strong> ${hpCurrent}/${hpMax} (${hpPercent}%)</p>
+                          <p>Are you sure you want to proceed?</p>`,
+                confirmLabel: 'Challenge',
+                cancelLabel: 'Cancel',
+                showCancel: true,
+                danger: true
+            });
+            if (!proceed) return;
         }
         
         // Close the modal first
