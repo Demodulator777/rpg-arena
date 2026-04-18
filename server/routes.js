@@ -2107,6 +2107,9 @@ async function buildCombatFighter(db, char) {
         } catch {}
     }
 
+    const elemDmg = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
     return {
         id: char.id,
         name: char.name,
