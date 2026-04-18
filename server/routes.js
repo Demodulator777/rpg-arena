@@ -1679,8 +1679,8 @@ function calculateMagicShield(attacker, defender) {
         };
 }
 
-    const elemDmg = calcElemDmg(equippedArray);
-    const elemResist = calcElemResist(char, equippedArray);
+    const elemDmg = calcElemDmg(equippedArray || []);
+    const elemResist = calcElemResist(char, equippedArray || []);
 
     return {
         active: false,
@@ -2114,8 +2114,8 @@ async function buildCombatFighter(db, char) {
         } catch {}
     }
 
-    const elemDmg = calcElemDmg(equippedArray);
-    const elemResist = calcElemResist(char, equippedArray);
+    const elemDmg = calcElemDmg(equippedArray || []);
+    const elemResist = calcElemResist(char, equippedArray || []);
 
     return {
         id: char.id,
@@ -3042,9 +3042,9 @@ async function buildCharacterResponse(char, db) {
     const activeEvent = getActiveEvent();
     const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
 
-    const armorValue = calcArmorValue(char, equippedArray);
-const elemDmg = calcElemDmg(equippedArray);
-    const elemResist = calcElemResist(char, equippedArray);
+const armorValue = calcArmorValue(char, equippedArray);
+    const elemDmg = calcElemDmg(equippedArray || []);
+    const elemResist = calcElemResist(char, equippedArray || []);
     
     // Rogue no-shield agility bonus
 let noShieldAgiBonus = 0;
@@ -3667,16 +3667,16 @@ if (freshChar.class === 'rogue') {
             crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0),
             armor: calcArmorValue(freshChar, equippedArray) + (skillPassives.armor || 0),
             elem_dmg: {
-                pyro:    (calcElemDmg(equippedArray).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
-                water:   (calcElemDmg(equippedArray).water   || 0) + (skillPassives.water_dmg   || 0),
-                wind:    (calcElemDmg(equippedArray).wind    || 0) + (skillPassives.wind_dmg    || 0),
-                electro: (calcElemDmg(equippedArray).electro || 0) + (skillPassives.electro_dmg || 0),
+                pyro:    (calcElemDmg(equippedArray || []).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedArray || []).water   || 0) + (skillPassives.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedArray || []).wind    || 0) + (skillPassives.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedArray || []).electro || 0) + (skillPassives.electro_dmg || 0),
             },
             elem_resist: {
-                pyro:    (calcElemResist(freshChar, equippedArray).pyro    || 0) + (skillPassives.pyro_resist    || 0),
-                water:   (calcElemResist(freshChar, equippedArray).water   || 0) + (skillPassives.water_resist   || 0),
-                wind:    (calcElemResist(freshChar, equippedArray).wind    || 0) + (skillPassives.wind_resist    || 0),
-                electro: (calcElemResist(freshChar, equippedArray).electro || 0) + (skillPassives.electro_resist || 0),
+                pyro:    (calcElemResist(freshChar, equippedArray || []).pyro    || 0) + (skillPassives.pyro_resist    || 0),
+                water:   (calcElemResist(freshChar, equippedArray || []).water   || 0) + (skillPassives.water_resist   || 0),
+                wind:    (calcElemResist(freshChar, equippedArray || []).wind    || 0) + (skillPassives.wind_resist    || 0),
+                electro: (calcElemResist(freshChar, equippedArray || []).electro || 0) + (skillPassives.electro_resist || 0),
             },
             skillEffects: skillActives,
             skillMods: skillMods,
@@ -4850,16 +4850,16 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus: (hasPremium(premA, 'warlord') ? 0.15 : 0) + (skillPassivesA.dmg_bonus || 0),
             elem_dmg: {
-                pyro:    (calcElemDmg(equippedA).pyro    || 0) + (skillPassivesA.pyro_dmg    || 0),
-                water:   (calcElemDmg(equippedA).water   || 0) + (skillPassivesA.water_dmg   || 0),
-                wind:    (calcElemDmg(equippedA).wind    || 0) + (skillPassivesA.wind_dmg    || 0),
-                electro: (calcElemDmg(equippedA).electro || 0) + (skillPassivesA.electro_dmg || 0),
+                pyro:    (calcElemDmg(equippedA || []).pyro    || 0) + (skillPassivesA.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedA || []).water   || 0) + (skillPassivesA.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedA || []).wind    || 0) + (skillPassivesA.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedA || []).electro || 0) + (skillPassivesA.electro_dmg || 0),
             },
             elem_resist: {
-                pyro:    (calcElemResist(freshA, equippedA).pyro    || 0) + (skillPassivesA.pyro_resist    || 0),
-                water:   (calcElemResist(freshA, equippedA).water   || 0) + (skillPassivesA.water_resist   || 0),
-                wind:    (calcElemResist(freshA, equippedA).wind    || 0) + (skillPassivesA.wind_resist    || 0),
-                electro: (calcElemResist(freshA, equippedA).electro || 0) + (skillPassivesA.electro_resist || 0),
+                pyro:    (calcElemResist(freshA, equippedA || []).pyro    || 0) + (skillPassivesA.pyro_resist    || 0),
+                water:   (calcElemResist(freshA, equippedA || []).water   || 0) + (skillPassivesA.water_resist   || 0),
+                wind:    (calcElemResist(freshA, equippedA || []).wind    || 0) + (skillPassivesA.wind_resist    || 0),
+                electro: (calcElemResist(freshA, equippedA || []).electro || 0) + (skillPassivesA.electro_resist || 0),
             },
             skillEffects: skillActivesA,
             skillMods: skillModsA,
@@ -4885,16 +4885,16 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.10 : 0,
             dmg_bonus: (hasPremium(premD, 'warlord') ? 0.15 : 0) + (skillPassivesD.dmg_bonus || 0),
             elem_dmg: {
-                pyro:    (calcElemDmg(equippedD).pyro    || 0) + (skillPassivesD.pyro_dmg    || 0),
-                water:   (calcElemDmg(equippedD).water   || 0) + (skillPassivesD.water_dmg   || 0),
-                wind:    (calcElemDmg(equippedD).wind    || 0) + (skillPassivesD.wind_dmg    || 0),
-                electro: (calcElemDmg(equippedD).electro || 0) + (skillPassivesD.electro_dmg || 0),
+                pyro:    (calcElemDmg(equippedD || []).pyro    || 0) + (skillPassivesD.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedD || []).water   || 0) + (skillPassivesD.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedD || []).wind    || 0) + (skillPassivesD.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedD || []).electro || 0) + (skillPassivesD.electro_dmg || 0),
             },
             elem_resist: {
-                pyro:    (calcElemResist(freshD, equippedD).pyro    || 0) + (skillPassivesD.pyro_resist    || 0),
-                water:   (calcElemResist(freshD, equippedD).water   || 0) + (skillPassivesD.water_resist   || 0),
-                wind:    (calcElemResist(freshD, equippedD).wind    || 0) + (skillPassivesD.wind_resist    || 0),
-                electro: (calcElemResist(freshD, equippedD).electro || 0) + (skillPassivesD.electro_resist || 0),
+                pyro:    (calcElemResist(freshD, equippedD || []).pyro    || 0) + (skillPassivesD.pyro_resist    || 0),
+                water:   (calcElemResist(freshD, equippedD || []).water   || 0) + (skillPassivesD.water_resist   || 0),
+                wind:    (calcElemResist(freshD, equippedD || []).wind    || 0) + (skillPassivesD.wind_resist    || 0),
+                electro: (calcElemResist(freshD, equippedD || []).electro || 0) + (skillPassivesD.electro_resist || 0),
             },
             skillEffects: skillActivesD,
             skillMods: skillModsD,
