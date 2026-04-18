@@ -3518,13 +3518,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .upgrade-section-title { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; font-weight: 700; }
 
 .upgrade-components-grid {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     max-height: 380px;
     overflow-y: auto;
     padding-right: 6px;
     margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+    .upgrade-components-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .upgrade-component-card {
@@ -3578,6 +3584,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding-left: 16px;
     padding-right: 16px;
     border-radius: 0 0 12px 12px;
+    position: sticky;
+    bottom: 0;
+    backdrop-filter: blur(8px);
 }
 .upgrade-selected-box { 
     display: flex; 
@@ -3601,6 +3610,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 @media (max-width: 640px) {
+    .upgrade-selected-info {
+        position: relative;
+    }
     .upgrade-selected-box {
         flex-direction: column;
         align-items: stretch;
