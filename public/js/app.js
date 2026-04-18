@@ -36,7 +36,6 @@ let activeCharacterId = null;
 let maxCharacterSlots = 4;
 let availableCharacterClasses = ['warrior', 'mage', 'rogue', 'paladin'];
 let assistantSuggestions = [];
-let assistantEnabled = true;
 
 async function loadAbyssData() {
     try {
