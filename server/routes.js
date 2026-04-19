@@ -1836,7 +1836,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     }
     return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg };
 }
-function runBattle(fighterA, fighterB) {
+function runBattle(fighterA, fighterB, forceWinnerId = null) {
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
     let penaltyA = false, penaltyB = false;
@@ -1857,6 +1857,9 @@ function runBattle(fighterA, fighterB) {
     if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field worth ${shieldA.value} damage!`);
     if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field worth ${shieldB.value} damage!`);
     log.push('---');
+
+    let roundEndedPrematurely = false;
+    let winnerId = null;
 
     for (let round = 1; round <= 10; round++) {
         const atkZoneA = fighterA.attackZones[round-1] || 'chest';
@@ -1884,34 +1887,68 @@ function runBattle(fighterA, fighterB) {
         penaltyB = resA.nextAtkPenalty;
         
         if (hpA <= 0 || hpB <= 0) {
+            roundEndedPrematurely = true;
             if (hpA <= 0 && hpB <= 0) {
                 log.push(`Round ${round}: Both fighters fall simultaneously!`);
-                const winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-                log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins by dealing more damage!`);
-                return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
+                winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
             } else if (hpA <= 0) {
                 log.push(`Round ${round}: ${fighterA.name} has fallen!`);
-                log.push(`🏆 ${fighterB.name} wins!`);
-                return { log, winnerId: fighterB.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
+                winnerId = fighterB.id;
             } else {
                 log.push(`Round ${round}: ${fighterB.name} has fallen!`);
-                log.push(`🏆 ${fighterA.name} wins!`);
-                return { log, winnerId: fighterA.id, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
+                winnerId = fighterA.id;
             }
+            break;
         }
         if (round < 10) log.push('---');
     }
     
-    log.push('---');
-    let winnerId;
-    if (totalDmgToB >= totalDmgToA) {
-        winnerId = fighterA.id;
-        log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
-        log.push(`🏆 ${fighterA.name} wins by dealing more damage!`);
+    // Handle tutorial/forced wins
+    if (forceWinnerId) {
+        if (roundEndedPrematurely) {
+            if (winnerId !== forceWinnerId) {
+                // If we need fighterA to win but fighterB won by KO
+                // This is rare in tutorial, but we handle it by "faking" fighterB's survival
+                if (forceWinnerId === fighterA.id) {
+                    hpA = Math.max(1, hpA);
+                    hpB = 0;
+                    winnerId = fighterA.id;
+                    // Replace the "fallen" line or just add one
+                    log.push(`Round ${log.length}: ${fighterB.name} has fallen!`);
+                } else {
+                    hpB = Math.max(1, hpB);
+                    hpA = 0;
+                    winnerId = fighterB.id;
+                    log.push(`Round ${log.length}: ${fighterA.name} has fallen!`);
+                }
+            }
+        } else {
+            // Winner decided by damage race
+            if (forceWinnerId === fighterA.id && totalDmgToB < totalDmgToA) {
+                // Swap or nudge damage totals
+                const originalTotalB = totalDmgToB;
+                totalDmgToB = totalDmgToA + Math.floor(Math.random() * 5) + 1;
+                // Add the extra damage to the last round or just fudge it
+            } else if (forceWinnerId === fighterB.id && totalDmgToA < totalDmgToB) {
+                totalDmgToA = totalDmgToB + Math.floor(Math.random() * 5) + 1;
+            }
+            winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        }
+    } else if (!roundEndedPrematurely) {
+        winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+    }
+
+    if (!roundEndedPrematurely) {
+        log.push('---');
+        if (winnerId === fighterA.id) {
+            log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
+            log.push(`🏆 ${fighterA.name} wins by dealing more damage!`);
+        } else {
+            log.push(`After 10 rounds: ${fighterB.name} dealt ${totalDmgToA} damage, ${fighterA.name} dealt ${totalDmgToB} damage`);
+            log.push(`🏆 ${fighterB.name} wins by dealing more damage!`);
+        }
     } else {
-        winnerId = fighterB.id;
-        log.push(`After 10 rounds: ${fighterB.name} dealt ${totalDmgToA} damage, ${fighterA.name} dealt ${totalDmgToB} damage`);
-        log.push(`🏆 ${fighterB.name} wins by dealing more damage!`);
+        log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins!`);
     }
     
     return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
@@ -3710,21 +3747,19 @@ if (freshChar.class === 'rogue') {
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
         
         // Force win for new characters (first 4 battles)
-        let forcePlayerWin = false;
+        let forceWinnerId = null;
         if ((freshChar.wins || 0) < 4) {
-            forcePlayerWin = true;
+            forceWinnerId = freshChar.id;
         }
         
-        const battle = runBattle(playerFighter, npc);
+        const battle = runBattle(playerFighter, npc, forceWinnerId);
         let playerWon = battle.winnerId === freshChar.id;
         
-        // Override result for new players
-        if (forcePlayerWin && !playerWon) {
-            playerWon = true;
-            battle.winnerId = freshChar.id;
-            battle.hpRemainingA = Math.max(1, Math.floor(battle.hpRemainingA * 0.3) + Math.floor(battle.hpRemainingB * 0.7));
-            battle.hpRemainingB = 0;
-            battle.log.push('✨ Tutorial victory - experience gained!');
+        // Add tutorial note if we used forceWinnerId to flip a loss
+        if (forceWinnerId && (freshChar.wins || 0) < 4) {
+            if (!battle.log.some(line => line.includes('Tutorial victory'))) {
+                battle.log.push('✨ Tutorial victory - experience gained!');
+            }
         }
         
         await recordMissionSpotResult(db, {
@@ -4345,21 +4380,19 @@ router.get('/travel/status', auth, async (req, res) => {
 
                 if (guardian) {
                     // Force win for new characters (first 4 battles)
-                    let forcePlayerWin = false;
+                    let forceWinnerId = null;
                     if ((freshChar.wins || 0) < 4) {
-                        forcePlayerWin = true;
+                        forceWinnerId = freshChar.id;
                     }
                     
-                    const battle = runBattle(playerFighter, guardian);
+                    const battle = runBattle(playerFighter, guardian, forceWinnerId);
                     let playerWon = battle.winnerId === freshChar.id;
                     
-                    // Override result for new players
-                    if (forcePlayerWin && !playerWon) {
-                        playerWon = true;
-                        battle.winnerId = freshChar.id;
-                        battle.hpRemainingA = Math.max(1, Math.floor(battle.hpRemainingA * 0.3) + Math.floor(battle.hpRemainingB * 0.7));
-                        battle.hpRemainingB = 0;
-                        battle.log.push('✨ Tutorial victory!');
+                    // Add tutorial note
+                    if (forceWinnerId && (freshChar.wins || 0) < 4) {
+                        if (!battle.log.some(line => line.includes('Tutorial victory'))) {
+                            battle.log.push('✨ Tutorial victory!');
+                        }
                     }
                     
                     const newHp = Math.max(0, battle.hpRemainingA);
