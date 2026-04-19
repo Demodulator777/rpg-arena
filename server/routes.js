@@ -3112,6 +3112,8 @@ async function buildCharacterResponse(char, db) {
 
     return {
         ...withTrain,
+        wins:         (char.wins        || 0),
+        losses:       (char.losses      || 0),
         vitality:     (char.vitality    || 10),
         gems:         char.gems        || 0,
         hp_max:       hpMax,
