@@ -732,6 +732,21 @@ function showTab(name) {
 }
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
+async function skipTutorial() {
+    try {
+        const confirmSkip = confirm("Are you sure you want to skip the tutorial? You will lose the early protection and fast missions.");
+        if (!confirmSkip) return;
+        const res = await api('POST', '/game/tutorial/skip');
+        character = res.character;
+        renderTopBar();
+        renderCharacter();
+        showTab('character');
+    } catch (e) {
+        alert(e.message);
+    }
+}
+window.skipTutorial = skipTutorial;
+
 function renderTopBar() {
     if (!character) return;
     const c=character;
@@ -741,7 +756,37 @@ function renderTopBar() {
     const xpPct=Math.min(100,Math.round((c.xp/lxp)*100));
     const hpColor=hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
-        set('topbar-avatar',el=>{ el.src=`/images/class/${c.class}.png`; el.alt=c.class; el.dataset.errorHide='true'; });
+
+    // Tutorial Indicator
+    const isTutorial = (c.wins || 0) < 4;
+    const bannerEl = document.getElementById('event-banner');
+    if (bannerEl) {
+        if (isTutorial) {
+            bannerEl.innerHTML = `
+                <div class="tutorial-banner">
+                    <span class="tutorial-tag">TUTORIAL MODE</span>
+                    <span class="tutorial-msg">Complete 4 missions to unlock full game. Fast 10s missions & HP protection active!</span>
+                    <button class="skip-tutorial-btn" onclick="skipTutorial()">Skip Tutorial</button>
+                </div>
+            `;
+            bannerEl.classList.remove('hidden');
+        } else {
+            // Revert to event banner or hide if no event
+            if (!c.active_event) bannerEl.classList.add('hidden');
+        }
+    }
+
+    // Highlight Missions Tab if in tutorial and not on missions tab
+    const missionsTab = document.querySelector('button[data-action="showTab"][data-args=\'["missions"]\']');
+    if (missionsTab) {
+        if (isTutorial && !document.getElementById('tab-missions').classList.contains('active')) {
+            missionsTab.classList.add('tutorial-highlight');
+        } else {
+            missionsTab.classList.remove('tutorial-highlight');
+        }
+    }
+
+    set('topbar-avatar',el=>{ el.src=`/images/class/${c.class}.png`; el.alt=c.class; el.dataset.errorHide='true'; });
     set('topbar-hp-fill',el=>{ el.style.width=hpPct+'%'; el.style.background=hpColor; });
     set('topbar-hp-text',el=>{ el.textContent=`${hpCur} / ${c.hp_max}`; });
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
@@ -4824,6 +4869,15 @@ function finalizeBattlePlayback() {
     const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage } = battlePlaybackMeta;
     
     logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName)).join('');
+    
+    // Add tutorial completion message if present
+    if (tutorialMessage) {
+        logEl.insertAdjacentHTML('beforeend', `
+            <div class="battle-log-line tutorial-over-msg" style="margin-top:16px; padding:12px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:8px; color:#2ecc71; font-weight:600; line-height:1.5;">
+                ${tutorialMessage}
+            </div>
+        `);
+    }
     
     // Add tutorial completion message if present
     if (tutorialMessage) {
