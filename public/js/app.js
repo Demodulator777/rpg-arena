@@ -2137,7 +2137,9 @@ function openLocationModal(zoneId) {
                 let lockMsg = '🔒 Travel here first';
                 
                 // Tutorial Lock: Wins < 4 only allows Easy
-                const isTutorial = (character?.wins || 0) < 4;
+                const charWins = parseInt(character?.wins || 0, 10);
+                const isTutorial = charWins < 4 || (character?.level === 1 && charWins < 4);
+                
                 if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
                     locked = true;
                     lockMsg = '🔒 Tutorial: Win 4 battles to unlock';
