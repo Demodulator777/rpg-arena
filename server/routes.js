@@ -3553,14 +3553,18 @@ router.post('/missions/start', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const lastBattle = character.last_battle_at || 0;
         const activePrem = getActivePremium(character);
-        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
         
-        if (lastBattle + 600 > now) {
-            const secs = (lastBattle + pvpCd) - now;
+        // Reduced cooldown for tutorial (first 4 wins): 10s, otherwise 600s
+        const battleCooldown = (character.wins || 0) < 4 ? 10 : 600;
+        
+        if (lastBattle + battleCooldown > now) {
+            const secs = (lastBattle + battleCooldown) - now;
             return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'}.` });
         }
         
-        const sizeKey = ['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small';
+        // Only small missions for tutorial (first 4 wins)
+        const isTutorial = (character.wins || 0) < 4;
+        const sizeKey = isTutorial ? 'small' : (['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small');
         const sizeConf = MISSION_SIZES[sizeKey];
         
         const todayStart = Math.floor(now / 86400) * 86400;
@@ -6887,22 +6891,40 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
             });
         }
         
-        if (canUpgradeStats && char.level < 5) {
-            suggestions.push({
-                type: 'upgrade',
-                message: 'Visit the Trainer to upgrade your stats!',
-                action: 'train',
-                tab: 'train'
-            });
-        }
-        
-        const firstFourWins = char.wins < 4;
+        // Tutorial phase - show guidance
+        const firstFourWins = (char.wins || 0) < 4;
         if (firstFourWins) {
             suggestions.push({
                 type: 'newbie',
-                message: 'Complete your first battles to unlock more features!',
+                message: 'Complete battles to level up and unlock more features!',
                 action: 'missions',
                 tab: 'missions'
+            });
+            suggestions.push({
+                type: 'guide',
+                message: '💡 Tip: Visit the Trainer (Train) to upgrade your stats!',
+                action: 'train',
+                tab: 'train'
+            });
+        } else {
+            // Post-tutorial guidance
+            suggestions.push({
+                type: 'guide_stats',
+                message: '💡 Level up faster: Train your stats at the Trainer.',
+                action: 'train',
+                tab: 'train'
+            });
+            suggestions.push({
+                type: 'guide_gear',
+                message: '💡 Get better gear from the Shop or by crafting at the Forge.',
+                action: 'shop',
+                tab: 'shop'
+            });
+            suggestions.push({
+                type: 'guide_upgrade',
+                message: '💡 You can upgrade your equipment in the Upgrade tab.',
+                action: 'upgrade',
+                tab: 'upgrade'
             });
         }
         
