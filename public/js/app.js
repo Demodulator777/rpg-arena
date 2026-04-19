@@ -467,8 +467,9 @@ function renderTopbarMenu() {
                     📘 Open Game Guide
                     <span class="topbar-menu-meta">How progression, classes, and builds work</span>
                 </button>
-                <button class="topbar-menu-action" ${actionAttrs('openWeeklyTasksModal')}>
+                <button class="topbar-menu-action ${character.weekly_claimable_count > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openWeeklyTasksModal')}>
                     📅 Weekly Tasks
+                    ${character.weekly_claimable_count > 0 ? '<span class="exclamation-point">!</span>' : ''}
                     <span class="topbar-menu-meta">Earn gems, gold, materials, and loot boxes</span>
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
@@ -755,6 +756,19 @@ function renderTopBar() {
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
     set('topbar-name',el=>{ el.textContent=c.name; });
+    
+    // Highlight menu button if weekly tasks are claimable
+    const menuBtn = document.getElementById('topbar-menu-btn');
+    if (menuBtn) {
+        if (c.weekly_claimable_count > 0) {
+            menuBtn.classList.add('menu-highlight');
+            menuBtn.title = `You have ${c.weekly_claimable_count} weekly tasks ready to claim!`;
+        } else {
+            menuBtn.classList.remove('menu-highlight');
+            menuBtn.title = 'Open Menu';
+        }
+    }
+
     renderCharacterSwitcherButton();
     const evEl=document.getElementById('topbar-event');
     if (evEl) {
