@@ -3575,9 +3575,6 @@ router.post('/missions/start', auth, async (req, res) => {
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
         const currentMp = freshChar.mission_points ?? 0;
         
-        const spot = zone.spots.find(s => s.id === spotId);
-        if (!spot) return res.status(404).json({ error: 'Mission spot not found' });
-        
         const difficulty = spot.difficulty;
         const [minGold, maxGold] = zone.payoutBase[difficulty];
         
