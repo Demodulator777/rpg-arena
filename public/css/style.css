@@ -2438,36 +2438,74 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     min-width: unset !important;
 }
 
-.topbar-menu-btn.menu-highlight {
-    background: linear-gradient(135deg, #e74c3c, #c0392b);
+.topbar-menu-btn {
+    position: relative;
+    /* existing styles... */
+}
+
+.topbar-menu-btn.menu-highlight::after {
+    content: '!';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #e74c3c;
     color: #fff;
-    box-shadow: 0 0 12px rgba(231, 76, 60, 0.6);
-    animation: pulse-red 2s infinite;
-}
-
-@keyframes pulse-red {
-    0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
-}
-
-.topbar-menu-action.claimable-highlight {
-    border-color: rgba(231, 76, 60, 0.5) !important;
-    background: rgba(231, 76, 60, 0.08) !important;
-}
-
-.exclamation-point {
-    display: inline-block;
-    color: #e74c3c;
+    font-size: 0.7rem;
     font-weight: 900;
-    margin-left: 6px;
-    filter: drop-shadow(0 0 2px rgba(231, 76, 60, 0.6));
-    animation: bounce 1s infinite;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    border: 2px solid var(--bg1);
+    animation: bounce 2s infinite;
+    z-index: 10;
 }
 
 @keyframes bounce {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-3px); }
+}
+
+.topbar-menu-action {
+    position: relative;
+}
+
+.topbar-menu-action.claimable-highlight::after {
+    content: '!';
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 900;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Remove old styles */
+.topbar-menu-btn.menu-highlight {
+    background: transparent;
+    box-shadow: none;
+    animation: none;
+}
+
+.topbar-menu-action.claimable-highlight {
+    border-color: var(--border) !important;
+    background: rgba(255,255,255,0.03) !important;
+}
+
+.exclamation-point {
+    display: none; /* Hide the inline one we added earlier */
 }
 
 /* ════════════════════════════════════════════════════════════════════════ */
