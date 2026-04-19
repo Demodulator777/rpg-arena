@@ -3536,53 +3536,62 @@ router.post('/missions/start', auth, async (req, res) => {
         if (!spot) return res.status(404).json({ error: 'Spot not found' });
 
 // Tutorial Lock Check: Wins < 4 only allows Easy
-        const isTutorial = (character.wins || 0) < 4;
-        if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
-            return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
-        }
+const isTutorial = (character.wins || 0) < 4;
+if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
+    return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
+}
 
-        // Only small missions for tutorial (first 4 wins)
-        const sizeKey = isTutorial ? 'small' : (['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small');
-        const sizeConf = MISSION_SIZES[sizeKey];
-        
-        const todayStart = Math.floor(now / 86400) * 86400;
-        const lastReset = character.daily_mp_reset_at || 0;
-        let dailyMpSpent = character.daily_mp_spent || 0;
-        if (lastReset < todayStart) {
-            dailyMpSpent = 0;
-            await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, character.id]);
-        }
-        
-        await applyMpRegen(db, character.id);
-        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
-        const currentMp = freshChar.mission_points ?? 0;
-        
-        const difficulty = spot.difficulty;
-        const [minGold, maxGold] = zone.payoutBase[difficulty];
-        
-        let minXp = 0, maxXp = 0;
-        if (sizeKey === 'small') {
-            minXp = 0;
-            maxXp = 6;
-        } else if (sizeKey === 'medium') {
-            minXp = 0;
-            maxXp = 9;
-        } else {
-            minXp = 0;
-            maxXp = 12;
-        }
-        
-        let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
-        xpReward = Math.max(0, xpReward);
-        
+// Only small missions for tutorial (first 4 wins)
+if (isTutorial && reqSize && reqSize !== 'small') {
+    return res.status(403).json({ error: 'Tutorial: Only Small missions are available until you win 4 battles.' });
+}
+
+const sizeKey = isTutorial ? 'small' : (['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small');
+const sizeConf = MISSION_SIZES[sizeKey];
+
+const todayStart = Math.floor(now / 86400) * 86400;
+const lastReset = character.daily_mp_reset_at || 0;
+let dailyMpSpent = character.daily_mp_spent || 0;
+
+if (lastReset < todayStart) {
+    dailyMpSpent = 0;
+    await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, character.id]);
+}
+
+await applyMpRegen(db, character.id);
+const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+const currentMp = freshChar.mission_points ?? 0;
+
+const difficulty = spot.difficulty;
+const [minGold, maxGold] = zone.payoutBase[difficulty];
+
+let minXp = 0, maxXp = 0;
+if (sizeKey === 'small') {
+    minXp = 0;
+    maxXp = 6;
+} else if (sizeKey === 'medium') {
+    minXp = 0;
+    maxXp = 9;
+} else {
+    minXp = 0;
+    maxXp = 12;
+}
+
+let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
+xpReward = Math.max(0, xpReward);
+
         const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
-        
+
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
-        const missionName = (sentName && missionList.includes(sentName)) ? sentName : missionList[Math.floor(Math.random() * missionList.length)];
+        const missionName = (missionIdx !== undefined && missionList[missionIdx]) ? missionList[missionIdx] : missionList[Math.floor(Math.random() * missionList.length)];
         
+        const activePrem = getActivePremium(character);
         const baseDuration = sizeConf.duration;
         let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
         if (hasPremium(activePrem, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
+        
+        // Tutorial force duration
+        if (isTutorial) duration = 10;
         
         let effectiveMpCost = sizeConf.mpCost;
         const midasFlow = PREMIUM_SYNERGIES.find(s => s.requires.includes('arcane_reservoir') && s.requires.includes('fortune_hunter'));
