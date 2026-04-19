@@ -3515,30 +3515,37 @@ router.post('/missions/start', auth, async (req, res) => {
     _missionStartLock.add(userId);
     try {
         const db = await getDb();
-        const { zoneId, spotId, missionName: sentName, size: reqSize } = req.body;
+        const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
-        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
-            [character.id, Math.floor(Date.now() / 1000)]);
-        if (activeTraining) {
-            return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
-        }
+
         const currentMap = character.current_map || 'overworld';
         let zone;
-        
-        // Check the correct zone source based on current map
+
         if (currentMap === 'abyss') {
             zone = ABYSS_ZONES[zoneId];
         } else {
             zone = ZONES[zoneId];
         }
-        
-        if (!zone) {
-            console.error('Zone not found:', zoneId, 'Map:', currentMap);
-            return res.status(404).json({ error: 'Zone not found' });
-        if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
+
+        if (!zone) return res.status(404).json({ error: 'Zone not found' });
+
+        const spot = zone.spots.find(s => s.id === spotId);
+        if (!spot) return res.status(404).json({ error: 'Spot not found' });
+
+        // Tutorial Lock Check: Wins < 4 only allows Easy
+        const isTutorial = (character.wins || 0) < 4;
+        if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
+            return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
         }
-        const hpCurrent = character.hp_current ?? character.hp_max;
+
+        if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
+
+        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?',
+            [character.id, Math.floor(Date.now() / 1000)]);
+        if (activeTraining) {
+            return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
+        }        const hpCurrent = character.hp_current ?? character.hp_max;
         if (hpCurrent <= 0) return res.status(400).json({ error: 'Out of HP. Wait for regeneration.' });
         
         const now = Math.floor(Date.now() / 1000);
