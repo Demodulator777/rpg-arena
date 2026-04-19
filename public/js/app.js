@@ -2181,8 +2181,13 @@ function openSpotMissions(zoneId, spotId) {
     const activeEl = document.getElementById('mission-location-active');
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
     const mp = character?.mission_points ?? 0;
+    
+    // Tutorial state
+    const charWins = parseInt(character?.wins || 0, 10);
+    const isTutorial = charWins < 4;
+
     const sizes = [
-        { key: 'small', label: 'Small', mpCost: 20, duration: '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
+        { key: 'small', label: 'Small', mpCost: 20, duration: isTutorial ? '10s' : '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
         { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8×', desc: 'Longer mission, better rewards' },
         { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '3×', desc: 'Epic mission, best rewards' },
     ];
@@ -2191,18 +2196,27 @@ function openSpotMissions(zoneId, spotId) {
         <div class="mz-section-label" style="margin-top:24px">${spot.name} — pick mission size</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
             ${sizes.map(sz => {
-                const canAfford = mp >= sz.mpCost;
+                let locked = isTutorial && sz.key !== 'small';
+                const canAfford = mp >= sz.mpCost && !locked;
+                
                 const border = canAfford ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
                 const bg = canAfford ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
-                const opacity = canAfford ? '1' : '0.45';
-                return `<div ${canAfford ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
-                    style="border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
+                const opacity = (canAfford || (locked && mp >= sz.mpCost)) ? '1' : '0.45';
+                
+                let lockOverlay = '';
+                if (locked) {
+                    lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#fff;text-align:center;padding:5px;font-weight:700">🔒 Tutorial: Win 4 battles</div>`;
+                }
+
+                return `<div ${(canAfford && !locked) ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
+                    style="position:relative;border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
                     <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
                     <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">💰 ${sz.mult} gold</div>
                     <div style="font-size:0.7rem;color:#f1c40f;margin-top:2px">⭐ ${sz.key === 'small' ? '0-6' : sz.key === 'medium' ? '0-9' : '0-12'} XP</div>
-                    ${!canAfford ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
+                    ${(!canAfford && !locked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
+                    ${lockOverlay}
                 </div>`;
             }).join('')}
         </div>
