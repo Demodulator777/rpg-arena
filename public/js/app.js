@@ -511,6 +511,7 @@ function showTabAndCloseMenu(tabName) {
     closeTopbarMenu();
     showTab(tabName);
 }
+window.showTabAndCloseMenu = showTabAndCloseMenu;
 
 function openBugReportFromMenu() {
     closeTopbarMenu();
@@ -774,6 +775,7 @@ function renderTopBar() {
                 <div class="tutorial-banner">
                     <span class="tutorial-tag">TUTORIAL MODE</span>
                     <span class="tutorial-msg">Complete 4 missions to unlock full game. Fast 10s missions & HP protection active!</span>
+                    <button class="goto-missions-btn" onclick="showTabAndCloseMenu('missions')">Go to Missions</button>
                     <button class="skip-tutorial-btn" onclick="skipTutorial()">Skip Tutorial</button>
                 </div>
             `;
