@@ -2133,12 +2133,21 @@ function openLocationModal(zoneId) {
         <div class="mz-section-label">Choose a location</div>
         <div class="mz-spots-grid">
             ${zone.spots.map(spot => {
-                const locked = !isCurrent;
+                let locked = !isCurrent;
+                let lockMsg = '🔒 Travel here first';
+                
+                // Tutorial Lock: Wins < 4 only allows Easy
+                const isTutorial = (character?.wins || 0) < 4;
+                if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
+                    locked = true;
+                    lockMsg = '🔒 Tutorial: Win 4 battles to unlock';
+                }
+
                 return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" ${locked ? '' : actionAttrs('openSpotMissions', zoneId, spot.id)}>
                     <div class="mz-spot-img-wrap">
                         <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" data-error-src="">
                         <span class="mz-spot-diff-badge" style="background:${db2[spot.difficulty]};color:${dc[spot.difficulty]}">${spot.difficulty.toUpperCase()}</span>
-                        ${locked ? '<div class="mz-spot-locked-overlay">🔒 Travel here first</div>' : ''}
+                        ${locked ? `<div class="mz-spot-locked-overlay">${lockMsg}</div>` : ''}
                     </div>
                     <div class="mz-spot-info">
                         <div class="mz-spot-name">${spot.name}</div>
