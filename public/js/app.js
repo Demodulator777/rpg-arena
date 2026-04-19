@@ -2411,7 +2411,9 @@ async function collectMission() {
         if (d.won===false) msg=`💀 Defeated · ${msg}`;
         if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
-        if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken);
+        if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
+            tutorialMessage: d.tutorialMessage
+        });
         else showMissionModal(msg);
         renderCurrentMap(); renderCharacter();
     } catch(e) { alert(e.message); }
@@ -4819,8 +4821,15 @@ function finalizeBattlePlayback() {
     const logEl = document.getElementById('battle-log');
     const out = document.getElementById('battle-outcome');
     if (!battlePlaybackMeta || !logEl || !out) return;
-    const { log, enemyName, won, summary, dmgDealt, dmgTaken } = battlePlaybackMeta;
+    const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage } = battlePlaybackMeta;
+    
     logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName)).join('');
+    
+    // Add tutorial completion message if present
+    if (tutorialMessage) {
+        logEl.innerHTML += `<div class="battle-log-line tutorial-over-msg" style="margin-top:16px; padding:12px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:8px; color:#2ecc71; font-weight:600; line-height:1.5;">${tutorialMessage}</div>`;
+    }
+    
     logEl.scrollTop = logEl.scrollHeight;
     out.className = won ? 'won battle-outcome battle-outcome-visible' : 'lost battle-outcome battle-outcome-visible';
     out.innerHTML = won
@@ -4978,7 +4987,10 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
     }
     
     modal.classList.remove('hidden');
-    startBattlePlayback(battleLog, { won, summary, dmgDealt, dmgTaken, enemyName });
+    startBattlePlayback(battleLog, { 
+        won, summary, dmgDealt, dmgTaken, enemyName,
+        tutorialMessage: options.tutorialMessage 
+    });
 }
 
 function closeBattle() {
