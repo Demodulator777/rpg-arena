@@ -3517,6 +3517,7 @@ router.post('/missions/start', auth, async (req, res) => {
     _missionStartLock.add(userId);
     try {
         const db = await getDb();
+        const now = Math.floor(Date.now() / 1000);
         const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
