@@ -2438,9 +2438,41 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     min-width: unset !important;
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   MODALS
-   ════════════════════════════════════════════════════════════════════════ */
+.topbar-menu-btn.menu-highlight {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(231, 76, 60, 0.6);
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+.topbar-menu-action.claimable-highlight {
+    border-color: rgba(231, 76, 60, 0.5) !important;
+    background: rgba(231, 76, 60, 0.08) !important;
+}
+
+.exclamation-point {
+    display: inline-block;
+    color: #e74c3c;
+    font-weight: 900;
+    margin-left: 6px;
+    filter: drop-shadow(0 0 2px rgba(231, 76, 60, 0.6));
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════ */
+/*   MODALS                                                                */
+/* ════════════════════════════════════════════════════════════════════════ */
 .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.82); backdrop-filter: blur(5px);
