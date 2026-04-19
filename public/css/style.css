@@ -49,12 +49,13 @@
     align-items: center;
     justify-content: center;
     gap: 12px;
-    background: rgba(50, 50, 50, 0.95);
+    background: rgba(30, 30, 30, 0.98);
     color: #fff;
     padding: 12px 20px;
     border-radius: 8px;
     flex-wrap: wrap;
     border: 1px solid rgba(255,255,255,0.15);
+    margin-bottom: 12px;
 }
 .tutorial-tag {
     background: #f39c12;
@@ -69,7 +70,7 @@
     font-size: 0.85rem;
     font-weight: 500;
 }
-.skip-tutorial-btn {
+.skip-tutorial-btn, .goto-missions-btn {
     background: rgba(255,255,255,0.15);
     border: 1px solid rgba(255,255,255,0.3);
     color: #fff;
@@ -80,7 +81,7 @@
     cursor: pointer;
     transition: all 0.2s;
 }
-.skip-tutorial-btn:hover {
+.skip-tutorial-btn:hover, .goto-missions-btn:hover {
     background: rgba(255,255,255,0.25);
     border-color: rgba(255,255,255,0.5);
 }
