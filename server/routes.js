@@ -3805,7 +3805,11 @@ if (hasUlt) {
         const gemChance = isEvent ? 0.15 : 0.05;
         let gemsFound = 0;
         if (playerWon && Math.random() < gemChance) gemsFound = 1;
-        const newHp = Math.max(0, battle.hpRemainingA);
+
+        // Tutorial Check: Don't deplete HP for the first 4 battles
+        const isTutorial = (freshChar.wins || 0) < 4;
+        const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
         const newWins = freshChar.wins + (playerWon ? 1 : 0);
@@ -4393,7 +4397,9 @@ router.get('/travel/status', auth, async (req, res) => {
                         }
                     }
                     
-                    const newHp = Math.max(0, battle.hpRemainingA);
+                    // Tutorial Check: Don't deplete HP for the first 4 battles
+                    const isTutorial = (freshChar.wins || 0) < 4;
+                    const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
                     if (playerWon) {
                         await unlockTravelZone(db, freshChar, targetZone, currentMap);
