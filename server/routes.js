@@ -1967,16 +1967,16 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
     // Base stats scale with player level AND zone level
     const effectiveLevel = playerLevel + (zoneLevel * 2);
     
-    // Calculate base stats (scales with effective level)
-    const baseHp = 80 + (effectiveLevel * 30);
-    const baseDmgMin = 15 + (effectiveLevel * 0.8);
-    const baseDmgMax = 30 + (effectiveLevel * 1.2);
-    const baseAgi = 12 + (effectiveLevel * 0.5);
-    const baseMagic = 10 + (effectiveLevel * 0.4);
-    const baseVitality = 10 + (effectiveLevel * 0.4);
-    const baseHitChance = 85 + (effectiveLevel * 0.3);
-    const baseCritChance = 10 + (effectiveLevel * 0.2);
-    const baseArmor = 10 + (effectiveLevel * 0.3);
+    // Calculate base stats (scales with effective level) - reduced for easier early game
+    const baseHp = 60 + (effectiveLevel * 20);
+    const baseDmgMin = 8 + (effectiveLevel * 0.5);
+    const baseDmgMax = 16 + (effectiveLevel * 0.8);
+    const baseAgi = 8 + (effectiveLevel * 0.3);
+    const baseMagic = 6 + (effectiveLevel * 0.2);
+    const baseVitality = 8 + (effectiveLevel * 0.3);
+    const baseHitChance = 70 + (effectiveLevel * 0.2);
+    const baseCritChance = 5 + (effectiveLevel * 0.1);
+    const baseArmor = 5 + (effectiveLevel * 0.2);
     
     // Apply difficulty multipliers
     const hp = Math.floor(baseHp * mult.hpMult);
@@ -1985,8 +1985,8 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
     const agility = Math.floor(baseAgi * mult.agiMult);
     const magic = Math.floor(baseMagic * mult.dmgMult);
     const vitality = Math.floor(baseVitality * mult.hpMult);
-    const hit_chance = Math.min(95, Math.floor(baseHitChance));
-    const crit_chance = Math.min(40, Math.floor(baseCritChance * mult.dmgMult));
+    const hit_chance = Math.min(85, Math.floor(baseHitChance));
+    const crit_chance = Math.min(30, Math.floor(baseCritChance * mult.dmgMult));
     const armor = Math.floor(baseArmor * mult.armorMult);
     
     // Random attack/block zones
@@ -3000,6 +3000,28 @@ async function getCharacterAchievements(db, char) {
     };
 }
 
+async function getWeeklyClaimableCount(db, char) {
+    try {
+        const weeklyState = await ensureWeeklyTaskState(db, char);
+        const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
+        const claimedRows = await dbAll(db, 'SELECT task_id FROM character_weekly_claims WHERE char_id = ? AND week_start = ?', [char.id, weekStart]);
+        const claimedSet = new Set(claimedRows.map(r => r.task_id));
+
+        let count = 0;
+        for (const task of WEEKLY_TASKS) {
+            if (claimedSet.has(task.id)) continue;
+            const progress = await getWeeklyTaskProgress(db, char, weeklyState, task.metric);
+            if (progress >= task.target) {
+                count++;
+            }
+        }
+        return count;
+    } catch (e) {
+        console.error('Error getting weekly claimable count:', e);
+        return 0;
+    }
+}
+
 async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
@@ -3038,16 +3060,18 @@ async function buildCharacterResponse(char, db) {
     const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
-    
+
     // Rogue no-shield agility bonus
-let noShieldAgiBonus = 0;
-if (char.class === 'rogue') {  // Use 'char' here since that's the parameter name in buildCharacterResponse
-    const hasShield = !!equippedObj.shield;
-    if (!hasShield) {
-        // 5% agility bonus when no shield equipped
-        noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+    let noShieldAgiBonus = 0;
+    if (char.class === 'rogue') {  // Use 'char' here since that's the parameter name in buildCharacterResponse
+        const hasShield = !!equippedObj.shield;
+        if (!hasShield) {
+            // 5% agility bonus when no shield equipped
+            noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+        }
     }
-}
+
+    const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
     return {
         ...withTrain,
@@ -3085,9 +3109,9 @@ if (char.class === 'rogue') {  // Use 'char' here since that's the parameter nam
         no_shield_agi_bonus: noShieldAgiBonus,
         equipped_set_counts: setCounts,
         equipped_set_bonuses: setBonuses,
+        weekly_claimable_count: weeklyClaimableCount,
     };
 }
-
 // ── Character creation ────────────────────────────────────────────────────
 router.post('/character', auth, async (req, res) => {
     try {
