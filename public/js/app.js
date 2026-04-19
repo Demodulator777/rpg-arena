@@ -733,9 +733,16 @@ function showTab(name) {
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
+    const proceed = await openGameDialog({
+        title: 'Skip Tutorial?',
+        message: 'Are you sure you want to skip the tutorial? You will lose the early protection and fast missions.',
+        confirmLabel: 'Skip Tutorial',
+        cancelLabel: 'Stay',
+        showCancel: true,
+        danger: true
+    });
+    if (!proceed) return;
     try {
-        const confirmSkip = confirm("Are you sure you want to skip the tutorial? You will lose the early protection and fast missions.");
-        if (!confirmSkip) return;
         const res = await api('POST', '/game/tutorial/skip');
         character = res.character;
         renderTopBar();
@@ -745,6 +752,7 @@ async function skipTutorial() {
         alert(e.message);
     }
 }
+window.skipTutorial = skipTutorial;
 window.skipTutorial = skipTutorial;
 
 function renderTopBar() {
