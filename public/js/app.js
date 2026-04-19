@@ -606,8 +606,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         document.body.appendChild(tt);
     }
     initMissionTimer();
-    loadAssistantSuggestions();
     if (token) {
+        loadAssistantSuggestions();
         try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); }
         catch (e) {
             if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); }
