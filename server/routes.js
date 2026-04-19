@@ -3812,8 +3812,14 @@ if (hasUlt) {
 
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
-        const newWins = freshChar.wins + (playerWon ? 1 : 0);
-        const newLosses = freshChar.losses + (playerWon ? 0 : 1);
+        let newWins = freshChar.wins + (playerWon ? 1 : 0);
+        let newLosses = freshChar.losses + (playerWon ? 0 : 1);
+
+        let tutorialMessage = null;
+        if (isTutorial && newWins === 4) {
+            tutorialMessage = "✨ Tutorial complete! Your character is now ready for the real challenge. Note: Further missions will now affect your HP. Check the 'Upgrade' tab to build your stats, the 'Shop' to buy items, and your 'Inventory' to manage your gear!";
+        }
+
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+? WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id]);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
@@ -3936,6 +3942,7 @@ const payload = JSON.stringify({
             message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
             goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
             drops, hpRemaining: newHp,
+            tutorialMessage,
             activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
             character: await buildCharacterResponse(updatedChar, db),
             totalDmgDealt: battle.totalDmgToB,
