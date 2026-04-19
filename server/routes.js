@@ -3535,35 +3535,13 @@ router.post('/missions/start', auth, async (req, res) => {
         const spot = zone.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Spot not found' });
 
-        // Tutorial Lock Check: Wins < 4 only allows Easy
+// Tutorial Lock Check: Wins < 4 only allows Easy
         const isTutorial = (character.wins || 0) < 4;
         if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
             return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
         }
 
-        if (character.location !== zoneId) return res.status(400).json({ error: 'You must be at this zone to start missions' });
-
-        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?',
-            [character.id, Math.floor(Date.now() / 1000)]);
-        if (activeTraining) {
-            return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
-        }        const hpCurrent = character.hp_current ?? character.hp_max;
-        if (hpCurrent <= 0) return res.status(400).json({ error: 'Out of HP. Wait for regeneration.' });
-        
-        const now = Math.floor(Date.now() / 1000);
-        const lastBattle = character.last_battle_at || 0;
-        const activePrem = getActivePremium(character);
-        
-        // Reduced cooldown for tutorial (first 4 wins): 10s, otherwise 600s
-        const battleCooldown = (character.wins || 0) < 4 ? 10 : 600;
-        
-        if (lastBattle + battleCooldown > now) {
-            const secs = (lastBattle + battleCooldown) - now;
-            return res.status(400).json({ error: `Cannot start a mission so soon after battle. Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'}.` });
-        }
-        
         // Only small missions for tutorial (first 4 wins)
-        const isTutorial = (character.wins || 0) < 4;
         const sizeKey = isTutorial ? 'small' : (['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small');
         const sizeConf = MISSION_SIZES[sizeKey];
         
