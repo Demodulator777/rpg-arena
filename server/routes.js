@@ -129,6 +129,8 @@ const WEEKLY_TASKS = [
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
         ];
@@ -3062,6 +3064,9 @@ async function getWeeklyClaimableCount(db, char) {
 async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
+    const userSettings = char.user_id
+        ? await dbGet(db, 'SELECT assistant_enabled, skip_battle_animations FROM users WHERE id = ?', [char.user_id])
+        : null;
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
@@ -3149,6 +3154,8 @@ async function buildCharacterResponse(char, db) {
         equipped_set_counts: setCounts,
         equipped_set_bonuses: setBonuses,
         weekly_claimable_count: weeklyClaimableCount,
+        assistant_enabled: Number(userSettings?.assistant_enabled ?? 1) !== 0,
+        skip_battle_animations: Number(userSettings?.skip_battle_animations ?? 0) !== 0,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -3270,6 +3277,36 @@ router.get('/character', auth, async (req, res) => {
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json(await buildCharacterResponse(freshChar, db));
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/settings', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const updates = [];
+        const args = [];
+
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'assistantEnabled')) {
+            updates.push('assistant_enabled = ?');
+            args.push(req.body.assistantEnabled ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'skipBattleAnimations')) {
+            updates.push('skip_battle_animations = ?');
+            args.push(req.body.skipBattleAnimations ? 1 : 0);
+        }
+        if (!updates.length) {
+            return res.status(400).json({ error: 'No settings provided.' });
+        }
+
+        args.push(req.user.userId);
+        await dbRun(db, `UPDATE users SET ${updates.join(', ')} WHERE id = ?`, args);
+
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.json({ success: true });
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({ success: true, character: await buildCharacterResponse(freshChar, db) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.get('/achievements', auth, async (req, res) => {
@@ -6838,12 +6875,12 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
         console.log('📋 Assistant suggestions requested, userId:', req.user.userId);
         const db = await getDb();
         const userId = req.user.userId;
-        
-        // Check localStorage preference first (more reliable than DB)
-        const localEnabled = true; // Always default to enabled unless explicitly disabled on client
-        console.log('User local enabled:', localEnabled);
-        
-        if (!localEnabled) {
+
+        const userSettings = await dbGet(db, 'SELECT assistant_enabled FROM users WHERE id = ?', [userId]);
+        const assistantEnabled = Number(userSettings?.assistant_enabled ?? 1) !== 0;
+        console.log('User assistant enabled:', assistantEnabled);
+
+        if (!assistantEnabled) {
             console.log('Assistant disabled by user preference');
             return res.json({ suggestions: [], enabled: false });
         }
@@ -6963,7 +7000,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
         
         res.json({ 
             suggestions, 
-            enabled: true,
+            enabled: assistantEnabled,
             highlightTabs: []
         });
     } catch (e) {
@@ -6977,6 +7014,10 @@ router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
     const db = await getDb();
     const { tab } = req.params;
     const char = await getCurrentCharacter(db, req.user.userId);
+    const userSettings = await dbGet(db, 'SELECT assistant_enabled FROM users WHERE id = ?', [req.user.userId]);
+    if (Number(userSettings?.assistant_enabled ?? 1) === 0) {
+        return res.json({ message: '', enabled: false });
+    }
     const wins = char?.wins || 0;
     
     const tabHelp = {
