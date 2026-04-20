@@ -781,16 +781,23 @@ function renderTopBar() {
     const bannerEl = document.getElementById('event-banner');
     if (bannerEl) {
         if (isTutorial) {
+            bannerEl.classList.add('event-banner--tutorial');
             bannerEl.innerHTML = `
                 <div class="tutorial-banner">
-                    <span class="tutorial-tag">TUTORIAL MODE</span>
-                    <span class="tutorial-msg">Complete 4 missions to unlock full game. Fast 10s missions & HP protection active!</span>
-                    <button class="goto-missions-btn" onclick="showTabAndCloseMenu('missions')">Go to Missions</button>
-                    <button class="skip-tutorial-btn" onclick="skipTutorial()">Skip Tutorial</button>
+                    <div class="tutorial-copy">
+                        <span class="tutorial-tag">Tutorial Mode</span>
+                        <div class="tutorial-title">Your first 4 wins unlock the full arena</div>
+                        <div class="tutorial-msg">Fast 10s missions and HP protection are active while you learn the basics.</div>
+                    </div>
+                    <div class="tutorial-actions">
+                        <button class="goto-missions-btn" onclick="showTabAndCloseMenu('missions')">Go to Missions</button>
+                        <button class="skip-tutorial-btn" onclick="skipTutorial()">Skip Tutorial</button>
+                    </div>
                 </div>
             `;
             bannerEl.classList.remove('hidden');
         } else {
+            bannerEl.classList.remove('event-banner--tutorial');
             // Revert to event banner or hide if no event
             if (!c.active_event) bannerEl.classList.add('hidden');
         }
