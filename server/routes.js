@@ -6902,7 +6902,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
                 type: 'training',
                 message: 'Training complete! Collect your stat bonus.',
                 action: 'train',
-                tab: 'train'
+                tab: 'upgrade'
             });
         }
         
@@ -6937,7 +6937,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
                 type: 'guide',
                 message: '💡 Tip: Visit the Trainer (Train) to upgrade your stats!',
                 action: 'train',
-                tab: 'train'
+                tab: 'upgrade'
             });
         } else {
             // Post-tutorial guidance
@@ -6945,7 +6945,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
                 type: 'guide_stats',
                 message: '💡 Level up faster: Train your stats at the Trainer.',
                 action: 'train',
-                tab: 'train'
+                tab: 'upgrade'
             });
             suggestions.push({
                 type: 'guide_gear',
