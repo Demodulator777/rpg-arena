@@ -1591,59 +1591,98 @@ function buildExtendedAchievements() {
 
 ACHIEVEMENTS.push(...buildExtendedAchievements());
 
-async function getAchievementMetricValue(db, char, achievement) {
-    const metric = achievement.metric;
-    if (metric === 'wins') return char.wins || 0;
-    if (metric === 'battles') return (char.wins || 0) + (char.losses || 0);
-    if (metric === 'gold_earned') return char.total_gold_earned || 0;
-    if (metric === 'gems_earned') return char.total_gems_earned || 0;
-    if (metric === 'mp_spent') return char.total_mp_spent || 0;
-    if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
-    if (metric === 'hard_missions_completed') return char.hard_missions_completed || 0;
-    if (metric === 'elemental_kills') return char.elemental_kills || 0;
-    if (metric === 'physical_only_wins') return char.physical_only_wins || 0;
-    if (metric === 'wins_without_shield') return char.wins_without_shield || 0;
+async function buildAchievementMetricSnapshot(db, char) {
+    const [missionRows, monsterRows] = await Promise.all([
+        dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
+        dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id])
+    ]);
 
-    if (metric === 'mission_wins_total' || metric === 'mission_fights_total' || metric === 'mission_spots_discovered') {
-        const rows = await dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]);
-        if (metric === 'mission_wins_total') return rows.reduce((sum, row) => sum + (row.wins || 0), 0);
-        if (metric === 'mission_fights_total') return rows.reduce((sum, row) => sum + (row.fights || 0), 0);
-        return rows.length;
+    const missionTotals = {
+        wins: 0,
+        fights: 0,
+        discovered: missionRows.length,
+        bySpot: {},
+    };
+    for (const row of missionRows) {
+        const wins = Number(row.wins || 0);
+        const fights = Number(row.fights || 0);
+        missionTotals.wins += wins;
+        missionTotals.fights += fights;
+        missionTotals.bySpot[row.spot_id] = { wins, fights };
     }
+
+    const monsterTotals = {
+        all: { kills: 0, keys: new Set(), byKey: {} },
+        bySource: {},
+    };
+    for (const row of monsterRows) {
+        const source = row.source || 'unknown';
+        const key = row.monster_key;
+        const kills = Number(row.kills || 0);
+        monsterTotals.all.kills += kills;
+        if (key) {
+            monsterTotals.all.keys.add(key);
+            monsterTotals.all.byKey[key] = (monsterTotals.all.byKey[key] || 0) + kills;
+        }
+        if (!monsterTotals.bySource[source]) {
+            monsterTotals.bySource[source] = { kills: 0, keys: new Set(), byKey: {} };
+        }
+        monsterTotals.bySource[source].kills += kills;
+        if (key) {
+            monsterTotals.bySource[source].keys.add(key);
+            monsterTotals.bySource[source].byKey[key] = (monsterTotals.bySource[source].byKey[key] || 0) + kills;
+        }
+    }
+
+    return {
+        wins: char.wins || 0,
+        battles: (char.wins || 0) + (char.losses || 0),
+        gold_earned: char.total_gold_earned || 0,
+        gems_earned: char.total_gems_earned || 0,
+        mp_spent: char.total_mp_spent || 0,
+        dungeon_floor: char.dungeon_highest_floor || 1,
+        hard_missions_completed: char.hard_missions_completed || 0,
+        elemental_kills: char.elemental_kills || 0,
+        physical_only_wins: char.physical_only_wins || 0,
+        wins_without_shield: char.wins_without_shield || 0,
+        missionTotals,
+        monsterTotals,
+    };
+}
+
+async function getAchievementMetricValue(db, char, achievement, snapshot = null) {
+    const metrics = snapshot || await buildAchievementMetricSnapshot(db, char);
+    const metric = achievement.metric;
+    if (metric === 'wins') return metrics.wins;
+    if (metric === 'battles') return metrics.battles;
+    if (metric === 'gold_earned') return metrics.gold_earned;
+    if (metric === 'gems_earned') return metrics.gems_earned;
+    if (metric === 'mp_spent') return metrics.mp_spent;
+    if (metric === 'dungeon_floor') return metrics.dungeon_floor;
+    if (metric === 'hard_missions_completed') return metrics.hard_missions_completed;
+    if (metric === 'elemental_kills') return metrics.elemental_kills;
+    if (metric === 'physical_only_wins') return metrics.physical_only_wins;
+    if (metric === 'wins_without_shield') return metrics.wins_without_shield;
+
+    if (metric === 'mission_wins_total') return metrics.missionTotals.wins;
+    if (metric === 'mission_fights_total') return metrics.missionTotals.fights;
+    if (metric === 'mission_spots_discovered') return metrics.missionTotals.discovered;
 
     if (metric === 'mission_spot_wins' || metric === 'mission_spot_fights') {
         if (!achievement.metric_key) return 0;
-        const row = await dbGet(
-            db,
-            'SELECT fights, wins FROM character_mission_spot_stats WHERE char_id = ? AND spot_id = ?',
-            [char.id, achievement.metric_key]
-        );
+        const row = metrics.missionTotals.bySpot[achievement.metric_key];
         if (!row) return 0;
-        return metric === 'mission_spot_wins' ? (row.wins || 0) : (row.fights || 0);
+        return metric === 'mission_spot_wins' ? row.wins : row.fights;
     }
 
-    if (metric === 'monster_kills_total' || metric === 'monster_types_total') {
-        const rows = achievement.metric_source
-            ? await dbAll(db, 'SELECT monster_key, kills FROM character_monster_stats WHERE char_id = ? AND source = ?', [char.id, achievement.metric_source])
-            : await dbAll(db, 'SELECT monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]);
-        if (metric === 'monster_kills_total') return rows.reduce((sum, row) => sum + (row.kills || 0), 0);
-        return rows.length;
-    }
-
-    if (metric === 'monster_kills') {
+    if (metric === 'monster_kills_total' || metric === 'monster_types_total' || metric === 'monster_kills') {
+        const sourceMetrics = achievement.metric_source
+            ? (metrics.monsterTotals.bySource[achievement.metric_source] || { kills: 0, keys: new Set(), byKey: {} })
+            : metrics.monsterTotals.all;
+        if (metric === 'monster_kills_total') return sourceMetrics.kills;
+        if (metric === 'monster_types_total') return sourceMetrics.keys.size;
         if (!achievement.metric_key) return 0;
-        const row = achievement.metric_source
-            ? await dbGet(
-                db,
-                'SELECT kills FROM character_monster_stats WHERE char_id = ? AND source = ? AND monster_key = ?',
-                [char.id, achievement.metric_source, achievement.metric_key]
-            )
-            : await dbGet(
-                db,
-                'SELECT SUM(kills) AS kills FROM character_monster_stats WHERE char_id = ? AND monster_key = ?',
-                [char.id, achievement.metric_key]
-            );
-        return row?.kills || 0;
+        return sourceMetrics.byKey[achievement.metric_key] || 0;
     }
 
     return 0;
@@ -3578,9 +3617,10 @@ async function grantAchievementRewards(db, char, rewards) {
 async function getCharacterAchievements(db, char) {
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
+    const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
     const items = [];
     for (const def of ACHIEVEMENTS) {
-        const progress = await getAchievementMetricValue(db, char, def);
+        const progress = await getAchievementMetricValue(db, char, def, metricSnapshot);
         const completed = progress >= def.target;
         const claimedAt = claimedMap.get(def.id) || null;
         items.push({
