@@ -6974,6 +6974,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
 
 // Tab-specific assistant messages endpoint
 router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
+    const db = await getDb();
     const { tab } = req.params;
     const char = await getCurrentCharacter(db, req.user.userId);
     const wins = char?.wins || 0;
