@@ -7081,7 +7081,7 @@ router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
             showAfter: 0
         },
         loadout: {
-            message: '💡 In Loadout you can set your attack and defense zones. Choose wisely - each zone has different bonuses! You can also swap between different gear sets.',
+            message: '💡 In Loadout you can set your attack and defense zones. Choose wisely - each zone has different bonuses!',
             showAfter: 0
         },
         skills: {
@@ -7089,7 +7089,7 @@ router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
             showAfter: 0
         },
         train: {
-            message: '💡 Training lets you learn new skills from the skill tree. Each class has unique skills - invest points wisely to build your character.',
+            message: '💡 Training lets you learn new skills from the skill tree. Each class has unique skills - choose wisely to build your character, starter skill unlocks more branches.',
             showAfter: 0
         },
         forge: {
@@ -7101,7 +7101,7 @@ router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
             showAfter: 0
         },
         shop: {
-            message: '💡 Buy new weapons, armor, and accessories here. Check back regularly - the inventory changes! Save gold for better gear.',
+            message: '💡 Buy new weapons, armor, and accessories here. Check back regularly - the inventory changes every day! Save gold for better gear.',
             showAfter: 0
         },
         dungeon: {
