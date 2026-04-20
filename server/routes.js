@@ -1218,6 +1218,52 @@ function buildExtendedAchievements() {
         target: 15,
         rewards: { gold: 75000, gems: 18, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
+    extras.push(
+        {
+            id: 'mission_fights_25',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'First Contract Rush',
+            desc: 'Fight 25 missions.',
+            icon: '🧾',
+            metric: 'mission_fights_total',
+            target: 25,
+            rewards: { gold: 8000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'mission_fights_100',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Road Worn',
+            desc: 'Fight 100 missions.',
+            icon: '🥾',
+            metric: 'mission_fights_total',
+            target: 100,
+            rewards: { gold: 30000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_500',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Campaign Machine',
+            desc: 'Fight 500 missions.',
+            icon: '⚙️',
+            metric: 'mission_fights_total',
+            target: 500,
+            rewards: { gold: 175000, gems: 18, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_2000',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Endless March',
+            desc: 'Fight 2,000 missions.',
+            icon: '🚩',
+            metric: 'mission_fights_total',
+            target: 2000,
+            rewards: { gold: 900000, gems: 80, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        }
+    );
 
     const dungeonKillsBase = ACHIEVEMENTS.find((a) => a.id === 'dungeon_kills_300');
     addFromBase(dungeonKillsBase, {
@@ -1324,6 +1370,188 @@ function buildExtendedAchievements() {
             });
         });
 
+    extras.push(
+        {
+            id: 'hard_missions_5',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Danger Seeker',
+            desc: 'Win 5 hard missions.',
+            icon: '⚠️',
+            metric: 'hard_missions_completed',
+            target: 5,
+            rewards: { gold: 20000, consumable: { id: 'special_mana_potion', qty: 1 } },
+        },
+        {
+            id: 'hard_missions_25',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Hazard Collector',
+            desc: 'Win 25 hard missions.',
+            icon: '☠️',
+            metric: 'hard_missions_completed',
+            target: 25,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'hard_missions_100',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Calamity Walker',
+            desc: 'Win 100 hard missions.',
+            icon: '🌋',
+            metric: 'hard_missions_completed',
+            target: 100,
+            rewards: { gold: 350000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'elemental_kills_10',
+            chain: 'elemental_kills',
+            category: 'combat',
+            name: 'Spark of Power',
+            desc: 'Win 10 battles with elemental damage finishing the job.',
+            icon: '⚡',
+            metric: 'elemental_kills',
+            target: 10,
+            rewards: { gold: 12000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'elemental_kills_50',
+            chain: 'elemental_kills',
+            category: 'combat',
+            name: 'Stormcaller',
+            desc: 'Win 50 battles with elemental damage.',
+            icon: '🌩️',
+            metric: 'elemental_kills',
+            target: 50,
+            rewards: { gold: 60000, gems: 8, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'elemental_kills_200',
+            chain: 'elemental_kills',
+            category: 'combat',
+            name: 'Elemental Cataclysm',
+            desc: 'Win 200 battles with elemental damage.',
+            icon: '🌪️',
+            metric: 'elemental_kills',
+            target: 200,
+            rewards: { gold: 275000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'gems_earn_25',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Gem Seeker',
+            desc: 'Earn 25 total gems.',
+            icon: '💎',
+            metric: 'gems_earned',
+            target: 25,
+            rewards: { gold: 15000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'gems_earn_100',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Crystal Touch',
+            desc: 'Earn 100 total gems.',
+            icon: '🔷',
+            metric: 'gems_earned',
+            target: 100,
+            rewards: { gold: 75000, consumable: { id: 'special_mana_potion', qty: 2 } },
+        },
+        {
+            id: 'gems_earn_500',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Crown Jeweler',
+            desc: 'Earn 500 total gems.',
+            icon: '👑',
+            metric: 'gems_earned',
+            target: 500,
+            rewards: { gold: 350000, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'gems_earn_1500',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Radiant Treasury',
+            desc: 'Earn 1,500 total gems.',
+            icon: '💠',
+            metric: 'gems_earned',
+            target: 1500,
+            rewards: { gold: 1200000, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'apprentice', days: 21 } },
+        },
+        {
+            id: 'monster_types_5',
+            chain: 'monster_types_total_dungeon',
+            category: 'dungeon',
+            name: 'Bestiary Starter',
+            desc: 'Defeat 5 different monster types in the dungeon.',
+            icon: '📖',
+            metric: 'monster_types_total',
+            metric_source: 'dungeon',
+            target: 5,
+            rewards: { gold: 18000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'monster_types_10',
+            chain: 'monster_types_total_dungeon',
+            category: 'dungeon',
+            name: 'Catalog of Horrors',
+            desc: 'Defeat 10 different monster types in the dungeon.',
+            icon: '🕮',
+            metric: 'monster_types_total',
+            metric_source: 'dungeon',
+            target: 10,
+            rewards: { gold: 90000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'monster_types_20',
+            chain: 'monster_types_total_dungeon',
+            category: 'dungeon',
+            name: 'Scholar of the Abyss',
+            desc: 'Defeat 20 different monster types in the dungeon.',
+            icon: '🧠',
+            metric: 'monster_types_total',
+            metric_source: 'dungeon',
+            target: 20,
+            rewards: { gold: 250000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'shieldless_wins_10',
+            chain: 'wins_without_shield',
+            category: 'class',
+            name: 'Light on Your Feet',
+            desc: 'Win 10 battles as a rogue without a shield equipped.',
+            icon: '🗡️',
+            metric: 'wins_without_shield',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'shieldless_wins_50',
+            chain: 'wins_without_shield',
+            category: 'class',
+            name: 'Untouchable Rogue',
+            desc: 'Win 50 battles as a rogue without a shield equipped.',
+            icon: '🦊',
+            metric: 'wins_without_shield',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'shieldless_wins_200',
+            chain: 'wins_without_shield',
+            category: 'class',
+            name: 'Shadow Duelist',
+            desc: 'Win 200 battles as a rogue without a shield equipped.',
+            icon: '🌒',
+            metric: 'wins_without_shield',
+            target: 200,
+            rewards: { gold: 300000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        }
+    );
+
     return extras;
 }
 
@@ -1334,8 +1562,12 @@ async function getAchievementMetricValue(db, char, achievement) {
     if (metric === 'wins') return char.wins || 0;
     if (metric === 'battles') return (char.wins || 0) + (char.losses || 0);
     if (metric === 'gold_earned') return char.total_gold_earned || 0;
+    if (metric === 'gems_earned') return char.total_gems_earned || 0;
     if (metric === 'mp_spent') return char.total_mp_spent || 0;
     if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
+    if (metric === 'hard_missions_completed') return char.hard_missions_completed || 0;
+    if (metric === 'elemental_kills') return char.elemental_kills || 0;
+    if (metric === 'wins_without_shield') return char.wins_without_shield || 0;
 
     if (metric === 'mission_wins_total' || metric === 'mission_fights_total' || metric === 'mission_spots_discovered') {
         const rows = await dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]);
