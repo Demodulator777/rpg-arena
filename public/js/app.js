@@ -20,7 +20,7 @@ let battlePlaybackQueue = [];
 let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = localStorage.getItem('battle_arena_skip_battle_animations') === '1';
-let assistantEnabled = localStorage.getItem('rpg_assistant_enabled') !== '0';
+let assistantEnabled = true; // Always enabled for now
 let assistantNotified = false;
 let playerLocation = 'forest';
 let playerTravelTarget = null;
@@ -865,14 +865,16 @@ async function pollUnread() {
 }
 
 async function loadAssistantSuggestions() {
-    if (!assistantEnabled) return;
+    console.log('🔧 loadAssistantSuggestions called, assistantEnabled:', assistantEnabled);
+    if (!assistantEnabled) {
+        console.log('Assistant disabled, skipping');
+        return;
+    }
     try {
-        console.log('Loading assistant suggestions...');
         const d = await api('GET', '/game/assistant/suggestions');
         console.log('Assistant response:', d);
         assistantSuggestions = d.suggestions || [];
-        assistantEnabled = d.enabled !== false && localStorage.getItem('rpg_assistant_enabled') !== '0';
-        console.log('Assistant suggestions:', assistantSuggestions.length, 'enabled:', assistantEnabled);
+        console.log('Loaded suggestions:', assistantSuggestions.length, assistantSuggestions);
         if (assistantSuggestions.length > 0) {
             updateAssistantUI();
         }
@@ -882,7 +884,8 @@ async function loadAssistantSuggestions() {
 }
 
 function updateAssistantUI() {
-    if (!assistantEnabled || assistantSuggestions.length === 0) {
+    console.log('🔧 updateAssistantUI, suggestions:', assistantSuggestions.length);
+    if (assistantSuggestions.length === 0) {
         document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
         return;
     }
@@ -916,9 +919,10 @@ function showAssistantNotification() {
             <div id="assistant-notification" class="assistant-notification hidden">
                 <span class="assistant-icon">🤖</span>
                 <div class="assistant-messages"></div>
-                <button class="assistant-close" onclick="this.parentElement.classList.add('hidden')">✕</button>
+                <button class="assistant-close" id="assistant-close-btn">✕</button>
             </div>
         `);
+        document.getElementById('assistant-close-btn').addEventListener('click', closeAssistantNotif);
     }
     
     const notifEl = document.getElementById('assistant-notification');
@@ -926,10 +930,17 @@ function showAssistantNotification() {
     msgsContainer.innerHTML = messages.map(m => `<div class="assistant-msg-line">${m}</div>`).join('');
     notifEl.classList.remove('hidden');
     
-    setTimeout(() => {
+    clearTimeout(window.assistantHideTimer);
+    window.assistantHideTimer = setTimeout(() => {
         notifEl.classList.add('hidden');
     }, 10000);
 }
+
+function closeAssistantNotif() {
+    const notif = document.getElementById('assistant-notification');
+    if (notif) notif.classList.add('hidden');
+}
+window.closeAssistantNotif = closeAssistantNotif;
 
 // ── Equipment slot helpers ────────────────────────────────────────────────
 
