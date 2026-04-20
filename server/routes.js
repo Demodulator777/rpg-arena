@@ -1084,6 +1084,251 @@ const ACHIEVEMENTS = [
     },
 ];
 
+function buildExtendedAchievements() {
+    const extras = [];
+    const addFromBase = (base, overrides) => extras.push({ ...base, ...overrides });
+
+    const battlesBase = ACHIEVEMENTS.find((a) => a.id === 'battles_500');
+    addFromBase(battlesBase, {
+        id: 'battles_1000',
+        name: 'Battleforged',
+        desc: 'Fight 1,000 total battles.',
+        target: 1000,
+        rewards: { gold: 250000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_2500',
+        name: 'Endless Combatant',
+        desc: 'Fight 2,500 total battles.',
+        target: 2500,
+        rewards: { gold: 700000, gems: 70, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_5000',
+        name: 'Avatar of War',
+        desc: 'Fight 5,000 total battles.',
+        target: 5000,
+        rewards: { gold: 1800000, gems: 160, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'iron_fortress', days: 14 } },
+    });
+
+    const goldBase = ACHIEVEMENTS.find((a) => a.id === 'gold_1000000');
+    addFromBase(goldBase, {
+        id: 'gold_2500000',
+        name: 'Imperial Vault',
+        desc: 'Earn 2,500,000 total gold.',
+        target: 2500000,
+        rewards: { gold: 500000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_5000000',
+        name: 'Kingmaker Treasury',
+        desc: 'Earn 5,000,000 total gold.',
+        target: 5000000,
+        rewards: { gold: 1000000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_10000000',
+        name: 'Golden Empire',
+        desc: 'Earn 10,000,000 total gold.',
+        target: 10000000,
+        rewards: { gold: 2500000, gems: 250, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const floorBase = ACHIEVEMENTS.find((a) => a.id === 'floor_50');
+    addFromBase(floorBase, {
+        id: 'floor_75',
+        name: 'Nether Ascendant',
+        desc: 'Reach dungeon floor 75.',
+        target: 75,
+        rewards: { gold: 400000, gems: 90, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_100',
+        name: 'Hundred-Floor Horror',
+        desc: 'Reach dungeon floor 100.',
+        target: 100,
+        rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_150',
+        name: 'Master of the Abyss',
+        desc: 'Reach dungeon floor 150.',
+        target: 150,
+        rewards: { gold: 1500000, gems: 260, premium: { id: 'iron_fortress', days: 21 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_200',
+        name: 'Dungeon Godslayer',
+        desc: 'Reach dungeon floor 200.',
+        target: 200,
+        rewards: { gold: 3000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 2 }, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+
+    const mpBase = ACHIEVEMENTS.find((a) => a.id === 'mp_5000');
+    addFromBase(mpBase, {
+        id: 'mp_10000',
+        name: 'Arcane Marathon',
+        desc: 'Spend 10,000 total MP.',
+        target: 10000,
+        rewards: { gold: 350000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_25000',
+        name: 'Mana Furnace',
+        desc: 'Spend 25,000 total MP.',
+        target: 25000,
+        rewards: { gold: 900000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_50000',
+        name: 'Engine of Progress',
+        desc: 'Spend 50,000 total MP.',
+        target: 50000,
+        rewards: { gold: 2000000, gems: 220, premium: { id: 'apprentice', days: 30 } },
+    });
+
+    const missionWinsBase = ACHIEVEMENTS.find((a) => a.id === 'mission_wins_250');
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_1000',
+        name: 'Campaign Veteran',
+        desc: 'Win 1,000 missions.',
+        target: 1000,
+        rewards: { gold: 400000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_2500',
+        name: 'Contract Emperor',
+        desc: 'Win 2,500 missions.',
+        target: 2500,
+        rewards: { gold: 1200000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_5000',
+        name: 'Unstoppable Expedition',
+        desc: 'Win 5,000 missions.',
+        target: 5000,
+        rewards: { gold: 2500000, gems: 240, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const missionSpotsBase = ACHIEVEMENTS.find((a) => a.id === 'mission_spots_10');
+    addFromBase(missionSpotsBase, {
+        id: 'mission_spots_15',
+        name: 'Master Pathfinder',
+        desc: 'Fight in all 15 mission locations.',
+        target: 15,
+        rewards: { gold: 75000, gems: 18, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+
+    const dungeonKillsBase = ACHIEVEMENTS.find((a) => a.id === 'dungeon_kills_300');
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_1000',
+        name: 'Nightmare Reaper',
+        desc: 'Defeat 1,000 dungeon monsters.',
+        target: 1000,
+        rewards: { gold: 400000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_2500',
+        name: 'Catacomb Catastrophe',
+        desc: 'Defeat 2,500 dungeon monsters.',
+        target: 2500,
+        rewards: { gold: 1200000, gems: 125, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_5000',
+        name: 'Lord of the Underdeep',
+        desc: 'Defeat 5,000 dungeon monsters.',
+        target: 5000,
+        rewards: { gold: 2500000, gems: 240, premium: { id: 'iron_fortress', days: 21 } },
+    });
+
+    const skeletonBase = ACHIEVEMENTS.find((a) => a.id === 'skeleton_kills_15');
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_50',
+        name: 'Bonecrusher',
+        desc: 'Defeat 50 Skeleton Warriors in the dungeon.',
+        target: 50,
+        rewards: { gold: 45000, gems: 6, lootbox: { id: 'lootbox_common', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_150',
+        name: 'Marrow Shatterer',
+        desc: 'Defeat 150 Skeleton Warriors in the dungeon.',
+        target: 150,
+        rewards: { gold: 150000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_500',
+        name: 'Graveyard Extinction',
+        desc: 'Defeat 500 Skeleton Warriors in the dungeon.',
+        target: 500,
+        rewards: { gold: 500000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+
+    const wraithBase = ACHIEVEMENTS.find((a) => a.id === 'void_wraith_kills_10');
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_25',
+        name: 'Shade Hunter',
+        desc: 'Defeat 25 Void Wraiths in the dungeon.',
+        target: 25,
+        rewards: { gold: 90000, gems: 16, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_100',
+        name: 'Wraith Exorcist',
+        desc: 'Defeat 100 Void Wraiths in the dungeon.',
+        target: 100,
+        rewards: { gold: 300000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_250',
+        name: 'Nether Exterminator',
+        desc: 'Defeat 250 Void Wraiths in the dungeon.',
+        target: 250,
+        rewards: { gold: 800000, gems: 110, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+
+    const winsBase = ACHIEVEMENTS.find((a) => a.id === 'wins_2500');
+    addFromBase(winsBase, {
+        id: 'wins_5000',
+        name: 'Arena Tyrant',
+        desc: 'Reach 5,000 victories.',
+        target: 5000,
+        rewards: { gold: 3000000, gems: 320, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_10000',
+        name: 'Immortal Gladiator',
+        desc: 'Reach 10,000 victories.',
+        target: 10000,
+        rewards: { gold: 6000000, gems: 600, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+
+    const spotMilestoneDefs = [
+        { target: 25, suffix: 'Veteran', rewards: { gold: 35000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } } },
+        { target: 100, suffix: 'Master', rewards: { gold: 125000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 250, suffix: 'Legend', rewards: { gold: 400000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    ];
+    ACHIEVEMENTS
+        .filter((a) => a.metric === 'mission_spot_wins' && a.target === 10)
+        .forEach((base) => {
+            spotMilestoneDefs.forEach((tier) => {
+                extras.push({
+                    ...base,
+                    id: `${base.metric_key}_wins_${tier.target}`,
+                    name: `${base.metric_label} ${tier.suffix}`,
+                    desc: `Win ${tier.target} missions at ${base.metric_label}.`,
+                    target: tier.target,
+                    rewards: tier.rewards,
+                });
+            });
+        });
+
+    return extras;
+}
+
+ACHIEVEMENTS.push(...buildExtendedAchievements());
+
 async function getAchievementMetricValue(db, char, achievement) {
     const metric = achievement.metric;
     if (metric === 'wins') return char.wins || 0;
