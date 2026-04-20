@@ -5327,7 +5327,7 @@ router.post('/gems/monthly-claim', auth, async (req, res) => {
 
         await dbRun(
             db,
-            'UPDATE characters SET gems = gems + 500, total_gems_earned = COALESCE(total_gems_earned, 0) + 500, last_free_gems_claim_at = ? WHERE id = ?',
+            'UPDATE characters SET gems = gems + 500, last_free_gems_claim_at = ? WHERE id = ?',
             [now, character.id]
         );
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
