@@ -1956,6 +1956,36 @@ function runBattle(fighterA, fighterB, forceWinnerId = null) {
     return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
 }
 
+function createTutorialBattleResult(playerFighter, npc) {
+    const playerStartHp = Math.max(1, playerFighter.hp || playerFighter.hpMax || 1);
+    const npcStartHp = Math.max(12, npc.hp || npc.hpMax || 12);
+    const opener = Math.min(
+        npcStartHp - 1,
+        Math.max(6, Math.floor((playerFighter.dmgMax || playerFighter.dmgMin || 8) * 0.75))
+    );
+    const counter = Math.min(
+        Math.max(1, playerStartHp - 1),
+        Math.max(1, Math.floor((npc.dmgMin || 4) * 0.35))
+    );
+    const finisher = Math.max(1, npcStartHp - opener);
+    const hpAfterCounter = Math.max(1, playerStartHp - counter);
+    return {
+        winnerId: playerFighter.id,
+        hpRemainingA: hpAfterCounter,
+        hpRemainingB: 0,
+        totalDmgToA: counter,
+        totalDmgToB: npcStartHp,
+        totalElemDmgDealt: 0,
+        log: [
+            `🎓 Tutorial battle begins against ${npc.name}.`,
+            `${playerFighter.name} lands a clean opening hit for ${opener} damage. ${npc.name} has ${finisher} HP left.`,
+            `${npc.name} strikes back for ${counter} damage, but ${playerFighter.name} stays in control at ${hpAfterCounter} HP.`,
+            `${playerFighter.name} answers with a finishing blow for ${finisher} damage.`,
+            `✨ Tutorial victory! You win the lesson and claim your reward.`
+        ]
+    };
+}
+
 function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     // Base difficulty multipliers
     const difficultyMultipliers = {
@@ -3793,6 +3823,8 @@ if (freshChar.class === 'rogue') {
             dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
         };
         
+        const isTutorial = (freshChar.wins || 0) < 4;
+
         // Build NPC and override its name with the mission name
         const npc = buildNpc(mission.difficulty, freshChar.level, zoneLevel, playerStats);
         const npcName = getNPCNameFromMission(mission.mission_name);
@@ -3805,7 +3837,9 @@ if (freshChar.class === 'rogue') {
             forceWinnerId = freshChar.id;
         }
         
-        const battle = runBattle(playerFighter, npc, forceWinnerId);
+        const battle = isTutorial
+            ? createTutorialBattleResult(playerFighter, npc)
+            : runBattle(playerFighter, npc, forceWinnerId);
         let playerWon = battle.winnerId === freshChar.id;
         
         // Add tutorial note if we used forceWinnerId to flip a loss
@@ -3835,34 +3869,40 @@ if (freshChar.class === 'rogue') {
             await recordShieldlessWin(db, freshChar, equippedArray);
         }
         
-        let goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
-let xpEarned = playerWon ? mission.xp_reward : 0;
+        let goldEarned;
+        let xpEarned;
+        if (isTutorial) {
+            goldEarned = 250;
+            xpEarned = 1;
+        } else {
+            goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
+            xpEarned = playerWon ? mission.xp_reward : 0;
 
-// Add damage-based bonus
-const sizeConf = MISSION_SIZES[mission.size || 'small'];
-const mpMultiplier = sizeConf.mpCost / 60;
-const damageDiff = Math.max(0, battle.totalDmgToB - battle.totalDmgToA);
-const damageGold = Math.floor(damageDiff * mpMultiplier);
+            // Add damage-based bonus
+            const sizeConf = MISSION_SIZES[mission.size || 'small'];
+            const mpMultiplier = sizeConf.mpCost / 60;
+            const damageDiff = Math.max(0, battle.totalDmgToB - battle.totalDmgToA);
+            const damageGold = Math.floor(damageDiff * mpMultiplier);
 
-goldEarned += damageGold;
+            goldEarned += damageGold;
 
-if (isEvent) {
-    goldEarned *= 2;
-    xpEarned *= 2;
-}
-if (hasPremium(activePremCollect, 'fortune_hunter')) {
-    goldEarned = Math.floor(goldEarned * 1.30);
-}
-if (hasUlt) {
-    xpEarned = Math.floor(xpEarned * 1.50);
-}
+            if (isEvent) {
+                goldEarned *= 2;
+                xpEarned *= 2;
+            }
+            if (hasPremium(activePremCollect, 'fortune_hunter')) {
+                goldEarned = Math.floor(goldEarned * 1.30);
+            }
+            if (hasUlt) {
+                xpEarned = Math.floor(xpEarned * 1.50);
+            }
+        }
         
-        const gemChance = isEvent ? 0.15 : 0.05;
+        const gemChance = isTutorial ? 0 : (isEvent ? 0.15 : 0.05);
         let gemsFound = 0;
         if (playerWon && Math.random() < gemChance) gemsFound = 1;
 
         // Tutorial Check: Don't deplete HP for the first 4 battles
-        const isTutorial = (freshChar.wins || 0) < 4;
         const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
@@ -3949,19 +3989,30 @@ if (mission.map_type === 'abyss') {
     };
 }
 const mats = matsByZone[mission.zone] || (mission.map_type === 'abyss' ? matsByZone.shadowfen : matsByZone.forest);
-        const dropChance = playerWon ? 0.6 : 0.2;
-        for (const mat of mats) {
-            if (Math.random() < dropChance) {
-                const qty = 1 + Math.floor(Math.random() * 3);
-                const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [freshChar.id, mat.id]);
-                if (existing) {
-                    const d = JSON.parse(existing.item_data);
-                    d.qty = (d.qty || 1) + qty;
-                    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existing.id]);
-                } else {
-                    await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)`, [freshChar.id, 'raw_mat', JSON.stringify({ ...mat, qty })]);
+        const addMaterialDrop = async (mat, qty) => {
+            const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [freshChar.id, mat.id]);
+            if (existing) {
+                const d = JSON.parse(existing.item_data);
+                d.qty = (d.qty || 1) + qty;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existing.id]);
+            } else {
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)`, [freshChar.id, 'raw_mat', JSON.stringify({ ...mat, qty })]);
+            }
+            drops.push({ mat: mat.id, qty });
+        };
+
+        if (isTutorial && playerWon) {
+            const tutorialDropCount = Math.min(2, mats.length);
+            const tutorialPool = [...mats].sort(() => Math.random() - 0.5).slice(0, tutorialDropCount);
+            for (const mat of tutorialPool) {
+                await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 2));
+            }
+        } else {
+            const dropChance = playerWon ? 0.6 : 0.2;
+            for (const mat of mats) {
+                if (Math.random() < dropChance) {
+                    await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 3));
                 }
-                drops.push({ mat: mat.id, qty });
             }
         }
         
