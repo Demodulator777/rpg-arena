@@ -713,6 +713,9 @@ function showTab(name) {
     // Update assistant highlight after tab change
     updateAssistantUI();
     
+    // Show tab-specific help message
+    loadTabHelp(name);
+    
     if (name === 'character')   renderCharacter();
     if (name === 'premium')     loadPremium();
     if (name === 'loadout')     renderLoadout();
@@ -956,6 +959,32 @@ function closeAssistantNotif() {
     if (notif) notif.classList.add('hidden');
 }
 window.closeAssistantNotif = closeAssistantNotif;
+
+// ── Tab Help ─────────────────────────────────────────────────────────────────
+let tabHelpTimeout = null;
+
+async function loadTabHelp(tabName) {
+    if (!assistantEnabled) return;
+    
+    clearTimeout(tabHelpTimeout);
+    const notif = document.getElementById('assistant-notification');
+    if (!notif) return;
+    
+    try {
+        const data = await api('GET', `/assistant/tab-help/${tabName}`);
+        if (data.message) {
+            const msgsContainer = notif.querySelector('.assistant-messages');
+            msgsContainer.innerHTML = `<div class="assistant-msg-line">${data.message}</div>`;
+            notif.classList.remove('hidden');
+            
+            tabHelpTimeout = setTimeout(() => {
+                notif.classList.add('hidden');
+            }, 15000);
+        }
+    } catch (e) {
+        // Silently fail - tab help is optional
+    }
+}
 
 // ── Equipment slot helpers ────────────────────────────────────────────────
 
