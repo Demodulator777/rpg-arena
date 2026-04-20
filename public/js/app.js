@@ -919,10 +919,17 @@ function showAssistantNotification() {
             <div id="assistant-notification" class="assistant-notification hidden">
                 <span class="assistant-icon">🤖</span>
                 <div class="assistant-messages"></div>
-                <button class="assistant-close" id="assistant-close-btn">✕</button>
+                <div class="assistant-actions">
+                    <button class="assistant-disable" id="assistant-disable-btn">Disable Assistant</button>
+                    <button class="assistant-close" id="assistant-close-btn">✕</button>
+                </div>
             </div>
         `);
         document.getElementById('assistant-close-btn').addEventListener('click', closeAssistantNotif);
+        document.getElementById('assistant-disable-btn').addEventListener('click', () => {
+            toggleAssistant();
+            closeAssistantNotif();
+        });
     }
     
     const notifEl = document.getElementById('assistant-notification');
