@@ -19,7 +19,7 @@ let battlePlaybackTimer = null;
 let battlePlaybackQueue = [];
 let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
-let alwaysSkipBattleAnimations = localStorage.getItem('battle_arena_skip_battle_animations') === '1';
+let alwaysSkipBattleAnimations = false;
 let assistantEnabled = true;
 let playerLocation = 'forest';
 let playerTravelTarget = null;
@@ -522,15 +522,25 @@ function logoutFromMenu() {
     logout();
 }
 
-function toggleAlwaysSkipBattleAnimations() {
-    alwaysSkipBattleAnimations = !alwaysSkipBattleAnimations;
-    localStorage.setItem('battle_arena_skip_battle_animations', alwaysSkipBattleAnimations ? '1' : '0');
+function syncClientPreferencesFromCharacter() {
+    if (!character) return;
+    alwaysSkipBattleAnimations = !!character.skip_battle_animations;
+    assistantEnabled = character.assistant_enabled !== false;
+}
+
+async function toggleAlwaysSkipBattleAnimations() {
+    const nextValue = !alwaysSkipBattleAnimations;
+    const response = await api('POST', '/game/settings', { skipBattleAnimations: nextValue });
+    if (response?.character) character = response.character;
+    syncClientPreferencesFromCharacter();
     renderTopbarMenu();
 }
 
-function toggleAssistant() {
-    assistantEnabled = !assistantEnabled;
-    localStorage.setItem('rpg_assistant_enabled', assistantEnabled ? '1' : '0');
+async function toggleAssistant() {
+    const nextValue = !assistantEnabled;
+    const response = await api('POST', '/game/settings', { assistantEnabled: nextValue });
+    if (response?.character) character = response.character;
+    syncClientPreferencesFromCharacter();
     renderTopbarMenu();
     if (!assistantEnabled) {
         document.getElementById('assistant-notification')?.classList.add('hidden');
@@ -757,6 +767,7 @@ window.skipTutorial = skipTutorial;
 
 function renderTopBar() {
     if (!character) return;
+    syncClientPreferencesFromCharacter();
     const c=character;
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
