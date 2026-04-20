@@ -925,11 +925,19 @@ function showAssistantNotification() {
                 </div>
             </div>
         `);
-        document.getElementById('assistant-close-btn').addEventListener('click', closeAssistantNotif);
-        document.getElementById('assistant-disable-btn').addEventListener('click', () => {
+        const closeBtn = document.getElementById('assistant-close-btn');
+        const disableBtn = document.getElementById('assistant-disable-btn');
+        
+        closeBtn.onclick = function() {
+            const n = document.getElementById('assistant-notification');
+            if (n) n.classList.add('hidden');
+        };
+        
+        disableBtn.onclick = function() {
             toggleAssistant();
-            closeAssistantNotif();
-        });
+            const n = document.getElementById('assistant-notification');
+            if (n) n.classList.add('hidden');
+        };
     }
     
     const notifEl = document.getElementById('assistant-notification');
