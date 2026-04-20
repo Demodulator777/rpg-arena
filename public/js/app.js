@@ -804,7 +804,7 @@ function renderTopBar() {
     }
 
     // Highlight Missions Tab if in tutorial and not on missions tab
-    const missionsTab = document.querySelector('button[data-action="showTab"][data-args=\'["missions"]\']');
+    const missionsTab = document.querySelectorAll('.nav-btn')[TAB_ORDER.indexOf('missions')];
     if (missionsTab) {
         if (isTutorial && !document.getElementById('tab-missions').classList.contains('active')) {
             missionsTab.classList.add('tutorial-highlight');
