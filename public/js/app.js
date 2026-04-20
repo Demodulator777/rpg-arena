@@ -786,9 +786,10 @@ function renderTopBar() {
                 <div class="tutorial-banner">
                     <div class="tutorial-copy">
                         <span class="tutorial-tag">Tutorial Mode</span>
-                        <div class="tutorial-title">Your first 4 wins unlock the full arena</div>
-                        <div class="tutorial-msg">Fast 10s missions and HP protection are active while you learn the basics.</div>
+                        <div class="tutorial-title">Arena onboarding active</div>
+                        <div class="tutorial-msg">Win 4 battles to unlock the full arena. Fast 10s missions and HP protection are active.</div>
                     </div>
+                    <div class="tutorial-progress">${Math.min(4, c.wins || 0)} / 4</div>
                     <div class="tutorial-actions">
                         <button class="goto-missions-btn" onclick="showTabAndCloseMenu('missions')">Go to Missions</button>
                         <button class="skip-tutorial-btn" onclick="skipTutorial()">Skip Tutorial</button>
