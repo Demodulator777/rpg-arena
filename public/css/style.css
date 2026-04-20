@@ -31,11 +31,23 @@
 .assistant-icon { font-size: 1.2rem; }
 .assistant-messages { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .assistant-msg-line { font-size: 0.85rem; font-weight: 500; }
+.assistant-actions { display: flex; gap: 8px; align-items: center; }
 .assistant-close {
     background: none; border: none; color: rgba(255,255,255,0.7);
     cursor: pointer; font-size: 1rem; padding: 4px;
 }
 .assistant-close:hover { color: #fff; }
+.assistant-disable {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.6);
+    cursor: pointer; font-size: 0.7rem; padding: 4px 8px;
+    border-radius: 4px;
+}
+.assistant-disable:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+}
 .assistant-highlight {
     animation: pulse-glow 1.5s infinite;
 }
