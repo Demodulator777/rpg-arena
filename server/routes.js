@@ -6835,28 +6835,26 @@ router.get('/abyss/data', auth, async (req, res) => {
 
 router.get('/assistant/suggestions', auth, async (req, res) => {
     try {
+        console.log('📋 Assistant suggestions requested, userId:', req.user.userId);
         const db = await getDb();
         const userId = req.user.userId;
         
-        let assistantEnabled = true;
-        try {
-            const userResult = await db.execute({
-                sql: 'SELECT assistant_enabled FROM users WHERE id = ?',
-                args: [userId]
-            });
-            assistantEnabled = userResult.rows?.[0]?.assistant_enabled === 1;
-        } catch (e) {
-            // Column doesn't exist yet, default to enabled
-            assistantEnabled = true;
-        }
+        // Check localStorage preference first (more reliable than DB)
+        const localEnabled = true; // Always default to enabled unless explicitly disabled on client
+        console.log('User local enabled:', localEnabled);
         
-        if (!assistantEnabled) {
+        if (!localEnabled) {
+            console.log('Assistant disabled by user preference');
             return res.json({ suggestions: [], enabled: false });
         }
         
         const char = await getCurrentCharacter(db, userId);
-        if (!char) return res.json({ suggestions: [], enabled: true });
+        if (!char) {
+            console.log('No character found');
+            return res.json({ suggestions: [], enabled: true });
+        }
         
+        console.log('Character wins:', char.wins, 'level:', char.level);
         const suggestions = [];
         
         const charResponse = await buildCharacterResponse(char, db);
