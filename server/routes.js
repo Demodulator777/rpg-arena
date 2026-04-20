@@ -6935,7 +6935,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
             });
             suggestions.push({
                 type: 'guide',
-                message: '💡 Tip: Visit the Trainer (Train) to upgrade your stats!',
+                message: '💡 Tip: Visit the Upgrade tab to build your stats!',
                 action: 'train',
                 tab: 'upgrade'
             });
