@@ -127,6 +127,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -1443,9 +1444,9 @@ function buildExtendedAchievements() {
             chain: 'gems_earned',
             category: 'wealth',
             name: 'Gem Seeker',
-            desc: 'Earn 25 total gems.',
+            desc: 'Earn 25 gems from missions.',
             icon: '💎',
-            metric: 'gems_earned',
+            metric: 'mission_gems_earned',
             target: 25,
             rewards: { gold: 15000, lootbox: { id: 'lootbox_common', qty: 1 } },
         },
@@ -1454,9 +1455,9 @@ function buildExtendedAchievements() {
             chain: 'gems_earned',
             category: 'wealth',
             name: 'Crystal Touch',
-            desc: 'Earn 100 total gems.',
+            desc: 'Earn 100 gems from missions.',
             icon: '🔷',
-            metric: 'gems_earned',
+            metric: 'mission_gems_earned',
             target: 100,
             rewards: { gold: 75000, consumable: { id: 'special_mana_potion', qty: 2 } },
         },
@@ -1465,9 +1466,9 @@ function buildExtendedAchievements() {
             chain: 'gems_earned',
             category: 'wealth',
             name: 'Crown Jeweler',
-            desc: 'Earn 500 total gems.',
+            desc: 'Earn 500 gems from missions.',
             icon: '👑',
-            metric: 'gems_earned',
+            metric: 'mission_gems_earned',
             target: 500,
             rewards: { gold: 350000, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
@@ -1476,9 +1477,9 @@ function buildExtendedAchievements() {
             chain: 'gems_earned',
             category: 'wealth',
             name: 'Radiant Treasury',
-            desc: 'Earn 1,500 total gems.',
+            desc: 'Earn 1,500 gems from missions.',
             icon: '💠',
-            metric: 'gems_earned',
+            metric: 'mission_gems_earned',
             target: 1500,
             rewards: { gold: 1200000, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'apprentice', days: 21 } },
         },
@@ -1639,6 +1640,7 @@ async function buildAchievementMetricSnapshot(db, char) {
         battles: (char.wins || 0) + (char.losses || 0),
         gold_earned: char.total_gold_earned || 0,
         gems_earned: char.total_gems_earned || 0,
+        mission_gems_earned: char.mission_gems_earned || 0,
         mp_spent: char.total_mp_spent || 0,
         dungeon_floor: char.dungeon_highest_floor || 1,
         hard_missions_completed: char.hard_missions_completed || 0,
@@ -1657,6 +1659,7 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'battles') return metrics.battles;
     if (metric === 'gold_earned') return metrics.gold_earned;
     if (metric === 'gems_earned') return metrics.gems_earned;
+    if (metric === 'mission_gems_earned') return metrics.mission_gems_earned;
     if (metric === 'mp_spent') return metrics.mp_spent;
     if (metric === 'dungeon_floor') return metrics.dungeon_floor;
     if (metric === 'hard_missions_completed') return metrics.hard_missions_completed;
@@ -4490,8 +4493,8 @@ if (freshChar.class === 'rogue') {
             tutorialMessage = "✨ Tutorial complete! Your character is now ready for the real challenge. Note: Further missions will now affect your HP. Check the 'Upgrade' tab to build your stats, the 'Shop' to buy items, and your 'Inventory' to manage your gear!";
         }
 
-        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+? WHERE id=?`,
-            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, freshChar.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+? WHERE id=?`,
+            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
         
         // ── Skill tree stat tracking ───────────────────────────────────────
