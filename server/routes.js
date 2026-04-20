@@ -6955,21 +6955,87 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
             });
             suggestions.push({
                 type: 'guide_upgrade',
-                message: '💡 You can upgrade your equipment in the Upgrade tab.',
-                action: 'upgrade',
-                tab: 'upgrade'
+                message: '💡 You can upgrade your equipment in the Inventory tab.',
+                action: 'inventory',
+                tab: 'inventory'
             });
         }
         
         res.json({ 
             suggestions, 
             enabled: true,
-            highlightTabs: suggestions.map(s => s.tab)
+            highlightTabs: []
         });
     } catch (e) {
         console.error('Assistant error:', e);
-        res.json({ suggestions: [], enabled: true });
+        res.json({ suggestions: [], enabled: true, highlightTabs: [] });
     }
+});
+
+// Tab-specific assistant messages endpoint
+router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
+    const { tab } = req.params;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    const wins = char?.wins || 0;
+    
+    const tabHelp = {
+        missions: {
+            message: '💡 Missions are the main way to earn gold! Complete missions to earn gold, XP, and loot. Start with Easy missions - Medium and Hard will be available after you complete more battles.',
+            showAfter: 0
+        },
+        upgrade: {
+            message: '💡 Here you can spend gold to upgrade your character stats: Strength, Defense, Agility, and Magic. Higher stats mean more damage and better survivability!',
+            showAfter: 0
+        },
+        loadout: {
+            message: '💡 In Loadout you can set your attack and defense zones. Choose wisely - each zone has different bonuses! You can also swap between different gear sets.',
+            showAfter: 0
+        },
+        skills: {
+            message: '💡 Skills are class-specific abilities that can turn the tide of battle. Activate skills that match your playstyle - offensive for damage, defensive for survival.',
+            showAfter: 0
+        },
+        train: {
+            message: '💡 Training lets you learn new skills from the skill tree. Each class has unique skills - invest points wisely to build your character.',
+            showAfter: 0
+        },
+        forge: {
+            message: '💡 The Forge is where you refine raw materials and craft powerful gear. Higher quality materials create better equipment!',
+            showAfter: 2
+        },
+        inventory: {
+            message: '💡 Manage your gear here. Click on items to equip them, or use the Upgrade button to enhance equipment with crafting materials.',
+            showAfter: 0
+        },
+        shop: {
+            message: '💡 Buy new weapons, armor, and accessories here. Check back regularly - the inventory changes! Save gold for better gear.',
+            showAfter: 0
+        },
+        dungeon: {
+            message: '💡 The Dungeon is an endless labyrinth adventure! Explore rooms, fight monsters, find treasure. Be careful - strong monsters can deplete your health fast. You can run from combat by clicking "Run" to live another day!',
+            showAfter: 0
+        },
+        inbox: {
+            message: '💡 Your inbox contains battle reports and messages. Check battle reports to see how you performed!',
+            showAfter: 0
+        },
+        leaderboard: {
+            message: '💡 See how you rank against other players! Compete for the top spots in gold earned, wins, and level.',
+            showAfter: 0
+        }
+    };
+    
+    const help = tabHelp[tab];
+    if (!help) {
+        return res.json({ message: null });
+    }
+    
+    // Check if should show based on wins
+    if (wins < help.showAfter) {
+        return res.json({ message: null });
+    }
+    
+    res.json({ message: help.message });
 });
 
 function escapeHtml(str) {
