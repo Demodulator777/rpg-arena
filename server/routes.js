@@ -126,6 +126,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -1409,7 +1410,7 @@ function buildExtendedAchievements() {
             chain: 'elemental_kills',
             category: 'combat',
             name: 'Spark of Power',
-            desc: 'Win 10 battles with elemental damage finishing the job.',
+            desc: 'Win 10 battles while dealing elemental damage.',
             icon: '⚡',
             metric: 'elemental_kills',
             target: 10,
@@ -1420,7 +1421,7 @@ function buildExtendedAchievements() {
             chain: 'elemental_kills',
             category: 'combat',
             name: 'Stormcaller',
-            desc: 'Win 50 battles with elemental damage.',
+            desc: 'Win 50 battles while dealing elemental damage.',
             icon: '🌩️',
             metric: 'elemental_kills',
             target: 50,
@@ -1431,7 +1432,7 @@ function buildExtendedAchievements() {
             chain: 'elemental_kills',
             category: 'combat',
             name: 'Elemental Cataclysm',
-            desc: 'Win 200 battles with elemental damage.',
+            desc: 'Win 200 battles while dealing elemental damage.',
             icon: '🌪️',
             metric: 'elemental_kills',
             target: 200,
@@ -1549,6 +1550,39 @@ function buildExtendedAchievements() {
             metric: 'wins_without_shield',
             target: 200,
             rewards: { gold: 300000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'physical_only_wins_10',
+            chain: 'physical_only_wins',
+            category: 'combat',
+            name: 'Bare Steel',
+            desc: 'Win 10 battles without dealing any elemental damage.',
+            icon: '⚔️',
+            metric: 'physical_only_wins',
+            target: 10,
+            rewards: { gold: 15000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'physical_only_wins_50',
+            chain: 'physical_only_wins',
+            category: 'combat',
+            name: 'Pure Duelist',
+            desc: 'Win 50 battles using only physical damage.',
+            icon: '🛡️',
+            metric: 'physical_only_wins',
+            target: 50,
+            rewards: { gold: 70000, gems: 8, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'physical_only_wins_200',
+            chain: 'physical_only_wins',
+            category: 'combat',
+            name: 'Master of Steel',
+            desc: 'Win 200 battles using only physical damage.',
+            icon: '🏛️',
+            metric: 'physical_only_wins',
+            target: 200,
+            rewards: { gold: 275000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
         }
     );
 
@@ -1567,6 +1601,7 @@ async function getAchievementMetricValue(db, char, achievement) {
     if (metric === 'dungeon_floor') return char.dungeon_highest_floor || 1;
     if (metric === 'hard_missions_completed') return char.hard_missions_completed || 0;
     if (metric === 'elemental_kills') return char.elemental_kills || 0;
+    if (metric === 'physical_only_wins') return char.physical_only_wins || 0;
     if (metric === 'wins_without_shield') return char.wins_without_shield || 0;
 
     if (metric === 'mission_wins_total' || metric === 'mission_fights_total' || metric === 'mission_spots_discovered') {
@@ -1918,6 +1953,15 @@ async function recordShieldlessWin(db, char, equippedItems) {
     if (!char?.id || char.class !== 'rogue') return;
     if (hasShieldEquipped(equippedItems)) return;
     await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+}
+
+async function recordDamageStyleWin(db, charId, elementalDamageTotal) {
+    if (!charId) return;
+    if ((elementalDamageTotal || 0) > 0) {
+        await dbRun(db, 'UPDATE characters SET elemental_kills = elemental_kills + 1 WHERE id=?', [charId]);
+    } else {
+        await dbRun(db, 'UPDATE characters SET physical_only_wins = physical_only_wins + 1 WHERE id=?', [charId]);
+    }
 }
 
 async function listUserCharacters(db, userId) {
@@ -2321,6 +2365,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null) {
     let penaltyA = false, penaltyB = false;
     let totalDmgToA = 0, totalDmgToB = 0;
     let totalElemDmgDealtA = 0;
+    let totalElemDmgDealtB = 0;
     
     let shieldA = calculateMagicShield(fighterB, fighterA);
     let shieldB = calculateMagicShield(fighterA, fighterB);
@@ -2353,6 +2398,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null) {
         const dmgToA = resB.damageDealt + resA.damageCounter;
         
         totalElemDmgDealtA += resA.totalElemDmg;
+        totalElemDmgDealtB += resB.totalElemDmg;
         
         totalDmgToA += dmgToA;
         totalDmgToB += dmgToB;
@@ -2430,7 +2476,17 @@ function runBattle(fighterA, fighterB, forceWinnerId = null) {
         log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins!`);
     }
     
-    return { log, winnerId, hpRemainingA: hpA, hpRemainingB: hpB, totalDmgToA, totalDmgToB, totalElemDmgDealt: totalElemDmgDealtA };
+    return {
+        log,
+        winnerId,
+        hpRemainingA: hpA,
+        hpRemainingB: hpB,
+        totalDmgToA,
+        totalDmgToB,
+        totalElemDmgDealt: totalElemDmgDealtA,
+        totalElemDmgDealtA,
+        totalElemDmgDealtB
+    };
 }
 
 function createTutorialBattleResult(playerFighter, npc) {
@@ -2446,14 +2502,16 @@ function createTutorialBattleResult(playerFighter, npc) {
     );
     const finisher = Math.max(1, npcStartHp - opener);
     const hpAfterCounter = Math.max(1, playerStartHp - counter);
-    return {
-        winnerId: playerFighter.id,
-        hpRemainingA: hpAfterCounter,
-        hpRemainingB: 0,
-        totalDmgToA: counter,
-        totalDmgToB: npcStartHp,
-        totalElemDmgDealt: 0,
-        log: [
+        return {
+            winnerId: playerFighter.id,
+            hpRemainingA: hpAfterCounter,
+            hpRemainingB: 0,
+            totalDmgToA: counter,
+            totalDmgToB: npcStartHp,
+            totalElemDmgDealt: 0,
+            totalElemDmgDealtA: 0,
+            totalElemDmgDealtB: 0,
+            log: [
             `🎓 Tutorial battle begins against ${npc.name}.`,
             `${playerFighter.name} lands a clean opening hit for ${opener} damage. ${npc.name} has ${finisher} HP left.`,
             `${npc.name} strikes back for ${counter} damage, but ${playerFighter.name} stays in control at ${hpAfterCounter} HP.`,
@@ -4403,8 +4461,8 @@ if (freshChar.class === 'rogue') {
         if (playerWon) {
             await dbRun(db, 'UPDATE characters SET total_missions_completed = total_missions_completed + 1 WHERE id=?', [freshChar.id]);
         }
-        if (playerWon && battle.totalElemDmgDealt > 0) {
-            await dbRun(db, 'UPDATE characters SET elemental_kills = elemental_kills + 1 WHERE id=?', [freshChar.id]);
+        if (playerWon) {
+            await recordDamageStyleWin(db, freshChar.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
         }
         
         const drops = [];
@@ -5585,8 +5643,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         if (attackerWon) {
             await recordShieldlessWin(db, freshA, equippedA);
+            await recordDamageStyleWin(db, freshA.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
         } else {
             await recordShieldlessWin(db, freshD, equippedD);
+            await recordDamageStyleWin(db, freshD.id, battle.totalElemDmgDealtB || 0);
         }
         
         function calculateBattleXP(winnerLevel, loserLevel) {
