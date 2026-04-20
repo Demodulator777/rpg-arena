@@ -1299,6 +1299,43 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .nav-btn.active {
     filter: drop-shadow(0 0 8px rgba(52,152,219,0.45));
 }
+.nav-btn.tutorial-highlight {
+    animation: tutorial-nav-pulse 1.6s ease-in-out infinite;
+    filter: drop-shadow(0 0 12px rgba(201,146,42,0.45));
+}
+.nav-btn.tutorial-highlight img {
+    filter: drop-shadow(0 0 10px rgba(201,146,42,0.5));
+}
+.nav-btn.tutorial-highlight::after {
+    content: '';
+    position: absolute;
+    inset: 8px 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(201,146,42,0.28);
+    box-shadow: 0 0 0 0 rgba(201,146,42,0.35);
+    pointer-events: none;
+    animation: tutorial-nav-ring 1.6s ease-in-out infinite;
+}
+@keyframes tutorial-nav-pulse {
+    0%, 100% {
+        transform: translateY(0);
+        filter: drop-shadow(0 0 0 rgba(201,146,42,0));
+    }
+    50% {
+        transform: translateY(-2px);
+        filter: drop-shadow(0 0 10px rgba(201,146,42,0.55));
+    }
+}
+@keyframes tutorial-nav-ring {
+    0%, 100% {
+        opacity: 0.55;
+        box-shadow: 0 0 0 0 rgba(201,146,42,0.18);
+    }
+    50% {
+        opacity: 1;
+        box-shadow: 0 0 0 8px rgba(201,146,42,0);
+    }
+}
 
 .unread-badge {
     position: absolute;
