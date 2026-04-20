@@ -24,8 +24,8 @@
     animation: slideUp 0.3s ease-out;
     max-width: 90%;
     width: 360px;
-    max-width: 90%;
 }
+.assistant-notification.hidden { display: none !important; }
 @keyframes slideUp {
     from { transform: translateX(-50%) translateY(20px); opacity: 0; }
     to { transform: translateX(-50%) translateY(0); opacity: 1; }
