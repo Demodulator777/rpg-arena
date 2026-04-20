@@ -6858,23 +6858,39 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
         const suggestions = [];
         
         const charResponse = await buildCharacterResponse(char, db);
-        const canTrain = char.training_ends_at && char.training_ends_at <= Math.floor(Date.now() / 1000);
-        const hasUnclaimedTrain = canTrain;
         
-        const missionsResult = await db.execute({
-            sql: 'SELECT * FROM character_missions WHERE char_id = ? AND status = "active" LIMIT 1',
-            args: [char.id]
-        });
-        const hasActiveMission = missionsResult.rows?.length > 0;
+        // Check training - safe query
+        let hasUnclaimedTrain = false;
+        try {
+            hasUnclaimedTrain = char.training_ends_at && char.training_ends_at <= Math.floor(Date.now() / 1000);
+        } catch (e) { /* ignore */ }
         
-        const missionsForLevel = generateMission(char.level, char.class, charResponse);
-        const hasAvailableMission = !hasActiveMission && missionsForLevel;
+        // Check active missions - use correct table name
+        let hasActiveMission = false;
+        let hasAvailableMission = false;
+        try {
+            const missionsResult = await db.execute({
+                sql: 'SELECT * FROM active_missions WHERE character_id = ? LIMIT 1',
+                args: [char.id]
+            });
+            hasActiveMission = missionsResult.rows?.length > 0;
+            hasAvailableMission = !hasActiveMission;
+        } catch (e) {
+            console.log('Assistant: active_missions table not available');
+            hasAvailableMission = true; // Assume available if table missing
+        }
         
-        const unclaimedResult = await db.execute({
-            sql: 'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND body LIKE "BATTLE_REPORT:%" AND read = 0',
-            args: [char.id]
-        });
-        const hasUnclaimedRewards = Number(unclaimedResult.rows?.[0]?.count || 0) > 0;
+        // Check unclaimed rewards - may fail if table doesn't exist
+        let hasUnclaimedRewards = false;
+        try {
+            const unclaimedResult = await db.execute({
+                sql: 'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND body LIKE "BATTLE_REPORT:%" AND read = 0',
+                args: [char.id]
+            });
+            hasUnclaimedRewards = Number(unclaimedResult.rows?.[0]?.count || 0) > 0;
+        } catch (e) {
+            console.log('Assistant: messages table query failed');
+        }
         
         const canUpgradeStats = (charResponse.strength < 20 * char.level) || 
                                (charResponse.defense < 15 * char.level) ||
@@ -6890,7 +6906,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
             });
         }
         
-        if (!hasActiveMission && hasAvailableMission) {
+        if (hasAvailableMission) {
             suggestions.push({
                 type: 'mission',
                 message: 'You have an available mission! Start it to earn rewards.',
