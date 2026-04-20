@@ -21,6 +21,7 @@ let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = localStorage.getItem('battle_arena_skip_battle_animations') === '1';
 let assistantEnabled = localStorage.getItem('rpg_assistant_enabled') !== '0';
+let assistantNotified = false;
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -866,10 +867,15 @@ async function pollUnread() {
 async function loadAssistantSuggestions() {
     if (!assistantEnabled) return;
     try {
+        console.log('Loading assistant suggestions...');
         const d = await api('GET', '/game/assistant/suggestions');
+        console.log('Assistant response:', d);
         assistantSuggestions = d.suggestions || [];
         assistantEnabled = d.enabled !== false && localStorage.getItem('rpg_assistant_enabled') !== '0';
-        updateAssistantUI();
+        console.log('Assistant suggestions:', assistantSuggestions.length, 'enabled:', assistantEnabled);
+        if (assistantSuggestions.length > 0) {
+            updateAssistantUI();
+        }
     } catch (e) {
         console.error('Failed to load assistant suggestions:', e);
     }
@@ -892,33 +898,37 @@ function updateAssistantUI() {
         }
     });
     
-    if (assistantSuggestions.length > 0) {
+    if (assistantSuggestions.length > 0 && !assistantNotified) {
         showAssistantNotification();
+        assistantNotified = true;
     }
 }
 
 function showAssistantNotification() {
-    const msg = assistantSuggestions[0]?.message;
-    if (!msg) return;
+    if (!assistantSuggestions.length) return;
+    
+    const messages = assistantSuggestions.map(s => s.message).filter(Boolean);
+    if (!messages.length) return;
     
     const notif = document.getElementById('assistant-notification');
     if (!notif) {
         document.body.insertAdjacentHTML('beforeend', `
             <div id="assistant-notification" class="assistant-notification hidden">
                 <span class="assistant-icon">🤖</span>
-                <span class="assistant-message"></span>
+                <div class="assistant-messages"></div>
                 <button class="assistant-close" onclick="this.parentElement.classList.add('hidden')">✕</button>
             </div>
         `);
     }
     
     const notifEl = document.getElementById('assistant-notification');
-    notifEl.querySelector('.assistant-message').textContent = msg;
+    const msgsContainer = notifEl.querySelector('.assistant-messages');
+    msgsContainer.innerHTML = messages.map(m => `<div class="assistant-msg-line">${m}</div>`).join('');
     notifEl.classList.remove('hidden');
     
     setTimeout(() => {
         notifEl.classList.add('hidden');
-    }, 8000);
+    }, 10000);
 }
 
 // ── Equipment slot helpers ────────────────────────────────────────────────
@@ -4887,11 +4897,6 @@ function finalizeBattlePlayback() {
                 ${tutorialMessage}
             </div>
         `);
-    }
-    
-    // Add tutorial completion message if present
-    if (tutorialMessage) {
-        logEl.innerHTML += `<div class="battle-log-line tutorial-over-msg" style="margin-top:16px; padding:12px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:8px; color:#2ecc71; font-weight:600; line-height:1.5;">${tutorialMessage}</div>`;
     }
     
     logEl.scrollTop = logEl.scrollHeight;
