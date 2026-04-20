@@ -20,8 +20,7 @@ let battlePlaybackQueue = [];
 let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = localStorage.getItem('battle_arena_skip_battle_animations') === '1';
-let assistantEnabled = true; // Always enabled for now
-let assistantNotified = false;
+let assistantEnabled = true;
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -36,7 +35,6 @@ let accountCharacters = [];
 let activeCharacterId = null;
 let maxCharacterSlots = 4;
 let availableCharacterClasses = ['warrior', 'mage', 'rogue', 'paladin'];
-let assistantSuggestions = [];
 
 async function loadAbyssData() {
     try {
@@ -534,9 +532,7 @@ function toggleAssistant() {
     assistantEnabled = !assistantEnabled;
     localStorage.setItem('rpg_assistant_enabled', assistantEnabled ? '1' : '0');
     renderTopbarMenu();
-    if (assistantEnabled) {
-        loadAssistantSuggestions();
-    } else {
+    if (!assistantEnabled) {
         document.getElementById('assistant-notification')?.classList.add('hidden');
         document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
     }
@@ -609,7 +605,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     initMissionTimer();
     if (token) {
-        loadAssistantSuggestions();
         try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); }
         catch (e) {
             if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); }
@@ -727,7 +722,7 @@ function showTab(name) {
     }
     if (name === 'upgrade')     renderUpgrade();
     if (name === 'skills')      renderSkills();
-    if (name === 'missions')    { loadMissions(); loadAssistantSuggestions(); }
+    if (name === 'missions')    loadMissions();
     if (name === 'forge')       loadForge();
     if (name === 'inventory')   { syncInvTabButtons(); loadInventory(); }
     if (name === 'leaderboard') loadLeaderboard();
@@ -867,91 +862,8 @@ async function pollUnread() {
     } catch {}
 }
 
-async function loadAssistantSuggestions() {
-    console.log('🔧 loadAssistantSuggestions called, assistantEnabled:', assistantEnabled);
-    if (!assistantEnabled) {
-        console.log('Assistant disabled, skipping');
-        return;
-    }
-    try {
-        const d = await api('GET', '/game/assistant/suggestions');
-        console.log('Assistant response:', d);
-        assistantSuggestions = d.suggestions || [];
-        console.log('Loaded suggestions:', assistantSuggestions.length, assistantSuggestions);
-        if (assistantSuggestions.length > 0) {
-            updateAssistantUI();
-        }
-    } catch (e) {
-        console.error('Failed to load assistant suggestions:', e);
-    }
-}
-
 function updateAssistantUI() {
-    console.log('🔧 updateAssistantUI, suggestions:', assistantSuggestions.length);
-    if (assistantSuggestions.length === 0) {
-        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
-        return;
-    }
-    
-    const tabsToHighlight = assistantSuggestions.map(s => s.tab);
-    
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        const tabArg = btn.getAttribute('data-args');
-        if (tabArg && tabsToHighlight.some(t => tabArg.includes(t))) {
-            btn.classList.add('assistant-highlight');
-        } else {
-            btn.classList.remove('assistant-highlight');
-        }
-    });
-    
-    if (assistantSuggestions.length > 0 && !assistantNotified) {
-        showAssistantNotification();
-        assistantNotified = true;
-    }
-}
-
-function showAssistantNotification() {
-    if (!assistantSuggestions.length) return;
-    
-    const messages = assistantSuggestions.map(s => s.message).filter(Boolean);
-    if (!messages.length) return;
-    
-    const notif = document.getElementById('assistant-notification');
-    if (!notif) {
-        document.body.insertAdjacentHTML('beforeend', `
-            <div id="assistant-notification" class="assistant-notification hidden">
-                <span class="assistant-icon">🤖</span>
-                <div class="assistant-messages"></div>
-                <div class="assistant-actions">
-                    <button class="assistant-disable" id="assistant-disable-btn">Disable Assistant</button>
-                    <button class="assistant-close" id="assistant-close-btn">✕</button>
-                </div>
-            </div>
-        `);
-        const closeBtn = document.getElementById('assistant-close-btn');
-        const disableBtn = document.getElementById('assistant-disable-btn');
-        
-        closeBtn.onclick = function() {
-            const n = document.getElementById('assistant-notification');
-            if (n) n.classList.add('hidden');
-        };
-        
-        disableBtn.onclick = function() {
-            toggleAssistant();
-            const n = document.getElementById('assistant-notification');
-            if (n) n.classList.add('hidden');
-        };
-    }
-    
-    const notifEl = document.getElementById('assistant-notification');
-    const msgsContainer = notifEl.querySelector('.assistant-messages');
-    msgsContainer.innerHTML = messages.map(m => `<div class="assistant-msg-line">${m}</div>`).join('');
-    notifEl.classList.remove('hidden');
-    
-    clearTimeout(window.assistantHideTimer);
-    window.assistantHideTimer = setTimeout(() => {
-        notifEl.classList.add('hidden');
-    }, 10000);
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
 }
 
 function closeAssistantNotif() {
@@ -967,11 +879,25 @@ async function loadTabHelp(tabName) {
     if (!assistantEnabled) return;
     
     clearTimeout(tabHelpTimeout);
-    const notif = document.getElementById('assistant-notification');
-    if (!notif) return;
+    let notif = document.getElementById('assistant-notification');
+    if (!notif) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div id="assistant-notification" class="assistant-notification hidden">
+                <span class="assistant-icon">🤖</span>
+                <div class="assistant-messages"></div>
+                <div class="assistant-actions">
+                    <button class="assistant-disable" id="assistant-disable-btn">Disable Assistant</button>
+                    <button class="assistant-close" id="assistant-close-btn">✕</button>
+                </div>
+            </div>
+        `);
+        notif = document.getElementById('assistant-notification');
+        document.getElementById('assistant-close-btn').onclick = () => notif.classList.add('hidden');
+        document.getElementById('assistant-disable-btn').onclick = () => { toggleAssistant(); notif.classList.add('hidden'); };
+    }
     
     try {
-        const data = await api('GET', `/assistant/tab-help/${tabName}`);
+        const data = await api('GET', `/game/assistant/tab-help/${tabName}`);
         if (data.message) {
             const msgsContainer = notif.querySelector('.assistant-messages');
             msgsContainer.innerHTML = `<div class="assistant-msg-line">${data.message}</div>`;
