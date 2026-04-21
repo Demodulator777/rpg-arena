@@ -3952,6 +3952,84 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border: 1px solid rgba(255,255,255,0.08);
 }
 
+@media (max-width: 640px) {
+    .battle-result-box.modal-box {
+        padding: 12px;
+        height: calc(100vh - 20px);
+        max-height: calc(100vh - 20px);
+    }
+
+    .battle-fighters {
+        position: relative;
+        gap: 0;
+        margin-bottom: 8px;
+        padding: 10px;
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .battle-fighters > .fighter-card {
+        flex: 0 1 45%;
+        min-width: 0;
+        position: relative;
+        z-index: 1;
+    }
+
+    .battle-fighters > .fighter-card:first-of-type {
+        margin-right: -18px;
+        z-index: 2;
+    }
+
+    .battle-fighters > .fighter-card:last-of-type {
+        margin-left: -18px;
+    }
+
+    .battle-fighters .fighter-avatar-splash {
+        width: 120px;
+        height: 172px;
+    }
+
+    .battle-fighters > .fighter-card:first-of-type .fighter-avatar-splash {
+        clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+    }
+
+    .battle-fighters > .fighter-card:last-of-type .fighter-avatar-splash {
+        clip-path: polygon(12% 0, 100% 0, 100% 100%, 0 100%);
+    }
+
+    .fighter-vs {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -58%);
+        z-index: 4;
+        background: radial-gradient(circle, rgba(9,14,24,0.96) 0%, rgba(9,14,24,0.88) 58%, rgba(9,14,24,0) 78%);
+        padding: 10px 8px;
+        min-width: 52px;
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .battle-result-box .battle-playback-toolbar {
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .battle-result-box .battle-outcome {
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        flex: 0 0 auto;
+    }
+
+    .battle-log {
+        flex: 1 1 auto;
+        min-height: 160px;
+        margin-bottom: 8px;
+    }
+}
+
 .fighter-card {
     text-align: center;
     flex: 1;
