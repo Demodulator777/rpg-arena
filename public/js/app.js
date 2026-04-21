@@ -530,6 +530,18 @@ function renderTopbarMenu() {
                 <span>Assistant helper</span>
                 <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
+                <span>Inbox badge: messages</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_battles !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'battles')}>
+                <span>Inbox badge: battle reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_battles !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
+                <span>Inbox badge: mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
+            </button>
         </div>`;
 }
 
@@ -609,6 +621,18 @@ function renderTopbarMenu() {
             <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
                 <span>Assistant helper</span>
                 <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
+                <span>Inbox badge: messages</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_battles !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'battles')}>
+                <span>Inbox badge: battle reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_battles !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
+                <span>Inbox badge: mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
         </div>`;
 }
@@ -872,6 +896,18 @@ async function toggleAssistant() {
         document.getElementById('assistant-notification')?.classList.add('hidden');
         document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
     }
+}
+
+async function toggleInboxBadgeSetting(settingKey) {
+    const payload = {};
+    if (settingKey === 'messages') payload.inboxBadgeMessages = !(character?.inbox_badge_messages !== false);
+    if (settingKey === 'battles') payload.inboxBadgeBattles = !(character?.inbox_badge_battles !== false);
+    if (settingKey === 'missions') payload.inboxBadgeMissions = !(character?.inbox_badge_missions !== false);
+    const response = await api('POST', '/game/settings', payload);
+    if (response?.character) character = response.character;
+    syncClientPreferencesFromCharacter();
+    renderTopbarMenu();
+    pollUnread();
 }
 
 function renderCharacterSwitcher() {
@@ -1234,8 +1270,24 @@ function startPolling() {
 async function pollUnread() {
     try {
         const d=await api('GET','/game/messages/unread-count');
-        const b=document.getElementById('unread-badge');
-        if (d.count>0){b.textContent=d.count;b.classList.remove('hidden');}else b.classList.add('hidden');
+        let b=document.getElementById('unread-badge');
+        if (!b) {
+            const inboxBtn = document.querySelector('.nav-btn[data-args=\'["inbox"]\']');
+            if (inboxBtn) {
+                b = document.createElement('span');
+                b.id = 'unread-badge';
+                b.className = 'unread-badge hidden';
+                inboxBtn.appendChild(b);
+            }
+        }
+        if (!b) return;
+        const count = Number(d?.count || 0);
+        if (count > 0) {
+            b.textContent = count > 99 ? '99+' : String(count);
+            b.classList.remove('hidden');
+        } else {
+            b.classList.add('hidden');
+        }
     } catch {}
 }
 
