@@ -510,13 +510,13 @@ function renderTopbarMenu() {
                         <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_level5 || 0)}</span>
                     </div>
                 </div>
-                <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
-                    Copy Invite Link
-                </button>
                 <div class="topbar-menu-referral-link-wrap">
                     <span class="topbar-menu-referral-link-label">Invite URL</span>
                     <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
                 </div>
+                <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
+                    Copy Invite Link
+                </button>
                 <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
             </div>
         </div>
