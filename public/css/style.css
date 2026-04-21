@@ -1658,6 +1658,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .element-badge-icon {
         font-size: 0.8rem;
     }
+    .element-badge-icon-img { width: 14px; height: 14px; object-fit: contain; display: block; }
     .element-badge-value {
         min-width: 20px;
         font-size: 0.74rem;
@@ -1964,6 +1965,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-size: 0.9rem;
     line-height: 1;
 }
+.element-badge-icon-img { width: 16px; height: 16px; object-fit: contain; display: block; flex: 0 0 auto; }
 
 .element-badge-value {
     font-size: 0.82rem;
