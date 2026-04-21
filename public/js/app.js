@@ -438,6 +438,8 @@ function renderTopbarMenu() {
     if (!content || !character) return;
     const eventName = character?.active_event?.name || 'No active event right now';
     const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
+    const referralCode = character?.referral_code || username || '';
+    const referralLink = referralCode ? getReferralLink(referralCode) : '';
     const switcherLabel = `🧭 Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
     const mpLabel = unlocked
         ? `Skills unlocked today · ${mp}/${mpMax} MP`
@@ -477,6 +479,16 @@ function renderTopbarMenu() {
                     💎✨ Convert MP
                     <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
                 </button>
+                <div class="topbar-menu-action topbar-menu-referral-card">
+                    <span class="topbar-menu-referral-kicker">Referral Link</span>
+                    <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
+                    <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
+                    <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
+                        Copy Invite Link
+                    </button>
+                    <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
+                    <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
+                </div>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
                     🐛 Report a Bug
                 </button>
@@ -522,6 +534,43 @@ function openBugReportFromMenu() {
 function logoutFromMenu() {
     closeTopbarMenu();
     logout();
+}
+
+function getReferralLink(referralCode) {
+    if (!referralCode) return '';
+    const url = new URL(window.location.href);
+    url.searchParams.set('ref', referralCode.replace(/^@+/, ''));
+    return url.toString();
+}
+
+async function copyReferralLink() {
+    const referralCode = character?.referral_code || username || '';
+    const referralLink = getReferralLink(referralCode);
+    const flash = document.getElementById('topbar-menu-flash');
+    if (!referralLink) return;
+
+    try {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(referralLink);
+        } else {
+            const input = document.createElement('input');
+            input.value = referralLink;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            input.remove();
+        }
+        if (flash) {
+            flash.textContent = 'Referral link copied.';
+            flash.classList.remove('hidden', 'error');
+        }
+    } catch (e) {
+        if (flash) {
+            flash.textContent = 'Could not copy the referral link.';
+            flash.classList.remove('hidden');
+            flash.classList.add('error');
+        }
+    }
 }
 
 function syncClientPreferencesFromCharacter() {
@@ -639,6 +688,17 @@ function switchTab(tab) {
     document.getElementById('tab-register').classList.toggle('active',tab==='register');
     setError('auth-error','');
 }
+
+function hydrateReferralFromUrl() {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (!ref) return;
+    const referralInput = document.getElementById('reg-referral');
+    if (referralInput && !referralInput.value.trim()) {
+        referralInput.value = ref.replace(/^@+/, '');
+    }
+    if (!token) switchTab('register');
+}
+
 function openAuthLegalModal() {
     document.getElementById('auth-legal-modal')?.classList.remove('hidden');
 }
@@ -672,14 +732,19 @@ async function login() {
 }
 async function register() {
     try {
-        const data=await api('POST','/auth/register',{username:document.getElementById('reg-user').value.trim(),password:document.getElementById('reg-pass').value});
+        const data=await api('POST','/auth/register',{
+            username:document.getElementById('reg-user').value.trim(),
+            password:document.getElementById('reg-pass').value,
+            referralCode: document.getElementById('reg-referral')?.value.trim() || ''
+        });
         token=data.token; username=data.username;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
         showScreen('create');
     } catch(e) { setError('auth-error',e.message); }
 }
 document.addEventListener('DOMContentLoaded',()=>{
-    const pairs=[['login-user','login-pass'],['reg-user','reg-pass']];
+    hydrateReferralFromUrl();
+    const pairs=[['login-user','login-pass'],['reg-user','reg-pass'],['reg-referral','reg-pass']];
     pairs.forEach(([u,p])=>{
         const uel=document.getElementById(u), pel=document.getElementById(p);
         const fn=u.startsWith('login')?login:register;
@@ -3806,7 +3871,12 @@ function createLootboxModal() {
             }
 
             .lootbox-item-card::before {
-                inset: -44%;
+                width: 180px;
+                height: 180px;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%) scale(0.92);
+                border-radius: 50%;
                 opacity: 0;
                 mix-blend-mode: screen;
                 animation: lootboxRarityRotate 5.5s linear infinite;
@@ -3841,8 +3911,8 @@ function createLootboxModal() {
             }
 
             @keyframes lootboxRarityRotate {
-                0% { transform: rotate(0deg) scale(0.92); }
-                100% { transform: rotate(360deg) scale(0.92); }
+                0% { transform: translate(-50%, -50%) rotate(0deg) scale(0.92); }
+                100% { transform: translate(-50%, -50%) rotate(360deg) scale(0.92); }
             }
 
             .lootbox-item-card.lootbox-rarity-rare {
