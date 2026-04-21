@@ -5449,7 +5449,13 @@ function renderBattleLogLine(line, enemyName='Enemy') {
     if (line.startsWith(character?.name || '')) className = 'battle-log-player';
     else if (enemyName && line.startsWith(enemyName)) className = 'battle-log-opponent';
     const pillClass = className ? `battle-log-pill ${className}` : 'battle-log-pill';
-    return `<div class="battle-log-line ${className}"><span class="${pillClass}">${escHtml(line)}</span></div>`;
+    let pillStyle = '';
+    if (className === 'battle-log-player') {
+        pillStyle = 'background:linear-gradient(135deg, rgba(52,152,219,0.42), rgba(52,152,219,0.16));border-left:3px solid #3498db;color:#e2f3ff;box-shadow:0 0 0 1px rgba(52,152,219,0.2), 0 4px 12px rgba(52,152,219,0.18);';
+    } else if (className === 'battle-log-opponent') {
+        pillStyle = 'background:linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));border-left:3px solid #e74c3c;color:#ffe5df;box-shadow:0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);';
+    }
+    return `<div class="battle-log-line ${className}"><span class="${pillClass}"${pillStyle ? ` style="${pillStyle}"` : ''}>${escHtml(line)}</span></div>`;
 }
 
 function updateBattlePlaybackStatus(text, done=false) {
