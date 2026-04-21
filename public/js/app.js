@@ -521,6 +521,86 @@ function renderTopbarMenu() {
         </div>`;
 }
 
+function renderTopbarMenu() {
+    const content = document.getElementById('topbar-menu-content');
+    if (!content || !character) return;
+    const eventName = character?.active_event?.name || 'No active event right now';
+    const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
+    const referralCode = character?.referral_code || username || '';
+    const referralLink = referralCode ? getReferralLink(referralCode) : '';
+    const switcherLabel = `Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
+    const mpLabel = unlocked
+        ? `Skills unlocked today · ${mp}/${mpMax} MP`
+        : `Spend ${remaining} more MP to unlock skills · ${mp}/${mpMax} MP`;
+
+    content.innerHTML = `
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Live Status</div>
+            <div class="topbar-menu-info-card">
+                <div class="topbar-menu-info-title">Active Event</div>
+                <div class="topbar-menu-info-value">${escHtml(eventName)}</div>
+            </div>
+            <div class="topbar-menu-info-card">
+                <div class="topbar-menu-info-title">Skill Unlock</div>
+                <div class="topbar-menu-info-value">${escHtml(mpLabel)}</div>
+                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'skills')}>
+                    ${unlocked ? 'Open Skills' : `Go to Skills (${dailySpent}/60)`}
+                </button>
+            </div>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Quick Actions</div>
+            <div class="topbar-menu-grid">
+                <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
+                    🧭 ${switcherLabel}
+                </button>
+                <button class="topbar-menu-action" ${actionAttrs('openGameGuide')}>
+                    📘 Open Game Guide
+                    <span class="topbar-menu-meta">How progression, classes, and builds work</span>
+                </button>
+                <button class="topbar-menu-action ${character.weekly_claimable_count > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openWeeklyTasksModal')}>
+                    📅 Weekly Tasks
+                    ${character.weekly_claimable_count > 0 ? '<span class="exclamation-point">!</span>' : ''}
+                    <span class="topbar-menu-meta">Earn gems, gold, materials, and loot boxes</span>
+                </button>
+                <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
+                    💎✨ Convert MP
+                    <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
+                </button>
+                <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
+                    🐛 Report a Bug
+                </button>
+                <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
+                    Logout
+                </button>
+            </div>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Invite Players</div>
+            <div class="topbar-menu-info-card topbar-menu-referral-card">
+                <span class="topbar-menu-referral-kicker">Referral Link</span>
+                <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
+                <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
+                <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
+                    Copy Invite Link
+                </button>
+                <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
+                <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
+            </div>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Settings</div>
+            <button class="topbar-menu-toggle ${alwaysSkipBattleAnimations ? 'active' : ''}" ${actionAttrs('toggleAlwaysSkipBattleAnimations')}>
+                <span>Always skip battle animations</span>
+                <span class="topbar-menu-toggle-state">${alwaysSkipBattleAnimations ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
+                <span>Assistant helper</span>
+                <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
+            </button>
+        </div>`;
+}
+
 async function openTopbarMenu() {
     await syncActiveCharacterState();
     renderTopbarMenu();
