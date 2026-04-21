@@ -5612,6 +5612,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
     }
     const enemyClass = options.enemyClass || null;
     const isPvp = options.battleType === 'pvp';
+    const isMission = options.battleType === 'mission';
     const missionVisual = options.battleType === 'mission'
         ? findMissionVisualByName(options.missionName || enemyName)
         : null;
@@ -5622,7 +5623,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
                 name: character.name,
                 className: character.class,
                 level: character.level,
-                splash: isPvp,
+                splash: isPvp || isMission,
                 fallback: '⚔️',
                 side: 'left'
             })}
