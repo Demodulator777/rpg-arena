@@ -1448,6 +1448,8 @@ function renderCharacter() {
     const finalDmgMin = baseDmgMin + gearDmgMin;
     const finalDmgMax = baseDmgMax + gearDmgMax;
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
+    const baseArmor = Math.floor(totalDef / 4);
+    const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
     function statRowBreakdown(icon, label, base, bonus, max, cls) {
         const total = base + bonus;
