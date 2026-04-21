@@ -3835,6 +3835,23 @@ async function buildCharacterResponse(char, db) {
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
+    if (char.user_id && (pendingReferralGold > 0 || pendingReferralGems > 0)) {
+        await dbRun(
+            db,
+            `UPDATE characters
+             SET gold = gold + ?,
+                 gems = gems + ?,
+                 total_gold_earned = total_gold_earned + ?,
+                 total_gems_earned = COALESCE(total_gems_earned, 0) + ?
+             WHERE id = ?`,
+            [pendingReferralGold, pendingReferralGems, pendingReferralGold, pendingReferralGems, char.id]
+        );
+        await dbRun(db, 'UPDATE users SET pending_referral_gold = 0, pending_referral_gems = 0 WHERE id = ?', [char.user_id]);
+        char.gold = (char.gold || 0) + pendingReferralGold;
+        char.gems = (char.gems || 0) + pendingReferralGems;
+        char.total_gold_earned = (char.total_gold_earned || 0) + pendingReferralGold;
+        char.total_gems_earned = (char.total_gems_earned || 0) + pendingReferralGems;
+    }
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
@@ -3927,8 +3944,6 @@ async function buildCharacterResponse(char, db) {
         referral_code: userSettings?.username || null,
         referrals_registered: Number(userSettings?.referrals_registered || 0),
         referrals_level5: Number(userSettings?.referrals_level5 || 0),
-        pending_referral_gold: pendingReferralGold,
-        pending_referral_gems: pendingReferralGems,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -4050,53 +4065,6 @@ router.get('/character', auth, async (req, res) => {
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json(await buildCharacterResponse(freshChar, db));
     } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.post('/referrals/claim', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId);
-        if (!char) return res.status(404).json({ error: 'No character found' });
-
-        const userRewards = await dbGet(
-            db,
-            'SELECT pending_referral_gold, pending_referral_gems FROM users WHERE id = ?',
-            [req.user.userId]
-        );
-        const pendingGold = Number(userRewards?.pending_referral_gold || 0);
-        const pendingGems = Number(userRewards?.pending_referral_gems || 0);
-        if (pendingGold <= 0 && pendingGems <= 0) {
-            return res.status(400).json({ error: 'No referral rewards are waiting to be claimed.' });
-        }
-
-        await dbRun(
-            db,
-            `UPDATE characters
-             SET gold = gold + ?,
-                 gems = gems + ?,
-                 total_gold_earned = total_gold_earned + ?,
-                 total_gems_earned = COALESCE(total_gems_earned, 0) + ?
-             WHERE id = ?`,
-            [pendingGold, pendingGems, pendingGold, pendingGems, char.id]
-        );
-        await dbRun(
-            db,
-            'UPDATE users SET pending_referral_gold = 0, pending_referral_gems = 0 WHERE id = ?',
-            [req.user.userId]
-        );
-
-        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
-        const rewardBits = [];
-        if (pendingGold > 0) rewardBits.push(`${pendingGold} gold`);
-        if (pendingGems > 0) rewardBits.push(`${pendingGems} gems`);
-        res.json({
-            success: true,
-            message: `Claimed referral rewards: ${rewardBits.join(' and ')}.`,
-            character: await buildCharacterResponse(freshChar, db)
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
 });
 
 router.post('/settings', auth, async (req, res) => {
