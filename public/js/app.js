@@ -1382,9 +1382,22 @@ function renderDetailSlot(icon, label, value, accent='var(--text-bright)', title
     </div>`;
 }
 
-function renderElementBadge(icon, value, type) {
+function getElementIconPath(elementType) {
+    return {
+        pyro: '/images/assets/pyro.png',
+        water: '/images/assets/hydro.png',
+        wind: '/images/assets/wind.png',
+        electro: '/images/assets/electro.png'
+    }[elementType] || '';
+}
+
+function renderElementBadge(elementType, value, type) {
+    const iconSrc = getElementIconPath(elementType);
+    const iconMarkup = iconSrc
+        ? `<img class="element-badge-icon-img" src="${iconSrc}" alt="${escHtml(elementType)}" loading="lazy" decoding="async">`
+        : `<span class="element-badge-icon">${escHtml(elementType)}</span>`;
     return `<div class="element-entry">
-        <span class="element-badge-icon">${icon}</span>
+        ${iconMarkup}
         <span class="element-badge element-badge-value-${type}">
             <span class="element-badge-value">${value}</span>
         </span>
@@ -1440,7 +1453,7 @@ function renderCharacter() {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
         const bonusTag = bonus !== 0
-            ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+':''}${bonus}</span>`
+            ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
             : '';
         return `<div class="stat-row">
             <span class="stat-icon">${icon}</span>
@@ -1451,22 +1464,19 @@ function renderCharacter() {
         </div>`;
     }
 
-    const baseArmor = Math.floor(totalDef / 4);
-    const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
-
     const elemDmgObj    = c.elem_dmg    || {};
     const elemResistObj = c.elem_resist || {};
     const elementDamageBadges = [
-        renderElementBadge('🔥', elemDmgObj.pyro || 0, 'damage'),
-        renderElementBadge('💧', elemDmgObj.water || 0, 'damage'),
-        renderElementBadge('🌀', elemDmgObj.wind || 0, 'damage'),
-        renderElementBadge('⚡', elemDmgObj.electro || 0, 'damage'),
+        renderElementBadge('pyro', elemDmgObj.pyro || 0, 'damage'),
+        renderElementBadge('water', elemDmgObj.water || 0, 'damage'),
+        renderElementBadge('wind', elemDmgObj.wind || 0, 'damage'),
+        renderElementBadge('electro', elemDmgObj.electro || 0, 'damage'),
     ];
     const elementResistBadges = [
-        renderElementBadge('🔥', elemResistObj.pyro || 0, 'resist'),
-        renderElementBadge('💧', elemResistObj.water || 0, 'resist'),
-        renderElementBadge('🌀', elemResistObj.wind || 0, 'resist'),
-        renderElementBadge('⚡', elemResistObj.electro || 0, 'resist'),
+        renderElementBadge('pyro', elemResistObj.pyro || 0, 'resist'),
+        renderElementBadge('water', elemResistObj.water || 0, 'resist'),
+        renderElementBadge('wind', elemResistObj.wind || 0, 'resist'),
+        renderElementBadge('electro', elemResistObj.electro || 0, 'resist'),
     ];
 
     const eqSlots=[
