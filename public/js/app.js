@@ -1210,14 +1210,20 @@ function renderTopBar() {
 
     set('topbar-avatar',el=>{ el.src=`/images/class/${c.class}.png`; el.alt=c.class; el.dataset.errorHide='true'; });
     set('topbar-hp-fill',el=>{ el.style.width=hpPct+'%'; el.style.background=hpColor; });
-    set('topbar-hp-text',el=>{ el.textContent=`${hpCur} / ${c.hp_max}`; });
+    const setTopbarValue = (id, current, max) => {
+        set(id, el => {
+            el.innerHTML = `<span class="topbar-bar-num">${Number(current).toLocaleString()}</span><span class="topbar-bar-sep">/</span><span class="topbar-bar-num topbar-bar-num-max">${Number(max).toLocaleString()}</span>`;
+        });
+    };
+    setTopbarValue('topbar-hp-text', hpCur, c.hp_max);
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
-    set('topbar-xp-text',el=>{ el.textContent=`${c.xp} / ${lxp}`; });
+    setTopbarValue('topbar-xp-text', c.xp, lxp);
     const mp=c.mission_points??0, mpMax=c.mp_max||240;
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
     const dms=c.daily_mp_spent??0, unl=c.skills_unlocked;
     set('topbar-mp-fill',el=>{ el.style.width=mpPct+'%'; });
-    set('topbar-mp-text',el=>{ el.textContent=`${mp} / ${mpMax}`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`; });
+    set('topbar-mp-text',el=>{ el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills today`; });
+    setTopbarValue('topbar-mp-text', mp, mpMax);
     set('topbar-mp',el=>{ el.textContent=unl?`🔮 ${mp} ✨`:`🔮 ${mp} (${dms}/60)`; el.title=unl?'Skills unlocked today!':`Spend ${60-dms} more MP on missions to unlock skills`; });
     set('topbar-gold',el=>{ el.textContent=`💰 ${c.gold.toLocaleString()}`; });
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
