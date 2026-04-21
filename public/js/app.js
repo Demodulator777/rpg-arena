@@ -4089,7 +4089,7 @@ function createLootboxModal() {
                 transform: translate(-50%, -50%) scale(0.92);
                 border-radius: 50%;
                 opacity: 0;
-                filter: blur(18px);
+                filter: blur(14px);
                 animation: lootboxRarityRotate 5.5s linear infinite;
                 transition: opacity 0.25s ease;
             }
@@ -4139,8 +4139,11 @@ function createLootboxModal() {
 
             .lootbox-item-card.lootbox-rarity-rare::before {
                 background:
-                    radial-gradient(circle at center, rgba(214,170,246,0.16) 0%, rgba(155,89,182,0.36) 18%, rgba(155,89,182,0.16) 36%, rgba(155,89,182,0.04) 54%, rgba(155,89,182,0) 72%),
-                    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 42%);
+                    radial-gradient(circle at 50% 18%, rgba(214,170,246,0.24) 0%, rgba(214,170,246,0.12) 10%, rgba(214,170,246,0) 24%),
+                    radial-gradient(circle at 82% 50%, rgba(155,89,182,0.24) 0%, rgba(155,89,182,0.12) 10%, rgba(155,89,182,0) 24%),
+                    radial-gradient(circle at 50% 82%, rgba(214,170,246,0.2) 0%, rgba(214,170,246,0.1) 10%, rgba(214,170,246,0) 24%),
+                    radial-gradient(circle at 18% 50%, rgba(155,89,182,0.2) 0%, rgba(155,89,182,0.1) 10%, rgba(155,89,182,0) 24%),
+                    radial-gradient(circle at center, rgba(155,89,182,0.22) 0%, rgba(155,89,182,0.1) 22%, rgba(155,89,182,0.04) 42%, rgba(155,89,182,0) 68%);
             }
 
             .lootbox-item-card.lootbox-rarity-epic {
@@ -4156,8 +4159,11 @@ function createLootboxModal() {
 
             .lootbox-item-card.lootbox-rarity-epic::before {
                 background:
-                    radial-gradient(circle at center, rgba(255,187,108,0.18) 0%, rgba(230,126,34,0.4) 18%, rgba(230,126,34,0.18) 36%, rgba(230,126,34,0.05) 54%, rgba(230,126,34,0) 72%),
-                    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 42%);
+                    radial-gradient(circle at 50% 18%, rgba(255,187,108,0.26) 0%, rgba(255,187,108,0.13) 10%, rgba(255,187,108,0) 24%),
+                    radial-gradient(circle at 82% 50%, rgba(230,126,34,0.26) 0%, rgba(230,126,34,0.13) 10%, rgba(230,126,34,0) 24%),
+                    radial-gradient(circle at 50% 82%, rgba(255,187,108,0.22) 0%, rgba(255,187,108,0.11) 10%, rgba(255,187,108,0) 24%),
+                    radial-gradient(circle at 18% 50%, rgba(230,126,34,0.22) 0%, rgba(230,126,34,0.11) 10%, rgba(230,126,34,0) 24%),
+                    radial-gradient(circle at center, rgba(230,126,34,0.24) 0%, rgba(230,126,34,0.11) 22%, rgba(230,126,34,0.04) 42%, rgba(230,126,34,0) 68%);
             }
 
             .lootbox-item-card.lootbox-rarity-legendary {
@@ -4173,8 +4179,11 @@ function createLootboxModal() {
 
             .lootbox-item-card.lootbox-rarity-legendary::before {
                 background:
-                    radial-gradient(circle at center, rgba(255,236,143,0.2) 0%, rgba(241,196,15,0.42) 18%, rgba(241,196,15,0.2) 36%, rgba(241,196,15,0.06) 54%, rgba(241,196,15,0) 72%),
-                    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 42%);
+                    radial-gradient(circle at 50% 18%, rgba(255,236,143,0.28) 0%, rgba(255,236,143,0.14) 10%, rgba(255,236,143,0) 24%),
+                    radial-gradient(circle at 82% 50%, rgba(241,196,15,0.28) 0%, rgba(241,196,15,0.14) 10%, rgba(241,196,15,0) 24%),
+                    radial-gradient(circle at 50% 82%, rgba(255,236,143,0.24) 0%, rgba(255,236,143,0.12) 10%, rgba(255,236,143,0) 24%),
+                    radial-gradient(circle at 18% 50%, rgba(241,196,15,0.24) 0%, rgba(241,196,15,0.12) 10%, rgba(241,196,15,0) 24%),
+                    radial-gradient(circle at center, rgba(241,196,15,0.26) 0%, rgba(241,196,15,0.12) 22%, rgba(241,196,15,0.05) 42%, rgba(241,196,15,0) 68%);
             }
             
             .lootbox-item-image {
