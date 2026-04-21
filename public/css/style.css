@@ -3815,39 +3815,68 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .battle-log {
     font-family: 'Courier New', monospace;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     color: rgba(255,255,255,0.85);
     max-height: 400px;
     overflow-y: auto;
-    padding: 16px;
+    padding: 12px;
     background: rgba(0, 0, 0, 0.4);
     border-radius: var(--radius-sm);
     margin-bottom: 16px;
-    line-height: 1.8;
+    line-height: 1.45;
     border: 1px solid var(--border);
 }
 
 .battle-log-line {
-    padding: 4px 8px;
-    border-radius: 4px;
-    margin-bottom: 2px;
+    display: flex;
+    margin-bottom: 6px;
+}
+
+.battle-log-pill {
+    display: inline-block;
+    max-width: min(88%, 520px);
+    padding: 7px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.16);
 }
 
 .battle-log-line.separator {
     color: rgba(255,255,255,0.2);
     text-align: center;
     font-size: 0.7rem;
-    padding: 4px 0;
+    justify-content: center;
+    margin: 2px 0 8px;
+}
+
+.battle-log-line.separator .battle-log-pill {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 2px 0;
 }
 
 .battle-log-line.battle-log-player {
-    background: rgba(52,152,219,0.12);
-    border-left: 3px solid #3498db;
+    justify-content: flex-end;
 }
 
 .battle-log-line.battle-log-opponent {
-    background: rgba(231,76,60,0.12);
+    justify-content: flex-start;
+}
+
+.battle-log-line.battle-log-player .battle-log-pill {
+    background: linear-gradient(135deg, rgba(52,152,219,0.2), rgba(52,152,219,0.08));
+    border-left: 3px solid #3498db;
+    color: #d8ecfb;
+    text-align: left;
+}
+
+.battle-log-line.battle-log-opponent .battle-log-pill {
+    background: linear-gradient(135deg, rgba(231,76,60,0.2), rgba(231,76,60,0.08));
     border-left: 3px solid #e74c3c;
+    color: #fde0dc;
+    text-align: left;
 }
 .battle-fighters {
     display: flex;
