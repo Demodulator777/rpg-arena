@@ -6261,6 +6261,8 @@ router.get('/rewards/list', async (req, res) => {
         const charsCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM characters', []))?.count || 0);
         const lettersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM messages WHERE system_message = 1', []))?.count || 0);
         const batches = await dbAll(db, 'SELECT * FROM admin_reward_batches ORDER BY created_at DESC LIMIT 20', []);
+        const statusText = String(req.query?.status || '').trim();
+        const statusError = String(req.query?.error || '').trim();
 
         const rowsHtml = batches.map(batch => {
             let rewardText = 'Message only';
@@ -6317,7 +6319,7 @@ router.get('/rewards/list', async (req, res) => {
                     <div class="panel">
                         <h2 style="margin-top:0">Send Reward Letter</h2>
                         <p class="hint">Default delivery is the active character for each account, so multi-character users do not receive the same global reward four times unless you explicitly choose every character.</p>
-                        <form id="reward-form">
+                        <form method="POST" action="/api/game/rewards/send?password=${encodeURIComponent(password)}">
                             <div class="grid">
                                 <div>
                                     <label>Delivery Scope</label>
@@ -6363,7 +6365,9 @@ router.get('/rewards/list', async (req, res) => {
                                 </div>
                             </div>
                         </form>
-                        <div id="reward-status" class="status"></div>
+                        <div class="status ${statusError ? 'error' : ''}" style="display:${statusText || statusError ? 'block' : 'none'}">
+                            ${escapeHtml(statusError || statusText || '')}
+                        </div>
                     </div>
                     <div class="panel">
                         <h2 style="margin-top:0">Recent Reward Batches</h2>
@@ -6373,33 +6377,6 @@ router.get('/rewards/list', async (req, res) => {
                         </table>
                     </div>
                 </div>
-                <script>
-                    const password = ${JSON.stringify(password)};
-                    const form = document.getElementById('reward-form');
-                    const status = document.getElementById('reward-status');
-                    form.addEventListener('submit', async (e) => {
-                        e.preventDefault();
-                        status.style.display = 'none';
-                        status.classList.remove('error');
-                        const payload = Object.fromEntries(new FormData(form).entries());
-                        try {
-                            const res = await fetch('/api/game/rewards/send?password=' + encodeURIComponent(password), {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                            });
-                            const data = await res.json();
-                            if (!res.ok) throw new Error(data.error || 'Failed to send rewards');
-                            status.textContent = data.message || 'Rewards sent.';
-                            status.style.display = 'block';
-                            setTimeout(() => window.location.reload(), 900);
-                        } catch (err) {
-                            status.textContent = err.message || 'Failed to send rewards.';
-                            status.classList.add('error');
-                            status.style.display = 'block';
-                        }
-                    });
-                </script>
             </body>
             </html>
         `);
@@ -6412,6 +6389,10 @@ router.post('/rewards/send', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
         if (password !== ADMIN_PANEL_PASSWORD) {
+            const wantsHtml = String(req.headers.accept || '').includes('text/html');
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent('Forbidden')}`);
+            }
             return res.status(403).json({ error: 'Forbidden' });
         }
 
@@ -6419,7 +6400,13 @@ router.post('/rewards/send', async (req, res) => {
         const scope = String(req.body?.scope || 'active_per_account');
         const subject = String(req.body?.subject || '').trim();
         const body = String(req.body?.body || '').trim();
-        if (!subject || !body) return res.status(400).json({ error: 'Subject and message body are required.' });
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (!subject || !body) {
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent('Subject and message body are required.')}`);
+            }
+            return res.status(400).json({ error: 'Subject and message body are required.' });
+        }
 
         const rewardPayload = buildAdminRewardPayload(req.body || {});
         const recipients = scope === 'all_characters'
@@ -6432,7 +6419,12 @@ router.post('/rewards/send', async (req, res) => {
                 ORDER BY c.id ASC
             `, []);
 
-        if (!recipients.length) return res.status(400).json({ error: 'No recipients found for that scope.' });
+        if (!recipients.length) {
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent('No recipients found for that scope.')}`);
+            }
+            return res.status(400).json({ error: 'No recipients found for that scope.' });
+        }
 
         const createdAt = Math.floor(Date.now() / 1000);
         const batch = await dbRun(
@@ -6451,12 +6443,21 @@ router.post('/rewards/send', async (req, res) => {
             );
         }
 
+        const successMessage = `Sent ${rewardPayload ? 'reward letter' : 'global message'} to ${recipients.length.toLocaleString()} recipient${recipients.length === 1 ? '' : 's'}.`;
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&status=${encodeURIComponent(successMessage)}`);
+        }
         res.json({
             success: true,
-            message: `Sent ${rewardPayload ? 'reward letter' : 'global message'} to ${recipients.length.toLocaleString()} recipient${recipients.length === 1 ? '' : 's'}.`,
+            message: successMessage,
             batchId
         });
     } catch (error) {
+        const password = parseAdminPassword(req);
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(error.message || 'Failed to send rewards.')}`);
+        }
         res.status(500).json({ error: error.message });
     }
 });
