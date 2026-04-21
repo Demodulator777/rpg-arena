@@ -463,6 +463,14 @@ body {
     border-color: var(--gold);
     background: rgba(255,255,255,0.07);
 }
+.auth-referral-note {
+    margin-top: -4px;
+    margin-bottom: 4px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    color: var(--text-dim);
+    text-align: center;
+}
 .auth-legal-modal {
     max-width: 760px;
     width: min(94vw, 760px);
@@ -2951,6 +2959,50 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .topbar-menu-meta {
     font-size: 0.75rem;
     color: rgba(255,255,255,0.58);
+}
+.topbar-menu-referral-card {
+    align-items: flex-start;
+}
+.topbar-menu-referral-kicker {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.42);
+}
+.topbar-menu-referral-code {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gold);
+}
+.topbar-menu-referral-link {
+    width: 100%;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.44);
+    word-break: break-all;
+}
+.topbar-menu-inline-btn {
+    margin-top: 2px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(201,146,42,0.32);
+    background: linear-gradient(180deg, rgba(201,146,42,0.16), rgba(201,146,42,0.07));
+    color: var(--gold);
+    font-size: 0.74rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.topbar-menu-inline-btn:hover {
+    border-color: rgba(201,146,42,0.55);
+    background: linear-gradient(180deg, rgba(201,146,42,0.24), rgba(201,146,42,0.1));
+}
+.topbar-menu-flash {
+    margin-top: 2px;
+    font-size: 0.72rem;
+    color: #8ee0a8;
+}
+.topbar-menu-flash.error {
+    color: #ff9b9b;
 }
 .topbar-menu-action-mp {
     border-color: rgba(155,89,182,0.22);
