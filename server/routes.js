@@ -36,6 +36,36 @@ function normalizeReferralCode(value) {
     return String(value || '').trim().replace(/^@+/, '').toLowerCase();
 }
 
+const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
+
+function parseAdminPassword(req) {
+    return String(req.query?.password || req.body?.password || '').trim();
+}
+
+function buildAdminRewardPayload(input = {}) {
+    const gold = Math.max(0, Number(input.gold || 0));
+    const gems = Math.max(0, Number(input.gems || 0));
+    const materialType = String(input.materialType || '').trim().toLowerCase();
+    const materialId = String(input.materialId || '').trim();
+    const materialQty = Math.max(0, Number(input.materialQty || 0));
+    const payload = {};
+    if (gold > 0) payload.gold = gold;
+    if (gems > 0) payload.gems = gems;
+    if (materialId && materialQty > 0 && (materialType === 'raw_mat' || materialType === 'component')) {
+        payload.material = { type: materialType, id: materialId, qty: materialQty };
+    }
+    return Object.keys(payload).length ? payload : null;
+}
+
+function describeAdminRewardPayload(payload) {
+    if (!payload || typeof payload !== 'object') return 'Message only';
+    const parts = [];
+    if (payload.gold) parts.push(`${Number(payload.gold).toLocaleString()} gold`);
+    if (payload.gems) parts.push(`${Number(payload.gems).toLocaleString()} gems`);
+    if (payload.material?.id && payload.material?.qty) parts.push(`${Number(payload.material.qty).toLocaleString()}x ${payload.material.id}`);
+    return parts.length ? parts.join(' + ') : 'Message only';
+}
+
 async function queueReferralRewards(db, userId, rewards = {}) {
     if (!userId) return;
     const gold = Math.max(0, Number(rewards.gold || 0));
@@ -181,6 +211,11 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN referrals_level5 INTEGER DEFAULT 0',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
+            'ALTER TABLE messages ADD COLUMN sender_label TEXT DEFAULT NULL',
+            'ALTER TABLE messages ADD COLUMN reward_payload TEXT DEFAULT NULL',
+            'ALTER TABLE messages ADD COLUMN reward_claimed INTEGER DEFAULT 0',
+            'ALTER TABLE messages ADD COLUMN system_message INTEGER DEFAULT 0',
+            'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -223,6 +258,20 @@ const WEEKLY_TASKS = [
             defender_user_id INTEGER,
             expires_at INTEGER,
             PRIMARY KEY (attacker_user_id, defender_user_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER,
+            receiver_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            read INTEGER NOT NULL DEFAULT 0,
+            sent_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            sender_label TEXT DEFAULT NULL,
+            reward_payload TEXT DEFAULT NULL,
+            reward_claimed INTEGER NOT NULL DEFAULT 0,
+            system_message INTEGER NOT NULL DEFAULT 0,
+            admin_batch_id INTEGER DEFAULT NULL
         )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -305,6 +354,15 @@ const WEEKLY_TASKS = [
             task_id TEXT NOT NULL,
             claimed_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, week_start, task_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS admin_reward_batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL,
+            scope TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            reward_payload TEXT,
+            recipient_count INTEGER NOT NULL DEFAULT 0
         )`, args: [] });
         
         // Skill tree migrations
@@ -6069,8 +6127,8 @@ router.get('/messages', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const messages = await dbAll(db, `SELECT m.*,s.name as sender_name,r.name as receiver_name FROM messages m
-            JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
+        const messages = await dbAll(db, `SELECT m.*,COALESCE(m.sender_label, s.name, 'Arena Staff') as sender_name,r.name as receiver_name FROM messages m
+            LEFT JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
             WHERE m.receiver_id=? ORDER BY m.sent_at DESC LIMIT 50`, [char.id]);
         res.json(messages);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -6105,6 +6163,57 @@ router.post('/messages/:id/read', auth, async (req, res) => {
         res.json({ ok:true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+router.post('/messages/:id/claim-reward', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const msg = await dbGet(db, 'SELECT * FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
+        if (!msg) return res.status(404).json({ error: 'Message not found' });
+        if (Number(msg.reward_claimed || 0) !== 0) return res.status(400).json({ error: 'Reward already claimed.' });
+        if (!msg.reward_payload) return res.status(400).json({ error: 'This message has no reward.' });
+
+        let reward;
+        try { reward = JSON.parse(msg.reward_payload); } catch { reward = null; }
+        if (!reward || typeof reward !== 'object') return res.status(400).json({ error: 'Reward payload is invalid.' });
+
+        if (reward.gold) {
+            const gold = Math.max(0, Number(reward.gold || 0));
+            if (gold > 0) {
+                await dbRun(db, 'UPDATE characters SET gold=gold+?, total_gold_earned=total_gold_earned+? WHERE id=?', [gold, gold, char.id]);
+            }
+        }
+        if (reward.gems) {
+            const gems = Math.max(0, Number(reward.gems || 0));
+            if (gems > 0) {
+                await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, char.id]);
+            }
+        }
+        if (reward.material?.id && reward.material?.qty) {
+            const materialType = reward.material.type === 'component' ? 'component' : 'raw_mat';
+            const materialMap = materialType === 'component' ? COMPONENTS : RAW_MATERIALS;
+            const materialDef = materialMap?.[reward.material.id];
+            if (!materialDef) return res.status(400).json({ error: 'Reward material no longer exists.' });
+            await addStackableInventoryItem(
+                db,
+                char.id,
+                materialType,
+                { id: reward.material.id, ...materialDef },
+                Math.max(1, Number(reward.material.qty || 1))
+            );
+        }
+
+        await dbRun(db, 'UPDATE messages SET reward_claimed=1, read=1 WHERE id=? AND receiver_id=?', [msg.id, char.id]);
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            success: true,
+            message: `Claimed: ${describeAdminRewardPayload(reward)}.`,
+            character: await buildCharacterResponse(updatedChar, db)
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 router.delete('/messages/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -6113,6 +6222,243 @@ router.delete('/messages/:id', auth, async (req, res) => {
         await dbRun(db, 'DELETE FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
         res.json({ ok:true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/rewards/list', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) {
+            return res.status(403).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Global Rewards - Login</title>
+                    <style>
+                        body { background:#0a0a0f; color:#e2e8f0; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; font-family: ui-sans-serif, system-ui, sans-serif; }
+                        .login-box { background:#16213e; padding:32px; border-radius:14px; border:1px solid rgba(155,89,182,0.45); width:min(420px, 92vw); box-shadow:0 18px 50px rgba(0,0,0,0.35); }
+                        h2 { margin:0 0 16px; color:#f1c40f; }
+                        p { color:#94a3b8; margin:0 0 18px; }
+                        input, button { width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:#0f172a; color:#fff; box-sizing:border-box; }
+                        button { margin-top:12px; background:linear-gradient(180deg, #9b59b6, #7d3c98); cursor:pointer; border:none; font-weight:700; }
+                    </style>
+                </head>
+                <body>
+                    <div class="login-box">
+                        <h2>🎁 Global Rewards Access</h2>
+                        <p>Enter the admin password to send thank-you letters, global messages, and reward mail.</p>
+                        <form method="GET">
+                            <input type="password" name="password" placeholder="Enter password">
+                            <button type="submit">Open Rewards Panel</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+
+        const db = await getDb();
+        const usersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM users', []))?.count || 0);
+        const charsCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM characters', []))?.count || 0);
+        const lettersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM messages WHERE system_message = 1', []))?.count || 0);
+        const batches = await dbAll(db, 'SELECT * FROM admin_reward_batches ORDER BY created_at DESC LIMIT 20', []);
+
+        const rowsHtml = batches.map(batch => {
+            let rewardText = 'Message only';
+            try { rewardText = describeAdminRewardPayload(JSON.parse(batch.reward_payload || 'null')); } catch {}
+            return `<tr>
+                <td>${batch.id}</td>
+                <td>${new Date(Number(batch.created_at || 0) * 1000).toLocaleString()}</td>
+                <td>${escapeHtml(batch.scope || '')}</td>
+                <td>${escapeHtml(batch.subject || '')}</td>
+                <td>${escapeHtml(rewardText)}</td>
+                <td>${Number(batch.recipient_count || 0).toLocaleString()}</td>
+            </tr>`;
+        }).join('');
+
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Global Rewards Admin</title>
+                <meta charset="UTF-8">
+                <style>
+                    * { box-sizing:border-box; }
+                    body { margin:0; background:#0a0a0f; color:#e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif; }
+                    .wrap { max-width:1200px; margin:0 auto; padding:28px; }
+                    h1 { margin:0 0 18px; color:#f1c40f; }
+                    .stats { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+                    .stat, .panel { background:#16213e; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px; }
+                    .stat-value { font-size:1.8rem; font-weight:800; color:#9b59b6; }
+                    .stat-label { font-size:0.8rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-top:6px; }
+                    .panel { margin-bottom:20px; }
+                    .grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+                    .full { grid-column:1 / -1; }
+                    label { display:block; font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+                    input, textarea, select, button { width:100%; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:#0f172a; color:#fff; padding:12px 14px; font:inherit; }
+                    textarea { min-height:120px; resize:vertical; }
+                    .submit-btn { background:linear-gradient(180deg, #2ecc71, #1f8b4d); border:none; font-weight:800; cursor:pointer; }
+                    .hint { color:#94a3b8; font-size:0.85rem; line-height:1.5; }
+                    .status { margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(46,204,113,0.12); border:1px solid rgba(46,204,113,0.25); display:none; }
+                    .status.error { background:rgba(231,76,60,0.12); border-color:rgba(231,76,60,0.25); }
+                    table { width:100%; border-collapse:collapse; }
+                    th, td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; font-size:0.9rem; vertical-align:top; }
+                    th { color:#94a3b8; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase; }
+                    @media (max-width: 800px) { .stats, .grid { grid-template-columns:1fr; } }
+                </style>
+            </head>
+            <body>
+                <div class="wrap">
+                    <h1>🎁 Global Rewards Admin</h1>
+                    <div class="stats">
+                        <div class="stat"><div class="stat-value">${usersCount.toLocaleString()}</div><div class="stat-label">Accounts</div></div>
+                        <div class="stat"><div class="stat-value">${charsCount.toLocaleString()}</div><div class="stat-label">Characters</div></div>
+                        <div class="stat"><div class="stat-value">${lettersCount.toLocaleString()}</div><div class="stat-label">System Letters Sent</div></div>
+                    </div>
+                    <div class="panel">
+                        <h2 style="margin-top:0">Send Reward Letter</h2>
+                        <p class="hint">Default delivery is the active character for each account, so multi-character users do not receive the same global reward four times unless you explicitly choose every character.</p>
+                        <form id="reward-form">
+                            <div class="grid">
+                                <div>
+                                    <label>Delivery Scope</label>
+                                    <select name="scope">
+                                        <option value="active_per_account">Active character per account</option>
+                                        <option value="all_characters">Every character</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Subject</label>
+                                    <input type="text" name="subject" maxlength="140" placeholder="Thank you for helping test Battle Arena">
+                                </div>
+                                <div class="full">
+                                    <label>Message Body</label>
+                                    <textarea name="body" placeholder="Write the thank-you letter players will see in their inbox."></textarea>
+                                </div>
+                                <div>
+                                    <label>Gold Reward</label>
+                                    <input type="number" name="gold" min="0" step="1" placeholder="0">
+                                </div>
+                                <div>
+                                    <label>Gem Reward</label>
+                                    <input type="number" name="gems" min="0" step="1" placeholder="0">
+                                </div>
+                                <div>
+                                    <label>Material Type</label>
+                                    <select name="materialType">
+                                        <option value="">No material</option>
+                                        <option value="raw_mat">Raw Material</option>
+                                        <option value="component">Component</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Material Id</label>
+                                    <input type="text" name="materialId" placeholder="mithril_ore or demon_alloy">
+                                </div>
+                                <div>
+                                    <label>Material Quantity</label>
+                                    <input type="number" name="materialQty" min="0" step="1" placeholder="0">
+                                </div>
+                                <div style="display:flex;align-items:end">
+                                    <button type="submit" class="submit-btn">Send Global Letter</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="reward-status" class="status"></div>
+                    </div>
+                    <div class="panel">
+                        <h2 style="margin-top:0">Recent Reward Batches</h2>
+                        <table>
+                            <thead><tr><th>ID</th><th>Sent</th><th>Scope</th><th>Subject</th><th>Reward</th><th>Recipients</th></tr></thead>
+                            <tbody>${rowsHtml || '<tr><td colspan="6">No reward batches sent yet.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+                <script>
+                    const password = ${JSON.stringify(password)};
+                    const form = document.getElementById('reward-form');
+                    const status = document.getElementById('reward-status');
+                    form.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        status.style.display = 'none';
+                        status.classList.remove('error');
+                        const payload = Object.fromEntries(new FormData(form).entries());
+                        try {
+                            const res = await fetch('/api/game/rewards/send?password=' + encodeURIComponent(password), {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || 'Failed to send rewards');
+                            status.textContent = data.message || 'Rewards sent.';
+                            status.style.display = 'block';
+                            setTimeout(() => window.location.reload(), 900);
+                        } catch (err) {
+                            status.textContent = err.message || 'Failed to send rewards.';
+                            status.classList.add('error');
+                            status.style.display = 'block';
+                        }
+                    });
+                </script>
+            </body>
+            </html>
+        `);
+    } catch (error) {
+        res.status(500).send('Error: ' + error.message);
+    }
+});
+
+router.post('/rewards/send', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        const db = await getDb();
+        const scope = String(req.body?.scope || 'active_per_account');
+        const subject = String(req.body?.subject || '').trim();
+        const body = String(req.body?.body || '').trim();
+        if (!subject || !body) return res.status(400).json({ error: 'Subject and message body are required.' });
+
+        const rewardPayload = buildAdminRewardPayload(req.body || {});
+        const recipients = scope === 'all_characters'
+            ? await dbAll(db, 'SELECT id FROM characters ORDER BY id ASC', [])
+            : await dbAll(db, `
+                SELECT c.id
+                FROM users u
+                JOIN characters c ON c.id = u.active_character_id
+                WHERE u.active_character_id IS NOT NULL
+                ORDER BY c.id ASC
+            `, []);
+
+        if (!recipients.length) return res.status(400).json({ error: 'No recipients found for that scope.' });
+
+        const createdAt = Math.floor(Date.now() / 1000);
+        const batch = await dbRun(
+            db,
+            'INSERT INTO admin_reward_batches (created_at, scope, subject, body, reward_payload, recipient_count) VALUES (?,?,?,?,?,?)',
+            [createdAt, scope, subject, body, rewardPayload ? JSON.stringify(rewardPayload) : null, recipients.length]
+        );
+        const batchId = Number(batch?.lastInsertRowid || 0) || null;
+
+        for (const row of recipients) {
+            await dbRun(
+                db,
+                `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message, admin_batch_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?)`,
+                [row.id, row.id, 'Arena Staff', subject, body, rewardPayload ? JSON.stringify(rewardPayload) : null, batchId]
+            );
+        }
+
+        res.json({
+            success: true,
+            message: `Sent ${rewardPayload ? 'reward letter' : 'global message'} to ${recipients.length.toLocaleString()} recipient${recipients.length === 1 ? '' : 's'}.`,
+            batchId
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ── Dungeon endpoints (unchanged, keep as is) ─────────────────────────────
