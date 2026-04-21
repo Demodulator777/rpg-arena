@@ -11,6 +11,8 @@ let shopInventory = [];
 let currentShopCategory = 'weapons';
 let monthlyFreeGemsStatus = null;
 let specialManaPotionCount = 0;
+let specialManaPotionCountFetchedAt = 0;
+let potionBadgeRequest = null;
 let activeMissionInterval = null;
 let overlayInterval = null;
 let travelOverlayInterval = null;
@@ -615,7 +617,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     initMissionTimer();
     if (token) {
-        try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); }
+        try {
+            const [charData] = await Promise.all([
+                api('GET','/game/character'),
+                loadCharacterRoster()
+            ]);
+            character = charData;
+            showScreen('game');
+        }
         catch (e) {
             if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); }
             else { token=null; localStorage.removeItem('rpg_token'); showScreen('auth'); }
@@ -648,7 +657,17 @@ async function login() {
         const data=await api('POST','/auth/login',{username:document.getElementById('login-user').value.trim(),password:document.getElementById('login-pass').value});
         token=data.token; username=data.username;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
-        try { character=await api('GET','/game/character'); await loadCharacterRoster(); showScreen('game'); } catch { await loadCharacterRoster(); showScreen('create'); }
+        try {
+            const [charData] = await Promise.all([
+                api('GET','/game/character'),
+                loadCharacterRoster()
+            ]);
+            character = charData;
+            showScreen('game');
+        } catch {
+            await loadCharacterRoster();
+            showScreen('create');
+        }
     } catch(e) { setError('auth-error',e.message); }
 }
 async function register() {
@@ -699,7 +718,6 @@ function showScreen(name) {
     if (name === 'create') syncCreateClassAvailability();
     if (name==='game') {
         renderTopBar();
-        renderCharacter();
         startPolling();
         checkTravelStatus().then(() => {
             showTab(playerTravelTarget ? 'missions' : 'character');
@@ -3020,7 +3038,11 @@ async function craftItem(recipeId) {
 // ── Inventory ─────────────────────────────────────────────────────────────
 async function loadInventory() {
     document.getElementById('inventory-content').innerHTML='<p class="loading">Loading...</p>';
-    try { const d=await api('GET','/game/inventory'); renderInventory(d); }
+    try {
+        const d=await api('GET','/game/inventory');
+        syncPotionBadgeFromInventory(d);
+        renderInventory(d);
+    }
     catch(e) { document.getElementById('inventory-content').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
 
@@ -6079,7 +6101,7 @@ async function convertMpToPotion() {
             
             // Update displays
             renderTopBar();
-            updatePotionBadge();
+            updatePotionBadge(true);
             
             // Show success message
             showMsg('convert-mp-status', response.message);
@@ -6105,31 +6127,54 @@ async function convertMpToPotion() {
     }
 }
 
-async function updatePotionBadge() {
-    try {
-        const inv = await api('GET', '/game/inventory');
-        let total = 0;
-        for (const item of inv.items) {
-            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (data.id === 'special_mana_potion') {
-                total += data.qty || 1;
-            }
+function applyPotionBadgeDisplay() {
+    const badge = document.getElementById('potion-badge');
+    if (badge) {
+        if (specialManaPotionCount > 0) {
+            badge.textContent = specialManaPotionCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
         }
-        specialManaPotionCount = total;
-        
-        const badge = document.getElementById('potion-badge');
-        if (badge) {
-            if (total > 0) {
-                badge.textContent = total;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-        renderTopbarMenu();
-    } catch (e) {
-        console.error('Failed to update potion badge:', e);
     }
+}
+
+function syncPotionBadgeFromInventory(inv) {
+    const items = Array.isArray(inv?.items) ? inv.items : [];
+    let total = 0;
+    for (const item of items) {
+        const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+        if (data?.id === 'special_mana_potion') {
+            total += data.qty || 1;
+        }
+    }
+    specialManaPotionCount = total;
+    specialManaPotionCountFetchedAt = Date.now();
+    applyPotionBadgeDisplay();
+    renderTopbarMenu();
+}
+
+async function updatePotionBadge(force = false) {
+    const cacheAge = Date.now() - specialManaPotionCountFetchedAt;
+    if (!force && specialManaPotionCountFetchedAt && cacheAge < 60000) {
+        applyPotionBadgeDisplay();
+        return;
+    }
+    if (potionBadgeRequest) {
+        await potionBadgeRequest;
+        return;
+    }
+    potionBadgeRequest = (async () => {
+        try {
+            const inv = await api('GET', '/game/inventory');
+            syncPotionBadgeFromInventory(inv);
+        } catch (e) {
+            console.error('Failed to update potion badge:', e);
+        } finally {
+            potionBadgeRequest = null;
+        }
+    })();
+    await potionBadgeRequest;
 }
 let currentUpgradeItemId = null;
 
