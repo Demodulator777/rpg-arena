@@ -2974,6 +2974,41 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-weight: 800;
     color: var(--gold);
 }
+.topbar-menu-referral-stats {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+}
+.topbar-menu-referral-stat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.topbar-menu-referral-stat-label {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.55);
+}
+.topbar-menu-referral-stat-value {
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: var(--text-bright);
+}
+.topbar-menu-referral-link-wrap {
+    width: 100%;
+    display: grid;
+    gap: 4px;
+}
+.topbar-menu-referral-link-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+}
 .topbar-menu-referral-link {
     width: 100%;
     font-size: 0.7rem;
