@@ -36,6 +36,14 @@ function normalizeReferralCode(value) {
     return String(value || '').trim().replace(/^@+/, '').toLowerCase();
 }
 
+function normalizeRewardMaterialId(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
 const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
 
 function parseAdminPassword(req) {
@@ -46,7 +54,7 @@ function buildAdminRewardPayload(input = {}) {
     const gold = Math.max(0, Number(input.gold || 0));
     const gems = Math.max(0, Number(input.gems || 0));
     const materialType = String(input.materialType || '').trim().toLowerCase();
-    const materialId = String(input.materialId || '').trim();
+    const materialId = normalizeRewardMaterialId(input.materialId);
     const materialQty = Math.max(0, Number(input.materialQty || 0));
     const payload = {};
     if (gold > 0) payload.gold = gold;
@@ -6203,13 +6211,14 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
         if (reward.material?.id && reward.material?.qty) {
             const materialType = reward.material.type === 'component' ? 'component' : 'raw_mat';
             const materialMap = materialType === 'component' ? COMPONENTS : RAW_MATERIALS;
-            const materialDef = materialMap?.[reward.material.id];
+            const normalizedMaterialId = normalizeRewardMaterialId(reward.material.id);
+            const materialDef = materialMap?.[normalizedMaterialId];
             if (!materialDef) return res.status(400).json({ error: 'Reward material no longer exists.' });
             await addStackableInventoryItem(
                 db,
                 char.id,
                 materialType,
-                { id: reward.material.id, ...materialDef },
+                { id: normalizedMaterialId, ...materialDef },
                 Math.max(1, Number(reward.material.qty || 1))
             );
         }
