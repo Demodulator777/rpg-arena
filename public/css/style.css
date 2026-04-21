@@ -2915,12 +2915,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
 }
-.topbar-menu-grid > .topbar-menu-inline-btn,
-.topbar-menu-grid > .topbar-menu-referral-link,
-.topbar-menu-grid > .topbar-menu-flash,
-.topbar-menu-grid > .topbar-menu-meta {
-    display: none !important;
-}
 .topbar-menu-info-card,
 .topbar-menu-action,
 .topbar-menu-toggle {
@@ -2985,7 +2979,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-size: 0.7rem;
     line-height: 1.45;
     color: rgba(255,255,255,0.44);
-    word-break: break-all;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 .topbar-menu-inline-btn {
     margin-top: 2px;
