@@ -5443,25 +5443,25 @@ function buildBattleShowcaseCard({ name, className, level, splash = false, fallb
     </div>`;
 }
 
-function getBattleLogTintRole(log, lineIndex) {
-    if (!Array.isArray(log) || lineIndex < 0) return '';
-    let actionIndexInRound = 0;
-    for (let i = 0; i <= lineIndex; i++) {
-        const entry = log[i];
-        if (entry === '---') {
-            actionIndexInRound = 0;
-            continue;
-        }
-        if (i === lineIndex) {
-            return actionIndexInRound % 2 === 0 ? 'battle-log-player' : 'battle-log-opponent';
-        }
-        actionIndexInRound++;
+function getBattleLogTintRole(line, enemyName='Enemy') {
+    const text = String(line || '').trim();
+    if (!text || text === '---' || text.includes(' vs ')) return '';
+    const myName = String(character?.name || '').trim();
+    const enemy = String(enemyName || '').trim();
+    if (myName) {
+        if (text.startsWith(`Round `) && text.includes(`: ${myName} `)) return 'battle-log-player';
+        if (text.startsWith(`${myName}'s `) || text.startsWith(`${myName} `)) return 'battle-log-player';
+    }
+    if (enemy) {
+        if (text.startsWith(`Round `) && text.includes(`: ${enemy} `)) return 'battle-log-opponent';
+        if (text.startsWith(`${enemy}'s `) || text.startsWith(`${enemy} `)) return 'battle-log-opponent';
     }
     return '';
 }
 
 function renderBattleLogLine(line, enemyName='Enemy', tintRole='') {
     if (line === '---') return '<div class="battle-log-line separator">───────────────────</div>';
+    if (String(line || '').includes(' vs ')) return '';
     const className = tintRole || '';
     const pillClass = className ? `battle-log-pill ${className}` : 'battle-log-pill';
     let pillStyle = '';
@@ -5490,7 +5490,7 @@ function finalizeBattlePlayback() {
     if (!battlePlaybackMeta || !logEl || !out) return;
     const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage } = battlePlaybackMeta;
     
-    logEl.innerHTML = log.map((line, index) => renderBattleLogLine(line, enemyName, getBattleLogTintRole(log, index))).join('');
+    logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName, getBattleLogTintRole(line, enemyName))).join('');
     
     // Add tutorial completion message if present
     if (tutorialMessage) {
@@ -5520,7 +5520,8 @@ function scheduleBattlePlaybackStep() {
     }
     const currentIndex = battlePlaybackIndex++;
     const line = battlePlaybackQueue[currentIndex];
-    logEl.insertAdjacentHTML('beforeend', renderBattleLogLine(line, battlePlaybackMeta.enemyName, getBattleLogTintRole(battlePlaybackQueue, currentIndex)));
+    const renderedLine = renderBattleLogLine(line, battlePlaybackMeta.enemyName, getBattleLogTintRole(line, battlePlaybackMeta.enemyName));
+    if (renderedLine) logEl.insertAdjacentHTML('beforeend', renderedLine);
     logEl.scrollTop = logEl.scrollHeight;
     const isSeparator = line === '---';
     const delay = isSeparator ? 450 : 1200;
