@@ -2887,6 +2887,9 @@ async function collectMission() {
         if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
+            enemyName: d.npcName || 'Enemy',
+            missionName: d.missionName || '',
+            battleType: 'mission',
             tutorialMessage: d.tutorialMessage
         });
         else showMissionModal(msg);
@@ -5398,12 +5401,48 @@ function buildBattleFighterCard({ name, className, level, splash = false, fallba
     </div>`;
 }
 
+function findMissionVisualByName(missionName) {
+    const target = String(missionName || '').trim().toLowerCase();
+    if (!target) return null;
+    for (const zone of Object.values(ZONES || {})) {
+        for (const spot of zone?.spots || []) {
+            for (const mission of spot?.missions || []) {
+                if (String(mission?.name || '').trim().toLowerCase() === target) {
+                    return {
+                        img: mission.img || null,
+                        spotName: spot.name || '',
+                        zoneName: zone.name || ''
+                    };
+                }
+            }
+        }
+    }
+    return null;
+}
+
+function buildBattleShowcaseCard({ name, className, level, splash = false, fallback = 'вљ”пёЏ', side = 'left', imageSrc = null, metaText = '' }) {
+    const artSrc = imageSrc || getBattleFighterArt(className, splash ? 'splash' : 'portrait');
+    const fighterClassText = metaText || (className
+        ? `${capitalize(className)}${level ? ` Lv.${level}` : ''}`
+        : (level ? `Lv.${level}` : 'Battle Opponent'));
+    const media = artSrc
+        ? `<img src="${artSrc}" alt="${escHtml(className || name || 'fighter')}" data-error-hide="true" data-error-next-display="flex"><span class="battle-fighter-fallback" style="display:none">${fallback}</span>`
+        : `<span class="battle-fighter-fallback">${fallback}</span>`;
+    return `<div class="fighter-card fighter-card-${side}">
+        <div class="fighter-avatar ${splash ? 'fighter-avatar-splash' : ''}">
+            ${media}
+        </div>
+        <div class="fighter-name">${escHtml(name || 'Unknown')}</div>
+        <div class="fighter-class">${fighterClassText}</div>
+    </div>`;
+}
+
 function renderBattleLogLine(line, enemyName='Enemy') {
     if (line === '---') return '<div class="battle-log-line separator">───────────────────</div>';
     let className = '';
     if (line.startsWith(character?.name || '')) className = 'battle-log-player';
     else if (enemyName && line.startsWith(enemyName)) className = 'battle-log-opponent';
-    return `<div class="battle-log-line ${className}">${escHtml(line)}</div>`;
+    return `<div class="battle-log-line ${className}"><span class="battle-log-pill">${escHtml(line)}</span></div>`;
 }
 
 function updateBattlePlaybackStatus(text, done=false) {
@@ -5564,14 +5603,22 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
     const vsLine = battleLog.find(l => l.includes(' vs '));
     if (vsLine) {
         const parts = vsLine.split(' vs ');
-        if (parts[1]) enemyName = parts[1].trim();
+        const left = (parts[0] || '').trim();
+        const right = (parts[1] || '').trim();
+        const myName = String(character?.name || '').trim();
+        if (myName && left === myName && right) enemyName = right;
+        else if (myName && right === myName && left) enemyName = left;
+        else if (!options.enemyName && right) enemyName = right;
     }
     const enemyClass = options.enemyClass || null;
     const isPvp = options.battleType === 'pvp';
+    const missionVisual = options.battleType === 'mission'
+        ? findMissionVisualByName(options.missionName || enemyName)
+        : null;
     
     if (fighters && character) {
         fighters.innerHTML = `
-            ${buildBattleFighterCard({
+            ${buildBattleShowcaseCard({
                 name: character.name,
                 className: character.class,
                 level: character.level,
@@ -5580,13 +5627,17 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
                 side: 'left'
             })}
             <div class="fighter-vs">VS</div>
-            ${buildBattleFighterCard({
-                name: enemyName,
+            ${buildBattleShowcaseCard({
+                name: options.battleType === 'mission' ? (options.missionName || enemyName) : enemyName,
                 className: enemyClass,
                 level: options.enemyLevel || null,
-                splash: !!(isPvp && enemyClass),
+                splash: !!(isPvp && enemyClass) || !!missionVisual?.img,
                 fallback: enemyClass ? '⚔️' : '👾',
-                side: 'right'
+                side: 'right',
+                imageSrc: missionVisual?.img || null,
+                metaText: missionVisual
+                    ? [missionVisual.spotName, missionVisual.zoneName].filter(Boolean).join(' · ')
+                    : ''
             })}`;
     }
     
@@ -5852,6 +5903,7 @@ function viewBattleReport(msgId) {
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
         enemyName: report.opponentName || report.npcName || 'Enemy',
         enemyClass: report.opponentClass || null,
+        missionName: report.missionName || '',
         battleType: report.type === 'pvp' ? 'pvp' : 'mission'
     });
 }
