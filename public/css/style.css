@@ -3010,6 +3010,23 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 100%;
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.topbar-menu-referral-stat-claimable {
+    background: rgba(212,168,67,0.08);
+    border-color: rgba(212,168,67,0.18);
+}
+.topbar-menu-inline-btn-claim {
+    border-color: rgba(46, 204, 113, 0.3);
+    background: linear-gradient(180deg, rgba(46, 204, 113, 0.18), rgba(46, 204, 113, 0.07));
+    color: #8df0b4;
+}
+.topbar-menu-referral-claim-note {
+    width: 100%;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.5);
 }
 .topbar-menu-referral-link-label {
     font-size: 0.68rem;
