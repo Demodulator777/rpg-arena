@@ -32,6 +32,36 @@ function invalidateWeeklyClaimableCountCache(charId) {
     }
 }
 
+function normalizeReferralCode(value) {
+    return String(value || '').trim().replace(/^@+/, '').toLowerCase();
+}
+
+async function queueReferralRewards(db, userId, rewards = {}) {
+    if (!userId) return;
+    const gold = Math.max(0, Number(rewards.gold || 0));
+    const gems = Math.max(0, Number(rewards.gems || 0));
+    const registered = Math.max(0, Number(rewards.registered || 0));
+    const level5 = Math.max(0, Number(rewards.level5 || 0));
+    await dbRun(
+        db,
+        `UPDATE users
+         SET pending_referral_gold = COALESCE(pending_referral_gold, 0) + ?,
+             pending_referral_gems = COALESCE(pending_referral_gems, 0) + ?,
+             referrals_registered = COALESCE(referrals_registered, 0) + ?,
+             referrals_level5 = COALESCE(referrals_level5, 0) + ?
+         WHERE id = ?`,
+        [gold, gems, registered, level5, userId]
+    );
+}
+
+async function handleReferralLevelMilestone(db, userId, previousLevel, newLevel) {
+    if (!userId || Number(previousLevel || 0) >= 5 || Number(newLevel || 0) < 5) return;
+    const user = await dbGet(db, 'SELECT id, referred_by_user_id, referral_level5_rewarded FROM users WHERE id = ?', [userId]);
+    if (!user || !user.referred_by_user_id || Number(user.referral_level5_rewarded || 0) !== 0) return;
+    await queueReferralRewards(db, user.referred_by_user_id, { gems: 5, level5: 1 });
+    await dbRun(db, 'UPDATE users SET referral_level5_rewarded = 1 WHERE id = ?', [user.id]);
+}
+
 // Define ELEMENTS array (was missing!)
 const ELEMENTS = ['pyro', 'water', 'wind', 'electro'];
 
@@ -143,6 +173,12 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN pending_referral_gems INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN referrals_registered INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN referrals_level5 INTEGER DEFAULT 0',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
         ];
@@ -1594,8 +1630,106 @@ function buildExtendedAchievements() {
             metric: 'physical_only_wins',
             target: 200,
             rewards: { gold: 275000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'referrals_1',
+            chain: 'referrals_registered',
+            category: 'community',
+            name: 'First Recruit',
+            desc: 'Refer 1 player to Battle Arena.',
+            icon: '🤝',
+            metric: 'referrals_registered',
+            target: 1,
+            rewards: { gold: 5000, gems: 5 },
+        },
+        {
+            id: 'referrals_3',
+            chain: 'referrals_registered',
+            category: 'community',
+            name: 'Arena Scout',
+            desc: 'Refer 3 players to Battle Arena.',
+            icon: '📯',
+            metric: 'referrals_registered',
+            target: 3,
+            rewards: { gold: 15000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'referrals_10',
+            chain: 'referrals_registered',
+            category: 'community',
+            name: 'Crowd Caller',
+            desc: 'Refer 10 players to Battle Arena.',
+            icon: '🎺',
+            metric: 'referrals_registered',
+            target: 10,
+            rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'referrals_level5_1',
+            chain: 'referrals_level5',
+            category: 'community',
+            name: 'Mentor Spark',
+            desc: 'Have 1 referred player reach level 5.',
+            icon: '🌟',
+            metric: 'referrals_level5',
+            target: 1,
+            rewards: { gold: 10000, gems: 5 },
+        },
+        {
+            id: 'referrals_level5_5',
+            chain: 'referrals_level5',
+            category: 'community',
+            name: 'Battle Mentor',
+            desc: 'Have 5 referred players reach level 5.',
+            icon: '🧭',
+            metric: 'referrals_level5',
+            target: 5,
+            rewards: { gold: 60000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'referrals_level5_15',
+            chain: 'referrals_level5',
+            category: 'community',
+            name: 'Arena Patron',
+            desc: 'Have 15 referred players reach level 5.',
+            icon: '👑',
+            metric: 'referrals_level5',
+            target: 15,
+            rewards: { gold: 250000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         }
     );
+
+    const referralsBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_10');
+    addFromBase(referralsBase, {
+        id: 'referrals_25',
+        name: 'Herald of the Arena',
+        desc: 'Refer 25 players to Battle Arena.',
+        target: 25,
+        rewards: { gold: 250000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(referralsBase, {
+        id: 'referrals_50',
+        name: 'Architect of the Crowd',
+        desc: 'Refer 50 players to Battle Arena.',
+        target: 50,
+        rewards: { gold: 900000, gems: 180, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
+    });
+
+    const referralsLevelBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_15');
+    addFromBase(referralsLevelBase, {
+        id: 'referrals_level5_30',
+        name: 'Guild Builder',
+        desc: 'Have 30 referred players reach level 5.',
+        target: 30,
+        rewards: { gold: 600000, gems: 140, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(referralsLevelBase, {
+        id: 'referrals_level5_60',
+        name: 'Arena Founder',
+        desc: 'Have 60 referred players reach level 5.',
+        target: 60,
+        rewards: { gold: 1800000, gems: 320, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
 
     return extras;
 }
@@ -1603,9 +1737,12 @@ function buildExtendedAchievements() {
 ACHIEVEMENTS.push(...buildExtendedAchievements());
 
 async function buildAchievementMetricSnapshot(db, char) {
-    const [missionRows, monsterRows] = await Promise.all([
+    const [missionRows, monsterRows, referralRow] = await Promise.all([
         dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
-        dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id])
+        dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
+        char.user_id
+            ? dbGet(db, 'SELECT referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
+            : Promise.resolve(null)
     ]);
 
     const missionTotals = {
@@ -1657,6 +1794,8 @@ async function buildAchievementMetricSnapshot(db, char) {
         elemental_kills: char.elemental_kills || 0,
         physical_only_wins: char.physical_only_wins || 0,
         wins_without_shield: char.wins_without_shield || 0,
+        referrals_registered: Number(referralRow?.referrals_registered || 0),
+        referrals_level5: Number(referralRow?.referrals_level5 || 0),
         missionTotals,
         monsterTotals,
     };
@@ -1676,6 +1815,8 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'elemental_kills') return metrics.elemental_kills;
     if (metric === 'physical_only_wins') return metrics.physical_only_wins;
     if (metric === 'wins_without_shield') return metrics.wins_without_shield;
+    if (metric === 'referrals_registered') return metrics.referrals_registered;
+    if (metric === 'referrals_level5') return metrics.referrals_level5;
 
     if (metric === 'mission_wins_total') return metrics.missionTotals.wins;
     if (metric === 'mission_fights_total') return metrics.missionTotals.fights;
@@ -3690,8 +3831,27 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT assistant_enabled, skip_battle_animations FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
         : null;
+    const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
+    const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
+    if (char.user_id && (pendingReferralGold > 0 || pendingReferralGems > 0)) {
+        await dbRun(
+            db,
+            `UPDATE characters
+             SET gold = gold + ?,
+                 gems = gems + ?,
+                 total_gold_earned = total_gold_earned + ?,
+                 total_gems_earned = COALESCE(total_gems_earned, 0) + ?
+             WHERE id = ?`,
+            [pendingReferralGold, pendingReferralGems, pendingReferralGold, pendingReferralGems, char.id]
+        );
+        await dbRun(db, 'UPDATE users SET pending_referral_gold = 0, pending_referral_gems = 0 WHERE id = ?', [char.user_id]);
+        char.gold = (char.gold || 0) + pendingReferralGold;
+        char.gems = (char.gems || 0) + pendingReferralGems;
+        char.total_gold_earned = (char.total_gold_earned || 0) + pendingReferralGold;
+        char.total_gems_earned = (char.total_gems_earned || 0) + pendingReferralGems;
+    }
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
@@ -3781,6 +3941,9 @@ async function buildCharacterResponse(char, db) {
         weekly_claimable_count: weeklyClaimableCount,
         assistant_enabled: Number(userSettings?.assistant_enabled ?? 1) !== 0,
         skip_battle_animations: Number(userSettings?.skip_battle_animations ?? 0) !== 0,
+        referral_code: userSettings?.username || null,
+        referrals_registered: Number(userSettings?.referrals_registered || 0),
+        referrals_level5: Number(userSettings?.referrals_level5 || 0),
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -4513,6 +4676,7 @@ if (freshChar.class === 'rogue') {
 
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+? WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
+        await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
         
         // ── Skill tree stat tracking ───────────────────────────────────────
@@ -5263,6 +5427,7 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
             let newXp = (char.xp || 0) + data.effect.value, newLevel = char.level;
             while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; }
             await dbRun(db, 'UPDATE characters SET xp=?,level=? WHERE id=?', [newXp, newLevel, char.id]);
+            await handleReferralLevelMilestone(db, char.user_id, char.level, newLevel);
             message = `Gained ${data.effect.value} XP!`;
             updated = true;
         } else if (data.effect.type === 'mp') {
@@ -5732,6 +5897,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await ensureWeeklyTaskState(db, freshD);
         await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
             [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, newHpA, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
+        await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, freshD.id]);
         try {
