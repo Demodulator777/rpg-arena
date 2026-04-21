@@ -616,6 +616,7 @@ function renderTopbarMenu() {
 async function openTopbarMenu() {
     await syncActiveCharacterState();
     renderTopbarMenu();
+    enhanceTopbarReferralSection();
     document.getElementById('topbar-menu-modal')?.classList.remove('hidden');
 }
 
@@ -646,16 +647,79 @@ function getReferralLink(referralCode) {
     return url.toString();
 }
 
-async function copyReferralLink() {
-    const referralCode = character?.referral_code || username || '';
-    const referralLink = getReferralLink(referralCode);
+function setTopbarMenuFlash(message, isError = false) {
     const flash = document.getElementById('topbar-menu-flash');
-    if (!referralLink) return;
-
-    if (flash && flash._hideTimer) {
+    if (!flash) return;
+    if (flash._hideTimer) {
         clearTimeout(flash._hideTimer);
         flash._hideTimer = null;
     }
+    flash.textContent = message;
+    flash.classList.remove('hidden');
+    flash.classList.toggle('error', !!isError);
+    flash._hideTimer = setTimeout(() => {
+        flash.classList.add('hidden');
+        flash.classList.remove('error');
+        flash._hideTimer = null;
+    }, isError ? 3200 : 2200);
+}
+
+function enhanceTopbarReferralSection() {
+    const card = document.querySelector('#topbar-menu-content .topbar-menu-referral-card');
+    if (!card) return;
+
+    card.querySelectorAll('.topbar-menu-referral-pending, .topbar-menu-referral-claim-note, .topbar-menu-inline-btn-claim').forEach(el => el.remove());
+
+    const pendingGold = Number(character?.pending_referral_gold || 0);
+    const pendingGems = Number(character?.pending_referral_gems || 0);
+    if (pendingGold <= 0 && pendingGems <= 0) return;
+
+    const actions = card.querySelector('.topbar-menu-referral-actions');
+    const flash = card.querySelector('#topbar-menu-flash');
+    if (!actions || !flash) return;
+
+    const pendingWrap = document.createElement('div');
+    pendingWrap.className = 'topbar-menu-referral-stats topbar-menu-referral-pending';
+
+    if (pendingGold > 0) {
+        const goldRow = document.createElement('div');
+        goldRow.className = 'topbar-menu-referral-stat topbar-menu-referral-stat-claimable';
+        goldRow.innerHTML = `
+            <span class="topbar-menu-referral-stat-label">Pending Gold</span>
+            <span class="topbar-menu-referral-stat-value">${pendingGold.toLocaleString()}</span>
+        `;
+        pendingWrap.appendChild(goldRow);
+    }
+
+    if (pendingGems > 0) {
+        const gemsRow = document.createElement('div');
+        gemsRow.className = 'topbar-menu-referral-stat topbar-menu-referral-stat-claimable';
+        gemsRow.innerHTML = `
+            <span class="topbar-menu-referral-stat-label">Pending Gems</span>
+            <span class="topbar-menu-referral-stat-value">${pendingGems.toLocaleString()}</span>
+        `;
+        pendingWrap.appendChild(gemsRow);
+    }
+
+    const note = document.createElement('div');
+    note.className = 'topbar-menu-referral-claim-note';
+    note.textContent = 'Claim on this character to send the rewards here.';
+
+    const claimBtn = document.createElement('button');
+    claimBtn.className = 'topbar-menu-inline-btn topbar-menu-inline-btn-claim';
+    claimBtn.setAttribute('type', 'button');
+    claimBtn.setAttribute('data-action', 'claimReferralRewards');
+    claimBtn.textContent = 'Claim Rewards';
+
+    card.insertBefore(pendingWrap, flash);
+    card.insertBefore(note, flash);
+    actions.insertBefore(claimBtn, actions.firstChild);
+}
+
+async function copyReferralLink() {
+    const referralCode = character?.referral_code || username || '';
+    const referralLink = getReferralLink(referralCode);
+    if (!referralLink) return;
 
     try {
         if (navigator.clipboard?.writeText) {
@@ -668,25 +732,25 @@ async function copyReferralLink() {
             document.execCommand('copy');
             input.remove();
         }
-        if (flash) {
-            flash.textContent = 'Referral link copied.';
-            flash.classList.remove('hidden', 'error');
-            flash._hideTimer = setTimeout(() => {
-                flash.classList.add('hidden');
-                flash._hideTimer = null;
-            }, 2200);
-        }
+        setTopbarMenuFlash('Referral link copied.');
     } catch (e) {
-        if (flash) {
-            flash.textContent = 'Could not copy the referral link.';
-            flash.classList.remove('hidden');
-            flash.classList.add('error');
-            flash._hideTimer = setTimeout(() => {
-                flash.classList.add('hidden');
-                flash.classList.remove('error');
-                flash._hideTimer = null;
-            }, 2600);
+        setTopbarMenuFlash('Could not copy the referral link.', true);
+    }
+}
+
+async function claimReferralRewards() {
+    try {
+        const response = await api('POST', '/game/referrals/claim');
+        if (response?.character) {
+            character = response.character;
+            syncClientPreferencesFromCharacter();
+            renderTopBar();
+            renderTopbarMenu();
+            enhanceTopbarReferralSection();
         }
+        setTopbarMenuFlash(response?.message || 'Referral rewards claimed.');
+    } catch (e) {
+        setTopbarMenuFlash(e.message || 'Could not claim referral rewards.', true);
     }
 }
 
