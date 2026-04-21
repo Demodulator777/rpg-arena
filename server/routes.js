@@ -2076,7 +2076,7 @@ const CLASS_SKILLS = {
     rogue: [
         { id:'shadow_step',      name:'Shadow Step',        emoji:'🌑', desc:'+40% dodge chance for 5h.',                               effect:'dodge_bonus',     value:0.40 },
         { id:'expose',           name:'Expose',             emoji:'🎯', desc:'+15% crit chance for 5h.',                                effect:'crit_bonus',      value:0.15 },
-        { id:'venomfang',        name:'Venomfang',          emoji:'🐍', desc:'Each hit poisons for 5 bonus damage per round for 5h.',   effect:'poison',          value:5    },
+        { id:'venomfang',        name:'Venomfang',          emoji:'🐍', desc:'Each hit poisons for 8% bonus damage per round for 5h.',  effect:'poison',          value:0.08 },
     ],
     paladin: [
         { id:'divine_shield',    name:'Divine Shield',      emoji:'✨', desc:'Negate the first hit received each battle round for 5h.', effect:'first_hit_negate',value:1    },
@@ -2604,11 +2604,17 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
 
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
-            if (hasSkill(atkSkills, 'venomfang')) finalDmg += 5;
+            let venomfangBonus = 0;
+            if (hasSkill(atkSkills, 'venomfang')) {
+                const venomfangSkill = atkSkills.find(s => s.id === 'venomfang');
+                const venomfangPct = venomfangSkill?.value || 0;
+                venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
+                finalDmg += venomfangBonus;
+            }
 
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
-            if (hasSkill(atkSkills, 'venomfang')) logLine += ' ☠️ (+5 poison)';
+            if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
 
             if (justAbsorbed) {
                 if (finalDmg <= 0) {
