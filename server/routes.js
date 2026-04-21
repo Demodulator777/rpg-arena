@@ -2606,8 +2606,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
             let venomfangBonus = 0;
             if (hasSkill(atkSkills, 'venomfang')) {
-                const venomfangSkill = atkSkills.find(s => s.id === 'venomfang');
-                const venomfangPct = venomfangSkill?.value || 0;
+                const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
                 venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
                 finalDmg += venomfangBonus;
             }
