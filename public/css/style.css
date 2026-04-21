@@ -3961,29 +3961,37 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .battle-fighters {
         position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
         gap: 0;
         margin-bottom: 8px;
         padding: 10px;
         flex: 0 0 auto;
         flex-wrap: nowrap;
-        align-items: flex-end;
-        justify-content: center;
+        align-items: center;
+        justify-content: stretch;
     }
 
     .battle-fighters > .fighter-card {
-        flex: 0 1 45%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
         min-width: 0;
         position: relative;
         z-index: 1;
     }
 
     .battle-fighters > .fighter-card:first-of-type {
-        margin-right: -18px;
+        justify-self: end;
+        margin-right: -24px;
         z-index: 2;
     }
 
     .battle-fighters > .fighter-card:last-of-type {
-        margin-left: -18px;
+        justify-self: start;
+        margin-left: -24px;
     }
 
     .battle-fighters .fighter-avatar-splash {
@@ -4000,16 +4008,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 
     .fighter-vs {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -58%);
+        position: relative;
+        left: auto;
+        top: auto;
+        transform: none;
         z-index: 4;
         background: radial-gradient(circle, rgba(9,14,24,0.96) 0%, rgba(9,14,24,0.88) 58%, rgba(9,14,24,0) 78%);
         padding: 10px 8px;
         min-width: 52px;
         text-align: center;
         pointer-events: none;
+        margin: 0 -10px;
+        align-self: center;
     }
 
     .battle-result-box .battle-playback-toolbar {
