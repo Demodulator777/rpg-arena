@@ -3793,6 +3793,36 @@ function createLootboxModal() {
                 opacity: 0;
                 animation: lootboxPopIn 0.5s cubic-bezier(0.34, 1.3, 0.55, 1) forwards;
                 box-shadow: 0 12px 28px rgba(0,0,0,0.5), 0 0 15px rgba(255,200,0,0.2);
+                position: relative;
+                overflow: hidden;
+                isolation: isolate;
+            }
+
+            .lootbox-item-card::before,
+            .lootbox-item-card::after {
+                content: "";
+                position: absolute;
+                pointer-events: none;
+            }
+
+            .lootbox-item-card::before {
+                inset: -44%;
+                opacity: 0;
+                mix-blend-mode: screen;
+                animation: lootboxRarityRotate 5.5s linear infinite;
+                transition: opacity 0.25s ease;
+            }
+
+            .lootbox-item-card::after {
+                inset: 0;
+                opacity: 0;
+                background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent 34%, transparent 68%, rgba(255,255,255,0.08));
+                transition: opacity 0.25s ease;
+            }
+
+            .lootbox-item-card > * {
+                position: relative;
+                z-index: 1;
             }
             
             @keyframes lootboxPopIn {
@@ -3809,6 +3839,62 @@ function createLootboxModal() {
                     transform: translateX(0) scale(1);
                 }
             }
+
+            @keyframes lootboxRarityRotate {
+                0% { transform: rotate(0deg) scale(0.92); }
+                100% { transform: rotate(360deg) scale(0.92); }
+            }
+
+            .lootbox-item-card.lootbox-rarity-rare {
+                border-left-color: #9b59b6;
+                border-right-color: rgba(155,89,182,0.42);
+                box-shadow: 0 12px 28px rgba(0,0,0,0.5), 0 0 28px rgba(155,89,182,0.34);
+            }
+
+            .lootbox-item-card.lootbox-rarity-rare::before,
+            .lootbox-item-card.lootbox-rarity-rare::after {
+                opacity: 1;
+            }
+
+            .lootbox-item-card.lootbox-rarity-rare::before {
+                background:
+                    radial-gradient(circle at center, rgba(155,89,182,0.46) 0%, rgba(155,89,182,0.16) 24%, rgba(155,89,182,0) 58%),
+                    conic-gradient(from 0deg, transparent 0deg, rgba(214,170,246,0.32) 48deg, transparent 96deg, transparent 180deg, rgba(155,89,182,0.18) 228deg, transparent 276deg, transparent 360deg);
+            }
+
+            .lootbox-item-card.lootbox-rarity-epic {
+                border-left-color: #e67e22;
+                border-right-color: rgba(230,126,34,0.42);
+                box-shadow: 0 12px 28px rgba(0,0,0,0.5), 0 0 30px rgba(230,126,34,0.36);
+            }
+
+            .lootbox-item-card.lootbox-rarity-epic::before,
+            .lootbox-item-card.lootbox-rarity-epic::after {
+                opacity: 1;
+            }
+
+            .lootbox-item-card.lootbox-rarity-epic::before {
+                background:
+                    radial-gradient(circle at center, rgba(230,126,34,0.48) 0%, rgba(230,126,34,0.18) 24%, rgba(230,126,34,0) 58%),
+                    conic-gradient(from 0deg, transparent 0deg, rgba(255,187,108,0.34) 48deg, transparent 96deg, transparent 180deg, rgba(230,126,34,0.2) 228deg, transparent 276deg, transparent 360deg);
+            }
+
+            .lootbox-item-card.lootbox-rarity-legendary {
+                border-left-color: #f1c40f;
+                border-right-color: rgba(241,196,15,0.46);
+                box-shadow: 0 14px 32px rgba(0,0,0,0.55), 0 0 34px rgba(241,196,15,0.42);
+            }
+
+            .lootbox-item-card.lootbox-rarity-legendary::before,
+            .lootbox-item-card.lootbox-rarity-legendary::after {
+                opacity: 1;
+            }
+
+            .lootbox-item-card.lootbox-rarity-legendary::before {
+                background:
+                    radial-gradient(circle at center, rgba(241,196,15,0.52) 0%, rgba(241,196,15,0.2) 24%, rgba(241,196,15,0) 58%),
+                    conic-gradient(from 0deg, transparent 0deg, rgba(255,236,143,0.38) 48deg, transparent 96deg, transparent 180deg, rgba(241,196,15,0.22) 228deg, transparent 276deg, transparent 360deg);
+            }
             
             .lootbox-item-image {
                 width: 64px;
@@ -3818,6 +3904,18 @@ function createLootboxModal() {
                 background: rgba(0,0,0,0.3);
                 border-radius: 20px;
                 padding: 6px;
+            }
+
+            .lootbox-item-card.lootbox-rarity-rare .lootbox-item-image {
+                filter: drop-shadow(0 0 14px rgba(155,89,182,0.62)) drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+            }
+
+            .lootbox-item-card.lootbox-rarity-epic .lootbox-item-image {
+                filter: drop-shadow(0 0 16px rgba(230,126,34,0.68)) drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+            }
+
+            .lootbox-item-card.lootbox-rarity-legendary .lootbox-item-image {
+                filter: drop-shadow(0 0 18px rgba(241,196,15,0.74)) drop-shadow(0 4px 8px rgba(0,0,0,0.5));
             }
             
             .lootbox-item-info {
@@ -3975,9 +4073,11 @@ function renderSingleLootboxItem(item) {
     const qtyText = (item.qty && item.qty > 1) ? ` x${item.qty}` : '';
     const imagePath = `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
     const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
+    const quality = (item.quality || 'common').toLowerCase();
+    const rarityClass = ['rare', 'epic', 'legendary'].includes(quality) ? ` lootbox-rarity-${quality}` : '';
     
     return `
-        <div class="lootbox-item-card">
+        <div class="lootbox-item-card${rarityClass}">
             <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">
             <div class="lootbox-item-info">
                 <div class="lootbox-item-title">${escapeHtml(itemName)}${qtyText}</div>
@@ -4063,7 +4163,8 @@ function startSequentialReveal(result, boxName, onComplete) {
             name: lootItem.name,
             qty: lootItem.qty || 1,
             desc: lootItem.desc || `You obtained ${lootItem.name}`,
-            type: 'item'
+            type: 'item',
+            quality: lootItem.quality || 'common'
         });
     }
     
@@ -4177,7 +4278,8 @@ async function openLootBox(itemId, itemName) {
                     name: lootItem.name,
                     qty: lootItem.qty || 1,
                     desc: lootItem.desc || `You obtained ${lootItem.name}`,
-                    type: 'item'
+                    type: 'item',
+                    quality: lootItem.quality || 'common'
                 });
             }
             
