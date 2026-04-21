@@ -2966,10 +2966,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     align-items: flex-start;
     gap: 10px;
 }
-.topbar-menu-referral-card .topbar-menu-inline-btn {
-    align-self: flex-end;
-    margin-top: 2px;
-}
 .topbar-menu-referral-kicker {
     font-size: 0.68rem;
     letter-spacing: 0.12em;
@@ -3009,6 +3005,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 100%;
     display: grid;
     gap: 4px;
+}
+.topbar-menu-referral-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
 }
 .topbar-menu-referral-link-label {
     font-size: 0.68rem;
