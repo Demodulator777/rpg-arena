@@ -3711,21 +3711,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .topbar-level { font-size: 0.55rem; padding: 1px 6px; }
     .topbar-bars { flex: 1; max-width: none; min-width: 0; gap: 4px; }
     .topbar-bar-row { gap: 5px; }
-    .topbar-bar-track { min-width: 0; height: 8px; padding: 0; order: 3; }
+    .topbar-bar-track { min-width: 0; height: 7px; padding: 0; order: 2; }
     .topbar-bar-label { font-size: 0.52rem; width: 14px; }
     .topbar-bar-text {
         display: inline-flex;
         align-items: center;
-        justify-content: flex-start;
-        order: 2;
-        min-width: 54px;
+        justify-content: flex-end;
+        order: 3;
+        min-width: 62px;
         font-size: 0.5rem;
         font-weight: 700;
         letter-spacing: 0.02em;
         color: rgba(238,242,248,0.9);
-        text-align: left;
-        padding: 0 4px 0 0;
-        border-right: 1px solid rgba(255,255,255,0.08);
+        text-align: right;
+        padding: 0 0 0 4px;
+        border-left: 1px solid rgba(255,255,255,0.08);
         text-shadow: 0 1px 2px rgba(0,0,0,0.65);
     }
     .topbar-bar-row:nth-child(1) .topbar-bar-text { color: rgba(176, 242, 193, 0.96); }
