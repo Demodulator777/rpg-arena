@@ -1829,18 +1829,229 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .char-hp-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
 .char-hp-text { font-size: 0.62rem; color: var(--text-dim); white-space: nowrap; min-width: 68px; text-align: right; }
 
+.stat-console {
+    position: relative;
+    margin-top: 2px;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(106,199,255,0.14);
+    background: linear-gradient(155deg, rgba(8,16,30,0.96), rgba(9,16,28,0.84));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22);
+    overflow: hidden;
+}
+.stat-console::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(106,199,255,0.06), transparent 30%, transparent 70%, rgba(212,168,67,0.05));
+    pointer-events: none;
+}
+.stat-console-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.95;
+}
+.stat-console-overlay svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.stat-console-head,
+.stat-console-rows,
+.combat-readout,
+.element-strip {
+    position: relative;
+    z-index: 1;
+}
+.stat-console-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.stat-console-chip, .stat-console-gridmark {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(106,199,255,0.18);
+    background: rgba(106,199,255,0.08);
+    color: #97dfff;
+}
+.stat-console-gridmark {
+    border-color: rgba(212,168,67,0.2);
+    background: rgba(212,168,67,0.08);
+    color: var(--gold-bright);
+}
+.stat-console-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.combat-readout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+.combat-readout-card {
+    position: relative;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(106,199,255,0.14);
+    background: linear-gradient(145deg, rgba(106,199,255,0.08), rgba(10,15,24,0.2));
+}
+.combat-readout-card-armor {
+    border-color: rgba(212,168,67,0.16);
+    background: linear-gradient(145deg, rgba(212,168,67,0.09), rgba(10,15,24,0.2));
+}
+.combat-readout-label {
+    display: block;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+.combat-readout-value {
+    display: block;
+    font-family: 'Cinzel', serif;
+    font-size: 1.02rem;
+    color: var(--text-bright);
+}
+.combat-readout-note {
+    grid-column: 1 / -1;
+    font-size: 0.68rem;
+    color: rgba(151,223,255,0.76);
+    padding: 2px 2px 0;
+}
+.stat-console {
+    position: relative;
+    margin-top: 2px;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(106,199,255,0.14);
+    background: linear-gradient(155deg, rgba(8,16,30,0.96), rgba(9,16,28,0.84));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 10px 30px rgba(0,0,0,0.22);
+    overflow: hidden;
+}
+.stat-console::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(106,199,255,0.06), transparent 30%, transparent 70%, rgba(212,168,67,0.05));
+    pointer-events: none;
+}
+.stat-console-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.95;
+}
+.stat-console-overlay svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.stat-console-head,
+.stat-console-rows,
+.combat-readout,
+.element-strip {
+    position: relative;
+    z-index: 1;
+}
+.stat-console-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.stat-console-chip, .stat-console-gridmark {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: 999px;
+    border: 1px solid rgba(106,199,255,0.18);
+    background: rgba(106,199,255,0.08);
+    color: #97dfff;
+}
+.stat-console-gridmark {
+    border-color: rgba(212,168,67,0.2);
+    background: rgba(212,168,67,0.08);
+    color: var(--gold-bright);
+}
+.stat-console-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.combat-readout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+.combat-readout-card {
+    position: relative;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(106,199,255,0.14);
+    background: linear-gradient(145deg, rgba(106,199,255,0.08), rgba(10,15,24,0.2));
+}
+.combat-readout-card-armor {
+    border-color: rgba(212,168,67,0.16);
+    background: linear-gradient(145deg, rgba(212,168,67,0.09), rgba(10,15,24,0.2));
+}
+.combat-readout-label {
+    display: block;
+    font-size: 0.58rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+.combat-readout-value {
+    display: block;
+    font-family: 'Cinzel', serif;
+    font-size: 1.02rem;
+    color: var(--text-bright);
+}
+.combat-readout-note {
+    grid-column: 1 / -1;
+    font-size: 0.68rem;
+    color: rgba(151,223,255,0.76);
+    padding: 2px 2px 0;
+}
 .stat-row {
     display: grid;
     grid-template-columns: 24px 108px minmax(120px, 1fr) 64px 40px;
     align-items: center;
     column-gap: 10px;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.12s;
+    padding: 9px 10px;
+    border: 1px solid rgba(106,199,255,0.08);
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(255,255,255,0.025), rgba(8,14,22,0.42));
+    transition: background 0.12s, border-color 0.16s, transform 0.16s;
 }
-.stat-row:last-child { border-bottom: none; }
-.stat-row:hover { background: rgba(255,255,255,0.015); border-radius: 6px; }
+.stat-row:last-child { border-bottom: 1px solid rgba(106,199,255,0.08); }
+.stat-row:hover {
+    background: linear-gradient(145deg, rgba(106,199,255,0.06), rgba(8,14,22,0.52));
+    border-color: rgba(106,199,255,0.16);
+    transform: translateY(-1px);
+}
 .stat-icon { font-size: 1rem; width: 22px; text-align: center; }
-.stat-label { color: var(--text-dim); font-size: 0.8rem; white-space: nowrap; }
+.stat-label { color: #a8bfd8; font-size: 0.78rem; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.08em; }
 .stat-val {
     font-size: 0.88rem;
     color: var(--text-dim);
@@ -1866,11 +2077,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .stat-bonus.negative { color: #e74c3c; }
 .stat-bar-wrap { width: 100%; }
 .stat-bar {
-    height: 6px;
-    background: rgba(255,255,255,0.05);
+    height: 8px;
+    background:
+        linear-gradient(90deg, rgba(106,199,255,0.08), rgba(255,255,255,0.02)),
+        rgba(255,255,255,0.03);
     border-radius: 999px;
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.04);
+    border: 1px solid rgba(106,199,255,0.08);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
 }
 .stat-fill { height: 100%; border-radius: 2px; }
 .stat-fill,
@@ -1882,8 +2096,31 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .hit-fill,
 .crit-fill {
     border-radius: 999px;
-    background: linear-gradient(90deg, rgba(201,146,42,0.82), rgba(255,226,150,0.98));
-    box-shadow: 0 0 12px rgba(201,146,42,0.18);
+    background:
+        linear-gradient(90deg, rgba(79,202,255,0.2), rgba(87,214,255,0.72) 22%, rgba(255,226,150,0.98) 100%);
+    box-shadow: 0 0 12px rgba(79,202,255,0.16), 0 0 18px rgba(201,146,42,0.15);
+}
+
+@media (max-width: 680px) {
+    .stat-console {
+        padding: 12px 10px 10px;
+    }
+    .stat-console-head {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+    .stat-console-chip,
+    .stat-console-gridmark {
+        font-size: 0.52rem;
+        padding: 4px 7px;
+    }
+    .combat-readout {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .combat-readout-value {
+        font-size: 0.94rem;
+    }
 }
 
 @media (max-width: 920px) {
