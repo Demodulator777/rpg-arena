@@ -1533,60 +1533,26 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          <div class="stat-console">
-            <div class="stat-console-overlay" aria-hidden="true">
-              <svg viewBox="0 0 560 460" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="statConsoleStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="rgba(106,199,255,0.55)"></stop>
-                    <stop offset="100%" stop-color="rgba(212,168,67,0.18)"></stop>
-                  </linearGradient>
-                </defs>
-                <path d="M20 24 H540 L522 78 V382 L488 436 H40 L20 398 Z" fill="none" stroke="url(#statConsoleStroke)" stroke-width="1.5"></path>
-                <path d="M44 56 H232" fill="none" stroke="rgba(106,199,255,0.18)" stroke-width="1"></path>
-                <path d="M326 56 H516" fill="none" stroke="rgba(212,168,67,0.16)" stroke-width="1"></path>
-                <path d="M48 406 H194" fill="none" stroke="rgba(106,199,255,0.16)" stroke-width="1"></path>
-                <path d="M370 406 H512" fill="none" stroke="rgba(212,168,67,0.12)" stroke-width="1"></path>
-                <circle cx="282" cy="231" r="152" fill="none" stroke="rgba(106,199,255,0.05)" stroke-width="1"></circle>
-                <circle cx="282" cy="231" r="112" fill="none" stroke="rgba(106,199,255,0.04)" stroke-width="1"></circle>
-              </svg>
-            </div>
-            <div class="stat-console-head">
-              <span class="stat-console-chip">Core Telemetry</span>
-              <span class="stat-console-gridmark">Synced</span>
-            </div>
-            <div class="stat-console-rows">
-              ${statRowBreakdown('💪','Strength', baseStr, bonusStr, maxStat,'str')}
-              ${statRowBreakdown('🛡️','Defense',  baseDef,  bonusDef,  maxStat,'def')}
-              ${statRowBreakdown('⚡','Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
-              ${statRowBreakdown('✨','Magic',    baseMag,  bonusMag,  maxStat,'mag')}
-              ${statRowBreakdown('❤️','Vitality', baseVit,  bonusVit, maxStat,'vit')}
-              ${baseHit>0||bonusHit?statRowBreakdown('🎯','Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
-              ${baseCrit>0||bonusCrit?statRowBreakdown('💥','Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
-            </div>
-            <div class="combat-readout">
-              <div class="combat-readout-card" title="${escHtml(dmgTooltip)}">
-                <span class="combat-readout-label">Damage Range</span>
-                <strong class="combat-readout-value">${finalDmgMin}–${finalDmgMax}</strong>
-              </div>
-              <div class="combat-readout-card combat-readout-card-armor">
-                <span class="combat-readout-label">Armor Layering</span>
-                <strong class="combat-readout-value">${armorVal}</strong>
-              </div>
-              ${hpCur<c.hp_max?'<div class="combat-readout-note">Passive regen online: +10% HP/hr</div>':''}
-            </div>
-            <div class="element-strip">
-              <div class="element-strip-heading">Damage</div>
-              <div class="element-badge-row">${elementDamageBadges.join('')}</div>
-              <div class="element-strip-heading">Resist</div>
-              <div class="element-badge-row">${elementResistBadges.join('')}</div>
-            </div>
+          ${statRowBreakdown('💪','Strength', baseStr, bonusStr, maxStat,'str')}
+          ${statRowBreakdown('🛡️','Defense',  baseDef,  bonusDef,  maxStat,'def')}
+          ${statRowBreakdown('⚡','Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
+          ${statRowBreakdown('✨','Magic',    baseMag,  bonusMag,  maxStat,'mag')}
+          ${statRowBreakdown('❤️','Vitality', baseVit,  bonusVit, maxStat,'vit')}
+          ${baseHit>0||bonusHit?statRowBreakdown('🎯','Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown('💥','Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
+          <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+            <span title="${escHtml(dmgTooltip)}" style="cursor:help">
+              ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
+            </span>
+            <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
           </div>
-          <button class="achievement-launch-btn" ${actionAttrs('openAchievementsModal')}>
-            <span>🏆 Achievements</span>
-            <span id="achievements-summary-inline" class="achievement-launch-meta">Loading...</span>
-          </button>
-        </div>
+          <div class="element-strip">
+            <div class="element-strip-heading">Damage</div>
+            <div class="element-badge-row">${elementDamageBadges.join('')}</div>
+            <div class="element-strip-heading">Resist</div>
+            <div class="element-badge-row">${elementResistBadges.join('')}</div>
+          </div>
           <button class="achievement-launch-btn" ${actionAttrs('openAchievementsModal')}>
             <span>🏆 Achievements</span>
             <span id="achievements-summary-inline" class="achievement-launch-meta">Loading...</span>
