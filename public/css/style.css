@@ -3924,7 +3924,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     justify-content: flex-start;
 }
 
-.battle-log-line.battle-log-player .battle-log-pill {
+.battle-log-line.battle-log-player .battle-log-pill,
+.battle-log-pill.battle-log-player {
     background: linear-gradient(135deg, rgba(52,152,219,0.42), rgba(52,152,219,0.16));
     border-left: 3px solid #3498db;
     color: #e2f3ff;
@@ -3932,7 +3933,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     text-align: left;
 }
 
-.battle-log-line.battle-log-opponent .battle-log-pill {
+.battle-log-line.battle-log-opponent .battle-log-pill,
+.battle-log-pill.battle-log-opponent {
     background: linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));
     border-left: 3px solid #e74c3c;
     color: #ffe5df;
