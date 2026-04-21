@@ -234,6 +234,9 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN pending_referral_gems INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN referrals_registered INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN referrals_level5 INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_badge_messages INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN inbox_badge_battles INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN inbox_badge_missions INTEGER DEFAULT 1',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN sender_label TEXT DEFAULT NULL',
@@ -3914,7 +3917,7 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions FROM users WHERE id = ?', [char.user_id])
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
@@ -4012,6 +4015,9 @@ async function buildCharacterResponse(char, db) {
         referrals_level5: Number(userSettings?.referrals_level5 || 0),
         pending_referral_gold: pendingReferralGold,
         pending_referral_gems: pendingReferralGems,
+        inbox_badge_messages: Number(userSettings?.inbox_badge_messages ?? 1) !== 0,
+        inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
+        inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -4195,6 +4201,18 @@ router.post('/settings', auth, async (req, res) => {
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'skipBattleAnimations')) {
             updates.push('skip_battle_animations = ?');
             args.push(req.body.skipBattleAnimations ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeMessages')) {
+            updates.push('inbox_badge_messages = ?');
+            args.push(req.body.inboxBadgeMessages ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeBattles')) {
+            updates.push('inbox_badge_battles = ?');
+            args.push(req.body.inboxBadgeBattles ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeMissions')) {
+            updates.push('inbox_badge_missions = ?');
+            args.push(req.body.inboxBadgeMissions ? 1 : 0);
         }
         if (!updates.length) {
             return res.status(400).json({ error: 'No settings provided.' });
@@ -6165,8 +6183,32 @@ router.get('/messages/unread-count', auth, async (req, res) => {
         await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.json({ count:0 });
-        const row = await dbGet(db, 'SELECT COUNT(*) as count FROM messages WHERE receiver_id=? AND read=0', [char.id]);
-        res.json({ count: row?.count || 0 });
+        const prefs = await dbGet(
+            db,
+            'SELECT inbox_badge_messages, inbox_badge_battles, inbox_badge_missions FROM users WHERE id = ?',
+            [req.user.userId]
+        );
+        const includeMessages = Number(prefs?.inbox_badge_messages ?? 1) !== 0;
+        const includeBattles = Number(prefs?.inbox_badge_battles ?? 1) !== 0;
+        const includeMissions = Number(prefs?.inbox_badge_missions ?? 1) !== 0;
+        const rows = await dbAll(db, 'SELECT body FROM messages WHERE receiver_id=? AND read=0', [char.id]);
+        let count = 0;
+        for (const row of rows) {
+            const body = String(row?.body || '');
+            if (body.startsWith('BATTLE_REPORT:')) {
+                let report = null;
+                try { report = JSON.parse(body.slice('BATTLE_REPORT:'.length)); } catch {}
+                const type = String(report?.type || '').toLowerCase();
+                if (type === 'mission') {
+                    if (includeMissions) count++;
+                } else {
+                    if (includeBattles) count++;
+                }
+            } else if (includeMessages) {
+                count++;
+            }
+        }
+        res.json({ count });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.post('/messages/send', auth, async (req, res) => {
