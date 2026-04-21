@@ -5446,6 +5446,7 @@ function buildBattleShowcaseCard({ name, className, level, splash = false, fallb
 function getBattleLogTintRole(line, enemyName='Enemy') {
     const text = String(line || '').trim();
     if (!text || text === '---' || text.includes(' vs ')) return '';
+    if (text.startsWith('After 10 rounds:') || text.includes(' wins by dealing more damage!')) return '';
     const myName = String(character?.name || '').trim();
     const enemy = String(enemyName || '').trim();
     if (myName) {
@@ -5455,6 +5456,10 @@ function getBattleLogTintRole(line, enemyName='Enemy') {
     if (enemy) {
         if (text.startsWith(`Round `) && text.includes(`: ${enemy} `)) return 'battle-log-opponent';
         if (text.startsWith(`${enemy}'s `) || text.startsWith(`${enemy} `)) return 'battle-log-opponent';
+    }
+    if (text.startsWith('Round ')) return 'battle-log-opponent';
+    if (text.includes(`'s `) || text.includes(' attacks ') || text.includes(' swings ') || text.includes(' lands a hit')) {
+        return 'battle-log-opponent';
     }
     return '';
 }
