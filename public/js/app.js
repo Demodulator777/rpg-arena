@@ -4678,8 +4678,12 @@ async function loadLeaderboard() {
     const mmBox = document.getElementById('matchmaking-box');
     if (mmBox && !mmBox.dataset.loaded) { mmBox.dataset.loaded='1'; findOpponent('similar'); }
     try {
-        character = await api('GET','/game/character');
-        lbData=await api('GET',`/game/leaderboard?sort=${lbSort}`);
+        const [freshCharacter, leaderboard] = await Promise.all([
+            api('GET','/game/character'),
+            api('GET',`/game/leaderboard?sort=${lbSort}`)
+        ]);
+        character = freshCharacter;
+        lbData = leaderboard;
         renderLeaderboard();
     }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
