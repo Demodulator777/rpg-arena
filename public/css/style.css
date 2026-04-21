@@ -3925,18 +3925,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 .battle-log-line.battle-log-player .battle-log-pill {
-    background: linear-gradient(135deg, rgba(52,152,219,0.28), rgba(52,152,219,0.1));
+    background: linear-gradient(135deg, rgba(52,152,219,0.42), rgba(52,152,219,0.16));
     border-left: 3px solid #3498db;
     color: #e2f3ff;
-    box-shadow: 0 0 0 1px rgba(52,152,219,0.14), 0 4px 12px rgba(52,152,219,0.14);
+    box-shadow: 0 0 0 1px rgba(52,152,219,0.2), 0 4px 12px rgba(52,152,219,0.18);
     text-align: left;
 }
 
 .battle-log-line.battle-log-opponent .battle-log-pill {
-    background: linear-gradient(135deg, rgba(231,76,60,0.28), rgba(231,76,60,0.1));
+    background: linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));
     border-left: 3px solid #e74c3c;
     color: #ffe5df;
-    box-shadow: 0 0 0 1px rgba(231,76,60,0.14), 0 4px 12px rgba(231,76,60,0.14);
+    box-shadow: 0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);
     text-align: left;
 }
 .battle-fighters {
@@ -3978,6 +3978,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         flex-direction: column;
         align-items: center;
         justify-content: flex-start;
+        align-self: stretch;
         min-width: 0;
         position: relative;
         z-index: 1;
@@ -3997,6 +3998,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .battle-fighters .fighter-avatar-splash {
         width: 120px;
         height: 172px;
+    }
+
+    .battle-fighters .fighter-name {
+        width: 100%;
+        min-height: 2.2em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.1;
+        padding: 0 4px;
+    }
+
+    .battle-fighters .fighter-class {
+        width: 100%;
+        min-height: 2.6em;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        line-height: 1.15;
+        padding: 0 4px;
     }
 
     .battle-fighters > .fighter-card:first-of-type .fighter-avatar-splash {
