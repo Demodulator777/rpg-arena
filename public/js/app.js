@@ -5448,7 +5448,8 @@ function renderBattleLogLine(line, enemyName='Enemy') {
     let className = '';
     if (line.startsWith(character?.name || '')) className = 'battle-log-player';
     else if (enemyName && line.startsWith(enemyName)) className = 'battle-log-opponent';
-    return `<div class="battle-log-line ${className}"><span class="battle-log-pill">${escHtml(line)}</span></div>`;
+    const pillClass = className ? `battle-log-pill ${className}` : 'battle-log-pill';
+    return `<div class="battle-log-line ${className}"><span class="${pillClass}">${escHtml(line)}</span></div>`;
 }
 
 function updateBattlePlaybackStatus(text, done=false) {
