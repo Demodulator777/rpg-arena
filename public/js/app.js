@@ -6024,6 +6024,17 @@ function clickElementById(id) {
 }
 
 document.addEventListener('click', (event) => {
+    const overlay = event.target;
+    if (overlay instanceof HTMLElement) {
+        if (overlay.classList.contains('modal-overlay') && !overlay.classList.contains('hidden')) {
+            closeModalOverlayById(overlay.id);
+            return;
+        }
+        if (overlay.classList.contains('mission-modal-overlay') && !overlay.classList.contains('hidden')) {
+            closeModalOverlayById(overlay.id);
+            return;
+        }
+    }
     handleDelegatedAction(event, 'data-action');
 });
 
@@ -7043,6 +7054,32 @@ async function exchangeFragments(materialId, quantity) {
 function closeExchangeModal() {
     const modal = document.getElementById('exchange-modal');
     if (modal) modal.classList.add('hidden');
+}
+
+function closeModalOverlayById(modalId) {
+    switch (modalId) {
+        case 'battle-result-modal': closeBattle(); break;
+        case 'profile-modal': closeProfile(); break;
+        case 'compose-modal': closeCompose(); break;
+        case 'exchange-modal': closeExchangeModal(); break;
+        case 'mission-location-modal': closeMissionModal2(); break;
+        case 'topbar-menu-modal': closeTopbarMenu(); break;
+        case 'character-switch-modal': closeCharacterSwitcher(); break;
+        case 'bug-report-modal': closeBugReport(); break;
+        case 'achievements-modal': closeAchievementsModal(); break;
+        case 'weekly-tasks-modal': closeWeeklyTasksModal(); break;
+        case 'game-guide-modal': closeGameGuide(); break;
+        case 'auth-legal-modal': closeAuthLegalModal(); break;
+        case 'free-gems-modal': closeFreeGemsModal(); break;
+        case 'game-dialog-modal': closeGameDialog(); break;
+        case 'mission-rewards-modal':
+        case 'upgrade-modal':
+            document.getElementById(modalId)?.classList.add('hidden');
+            break;
+        default:
+            document.getElementById(modalId)?.classList.add('hidden');
+            break;
+    }
 }
 
 async function exchangeFragmentForMaterial(materialId, quantity) {
