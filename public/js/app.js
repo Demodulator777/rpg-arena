@@ -5647,21 +5647,40 @@ function renderInboxFilter(filter) {
     const list = data[filter] || [];
     const container = document.getElementById('inbox-filtered-content');
     if (!container) return;
+
+    const describeInboxReward = (payload) => {
+        if (!payload) return '';
+        let reward = payload;
+        if (typeof reward === 'string') {
+            try { reward = JSON.parse(reward); } catch { reward = null; }
+        }
+        if (!reward || typeof reward !== 'object') return '';
+        const parts = [];
+        if (reward.gold) parts.push(`💰 ${Number(reward.gold).toLocaleString()} gold`);
+        if (reward.gems) parts.push(`💎 ${Number(reward.gems).toLocaleString()} gems`);
+        if (reward.material?.id && reward.material?.qty) parts.push(`🧱 ${Number(reward.material.qty).toLocaleString()}x ${reward.material.id.replace(/_/g, ' ')}`);
+        return parts.join(' · ');
+    };
     
     const renderMsgRow = (m) => {
         const dateStr = formatDate(m.sent_at);
+        const rewardSummary = describeInboxReward(m.reward_payload);
+        const claimableReward = !!rewardSummary && !Number(m.reward_claimed || 0);
+        const isSystem = Number(m.system_message || 0) !== 0;
         return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
             <div class="msg-header">
                 <div class="msg-meta">
-                    <span class="msg-tag tag-personal">Message</span>
+                    <span class="msg-tag ${claimableReward ? 'tag-mission' : 'tag-personal'}">${claimableReward ? 'Reward' : 'Message'}</span>
                     <span class="msg-date">${dateStr}</span>
                 </div>
                 <div class="msg-from ${m.read?'':'unread-from'}">From: ${escHtml(m.sender_name)}</div>
             </div>
             <div class="msg-subject">${escHtml(m.subject)}</div>
+            ${rewardSummary ? `<div class="msg-summary-line">${rewardSummary}${Number(m.reward_claimed || 0) ? ' · <span class="gain">Claimed</span>' : ''}</div>` : ''}
             <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
             <div class="msg-actions" style="display:none">
-                <button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>
+                ${!isSystem ? `<button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>` : ''}
+                ${claimableReward ? `<button class="btn-sm" ${actionAttrs('claimMessageReward', m.id)}>🎁 Claim Reward</button>` : ''}
                 <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
             </div>
         </div>`;
@@ -5785,6 +5804,24 @@ function viewBattleReport(msgId) {
     });
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
+async function claimMessageReward(id) {
+    try {
+        const result = await api('POST', `/game/messages/${id}/claim-reward`);
+        if (result?.character) {
+            character = result.character;
+            renderTopBar();
+        }
+        loadInbox();
+    } catch (e) {
+        console.error('Claim reward failed:', e);
+        await openGameDialog({
+            title: 'Reward Claim Failed',
+            message: e.message || 'Could not claim this reward.',
+            confirmLabel: 'Close',
+            showCancel: false
+        });
+    }
+}
 
 // ── Compose ───────────────────────────────────────────────────────────────
 function openCompose(rid,rname) {
