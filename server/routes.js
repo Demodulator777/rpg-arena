@@ -45,6 +45,7 @@ function normalizeRewardMaterialId(value) {
 }
 
 const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
+const MESSAGE_RETENTION_SECONDS = 14 * 24 * 60 * 60;
 
 function parseAdminPassword(req) {
     return String(req.query?.password || req.body?.password || '').trim();
@@ -83,6 +84,11 @@ function describeAdminRewardPayload(payload) {
     if (payload.gems) parts.push(`${Number(payload.gems).toLocaleString()} gems`);
     if (payload.material?.id && payload.material?.qty) parts.push(`${Number(payload.material.qty).toLocaleString()}x ${payload.material.id}`);
     return parts.length ? parts.join(' + ') : 'Message only';
+}
+
+async function purgeExpiredMessages(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - MESSAGE_RETENTION_SECONDS;
+    await dbRun(db, 'DELETE FROM messages WHERE sent_at < ?', [cutoff]);
 }
 
 async function queueReferralRewards(db, userId, rewards = {}) {
@@ -6144,6 +6150,7 @@ router.get('/battles', auth, async (req, res) => {
 router.get('/messages', auth, async (req, res) => {
     try {
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const messages = await dbAll(db, `SELECT m.*,COALESCE(m.sender_label, s.name, 'Arena Staff') as sender_name,r.name as receiver_name FROM messages m
@@ -6155,6 +6162,7 @@ router.get('/messages', auth, async (req, res) => {
 router.get('/messages/unread-count', auth, async (req, res) => {
     try {
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.json({ count:0 });
         const row = await dbGet(db, 'SELECT COUNT(*) as count FROM messages WHERE receiver_id=? AND read=0', [char.id]);
@@ -6164,6 +6172,7 @@ router.get('/messages/unread-count', auth, async (req, res) => {
 router.post('/messages/send', auth, async (req, res) => {
     try {
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const sender = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!sender) return res.status(404).json({ error: 'No character' });
         const { receiver_id, subject, body } = req.body;
@@ -6176,6 +6185,7 @@ router.post('/messages/send', auth, async (req, res) => {
 router.post('/messages/:id/read', auth, async (req, res) => {
     try {
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ ok: false });
         await dbRun(db, 'UPDATE messages SET read=1 WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
@@ -6185,6 +6195,7 @@ router.post('/messages/:id/read', auth, async (req, res) => {
 router.post('/messages/:id/claim-reward', auth, async (req, res) => {
     try {
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const msg = await dbGet(db, 'SELECT * FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
@@ -6255,6 +6266,7 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
 router.delete('/messages/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ ok: false });
         await dbRun(db, 'DELETE FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
@@ -6295,6 +6307,7 @@ router.get('/rewards/list', async (req, res) => {
         }
 
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const usersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM users', []))?.count || 0);
         const charsCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM characters', []))?.count || 0);
         const lettersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM messages WHERE system_message = 1', []))?.count || 0);
@@ -6435,6 +6448,7 @@ router.post('/rewards/send', async (req, res) => {
         }
 
         const db = await getDb();
+        await purgeExpiredMessages(db);
         const scope = String(req.body?.scope || 'active_per_account');
         const subject = String(req.body?.subject || '').trim();
         const body = String(req.body?.body || '').trim();
