@@ -57,6 +57,17 @@ function buildAdminRewardPayload(input = {}) {
     return Object.keys(payload).length ? payload : null;
 }
 
+function adminRewardInputLooksFilled(input = {}) {
+    const values = [
+        input.gold,
+        input.gems,
+        input.materialType,
+        input.materialId,
+        input.materialQty
+    ];
+    return values.some(v => String(v ?? '').trim() !== '' && String(v ?? '').trim() !== '0');
+}
+
 function describeAdminRewardPayload(payload) {
     if (!payload || typeof payload !== 'object') return 'Message only';
     const parts = [];
@@ -6409,6 +6420,14 @@ router.post('/rewards/send', async (req, res) => {
         }
 
         const rewardPayload = buildAdminRewardPayload(req.body || {});
+        const attemptedReward = adminRewardInputLooksFilled(req.body || {});
+        if (attemptedReward && !rewardPayload) {
+            const msg = 'Reward fields were filled, but the reward data is incomplete. Use gold/gems, or provide material type + material id + material quantity.';
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(msg)}`);
+            }
+            return res.status(400).json({ error: msg });
+        }
         const recipients = scope === 'all_characters'
             ? await dbAll(db, 'SELECT id FROM characters ORDER BY id ASC', [])
             : await dbAll(db, `
