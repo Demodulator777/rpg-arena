@@ -5461,7 +5461,12 @@ function getBattleLogTintRole(line, enemyName='Enemy') {
 
 function renderBattleLogLine(line, enemyName='Enemy', tintRole='') {
     if (line === '---') return '<div class="battle-log-line separator">───────────────────</div>';
-    if (String(line || '').includes(' vs ')) return '';
+    const text = String(line || '');
+    if (text.includes(' vs ')) return '';
+    if (text.startsWith('After 10 rounds:')) return '';
+    if (text.includes(' wins by dealing more damage!')) {
+        return `<div class="battle-log-line separator"><span class="battle-log-pill">${escHtml(text)}</span></div>`;
+    }
     const className = tintRole || '';
     const pillClass = className ? `battle-log-pill ${className}` : 'battle-log-pill';
     let pillStyle = '';
