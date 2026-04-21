@@ -2937,7 +2937,7 @@ function renderForge() {
         bySet[r.setId].push(r);
     }
 
-    const rarityColor = { epic:'#9b59b6', legendary:'#f1c40f', rare:'#3498db', common:'#aaa' };
+    const rarityColor = { epic:'#e67e22', legendary:'#f1c40f', rare:'#9b59b6', common:'#aaa' };
     const slotIcon = { weapon:'⚔️', armor:'🛡️', helmet:'⛑️', shield:'🔰', boots:'👢' };
 
     el.innerHTML = Object.entries(bySet).map(([setId, pieces]) => {
@@ -3081,7 +3081,7 @@ function renderGearGrid(el, gear, equipped) {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
         const upgradeLevel = i.upgrade_level || 0;
-        const qc = d.quality==='legendary'?'inv-legendary':d.quality==='rare'?'inv-rare':'';
+        const qc = d.quality==='legendary'?'inv-legendary':d.quality==='epic'?'inv-epic':d.quality==='rare'?'inv-rare':'';
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
         const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
         
@@ -3377,7 +3377,7 @@ function showItemTooltip(event, itemId) {
     }
     
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
-    const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
@@ -3478,7 +3478,7 @@ function showItemTooltip(event, itemId) {
     }
     
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
-    const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const imgSrc = d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
 
     let statsHtml = '';
@@ -3539,7 +3539,7 @@ function showEqTooltip(event, itemJson) {
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
     let item; try { item = typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
-    const qColor = {legendary:'#ffd700',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
     const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
 
     let statsHtml = Object.entries(item.stats||{})
@@ -4474,6 +4474,7 @@ function renderShop() {
         if(!isAvail)cardClass+=' locked-future';
         if(!classOk)cardClass+=' class-locked';
         if(item.quality==='legendary')cardClass+=' legendary';
+        else if(item.quality==='epic')cardClass+=' epic';
         else if(item.quality==='rare')cardClass+=' rare';
 
         const statsHtml = item.stats ? Object.entries(item.stats)
@@ -4776,7 +4777,7 @@ async function openProfile(id) {
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
             const item = eq[slot];
             if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
-            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='epic'?'#e67e22':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const itemData=escHtml(JSON.stringify(item));
             return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${qc}33;background:rgba(255,255,255,0.03);cursor:default"
                 data-item="${itemData}"
@@ -5721,6 +5722,7 @@ function showShopItemTooltip(event, itemJson) {
 
     const qColor = {
         legendary: '#ffd700',
+        epic: '#e67e22',
         rare: '#9b59b6',
         common: 'rgba(255,255,255,0.5)'
     }[item.quality || 'common'];
