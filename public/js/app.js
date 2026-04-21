@@ -5458,6 +5458,22 @@ function renderBattleLogLine(line, enemyName='Enemy') {
     return `<div class="battle-log-line ${className}"><span class="${pillClass}"${pillStyle ? ` style="${pillStyle}"` : ''}>${escHtml(line)}</span></div>`;
 }
 
+function applyBattleLogTints(logEl, enemyName = 'Enemy') {
+    if (!logEl) return;
+    const myName = String(character?.name || '').trim();
+    const enemy = String(enemyName || '').trim();
+    const playerStyle = 'background:linear-gradient(135deg, rgba(52,152,219,0.42), rgba(52,152,219,0.16));border-left:3px solid #3498db;color:#e2f3ff;box-shadow:0 0 0 1px rgba(52,152,219,0.2), 0 4px 12px rgba(52,152,219,0.18);';
+    const opponentStyle = 'background:linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));border-left:3px solid #e74c3c;color:#ffe5df;box-shadow:0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);';
+    logEl.querySelectorAll('.battle-log-pill').forEach(pill => {
+        const text = String(pill.textContent || '').trim();
+        if (myName && text.startsWith(myName)) {
+            pill.style.cssText += playerStyle;
+        } else if (enemy && text.startsWith(enemy)) {
+            pill.style.cssText += opponentStyle;
+        }
+    });
+}
+
 function updateBattlePlaybackStatus(text, done=false) {
     const statusEl = document.getElementById('battle-playback-status');
     const skipBtn = document.getElementById('battle-skip-btn');
@@ -5476,6 +5492,7 @@ function finalizeBattlePlayback() {
     const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage } = battlePlaybackMeta;
     
     logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName)).join('');
+    applyBattleLogTints(logEl, enemyName);
     
     // Add tutorial completion message if present
     if (tutorialMessage) {
@@ -5505,6 +5522,7 @@ function scheduleBattlePlaybackStep() {
     }
     const line = battlePlaybackQueue[battlePlaybackIndex++];
     logEl.insertAdjacentHTML('beforeend', renderBattleLogLine(line, battlePlaybackMeta.enemyName));
+    applyBattleLogTints(logEl, battlePlaybackMeta.enemyName);
     logEl.scrollTop = logEl.scrollHeight;
     const isSeparator = line === '---';
     const delay = isSeparator ? 450 : 1200;
