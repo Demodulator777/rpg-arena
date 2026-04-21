@@ -1203,6 +1203,28 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
+.topbar-bar-num,
+.topbar-bar-sep {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+.topbar-bar-num {
+    display: inline-block;
+    min-width: 2.8em;
+}
+
+.topbar-bar-num-max {
+    text-align: left;
+}
+
+.topbar-bar-sep {
+    display: inline-block;
+    width: 0.8em;
+    text-align: center;
+    opacity: 0.7;
+}
+
 .topbar-right { display: flex; align-items: center; gap: 9px; flex-shrink: 0; margin-left: auto; }
 .topbar-currency {
     font-size: 0.8rem; color: var(--text); white-space: nowrap; font-weight: 600;
@@ -3728,6 +3750,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         border-left: 1px solid rgba(255,255,255,0.08);
         text-shadow: 0 1px 2px rgba(0,0,0,0.65);
     }
+    .topbar-bar-num { min-width: 2.9em; text-align: right; }
+    .topbar-bar-num-max { min-width: 3em; text-align: left; }
+    .topbar-bar-sep { width: 0.7em; }
     .topbar-bar-row:nth-child(1) .topbar-bar-text { color: rgba(176, 242, 193, 0.96); }
     .topbar-bar-row:nth-child(2) .topbar-bar-text { color: rgba(245, 220, 144, 0.96); }
     .topbar-bar-row:nth-child(3) .topbar-bar-text { color: rgba(220, 194, 250, 0.96); }
