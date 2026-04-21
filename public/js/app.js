@@ -500,11 +500,23 @@ function renderTopbarMenu() {
             <div class="topbar-menu-info-card topbar-menu-referral-card">
                 <span class="topbar-menu-referral-kicker">Referral Link</span>
                 <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
-                <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
+                <div class="topbar-menu-referral-stats">
+                    <div class="topbar-menu-referral-stat">
+                        <span class="topbar-menu-referral-stat-label">Registered</span>
+                        <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_registered || 0)}</span>
+                    </div>
+                    <div class="topbar-menu-referral-stat">
+                        <span class="topbar-menu-referral-stat-label">Reached Lv.5</span>
+                        <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_level5 || 0)}</span>
+                    </div>
+                </div>
                 <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
                     Copy Invite Link
                 </button>
-                <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
+                <div class="topbar-menu-referral-link-wrap">
+                    <span class="topbar-menu-referral-link-label">Invite URL</span>
+                    <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
+                </div>
                 <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
             </div>
         </div>
