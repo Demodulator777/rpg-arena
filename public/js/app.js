@@ -4082,8 +4082,8 @@ function createLootboxModal() {
             }
 
             .lootbox-item-card::before {
-                width: 180px;
-                height: 180px;
+                width: 320px;
+                height: 320px;
                 left: 50%;
                 top: 50%;
                 transform: translate(-50%, -50%) scale(0.92);
