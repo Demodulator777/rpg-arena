@@ -4089,7 +4089,7 @@ function createLootboxModal() {
                 transform: translate(-50%, -50%) scale(0.92);
                 border-radius: 50%;
                 opacity: 0;
-                mix-blend-mode: screen;
+                filter: blur(18px);
                 animation: lootboxRarityRotate 5.5s linear infinite;
                 transition: opacity 0.25s ease;
             }
@@ -4139,8 +4139,8 @@ function createLootboxModal() {
 
             .lootbox-item-card.lootbox-rarity-rare::before {
                 background:
-                    radial-gradient(circle at center, rgba(155,89,182,0.46) 0%, rgba(155,89,182,0.16) 24%, rgba(155,89,182,0) 58%),
-                    conic-gradient(from 0deg, transparent 0deg, rgba(214,170,246,0.32) 48deg, transparent 96deg, transparent 180deg, rgba(155,89,182,0.18) 228deg, transparent 276deg, transparent 360deg);
+                    radial-gradient(circle at center, rgba(214,170,246,0.16) 0%, rgba(155,89,182,0.36) 18%, rgba(155,89,182,0.16) 36%, rgba(155,89,182,0.04) 54%, rgba(155,89,182,0) 72%),
+                    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 42%);
             }
 
             .lootbox-item-card.lootbox-rarity-epic {
@@ -4156,8 +4156,8 @@ function createLootboxModal() {
 
             .lootbox-item-card.lootbox-rarity-epic::before {
                 background:
-                    radial-gradient(circle at center, rgba(230,126,34,0.48) 0%, rgba(230,126,34,0.18) 24%, rgba(230,126,34,0) 58%),
-                    conic-gradient(from 0deg, transparent 0deg, rgba(255,187,108,0.34) 48deg, transparent 96deg, transparent 180deg, rgba(230,126,34,0.2) 228deg, transparent 276deg, transparent 360deg);
+                    radial-gradient(circle at center, rgba(255,187,108,0.18) 0%, rgba(230,126,34,0.4) 18%, rgba(230,126,34,0.18) 36%, rgba(230,126,34,0.05) 54%, rgba(230,126,34,0) 72%),
+                    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 42%);
             }
 
             .lootbox-item-card.lootbox-rarity-legendary {
@@ -4173,8 +4173,8 @@ function createLootboxModal() {
 
             .lootbox-item-card.lootbox-rarity-legendary::before {
                 background:
-                    radial-gradient(circle at center, rgba(241,196,15,0.52) 0%, rgba(241,196,15,0.2) 24%, rgba(241,196,15,0) 58%),
-                    conic-gradient(from 0deg, transparent 0deg, rgba(255,236,143,0.38) 48deg, transparent 96deg, transparent 180deg, rgba(241,196,15,0.22) 228deg, transparent 276deg, transparent 360deg);
+                    radial-gradient(circle at center, rgba(255,236,143,0.2) 0%, rgba(241,196,15,0.42) 18%, rgba(241,196,15,0.2) 36%, rgba(241,196,15,0.06) 54%, rgba(241,196,15,0) 72%),
+                    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0) 42%);
             }
             
             .lootbox-item-image {
