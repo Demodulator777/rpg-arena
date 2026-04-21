@@ -540,6 +540,9 @@ function renderTopbarMenu() {
     const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
     const referralCode = character?.referral_code || username || '';
     const referralLink = referralCode ? getReferralLink(referralCode) : '';
+    const pendingReferralGold = Number(character?.pending_referral_gold || 0);
+    const pendingReferralGems = Number(character?.pending_referral_gems || 0);
+    const hasPendingReferralRewards = pendingReferralGold > 0 || pendingReferralGems > 0;
     const switcherLabel = `Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
     const mpLabel = unlocked
         ? `Skills unlocked today · ${mp}/${mpMax} MP`
@@ -646,16 +649,27 @@ function getReferralLink(referralCode) {
     return url.toString();
 }
 
-async function copyReferralLink() {
-    const referralCode = character?.referral_code || username || '';
-    const referralLink = getReferralLink(referralCode);
+function setTopbarMenuFlash(message, isError = false) {
     const flash = document.getElementById('topbar-menu-flash');
-    if (!referralLink) return;
-
-    if (flash && flash._hideTimer) {
+    if (!flash) return;
+    if (flash._hideTimer) {
         clearTimeout(flash._hideTimer);
         flash._hideTimer = null;
     }
+    flash.textContent = message;
+    flash.classList.remove('hidden');
+    flash.classList.toggle('error', !!isError);
+    flash._hideTimer = setTimeout(() => {
+        flash.classList.add('hidden');
+        flash.classList.remove('error');
+        flash._hideTimer = null;
+    }, isError ? 3200 : 2200);
+}
+
+async function copyReferralLink() {
+    const referralCode = character?.referral_code || username || '';
+    const referralLink = getReferralLink(referralCode);
+    if (!referralLink) return;
 
     try {
         if (navigator.clipboard?.writeText) {
@@ -668,25 +682,25 @@ async function copyReferralLink() {
             document.execCommand('copy');
             input.remove();
         }
-        if (flash) {
-            flash.textContent = 'Referral link copied.';
-            flash.classList.remove('hidden', 'error');
-            flash._hideTimer = setTimeout(() => {
-                flash.classList.add('hidden');
-                flash._hideTimer = null;
-            }, 2200);
-        }
+        setTopbarMenuFlash('Referral link copied.');
     } catch (e) {
-        if (flash) {
-            flash.textContent = 'Could not copy the referral link.';
-            flash.classList.remove('hidden');
-            flash.classList.add('error');
-            flash._hideTimer = setTimeout(() => {
-                flash.classList.add('hidden');
-                flash.classList.remove('error');
-                flash._hideTimer = null;
-            }, 2600);
+        setTopbarMenuFlash('Could not copy the referral link.', true);
+    }
+}
+
+async function claimReferralRewards() {
+    try {
+        const response = await api('POST', '/game/referrals/claim');
+        if (response?.character) {
+            character = response.character;
+            syncClientPreferencesFromCharacter();
+            renderTopBar();
+            renderCharacter();
+            renderTopbarMenu();
         }
+        setTopbarMenuFlash(response?.message || 'Referral rewards claimed.');
+    } catch (e) {
+        setTopbarMenuFlash(e.message || 'Could not claim referral rewards.', true);
     }
 }
 
@@ -764,10 +778,29 @@ function renderTopbarMenu() {
                     <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
                 </div>
                 <div class="topbar-menu-referral-actions">
+                    ${hasPendingReferralRewards ? `
+                    <button class="topbar-menu-inline-btn topbar-menu-inline-btn-claim" ${actionAttrs('claimReferralRewards')}>
+                        Claim Rewards
+                    </button>` : ''}
                     <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
                         Copy Invite Link
                     </button>
                 </div>
+                ${hasPendingReferralRewards ? `
+                <div class="topbar-menu-referral-stats">
+                    ${pendingReferralGold > 0 ? `
+                    <div class="topbar-menu-referral-stat topbar-menu-referral-stat-claimable">
+                        <span class="topbar-menu-referral-stat-label">Pending Gold</span>
+                        <span class="topbar-menu-referral-stat-value">${pendingReferralGold.toLocaleString()}</span>
+                    </div>` : ''}
+                    ${pendingReferralGems > 0 ? `
+                    <div class="topbar-menu-referral-stat topbar-menu-referral-stat-claimable">
+                        <span class="topbar-menu-referral-stat-label">Pending Gems</span>
+                        <span class="topbar-menu-referral-stat-value">${pendingReferralGems.toLocaleString()}</span>
+                    </div>` : ''}
+                </div>
+                <div class="topbar-menu-referral-claim-note">Claim on this character to send the rewards here.</div>
+                ` : ''}
                 <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
             </div>
         </div>
