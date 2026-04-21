@@ -2281,7 +2281,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .inv-item-cell.inv-epic { border-color: rgba(230,126,34,0.42); }
 .inv-item-cell.inv-rare { border-color: rgba(142,68,173,0.42); }
 .inv-item-icon { display: flex; align-items: center; justify-content: center; font-size: 2.6rem; line-height: 1; }
-.inv-item-icon img { width: 64px; height: 64px; object-fit: contain; display: block; }
+.inv-item-icon img {
+    width: 64px; height: 64px; object-fit: contain; display: block;
+    filter:
+        drop-shadow(0 0 8px rgba(255,255,255,0.08))
+        drop-shadow(0 0 12px rgba(201,146,42,0.12));
+    transition: filter 0.18s ease;
+}
+.inv-item-cell:hover .inv-item-icon img {
+    filter:
+        drop-shadow(0 0 10px rgba(255,255,255,0.1))
+        drop-shadow(0 0 16px rgba(201,146,42,0.18));
+}
 .inv-item-name-label { font-size: 0.56rem; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 3px; }
 .inv-item-equipped-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 5px rgba(201,146,42,0.8); }
 .inv-item-actions {
@@ -2479,7 +2490,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .shop-card.locked-future { opacity: 0.55; filter: grayscale(0.6); pointer-events: none; }
 .shop-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .shop-card-icon { font-size: 2.4rem; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 10px; background: rgba(255,255,255,0.04); overflow: hidden; }
-.shop-card-icon img { width: 68px; height: 68px; object-fit: contain; border-radius: 8px; display: block; }
+.shop-card-icon img {
+    width: 68px; height: 68px; object-fit: contain; border-radius: 8px; display: block;
+    filter:
+        drop-shadow(0 0 8px rgba(255,255,255,0.08))
+        drop-shadow(0 0 12px rgba(201,146,42,0.1));
+    transition: filter 0.18s ease;
+}
+.shop-card:hover .shop-card-icon img {
+    filter:
+        drop-shadow(0 0 10px rgba(255,255,255,0.1))
+        drop-shadow(0 0 16px rgba(201,146,42,0.16));
+}
 .shop-card-name { font-size: 0.98rem; font-weight: 600; color: var(--text-bright); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .shop-card-tier { font-size: 0.62rem; color: var(--gold); background: rgba(201,146,42,0.1); padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
 .shop-card-desc { font-size: 0.78rem; color: var(--text-dim); margin-bottom: 10px; min-height: 32px; line-height: 1.5; }
@@ -4273,6 +4295,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 76px !important;
     height: 76px !important;
     object-fit: contain !important;
+    filter:
+        drop-shadow(0 0 10px rgba(255,255,255,0.08))
+        drop-shadow(0 0 16px rgba(201,146,42,0.12));
+    transition: filter 0.18s ease;
+}
+.eq-slot.filled:hover .eq-slot-icon img,
+.profile-eq-slot.filled:hover .eq-slot-icon img,
+.eq-slot-small.filled:hover .eq-slot-small-icon img {
+    filter:
+        drop-shadow(0 0 12px rgba(255,255,255,0.1))
+        drop-shadow(0 0 20px rgba(201,146,42,0.18));
 }
 
 .eq-slot-label {
