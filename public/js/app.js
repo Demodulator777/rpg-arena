@@ -5443,11 +5443,26 @@ function buildBattleShowcaseCard({ name, className, level, splash = false, fallb
     </div>`;
 }
 
-function renderBattleLogLine(line, enemyName='Enemy') {
+function getBattleLogTintRole(log, lineIndex) {
+    if (!Array.isArray(log) || lineIndex < 0) return '';
+    let actionIndexInRound = 0;
+    for (let i = 0; i <= lineIndex; i++) {
+        const entry = log[i];
+        if (entry === '---') {
+            actionIndexInRound = 0;
+            continue;
+        }
+        if (i === lineIndex) {
+            return actionIndexInRound % 2 === 0 ? 'battle-log-player' : 'battle-log-opponent';
+        }
+        actionIndexInRound++;
+    }
+    return '';
+}
+
+function renderBattleLogLine(line, enemyName='Enemy', tintRole='') {
     if (line === '---') return '<div class="battle-log-line separator">───────────────────</div>';
-    let className = '';
-    if (line.startsWith(character?.name || '')) className = 'battle-log-player';
-    else if (enemyName && line.startsWith(enemyName)) className = 'battle-log-opponent';
+    const className = tintRole || '';
     const pillClass = className ? `battle-log-pill ${className}` : 'battle-log-pill';
     let pillStyle = '';
     if (className === 'battle-log-player') {
@@ -5456,22 +5471,6 @@ function renderBattleLogLine(line, enemyName='Enemy') {
         pillStyle = 'background:linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));border-left:3px solid #e74c3c;color:#ffe5df;box-shadow:0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);';
     }
     return `<div class="battle-log-line ${className}"><span class="${pillClass}"${pillStyle ? ` style="${pillStyle}"` : ''}>${escHtml(line)}</span></div>`;
-}
-
-function applyBattleLogTints(logEl, enemyName = 'Enemy') {
-    if (!logEl) return;
-    const myName = String(character?.name || '').trim();
-    const enemy = String(enemyName || '').trim();
-    const playerStyle = 'background:linear-gradient(135deg, rgba(52,152,219,0.42), rgba(52,152,219,0.16));border-left:3px solid #3498db;color:#e2f3ff;box-shadow:0 0 0 1px rgba(52,152,219,0.2), 0 4px 12px rgba(52,152,219,0.18);';
-    const opponentStyle = 'background:linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));border-left:3px solid #e74c3c;color:#ffe5df;box-shadow:0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);';
-    logEl.querySelectorAll('.battle-log-pill').forEach(pill => {
-        const text = String(pill.textContent || '').trim();
-        if (myName && text.startsWith(myName)) {
-            pill.style.cssText += playerStyle;
-        } else if (enemy && text.startsWith(enemy)) {
-            pill.style.cssText += opponentStyle;
-        }
-    });
 }
 
 function updateBattlePlaybackStatus(text, done=false) {
@@ -5491,8 +5490,7 @@ function finalizeBattlePlayback() {
     if (!battlePlaybackMeta || !logEl || !out) return;
     const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage } = battlePlaybackMeta;
     
-    logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName)).join('');
-    applyBattleLogTints(logEl, enemyName);
+    logEl.innerHTML = log.map((line, index) => renderBattleLogLine(line, enemyName, getBattleLogTintRole(log, index))).join('');
     
     // Add tutorial completion message if present
     if (tutorialMessage) {
@@ -5520,9 +5518,9 @@ function scheduleBattlePlaybackStep() {
         finalizeBattlePlayback();
         return;
     }
-    const line = battlePlaybackQueue[battlePlaybackIndex++];
-    logEl.insertAdjacentHTML('beforeend', renderBattleLogLine(line, battlePlaybackMeta.enemyName));
-    applyBattleLogTints(logEl, battlePlaybackMeta.enemyName);
+    const currentIndex = battlePlaybackIndex++;
+    const line = battlePlaybackQueue[currentIndex];
+    logEl.insertAdjacentHTML('beforeend', renderBattleLogLine(line, battlePlaybackMeta.enemyName, getBattleLogTintRole(battlePlaybackQueue, currentIndex)));
     logEl.scrollTop = logEl.scrollHeight;
     const isSeparator = line === '---';
     const delay = isSeparator ? 450 : 1200;
