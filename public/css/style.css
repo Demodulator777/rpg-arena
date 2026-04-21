@@ -3710,9 +3710,27 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .topbar-name { font-size: 0.78rem; }
     .topbar-level { font-size: 0.55rem; padding: 1px 6px; }
     .topbar-bars { flex: 1; max-width: none; min-width: 0; gap: 4px; }
-    .topbar-bar-track { min-width: 0; height: 8px; padding: 0; }
+    .topbar-bar-row { gap: 5px; }
+    .topbar-bar-track { min-width: 0; height: 8px; padding: 0; order: 3; }
     .topbar-bar-label { font-size: 0.52rem; width: 14px; }
-    .topbar-bar-text { display: none; }
+    .topbar-bar-text {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        order: 2;
+        min-width: 54px;
+        font-size: 0.5rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: rgba(238,242,248,0.9);
+        text-align: left;
+        padding: 0 4px 0 0;
+        border-right: 1px solid rgba(255,255,255,0.08);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.65);
+    }
+    .topbar-bar-row:nth-child(1) .topbar-bar-text { color: rgba(176, 242, 193, 0.96); }
+    .topbar-bar-row:nth-child(2) .topbar-bar-text { color: rgba(245, 220, 144, 0.96); }
+    .topbar-bar-row:nth-child(3) .topbar-bar-text { color: rgba(220, 194, 250, 0.96); }
     .topbar-right {
         width: 100%; flex: none; display: flex; flex-direction: row; align-items: center; gap: 6px;
         overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
@@ -3791,6 +3809,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .battle-result-box {
     max-width: 700px;
     width: 100%;
+    max-height: calc(100vh - 56px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.battle-result-box .battle-playback-toolbar {
+    margin-bottom: 8px;
+}
+
+.battle-result-box .battle-outcome {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
 }
 
 .battle-outcome {
@@ -3815,39 +3846,42 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .battle-log {
     font-family: 'Courier New', monospace;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     color: rgba(255,255,255,0.85);
-    max-height: 400px;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
-    padding: 12px;
+    padding: 8px;
     background: rgba(0, 0, 0, 0.4);
     border-radius: var(--radius-sm);
-    margin-bottom: 16px;
-    line-height: 1.45;
+    margin-bottom: 10px;
+    line-height: 1.24;
     border: 1px solid var(--border);
+    overscroll-behavior: contain;
 }
 
 .battle-log-line {
     display: flex;
-    margin-bottom: 6px;
+    margin-bottom: 3px;
 }
 
 .battle-log-pill {
     display: inline-block;
     max-width: min(88%, 520px);
-    padding: 7px 10px;
-    border-radius: 12px;
+    padding: 5px 8px;
+    border-radius: 10px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.06);
-    box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
 }
 
 .battle-log-line.separator {
     color: rgba(255,255,255,0.2);
     text-align: center;
-    font-size: 0.7rem;
+    font-size: 0.64rem;
     justify-content: center;
-    margin: 2px 0 8px;
+    margin: 1px 0 4px;
 }
 
 .battle-log-line.separator .battle-log-pill {
@@ -3866,16 +3900,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 .battle-log-line.battle-log-player .battle-log-pill {
-    background: linear-gradient(135deg, rgba(52,152,219,0.2), rgba(52,152,219,0.08));
+    background: linear-gradient(135deg, rgba(52,152,219,0.28), rgba(52,152,219,0.1));
     border-left: 3px solid #3498db;
-    color: #d8ecfb;
+    color: #e2f3ff;
+    box-shadow: 0 0 0 1px rgba(52,152,219,0.14), 0 4px 12px rgba(52,152,219,0.14);
     text-align: left;
 }
 
 .battle-log-line.battle-log-opponent .battle-log-pill {
-    background: linear-gradient(135deg, rgba(231,76,60,0.2), rgba(231,76,60,0.08));
+    background: linear-gradient(135deg, rgba(231,76,60,0.28), rgba(231,76,60,0.1));
     border-left: 3px solid #e74c3c;
-    color: #fde0dc;
+    color: #ffe5df;
+    box-shadow: 0 0 0 1px rgba(231,76,60,0.14), 0 4px 12px rgba(231,76,60,0.14);
     text-align: left;
 }
 .battle-fighters {
@@ -3883,8 +3919,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     align-items: center;
     justify-content: center;
     gap: 20px;
-    margin-bottom: 24px;
-    padding: 18px;
+    margin-bottom: 12px;
+    padding: 14px;
     background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.18));
     border-radius: var(--radius);
     flex-wrap: wrap;
