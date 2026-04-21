@@ -21,6 +21,16 @@ BigInt.prototype.toJSON = function() { return Number(this); };
 
 const router = express.Router();
 const _missionStartLock = new Set();
+const _weeklyClaimableCountCache = new Map();
+
+function invalidateWeeklyClaimableCountCache(charId) {
+    const prefix = `${charId}:`;
+    for (const key of _weeklyClaimableCountCache.keys()) {
+        if (key.startsWith(prefix)) {
+            _weeklyClaimableCountCache.delete(key);
+        }
+    }
+}
 
 // Define ELEMENTS array (was missing!)
 const ELEMENTS = ['pyro', 'water', 'wind', 'electro'];
@@ -3649,6 +3659,12 @@ async function getCharacterAchievements(db, char) {
 
 async function getWeeklyClaimableCount(db, char) {
     try {
+        const cacheKey = `${char.id}:${getCurrentWeekStart()}`;
+        const cached = _weeklyClaimableCountCache.get(cacheKey);
+        const nowMs = Date.now();
+        if (cached && (nowMs - cached.at) < 30000) {
+            return cached.value;
+        }
         const weeklyState = await ensureWeeklyTaskState(db, char);
         const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
         const claimedRows = await dbAll(db, 'SELECT task_id FROM character_weekly_claims WHERE char_id = ? AND week_start = ?', [char.id, weekStart]);
@@ -3662,6 +3678,7 @@ async function getWeeklyClaimableCount(db, char) {
                 count++;
             }
         }
+        _weeklyClaimableCountCache.set(cacheKey, { value: count, at: nowMs });
         return count;
     } catch (e) {
         console.error('Error getting weekly claimable count:', e);
@@ -4034,6 +4051,7 @@ router.post('/weekly-tasks/:taskId/claim', auth, async (req, res) => {
             'INSERT INTO character_weekly_claims (char_id, week_start, task_id, claimed_at) VALUES (?, ?, ?, ?)',
             [char.id, weekStart, task.id, Math.floor(Date.now() / 1000)]
         );
+        invalidateWeeklyClaimableCountCache(char.id);
 
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json({
