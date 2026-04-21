@@ -640,6 +640,11 @@ async function copyReferralLink() {
     const flash = document.getElementById('topbar-menu-flash');
     if (!referralLink) return;
 
+    if (flash && flash._hideTimer) {
+        clearTimeout(flash._hideTimer);
+        flash._hideTimer = null;
+    }
+
     try {
         if (navigator.clipboard?.writeText) {
             await navigator.clipboard.writeText(referralLink);
@@ -654,12 +659,21 @@ async function copyReferralLink() {
         if (flash) {
             flash.textContent = 'Referral link copied.';
             flash.classList.remove('hidden', 'error');
+            flash._hideTimer = setTimeout(() => {
+                flash.classList.add('hidden');
+                flash._hideTimer = null;
+            }, 2200);
         }
     } catch (e) {
         if (flash) {
             flash.textContent = 'Could not copy the referral link.';
             flash.classList.remove('hidden');
             flash.classList.add('error');
+            flash._hideTimer = setTimeout(() => {
+                flash.classList.add('hidden');
+                flash.classList.remove('error');
+                flash._hideTimer = null;
+            }, 2600);
         }
     }
 }
