@@ -6196,6 +6196,29 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
         try { reward = JSON.parse(msg.reward_payload); } catch { reward = null; }
         if (!reward || typeof reward !== 'object') return res.status(400).json({ error: 'Reward payload is invalid.' });
 
+        // Validate the full reward first so we never partially grant gold/gems and then fail on materials.
+        let validatedMaterialReward = null;
+        if (reward.material?.id && reward.material?.qty) {
+            const normalizedMaterialId = normalizeRewardMaterialId(reward.material.id);
+            const preferredType = reward.material.type === 'component' ? 'component' : 'raw_mat';
+            const preferredMap = preferredType === 'component' ? COMPONENTS : RAW_MATERIALS;
+            const fallbackType = preferredType === 'component' ? 'raw_mat' : 'component';
+            const fallbackMap = fallbackType === 'component' ? COMPONENTS : RAW_MATERIALS;
+            const preferredDef = preferredMap?.[normalizedMaterialId];
+            const fallbackDef = fallbackMap?.[normalizedMaterialId];
+            const resolvedType = preferredDef ? preferredType : (fallbackDef ? fallbackType : null);
+            const resolvedDef = preferredDef || fallbackDef || null;
+            if (!resolvedDef || !resolvedType) {
+                return res.status(400).json({ error: 'Reward material no longer exists.' });
+            }
+            validatedMaterialReward = {
+                type: resolvedType,
+                id: normalizedMaterialId,
+                qty: Math.max(1, Number(reward.material.qty || 1)),
+                def: resolvedDef
+            };
+        }
+
         if (reward.gold) {
             const gold = Math.max(0, Number(reward.gold || 0));
             if (gold > 0) {
@@ -6208,18 +6231,13 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
                 await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, char.id]);
             }
         }
-        if (reward.material?.id && reward.material?.qty) {
-            const materialType = reward.material.type === 'component' ? 'component' : 'raw_mat';
-            const materialMap = materialType === 'component' ? COMPONENTS : RAW_MATERIALS;
-            const normalizedMaterialId = normalizeRewardMaterialId(reward.material.id);
-            const materialDef = materialMap?.[normalizedMaterialId];
-            if (!materialDef) return res.status(400).json({ error: 'Reward material no longer exists.' });
+        if (validatedMaterialReward) {
             await addStackableInventoryItem(
                 db,
                 char.id,
-                materialType,
-                { id: normalizedMaterialId, ...materialDef },
-                Math.max(1, Number(reward.material.qty || 1))
+                validatedMaterialReward.type,
+                { id: validatedMaterialReward.id, ...validatedMaterialReward.def },
+                validatedMaterialReward.qty
             );
         }
 
