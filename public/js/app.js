@@ -479,7 +479,8 @@ function renderTopbarMenu() {
                     💎✨ Convert MP
                     <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
                 </button>
-                <div class="topbar-menu-action topbar-menu-referral-card">
+                <!-- referral card moved below quick actions -->
+                <div class="topbar-menu-action topbar-menu-referral-card hidden">
                     <span class="topbar-menu-referral-kicker">Referral Link</span>
                     <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
                     <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
@@ -495,6 +496,19 @@ function renderTopbarMenu() {
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
                     Logout
                 </button>
+            </div>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">Invite Players</div>
+            <div class="topbar-menu-info-card topbar-menu-referral-card">
+                <span class="topbar-menu-referral-kicker">Referral Link</span>
+                <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
+                <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
+                <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
+                    Copy Invite Link
+                </button>
+                <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
+                <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
             </div>
         </div>
         <div class="topbar-menu-section">
