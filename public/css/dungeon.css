@@ -389,18 +389,19 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
-  min-width: 150px;
+  gap: 0;
+  padding: 0;
+  width: 52px;
+  min-width: 52px;
   min-height: 44px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  background: transparent;
+  border: none;
   color: #e2e8f0;
   cursor: pointer;
-  transition: transform 0.15s, background 0.15s, border-color 0.15s;
-  font-size: 0.85rem;
-  font-family: 'Cinzel', serif;
+  transition: transform 0.15s, opacity 0.15s;
+  font-size: 0;
+  font-family: inherit;
 }
 
 .dungeon-path-btn-icon {
@@ -422,43 +423,28 @@
 }
 
 .dungeon-path-btn-text {
-  line-height: 1;
+  display: none;
 }
 
 .dungeon-path-btn-roomno {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: rgba(226, 232, 240, 0.9);
-  font-size: 0.72rem;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  display: none;
 }
 
 .dungeon-path-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.16);
+  opacity: 0.9;
 }
 
 .dungeon-path-btn.has-monster {
-  border-color: rgba(231, 76, 60, 0.5);
-  background: rgba(231, 76, 60, 0.08);
+  filter: drop-shadow(0 0 8px rgba(231, 76, 60, 0.18));
 }
 
 .dungeon-path-btn.has-monster:hover {
-  background: rgba(231, 76, 60, 0.15);
-  border-color: rgba(231, 76, 60, 0.7);
+  opacity: 1;
 }
 
 .dungeon-path-btn.is-boss {
-  border-color: rgba(241,196,15,0.45);
+  filter: drop-shadow(0 0 10px rgba(241,196,15,0.18));
 }
 
 .dungeon-path-btn:disabled {
@@ -2094,9 +2080,8 @@
   }
 
   .dungeon-path-btn {
-    padding: 9px 10px;
-    gap: 4px;
-    min-width: 78px;
+    width: 40px;
+    min-width: 40px;
     min-height: 40px;
   }
 
@@ -2109,16 +2094,6 @@
   .dungeon-path-btn-arrow-img {
     width: 16px;
     height: 16px;
-  }
-
-  .dungeon-path-btn-text {
-    display: none;
-  }
-
-  .dungeon-path-btn-roomno {
-    min-width: 24px;
-    padding: 2px 6px;
-    font-size: 0.64rem;
   }
 }
 
