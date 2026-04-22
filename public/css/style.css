@@ -1571,21 +1571,33 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     --class-scene-tint: rgba(78, 145, 255, 0.25);
     --stat-icon-filter: brightness(0) invert(1) sepia(0.72) saturate(4.2) hue-rotate(185deg) brightness(1.08);
     --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.8) saturate(4.8) hue-rotate(185deg) brightness(1.18);
+    --stat-fill-start: rgba(118, 195, 255, 0.95);
+    --stat-fill-end: rgba(63, 127, 255, 0.58);
+    --stat-fill-glow: rgba(86, 156, 255, 0.22);
 }
 .class-scene-warrior {
     --class-scene-tint: rgba(224, 119, 72, 0.24);
     --stat-icon-filter: brightness(0) invert(1) sepia(0.8) saturate(4.6) hue-rotate(340deg) brightness(1.02);
     --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.86) saturate(5.2) hue-rotate(340deg) brightness(1.12);
+    --stat-fill-start: rgba(255, 166, 116, 0.95);
+    --stat-fill-end: rgba(226, 94, 54, 0.58);
+    --stat-fill-glow: rgba(245, 116, 72, 0.22);
 }
 .class-scene-paladin {
     --class-scene-tint: rgba(245, 207, 108, 0.24);
     --stat-icon-filter: brightness(0) invert(1) sepia(0.92) saturate(3.4) hue-rotate(356deg) brightness(1.02);
     --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.96) saturate(4.0) hue-rotate(356deg) brightness(1.12);
+    --stat-fill-start: rgba(255, 229, 138, 0.95);
+    --stat-fill-end: rgba(228, 183, 72, 0.58);
+    --stat-fill-glow: rgba(242, 206, 98, 0.24);
 }
 .class-scene-rogue {
     --class-scene-tint: rgba(101, 222, 173, 0.22);
     --stat-icon-filter: brightness(0) invert(1) sepia(0.78) saturate(4.1) hue-rotate(118deg) brightness(1.04);
     --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.84) saturate(4.7) hue-rotate(118deg) brightness(1.14);
+    --stat-fill-start: rgba(136, 242, 192, 0.95);
+    --stat-fill-end: rgba(63, 198, 137, 0.58);
+    --stat-fill-glow: rgba(95, 224, 164, 0.22);
 }
 
 .char-grid {
@@ -1948,10 +1960,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-radius: 999px;
     position: relative;
     background:
-        linear-gradient(90deg, rgba(206,214,228,0.76) 0%, rgba(158,171,188,0.54) 72%, rgba(118,126,141,0.20) 100%);
+        linear-gradient(90deg, var(--stat-fill-start, rgba(206,214,228,0.76)) 0%, var(--stat-fill-end, rgba(158,171,188,0.54)) 72%, rgba(118,126,141,0.20) 100%);
     box-shadow:
         inset 0 1px 0 rgba(255,255,255,0.18),
-        0 0 8px rgba(255,255,255,0.04);
+        0 0 8px rgba(255,255,255,0.04),
+        0 0 10px var(--stat-fill-glow, rgba(255,255,255,0.08));
 }
 .stat-fill::before {
     content: '';
@@ -3405,8 +3418,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-name { font-size: 1.05rem; line-height: 1.2; word-break: break-word; }
     .profile-class { font-size: 0.78rem; }
     .profile-card .stat-row {
-        grid-template-columns: 18px 30px minmax(0, 1fr) 40px;
-        column-gap: 5px;
+        grid-template-columns: 16px 24px minmax(0, 1fr) 34px;
+        column-gap: 4px;
     }
     .profile-card .stat-label {
         font-size: 0.64rem;
@@ -3418,6 +3431,23 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (max-width: 560px) {
     .profile-grid {
         grid-template-columns: 1fr;
+    }
+    .profile-combat-card {
+        padding: 12px 10px;
+    }
+    .profile-card .stat-row {
+        grid-template-columns: 14px 22px minmax(0, 1fr) 30px;
+        column-gap: 4px;
+    }
+    .profile-card .stat-label {
+        font-size: 0.6rem;
+    }
+    .profile-card .stat-val {
+        font-size: 0.72rem;
+    }
+    .profile-card .stat-icon-img {
+        width: 14px;
+        height: 14px;
     }
     .profile-grid .profile-card:first-child {
         order: 2;
