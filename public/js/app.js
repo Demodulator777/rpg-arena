@@ -882,6 +882,31 @@ function renderTopbarMenu() {
                 <span>Assistant helper</span>
                 <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
+                <span>Inbox badge: messages</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_battles !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'battles')}>
+                <span>Inbox badge: battle reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_battles !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
+                <span>Inbox badge: mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
+            </button>
+            <div class="topbar-menu-subsection-label">Inbox auto-read</div>
+            <button class="topbar-menu-toggle ${character?.inbox_autoread_messages === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'messages')}>
+                <span>Auto-read: messages</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_messages === true ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_autoread_battles === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'battles')}>
+                <span>Auto-read: battle reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_battles === true ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_autoread_missions === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'missions')}>
+                <span>Auto-read: mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_missions === true ? 'On' : 'Off'}</span>
+            </button>
         </div>`;
 }
 
