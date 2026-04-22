@@ -20,7 +20,7 @@
   const TRAVEL_BASE_MS    = 8000;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
-  const ROOMS_PER_FLOOR   = 65;
+  const ROOMS_PER_FLOOR   = 264;
 
   // ── Dungeon Visuals ─────────────────────────────────────────
   const DUNGEON_VISUALS = {
@@ -407,36 +407,50 @@ async function refreshCharacter() {
   // ── Map Generation ─────────────────────────────────────────
 function generateFloor(dungeonId, floor) {
     const rooms = [];
-    const gridW = 13, gridH = 13;
+    const gridW = 24, gridH = 24;
     const total = gridW * gridH;
 
     const used = new Array(total).fill(false);
     const chosen = [];
+    const depthMap = {};
+    const startIdx = gridH * gridW - gridW;
+    const stack = [startIdx];
 
-    chosen.push(gridH * gridW - gridW);
-    used[gridH * gridW - gridW] = true;
+    chosen.push(startIdx);
+    used[startIdx] = true;
+    depthMap[startIdx] = 0;
 
-    while (chosen.length < ROOMS_PER_FLOOR - 1) {
-      const base = chosen[rand(0, chosen.length - 1)];
-      const bx = base % gridW, by = Math.floor(base / gridW);
+    while (chosen.length < ROOMS_PER_FLOOR && stack.length > 0) {
+      const current = stack[stack.length - 1];
+      const cx = current % gridW;
+      const cy = Math.floor(current / gridW);
       const neighbors = [];
-      if (bx > 0 && !used[by*gridW+(bx-1)]) neighbors.push(by*gridW+(bx-1));
-      if (bx < gridW-1 && !used[by*gridW+(bx+1)]) neighbors.push(by*gridW+(bx+1));
-      if (by > 0 && !used[(by-1)*gridW+bx]) neighbors.push((by-1)*gridW+bx);
-      if (by < gridH-1 && !used[(by+1)*gridW+bx]) neighbors.push((by+1)*gridW+bx);
-      if (neighbors.length === 0) continue;
-      const pick = neighbors[rand(0, neighbors.length-1)];
+
+      if (cx > 0 && !used[cy * gridW + (cx - 1)]) neighbors.push(cy * gridW + (cx - 1));
+      if (cx < gridW - 1 && !used[cy * gridW + (cx + 1)]) neighbors.push(cy * gridW + (cx + 1));
+      if (cy > 0 && !used[(cy - 1) * gridW + cx]) neighbors.push((cy - 1) * gridW + cx);
+      if (cy < gridH - 1 && !used[(cy + 1) * gridW + cx]) neighbors.push((cy + 1) * gridW + cx);
+
+      if (!neighbors.length) {
+        stack.pop();
+        continue;
+      }
+
+      const pick = neighbors[rand(0, neighbors.length - 1)];
       used[pick] = true;
       chosen.push(pick);
+      depthMap[pick] = (depthMap[current] || 0) + 1;
+      stack.push(pick);
     }
 
     const start = chosen[0];
-    let farthest = chosen[0], maxDist = 0;
+    let farthest = chosen[0], maxDepth = 0;
     for (const c of chosen) {
-      const cx = c % gridW, cy = Math.floor(c / gridW);
-      const sx = start % gridW, sy = Math.floor(start / gridW);
-      const d = Math.abs(cx-sx) + Math.abs(cy-sy);
-      if (d > maxDist) { maxDist = d; farthest = c; }
+      const d = depthMap[c] || 0;
+      if (d > maxDepth) {
+        maxDepth = d;
+        farthest = c;
+      }
     }
 
     const dungeonDef = getDungeonDef(dungeonId);
@@ -448,7 +462,6 @@ function generateFloor(dungeonId, floor) {
       const isBoss = (idx === farthest);
       const isStart = (i === 0);
       
-      // Mini-boss chance (10% on non-start, non-boss rooms, floor 10+)
       const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 5;
 
       const connections = [];
@@ -1455,7 +1468,7 @@ function renderMapGrid() {
                 else if (monsterAlive) roomClass += ' map-room-monster';
                 else roomClass += ' map-room-clear';
 
-                const icon = explored ? (idx + 1) : '?';
+                const icon = '';
                 const title = explored
                   ? (room.isBoss ? `Boss Room � #${idx + 1}` : room.isMiniBoss ? `Mini-Boss � #${idx + 1}` : `Room ${idx + 1}`)
                   : '???';
@@ -2123,6 +2136,8 @@ global.dungeonRun = (roomIdx) => {
   loadState();
 
 })(window);
+
+
 
 
 
