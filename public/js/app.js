@@ -1451,6 +1451,10 @@ function renderCharacter() {
     const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
+    function renderStatIcon(assetKey, fallback, label) {
+        return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true"><span class="stat-icon-fallback">${fallback}</span>`;
+    }
+
     function statRowBreakdown(icon, label, base, bonus, max, cls) {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
@@ -1533,13 +1537,13 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          ${statRowBreakdown('💪','Strength', baseStr, bonusStr, maxStat,'str')}
-          ${statRowBreakdown('🛡️','Defense',  baseDef,  bonusDef,  maxStat,'def')}
-          ${statRowBreakdown('⚡','Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
-          ${statRowBreakdown('✨','Magic',    baseMag,  bonusMag,  maxStat,'mag')}
-          ${statRowBreakdown('❤️','Vitality', baseVit,  bonusVit, maxStat,'vit')}
-          ${baseHit>0||bonusHit?statRowBreakdown('🎯','Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
-          ${baseCrit>0||bonusCrit?statRowBreakdown('💥','Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
+          ${statRowBreakdown(renderStatIcon('strength','💪','Strength'),'Strength', baseStr, bonusStr, maxStat,'str')}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense'),'Defense',  baseDef,  bonusDef,  maxStat,'def')}
+          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility'),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
+          ${statRowBreakdown(renderStatIcon('magic','✨','Magic'),'Magic',    baseMag,  bonusMag,  maxStat,'mag')}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality'),'Vitality', baseVit,  bonusVit, maxStat,'vit')}
+          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance'),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance'),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
           <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <span title="${escHtml(dmgTooltip)}" style="cursor:help">
               ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
@@ -2592,6 +2596,8 @@ function openLocationModal(zoneId) {
     const currentZone = character?.location || 'forest';
     const isCurrent = currentZone === zoneId;
     const isTraveling = !!playerTravelTarget;
+    const hasActiveMission = !!window.activeMission;
+    const actionBlocked = isTraveling || hasActiveMission;
     
     const isUnlocked = currentMap === 'abyss'
         ? (unlockedAbyssZones.has(zoneId) || isCurrent)
@@ -2614,7 +2620,7 @@ function openLocationModal(zoneId) {
                 <div class="mz-hero-actions">
                     ${isCurrent
                         ? `<span class="mz-here-badge">📍 You are here</span>`
-                        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${isTraveling ? 'disabled' : ''}>
+                        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked ? 'disabled' : ''}>
                             ${isUnlocked ? '🚶 Travel here' : '⚔️ Challenge for entry'}${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
                     }
@@ -2626,14 +2632,16 @@ function openLocationModal(zoneId) {
         <div class="mz-section-label">Choose a location</div>
         <div class="mz-spots-grid">
             ${zone.spots.map(spot => {
-                let locked = !isCurrent;
-                let lockMsg = '🔒 Travel here first';
+                let locked = !isCurrent || actionBlocked;
+                let lockMsg = actionBlocked
+                    ? (hasActiveMission ? '🔒 Mission already in progress' : '🔒 Travel already in progress')
+                    : '🔒 Travel here first';
                 
                 // Tutorial Lock: Wins < 4 only allows Easy
                 const charWins = parseInt(character?.wins || 0, 10);
                 const isTutorial = charWins < 4 || (character?.level === 1 && charWins < 4);
                 
-                if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
+                if (!actionBlocked && isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
                     locked = true;
                     lockMsg = '🔒 Tutorial: Win 4 battles to unlock';
                 }
@@ -2674,6 +2682,7 @@ function openSpotMissions(zoneId, spotId) {
     const activeEl = document.getElementById('mission-location-active');
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
     const mp = character?.mission_points ?? 0;
+    const actionBlocked = !!window.activeMission || !!playerTravelTarget;
     
     // Tutorial state
     const charWins = parseInt(character?.wins || 0, 10);
@@ -2691,24 +2700,27 @@ function openSpotMissions(zoneId, spotId) {
             ${sizes.map(sz => {
                 let locked = isTutorial && sz.key !== 'small';
                 const canAfford = mp >= sz.mpCost && !locked;
+                const isDisabled = actionBlocked || !canAfford;
                 
-                const border = canAfford ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
-                const bg = canAfford ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
-                const opacity = (canAfford || (locked && mp >= sz.mpCost)) ? '1' : '0.45';
+                const border = (!isDisabled && canAfford) ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
+                const bg = (!isDisabled && canAfford) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
+                const opacity = actionBlocked ? '0.38' : ((canAfford || (locked && mp >= sz.mpCost)) ? '1' : '0.45');
                 
                 let lockOverlay = '';
                 if (locked) {
                     lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#fff;text-align:center;padding:5px;font-weight:700">🔒 Tutorial: Win 4 battles</div>`;
+                } else if (actionBlocked) {
+                    lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.62);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:rgba(255,255,255,0.82);text-align:center;padding:8px 10px;font-weight:700">${window.activeMission ? 'Mission in progress' : 'Travel in progress'}</div>`;
                 }
 
-                return `<div ${(canAfford && !locked) ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
-                    style="position:relative;border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${canAfford ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
+                return `<div ${(!isDisabled && !locked) ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
+                    style="position:relative;border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${(!isDisabled && canAfford) ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
                     <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
                     <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">💰 ${sz.mult} gold</div>
                     <div style="font-size:0.7rem;color:#f1c40f;margin-top:2px">⭐ ${sz.key === 'small' ? '0-6' : sz.key === 'medium' ? '0-9' : '0-12'} XP</div>
-                    ${(!canAfford && !locked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
+                    ${(!canAfford && !locked && !actionBlocked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
                     ${lockOverlay}
                 </div>`;
             }).join('')}
@@ -2738,6 +2750,8 @@ function openSpotMissions(zoneId, spotId) {
 }
 
 function pickMissionSize(zoneId, spotId, sizeKey) {
+    if (window.activeMission || playerTravelTarget) return;
+
     const currentMap = character?.current_map || 'overworld';
     let zone;
     
