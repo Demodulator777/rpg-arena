@@ -388,8 +388,11 @@
 .dungeon-path-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   padding: 10px 14px;
+  min-width: 150px;
+  min-height: 44px;
   border-radius: 999px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.10);
@@ -401,8 +404,21 @@
 }
 
 .dungeon-path-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   line-height: 1;
   font-size: 1rem;
+}
+
+.dungeon-path-btn-arrow-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.08));
 }
 
 .dungeon-path-btn-text {
@@ -2080,10 +2096,19 @@
   .dungeon-path-btn {
     padding: 9px 10px;
     gap: 4px;
+    min-width: 78px;
+    min-height: 40px;
   }
 
   .dungeon-path-btn-icon {
+    width: 18px;
+    height: 18px;
     font-size: 1.05rem;
+  }
+
+  .dungeon-path-btn-arrow-img {
+    width: 16px;
+    height: 16px;
   }
 
   .dungeon-path-btn-text {
