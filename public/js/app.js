@@ -1451,10 +1451,6 @@ function renderCharacter() {
     const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
-    function renderStatIcon(assetKey, fallback, label) {
-        return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true"><span class="stat-icon-fallback">${fallback}</span>`;
-    }
-
     function statRowBreakdown(icon, label, base, bonus, max, cls) {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
@@ -1537,13 +1533,13 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          ${statRowBreakdown(renderStatIcon('strength','💪','Strength'),'Strength', baseStr, bonusStr, maxStat,'str')}
-          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense'),'Defense',  baseDef,  bonusDef,  maxStat,'def')}
-          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility'),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
-          ${statRowBreakdown(renderStatIcon('magic','✨','Magic'),'Magic',    baseMag,  bonusMag,  maxStat,'mag')}
-          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality'),'Vitality', baseVit,  bonusVit, maxStat,'vit')}
-          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance'),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
-          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance'),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
+          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str')}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def')}
+          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
+          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag')}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit')}
+          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
           <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <span title="${escHtml(dmgTooltip)}" style="cursor:help">
               ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
@@ -1588,8 +1584,34 @@ function statRow(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val">${val}</span></div>`;
 }
-function renderStatIcon(assetKey, fallback, label) {
-    return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true"><span class="stat-icon-fallback">${fallback}</span>`;
+function getClassStatIconFilter(className, profile = false) {
+    const normalized = String(className || '').trim().toLowerCase();
+    if (normalized === 'mage') {
+        return profile
+            ? 'brightness(0) invert(1) sepia(0.8) saturate(4.8) hue-rotate(185deg) brightness(1.18)'
+            : 'brightness(0) invert(1) sepia(0.72) saturate(4.2) hue-rotate(185deg) brightness(1.08)';
+    }
+    if (normalized === 'warrior') {
+        return profile
+            ? 'brightness(0) invert(1) sepia(0.86) saturate(5.2) hue-rotate(340deg) brightness(1.12)'
+            : 'brightness(0) invert(1) sepia(0.8) saturate(4.6) hue-rotate(340deg) brightness(1.02)';
+    }
+    if (normalized === 'paladin') {
+        return profile
+            ? 'brightness(0) invert(1) sepia(0.96) saturate(4.0) hue-rotate(356deg) brightness(1.12)'
+            : 'brightness(0) invert(1) sepia(0.92) saturate(3.4) hue-rotate(356deg) brightness(1.02)';
+    }
+    if (normalized === 'rogue') {
+        return profile
+            ? 'brightness(0) invert(1) sepia(0.84) saturate(4.7) hue-rotate(118deg) brightness(1.14)'
+            : 'brightness(0) invert(1) sepia(0.78) saturate(4.1) hue-rotate(118deg) brightness(1.04)';
+    }
+    return profile ? 'brightness(0) invert(1) opacity(0.96)' : 'brightness(0) invert(1) opacity(0.92)';
+}
+function renderStatIcon(assetKey, fallback, label, className = '', profile = false) {
+    const filter = getClassStatIconFilter(className, profile);
+    const glow = profile ? 'drop-shadow(0 0 5px rgba(255,255,255,0.22))' : 'drop-shadow(0 0 4px rgba(255,255,255,0.16))';
+    return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true" style="filter:${filter} ${glow};"><span class="stat-icon-fallback">${fallback}</span>`;
 }
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
 function getSkillImagePath(skillId) {
@@ -5353,13 +5375,13 @@ async function openProfile(id) {
           <div class="profile-grid">
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
-              ${miniStat(renderStatIcon('strength','💪','Strength'),'STR',str,maxStat,'str')}
-              ${miniStat(renderStatIcon('defense','🛡️','Defense'),'DEF',def,maxStat,'def')}
-              ${miniStat(renderStatIcon('agility','⚡','Agility'),'AGI',agi,maxStat,'agi')}
-              ${miniStat(renderStatIcon('magic','✨','Magic'),'MAG',mag,maxStat,'mag')}
-              ${miniStat(renderStatIcon('vitality','❤️','Vitality'),'VIT',vit,maxStat,'vit')}
-              ${hc>0?miniStat(renderStatIcon('accuracy','🎯','Hit Chance'),'HIT',hc,maxStat,'hit'):''}
-              ${cc>0?miniStat(renderStatIcon('critical','💥','Crit Chance'),'CRIT',cc,maxStat,'crit'):''}
+              ${miniStat(renderStatIcon('strength','💪','Strength', p.class, true),'STR',str,maxStat,'str')}
+              ${miniStat(renderStatIcon('defense','🛡️','Defense', p.class, true),'DEF',def,maxStat,'def')}
+              ${miniStat(renderStatIcon('agility','⚡','Agility', p.class, true),'AGI',agi,maxStat,'agi')}
+              ${miniStat(renderStatIcon('magic','✨','Magic', p.class, true),'MAG',mag,maxStat,'mag')}
+              ${miniStat(renderStatIcon('vitality','❤️','Vitality', p.class, true),'VIT',vit,maxStat,'vit')}
+              ${hc>0?miniStat(renderStatIcon('accuracy','🎯','Hit Chance', p.class, true),'HIT',hc,maxStat,'hit'):''}
+              ${cc>0?miniStat(renderStatIcon('critical','💥','Crit Chance', p.class, true),'CRIT',cc,maxStat,'crit'):''}
             </div>
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
