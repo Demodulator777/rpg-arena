@@ -1588,6 +1588,9 @@ function statRow(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val">${val}</span></div>`;
 }
+function renderStatIcon(assetKey, fallback, label) {
+    return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true"><span class="stat-icon-fallback">${fallback}</span>`;
+}
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
 function getSkillImagePath(skillId) {
     return `/images/assets/skills/${String(skillId || '').replace(/_/g, '-')}.png`;
