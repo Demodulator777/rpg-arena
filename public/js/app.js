@@ -2292,13 +2292,13 @@ function renderUpgrade() {
     const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
     
     const stats = [
-        { key: 'strength', icon: '💪', label: 'Strength' },
-        { key: 'defense', icon: '🛡️', label: 'Defense' },
-        { key: 'agility', icon: '⚡', label: 'Agility', hint: 'Dodge incoming hits' },
-        { key: 'magic', icon: '✨', label: 'Magic' },
-        { key: 'vitality', icon: '❤️', label: 'Vitality', hint: 'Also boosts current HP' },
-        { key: 'hit_chance', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
-        { key: 'crit_chance', icon: '💥', label: 'Crit Chance', hint: '% chance to hit max dmg' },
+        { key: 'strength', asset: 'strength', icon: '💪', label: 'Strength' },
+        { key: 'defense', asset: 'defense', icon: '🛡️', label: 'Defense' },
+        { key: 'agility', asset: 'agility', icon: '⚡', label: 'Agility', hint: 'Dodge incoming hits' },
+        { key: 'magic', asset: 'magic', icon: '✨', label: 'Magic' },
+        { key: 'vitality', asset: 'vitality', icon: '❤️', label: 'Vitality', hint: 'Also boosts current HP' },
+        { key: 'hit_chance', asset: 'accuracy', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
+        { key: 'crit_chance', asset: 'critical', icon: '💥', label: 'Crit Chance', hint: '% chance to hit max dmg' },
     ];
     
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
@@ -2320,7 +2320,7 @@ function renderUpgrade() {
             <div class="upgrade-card-aura"></div>
             <div class="upgrade-card-header">
                 <div class="upgrade-card-badge">
-                    <span class="upgrade-card-icon">${s.icon}</span>
+                    <span class="upgrade-card-icon">${renderStatIcon(s.asset, s.icon, displayName, c.class)}</span>
                 </div>
                 <div class="upgrade-card-title-group">
                     <span class="upgrade-card-name">${displayName}</span>
