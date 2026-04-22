@@ -2078,23 +2078,22 @@
   }
 
   .dungeon-path-btn {
-    padding: 10px 12px;
-    gap: 6px;
+    padding: 9px 10px;
+    gap: 4px;
   }
 
   .dungeon-path-btn-icon {
-    font-size: 1.2rem;
+    font-size: 1.05rem;
   }
 
   .dungeon-path-btn-text {
-    display: block;
-    font-size: 0.72rem;
+    display: none;
   }
 
   .dungeon-path-btn-roomno {
-    min-width: 30px;
-    padding: 3px 7px;
-    font-size: 0.68rem;
+    min-width: 24px;
+    padding: 2px 6px;
+    font-size: 0.64rem;
   }
 }
 
