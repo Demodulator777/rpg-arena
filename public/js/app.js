@@ -7229,3 +7229,4 @@ function renderAbyssMap() {
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
+
