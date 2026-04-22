@@ -1567,10 +1567,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding: 20px;
     backdrop-filter: blur(1px);
 }
-.class-scene-mage { --class-scene-tint: rgba(78, 145, 255, 0.25); }
-.class-scene-warrior { --class-scene-tint: rgba(224, 119, 72, 0.24); }
-.class-scene-paladin { --class-scene-tint: rgba(245, 207, 108, 0.24); }
-.class-scene-rogue { --class-scene-tint: rgba(101, 222, 173, 0.22); }
+.class-scene-mage {
+    --class-scene-tint: rgba(78, 145, 255, 0.25);
+    --stat-icon-filter: brightness(0) invert(1) sepia(0.72) saturate(4.2) hue-rotate(185deg) brightness(1.08);
+    --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.8) saturate(4.8) hue-rotate(185deg) brightness(1.18);
+}
+.class-scene-warrior {
+    --class-scene-tint: rgba(224, 119, 72, 0.24);
+    --stat-icon-filter: brightness(0) invert(1) sepia(0.8) saturate(4.6) hue-rotate(340deg) brightness(1.02);
+    --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.86) saturate(5.2) hue-rotate(340deg) brightness(1.12);
+}
+.class-scene-paladin {
+    --class-scene-tint: rgba(245, 207, 108, 0.24);
+    --stat-icon-filter: brightness(0) invert(1) sepia(0.92) saturate(3.4) hue-rotate(356deg) brightness(1.02);
+    --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.96) saturate(4.0) hue-rotate(356deg) brightness(1.12);
+}
+.class-scene-rogue {
+    --class-scene-tint: rgba(101, 222, 173, 0.22);
+    --stat-icon-filter: brightness(0) invert(1) sepia(0.78) saturate(4.1) hue-rotate(118deg) brightness(1.04);
+    --profile-stat-icon-filter: brightness(0) invert(1) sepia(0.84) saturate(4.7) hue-rotate(118deg) brightness(1.14);
+}
 
 .char-grid {
     display: grid;
@@ -1852,11 +1868,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 18px;
     object-fit: contain;
     display: block;
-    filter:
-        brightness(1.2)
-        contrast(1.08)
-        saturate(0.15)
-        drop-shadow(0 0 4px rgba(255,255,255,0.16));
+    filter: var(--stat-icon-filter, brightness(0) invert(1) opacity(0.92));
 }
 .stat-icon-fallback {
     display: inline-flex;
@@ -3364,11 +3376,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-card .stat-icon-img {
     width: 16px;
     height: 16px;
-    filter:
-        brightness(1.38)
-        contrast(1.12)
-        saturate(0.12)
-        drop-shadow(0 0 5px rgba(255,255,255,0.22));
+    filter: var(--profile-stat-icon-filter, var(--stat-icon-filter, brightness(0) invert(1) opacity(0.96)));
 }
 .profile-card .stat-icon-fallback {
     font-size: 0.88rem;
