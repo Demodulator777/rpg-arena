@@ -1208,6 +1208,203 @@ function renderDungeonTab() {
     }
 }
 
+function formatRaidTime(ts) {
+    if (!ts) return 'Not scheduled';
+    return new Date(Number(ts) * 1000).toLocaleString([], {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function formatRaidDuration(seconds) {
+    const total = Math.max(0, Number(seconds || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h`;
+    return `${minutes}m`;
+}
+
+function readGuildRaidScheduleTs() {
+    const input = document.getElementById('guild-raid-scheduled-at');
+    if (!input || !input.value) return 0;
+    const ms = Date.parse(input.value);
+    return Number.isFinite(ms) ? Math.floor(ms / 1000) : 0;
+}
+
+function renderDungeonRaidHub(guildData) {
+    const reputation = Number(guildData.guildReputation || 0);
+    const raids = Array.isArray(guildData.raids) ? guildData.raids : [];
+    const highestFloor = Math.max(1, Number(guildData.highestFloor || 1));
+    const now = Math.floor(Date.now() / 1000);
+    const globalCooldownUntil = Number(guildData.globalCooldownUntil || 0);
+    const cooldownLeft = globalCooldownUntil > now ? (globalCooldownUntil - now) : 0;
+    const apprenticeReq = GUILD_RANKS.find(r => r.name === 'Apprentice')?.reputationNeeded || 10;
+    const canCreateRaid = reputation >= apprenticeReq;
+    const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
+        .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
+        .join('');
+
+    const raidCards = raids.length ? raids.map(raid => {
+        const members = Array.isArray(raid.members) ? raid.members : [];
+        const membersHtml = members.map(member => `
+            <span class="cost-item ${member.isLeader ? 'raid-member-leader' : ''}">
+                ${member.isLeader ? 'Leader' : 'Member'} · ${member.name} Lv.${member.level}
+            </span>
+        `).join('');
+
+        const rewardBits = [];
+        if (raid.reward?.gold) rewardBits.push(`${Number(raid.reward.gold).toLocaleString()} Gold`);
+        if (raid.reward?.gems) rewardBits.push(`${Number(raid.reward.gems).toLocaleString()} Gems`);
+        if (raid.reward?.item?.itemData?.name) rewardBits.push(raid.reward.item.itemData.name);
+
+        const canJoin = raid.status === 'forming' && !raid.isMember && raid.memberCount < 6;
+        const canStart = raid.status === 'forming' && raid.isLeader;
+        const canClaim = raid.status === 'completed' && raid.isMember && !raid.rewardClaimed && raid.reward;
+        const autoStartLabel = raid.autoStartMode === 'full'
+            ? 'Auto-start when full'
+            : raid.autoStartMode === 'scheduled'
+                ? `Scheduled: ${formatRaidTime(raid.scheduledStartAt)}`
+                : 'Manual start';
+        const resultLog = Array.isArray(raid.resultLog) && raid.resultLog.length
+            ? `<div class="raid-result-log">${raid.resultLog.map(line => `<div class="raid-result-line">${line}</div>`).join('')}</div>`
+            : '';
+
+        return `
+            <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
+                <div class="exchange-icon raid-card-icon">Raid</div>
+                <div class="exchange-info">
+                    <div class="exchange-name">Floor ${raid.floor} Raid: ${raid.bossName}</div>
+                    <div class="exchange-desc">Up to six players combine into one strike against a floor-scaled raid boss.</div>
+                    <div class="exchange-cost">
+                        <span class="cost-item">Status: ${raid.status}</span>
+                        <span class="cost-item">${autoStartLabel}</span>
+                        <span class="cost-item">Boss HP ${Number(raid.bossHp || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="exchange-cost">${membersHtml}</div>
+                    ${raid.resultSummary ? `<div class="exchange-desc raid-summary">${raid.resultSummary}</div>` : ''}
+                    ${rewardBits.length ? `<div class="exchange-reward"><span class="reward-item">Rewards: ${rewardBits.join(' · ')}</span></div>` : ''}
+                    ${resultLog}
+                    ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
+                    ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>Start Raid</button>` : ''}
+                    ${canClaim ? `<button class="exchange-btn" ${actionAttrs('claimGuildRaidReward', raid.id)}>Claim Reward</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('') : `
+        <div class="exchange-card exchange-unavailable">
+            <div class="exchange-info">
+                <div class="exchange-name">No active raids yet</div>
+                <div class="exchange-desc">When an Apprentice posts a raid, it will appear here for everyone to join.</div>
+            </div>
+        </div>
+    `;
+
+    return `
+        <div class="dungeon-raid-hub-head">
+            <div class="dungeon-raid-hub-title">Raids</div>
+            <div class="dungeon-raid-hub-subtitle">Apprentice-ranked players can open raids for anyone to join.</div>
+        </div>
+        ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.</div>` : ''}
+        ${canCreateRaid ? `
+            <div class="exchange-card exchange-available raid-create-card">
+                <div class="exchange-icon raid-card-icon">Raid</div>
+                <div class="exchange-info">
+                    <div class="exchange-name">Create a Raid</div>
+                    <div class="exchange-desc">Choose any floor up to your highest cleared dungeon floor. You can start manually, when full, or on a schedule.</div>
+                    <div class="raid-create-grid">
+                        <label class="raid-field">
+                            <span>Floor</span>
+                            <select id="guild-raid-floor" class="raid-input">${raidFloorOptions}</select>
+                        </label>
+                        <label class="raid-field">
+                            <span>Start mode</span>
+                            <select id="guild-raid-mode" class="raid-input">
+                                <option value="manual">Manual</option>
+                                <option value="full">Auto-start when full</option>
+                                <option value="scheduled">Scheduled</option>
+                            </select>
+                        </label>
+                        <label class="raid-field raid-field-wide">
+                            <span>Scheduled start</span>
+                            <input id="guild-raid-scheduled-at" class="raid-input" type="datetime-local">
+                        </label>
+                    </div>
+                    <button class="exchange-btn" ${actionAttrs('createGuildRaid')}>Create Raid</button>
+                </div>
+            </div>
+        ` : `
+            <div class="exchange-card exchange-unavailable">
+                <div class="exchange-info">
+                    <div class="exchange-name">Raids unlock at Apprentice</div>
+                    <div class="exchange-desc">Reach ${apprenticeReq} guild reputation to create raids. You can still join raids listed below.</div>
+                </div>
+            </div>
+        `}
+        <div class="exchanges-grid raids-grid">${raidCards}</div>
+    `;
+}
+
+function refreshRaidUi() {
+    const raidHub = document.getElementById('dungeon-raid-hub');
+    if (raidHub) {
+        renderDungeonList();
+    } else {
+        renderGuild();
+    }
+}
+
+function createGuildRaid() {
+    const floor = Number(document.getElementById('guild-raid-floor')?.value || 1);
+    const autoStartMode = String(document.getElementById('guild-raid-mode')?.value || 'manual');
+    const scheduledStartAt = autoStartMode === 'scheduled' ? readGuildRaidScheduleTs() : 0;
+    apiFetch('POST', '/game/dungeon/guild/raid/create', { floor, autoStartMode, scheduledStartAt })
+        .then(response => {
+            if (response?.success) {
+                log(response.message || 'Raid created.', 'log-success');
+                refreshRaidUi();
+            }
+        })
+        .catch(e => console.error('Raid create failed:', e));
+}
+
+function joinGuildRaid(raidId) {
+    apiFetch('POST', '/game/dungeon/guild/raid/join', { raidId })
+        .then(response => {
+            if (response?.success) {
+                log(response.message || 'Joined raid.', 'log-success');
+                refreshRaidUi();
+            }
+        })
+        .catch(e => console.error('Raid join failed:', e));
+}
+
+function startGuildRaid(raidId) {
+    apiFetch('POST', '/game/dungeon/guild/raid/start', { raidId })
+        .then(response => {
+            if (response?.success) {
+                log(response.message || 'Raid battle resolved.', 'log-success');
+                refreshRaidUi();
+                refreshCharacter();
+            }
+        })
+        .catch(e => console.error('Raid start failed:', e));
+}
+
+function claimGuildRaidReward(raidId) {
+    apiFetch('POST', '/game/dungeon/guild/raid/claim', { raidId })
+        .then(response => {
+            if (response?.success) {
+                log(response.message || 'Raid reward claimed.', 'log-success');
+                refreshRaidUi();
+                refreshCharacter();
+            }
+        })
+        .catch(e => console.error('Raid reward claim failed:', e));
+}
+
 function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
@@ -1283,7 +1480,31 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 Upcoming floors</div>
         <div class="dungeon-floor-preview-row">${previewFloors}</div>
       </div>
+      <div id="dungeon-raid-hub" class="dungeon-floor-history dungeon-raid-hub-shell">
+        <div class="dungeon-raid-hub-head">
+          <div class="dungeon-raid-hub-title">Raids</div>
+          <div class="dungeon-raid-hub-subtitle">Loading guild raids...</div>
+        </div>
+      </div>
     `;
+
+    apiFetch('GET', '/game/dungeon/guild')
+      .then(guildData => {
+        const raidHub = document.getElementById('dungeon-raid-hub');
+        if (raidHub) raidHub.innerHTML = renderDungeonRaidHub(guildData);
+      })
+      .catch(e => {
+        console.error('Failed to load raid hub:', e);
+        const raidHub = document.getElementById('dungeon-raid-hub');
+        if (raidHub) {
+          raidHub.innerHTML = `
+            <div class="dungeon-raid-hub-head">
+              <div class="dungeon-raid-hub-title">Raids</div>
+              <div class="dungeon-raid-hub-subtitle">Raid hub failed to load from the server.</div>
+            </div>
+          `;
+        }
+      });
   }
 
     function renderDungeonView() {
@@ -2099,6 +2320,10 @@ global.debugDungeonDetails = function() {
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
 global.claimGuildBounty = claimGuildBounty;
+  global.createGuildRaid    = createGuildRaid;
+  global.joinGuildRaid      = joinGuildRaid;
+  global.startGuildRaid     = startGuildRaid;
+  global.claimGuildRaidReward = claimGuildRaidReward;
   global.dungeonEnter        = enterDungeon;
   global.dungeonTravel       = travelToRoom;
   global.dungeonFight        = initiateFight;
