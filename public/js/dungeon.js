@@ -20,7 +20,7 @@
   const TRAVEL_BASE_MS    = 8000;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
-  const ROOMS_PER_FLOOR   = 264;
+  const ROOMS_PER_FLOOR   = 100;
 
   // ── Dungeon Visuals ─────────────────────────────────────────
   const DUNGEON_VISUALS = {
@@ -237,6 +237,7 @@ function getBossForFloor(floor) {
 let D = {
   tokens: 0,
   activeDungeon: null,
+  dungeonGold: 0,
   floor: 1,
   highestFloor: 1,
   rooms: [],
@@ -330,6 +331,7 @@ async function refreshCharacter() {
       // Also load dungeon gold
       const goldRes = await apiFetch('GET', '/game/dungeon/gold');
       if (goldRes && goldRes.success) {
+        D.dungeonGold = goldRes.dungeonGold || 0;
         const goldEl = document.getElementById('dungeon-gold-count');
         if (goldEl) goldEl.textContent = goldRes.dungeonGold;
       }
@@ -707,8 +709,10 @@ function rollBossLoot(bossDef) {
 function updateDungeonGoldDisplay() {
   const el = document.getElementById('dungeon-gold-count');
   if (el) {
+    el.textContent = D.dungeonGold || 0;
     apiFetch('GET', '/game/dungeon/gold').then(res => {
       if (res && res.success) {
+        D.dungeonGold = res.dungeonGold || 0;
         el.textContent = res.dungeonGold;
       }
     }).catch(() => {});
@@ -1152,7 +1156,7 @@ function renderDungeonTab() {
                             <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
                                 <span class="dungeon-token-icon">💰</span>
                                 <span>Dungeon Gold:</span>
-                                <span id="dungeon-gold-count" class="dungeon-token-num">0</span>
+                                <span id="dungeon-gold-count" class="dungeon-token-num">${D.dungeonGold || 0}</span>
                             </div>
                         </div>
                         <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
@@ -1167,6 +1171,7 @@ function renderDungeonTab() {
                 if (D.combat) renderCombatPanel();
                 else renderDungeonView();
             }
+            updateDungeonGoldDisplay();
             renderLog();
         });
     } else {
@@ -1190,7 +1195,7 @@ function renderDungeonTab() {
                         <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
                             <span class="dungeon-token-icon">💰</span>
                             <span>Dungeon Gold:</span>
-                            <span id="dungeon-gold-count" class="dungeon-token-num">0</span>
+                            <span id="dungeon-gold-count" class="dungeon-token-num">${D.dungeonGold || 0}</span>
                         </div>
                     </div>
                     <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
@@ -2082,6 +2087,7 @@ global.debugDungeonDetails = function() {
       dungeonLog: [],
       savedProgress: {},
       dungeonInventory: [],
+      dungeonGold: 0,
       blacksmithUnlocked: false,
       guildReputation: 0,
     };
@@ -2136,6 +2142,9 @@ global.dungeonRun = (roomIdx) => {
   loadState();
 
 })(window);
+
+
+
 
 
 
