@@ -703,6 +703,93 @@
   cursor: not-allowed;
 }
 
+.raid-create-card,
+.raid-card {
+  align-items: flex-start;
+}
+
+.raids-grid {
+  margin-top: 10px;
+}
+
+.raid-card-icon {
+  font-size: 1.8rem;
+}
+
+.raid-create-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.raid-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgba(200,212,232,0.8);
+  font-size: 0.74rem;
+}
+
+.raid-field-wide {
+  grid-column: 1 / -1;
+}
+
+.raid-input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(5,8,14,0.9);
+  color: #e2e8f0;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+}
+
+.raid-member-leader {
+  border-color: rgba(124,58,237,0.4);
+  color: #c4b5fd;
+}
+
+.raid-summary {
+  margin-top: 10px;
+  color: rgba(226,232,240,0.92);
+}
+
+.raid-result-log {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(4,7,12,0.72);
+  border: 1px solid rgba(255,255,255,0.08);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.raid-result-line {
+  color: rgba(200,212,232,0.8);
+  font-size: 0.76rem;
+  line-height: 1.38;
+}
+
+.raid-status-completed {
+  border-color: rgba(46,204,113,0.22);
+}
+
+.raid-status-forming {
+  border-color: rgba(124,58,237,0.24);
+}
+
+@media (max-width: 640px) {
+  .raid-create-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .raid-field-wide {
+    grid-column: auto;
+  }
+}
+
 /* ── Topbar ── */
 .dungeon-topbar {
   display: flex;
