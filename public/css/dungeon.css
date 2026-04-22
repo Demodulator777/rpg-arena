@@ -2015,6 +2015,9 @@
 
   .dungeon-hud-room-log {
     display: block;
+    max-height: 2.7em;
+    overflow: hidden;
+    line-height: 1.35;
   }
   
   /* Adjust minimap position to avoid overlap */
