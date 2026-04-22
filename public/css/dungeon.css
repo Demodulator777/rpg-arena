@@ -395,16 +395,12 @@
   min-width: 60px;
   min-height: 52px;
   border-radius: 14px;
-  overflow: hidden;
-  background: rgba(8, 12, 18, 0.9);
-  border: 1px solid rgba(184, 201, 226, 0.18);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    inset 0 0 0 1px rgba(0,0,0,0.28),
-    0 8px 18px rgba(0,0,0,0.22);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   color: #e2e8f0;
   cursor: pointer;
-  transition: transform 0.15s, opacity 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: transform 0.15s, opacity 0.15s;
   font-size: 0;
   font-family: inherit;
 }
@@ -420,10 +416,15 @@
 }
 
 .dungeon-path-btn-arrow-img {
-  width: 100%;
-  height: 100%;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
   object-fit: cover;
   display: block;
+  border-radius: 14px;
+  border: 1px solid rgba(184, 201, 226, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 8px 18px rgba(0,0,0,0.22);
   filter: saturate(1.02) contrast(1.04);
 }
 
@@ -438,10 +439,12 @@
 .dungeon-path-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   opacity: 0.9;
+}
+
+.dungeon-path-btn:hover:not(:disabled) .dungeon-path-btn-arrow-img {
   border-color: rgba(212, 224, 244, 0.28);
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.09),
-    inset 0 0 0 1px rgba(0,0,0,0.28),
+    inset 0 1px 0 rgba(255,255,255,0.08),
     0 10px 22px rgba(0,0,0,0.28);
 }
 
