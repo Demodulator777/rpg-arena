@@ -3089,14 +3089,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: rgba(255,255,255,0.42);
     font-weight: 700;
 }
-.topbar-menu-subsection-label {
-    margin-top: 2px;
-    font-size: 0.6rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.28);
-    font-weight: 700;
-}
 .topbar-menu-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
