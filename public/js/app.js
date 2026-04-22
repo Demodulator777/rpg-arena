@@ -1540,12 +1540,12 @@ const eqGrid = `
           ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit')}
           ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
           ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
-          <div style="margin-top:13px;font-size:0.74rem;color:var(--text-dim);border-top:1px solid var(--border);padding-top:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-            <span title="${escHtml(dmgTooltip)}" style="cursor:help">
+          <div class="char-combat-summary">
+            <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
               ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
             </span>
-            <span>🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
-            ${hpCur<c.hp_max?'<span style="margin-left:auto;color:rgba(255,255,255,0.3)">⏳ +10% HP/hr</span>':''}
+            <span class="char-combat-summary-item">🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+            ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ +10% HP/hr</span>':''}
           </div>
           <div class="element-strip">
             <div class="element-strip-heading">Damage</div>
