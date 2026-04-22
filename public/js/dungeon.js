@@ -1357,7 +1357,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
               ${currentRoom.connections.map(ci => {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
-                const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : '?';
+                const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : null;
                 const monsterAlive = cr.monsters && cr.monsters.some(m => 
                   !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
                 );
@@ -1365,7 +1365,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                 return `
                   <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
                           ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
-                    <span class="dungeon-path-btn-icon">${directionArrow}</span>
+                    <span class="dungeon-path-btn-icon">${directionArrow ? `<img class="dungeon-path-btn-arrow-img" src="/images/assets/${directionArrow}arrow.png" alt="${directionArrow} arrow" loading="lazy" decoding="async">` : `<img class="dungeon-path-btn-arrow-img" src="/images/assets/question.png" alt="Unknown room" loading="lazy" decoding="async">`}</span>
                     <span class="dungeon-path-btn-text">${text}</span>
                     ${explored ? `<span class="dungeon-path-btn-roomno">#${ci + 1}</span>` : ''}
                   </button>
@@ -1382,23 +1382,37 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     renderLog();
   }
 
+
+  function hydrateDungeonPathButtons(connectionIds) {
+    const buttons = document.querySelectorAll('.dungeon-path-btn');
+    buttons.forEach((btn, index) => {
+      const targetIdx = connectionIds[index];
+      const iconEl = btn.querySelector('.dungeon-path-btn-icon');
+      if (!iconEl || targetIdx == null) return;
+      const explored = D.exploredRooms.has(targetIdx);
+      const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, targetIdx) : null;
+      const src = explored
+        ? `/images/assets/${directionArrow}arrow.png`
+        : `/images/assets/question.png`;
+      const alt = explored ? `${directionArrow} arrow` : 'Unknown room';
+      iconEl.innerHTML = `<img class="dungeon-path-btn-arrow-img" src="${src}" alt="${alt}" loading="lazy" decoding="async">`;
+    });
+  }
   function getRoomDirectionArrow(fromIdx, toIdx) {
     const fromRoom = D.rooms[fromIdx];
     const toRoom = D.rooms[toIdx];
-    if (!fromRoom || !toRoom) return '>';
+    if (!fromRoom || !toRoom) return 'right';
 
     const dx = toRoom.x - fromRoom.x;
     const dy = toRoom.y - fromRoom.y;
 
-    if (dx > 0 && dy === 0) return '>';
-    if (dx < 0 && dy === 0) return '<';
-    if (dx === 0 && dy < 0) return '^';
-    if (dx === 0 && dy > 0) return 'v';
-    if (dx > 0 && dy < 0) return '?';
-    if (dx < 0 && dy < 0) return '?';
-    if (dx > 0 && dy > 0) return '?';
-    if (dx < 0 && dy > 0) return '?';
-    return '>';
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      if (dx > 0) return 'right';
+      if (dx < 0) return 'left';
+    }
+    if (dy < 0) return 'up';
+    if (dy > 0) return 'down';
+    return 'right';
   }
 function renderMapGrid() {
     const grid = {};
@@ -2109,5 +2123,8 @@ global.dungeonRun = (roomIdx) => {
   loadState();
 
 })(window);
+
+
+
 
 
