@@ -139,6 +139,40 @@ const DUNGEON_GUILD_BOUNTY_POOL = [
     { id: 'bounty_dread_knight', monsterKey: 'dread_knight', monsterName: 'Dread Knight', minCount: 2, maxCount: 4, rewardGold: 1400, rewardReputation: 10 },
 ];
 
+const GUILD_RAID_CREATE_REPUTATION = 10;
+const GUILD_RAID_MAX_MEMBERS = 6;
+const GUILD_RAID_GLOBAL_COOLDOWN = 20 * 60 * 60;
+const GUILD_RAID_BOSS_POOL = [
+    { name: 'Death Knight Malachar', image: '/images/boss/malachar.jpg', baseHp: 600, baseAtk: 45, baseDef: 20 },
+    { name: 'Ignarath the Eternal', image: '/images/boss/ignarath.jpg', baseHp: 700, baseAtk: 55, baseDef: 25 },
+    { name: 'Nyxaroth the Devourer', image: '/images/boss/nyxaroth.jpg', baseHp: 800, baseAtk: 65, baseDef: 30 },
+    { name: 'The Hollow King', image: '/images/boss/hollowking.jpg', baseHp: 900, baseAtk: 70, baseDef: 35 },
+    { name: 'Voidborn Colossus', image: '/images/boss/voidborn.jpg', baseHp: 1000, baseAtk: 80, baseDef: 40 },
+    { name: 'The Undying Empress', image: '/images/boss/empress.jpg', baseHp: 1100, baseAtk: 90, baseDef: 45 },
+    { name: 'Abyssal Sovereign', image: '/images/boss/sovereign.jpg', baseHp: 1200, baseAtk: 95, baseDef: 50 },
+];
+
+function getGuildRaidBossForFloor(floor) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const idx = (safeFloor - 1) % GUILD_RAID_BOSS_POOL.length;
+    const tier = Math.floor((safeFloor - 1) / GUILD_RAID_BOSS_POOL.length);
+    const base = GUILD_RAID_BOSS_POOL[idx];
+    const scale = 1 + (safeFloor - 1) * 0.18 + tier * 0.5;
+    const hp = Math.round(base.baseHp * scale * 6);
+    const atk = Math.round(base.baseAtk * scale * 6);
+    const def = Math.round(base.baseDef * scale * 6);
+    return {
+        floor: safeFloor,
+        name: base.name,
+        image: base.image,
+        hp,
+        atk,
+        def,
+        dmgMin: Math.max(1, Math.round(atk * 0.78)),
+        dmgMax: Math.max(2, Math.round(atk * 1.18)),
+    };
+}
+
 const WEEKLY_TASK_MATERIAL_OPTIONS = [
     'mithril_ore',
     'frost_essence',
@@ -223,6 +257,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN global_cooldown_until INTEGER DEFAULT 0',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -394,6 +429,34 @@ const WEEKLY_TASKS = [
             body TEXT NOT NULL,
             reward_payload TEXT,
             recipient_count INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raids (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            leader_char_id INTEGER NOT NULL,
+            leader_user_id INTEGER NOT NULL,
+            floor INTEGER NOT NULL,
+            boss_name TEXT NOT NULL,
+            boss_image TEXT,
+            boss_hp INTEGER NOT NULL DEFAULT 0,
+            boss_atk INTEGER NOT NULL DEFAULT 0,
+            boss_def INTEGER NOT NULL DEFAULT 0,
+            auto_start_mode TEXT NOT NULL DEFAULT 'manual',
+            scheduled_start_at INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'forming',
+            created_at INTEGER NOT NULL,
+            started_at INTEGER NOT NULL DEFAULT 0,
+            completed_at INTEGER NOT NULL DEFAULT 0,
+            result_summary TEXT,
+            result_log TEXT
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raid_members (
+            raid_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            joined_at INTEGER NOT NULL,
+            claimed_at INTEGER NOT NULL DEFAULT 0,
+            reward_payload TEXT,
+            PRIMARY KEY (raid_id, char_id)
         )`, args: [] });
         
         // Skill tree migrations
@@ -2192,6 +2255,273 @@ async function ensureActiveGuildBounty(db, charId) {
         [charId, nextBounty.bountyId, nextBounty.targetSource, nextBounty.targetKey, nextBounty.targetName, nextBounty.targetCount, nextBounty.progress, nextBounty.rewardGold, nextBounty.rewardReputation, nextBounty.completedAt, nextBounty.claimedAt, nextBounty.rolledAt]
     );
     return dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+}
+
+async function getGuildRaidMembers(db, raidId) {
+    return dbAll(db, `SELECT m.*, c.name, c.class, c.level
+        FROM guild_raid_members m
+        JOIN characters c ON c.id = m.char_id
+        WHERE m.raid_id = ?
+        ORDER BY m.joined_at ASC, m.char_id ASC`, [raidId]);
+}
+
+async function getGuildRaidById(db, raidId) {
+    return dbGet(db, 'SELECT * FROM guild_raids WHERE id = ?', [raidId]);
+}
+
+async function getOpenRaidForLeader(db, leaderCharId) {
+    return dbGet(db, `SELECT * FROM guild_raids
+        WHERE leader_char_id = ? AND status = 'forming'
+        ORDER BY created_at DESC LIMIT 1`, [leaderCharId]);
+}
+
+async function getActiveRaidMembershipForUser(db, userId) {
+    return dbGet(db, `SELECT gr.id, gr.status
+        FROM guild_raid_members gm
+        JOIN guild_raids gr ON gr.id = gm.raid_id
+        WHERE gm.user_id = ? AND gr.status = 'forming'
+        LIMIT 1`, [userId]);
+}
+
+async function getActiveRaidMembershipForChar(db, charId) {
+    return dbGet(db, `SELECT gr.id, gr.status
+        FROM guild_raid_members gm
+        JOIN guild_raids gr ON gr.id = gm.raid_id
+        WHERE gm.char_id = ? AND gr.status = 'forming'
+        LIMIT 1`, [charId]);
+}
+
+async function getCharacterBusyState(db, char) {
+    const now = Math.floor(Date.now() / 1000);
+    const activeMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id = ?', [char.id]);
+    const globalCooldownUntil = Number(char.global_cooldown_until || 0);
+    if (globalCooldownUntil > now) {
+        return { busy: true, reason: `Global cooldown active for ${Math.ceil((globalCooldownUntil - now) / 3600)}h.` };
+    }
+    if (activeMission) return { busy: true, reason: 'Cannot join or create a raid while on a mission.' };
+    if ((char.travel_target || '') && Number(char.travel_end_time || 0) > now) {
+        return { busy: true, reason: 'Cannot join or create a raid while traveling.' };
+    }
+    return { busy: false, reason: '' };
+}
+
+function buildRaidRewardPayload(floor) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const gold = 900 + safeFloor * 220;
+    const gems = 1;
+    const chestQty = safeFloor >= 5 ? 1 : 0;
+    const payload = { gold, gems };
+    if (chestQty > 0) {
+        payload.item = {
+            type: 'consumable',
+            itemType: 'consumable',
+            itemData: { name: 'Rare Item Chest', type: 'chest', quality: 'rare', qty: chestQty }
+        };
+    }
+    return payload;
+}
+
+function buildRaidBossFighter(raid) {
+    return {
+        id: `raid_boss_${raid.id}`,
+        name: raid.boss_name,
+        class: 'raid_boss',
+        hp: Number(raid.boss_hp || 1),
+        dmgMin: Math.max(1, Math.round((raid.boss_atk || 1) * 0.78)),
+        dmgMax: Math.max(2, Math.round((raid.boss_atk || 1) * 1.18)),
+        strength: Number(raid.boss_atk || 1),
+        agility: Math.max(12, Math.round((raid.floor || 1) * 1.5) + 10),
+        magic: Math.round((raid.boss_atk || 1) * 0.55),
+        defense: Number(raid.boss_def || 0),
+        hit_chance: Math.min(95, 28 + Number(raid.floor || 1)),
+        crit_chance: Math.min(35, 8 + Math.floor(Number(raid.floor || 1) / 3)),
+        armor: Number(raid.boss_def || 0),
+        elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        skillEffects: {},
+        skillMods: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        dualWield: false,
+    };
+}
+
+function buildRaidPartyFighter(raidId, members, fighters) {
+    const base = {
+        id: `raid_party_${raidId}`,
+        name: 'Raid Party',
+        class: 'raid_party',
+        hp: 0,
+        dmgMin: 0,
+        dmgMax: 0,
+        strength: 0,
+        agility: 0,
+        magic: 0,
+        defense: 0,
+        hit_chance: 0,
+        crit_chance: 0,
+        armor: 0,
+        elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        skillEffects: {},
+        skillMods: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        dualWield: false,
+    };
+    for (const fighter of fighters) {
+        base.hp += Number(fighter.hp || 0);
+        base.dmgMin += Number(fighter.dmgMin || 0);
+        base.dmgMax += Number(fighter.dmgMax || 0);
+        base.strength += Number(fighter.strength || 0);
+        base.agility += Number(fighter.agility || 0);
+        base.magic += Number(fighter.magic || 0);
+        base.defense += Number(fighter.defense || 0);
+        base.hit_chance += Number(fighter.hit_chance || 0);
+        base.crit_chance += Number(fighter.crit_chance || 0);
+        base.armor += Number(fighter.armor || 0);
+        for (const elem of ELEMENTS) {
+            base.elem_dmg[elem] += Number(fighter.elem_dmg?.[elem] || 0);
+            base.elem_resist[elem] += Number(fighter.elem_resist?.[elem] || 0);
+        }
+    }
+    const count = Math.max(1, fighters.length);
+    base.hit_chance = Math.min(95, Math.round(base.hit_chance / count));
+    base.crit_chance = Math.min(60, Math.round(base.crit_chance / count));
+    return base;
+}
+
+async function finalizeGuildRaid(db, raid, members) {
+    if (!raid || raid.status !== 'forming' || !members?.length) return raid;
+    const now = Math.floor(Date.now() / 1000);
+    const fighters = [];
+    const memberChars = [];
+    for (const member of members) {
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [member.char_id]);
+        if (!char) continue;
+        await applyHpRegen(db, char.id);
+        const refreshed = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        if (!refreshed) continue;
+        memberChars.push(refreshed);
+        fighters.push(await buildCombatFighter(db, refreshed));
+    }
+    if (!fighters.length) {
+        await dbRun(db, 'UPDATE guild_raids SET status = ? WHERE id = ?', ['completed', raid.id]);
+        return getGuildRaidById(db, raid.id);
+    }
+
+    const party = buildRaidPartyFighter(raid.id, members, fighters);
+    const boss = buildRaidBossFighter(raid);
+    const battle = runBattle(party, boss);
+    const raidWon = String(battle.winnerId) === String(party.id);
+    const totalHpBefore = fighters.reduce((sum, fighter) => sum + Number(fighter.hp || 0), 0);
+    const hpRatio = totalHpBefore > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalHpBefore)) : 0;
+    const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor) : null;
+    const globalCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
+
+    for (let i = 0; i < memberChars.length; i++) {
+        const char = memberChars[i];
+        const fighter = fighters[i];
+        const nextHp = raidWon
+            ? Math.max(1, Math.floor(Number(fighter.hp || 1) * hpRatio))
+            : Math.max(0, Math.floor(Number(fighter.hp || 1) * hpRatio));
+        await dbRun(
+            db,
+            'UPDATE characters SET hp_current = ?, global_cooldown_until = ?, attack_cooldown_until = ?, last_battle_at = ? WHERE id = ?',
+            [nextHp, globalCooldownUntil, globalCooldownUntil, now, char.id]
+        );
+        await dbRun(
+            db,
+            'UPDATE guild_raid_members SET reward_payload = ? WHERE raid_id = ? AND char_id = ?',
+            [rewardPayload ? JSON.stringify(rewardPayload) : null, raid.id, char.id]
+        );
+    }
+
+    const resultSummary = raidWon
+        ? `${party.name} defeated ${raid.boss_name} on Floor ${raid.floor}.`
+        : `${raid.boss_name} crushed the party on Floor ${raid.floor}.`;
+    await dbRun(
+        db,
+        'UPDATE guild_raids SET status = ?, started_at = ?, completed_at = ?, result_summary = ?, result_log = ? WHERE id = ?',
+        ['completed', now, now, resultSummary, JSON.stringify(battle.log || []), raid.id]
+    );
+    return getGuildRaidById(db, raid.id);
+}
+
+async function maybeAutoStartGuildRaids(db) {
+    const now = Math.floor(Date.now() / 1000);
+    const formingRaids = await dbAll(db, `SELECT gr.*,
+        (SELECT COUNT(*) FROM guild_raid_members gm WHERE gm.raid_id = gr.id) AS member_count
+        FROM guild_raids gr
+        WHERE gr.status = 'forming'
+        ORDER BY gr.created_at ASC`);
+    for (const raid of formingRaids) {
+        const isFullAuto = raid.auto_start_mode === 'full' && Number(raid.member_count || 0) >= GUILD_RAID_MAX_MEMBERS;
+        const isScheduled = raid.auto_start_mode === 'scheduled' && Number(raid.scheduled_start_at || 0) > 0 && Number(raid.scheduled_start_at || 0) <= now;
+        if (!isFullAuto && !isScheduled) continue;
+        const members = await getGuildRaidMembers(db, raid.id);
+        await finalizeGuildRaid(db, raid, members);
+    }
+}
+
+async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
+    const members = await getGuildRaidMembers(db, raid.id);
+    const viewerMember = members.find(m => String(m.char_id) === String(viewerCharId) || String(m.user_id) === String(viewerUserId)) || null;
+    let reward = null;
+    if (viewerMember?.reward_payload) {
+        try { reward = JSON.parse(viewerMember.reward_payload); } catch {}
+    }
+    let resultLog = [];
+    if (raid.result_log) {
+        try { resultLog = JSON.parse(raid.result_log) || []; } catch {}
+    }
+    return {
+        id: raid.id,
+        floor: Number(raid.floor || 1),
+        bossName: raid.boss_name,
+        bossImage: raid.boss_image || '',
+        bossHp: Number(raid.boss_hp || 0),
+        bossAtk: Number(raid.boss_atk || 0),
+        bossDef: Number(raid.boss_def || 0),
+        status: raid.status,
+        autoStartMode: raid.auto_start_mode || 'manual',
+        scheduledStartAt: Number(raid.scheduled_start_at || 0),
+        createdAt: Number(raid.created_at || 0),
+        startedAt: Number(raid.started_at || 0),
+        completedAt: Number(raid.completed_at || 0),
+        resultSummary: raid.result_summary || '',
+        resultLog,
+        memberCount: members.length,
+        isLeader: String(raid.leader_char_id) === String(viewerCharId),
+        isMember: !!viewerMember,
+        rewardClaimed: Number(viewerMember?.claimed_at || 0) > 0,
+        reward,
+        members: members.map(member => ({
+            charId: member.char_id,
+            userId: member.user_id,
+            name: member.name,
+            class: member.class,
+            level: member.level,
+            joinedAt: Number(member.joined_at || 0),
+            claimedAt: Number(member.claimed_at || 0),
+            isLeader: String(member.char_id) === String(raid.leader_char_id),
+        })),
+    };
+}
+
+async function getGuildRaidList(db, viewerCharId, viewerUserId) {
+    await maybeAutoStartGuildRaids(db);
+    const raids = await dbAll(db, `SELECT * FROM guild_raids
+        WHERE status IN ('forming', 'completed')
+        ORDER BY CASE WHEN status = 'forming' THEN 0 ELSE 1 END, created_at DESC
+        LIMIT 12`);
+    const payload = [];
+    for (const raid of raids) {
+        payload.push(await buildGuildRaidView(db, raid, viewerCharId, viewerUserId));
+    }
+    return payload;
 }
 
 async function recordMonsterDefeat(db, { charId, source = 'mission', monsterKey, monsterName, count = 1, now }) {
@@ -4023,6 +4353,7 @@ async function buildCharacterResponse(char, db) {
         referrals_level5: Number(userSettings?.referrals_level5 || 0),
         pending_referral_gold: pendingReferralGold,
         pending_referral_gems: pendingReferralGems,
+        global_cooldown_until: Number(char.global_cooldown_until || 0),
         inbox_badge_messages: Number(userSettings?.inbox_badge_messages ?? 1) !== 0,
         inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
         inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
@@ -4521,6 +4852,10 @@ router.post('/missions/start', auth, async (req, res) => {
         const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
+        if (Number(character.global_cooldown_until || 0) > now) {
+            const remain = Number(character.global_cooldown_until || 0) - now;
+            return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
+        }
 
         const currentMap = character.current_map || 'overworld';
         let zone;
@@ -5340,6 +5675,10 @@ router.post('/travel/start', auth, async (req, res) => {
         if (!zone) return res.status(400).json({ error: 'Invalid zone' });
         if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
         const now = Math.floor(Date.now() / 1000);
+        if (Number(character.global_cooldown_until || 0) > now) {
+            const remain = Number(character.global_cooldown_until || 0) - now;
+            return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
+        }
         if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
         const allowedNodes = getTravelUnlockSet(character, currentMap);
         allowedNodes.add(character.location);
@@ -5821,6 +6160,9 @@ router.get('/matchmaking', auth, async (req, res) => {
         if (!me) return res.status(404).json({ error: 'No character' });
         const direction = req.query.direction || 'similar';
         const now = Math.floor(Date.now() / 1000);
+        if (Number(me.global_cooldown_until || 0) > now) {
+            return res.json({ active: false, globalCooldown: Number(me.global_cooldown_until || 0) });
+        }
         const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
 
         let candidates = await dbAll(db, `
@@ -5872,6 +6214,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         if (!defender) return res.status(404).json({ error: 'Target not found' });
         if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'You cannot attack characters on your own account.' });
         const now = Math.floor(Date.now() / 1000);
+        if (Number(attacker.global_cooldown_until || 0) > now) {
+            const remain = Number(attacker.global_cooldown_until || 0) - now;
+            return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
+        }
         const atkMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [attacker.id]);
         if (atkMission) return res.status(400).json({ error: 'Cannot attack while on a mission.' });
         if (attacker.travel_target && attacker.travel_end_time > now)
@@ -6844,15 +7190,150 @@ router.get('/dungeon/gold', auth, async (req, res) => {
 router.get('/dungeon/guild', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, dungeon_gold, guild_reputation, dungeon_highest_floor, global_cooldown_until, travel_target, travel_end_time');
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const bounty = await ensureActiveGuildBounty(db, char.id);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ 
       success: true, 
       dungeonGold: char?.dungeon_gold || 0,
       guildReputation: char?.guild_reputation || 0,
-      bounty
+      highestFloor: Number(char?.dungeon_highest_floor || 1),
+      globalCooldownUntil: Number(char?.global_cooldown_until || 0),
+      bounty,
+      raids
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, guild_reputation, dungeon_highest_floor, global_cooldown_until, travel_target, travel_end_time');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const busy = await getCharacterBusyState(db, char);
+    if (busy.busy) return res.status(400).json({ error: busy.reason });
+    if (Number(char.guild_reputation || 0) < GUILD_RAID_CREATE_REPUTATION) {
+      return res.status(403).json({ error: 'Apprentice rank required to create raids.' });
+    }
+    const existingLead = await getOpenRaidForLeader(db, char.id);
+    if (existingLead) return res.status(400).json({ error: 'You already lead an active forming raid.' });
+    const existingMember = await getActiveRaidMembershipForUser(db, req.user.userId);
+    if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
+
+    const requestedFloor = Math.max(1, Number(req.body?.floor || 1));
+    const maxFloor = Math.max(1, Number(char.dungeon_highest_floor || 1));
+    if (requestedFloor > maxFloor) {
+      return res.status(400).json({ error: `You can only create raids up to floor ${maxFloor}.` });
+    }
+
+    const autoStartMode = ['manual', 'full', 'scheduled'].includes(String(req.body?.autoStartMode || 'manual'))
+      ? String(req.body.autoStartMode)
+      : 'manual';
+    let scheduledStartAt = Math.max(0, Number(req.body?.scheduledStartAt || 0));
+    if (autoStartMode === 'scheduled') {
+      if (!scheduledStartAt || scheduledStartAt <= now + 30) {
+        return res.status(400).json({ error: 'Choose a scheduled start at least 30 seconds ahead.' });
+      }
+    } else {
+      scheduledStartAt = 0;
+    }
+
+    const boss = getGuildRaidBossForFloor(requestedFloor);
+    const created = await dbRun(db, `INSERT INTO guild_raids
+      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?)`,
+      [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, scheduledStartAt, now]
+    );
+    const raidId = Number(created.lastInsertRowid);
+    await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
+      VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: `Raid created for Floor ${requestedFloor}.`, raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, global_cooldown_until, travel_target, travel_end_time');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const busy = await getCharacterBusyState(db, char);
+    if (busy.busy) return res.status(400).json({ error: busy.reason });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    const existingMember = await getActiveRaidMembershipForUser(db, req.user.userId);
+    if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
+    const members = await getGuildRaidMembers(db, raidId);
+    if (members.some(member => String(member.user_id) === String(req.user.userId))) {
+      return res.status(400).json({ error: 'Your account is already in this raid.' });
+    }
+    if (members.length >= GUILD_RAID_MAX_MEMBERS) return res.status(400).json({ error: 'Raid is already full.' });
+    await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
+      VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
+    await maybeAutoStartGuildRaids(db);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Joined the raid party.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/start', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can start this raid.' });
+    }
+    const members = await getGuildRaidMembers(db, raid.id);
+    await finalizeGuildRaid(db, raid, members);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid battle resolved.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, gold, gems');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'completed') return res.status(404).json({ error: 'Raid rewards are not ready.' });
+    const member = await dbGet(db, 'SELECT * FROM guild_raid_members WHERE raid_id = ? AND char_id = ?', [raidId, char.id]);
+    if (!member) return res.status(404).json({ error: 'You are not a member of this raid.' });
+    if (Number(member.claimed_at || 0) > 0) return res.status(400).json({ error: 'Raid reward already claimed.' });
+    let payload = null;
+    try { payload = member.reward_payload ? JSON.parse(member.reward_payload) : null; } catch {}
+    if (!payload) return res.status(400).json({ error: 'This raid did not grant a reward.' });
+
+    if (payload.gold) {
+      await dbRun(db, 'UPDATE characters SET gold = gold + ?, total_gold_earned = total_gold_earned + ? WHERE id = ?', [payload.gold, payload.gold, char.id]);
+    }
+    if (payload.gems) {
+      await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [payload.gems, payload.gems, char.id]);
+    }
+    if (payload.item?.itemType && payload.item?.itemData) {
+      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [char.id, payload.item.itemType, JSON.stringify(payload.item.itemData)]);
+    }
+    await dbRun(db, 'UPDATE guild_raid_members SET claimed_at = ? WHERE raid_id = ? AND char_id = ?', [Math.floor(Date.now() / 1000), raidId, char.id]);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'gold, gems');
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid reward claimed.', gold: updated?.gold || 0, gems: updated?.gems || 0, raids });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
