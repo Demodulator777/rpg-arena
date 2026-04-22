@@ -47,27 +47,6 @@
 .dungeon-floor-history {
   margin-top: 8px;
 }
-
-.dungeon-raid-hub-shell {
-  margin-top: 16px;
-}
-
-.dungeon-raid-hub-head {
-  margin-bottom: 10px;
-}
-
-.dungeon-raid-hub-title {
-  font-size: 0.7rem;
-  color: var(--dungeon-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.dungeon-raid-hub-subtitle {
-  margin-top: 6px;
-  color: rgba(200,212,232,0.72);
-  font-size: 0.8rem;
-}
 .dungeon-floor-preview-row {
   display: flex;
   gap: 8px;
