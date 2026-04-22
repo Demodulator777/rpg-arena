@@ -542,19 +542,6 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
-            <div class="topbar-menu-subsection-label">Inbox auto-read</div>
-            <button class="topbar-menu-toggle ${character?.inbox_autoread_messages === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'messages')}>
-                <span>Auto-read: messages</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_messages === true ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_autoread_battles === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'battles')}>
-                <span>Auto-read: battle reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_battles === true ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_autoread_missions === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'missions')}>
-                <span>Auto-read: mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_missions === true ? 'On' : 'Off'}</span>
-            </button>
         </div>`;
 }
 
@@ -894,19 +881,6 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
-            <div class="topbar-menu-subsection-label">Inbox auto-read</div>
-            <button class="topbar-menu-toggle ${character?.inbox_autoread_messages === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'messages')}>
-                <span>Auto-read: messages</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_messages === true ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_autoread_battles === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'battles')}>
-                <span>Auto-read: battle reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_battles === true ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_autoread_missions === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'missions')}>
-                <span>Auto-read: mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_missions === true ? 'On' : 'Off'}</span>
-            </button>
         </div>`;
 }
 
@@ -946,16 +920,6 @@ async function toggleInboxBadgeSetting(settingKey) {
     syncClientPreferencesFromCharacter();
     renderTopbarMenu();
     pollUnread();
-}
-async function toggleInboxAutoReadSetting(settingKey) {
-    const payload = {};
-    if (settingKey === 'messages') payload.inboxAutoReadMessages = !(character?.inbox_autoread_messages === true);
-    if (settingKey === 'battles') payload.inboxAutoReadBattles = !(character?.inbox_autoread_battles === true);
-    if (settingKey === 'missions') payload.inboxAutoReadMissions = !(character?.inbox_autoread_missions === true);
-    const response = await api('POST', '/game/settings', payload);
-    if (response?.character) character = response.character;
-    syncClientPreferencesFromCharacter();
-    renderTopbarMenu();
 }
 
 function renderCharacterSwitcher() {
@@ -5998,10 +5962,6 @@ function renderInboxFilter(filter) {
                 const exp = b.style.display !== 'none';
                 b.style.display = exp ? 'none' : 'block';
                 ac.style.display = exp ? 'none' : 'flex';
-                if (!m.read && !exp && character?.inbox_autoread_messages === true) {
-                    await markInboxRead(m.id, false);
-                    pollUnread();
-                }
             });
         });
     }
@@ -6028,12 +5988,6 @@ function viewBattleReport(msgId) {
         missionName: report.missionName || '',
         battleType: report.type === 'pvp' ? 'pvp' : 'mission'
     });
-    const autoRead = report.type === 'mission'
-        ? character?.inbox_autoread_missions === true
-        : character?.inbox_autoread_battles === true;
-    if (autoRead) {
-        markInboxRead(msgId, false).then(() => pollUnread()).catch(() => {});
-    }
 }
 async function markInboxRead(id, refreshInbox = true) {
     const data = window._inboxData || {};
