@@ -1268,11 +1268,10 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     `;
   }
 
-  function renderDungeonView() {
+    function renderDungeonView() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
 
-    // Combat overlay is separate from the main HUD; clear it whenever we re-render the room.
     const overlay = document.getElementById('dungeon-overlay');
     if (overlay) overlay.innerHTML = '';
     
@@ -1299,6 +1298,14 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const visual = currentRoom.visual || (currentRoom.isBoss ? DUNGEON_VISUALS.boss : currentRoom.isStart ? DUNGEON_VISUALS.start : DUNGEON_VISUALS.corridor);
     const roomImage = visual.image || '';
     const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
+    const latestLogMessage = D.dungeonLog && D.dungeonLog[0] ? D.dungeonLog[0].msg : '';
+    const roomLabel = currentRoom.isBoss
+      ? 'Boss Room'
+      : currentRoom.isStart
+        ? 'Entrance'
+        : currentRoom.type === 'treasure'
+          ? 'Treasure Room'
+          : 'Corridor';
 
     area.innerHTML = `
       <div class="dungeon-game" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
@@ -1310,17 +1317,17 @@ const previewFloors = [0,1,2,3,4].map(offset => {
 
 <div class="dungeon-hud-top">
   <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
-  <div id="dungeon-log-entries" class="dungeon-hud-log-inline"></div>
+  <div class="dungeon-hud-log-inline dungeon-log-entries-target"></div>
   <div class="dungeon-hud-floor">Floor ${D.floor}</div>
   <div class="dungeon-hud-actions">
-    <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>🏛️ Guild</button>
+    <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>Guild</button>
     <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" ${actionAttrs('dungeonExit')}>Exit</button>
   </div>
 </div>
 
           <div class="dungeon-hud-log">
             <div class="dungeon-hud-log-title">Log</div>
-            <div id="dungeon-log-entries" class="dungeon-hud-log-entries"></div>
+            <div class="dungeon-hud-log-entries dungeon-log-entries-target"></div>
           </div>
 
           <div class="dungeon-hud-minimap">
@@ -1331,13 +1338,11 @@ const previewFloors = [0,1,2,3,4].map(offset => {
           <div class="dungeon-hud-center">
             <div class="dungeon-hud-room">
               <div class="dungeon-hud-room-title">
-                ${currentRoom.isBoss ? `⚠️ Boss Room` :
-                  currentRoom.isStart ? `🚪 Entrance` :
-                  currentRoom.type === 'treasure' ? `💰 Treasure Room` :
-                  `🏚️ Corridor`}
-                <span class="dungeon-hud-room-id"> · Room ${D.playerPos + 1}</span>
+                ${roomLabel}
+                <span class="dungeon-hud-room-id"> � Room ${D.playerPos + 1}</span>
               </div>
               <div class="dungeon-hud-room-desc">${roomDescription}</div>
+              ${latestLogMessage ? `<div class="dungeon-hud-room-log">${latestLogMessage}</div>` : ''}
               <div class="dungeon-hud-room-info">
                 ${renderRoomInfo(currentRoom)}
               </div>
@@ -1352,19 +1357,17 @@ const previewFloors = [0,1,2,3,4].map(offset => {
               ${currentRoom.connections.map(ci => {
                 const cr = D.rooms[ci];
                 const explored = D.exploredRooms.has(ci);
-                // Monster is considered "alive" only if it has never been killed, or the respawn cooldown has elapsed.
+                const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : '?';
                 const monsterAlive = cr.monsters && cr.monsters.some(m => 
-    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
-);
-                const icon = explored
-                  ? (cr.isBoss ? '⚠️' : cr.type === 'treasure' ? '💰' : monsterAlive ? '👹' : '🏚️')
-                  : '❓';
+                  !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+                );
                 const text = explored ? `Room ${ci+1}` : 'Unknown';
                 return `
                   <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
                           ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
-                    <span class="dungeon-path-btn-icon">${icon}</span>
+                    <span class="dungeon-path-btn-icon">${directionArrow}</span>
                     <span class="dungeon-path-btn-text">${text}</span>
+                    ${explored ? `<span class="dungeon-path-btn-roomno">#${ci + 1}</span>` : ''}
                   </button>
                 `;
               }).join('')}
@@ -1376,26 +1379,38 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       </div>
     `;
 
-    // After rebuilding HUD DOM, repopulate the log entries.
     renderLog();
   }
 
-  function renderMapGrid() {
+  function getRoomDirectionArrow(fromIdx, toIdx) {
+    const fromRoom = D.rooms[fromIdx];
+    const toRoom = D.rooms[toIdx];
+    if (!fromRoom || !toRoom) return '>';
+
+    const dx = toRoom.x - fromRoom.x;
+    const dy = toRoom.y - fromRoom.y;
+
+    if (dx > 0 && dy === 0) return '>';
+    if (dx < 0 && dy === 0) return '<';
+    if (dx === 0 && dy < 0) return '^';
+    if (dx === 0 && dy > 0) return 'v';
+    if (dx > 0 && dy < 0) return '?';
+    if (dx < 0 && dy < 0) return '?';
+    if (dx > 0 && dy > 0) return '?';
+    if (dx < 0 && dy > 0) return '?';
+    return '>';
+  }
+function renderMapGrid() {
     const grid = {};
     for (let i = 0; i < D.rooms.length; i++) {
         const r = D.rooms[i];
         grid[`${r.x},${r.y}`] = i;
     }
 
-    const xs = D.rooms.map(r => r.x), ys = D.rooms.map(r => r.y);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minY = Math.min(...ys), maxY = Math.max(...ys);
-    
     const currentRoom = D.rooms[D.playerPos];
     const centerX = currentRoom.x;
     const centerY = currentRoom.y;
     
-    // Show 5x5 grid centered on player
     const viewSize = 5;
     const offset = Math.floor(viewSize / 2);
     const viewMinX = centerX - offset;
@@ -1426,21 +1441,12 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                 else if (monsterAlive) roomClass += ' map-room-monster';
                 else roomClass += ' map-room-clear';
 
-                let icon = '';
-                if (explored) {
-                    if (isPlayer) icon = '🧙';
-                    else if (room.isBoss) icon = '💀';
-                    else if (room.isMiniBoss) icon = '⚠️';
-                    else if (room.type === 'treasure') icon = '💰';
-                    else if (monsterAlive) icon = '👹';
-                    else icon = '✓';
-                } else {
-                    icon = '?';
-                }
+                const icon = explored ? (idx + 1) : '?';
+                const title = explored
+                  ? (room.isBoss ? `Boss Room � #${idx + 1}` : room.isMiniBoss ? `Mini-Boss � #${idx + 1}` : `Room ${idx + 1}`)
+                  : '???';
 
-                html += `<div class="${roomClass}" title="${explored ? (room.isBoss ? 'BOSS' : room.isMiniBoss ? 'MINI-BOSS' : `Room ${idx+1}`) : '???'}">
-                    ${icon}
-                </div>`;
+                html += `<div class="${roomClass}" title="${title}">${icon}</div>`;
             } else {
                 html += `<div class="map-void"></div>`;
             }
@@ -1450,7 +1456,6 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     html += '</div>';
     return html;
 }
-
 function renderRoomInfo(room) {
     // Check if there are any monsters (array) and if any are alive
     const hasMonsters = room.monsters && room.monsters.length > 0;
@@ -1628,11 +1633,14 @@ function renderRoomInfo(room) {
     `;
 }
   function renderLog() {
-    const el = document.getElementById('dungeon-log-entries');
-    if (!el) return;
-    el.innerHTML = D.dungeonLog.slice(0, 20).map(e =>
+    const entriesHtml = D.dungeonLog.slice(0, 20).map(e =>
       `<div class="dungeon-log-entry ${e.cls||''}">${e.msg}</div>`
     ).join('');
+    document.querySelectorAll('.dungeon-log-entries-target').forEach(el => {
+      el.innerHTML = entriesHtml;
+    });
+    const roomLog = document.querySelector('.dungeon-hud-room-log');
+    if (roomLog) roomLog.textContent = D.dungeonLog[0]?.msg || '';
   }
 
   function showBossVictoryModal(boss, loot) {
@@ -2101,3 +2109,5 @@ global.dungeonRun = (roomIdx) => {
   loadState();
 
 })(window);
+
+
