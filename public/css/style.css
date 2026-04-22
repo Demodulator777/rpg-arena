@@ -3397,7 +3397,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin-bottom: 12px;
 }
 .profile-combat-card {
-    grid-column: 1 / -1;
+    grid-column: auto;
 }
 .profile-card {
     background: linear-gradient(145deg, rgba(12,18,30,0.88), rgba(11,17,29,0.72));
@@ -3443,6 +3443,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-equipment-card { margin-bottom: 12px; }
 @media (max-width: 860px) {
     .profile-grid { grid-template-columns: 1fr; }
+    .profile-combat-card { grid-column: 1 / -1; }
     .profile-scene .class-scene-content { padding: 14px; }
     .profile-modal-box { padding: 8px; }
     .profile-header > div { min-width: 0; }
