@@ -3427,6 +3427,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-card .stat-val {
         font-size: 0.75rem;
     }
+    .profile-combat-card .stat-row {
+        grid-template-columns: 14px 22px minmax(150px, 1fr) 32px;
+    }
+    .profile-combat-card .stat-bar-wrap {
+        min-width: 150px;
+    }
 }
 @media (max-width: 560px) {
     .profile-grid {
@@ -3438,6 +3444,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-card .stat-row {
         grid-template-columns: 14px 22px minmax(0, 1fr) 30px;
         column-gap: 4px;
+    }
+    .profile-combat-card .stat-row {
+        grid-template-columns: 12px 20px minmax(120px, 1fr) 28px;
+    }
+    .profile-combat-card .stat-bar-wrap {
+        min-width: 120px;
     }
     .profile-card .stat-label {
         font-size: 0.6rem;
