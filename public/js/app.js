@@ -5081,6 +5081,10 @@ async function buyItem(itemId) {
             shopInventory = shopInventory.filter(i => i.id !== item.id);
         }
         renderShop(); 
+        const shopGoldEl = document.getElementById('shop-gold');
+        if (shopGoldEl) shopGoldEl.textContent = `💰 ${character.gold.toLocaleString()} Gold`;
+        const shopGemsEl = document.getElementById('shop-gems');
+        if (shopGemsEl) shopGemsEl.textContent = `💎 ${(character.gems || 0).toLocaleString()} Gems`;
         renderTopBar();
         renderCharacter(); // Force re-render character sheet with correct HP
         
@@ -7229,4 +7233,3 @@ function renderAbyssMap() {
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
-
