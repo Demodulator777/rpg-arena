@@ -1852,7 +1852,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 18px;
     object-fit: contain;
     display: block;
-    filter: drop-shadow(0 0 3px rgba(255,255,255,0.08));
+    filter:
+        brightness(1.2)
+        contrast(1.08)
+        saturate(0.15)
+        drop-shadow(0 0 4px rgba(255,255,255,0.16));
 }
 .stat-icon-fallback {
     display: inline-flex;
@@ -3356,6 +3360,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .profile-card .stat-bar {
     width: 100%;
+}
+.profile-card .stat-icon-img {
+    width: 16px;
+    height: 16px;
+    filter:
+        brightness(1.38)
+        contrast(1.12)
+        saturate(0.12)
+        drop-shadow(0 0 5px rgba(255,255,255,0.22));
+}
+.profile-card .stat-icon-fallback {
+    font-size: 0.88rem;
 }
 .profile-card .stat-label {
     font-size: 0.68rem;
