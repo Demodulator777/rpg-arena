@@ -2075,7 +2075,7 @@
   }
 
   .dungeon-hud-bottom {
-    bottom: 8px;
+    bottom: 18px;
     gap: 8px;
   }
 
@@ -2286,4 +2286,3 @@
     margin: 8px auto;
   }
 }
-
