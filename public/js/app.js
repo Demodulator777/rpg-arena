@@ -5350,13 +5350,13 @@ async function openProfile(id) {
           <div class="profile-grid">
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
-              ${miniStat('💪','STR',str,maxStat,'str')}
-              ${miniStat('🛡️','DEF',def,maxStat,'def')}
-              ${miniStat('⚡','AGI',agi,maxStat,'agi')}
-              ${miniStat('✨','MAG',mag,maxStat,'mag')}
-              ${miniStat('❤️','VIT',vit,maxStat,'vit')}
-              ${hc>0?miniStat('🎯','HIT',hc,maxStat,'hit'):''}
-              ${cc>0?miniStat('💥','CRIT',cc,maxStat,'crit'):''}
+              ${miniStat(renderStatIcon('strength','💪','Strength'),'STR',str,maxStat,'str')}
+              ${miniStat(renderStatIcon('defense','🛡️','Defense'),'DEF',def,maxStat,'def')}
+              ${miniStat(renderStatIcon('agility','⚡','Agility'),'AGI',agi,maxStat,'agi')}
+              ${miniStat(renderStatIcon('magic','✨','Magic'),'MAG',mag,maxStat,'mag')}
+              ${miniStat(renderStatIcon('vitality','❤️','Vitality'),'VIT',vit,maxStat,'vit')}
+              ${hc>0?miniStat(renderStatIcon('accuracy','🎯','Hit Chance'),'HIT',hc,maxStat,'hit'):''}
+              ${cc>0?miniStat(renderStatIcon('critical','💥','Crit Chance'),'CRIT',cc,maxStat,'crit'):''}
             </div>
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
