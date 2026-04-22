@@ -2037,6 +2037,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     flex-direction: column;
     gap: 8px;
+    align-items: center;
 }
 
 .element-strip-heading {
@@ -2044,12 +2045,36 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--text-dim);
+    text-align: center;
 }
 
 .element-badge-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    justify-content: center;
+}
+
+.char-combat-summary {
+    margin-top: 13px;
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    padding-top: 11px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.char-combat-summary-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.char-combat-summary-note {
+    color: rgba(255,255,255,0.3);
 }
 
 .element-entry {
