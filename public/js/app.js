@@ -1588,29 +1588,29 @@ function getClassStatIconFilter(className, profile = false) {
     const normalized = String(className || '').trim().toLowerCase();
     if (normalized === 'mage') {
         return profile
-            ? 'brightness(0) invert(1) sepia(0.8) saturate(4.8) hue-rotate(185deg) brightness(1.18)'
-            : 'brightness(0) invert(1) sepia(0.72) saturate(4.2) hue-rotate(185deg) brightness(1.08)';
+            ? 'brightness(0) saturate(100%) invert(70%) sepia(83%) saturate(2634%) hue-rotate(188deg) brightness(112%) contrast(110%)'
+            : 'brightness(0) saturate(100%) invert(66%) sepia(77%) saturate(2113%) hue-rotate(189deg) brightness(108%) contrast(106%)';
     }
     if (normalized === 'warrior') {
         return profile
-            ? 'brightness(0) invert(1) sepia(0.86) saturate(5.2) hue-rotate(340deg) brightness(1.12)'
-            : 'brightness(0) invert(1) sepia(0.8) saturate(4.6) hue-rotate(340deg) brightness(1.02)';
+            ? 'brightness(0) saturate(100%) invert(61%) sepia(62%) saturate(2464%) hue-rotate(342deg) brightness(106%) contrast(112%)'
+            : 'brightness(0) saturate(100%) invert(57%) sepia(56%) saturate(2010%) hue-rotate(344deg) brightness(102%) contrast(108%)';
     }
     if (normalized === 'paladin') {
         return profile
-            ? 'brightness(0) invert(1) sepia(0.96) saturate(4.0) hue-rotate(356deg) brightness(1.12)'
-            : 'brightness(0) invert(1) sepia(0.92) saturate(3.4) hue-rotate(356deg) brightness(1.02)';
+            ? 'brightness(0) saturate(100%) invert(84%) sepia(52%) saturate(1117%) hue-rotate(358deg) brightness(104%) contrast(108%)'
+            : 'brightness(0) saturate(100%) invert(78%) sepia(44%) saturate(1044%) hue-rotate(358deg) brightness(101%) contrast(105%)';
     }
     if (normalized === 'rogue') {
         return profile
-            ? 'brightness(0) invert(1) sepia(0.84) saturate(4.7) hue-rotate(118deg) brightness(1.14)'
-            : 'brightness(0) invert(1) sepia(0.78) saturate(4.1) hue-rotate(118deg) brightness(1.04)';
+            ? 'brightness(0) saturate(100%) invert(77%) sepia(53%) saturate(1067%) hue-rotate(98deg) brightness(105%) contrast(110%)'
+            : 'brightness(0) saturate(100%) invert(71%) sepia(45%) saturate(941%) hue-rotate(100deg) brightness(101%) contrast(106%)';
     }
     return profile ? 'brightness(0) invert(1) opacity(0.96)' : 'brightness(0) invert(1) opacity(0.92)';
 }
 function renderStatIcon(assetKey, fallback, label, className = '', profile = false) {
     const filter = getClassStatIconFilter(className, profile);
-    const glow = profile ? 'drop-shadow(0 0 5px rgba(255,255,255,0.22))' : 'drop-shadow(0 0 4px rgba(255,255,255,0.16))';
+    const glow = profile ? 'drop-shadow(0 0 7px rgba(255,255,255,0.28))' : 'drop-shadow(0 0 5px rgba(255,255,255,0.2))';
     return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true" style="filter:${filter} ${glow};"><span class="stat-icon-fallback">${fallback}</span>`;
 }
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
@@ -5373,7 +5373,7 @@ async function openProfile(id) {
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
           <div class="profile-grid">
-            <div class="profile-card">
+            <div class="profile-card profile-combat-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
               ${miniStat(renderStatIcon('strength','💪','Strength', p.class, true),'STR',str,maxStat,'str')}
               ${miniStat(renderStatIcon('defense','🛡️','Defense', p.class, true),'DEF',def,maxStat,'def')}
