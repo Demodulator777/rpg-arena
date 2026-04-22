@@ -2850,6 +2850,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.15);
 }
+.msg-row:not(.unread) {
+    opacity: 0.64;
+}
+.msg-row:not(.unread):hover {
+    opacity: 0.82;
+}
 .msg-row.unread {
     background: rgba(155, 89, 182, 0.05);
     border-color: rgba(155, 89, 182, 0.2);
@@ -3081,6 +3087,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(255,255,255,0.42);
+    font-weight: 700;
+}
+.topbar-menu-subsection-label {
+    margin-top: 2px;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
     font-weight: 700;
 }
 .topbar-menu-grid {
