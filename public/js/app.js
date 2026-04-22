@@ -542,6 +542,19 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
+            <div class="topbar-menu-subsection-label">Inbox auto-read</div>
+            <button class="topbar-menu-toggle ${character?.inbox_autoread_messages === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'messages')}>
+                <span>Auto-read: messages</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_messages === true ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_autoread_battles === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'battles')}>
+                <span>Auto-read: battle reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_battles === true ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_autoread_missions === true ? 'active' : ''}" ${actionAttrs('toggleInboxAutoReadSetting', 'missions')}>
+                <span>Auto-read: mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_autoread_missions === true ? 'On' : 'Off'}</span>
+            </button>
         </div>`;
 }
 
@@ -908,6 +921,16 @@ async function toggleInboxBadgeSetting(settingKey) {
     syncClientPreferencesFromCharacter();
     renderTopbarMenu();
     pollUnread();
+}
+async function toggleInboxAutoReadSetting(settingKey) {
+    const payload = {};
+    if (settingKey === 'messages') payload.inboxAutoReadMessages = !(character?.inbox_autoread_messages === true);
+    if (settingKey === 'battles') payload.inboxAutoReadBattles = !(character?.inbox_autoread_battles === true);
+    if (settingKey === 'missions') payload.inboxAutoReadMissions = !(character?.inbox_autoread_missions === true);
+    const response = await api('POST', '/game/settings', payload);
+    if (response?.character) character = response.character;
+    syncClientPreferencesFromCharacter();
+    renderTopbarMenu();
 }
 
 function renderCharacterSwitcher() {
@@ -5825,15 +5848,7 @@ async function loadInbox() {
         
         // Render default (messages)
         renderInboxFilter('messages');
-        
-        // Mark messages as read
-        messagesList.filter(m=>!m.read).forEach(async m=>{
-            m.read=1;
-            const row=document.getElementById(`msg-${m.id}`);
-            if(row){row.classList.remove('unread');const f=row.querySelector('.msg-from');if(f)f.classList.remove('unread-from');}
-            try{await api('POST',`/game/messages/${m.id}/read`);}catch{}
-        });
-        
+
         pollUnread();
     } catch(e) { el.innerHTML=`<p class="loading">${e.message}</p>`; }
 }
@@ -5880,6 +5895,7 @@ function renderInboxFilter(filter) {
             <div class="msg-actions" style="display:none">
                 ${!isSystem ? `<button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>` : ''}
                 ${claimableReward ? `<button class="btn-sm" ${actionAttrs('claimMessageReward', m.id)}>🎁 Claim Reward</button>` : ''}
+                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
                 <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
             </div>
         </div>`;
@@ -5905,6 +5921,7 @@ function renderInboxFilter(filter) {
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
                 <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
                 <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
             </div>
         </div>`;
@@ -5930,6 +5947,7 @@ function renderInboxFilter(filter) {
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
                 <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
+                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
                 <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
             </div>
         </div>`;
@@ -5955,31 +5973,14 @@ function renderInboxFilter(filter) {
                 const exp = b.style.display !== 'none';
                 b.style.display = exp ? 'none' : 'block';
                 ac.style.display = exp ? 'none' : 'flex';
-                if (!m.read && !exp) {
-                    m.read = 1;
-                    row.classList.remove('unread');
-                    row.querySelector('.msg-from').classList.remove('unread-from');
-                    await api('POST', `/game/messages/${m.id}/read`);
+                if (!m.read && !exp && character?.inbox_autoread_messages === true) {
+                    await markInboxRead(m.id, false);
                     pollUnread();
                 }
             });
         });
     }
-    
-    // Mark reports as read
-    if (filter !== 'messages') {
-        list.filter(m => !m.read).forEach(async m => {
-            m.read = 1;
-            const row = document.getElementById(`msg-${m.id}`);
-            if (row) {
-                row.classList.remove('unread');
-                const f = row.querySelector('.msg-from');
-                if (f) f.classList.remove('unread-from');
-            }
-            try { await api('POST', `/game/messages/${m.id}/read`); } catch {}
-        });
-    }
-    
+
     pollUnread();
     
     // Update tab UI
@@ -6002,6 +6003,33 @@ function viewBattleReport(msgId) {
         missionName: report.missionName || '',
         battleType: report.type === 'pvp' ? 'pvp' : 'mission'
     });
+    const autoRead = report.type === 'mission'
+        ? character?.inbox_autoread_missions === true
+        : character?.inbox_autoread_battles === true;
+    if (autoRead) {
+        markInboxRead(msgId, false).then(() => pollUnread()).catch(() => {});
+    }
+}
+async function markInboxRead(id, refreshInbox = true) {
+    const data = window._inboxData || {};
+    ['messages', 'battles', 'missions'].forEach(key => {
+        const list = data[key];
+        if (!Array.isArray(list)) return;
+        const msg = list.find(entry => String(entry.id) === String(id));
+        if (msg) msg.read = 1;
+    });
+    const row = document.getElementById(`msg-${id}`);
+    if (row) {
+        row.classList.remove('unread');
+        const from = row.querySelector('.msg-from');
+        if (from) from.classList.remove('unread-from');
+        const btn = row.querySelector('[data-action="markInboxRead"]');
+        if (btn) btn.remove();
+    }
+    await api('POST', `/game/messages/${id}/read`);
+    if (refreshInbox && document.getElementById('tab-inbox')?.classList.contains('active')) {
+        renderInboxFilter(document.querySelector('.inbox-tab.active')?.getAttribute('data-action-arg') || 'messages');
+    }
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
 async function claimMessageReward(id) {
