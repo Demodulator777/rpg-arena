@@ -258,6 +258,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN global_cooldown_until INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN raid_cooldown_until INTEGER DEFAULT 0',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -2293,14 +2294,9 @@ async function getActiveRaidMembershipForChar(db, charId) {
 
 async function getCharacterBusyState(db, char) {
     const now = Math.floor(Date.now() / 1000);
-    const activeMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id = ?', [char.id]);
-    const globalCooldownUntil = Number(char.global_cooldown_until || 0);
-    if (globalCooldownUntil > now) {
-        return { busy: true, reason: `Global cooldown active for ${Math.ceil((globalCooldownUntil - now) / 3600)}h.` };
-    }
-    if (activeMission) return { busy: true, reason: 'Cannot join or create a raid while on a mission.' };
-    if ((char.travel_target || '') && Number(char.travel_end_time || 0) > now) {
-        return { busy: true, reason: 'Cannot join or create a raid while traveling.' };
+    const raidCooldownUntil = Number(char.raid_cooldown_until || 0);
+    if (raidCooldownUntil > now) {
+        return { busy: true, reason: `Raid cooldown active for ${Math.ceil((raidCooldownUntil - now) / 3600)}h.` };
     }
     return { busy: false, reason: '' };
 }
@@ -2419,7 +2415,7 @@ async function finalizeGuildRaid(db, raid, members) {
     const totalHpBefore = fighters.reduce((sum, fighter) => sum + Number(fighter.hp || 0), 0);
     const hpRatio = totalHpBefore > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalHpBefore)) : 0;
     const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor) : null;
-    const globalCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
+    const raidCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
 
     for (let i = 0; i < memberChars.length; i++) {
         const char = memberChars[i];
@@ -2429,8 +2425,8 @@ async function finalizeGuildRaid(db, raid, members) {
             : Math.max(0, Math.floor(Number(fighter.hp || 1) * hpRatio));
         await dbRun(
             db,
-            'UPDATE characters SET hp_current = ?, global_cooldown_until = ?, attack_cooldown_until = ?, last_battle_at = ? WHERE id = ?',
-            [nextHp, globalCooldownUntil, globalCooldownUntil, now, char.id]
+            'UPDATE characters SET hp_current = ?, raid_cooldown_until = ?, last_battle_at = ? WHERE id = ?',
+            [nextHp, raidCooldownUntil, now, char.id]
         );
         await dbRun(
             db,
@@ -7190,7 +7186,7 @@ router.get('/dungeon/gold', auth, async (req, res) => {
 router.get('/dungeon/guild', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, dungeon_gold, guild_reputation, dungeon_highest_floor, global_cooldown_until, travel_target, travel_end_time');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, dungeon_gold, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const bounty = await ensureActiveGuildBounty(db, char.id);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
@@ -7199,7 +7195,7 @@ router.get('/dungeon/guild', auth, async (req, res) => {
       dungeonGold: char?.dungeon_gold || 0,
       guildReputation: char?.guild_reputation || 0,
       highestFloor: Number(char?.dungeon_highest_floor || 1),
-      globalCooldownUntil: Number(char?.global_cooldown_until || 0),
+      raidCooldownUntil: Number(char?.raid_cooldown_until || 0),
       bounty,
       raids
     });
@@ -7212,7 +7208,7 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
   try {
     const db = await getDb();
     const now = Math.floor(Date.now() / 1000);
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, guild_reputation, dungeon_highest_floor, global_cooldown_until, travel_target, travel_end_time');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const busy = await getCharacterBusyState(db, char);
     if (busy.busy) return res.status(400).json({ error: busy.reason });
@@ -7262,7 +7258,7 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
   try {
     const db = await getDb();
     const now = Math.floor(Date.now() / 1000);
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, global_cooldown_until, travel_target, travel_end_time');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, raid_cooldown_until');
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const busy = await getCharacterBusyState(db, char);
     if (busy.busy) return res.status(400).json({ error: busy.reason });
