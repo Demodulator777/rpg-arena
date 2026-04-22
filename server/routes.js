@@ -237,6 +237,9 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN inbox_badge_messages INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN inbox_badge_battles INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN inbox_badge_missions INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN inbox_autoread_messages INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_autoread_battles INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_autoread_missions INTEGER DEFAULT 0',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN sender_label TEXT DEFAULT NULL',
@@ -3922,7 +3925,7 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions FROM users WHERE id = ?', [char.user_id])
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
@@ -4023,6 +4026,9 @@ async function buildCharacterResponse(char, db) {
         inbox_badge_messages: Number(userSettings?.inbox_badge_messages ?? 1) !== 0,
         inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
         inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
+        inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
+        inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
+        inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -4218,6 +4224,18 @@ router.post('/settings', auth, async (req, res) => {
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeMissions')) {
             updates.push('inbox_badge_missions = ?');
             args.push(req.body.inboxBadgeMissions ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadMessages')) {
+            updates.push('inbox_autoread_messages = ?');
+            args.push(req.body.inboxAutoReadMessages ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadBattles')) {
+            updates.push('inbox_autoread_battles = ?');
+            args.push(req.body.inboxAutoReadBattles ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadMissions')) {
+            updates.push('inbox_autoread_missions = ?');
+            args.push(req.body.inboxAutoReadMissions ? 1 : 0);
         }
         if (!updates.length) {
             return res.status(400).json({ error: 'No settings provided.' });
