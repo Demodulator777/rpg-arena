@@ -705,15 +705,106 @@
 
 .raid-create-card,
 .raid-card {
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(124,58,237,0.16), transparent 42%),
+    rgba(4, 8, 14, 0.88);
+  border: 1px solid rgba(124,58,237,0.18);
+  box-shadow: 0 14px 28px rgba(0,0,0,0.22);
 }
 
 .raids-grid {
   margin-top: 10px;
+  grid-template-columns: 1fr;
 }
 
 .raid-card-icon {
-  font-size: 1.8rem;
+  width: 84px;
+  min-width: 84px;
+  min-height: 84px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  background:
+    linear-gradient(180deg, rgba(124,58,237,0.3), rgba(124,58,237,0.12)),
+    rgba(7,12,20,0.92);
+  border: 1px solid rgba(196,181,253,0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 10px 22px rgba(0,0,0,0.24);
+  color: #efe7ff;
+  font-size: 1rem;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.raid-card .exchange-info,
+.raid-create-card .exchange-info {
+  min-width: 0;
+}
+
+.raid-card .exchange-name,
+.raid-create-card .exchange-name {
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.raid-card .exchange-desc,
+.raid-create-card .exchange-desc {
+  line-height: 1.5;
+}
+
+.raid-card .exchange-cost,
+.raid-card .exchange-reward,
+.raid-create-card .exchange-cost,
+.raid-create-card .exchange-reward {
+  gap: 8px;
+}
+
+.raid-card .cost-item,
+.raid-card .reward-item,
+.raid-card .reward-gold,
+.raid-card .reward-rep,
+.raid-create-card .cost-item,
+.raid-create-card .reward-item,
+.raid-create-card .reward-gold,
+.raid-create-card .reward-rep {
+  padding: 5px 10px;
+  background: rgba(255,255,255,0.06);
+}
+
+.dungeon-raid-hub-shell {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(8,12,20,0.96), rgba(6,10,18,0.92));
+  border: 1px solid rgba(124,58,237,0.18);
+  box-shadow: 0 14px 28px rgba(0,0,0,0.2);
+}
+
+.dungeon-raid-hub-head {
+  margin-bottom: 12px;
+}
+
+.dungeon-raid-hub-title {
+  font-size: 0.72rem;
+  color: rgba(196,181,253,0.86);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.dungeon-raid-hub-subtitle {
+  margin-top: 6px;
+  color: rgba(200,212,232,0.74);
+  font-size: 0.82rem;
 }
 
 .raid-create-grid {
@@ -781,6 +872,23 @@
 }
 
 @media (max-width: 640px) {
+  .raid-create-card,
+  .raid-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .raid-card-icon {
+    width: 100%;
+    min-width: 0;
+    min-height: 56px;
+    border-radius: 14px;
+  }
+
+  .raids-grid {
+    grid-template-columns: 1fr;
+  }
+
   .raid-create-grid {
     grid-template-columns: 1fr;
   }
