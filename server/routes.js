@@ -238,6 +238,18 @@ function generateRaidMercenaryPool(floor, count = 10) {
     return Array.from({ length: count }, (_, idx) => generateRaidMercenary(floor, idx));
 }
 
+async function ensureRaidMercenaryPool(db, raid) {
+    if (!raid) return [];
+    let pool = [];
+    try { pool = JSON.parse(raid.mercenary_pool || '[]') || []; } catch {}
+    if (Array.isArray(pool) && pool.length) return pool;
+    if (raid.status !== 'forming') return [];
+    pool = generateRaidMercenaryPool(raid.floor, 10);
+    await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ?', [JSON.stringify(pool), raid.id]);
+    raid.mercenary_pool = JSON.stringify(pool);
+    return pool;
+}
+
 const WEEKLY_TASK_MATERIAL_OPTIONS = [
     'mithril_ore',
     'frost_essence',
@@ -2699,8 +2711,7 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
         : autoStartMode === 'full'
             ? GUILD_RAID_MAX_MEMBERS
             : 0;
-    let mercenaryPool = [];
-    try { mercenaryPool = JSON.parse(raid.mercenary_pool || '[]') || []; } catch {}
+    const mercenaryPool = await ensureRaidMercenaryPool(db, raid);
     return {
         id: raid.id,
         floor: Number(raid.floor || 1),
