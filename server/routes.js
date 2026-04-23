@@ -2513,11 +2513,7 @@ function buildRaidRewardPayload(floor, includeItem = false) {
     const gems = 1;
     const payload = { gold, gems };
     if (includeItem) {
-        payload.item = {
-            type: 'consumable',
-            itemType: 'consumable',
-            itemData: { name: 'Rare Item Chest', type: 'chest', quality: 'rare', qty: 1 }
-        };
+        payload.lootbox = { id: 'lootbox_rare', qty: 1 };
     }
     return payload;
 }
@@ -7688,7 +7684,25 @@ router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
     if (payload.gems) {
       await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [payload.gems, payload.gems, char.id]);
     }
-    if (payload.item?.itemType && payload.item?.itemData) {
+    if (payload.lootbox?.id) {
+      const lootBox = LOOT_BOXES.find(box => box.id === payload.lootbox.id);
+      if (lootBox) {
+        await addStackableInventoryItem(db, char.id, 'consumable', lootBox, payload.lootbox.qty || 1);
+      }
+    } else if (
+      payload.item?.itemType === 'consumable' &&
+      String(payload.item?.itemData?.name || '').trim().toLowerCase() === 'rare item chest'
+    ) {
+      // Backward-compatibility for already-sent raid reports before loot boxes were wired correctly.
+      const lootBox = LOOT_BOXES.find(box => box.id === 'lootbox_rare');
+      if (lootBox) {
+        await addStackableInventoryItem(db, char.id, 'consumable', lootBox, 1);
+      }
+    }
+    const legacyRaidChest =
+      payload.item?.itemType === 'consumable' &&
+      String(payload.item?.itemData?.name || '').trim().toLowerCase() === 'rare item chest';
+    if (payload.item?.itemType && payload.item?.itemData && !legacyRaidChest) {
       await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [char.id, payload.item.itemType, JSON.stringify(payload.item.itemData)]);
     }
     await dbRun(db, 'UPDATE guild_raid_members SET claimed_at = ? WHERE raid_id = ? AND char_id = ?', [Math.floor(Date.now() / 1000), raidId, char.id]);
