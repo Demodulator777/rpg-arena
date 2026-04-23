@@ -1219,13 +1219,15 @@ function formatRaidDuration(seconds) {
 
 function renderDungeonRaidHub(guildData) {
     const reputation = Number(guildData.guildReputation || 0);
-    const raids = Array.isArray(guildData.raids) ? guildData.raids : [];
+    const allRaids = Array.isArray(guildData.raids) ? guildData.raids : [];
     const highestFloor = Math.max(1, Number(guildData.highestFloor || 1));
     const now = Math.floor(Date.now() / 1000);
     const raidCooldownUntil = Number(guildData.raidCooldownUntil || 0);
     const cooldownLeft = raidCooldownUntil > now ? (raidCooldownUntil - now) : 0;
     const apprenticeReq = GUILD_RANKS.find(r => r.name === 'Apprentice')?.reputationNeeded || 10;
     const canCreateRaid = reputation >= apprenticeReq;
+    const isRaidLocked = cooldownLeft > 0;
+    const raids = isRaidLocked ? [] : allRaids;
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
         .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
         .join('');
@@ -1453,15 +1455,17 @@ function renderDungeonRaidHub(guildData) {
                 <div class="exchange-icon raid-card-icon">Raid</div>
                 <div class="exchange-info">
                     <div class="exchange-name">Create a Raid</div>
-                    <div class="exchange-desc">Choose any floor up to your highest cleared dungeon floor. Start manually or auto-launch when the party reaches the selected size.</div>
+                    <div class="exchange-desc">${isRaidLocked
+                        ? `Raid recovery is active. You can create or view raids again in ${formatRaidDuration(cooldownLeft)}.`
+                        : 'Choose any floor up to your highest cleared dungeon floor. Start manually or auto-launch when the party reaches the selected size.'}</div>
                     <div class="raid-create-grid">
                         <label class="raid-field">
                             <span>Floor</span>
-                            <select id="guild-raid-floor" class="raid-input">${raidFloorOptions}</select>
+                            <select id="guild-raid-floor" class="raid-input" ${isRaidLocked ? 'disabled' : ''}>${raidFloorOptions}</select>
                         </label>
                         <label class="raid-field">
                             <span>Auto-start at</span>
-                            <select id="guild-raid-autostart" class="raid-input">
+                            <select id="guild-raid-autostart" class="raid-input" ${isRaidLocked ? 'disabled' : ''}>
                                 <option value="0">Manual only</option>
                                 <option value="1">1 player</option>
                                 <option value="2">2 players</option>
@@ -1472,7 +1476,7 @@ function renderDungeonRaidHub(guildData) {
                             </select>
                         </label>
                     </div>
-                    <button class="exchange-btn" ${actionAttrs('createGuildRaid')}>Create Raid</button>
+                    <button class="exchange-btn ${isRaidLocked ? 'disabled' : ''}" ${isRaidLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? 'Raid Cooldown Active' : 'Create Raid'}</button>
                 </div>
             </div>
         ` : `
@@ -1483,7 +1487,7 @@ function renderDungeonRaidHub(guildData) {
                 </div>
             </div>
         `}
-        <div class="exchanges-grid raids-grid">${raidCards}</div>
+        ${isRaidLocked ? '' : `<div class="exchanges-grid raids-grid">${raidCards}</div>`}
     `;
 }
 
