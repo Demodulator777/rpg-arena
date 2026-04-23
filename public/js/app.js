@@ -1168,30 +1168,75 @@ function showTab(name) {
 }
 
 function toggleCharacterHubInline() {
-    const hub = document.getElementById('character-inline-hub');
     const trigger = document.getElementById('character-hub-trigger');
-    if (!hub || !trigger) return;
+    if (!trigger) return;
     
-    const shouldOpen = hub.classList.contains('hidden');
+    let hub = document.getElementById('character-inline-hub');
+    const shouldOpen = !hub || hub.classList.contains('hidden');
+    
+    // Close any existing hub
     closeCharacterHubInline();
+    
     if (shouldOpen) {
+        // Create or move hub to body to escape overflow constraints
+        if (!hub) {
+            const hubHTML = document.getElementById('character-inline-hub');
+            if (hubHTML) {
+                hub = hubHTML.cloneNode(true);
+                hub.id = 'character-inline-hub-fixed';
+                document.body.appendChild(hub);
+                
+                // Re-attach click handlers to the cloned buttons
+                hub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
+                    btn.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const [tabName] = parseActionArgs(btn);
+                        if (tabName) navigateCharacterHub(tabName);
+                    });
+                });
+            }
+        } else {
+            // Move existing hub to body
+            const newHub = hub.cloneNode(true);
+            newHub.id = 'character-inline-hub-fixed';
+            document.body.appendChild(newHub);
+            hub.remove();
+            
+            newHub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
+                btn.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const [tabName] = parseActionArgs(btn);
+                    if (tabName) navigateCharacterHub(tabName);
+                });
+            });
+            hub = newHub;
+        }
+        
+        if (!hub) return;
+        
+        // Position the fixed hub below the trigger
         const triggerRect = trigger.getBoundingClientRect();
-        const hubWidth = 68; // approximate
         hub.style.position = 'fixed';
         hub.style.left = triggerRect.left + 'px';
         hub.style.top = (triggerRect.bottom + 8) + 'px';
+        hub.style.zIndex = '99999';
+        hub.classList.remove('hidden');
+        hub.style.display = 'flex';
         
         const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
         hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
         });
-        hub.classList.remove('hidden');
-        hub.style.display = 'flex';
     }
 }
 
 function closeCharacterHubInline() {
-    document.getElementById('character-inline-hub')?.classList.add('hidden');
+    const hub = document.getElementById('character-inline-hub');
+    if (hub) hub.classList.add('hidden');
+    const fixedHub = document.getElementById('character-inline-hub-fixed');
+    if (fixedHub) fixedHub.remove();
 }
 
 function navigateCharacterHub(tabName) {
