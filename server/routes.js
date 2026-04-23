@@ -2595,9 +2595,31 @@ function buildRaidPartyFighter(raidId, members, fighters) {
     return base;
 }
 
+function getGuildRaidAutoStartThreshold(raid) {
+    const autoMode = String(raid?.auto_start_mode || 'manual');
+    if (autoMode.startsWith('count_')) {
+        return Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoMode.split('_')[1] || 0)));
+    }
+    if (autoMode === 'full') {
+        return GUILD_RAID_MAX_MEMBERS;
+    }
+    return 0;
+}
+
 async function finalizeGuildRaid(db, raid, members) {
-    if (!raid || raid.status !== 'forming' || !members?.length) return raid;
+    if (!raid || !['forming', 'starting'].includes(String(raid.status || '')) || !members?.length) return raid;
     const now = Math.floor(Date.now() / 1000);
+    if (String(raid.status || '') === 'forming') {
+        const claim = await dbRun(
+            db,
+            'UPDATE guild_raids SET status = ?, started_at = ? WHERE id = ? AND status = ?',
+            ['starting', now, raid.id, 'forming']
+        );
+        const claimed = claim?.rowsAffected ?? claim?.changes ?? 0;
+        if (!claimed) return getGuildRaidById(db, raid.id);
+        raid = await getGuildRaidById(db, raid.id);
+        if (!raid) return null;
+    }
     const fighters = [];
     const memberChars = [];
     for (const member of members) {
@@ -2618,7 +2640,7 @@ async function finalizeGuildRaid(db, raid, members) {
         fighters.push(await buildCombatFighter(db, refreshed));
     }
     if (!fighters.length) {
-        await dbRun(db, 'UPDATE guild_raids SET status = ? WHERE id = ?', ['completed', raid.id]);
+        await dbRun(db, 'UPDATE guild_raids SET status = ?, completed_at = ? WHERE id = ?', ['completed', now, raid.id]);
         return getGuildRaidById(db, raid.id);
     }
 
@@ -2676,10 +2698,25 @@ async function finalizeGuildRaid(db, raid, members) {
 
     await dbRun(
         db,
-        'UPDATE guild_raids SET status = ?, started_at = ?, completed_at = ?, result_summary = ?, result_log = ? WHERE id = ?',
-        ['completed', now, now, resultSummary, JSON.stringify(battle.log || []), raid.id]
+        'UPDATE guild_raids SET status = ?, completed_at = ?, result_summary = ?, result_log = ? WHERE id = ?',
+        ['completed', now, resultSummary, JSON.stringify(battle.log || []), raid.id]
     );
     return getGuildRaidById(db, raid.id);
+}
+
+async function tryStartGuildRaidIfReady(db, raidId, options = {}) {
+    const forceStart = options.forceStart === true;
+    let raid = await getGuildRaidById(db, raidId);
+    if (!raid || String(raid.status || '') !== 'forming') return raid;
+    const members = await getGuildRaidMembers(db, raidId);
+    if (!members.length) return raid;
+    if (!forceStart) {
+        const threshold = getGuildRaidAutoStartThreshold(raid);
+        if (threshold <= 0 || members.length < threshold) {
+            return raid;
+        }
+    }
+    return finalizeGuildRaid(db, raid, members);
 }
 
 async function maybeAutoStartGuildRaids(db) {
@@ -2689,16 +2726,9 @@ async function maybeAutoStartGuildRaids(db) {
         WHERE gr.status = 'forming'
         ORDER BY gr.created_at ASC`);
     for (const raid of formingRaids) {
-        const autoMode = String(raid.auto_start_mode || 'manual');
-        let threshold = 0;
-        if (autoMode.startsWith('count_')) {
-            threshold = Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoMode.split('_')[1] || 0)));
-        } else if (autoMode === 'full') {
-            threshold = GUILD_RAID_MAX_MEMBERS;
-        }
+        const threshold = getGuildRaidAutoStartThreshold(raid);
         if (threshold <= 0 || Number(raid.member_count || 0) < threshold) continue;
-        const members = await getGuildRaidMembers(db, raid.id);
-        await finalizeGuildRaid(db, raid, members);
+        await tryStartGuildRaidIfReady(db, raid.id);
     }
 }
 
@@ -7493,7 +7523,7 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
     const raidId = Number(created.lastInsertRowid);
     await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
       VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
-    await maybeAutoStartGuildRaids(db);
+    await tryStartGuildRaidIfReady(db, raidId);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({
       success: true,
@@ -7520,8 +7550,10 @@ router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
     }
     const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
     const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
-    await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ? WHERE id = ?', [autoStartMode, raidId]);
-    await maybeAutoStartGuildRaids(db);
+    const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ? WHERE id = ? AND status = ?', [autoStartMode, raidId, 'forming']);
+    const updated = updateResult?.rowsAffected ?? updateResult?.changes ?? 0;
+    if (!updated) return res.status(409).json({ error: 'Raid already started before settings could be updated.' });
+    await tryStartGuildRaidIfReady(db, raidId);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ success: true, message: 'Raid start settings updated.', raids });
   } catch (e) {
@@ -7547,9 +7579,14 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
       return res.status(400).json({ error: 'Your account is already in this raid.' });
     }
     if (members.length >= GUILD_RAID_MAX_MEMBERS) return res.status(400).json({ error: 'Raid is already full.' });
-    await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
-      VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
-    await maybeAutoStartGuildRaids(db);
+    const joinResult = await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
+      SELECT ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
+      [raidId, char.id, req.user.userId, now, raidId]
+    );
+    const joined = joinResult?.rowsAffected ?? joinResult?.changes ?? 0;
+    if (!joined) return res.status(409).json({ error: 'Raid started before you could join.' });
+    await tryStartGuildRaidIfReady(db, raidId);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ success: true, message: 'Joined the raid party.', raids });
   } catch (e) {
@@ -7582,17 +7619,29 @@ router.post('/dungeon/guild/raid/recruit', auth, async (req, res) => {
     recruit.recruited = true;
     recruit.recruitedAt = now;
     recruit.recruitedByCharId = char.id;
-    await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ?', [JSON.stringify(pool), raidId]);
+    const poolUpdate = await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ? AND status = ?', [JSON.stringify(pool), raidId, 'forming']);
+    const poolUpdated = poolUpdate?.rowsAffected ?? poolUpdate?.changes ?? 0;
+    if (!poolUpdated) return res.status(409).json({ error: 'Raid started before the mercenary could be recruited.' });
     await dbRun(db, 'UPDATE characters SET gems = gems - ? WHERE id = ?', [GUILD_RAID_MERCENARY_COST_GEMS, char.id]);
 
     const npcCharId = -((raidId * 1000) + (Number(recruit.slotIndex || 0) + 1));
-    await dbRun(db, `INSERT INTO guild_raid_members
+    const recruitInsert = await dbRun(db, `INSERT INTO guild_raid_members
       (raid_id, char_id, user_id, joined_at, is_npc, member_name, member_class, member_level, member_payload)
-      VALUES (?, ?, 0, ?, 1, ?, ?, ?, ?)`,
-      [raidId, npcCharId, now, recruit.name, recruit.fighter.class || 'mercenary', Number(recruit.level || raid.floor || 1), JSON.stringify(recruit)]
+      SELECT ?, ?, 0, ?, 1, ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
+      [raidId, npcCharId, now, recruit.name, recruit.fighter.class || 'mercenary', Number(recruit.level || raid.floor || 1), JSON.stringify(recruit), raidId]
     );
+    const inserted = recruitInsert?.rowsAffected ?? recruitInsert?.changes ?? 0;
+    if (!inserted) {
+      recruit.recruited = false;
+      delete recruit.recruitedAt;
+      delete recruit.recruitedByCharId;
+      await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ?', [JSON.stringify(pool), raidId]);
+      await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', [GUILD_RAID_MERCENARY_COST_GEMS, char.id]);
+      return res.status(409).json({ error: 'Raid started before the mercenary could join.' });
+    }
 
-    await maybeAutoStartGuildRaids(db);
+    await tryStartGuildRaidIfReady(db, raidId);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     const updated = await getCurrentCharacter(db, req.user.userId, 'gems');
     res.json({ success: true, message: `${recruit.name} joined the raid.`, gems: updated?.gems || 0, raids });
@@ -7612,8 +7661,7 @@ router.post('/dungeon/guild/raid/start', auth, async (req, res) => {
     if (String(raid.leader_char_id) !== String(char.id)) {
       return res.status(403).json({ error: 'Only the raid leader can start this raid.' });
     }
-    const members = await getGuildRaidMembers(db, raid.id);
-    await finalizeGuildRaid(db, raid, members);
+    await tryStartGuildRaidIfReady(db, raid.id, { forceStart: true });
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ success: true, message: 'Raid battle resolved.', raids });
   } catch (e) {
