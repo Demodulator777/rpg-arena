@@ -5835,8 +5835,8 @@ async function loadInbox() {
         
         el.innerHTML=html;
         
-        // Render default (messages)
-        renderInboxFilter('messages');
+        // Render current filter if available, otherwise default to messages
+        renderInboxFilter(window._currentInboxFilter || 'messages');
 
         pollUnread();
     } catch(e) { el.innerHTML=`<p class="loading">${e.message}</p>`; }
@@ -5846,6 +5846,7 @@ function filterInbox(filter) {
 }
 
 function renderInboxFilter(filter) {
+    window._currentInboxFilter = filter;
     const data = window._inboxData || {};
     const list = data[filter] || [];
     const container = document.getElementById('inbox-filtered-content');
@@ -5970,7 +5971,7 @@ function renderInboxFilter(filter) {
     
     // Update tab UI
     document.querySelectorAll('.inbox-tab').forEach(t => {
-        t.classList.toggle('active', t.getAttribute('data-action-arg') === filter);
+        t.classList.toggle('active', parseActionArgs(t)?.[0] === filter);
     });
 }
 
@@ -6006,8 +6007,10 @@ async function markInboxRead(id, refreshInbox = true) {
         if (btn) btn.remove();
     }
     await api('POST', `/game/messages/${id}/read`);
-    if (refreshInbox && document.getElementById('tab-inbox')?.classList.contains('active')) {
-        renderInboxFilter(document.querySelector('.inbox-tab.active')?.getAttribute('data-action-arg') || 'messages');
+    if (refreshInbox && document.getElementById('tab-inbox')?.classList.contains('active') && !row) {
+        renderInboxFilter(window._currentInboxFilter || 'messages');
+    } else {
+        pollUnread();
     }
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
