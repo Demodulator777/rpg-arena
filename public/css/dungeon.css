@@ -887,6 +887,19 @@
   margin-top: 12px;
 }
 
+.raid-mercenary-head {
+  margin-top: 12px;
+  color: #e8eef9;
+  font-family: 'Cinzel', serif;
+  font-size: 0.84rem;
+}
+
+.raid-mercenary-sub {
+  margin-top: 4px;
+  color: rgba(207, 218, 235, 0.72);
+  font-size: 0.72rem;
+}
+
 .raid-mercenary-card {
   padding: 10px;
   border-radius: 12px;
@@ -2247,7 +2260,7 @@
 
 @media (max-width: 768px) {
   .dungeon-game-screen {
-    height: min(75dvh, 650px);
+    height: min(75svh, 650px);
   }
 
   .dungeon-hud-top {
@@ -2319,7 +2332,7 @@
 
 @media (max-width: 640px) {
   .dungeon-game-screen {
-    height: min(70dvh, 580px);
+    height: min(70svh, 580px);
   }
 
   .dungeon-hud-minimap {
@@ -2328,13 +2341,15 @@
   }
 
   .dungeon-hud-center {
-    top: 58%;
-    width: 85vw;
+    top: auto;
+    bottom: 132px;
+    transform: translateX(-50%);
+    width: min(85vw, 520px);
   }
 
   .dungeon-hud-room {
     padding: 10px;
-    margin-top: -120px;
+    margin-top: 0;
   }
 
   .dungeon-hud-room-title {
@@ -2391,7 +2406,7 @@
 
 @media (max-width: 480px) {
   .dungeon-game-screen {
-    height: min(65dvh, 520px);
+    height: min(65svh, 520px);
   }
 
   .dungeon-hud-top {
@@ -2429,13 +2444,15 @@
   }
 
   .dungeon-hud-center {
-    top: 60%;
-    width: 85vw;
+    top: auto;
+    bottom: 144px;
+    transform: translateX(-50%);
+    width: min(86vw, 360px);
   }
 
   .dungeon-hud-room {
     padding: 8px;
-    margin-top: -140px;
+    margin-top: 0;
   }
 
   .dungeon-hud-room-desc {
