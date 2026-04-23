@@ -1342,6 +1342,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     flex-direction: column;
     gap: 0;
     padding: 0;
+    margin: 0;
     border-radius: 18px;
     border: 1px solid rgba(255,255,255,0.08);
     background:
@@ -1355,6 +1356,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .nav-sub-btn {
     height: 56px;
+    margin: 0;
+    border-radius: 0;
+}
+.nav-sub-btn:first-child {
+    border-radius: 18px 18px 0 0;
+}
+.nav-sub-btn:last-child {
+    border-radius: 0 0 18px 18px;
+}
+.nav-sub-btn:only-child {
+    border-radius: 18px;
 }
 .nav-sub-btn img {
     height: 56px;
