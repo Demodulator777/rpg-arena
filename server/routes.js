@@ -2507,17 +2507,16 @@ async function getCharacterBusyState(db, char) {
     return { busy: false, reason: '' };
 }
 
-function buildRaidRewardPayload(floor) {
+function buildRaidRewardPayload(floor, includeItem = false) {
     const safeFloor = Math.max(1, Number(floor) || 1);
     const gold = 900 + safeFloor * 220;
     const gems = 1;
-    const chestQty = safeFloor >= 5 ? 1 : 0;
     const payload = { gold, gems };
-    if (chestQty > 0) {
+    if (includeItem) {
         payload.item = {
             type: 'consumable',
             itemType: 'consumable',
-            itemData: { name: 'Rare Item Chest', type: 'chest', quality: 'rare', qty: chestQty }
+            itemData: { name: 'Rare Item Chest', type: 'chest', quality: 'rare', qty: 1 }
         };
     }
     return payload;
@@ -2650,7 +2649,6 @@ async function finalizeGuildRaid(db, raid, members) {
     const raidWon = String(battle.winnerId) === String(party.id);
     const totalHpBefore = fighters.reduce((sum, fighter) => sum + Number(fighter.hp || 0), 0);
     const hpRatio = totalHpBefore > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalHpBefore)) : 0;
-    const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor) : null;
     const raidCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
     const resultSummary = raidWon
         ? `${party.name} defeated ${raid.boss_name} on Floor ${raid.floor}.`
@@ -2668,6 +2666,7 @@ async function finalizeGuildRaid(db, raid, members) {
     for (let i = 0; i < memberChars.length; i++) {
         const char = memberChars[i];
         const fighter = fighters[i];
+        const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor, Math.random() < 0.5) : null;
         const nextHp = raidWon
             ? Math.max(1, Math.floor(Number(fighter.hp || 1) * hpRatio))
             : Math.max(0, Math.floor(Number(fighter.hp || 1) * hpRatio));
