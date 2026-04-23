@@ -1404,6 +1404,9 @@ function renderDungeonRaidHub(guildData) {
     const apprenticeReq = GUILD_RANKS.find(r => r.name === 'Apprentice')?.reputationNeeded || 10;
     const canCreateRaid = reputation >= apprenticeReq;
     const isRaidLocked = cooldownLeft > 0;
+    const existingRaid = allRaids.find(raid => raid.status === 'forming' && (raid.isLeader || raid.isMember));
+    const hasRaidCommitment = !!existingRaid;
+    const createLocked = isRaidLocked || hasRaidCommitment;
     const raids = isRaidLocked ? [] : allRaids;
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
         .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
