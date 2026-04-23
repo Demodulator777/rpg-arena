@@ -1393,13 +1393,15 @@ function claimGuildRaidReward(raidId) {
 
 function renderDungeonRaidHub(guildData) {
     const reputation = Number(guildData.guildReputation || 0);
-    const raids = Array.isArray(guildData.raids) ? guildData.raids : [];
+    const allRaids = Array.isArray(guildData.raids) ? guildData.raids : [];
     const highestFloor = Math.max(1, Number(guildData.highestFloor || 1));
     const now = Math.floor(Date.now() / 1000);
     const raidCooldownUntil = Number(guildData.raidCooldownUntil || 0);
     const cooldownLeft = raidCooldownUntil > now ? (raidCooldownUntil - now) : 0;
     const apprenticeReq = GUILD_RANKS.find(r => r.name === 'Apprentice')?.reputationNeeded || 10;
     const canCreateRaid = reputation >= apprenticeReq;
+    const isRaidLocked = cooldownLeft > 0;
+    const raids = isRaidLocked ? [] : allRaids;
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
         .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
         .join('');
