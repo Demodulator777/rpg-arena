@@ -1158,23 +1158,17 @@ function getCurrentGameTabName() {
 function buildCharacterHubModalOptions() {
     const currentTab = getCurrentGameTabName();
     const options = [
-        { id: 'character', title: 'Character', desc: 'Stats, equipment, and record overview.', icon: '/images/character.png' },
-        { id: 'upgrade', title: 'Upgrade', desc: 'Spend gold to raise your core stats.', icon: '/images/upgrade.png' },
-        { id: 'loadout', title: 'Loadout', desc: 'Tune attack and block patterns.', icon: '/images/loadout.png' },
-        { id: 'skills', title: 'Skills', desc: 'Review and activate class skills.', icon: '/images/skills.png' },
-        { id: 'train', title: 'Training', desc: 'Manage long-term stat training.', icon: '/images/training.png' },
-        { id: 'inventory', title: 'Inventory', desc: 'Equipment, consumables, and loot boxes.', icon: '/images/inventory.png' },
-        { id: 'premium', title: 'Premium', desc: 'Premium perks and active feature timers.', icon: '/images/premium.png' }
+        { id: 'character', title: 'Character', icon: '/images/character.png' },
+        { id: 'upgrade', title: 'Upgrade', icon: '/images/upgrade.png' },
+        { id: 'loadout', title: 'Loadout', icon: '/images/loadout.png' },
+        { id: 'skills', title: 'Skills', icon: '/images/skills.png' },
+        { id: 'train', title: 'Training', icon: '/images/training.png' },
+        { id: 'inventory', title: 'Inventory', icon: '/images/inventory.png' },
+        { id: 'premium', title: 'Premium', icon: '/images/premium.png' }
     ];
     return options.map(opt => `
-        <button class="character-hub-option ${currentTab === opt.id ? 'active' : ''}" ${actionAttrs('navigateCharacterHub', opt.id)}>
-            <span class="character-hub-option-icon-wrap">
-                <img class="character-hub-option-icon" src="${opt.icon}" alt="${opt.title}" loading="lazy" decoding="async">
-            </span>
-            <span class="character-hub-option-copy">
-                <span class="character-hub-option-title">${opt.title}</span>
-                <span class="character-hub-option-desc">${opt.desc}</span>
-            </span>
+        <button class="character-hub-option character-hub-option-icononly ${currentTab === opt.id ? 'active' : ''}" title="${opt.title}" aria-label="${opt.title}" ${actionAttrs('navigateCharacterHub', opt.id)}>
+            <img class="character-hub-option-icon character-hub-option-icon-hero" src="${opt.icon}" alt="${opt.title}" loading="lazy" decoding="async">
         </button>
     `).join('');
 }
@@ -1188,7 +1182,6 @@ function ensureCharacterHubModal() {
                     <h3>Character Navigation</h3>
                     <button class="btn-secondary" ${actionAttrs('closeCharacterHubModal')}>✕</button>
                 </div>
-                <div class="character-hub-modal-copy">Jump between your character overview and all build-management pages without going back first.</div>
                 <div id="character-hub-modal-options" class="character-hub-options"></div>
             </div>
         </div>
