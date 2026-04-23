@@ -2784,6 +2784,30 @@ function openSpotMissions(zoneId, spotId) {
     activeEl.dataset.zoneId = zoneId;
     activeEl.dataset.spotId = spotId;
     activeEl.dataset.selectedSize = '';
+
+    queueMobileMissionModalScroll(activeEl);
+}
+
+function queueMobileMissionModalScroll(target) {
+    if (window.innerWidth > 768) return;
+    const resolveTarget = () => {
+        if (!target) return null;
+        if (typeof target === 'string') return document.querySelector(target);
+        return target;
+    };
+    requestAnimationFrame(() => {
+        const el = resolveTarget();
+        if (!el) return;
+        const scrollHost = el.closest('.modal-box') || el.parentElement;
+        if (scrollHost && scrollHost.scrollHeight > scrollHost.clientHeight) {
+            const hostRect = scrollHost.getBoundingClientRect();
+            const elRect = el.getBoundingClientRect();
+            const nextTop = scrollHost.scrollTop + (elRect.top - hostRect.top) - 18;
+            scrollHost.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+        } else {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
 }
 
 function pickMissionSize(zoneId, spotId, sizeKey) {
@@ -2835,6 +2859,8 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
         el.style.background = isSelected ? 'rgba(155,89,182,0.2)' : 'rgba(255,255,255,0.05)';
         el.style.borderColor = isSelected ? 'rgba(155,89,182,0.5)' : '';
     });
+
+    queueMobileMissionModalScroll('#spot-missions-list');
 }
 
 let _missionStarting = false;
