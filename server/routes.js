@@ -6927,6 +6927,12 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
                 await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, char.id]);
             }
         }
+        if (reward.lootbox?.id) {
+            const lootBox = LOOT_BOXES.find(box => box.id === reward.lootbox.id);
+            if (lootBox) {
+                await addStackableInventoryItem(db, char.id, 'consumable', lootBox, reward.lootbox.qty || 1);
+            }
+        }
         if (validatedMaterialReward) {
             await addStackableInventoryItem(
                 db,
