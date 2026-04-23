@@ -1173,6 +1173,8 @@ function navigateCharacterHub(tabName) {
     closeCharacterHubInline();
     showTab(tabName);
 }
+window.toggleCharacterHubInline = toggleCharacterHubInline;
+window.navigateCharacterHub = navigateCharacterHub;
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
