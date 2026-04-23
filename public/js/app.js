@@ -982,15 +982,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
 const characterHubTrigger = document.getElementById('character-hub-trigger');
     if (characterHubTrigger) {
-        console.log('Found character-hub-trigger, attaching click handler');
         characterHubTrigger.addEventListener('click', (event) => {
-            console.log('Character hub trigger clicked');
             event.preventDefault();
             event.stopPropagation();
             toggleCharacterHubInline();
         });
-    } else {
-        console.log('character-hub-trigger NOT FOUND in DOM');
     }
     document.querySelectorAll('#character-inline-hub .nav-sub-btn').forEach((btn) => {
         btn.addEventListener('click', (event) => {
@@ -1183,12 +1179,6 @@ function toggleCharacterHubInline() {
         });
         hub.classList.remove('hidden');
         hub.style.display = 'flex';
-        
-        // Force reflow and check position
-        void hub.offsetHeight;
-        const rect = hub.getBoundingClientRect();
-        console.log('Hub rect:', rect);
-        console.log('Hub parent rect:', hub.parentElement.getBoundingClientRect());
     }
 }
 
