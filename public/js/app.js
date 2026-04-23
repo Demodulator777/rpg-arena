@@ -980,6 +980,22 @@ async function selectCharacter(characterId) {
 window.addEventListener('DOMContentLoaded', async () => {
     bindLegacyInlineHandlers(document);
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
+    const characterHubTrigger = document.getElementById('character-hub-trigger');
+    if (characterHubTrigger) {
+        characterHubTrigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleCharacterHubInline();
+        });
+    }
+    document.querySelectorAll('#character-inline-hub .nav-sub-btn').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const [tabName] = parseActionArgs(btn);
+            if (tabName) navigateCharacterHub(tabName);
+        });
+    });
     if (!document.getElementById('item-tooltip')) {
         const tt=document.createElement('div');
         tt.id='item-tooltip'; tt.className='item-tooltip hidden';
