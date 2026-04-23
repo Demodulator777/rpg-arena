@@ -5439,8 +5439,25 @@ if (freshChar.class === 'rogue') {
             tutorialMessage = "✨ Tutorial complete! Your character is now ready for the real challenge. Note: Further missions will now affect your HP. Check the 'Upgrade' tab to build your stats, the 'Shop' to buy items, and your 'Inventory' to manage your gear!";
         }
 
+        // Handle level up: reset HP to full and give loot box
+        let levelUpMessage = null;
+        let finalHp = newHp;
+        if (leveledUp) {
+            const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+            const newCharWithLevel = { ...freshChar, level: newLevel };
+            const newHpMax = calcHpMax(newCharWithLevel, equippedArray);
+            finalHp = newHpMax;
+            
+            // Give a common loot box for leveling up
+            const lootBox = LOOT_BOXES.find(box => box.id === 'lootbox_common');
+            if (lootBox) {
+                await addStackableInventoryItem(db, freshChar.id, 'consumable', lootBox, 1);
+            }
+            levelUpMessage = `🎉 Level Up! You reached level ${newLevel}! HP restored to full and you received a Common Loot Box!`;
+        }
+
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+? WHERE id=?`,
-            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, newHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
+            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
         await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
         
@@ -5572,13 +5589,14 @@ const payload = JSON.stringify({
             success: true, won: playerWon, battleLog: battle.log,
             message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
             goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
-            drops, hpRemaining: newHp,
+            levelUpMessage,
+            drops, hpRemaining: finalHp,
             tutorialMessage,
             activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
             character: await buildCharacterResponse(updatedChar, db),
             totalDmgDealt: battle.totalDmgToB,
             totalDmgTaken: battle.totalDmgToA,
-            missionName: mission.mission_name,  // ADD MISSION NAME TO RESPONSE
+            missionName: mission.mission_name,
         });
     } catch (e) {
         console.error('Mission collect error:', e);
@@ -6669,10 +6687,27 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const newHpD = Math.max(0, battle.hpRemainingB);
         let atkXp = Math.max(0, (freshA.xp || 0) + xpGained), atkLevel = freshA.level, leveledUp = false;
         while (atkXp >= LEVEL_XP(atkLevel)) { atkXp -= LEVEL_XP(atkLevel); atkLevel++; leveledUp = true; }
+        
+        // Handle level up: reset HP to full and give loot box
+        let atkFinalHp = newHpA;
+        let atkLevelUpMessage = null;
+        if (leveledUp) {
+            const equippedArray = await getEquippedItemsArray(db, freshA.id);
+            const newCharWithLevel = { ...freshA, level: atkLevel };
+            const newHpMax = calcHpMax(newCharWithLevel, equippedArray);
+            atkFinalHp = newHpMax;
+            
+            const lootBox = LOOT_BOXES.find(box => box.id === 'lootbox_common');
+            if (lootBox) {
+                await addStackableInventoryItem(db, freshA.id, 'consumable', lootBox, 1);
+            }
+            atkLevelUpMessage = `🎉 Level Up! You reached level ${atkLevel}! HP restored to full and you received a Common Loot Box!`;
+        }
+        
         await ensureWeeklyTaskState(db, freshA);
         await ensureWeeklyTaskState(db, freshD);
         await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
-            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, newHpA, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
+            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, freshD.id]);
@@ -6727,7 +6762,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         res.json({ 
             won: attackerWon, log: battle.log, xpGained, 
             goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, 
-            leveledUp, character: await buildCharacterResponse(updatedAttacker, db),
+            leveledUp, atkLevelUpMessage,
+            character: await buildCharacterResponse(updatedAttacker, db),
             totalDmgDealt: battle.totalDmgToB,
             totalDmgTaken: battle.totalDmgToA,
         });
