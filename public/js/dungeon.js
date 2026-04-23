@@ -1426,6 +1426,8 @@ function renderDungeonRaidHub(guildData) {
             : 'Manual start';
         const mercenaryCards = raid.isLeader && Array.isArray(raid.mercenaryPool) && raid.mercenaryPool.length
             ? `
+                <div class="raid-mercenary-head">Recruit Mercenaries</div>
+                <div class="raid-mercenary-sub">Spend 1 gem to add a dungeon recruit to this raid. They count toward party size and strength.</div>
                 <div class="raid-mercenary-board">
                     ${raid.mercenaryPool.map(merc => `
                         <div class="raid-mercenary-card ${merc.recruited ? 'is-recruited' : ''}">
