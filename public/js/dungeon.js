@@ -1424,6 +1424,26 @@ function renderDungeonRaidHub(guildData) {
         const autoStartLabel = raid.autoStartPlayers > 0
             ? `Auto-start at ${raid.autoStartPlayers} player${raid.autoStartPlayers === 1 ? '' : 's'}`
             : 'Manual start';
+        const mercenaryCards = raid.isLeader && Array.isArray(raid.mercenaryPool) && raid.mercenaryPool.length
+            ? `
+                <div class="raid-mercenary-board">
+                    ${raid.mercenaryPool.map(merc => `
+                        <div class="raid-mercenary-card ${merc.recruited ? 'is-recruited' : ''}">
+                            <div class="raid-mercenary-name">${merc.name}</div>
+                            <div class="raid-mercenary-stats">
+                                HP ${merc.stats.hp} · ATK ${merc.stats.dmgMin}-${merc.stats.dmgMax} · DEF ${merc.stats.defense}
+                            </div>
+                            <div class="raid-mercenary-stats">
+                                AGI ${merc.stats.agility} · MAG ${merc.stats.magic} · HIT ${merc.stats.hitChance}% · CRIT ${merc.stats.critChance}%
+                            </div>
+                            ${merc.recruited
+                                ? `<div class="raid-mercenary-status">Recruited</div>`
+                                : `<button class="exchange-btn raid-mercenary-btn" ${actionAttrs('recruitGuildRaidMercenary', raid.id, merc.id)}>Recruit · 1 Gem</button>`}
+                        </div>
+                    `).join('')}
+                </div>
+            `
+            : '';
 
         return `
             <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
@@ -1438,8 +1458,23 @@ function renderDungeonRaidHub(guildData) {
                     </div>
                     <div class="exchange-cost">${membersHtml}</div>
                     <div class="exchange-desc raid-summary">Raid results and rewards are sent to your inbox after completion.</div>
+                    ${raid.isLeader ? `
+                        <div class="raid-setting-row">
+                            <select id="raid-start-threshold-${raid.id}" class="raid-input raid-inline-input">
+                                <option value="0" ${raid.autoStartPlayers === 0 ? 'selected' : ''}>Manual start</option>
+                                <option value="1" ${raid.autoStartPlayers === 1 ? 'selected' : ''}>Auto at 1</option>
+                                <option value="2" ${raid.autoStartPlayers === 2 ? 'selected' : ''}>Auto at 2</option>
+                                <option value="3" ${raid.autoStartPlayers === 3 ? 'selected' : ''}>Auto at 3</option>
+                                <option value="4" ${raid.autoStartPlayers === 4 ? 'selected' : ''}>Auto at 4</option>
+                                <option value="5" ${raid.autoStartPlayers === 5 ? 'selected' : ''}>Auto at 5</option>
+                                <option value="6" ${raid.autoStartPlayers === 6 ? 'selected' : ''}>Auto at 6</option>
+                            </select>
+                            <button class="exchange-btn raid-settings-btn" ${actionAttrs('updateGuildRaidSettings', raid.id)}>Update Start</button>
+                        </div>
+                    ` : ''}
                     ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
                     ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>Start Raid</button>` : ''}
+                    ${mercenaryCards}
                 </div>
             </div>
         `;
@@ -1513,6 +1548,30 @@ function createGuildRaid() {
             }
         })
         .catch(e => console.error('Raid create failed:', e));
+}
+
+function updateGuildRaidSettings(raidId) {
+    const autoStartPlayers = Number(document.getElementById(`raid-start-threshold-${raidId}`)?.value || 0);
+    apiFetch('POST', '/game/dungeon/guild/raid/update-settings', { raidId, autoStartPlayers })
+        .then(response => {
+            if (response?.success) {
+                log(response.message || 'Raid settings updated.', 'log-success');
+                refreshRaidUi();
+            }
+        })
+        .catch(e => console.error('Raid settings update failed:', e));
+}
+
+function recruitGuildRaidMercenary(raidId, recruitId) {
+    apiFetch('POST', '/game/dungeon/guild/raid/recruit', { raidId, recruitId })
+        .then(response => {
+            if (response?.success) {
+                log(response.message || 'Mercenary recruited.', 'log-success');
+                refreshRaidUi();
+                refreshCharacter();
+            }
+        })
+        .catch(e => console.error('Raid mercenary recruit failed:', e));
 }
 
 function renderDungeonList() {
@@ -2447,6 +2506,8 @@ global.claimGuildBounty = claimGuildBounty;
   global.joinGuildRaid      = joinGuildRaid;
   global.startGuildRaid     = startGuildRaid;
   global.claimGuildRaidReward = claimGuildRaidReward;
+  global.updateGuildRaidSettings = updateGuildRaidSettings;
+  global.recruitGuildRaidMercenary = recruitGuildRaidMercenary;
   global.dungeonEnter        = enterDungeon;
   global.dungeonTravel       = travelToRoom;
   global.dungeonFight        = initiateFight;
