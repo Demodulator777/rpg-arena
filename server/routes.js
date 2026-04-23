@@ -142,6 +142,7 @@ const DUNGEON_GUILD_BOUNTY_POOL = [
 const GUILD_RAID_CREATE_REPUTATION = 10;
 const GUILD_RAID_MAX_MEMBERS = 6;
 const GUILD_RAID_GLOBAL_COOLDOWN = 20 * 60 * 60;
+const GUILD_RAID_MERCENARY_COST_GEMS = 1;
 const GUILD_RAID_BOSS_POOL = [
     { name: 'Death Knight Malachar', image: '/images/boss/malachar.jpg', baseHp: 600, baseAtk: 45, baseDef: 20 },
     { name: 'Ignarath the Eternal', image: '/images/boss/ignarath.jpg', baseHp: 700, baseAtk: 55, baseDef: 25 },
@@ -171,6 +172,70 @@ function getGuildRaidBossForFloor(floor) {
         dmgMin: Math.max(1, Math.round(atk * 0.78)),
         dmgMax: Math.max(2, Math.round(atk * 1.18)),
     };
+}
+
+const GUILD_RAID_MERCENARY_POOL = [
+    { key: 'skeleton', name: 'Skeleton Warrior', class: 'mercenary', hpBase: 95, atkBase: 18, defBase: 8, agiBase: 10, magicBase: 2 },
+    { key: 'ghost', name: 'Wailing Ghost', class: 'mercenary', hpBase: 82, atkBase: 16, defBase: 6, agiBase: 14, magicBase: 8 },
+    { key: 'zombie', name: 'Rotting Zombie', class: 'mercenary', hpBase: 118, atkBase: 17, defBase: 12, agiBase: 6, magicBase: 1 },
+    { key: 'fire_imp', name: 'Fire Imp', class: 'mercenary', hpBase: 76, atkBase: 20, defBase: 5, agiBase: 16, magicBase: 12 },
+    { key: 'void_wraith', name: 'Void Wraith', class: 'mercenary', hpBase: 88, atkBase: 22, defBase: 7, agiBase: 18, magicBase: 14 },
+    { key: 'abyssal_eye', name: 'Abyssal Eye', class: 'mercenary', hpBase: 92, atkBase: 19, defBase: 9, agiBase: 12, magicBase: 16 },
+    { key: 'shadow_lord', name: 'Shadow Lord', class: 'mercenary', hpBase: 110, atkBase: 24, defBase: 11, agiBase: 15, magicBase: 10 },
+    { key: 'dread_knight', name: 'Dread Knight', class: 'mercenary', hpBase: 128, atkBase: 26, defBase: 14, agiBase: 11, magicBase: 6 },
+];
+
+function generateRaidMercenary(floor, slotIndex) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const base = GUILD_RAID_MERCENARY_POOL[Math.floor(Math.random() * GUILD_RAID_MERCENARY_POOL.length)];
+    const scale = 1 + safeFloor * 0.14 + (Math.random() * 0.18);
+    const hp = Math.round(base.hpBase * scale);
+    const strength = Math.round(base.atkBase * scale);
+    const defense = Math.round(base.defBase * scale);
+    const agility = Math.round(base.agiBase * scale);
+    const magic = Math.round(base.magicBase * scale);
+    const hitChance = Math.min(95, 62 + safeFloor + Math.floor(Math.random() * 10));
+    const critChance = Math.min(35, 5 + Math.floor(safeFloor / 3) + Math.floor(Math.random() * 6));
+    const armor = Math.max(0, Math.round(defense * 0.45));
+    const dmgMin = Math.max(1, Math.round(strength * 0.58));
+    const dmgMax = Math.max(dmgMin + 1, Math.round(strength * 0.92));
+    return {
+        id: `merc_${slotIndex}_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+        slotIndex,
+        key: base.key,
+        name: base.name,
+        level: Math.max(1, safeFloor),
+        recruited: false,
+        costGems: GUILD_RAID_MERCENARY_COST_GEMS,
+        stats: { hp, strength, defense, agility, magic, hitChance, critChance, armor, dmgMin, dmgMax },
+        fighter: {
+            id: `raid_merc_${slotIndex}_${safeFloor}`,
+            name: base.name,
+            class: base.class,
+            hp,
+            dmgMin,
+            dmgMax,
+            strength,
+            agility,
+            magic,
+            defense,
+            hit_chance: hitChance,
+            crit_chance: critChance,
+            armor,
+            elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+            elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+            skillEffects: {},
+            skillMods: {},
+            activeSkills: {},
+            attackZones: DEFAULT_ATTACK_ZONES,
+            blockZones: DEFAULT_BLOCK_ZONES,
+            dualWield: false,
+        }
+    };
+}
+
+function generateRaidMercenaryPool(floor, count = 10) {
+    return Array.from({ length: count }, (_, idx) => generateRaidMercenary(floor, idx));
 }
 
 const WEEKLY_TASK_MATERIAL_OPTIONS = [
@@ -259,6 +324,12 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN global_cooldown_until INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN raid_cooldown_until INTEGER DEFAULT 0',
+            'ALTER TABLE guild_raids ADD COLUMN mercenary_pool TEXT DEFAULT NULL',
+            'ALTER TABLE guild_raid_members ADD COLUMN is_npc INTEGER DEFAULT 0',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_name TEXT DEFAULT NULL',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_class TEXT DEFAULT NULL',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_level INTEGER DEFAULT 1',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_payload TEXT DEFAULT NULL',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -2379,9 +2450,12 @@ async function ensureActiveGuildBounty(db, charId) {
 }
 
 async function getGuildRaidMembers(db, raidId) {
-    return dbAll(db, `SELECT m.*, c.name, c.class, c.level
+    return dbAll(db, `SELECT m.*,
+            COALESCE(c.name, m.member_name) AS name,
+            COALESCE(c.class, m.member_class) AS class,
+            COALESCE(c.level, m.member_level, 1) AS level
         FROM guild_raid_members m
-        JOIN characters c ON c.id = m.char_id
+        LEFT JOIN characters c ON c.id = m.char_id
         WHERE m.raid_id = ?
         ORDER BY m.joined_at ASC, m.char_id ASC`, [raidId]);
 }
@@ -2515,6 +2589,14 @@ async function finalizeGuildRaid(db, raid, members) {
     const fighters = [];
     const memberChars = [];
     for (const member of members) {
+        if (Number(member.is_npc || 0) !== 0) {
+            let payload = null;
+            try { payload = member.member_payload ? JSON.parse(member.member_payload) : null; } catch {}
+            if (payload?.fighter) {
+                fighters.push(payload.fighter);
+            }
+            continue;
+        }
         const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [member.char_id]);
         if (!char) continue;
         await applyHpRegen(db, char.id);
@@ -2544,7 +2626,7 @@ async function finalizeGuildRaid(db, raid, members) {
         '',
         `Boss: ${raid.boss_name}`,
         `Floor: ${raid.floor}`,
-        `Party size: ${memberChars.length}`,
+        `Party size: ${members.length}`,
         '',
         ...(battle.log || [])
     ].join('\n');
@@ -2617,6 +2699,8 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
         : autoStartMode === 'full'
             ? GUILD_RAID_MAX_MEMBERS
             : 0;
+    let mercenaryPool = [];
+    try { mercenaryPool = JSON.parse(raid.mercenary_pool || '[]') || []; } catch {}
     return {
         id: raid.id,
         floor: Number(raid.floor || 1),
@@ -2632,6 +2716,7 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
         startedAt: Number(raid.started_at || 0),
         completedAt: Number(raid.completed_at || 0),
         resultSummary: raid.result_summary || '',
+        mercenaryPool,
         memberCount: members.length,
         isLeader: String(raid.leader_char_id) === String(viewerCharId),
         isMember: !!viewerMember,
@@ -2641,6 +2726,7 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
             name: member.name,
             class: member.class,
             level: member.level,
+            isNpc: Number(member.is_npc || 0) !== 0,
             joinedAt: Number(member.joined_at || 0),
             claimedAt: Number(member.claimed_at || 0),
             isLeader: String(member.char_id) === String(raid.leader_char_id),
@@ -7387,10 +7473,11 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
     const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
 
     const boss = getGuildRaidBossForFloor(requestedFloor);
+    const mercenaryPool = generateRaidMercenaryPool(requestedFloor, 10);
     const created = await dbRun(db, `INSERT INTO guild_raids
-      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?)`,
-      [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now]
+      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at, mercenary_pool)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?, ?)`,
+      [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now, JSON.stringify(mercenaryPool)]
     );
     const raidId = Number(created.lastInsertRowid);
     await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
@@ -7404,6 +7491,28 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
         : `Raid created for Floor ${requestedFloor}.`,
       raids
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can change raid settings.' });
+    }
+    const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
+    const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
+    await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ? WHERE id = ?', [autoStartMode, raidId]);
+    await maybeAutoStartGuildRaids(db);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid start settings updated.', raids });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -7432,6 +7541,50 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
     await maybeAutoStartGuildRaids(db);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ success: true, message: 'Joined the raid party.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/recruit', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, gems');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const recruitId = String(req.body?.recruitId || '');
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can recruit mercenaries.' });
+    }
+    const members = await getGuildRaidMembers(db, raidId);
+    if (members.length >= GUILD_RAID_MAX_MEMBERS) return res.status(400).json({ error: 'Raid is already full.' });
+    let pool = [];
+    try { pool = JSON.parse(raid.mercenary_pool || '[]') || []; } catch {}
+    const recruit = pool.find(entry => String(entry.id) === recruitId);
+    if (!recruit) return res.status(404).json({ error: 'Mercenary offer not found.' });
+    if (recruit.recruited) return res.status(400).json({ error: 'That mercenary has already been recruited.' });
+    if ((char.gems || 0) < GUILD_RAID_MERCENARY_COST_GEMS) return res.status(400).json({ error: `Need ${GUILD_RAID_MERCENARY_COST_GEMS} gem to recruit.` });
+
+    recruit.recruited = true;
+    recruit.recruitedAt = now;
+    recruit.recruitedByCharId = char.id;
+    await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ?', [JSON.stringify(pool), raidId]);
+    await dbRun(db, 'UPDATE characters SET gems = gems - ? WHERE id = ?', [GUILD_RAID_MERCENARY_COST_GEMS, char.id]);
+
+    const npcCharId = -((raidId * 1000) + (Number(recruit.slotIndex || 0) + 1));
+    await dbRun(db, `INSERT INTO guild_raid_members
+      (raid_id, char_id, user_id, joined_at, is_npc, member_name, member_class, member_level, member_payload)
+      VALUES (?, ?, 0, ?, 1, ?, ?, ?, ?)`,
+      [raidId, npcCharId, now, recruit.name, recruit.fighter.class || 'mercenary', Number(recruit.level || raid.floor || 1), JSON.stringify(recruit)]
+    );
+
+    await maybeAutoStartGuildRaids(db);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'gems');
+    res.json({ success: true, message: `${recruit.name} joined the raid.`, gems: updated?.gems || 0, raids });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
