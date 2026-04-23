@@ -1270,7 +1270,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         linear-gradient(180deg, rgba(10,15,26,0.98), rgba(8,12,20,0.98));
     border-bottom: 1px solid rgba(201,146,42,0.15);
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     padding: 0;
     margin: 0;
     flex-shrink: 0;
