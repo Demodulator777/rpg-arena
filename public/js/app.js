@@ -2972,7 +2972,7 @@ async function collectMission() {
     try {
         const d = await api('POST', '/game/missions/collect');
         character = d.character;
-        window.activeMission = false;  // <-- ADD THIS LINE
+        window.activeMission = false;
         hideMissionOverlay(); 
         renderTopBar();
         let msg=`💰 +${d.goldEarned} gold`;
@@ -2981,6 +2981,17 @@ async function collectMission() {
         if (d.won===false) msg=`💀 Defeated · ${msg}`;
         if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
+        
+        // Show level up modal if applicable
+        if (d.levelUpMessage) {
+            await openGameDialog({
+                title: '🎉 Level Up!',
+                message: d.levelUpMessage,
+                confirmLabel: 'Awesome!',
+                showCancel: false
+            });
+        }
+        
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
             enemyName: d.npcName || 'Enemy',
             missionName: d.missionName || '',
@@ -5710,6 +5721,17 @@ async function attack(targetId,targetName,targetClass=null) {
         character=r.character;
         renderTopBar();
         if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
+        
+        // Show level up modal if applicable
+        if (r.atkLevelUpMessage) {
+            await openGameDialog({
+                title: '🎉 Level Up!',
+                message: r.atkLevelUpMessage,
+                confirmLabel: 'Awesome!',
+                showCancel: false
+            });
+        }
+        
         showBattleResult(r,targetName,targetClass);
     }
     catch(e) { alert(e.message); }
