@@ -1573,6 +1573,116 @@ function buildExtendedAchievements() {
 
     extras.push(
         {
+            id: 'raids_participated_1',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'First Into the Breach',
+            desc: 'Participate in 1 raid.',
+            icon: '⚔️',
+            metric: 'raids_participated',
+            target: 1,
+            rewards: { gold: 10000, gems: 2 },
+        },
+        {
+            id: 'raids_participated_5',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Raid Regular',
+            desc: 'Participate in 5 raids.',
+            icon: '🛡️',
+            metric: 'raids_participated',
+            target: 5,
+            rewards: { gold: 35000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_15',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Siegeborn',
+            desc: 'Participate in 15 raids.',
+            icon: '🏰',
+            metric: 'raids_participated',
+            target: 15,
+            rewards: { gold: 110000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_40',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Vanguard of the Guild',
+            desc: 'Participate in 40 raids.',
+            icon: '🏹',
+            metric: 'raids_participated',
+            target: 40,
+            rewards: { gold: 325000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_100',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Raid Legend',
+            desc: 'Participate in 100 raids.',
+            icon: '👑',
+            metric: 'raids_participated',
+            target: 100,
+            rewards: { gold: 900000, gems: 110, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_won_1',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Boss Breaker',
+            desc: 'Win 1 raid.',
+            icon: '🏆',
+            metric: 'raids_won',
+            target: 1,
+            rewards: { gold: 12000, gems: 3 },
+        },
+        {
+            id: 'raids_won_3',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Boss Hunter',
+            desc: 'Win 3 raids.',
+            icon: '💥',
+            metric: 'raids_won',
+            target: 3,
+            rewards: { gold: 40000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'raids_won_10',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Raid Victor',
+            desc: 'Win 10 raids.',
+            icon: '🔥',
+            metric: 'raids_won',
+            target: 10,
+            rewards: { gold: 125000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'raids_won_25',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Citadel Crusher',
+            desc: 'Win 25 raids.',
+            icon: '⚡',
+            metric: 'raids_won',
+            target: 25,
+            rewards: { gold: 360000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'raids_won_60',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Myth of the Six',
+            desc: 'Win 60 raids.',
+            icon: '🌟',
+            metric: 'raids_won',
+            target: 60,
+            rewards: { gold: 1000000, gems: 130, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
             id: 'hard_missions_5',
             chain: 'hard_missions_completed',
             category: 'missions',
@@ -1890,12 +2000,18 @@ function buildExtendedAchievements() {
 ACHIEVEMENTS.push(...buildExtendedAchievements());
 
 async function buildAchievementMetricSnapshot(db, char) {
-    const [missionRows, monsterRows, referralRow] = await Promise.all([
+    const [missionRows, monsterRows, referralRow, raidRow] = await Promise.all([
         dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
         dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
         char.user_id
             ? dbGet(db, 'SELECT referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
-            : Promise.resolve(null)
+            : Promise.resolve(null),
+        dbGet(db, `SELECT
+                COUNT(CASE WHEN gr.status = 'completed' THEN 1 END) AS raids_participated,
+                COUNT(CASE WHEN gr.status = 'completed' AND gm.reward_payload IS NOT NULL THEN 1 END) AS raids_won
+            FROM guild_raid_members gm
+            JOIN guild_raids gr ON gr.id = gm.raid_id
+            WHERE gm.char_id = ?`, [char.id])
     ]);
 
     const missionTotals = {
@@ -1947,6 +2063,8 @@ async function buildAchievementMetricSnapshot(db, char) {
         elemental_kills: char.elemental_kills || 0,
         physical_only_wins: char.physical_only_wins || 0,
         wins_without_shield: char.wins_without_shield || 0,
+        raids_participated: Number(raidRow?.raids_participated || 0),
+        raids_won: Number(raidRow?.raids_won || 0),
         referrals_registered: Number(referralRow?.referrals_registered || 0),
         referrals_level5: Number(referralRow?.referrals_level5 || 0),
         missionTotals,
@@ -1968,6 +2086,8 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'elemental_kills') return metrics.elemental_kills;
     if (metric === 'physical_only_wins') return metrics.physical_only_wins;
     if (metric === 'wins_without_shield') return metrics.wins_without_shield;
+    if (metric === 'raids_participated') return metrics.raids_participated;
+    if (metric === 'raids_won') return metrics.raids_won;
     if (metric === 'referrals_registered') return metrics.referrals_registered;
     if (metric === 'referrals_level5') return metrics.referrals_level5;
 
@@ -2410,12 +2530,24 @@ async function finalizeGuildRaid(db, raid, members) {
 
     const party = buildRaidPartyFighter(raid.id, members, fighters);
     const boss = buildRaidBossFighter(raid);
-    const battle = runBattle(party, boss);
+    const battle = runBattle(party, boss, null, { guaranteedHit: true });
     const raidWon = String(battle.winnerId) === String(party.id);
     const totalHpBefore = fighters.reduce((sum, fighter) => sum + Number(fighter.hp || 0), 0);
     const hpRatio = totalHpBefore > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalHpBefore)) : 0;
     const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor) : null;
     const raidCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
+    const resultSummary = raidWon
+        ? `${party.name} defeated ${raid.boss_name} on Floor ${raid.floor}.`
+        : `${raid.boss_name} crushed the party on Floor ${raid.floor}.`;
+    const reportBody = [
+        resultSummary,
+        '',
+        `Boss: ${raid.boss_name}`,
+        `Floor: ${raid.floor}`,
+        `Party size: ${memberChars.length}`,
+        '',
+        ...(battle.log || [])
+    ].join('\n');
 
     for (let i = 0; i < memberChars.length; i++) {
         const char = memberChars[i];
@@ -2433,11 +2565,21 @@ async function finalizeGuildRaid(db, raid, members) {
             'UPDATE guild_raid_members SET reward_payload = ? WHERE raid_id = ? AND char_id = ?',
             [rewardPayload ? JSON.stringify(rewardPayload) : null, raid.id, char.id]
         );
+        await dbRun(
+            db,
+            `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message)
+             VALUES (?, ?, ?, ?, ?, ?, 0, 1)`,
+            [
+                char.id,
+                char.id,
+                'Guild Raid Board',
+                `Raid Report: Floor ${raid.floor} ${raidWon ? 'Victory' : 'Defeat'}`,
+                reportBody,
+                rewardPayload ? JSON.stringify(rewardPayload) : null
+            ]
+        );
     }
 
-    const resultSummary = raidWon
-        ? `${party.name} defeated ${raid.boss_name} on Floor ${raid.floor}.`
-        : `${raid.boss_name} crushed the party on Floor ${raid.floor}.`;
     await dbRun(
         db,
         'UPDATE guild_raids SET status = ?, started_at = ?, completed_at = ?, result_summary = ?, result_log = ? WHERE id = ?',
@@ -2447,16 +2589,20 @@ async function finalizeGuildRaid(db, raid, members) {
 }
 
 async function maybeAutoStartGuildRaids(db) {
-    const now = Math.floor(Date.now() / 1000);
     const formingRaids = await dbAll(db, `SELECT gr.*,
         (SELECT COUNT(*) FROM guild_raid_members gm WHERE gm.raid_id = gr.id) AS member_count
         FROM guild_raids gr
         WHERE gr.status = 'forming'
         ORDER BY gr.created_at ASC`);
     for (const raid of formingRaids) {
-        const isFullAuto = raid.auto_start_mode === 'full' && Number(raid.member_count || 0) >= GUILD_RAID_MAX_MEMBERS;
-        const isScheduled = raid.auto_start_mode === 'scheduled' && Number(raid.scheduled_start_at || 0) > 0 && Number(raid.scheduled_start_at || 0) <= now;
-        if (!isFullAuto && !isScheduled) continue;
+        const autoMode = String(raid.auto_start_mode || 'manual');
+        let threshold = 0;
+        if (autoMode.startsWith('count_')) {
+            threshold = Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoMode.split('_')[1] || 0)));
+        } else if (autoMode === 'full') {
+            threshold = GUILD_RAID_MAX_MEMBERS;
+        }
+        if (threshold <= 0 || Number(raid.member_count || 0) < threshold) continue;
         const members = await getGuildRaidMembers(db, raid.id);
         await finalizeGuildRaid(db, raid, members);
     }
@@ -2465,14 +2611,12 @@ async function maybeAutoStartGuildRaids(db) {
 async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
     const members = await getGuildRaidMembers(db, raid.id);
     const viewerMember = members.find(m => String(m.char_id) === String(viewerCharId) || String(m.user_id) === String(viewerUserId)) || null;
-    let reward = null;
-    if (viewerMember?.reward_payload) {
-        try { reward = JSON.parse(viewerMember.reward_payload); } catch {}
-    }
-    let resultLog = [];
-    if (raid.result_log) {
-        try { resultLog = JSON.parse(raid.result_log) || []; } catch {}
-    }
+    const autoStartMode = String(raid.auto_start_mode || 'manual');
+    const autoStartPlayers = autoStartMode.startsWith('count_')
+        ? Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoStartMode.split('_')[1] || 0)))
+        : autoStartMode === 'full'
+            ? GUILD_RAID_MAX_MEMBERS
+            : 0;
     return {
         id: raid.id,
         floor: Number(raid.floor || 1),
@@ -2482,18 +2626,15 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
         bossAtk: Number(raid.boss_atk || 0),
         bossDef: Number(raid.boss_def || 0),
         status: raid.status,
-        autoStartMode: raid.auto_start_mode || 'manual',
-        scheduledStartAt: Number(raid.scheduled_start_at || 0),
+        autoStartMode,
+        autoStartPlayers,
         createdAt: Number(raid.created_at || 0),
         startedAt: Number(raid.started_at || 0),
         completedAt: Number(raid.completed_at || 0),
         resultSummary: raid.result_summary || '',
-        resultLog,
         memberCount: members.length,
         isLeader: String(raid.leader_char_id) === String(viewerCharId),
         isMember: !!viewerMember,
-        rewardClaimed: Number(viewerMember?.claimed_at || 0) > 0,
-        reward,
         members: members.map(member => ({
             charId: member.char_id,
             userId: member.user_id,
@@ -2510,8 +2651,8 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
 async function getGuildRaidList(db, viewerCharId, viewerUserId) {
     await maybeAutoStartGuildRaids(db);
     const raids = await dbAll(db, `SELECT * FROM guild_raids
-        WHERE status IN ('forming', 'completed')
-        ORDER BY CASE WHEN status = 'forming' THEN 0 ELSE 1 END, created_at DESC
+        WHERE status = 'forming'
+        ORDER BY created_at DESC
         LIMIT 12`);
     const payload = [];
     for (const raid of raids) {
@@ -2972,7 +3113,23 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     }
     return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg };
 }
-function runBattle(fighterA, fighterB, forceWinnerId = null) {
+function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
+    if (options?.guaranteedHit) {
+        fighterA = {
+            ...fighterA,
+            ignoreDefenderZones: true,
+            hit_chance: 100,
+            attackZones: Array(10).fill('chest'),
+            blockZones: Array(10).fill('no_block')
+        };
+        fighterB = {
+            ...fighterB,
+            ignoreDefenderZones: true,
+            hit_chance: 100,
+            attackZones: Array(10).fill('chest'),
+            blockZones: Array(10).fill('no_block')
+        };
+    }
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
     let penaltyA = false, penaltyB = false;
@@ -7226,29 +7383,27 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
       return res.status(400).json({ error: `You can only create raids up to floor ${maxFloor}.` });
     }
 
-    const autoStartMode = ['manual', 'full', 'scheduled'].includes(String(req.body?.autoStartMode || 'manual'))
-      ? String(req.body.autoStartMode)
-      : 'manual';
-    let scheduledStartAt = Math.max(0, Number(req.body?.scheduledStartAt || 0));
-    if (autoStartMode === 'scheduled') {
-      if (!scheduledStartAt || scheduledStartAt <= now + 30) {
-        return res.status(400).json({ error: 'Choose a scheduled start at least 30 seconds ahead.' });
-      }
-    } else {
-      scheduledStartAt = 0;
-    }
+    const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
+    const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
 
     const boss = getGuildRaidBossForFloor(requestedFloor);
     const created = await dbRun(db, `INSERT INTO guild_raids
       (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?)`,
-      [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, scheduledStartAt, now]
+      [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now]
     );
     const raidId = Number(created.lastInsertRowid);
     await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
       VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
+    await maybeAutoStartGuildRaids(db);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
-    res.json({ success: true, message: `Raid created for Floor ${requestedFloor}.`, raids });
+    res.json({
+      success: true,
+      message: requestedAutoStartPlayers === 1
+        ? `Solo raid launched for Floor ${requestedFloor}. Check your inbox for the report.`
+        : `Raid created for Floor ${requestedFloor}.`,
+      raids
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
