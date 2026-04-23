@@ -980,13 +980,17 @@ async function selectCharacter(characterId) {
 window.addEventListener('DOMContentLoaded', async () => {
     bindLegacyInlineHandlers(document);
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
-    const characterHubTrigger = document.getElementById('character-hub-trigger');
+const characterHubTrigger = document.getElementById('character-hub-trigger');
     if (characterHubTrigger) {
+        console.log('Found character-hub-trigger, attaching click handler');
         characterHubTrigger.addEventListener('click', (event) => {
+            console.log('Character hub trigger clicked');
             event.preventDefault();
             event.stopPropagation();
             toggleCharacterHubInline();
         });
+    } else {
+        console.log('character-hub-trigger NOT FOUND in DOM');
     }
     document.querySelectorAll('#character-inline-hub .nav-sub-btn').forEach((btn) => {
         btn.addEventListener('click', (event) => {
