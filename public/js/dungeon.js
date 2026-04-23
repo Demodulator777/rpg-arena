@@ -415,12 +415,14 @@ function generateFloor(dungeonId, floor) {
     const used = new Array(total).fill(false);
     const chosen = [];
     const depthMap = {};
+    const edgeMap = {};
     const startIdx = gridH * gridW - gridW;
     const stack = [startIdx];
 
     chosen.push(startIdx);
     used[startIdx] = true;
     depthMap[startIdx] = 0;
+    edgeMap[startIdx] = new Set();
 
     while (chosen.length < ROOMS_PER_FLOOR && stack.length > 0) {
       const current = stack[stack.length - 1];
@@ -442,6 +444,10 @@ function generateFloor(dungeonId, floor) {
       used[pick] = true;
       chosen.push(pick);
       depthMap[pick] = (depthMap[current] || 0) + 1;
+      edgeMap[pick] = edgeMap[pick] || new Set();
+      edgeMap[current] = edgeMap[current] || new Set();
+      edgeMap[current].add(pick);
+      edgeMap[pick].add(current);
       stack.push(pick);
     }
 
@@ -458,6 +464,11 @@ function generateFloor(dungeonId, floor) {
     const dungeonDef = getDungeonDef(dungeonId);
     const availableMonsters = dungeonDef?.monsters || [];
 
+    const roomIndexByGrid = {};
+    for (let i = 0; i < chosen.length; i++) {
+      roomIndexByGrid[chosen[i]] = i;
+    }
+
     for (let i = 0; i < chosen.length; i++) {
       const idx = chosen[i];
       const x = idx % gridW, y = Math.floor(idx / gridW);
@@ -466,14 +477,9 @@ function generateFloor(dungeonId, floor) {
       
       const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 5;
 
-      const connections = [];
-      for (let j = 0; j < chosen.length; j++) {
-        if (i === j) continue;
-        const jx = chosen[j] % gridW, jy = Math.floor(chosen[j] / gridW);
-        if ((Math.abs(x-jx) === 1 && y === jy) || (Math.abs(y-jy) === 1 && x === jx)) {
-          connections.push(j);
-        }
-      }
+      const connections = [...(edgeMap[idx] || [])]
+        .map(gridNeighbor => roomIndexByGrid[gridNeighbor])
+        .filter(conn => Number.isInteger(conn) && conn !== i);
 
       // Determine how many monsters based on floor (every 10 floors adds 1 more enemy)
       let monsterCount = 1;
