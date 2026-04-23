@@ -1228,6 +1228,9 @@ function renderDungeonRaidHub(guildData) {
     const canCreateRaid = reputation >= apprenticeReq;
     const isRaidLocked = cooldownLeft > 0;
     const raids = isRaidLocked ? [] : allRaids;
+    const existingRaid = allRaids.find(raid => raid.status === 'forming' && (raid.isLeader || raid.isMember));
+    const hasRaidCommitment = !!existingRaid;
+    const createLocked = isRaidLocked || hasRaidCommitment;
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
         .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
         .join('');
@@ -1459,15 +1462,17 @@ function renderDungeonRaidHub(guildData) {
                     <div class="exchange-name">Create a Raid</div>
                     <div class="exchange-desc">${isRaidLocked
                         ? `Raid recovery is active. You can create or view raids again in ${formatRaidDuration(cooldownLeft)}.`
-                        : 'Choose any floor up to your highest cleared dungeon floor. Start manually or auto-launch when the party reaches the selected size.'}</div>
+                        : hasRaidCommitment
+                            ? `You are already committed to a forming raid${existingRaid?.isLeader ? ' as leader' : ''}. Finish or leave that raid before creating another one.`
+                            : 'Choose any floor up to your highest cleared dungeon floor. Start manually or auto-launch when the party reaches the selected size.'}</div>
                     <div class="raid-create-grid">
                         <label class="raid-field">
                             <span>Floor</span>
-                            <select id="guild-raid-floor" class="raid-input" ${isRaidLocked ? 'disabled' : ''}>${raidFloorOptions}</select>
+                            <select id="guild-raid-floor" class="raid-input" ${createLocked ? 'disabled' : ''}>${raidFloorOptions}</select>
                         </label>
                         <label class="raid-field">
                             <span>Auto-start at</span>
-                            <select id="guild-raid-autostart" class="raid-input" ${isRaidLocked ? 'disabled' : ''}>
+                            <select id="guild-raid-autostart" class="raid-input" ${createLocked ? 'disabled' : ''}>
                                 <option value="0">Manual only</option>
                                 <option value="1">1 player</option>
                                 <option value="2">2 players</option>
@@ -1478,7 +1483,7 @@ function renderDungeonRaidHub(guildData) {
                             </select>
                         </label>
                     </div>
-                    <button class="exchange-btn ${isRaidLocked ? 'disabled' : ''}" ${isRaidLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? 'Raid Cooldown Active' : 'Create Raid'}</button>
+                    <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? `Raid Ready In ${formatRaidDuration(cooldownLeft)}` : hasRaidCommitment ? 'Already In Raid' : 'Create Raid'}</button>
                 </div>
             </div>
         ` : `
