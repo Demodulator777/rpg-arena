@@ -1768,9 +1768,9 @@ function getRoomDirectionArrow(fromIdx, toIdx) {
   }
 function isRoomVisible(idx) {
     if (D.exploredRooms.has(idx)) return true;
-    const room = D.rooms[idx];
-    if (!room || !Array.isArray(room.connections)) return false;
-    return room.connections.some(connectionIdx => D.exploredRooms.has(connectionIdx));
+    const currentRoom = D.rooms[D.playerPos];
+    if (!currentRoom || !Array.isArray(currentRoom.connections)) return false;
+    return currentRoom.connections.includes(idx);
 }
 function renderMapGrid() {
     const grid = {};
