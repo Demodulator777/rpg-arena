@@ -1648,6 +1648,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const roomImage = visual.image || '';
     const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
     const latestLogMessage = D.dungeonLog && D.dungeonLog[0] ? D.dungeonLog[0].msg : '';
+    const exploredCount = D.exploredRooms ? D.exploredRooms.size : 0;
+    const totalRoomCount = Array.isArray(D.rooms) ? D.rooms.length : 0;
     const roomLabel = currentRoom.isBoss
       ? 'Boss Room'
       : currentRoom.isStart
@@ -1691,6 +1693,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                 <span class="dungeon-hud-room-id"> � Room ${D.playerPos + 1}</span>
               </div>
               <div class="dungeon-hud-room-desc">${roomDescription}</div>
+              <div class="dungeon-hud-room-progress">${exploredCount}/${totalRoomCount} explored</div>
               ${latestLogMessage ? `<div class="dungeon-hud-room-log">${latestLogMessage}</div>` : ''}
               <div class="dungeon-hud-room-info">
                 ${renderRoomInfo(currentRoom)}
@@ -1747,7 +1750,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       iconEl.innerHTML = `<img class="dungeon-path-btn-arrow-img" src="${src}" alt="${alt}" loading="lazy" decoding="async">`;
     });
   }
-  function getRoomDirectionArrow(fromIdx, toIdx) {
+function getRoomDirectionArrow(fromIdx, toIdx) {
     const fromRoom = D.rooms[fromIdx];
     const toRoom = D.rooms[toIdx];
     if (!fromRoom || !toRoom) return 'right';
@@ -1763,6 +1766,12 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     if (dy > 0) return 'down';
     return 'right';
   }
+function isRoomVisible(idx) {
+    if (D.exploredRooms.has(idx)) return true;
+    const room = D.rooms[idx];
+    if (!room || !Array.isArray(room.connections)) return false;
+    return room.connections.some(connectionIdx => D.exploredRooms.has(connectionIdx));
+}
 function renderMapGrid() {
     const grid = {};
     for (let i = 0; i < D.rooms.length; i++) {
@@ -1791,12 +1800,14 @@ function renderMapGrid() {
                 const room = D.rooms[idx];
                 const isPlayer = idx === D.playerPos;
                 const explored = D.exploredRooms.has(idx);
+                const visible = isRoomVisible(idx);
                 const monsterAlive = room.monsters && room.monsters.some(m => 
                     !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
                 );
 
                 let roomClass = 'map-room';
-                if (!explored) roomClass += ' map-room-fog';
+                if (!visible) roomClass += ' map-room-fog';
+                else if (!explored) roomClass += ' map-room-discovered';
                 else if (isPlayer) roomClass += ' map-room-player';
                 else if (room.isBoss) roomClass += ' map-room-boss';
                 else if (room.isMiniBoss) roomClass += ' map-room-miniboss';
@@ -1807,7 +1818,9 @@ function renderMapGrid() {
                 const icon = '';
                 const title = explored
                   ? (room.isBoss ? `Boss Room � #${idx + 1}` : room.isMiniBoss ? `Mini-Boss � #${idx + 1}` : `Room ${idx + 1}`)
-                  : '???';
+                  : visible
+                    ? `Unexplored room #${idx + 1}`
+                    : '???';
 
                 html += `<div class="${roomClass}" title="${title}">${icon}</div>`;
             } else {
