@@ -3068,16 +3068,14 @@ function calculateMagicShield(attacker, defender) {
         return {
             active: true,
             value: shieldValue,
-            remaining: shieldValue,
-            usedInBattle: false
+            remaining: shieldValue
         };
     }
     
     return {
         active: false,
         value: 0,
-        remaining: 0,
-        usedInBattle: false
+        remaining: 0
     };
 }
 
@@ -3184,16 +3182,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         } else {
             finalDmg = physicalDmg;
 
-            let justAbsorbed = false;
-            let absorbedAmount = 0;
-            if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && !defenderShield.usedInBattle) {
-                absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
-                finalDmg -= absorbedAmount;
-                defenderShield.remaining -= absorbedAmount;
-                defenderShield.usedInBattle = true;
-                justAbsorbed = true;
-            }
-
             if (finalDmg > 0 && (defender.armor || 0) > 0) {
                 const physReduction = Math.min(finalDmg - 1, defender.armor);
                 finalDmg = Math.max(1, finalDmg - physReduction);
@@ -3207,6 +3195,15 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 finalDmg += venomfangBonus;
             }
 
+            let justAbsorbed = false;
+            let absorbedAmount = 0;
+            if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
+                absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
+                finalDmg -= absorbedAmount;
+                defenderShield.remaining -= absorbedAmount;
+                justAbsorbed = true;
+            }
+
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
             if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
@@ -3218,6 +3215,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.floor(finalDmg)} gets through`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
+            }
+
+            if (justAbsorbed && defenderShield.remaining > 0) {
+                logLine += ` ${defenderShield.remaining} durability remains.`;
             }
 
             if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
@@ -3265,8 +3266,6 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     
     let shieldA = calculateMagicShield(fighterB, fighterA);
     let shieldB = calculateMagicShield(fighterA, fighterB);
-    shieldA.usedInBattle = false;
-    shieldB.usedInBattle = false;
 
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
     const skA = Object.keys(fighterA.activeSkills || {});
@@ -3274,8 +3273,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
     if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
     
-    if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field worth ${shieldA.value} damage!`);
-    if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field worth ${shieldB.value} damage!`);
+    if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
+    if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
     log.push('---');
 
     let roundEndedPrematurely = false;
