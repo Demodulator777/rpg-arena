@@ -1150,6 +1150,64 @@ function showTab(name) {
     if (name === 'dungeon')     renderDungeonTab();
 }
 
+function getCurrentGameTabName() {
+    const activeTab = document.querySelector('.game-tab.active');
+    return activeTab?.id?.replace(/^tab-/, '') || 'character';
+}
+
+function buildCharacterHubModalOptions() {
+    const currentTab = getCurrentGameTabName();
+    const options = [
+        { id: 'character', title: 'Character', desc: 'Stats, equipment, and record overview.' },
+        { id: 'upgrade', title: 'Upgrade', desc: 'Spend gold to raise your core stats.' },
+        { id: 'loadout', title: 'Loadout', desc: 'Tune attack and block patterns.' },
+        { id: 'skills', title: 'Skills', desc: 'Review and activate class skills.' },
+        { id: 'train', title: 'Training', desc: 'Manage long-term stat training.' },
+        { id: 'inventory', title: 'Inventory', desc: 'Equipment, consumables, and loot boxes.' },
+        { id: 'premium', title: 'Premium', desc: 'Premium perks and active feature timers.' }
+    ];
+    return options.map(opt => `
+        <button class="character-hub-option ${currentTab === opt.id ? 'active' : ''}" ${actionAttrs('navigateCharacterHub', opt.id)}>
+            <span class="character-hub-option-title">${opt.title}</span>
+            <span class="character-hub-option-desc">${opt.desc}</span>
+        </button>
+    `).join('');
+}
+
+function ensureCharacterHubModal() {
+    if (document.getElementById('character-hub-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="character-hub-modal" class="modal-overlay hidden">
+            <div class="modal-box character-hub-modal-box">
+                <div class="modal-header">
+                    <h3>Character Navigation</h3>
+                    <button class="btn-secondary" ${actionAttrs('closeCharacterHubModal')}>✕</button>
+                </div>
+                <div class="character-hub-modal-copy">Jump between your character overview and all build-management pages without going back first.</div>
+                <div id="character-hub-modal-options" class="character-hub-options"></div>
+            </div>
+        </div>
+    `);
+}
+
+function openCharacterHubModal() {
+    ensureCharacterHubModal();
+    const modal = document.getElementById('character-hub-modal');
+    const options = document.getElementById('character-hub-modal-options');
+    if (!modal || !options) return;
+    options.innerHTML = buildCharacterHubModalOptions();
+    modal.classList.remove('hidden');
+}
+
+function closeCharacterHubModal() {
+    document.getElementById('character-hub-modal')?.classList.add('hidden');
+}
+
+function navigateCharacterHub(tabName) {
+    closeCharacterHubModal();
+    showTab(tabName);
+}
+
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
     const proceed = await openGameDialog({
@@ -1546,23 +1604,6 @@ const eqGrid = `
       <div class="class-scene-backdrop"></div>
       <div class="class-scene-glow"></div>
       <div class="class-scene-content char-grid">
-        <div class="char-panel char-panel-subnav">
-          <div class="char-subnav-copy">
-            <h3>BUILD TOOLS</h3>
-            <span>Open upgrades, loadouts, skills, training, or inventory from here.</span>
-          </div>
-          <div class="char-subnav-controls">
-            <label class="char-subnav-label" for="character-subtab-select">Navigate To</label>
-            <select id="character-subtab-select" class="char-subtab-select">
-              <option value="upgrade">Upgrade</option>
-              <option value="loadout">Loadout</option>
-              <option value="skills">Skills</option>
-              <option value="train">Training</option>
-              <option value="inventory">Inventory</option>
-              <option value="premium">Premium</option>
-            </select>
-          </div>
-        </div>
         <div class="char-panel">
           <h3>STATS</h3>
           ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str')}
@@ -1607,18 +1648,7 @@ const eqGrid = `
         </div>
       </div>
     </div>`;
-    const characterSubtabSelect = document.getElementById('character-subtab-select');
-    if (characterSubtabSelect) {
-        characterSubtabSelect.value = CHARACTER_SUB_TABS.includes(window._characterHubTarget)
-            ? window._characterHubTarget
-            : 'inventory';
-        characterSubtabSelect.addEventListener('change', (e) => {
-            const targetTab = e.target.value;
-            if (!CHARACTER_SUB_TABS.includes(targetTab)) return;
-            window._characterHubTarget = targetTab;
-            showTab(targetTab);
-        });
-    }
+    ensureCharacterHubModal();
     ensureAchievementsModal();
     renderTopBar();
     loadAchievements();
@@ -7250,6 +7280,7 @@ function closeModalOverlayById(modalId) {
         case 'exchange-modal': closeExchangeModal(); break;
         case 'mission-location-modal': closeMissionModal2(); break;
         case 'topbar-menu-modal': closeTopbarMenu(); break;
+        case 'character-hub-modal': closeCharacterHubModal(); break;
         case 'character-switch-modal': closeCharacterSwitcher(); break;
         case 'bug-report-modal': closeBugReport(); break;
         case 'achievements-modal': closeAchievementsModal(); break;
