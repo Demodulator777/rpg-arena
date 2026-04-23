@@ -1123,6 +1123,7 @@ function showTab(name) {
     const activeNavBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => btn.dataset.args === `["${navTarget}"]`);
     if (activeNavBtn) activeNavBtn.classList.add('active');
     if (CHARACTER_SUB_TABS.includes(name)) window._characterHubTarget = name;
+    closeCharacterHubInline();
     
     // Update assistant highlight after tab change
     updateAssistantUI();
@@ -1150,59 +1151,26 @@ function showTab(name) {
     if (name === 'dungeon')     renderDungeonTab();
 }
 
-function getCurrentGameTabName() {
-    const activeTab = document.querySelector('.game-tab.active');
-    return activeTab?.id?.replace(/^tab-/, '') || 'character';
+function toggleCharacterHubInline() {
+    const hub = document.getElementById('character-inline-hub');
+    if (!hub) return;
+    const shouldOpen = hub.classList.contains('hidden');
+    closeCharacterHubInline();
+    if (shouldOpen) {
+        const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
+        hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
+        });
+        hub.classList.remove('hidden');
+    }
 }
 
-function buildCharacterHubModalOptions() {
-    const currentTab = getCurrentGameTabName();
-    const options = [
-        { id: 'character', title: 'Character', icon: '/images/character.png' },
-        { id: 'upgrade', title: 'Upgrade', icon: '/images/upgrade.png' },
-        { id: 'loadout', title: 'Loadout', icon: '/images/loadout.png' },
-        { id: 'skills', title: 'Skills', icon: '/images/skills.png' },
-        { id: 'train', title: 'Training', icon: '/images/training.png' },
-        { id: 'inventory', title: 'Inventory', icon: '/images/inventory.png' },
-        { id: 'premium', title: 'Premium', icon: '/images/premium.png' }
-    ];
-    return options.map(opt => `
-        <button class="character-hub-option character-hub-option-icononly ${currentTab === opt.id ? 'active' : ''}" title="${opt.title}" aria-label="${opt.title}" ${actionAttrs('navigateCharacterHub', opt.id)}>
-            <img class="character-hub-option-icon character-hub-option-icon-hero" src="${opt.icon}" alt="${opt.title}" loading="lazy" decoding="async">
-        </button>
-    `).join('');
-}
-
-function ensureCharacterHubModal() {
-    if (document.getElementById('character-hub-modal')) return;
-    document.body.insertAdjacentHTML('beforeend', `
-        <div id="character-hub-modal" class="modal-overlay hidden">
-            <div class="modal-box character-hub-modal-box">
-                <div class="modal-header">
-                    <h3>Character Navigation</h3>
-                    <button class="btn-secondary" ${actionAttrs('closeCharacterHubModal')}>✕</button>
-                </div>
-                <div id="character-hub-modal-options" class="character-hub-options"></div>
-            </div>
-        </div>
-    `);
-}
-
-function openCharacterHubModal() {
-    ensureCharacterHubModal();
-    const modal = document.getElementById('character-hub-modal');
-    const options = document.getElementById('character-hub-modal-options');
-    if (!modal || !options) return;
-    options.innerHTML = buildCharacterHubModalOptions();
-    modal.classList.remove('hidden');
-}
-
-function closeCharacterHubModal() {
-    document.getElementById('character-hub-modal')?.classList.add('hidden');
+function closeCharacterHubInline() {
+    document.getElementById('character-inline-hub')?.classList.add('hidden');
 }
 
 function navigateCharacterHub(tabName) {
-    closeCharacterHubModal();
+    closeCharacterHubInline();
     showTab(tabName);
 }
 
@@ -1270,7 +1238,7 @@ function renderTopBar() {
     }
 
     // Highlight Missions Tab if in tutorial and not on missions tab
-    const missionsTab = document.querySelectorAll('.nav-btn')[TAB_ORDER.indexOf('missions')];
+    const missionsTab = document.querySelector('.nav-btn[data-args=\'["missions"]\']');
     if (missionsTab) {
         if (isTutorial && !document.getElementById('tab-missions').classList.contains('active')) {
             missionsTab.classList.add('tutorial-highlight');
@@ -6248,6 +6216,11 @@ document.addEventListener('click', (event) => {
             closeModalOverlayById(overlay.id);
             return;
         }
+        const hub = document.getElementById('character-inline-hub');
+        const hubGroup = overlay.closest('.nav-hub-group');
+        if (hub && !hub.classList.contains('hidden') && !hubGroup) {
+            closeCharacterHubInline();
+        }
     }
     handleDelegatedAction(event, 'data-action');
 });
@@ -7278,7 +7251,6 @@ function closeModalOverlayById(modalId) {
         case 'exchange-modal': closeExchangeModal(); break;
         case 'mission-location-modal': closeMissionModal2(); break;
         case 'topbar-menu-modal': closeTopbarMenu(); break;
-        case 'character-hub-modal': closeCharacterHubModal(); break;
         case 'character-switch-modal': closeCharacterSwitcher(); break;
         case 'bug-report-modal': closeBugReport(); break;
         case 'achievements-modal': closeAchievementsModal(); break;
