@@ -1614,7 +1614,6 @@ const eqGrid = `
         </div>
       </div>
     </div>`;
-    ensureCharacterHubModal();
     ensureAchievementsModal();
     renderTopBar();
     loadAchievements();
