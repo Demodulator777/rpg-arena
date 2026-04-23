@@ -2342,9 +2342,9 @@
 
   .dungeon-hud-center {
     top: auto;
-    bottom: 132px;
+    bottom: 182px;
     transform: translateX(-50%);
-    width: min(85vw, 520px);
+    width: min(80vw, 500px);
   }
 
   .dungeon-hud-room {
@@ -2445,9 +2445,9 @@
 
   .dungeon-hud-center {
     top: auto;
-    bottom: 144px;
+    bottom: 198px;
     transform: translateX(-50%);
-    width: min(86vw, 360px);
+    width: min(80vw, 332px);
   }
 
   .dungeon-hud-room {
