@@ -1173,12 +1173,8 @@ function showTab(name) {
 
 function toggleCharacterHubInline() {
     const hub = document.getElementById('character-inline-hub');
-    const computedStyle = hub ? window.getComputedStyle(hub) : null;
-    console.log('toggleCharacterHubInline called, hub:', hub);
-    console.log('hub display:', computedStyle?.display, 'visibility:', computedStyle?.visibility);
     if (!hub) return;
     const shouldOpen = hub.classList.contains('hidden');
-    console.log('shouldOpen:', shouldOpen, 'has hidden:', hub.classList.contains('hidden'));
     closeCharacterHubInline();
     if (shouldOpen) {
         const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
@@ -1186,11 +1182,13 @@ function toggleCharacterHubInline() {
             btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
         });
         hub.classList.remove('hidden');
-        
-        // Force display
         hub.style.display = 'flex';
-        console.log('After remove hidden, display:', window.getComputedStyle(hub).display);
-        console.log('Hub HTML:', hub.outerHTML.substring(0, 200));
+        
+        // Force reflow and check position
+        void hub.offsetHeight;
+        const rect = hub.getBoundingClientRect();
+        console.log('Hub rect:', rect);
+        console.log('Hub parent rect:', hub.parentElement.getBoundingClientRect());
     }
 }
 
