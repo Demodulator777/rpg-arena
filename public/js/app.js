@@ -1114,12 +1114,15 @@ function showScreen(name) {
     }
 }
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
+const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','inventory','premium'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
-    const idx = TAB_ORDER.indexOf(name);
-    if (idx >= 0) document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
+    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : name;
+    const activeNavBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => btn.dataset.args === `["${navTarget}"]`);
+    if (activeNavBtn) activeNavBtn.classList.add('active');
+    if (CHARACTER_SUB_TABS.includes(name)) window._characterHubTarget = name;
     
     // Update assistant highlight after tab change
     updateAssistantUI();
@@ -1543,6 +1546,23 @@ const eqGrid = `
       <div class="class-scene-backdrop"></div>
       <div class="class-scene-glow"></div>
       <div class="class-scene-content char-grid">
+        <div class="char-panel char-panel-subnav">
+          <div class="char-subnav-copy">
+            <h3>BUILD TOOLS</h3>
+            <span>Open upgrades, loadouts, skills, training, or inventory from here.</span>
+          </div>
+          <div class="char-subnav-controls">
+            <label class="char-subnav-label" for="character-subtab-select">Navigate To</label>
+            <select id="character-subtab-select" class="char-subtab-select">
+              <option value="upgrade">Upgrade</option>
+              <option value="loadout">Loadout</option>
+              <option value="skills">Skills</option>
+              <option value="train">Training</option>
+              <option value="inventory">Inventory</option>
+              <option value="premium">Premium</option>
+            </select>
+          </div>
+        </div>
         <div class="char-panel">
           <h3>STATS</h3>
           ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str')}
@@ -1587,6 +1607,18 @@ const eqGrid = `
         </div>
       </div>
     </div>`;
+    const characterSubtabSelect = document.getElementById('character-subtab-select');
+    if (characterSubtabSelect) {
+        characterSubtabSelect.value = CHARACTER_SUB_TABS.includes(window._characterHubTarget)
+            ? window._characterHubTarget
+            : 'inventory';
+        characterSubtabSelect.addEventListener('change', (e) => {
+            const targetTab = e.target.value;
+            if (!CHARACTER_SUB_TABS.includes(targetTab)) return;
+            window._characterHubTarget = targetTab;
+            showTab(targetTab);
+        });
+    }
     ensureAchievementsModal();
     renderTopBar();
     loadAchievements();
