@@ -437,9 +437,34 @@
             <img src="/images/leftside.png" alt="">
         </div>
         <div class="sidebar-buttons">
-            <button class="nav-btn" data-action="openCharacterHubModal">
-                <img src="/images/character.png" alt="Character">
-            </button>
+            <div class="nav-hub-group">
+                <button class="nav-btn" data-action="toggleCharacterHubInline" aria-label="Character Navigation">
+                    <img src="/images/character.png" alt="Character">
+                </button>
+                <div id="character-inline-hub" class="character-inline-hub hidden">
+                    <button class="nav-btn nav-sub-btn" title="Character" aria-label="Character" data-action="navigateCharacterHub" data-args='["character"]'>
+                        <img src="/images/character.png" alt="Character">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Upgrade" aria-label="Upgrade" data-action="navigateCharacterHub" data-args='["upgrade"]'>
+                        <img src="/images/upgrade.png" alt="Upgrade">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Loadout" aria-label="Loadout" data-action="navigateCharacterHub" data-args='["loadout"]'>
+                        <img src="/images/loadout.png" alt="Loadout">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Skills" aria-label="Skills" data-action="navigateCharacterHub" data-args='["skills"]'>
+                        <img src="/images/skills.png" alt="Skills">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Training" aria-label="Training" data-action="navigateCharacterHub" data-args='["train"]'>
+                        <img src="/images/training.png" alt="Training">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Inventory" aria-label="Inventory" data-action="navigateCharacterHub" data-args='["inventory"]'>
+                        <img src="/images/inventory.png" alt="Inventory">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Premium" aria-label="Premium" data-action="navigateCharacterHub" data-args='["premium"]'>
+                        <img src="/images/premium.png" alt="Premium">
+                    </button>
+                </div>
+            </div>
             <button class="nav-btn" data-action="showTab" data-args='["missions"]'>
                 <img src="/images/missions.png" alt="Missions">
             </button>
