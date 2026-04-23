@@ -1169,10 +1169,18 @@ function showTab(name) {
 
 function toggleCharacterHubInline() {
     const hub = document.getElementById('character-inline-hub');
-    if (!hub) return;
+    const trigger = document.getElementById('character-hub-trigger');
+    if (!hub || !trigger) return;
+    
     const shouldOpen = hub.classList.contains('hidden');
     closeCharacterHubInline();
     if (shouldOpen) {
+        const triggerRect = trigger.getBoundingClientRect();
+        const hubWidth = 68; // approximate
+        hub.style.position = 'fixed';
+        hub.style.left = triggerRect.left + 'px';
+        hub.style.top = (triggerRect.bottom + 8) + 'px';
+        
         const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
         hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
