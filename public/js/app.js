@@ -3881,7 +3881,7 @@ function renderGearGrid(el, gear, equipped) {
         const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
         
         return `
-        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;">
+        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;" ${actionAttrs('openItemTooltip', i.id)}>
             <div class="inv-item-icon" 
                  data-hover-action="hoverItemTooltip" data-args='[${i.id}]'
                  data-leave-action="scheduleHideTooltip"
@@ -4243,6 +4243,11 @@ function hoverEqTooltip(el, event) {
 }
 
 function hoverShopItemTooltip(el, event) {
+    if (!el?.dataset?.shopitem) return;
+    showShopItemTooltip(withCurrentTarget(event, el), el.dataset.shopitem);
+}
+
+function openShopItemTooltip(el, event) {
     if (!el?.dataset?.shopitem) return;
     showShopItemTooltip(withCurrentTarget(event, el), el.dataset.shopitem);
 }
@@ -5430,7 +5435,7 @@ function renderShop() {
 
         const shopItemData = escHtml(JSON.stringify(item));
         return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
-            <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}">
+            <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}" ${actionAttrs('openShopItemTooltip')}>
                 <span class="shop-card-icon">${itemIcon(item,'2rem')}</span>
                 <span class="shop-card-name">${item.name}</span>
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
@@ -6510,8 +6515,10 @@ document.addEventListener('click', (event) => {
     if (overlay instanceof HTMLElement) {
         const tooltip = document.getElementById('item-tooltip');
         const clickedTooltipTrigger =
+            !!overlay.closest('#item-tooltip') ||
             !!overlay.closest('[data-hover-action]') ||
-            !!overlay.closest('[data-action="openItemTooltip"]');
+            !!overlay.closest('[data-action="openItemTooltip"]') ||
+            !!overlay.closest('[data-action="openShopItemTooltip"]');
         if (window.innerWidth <= 768 && tooltip && !tooltip.classList.contains('hidden') && !clickedTooltipTrigger) {
             hideItemTooltip();
         }
