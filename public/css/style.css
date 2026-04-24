@@ -1346,9 +1346,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 63px;
     border-radius: 18px;
     border: none;
-    background: transparent url('/images/assets/inventory/dropdown.png') center / 150% 150% no-repeat;
+    background: transparent;
     box-shadow: none;
     z-index: 9999;
+    position: relative;
+    overflow: visible;
+}
+.character-inline-hub::before {
+    content: '';
+    position: absolute;
+    inset: -14px;
+    background: transparent url('/images/assets/inventory/dropdown.png') center / 100% 100% no-repeat;
+    pointer-events: none;
+    z-index: -1;
 }
 .character-inline-hub.hidden {
     display: none;
