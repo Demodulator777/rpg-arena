@@ -980,12 +980,20 @@ async function selectCharacter(characterId) {
 window.addEventListener('DOMContentLoaded', async () => {
     bindLegacyInlineHandlers(document);
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
-    const characterHubTrigger = document.getElementById('character-hub-trigger');
+const characterHubTrigger = document.getElementById('character-hub-trigger');
     if (characterHubTrigger) {
         characterHubTrigger.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
             toggleCharacterHubInline();
+        });
+    }
+    const inventoryHubTrigger = document.getElementById('inventory-hub-trigger');
+    if (inventoryHubTrigger) {
+        inventoryHubTrigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleInventoryHubInline();
         });
     }
     document.querySelectorAll('#character-inline-hub .nav-sub-btn').forEach((btn) => {
@@ -994,6 +1002,14 @@ window.addEventListener('DOMContentLoaded', async () => {
             event.stopPropagation();
             const [tabName] = parseActionArgs(btn);
             if (tabName) navigateCharacterHub(tabName);
+        });
+    });
+    document.querySelectorAll('#inventory-inline-hub .nav-sub-btn').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const [tabName] = parseActionArgs(btn);
+            if (tabName) navigateInventoryHub(tabName);
         });
     });
     if (!document.getElementById('item-tooltip')) {
@@ -1130,16 +1146,18 @@ function showScreen(name) {
     }
 }
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
-const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','inventory','premium'];
+const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
+const INVENTORY_SUB_TABS = ['inventory','forge','shop'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
-    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : name;
+    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : INVENTORY_SUB_TABS.includes(name) ? 'inventory' : name;
     const activeNavBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => btn.dataset.args === `["${navTarget}"]`);
     if (activeNavBtn) activeNavBtn.classList.add('active');
     if (CHARACTER_SUB_TABS.includes(name)) window._characterHubTarget = name;
-    closeInlineHubs();
+    if (INVENTORY_SUB_TABS.includes(name)) window._inventoryHubTarget = name;
+    closeCharacterHubInline();
     
     // Update assistant highlight after tab change
     updateAssistantUI();
@@ -1167,57 +1185,123 @@ function showTab(name) {
     if (name === 'dungeon')     renderDungeonTab();
 }
 
-function openInlineHub(sourceHubId, triggerId, navigateFnName) {
-    const trigger = document.getElementById(triggerId);
-    const sourceHub = document.getElementById(sourceHubId);
-    if (!trigger || !sourceHub) return;
-    const fixedId = `${sourceHubId}-fixed`;
-    const existingHub = document.getElementById(fixedId);
-    const shouldOpen = !existingHub;
-    closeInlineHubs();
-    if (!shouldOpen) return;
-    const triggerRect = trigger.getBoundingClientRect();
-    const hub = document.createElement('div');
-    hub.id = fixedId;
-    hub.className = 'character-inline-hub character-inline-hub-fixed';
-    hub.style.position = 'fixed';
-    hub.style.left = `${triggerRect.left - 8}px`;
-    hub.style.top = `${Math.max(0, triggerRect.top - 6)}px`;
-    hub.style.zIndex = '99999';
-    hub.innerHTML = sourceHub.innerHTML;
-    hub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
-        btn.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const [tabName] = parseActionArgs(btn);
-            if (tabName && typeof globalThis[navigateFnName] === 'function') globalThis[navigateFnName](tabName);
-        });
-    });
-    const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
-    hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
-    });
-    document.body.appendChild(hub);
-}
-
 function toggleCharacterHubInline() {
-    openInlineHub('character-inline-hub', 'character-hub-trigger', 'navigateCharacterHub');
-}
-
-function closeInlineHubs() {
-    document.getElementById('character-inline-hub-fixed')?.remove();
+    const trigger = document.getElementById('character-hub-trigger');
+    if (!trigger) return;
+    
+    const fixedHub = document.getElementById('character-inline-hub-fixed');
+    const shouldOpen = !fixedHub || fixedHub.classList.contains('hidden');
+    
+    // Close any existing hub
+    closeCharacterHubInline();
+    
+    if (shouldOpen) {
+        // Create a new fixed hub element
+        const triggerRect = trigger.getBoundingClientRect();
+        
+        const hub = document.createElement('div');
+        hub.id = 'character-inline-hub-fixed';
+        hub.className = 'character-inline-hub';
+        hub.style.position = 'fixed';
+        hub.style.left = triggerRect.left + 'px';
+        hub.style.top = (triggerRect.bottom + 8) + 'px';
+        hub.style.zIndex = '99999';
+        hub.style.display = 'flex';
+        hub.style.flexDirection = 'column';
+        
+        // Get the original hub content
+        const originalHub = document.getElementById('character-inline-hub');
+        if (!originalHub) return;
+        
+        hub.innerHTML = originalHub.innerHTML;
+        
+        // Attach click handlers
+        hub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const [tabName] = parseActionArgs(btn);
+                if (tabName) navigateCharacterHub(tabName);
+            });
+        });
+        
+        const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
+        hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
+        });
+        
+        document.body.appendChild(hub);
+    }
 }
 
 function closeCharacterHubInline() {
-    closeInlineHubs();
+    const hub = document.getElementById('character-inline-hub');
+    if (hub) hub.classList.add('hidden');
+    const fixedHub = document.getElementById('character-inline-hub-fixed');
+    if (fixedHub) fixedHub.remove();
+    const invHub = document.getElementById('inventory-inline-hub');
+    if (invHub) invHub.classList.add('hidden');
+    const fixedInvHub = document.getElementById('inventory-inline-hub-fixed');
+    if (fixedInvHub) fixedInvHub.remove();
 }
 
 function navigateCharacterHub(tabName) {
-    closeInlineHubs();
+    closeCharacterHubInline();
+    showTab(tabName);
+}
+function toggleInventoryHubInline() {
+    const trigger = document.getElementById('inventory-hub-trigger');
+    if (!trigger) return;
+
+    const fixedHub = document.getElementById('inventory-inline-hub-fixed');
+    const shouldOpen = !fixedHub || fixedHub.classList.contains('hidden');
+
+    closeCharacterHubInline();
+
+    if (shouldOpen) {
+        const triggerRect = trigger.getBoundingClientRect();
+
+        const hub = document.createElement('div');
+        hub.id = 'inventory-inline-hub-fixed';
+        hub.className = 'character-inline-hub';
+        hub.style.position = 'fixed';
+        hub.style.left = triggerRect.left + 'px';
+        hub.style.top = (triggerRect.bottom + 8) + 'px';
+        hub.style.zIndex = '99999';
+        hub.style.display = 'flex';
+        hub.style.flexDirection = 'column';
+
+        const originalHub = document.getElementById('inventory-inline-hub');
+        if (!originalHub) return;
+
+        hub.innerHTML = originalHub.innerHTML;
+
+        hub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const [tabName] = parseActionArgs(btn);
+                if (tabName) navigateInventoryHub(tabName);
+            });
+        });
+
+        const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
+        hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
+        });
+
+        document.body.appendChild(hub);
+    }
+}
+
+function navigateInventoryHub(tabName) {
+    closeCharacterHubInline();
     showTab(tabName);
 }
 window.toggleCharacterHubInline = toggleCharacterHubInline;
 window.navigateCharacterHub = navigateCharacterHub;
+window.toggleInventoryHubInline = toggleInventoryHubInline;
+window.navigateInventoryHub = navigateInventoryHub;
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
@@ -6260,11 +6344,10 @@ document.addEventListener('click', (event) => {
             closeModalOverlayById(overlay.id);
             return;
         }
+        const hub = document.getElementById('character-inline-hub');
         const hubGroup = overlay.closest('.nav-hub-group');
-        if (document.getElementById('character-inline-hub-fixed') || document.getElementById('inventory-inline-hub-fixed')) {
-            if (!hubGroup && !overlay.closest('.character-inline-hub-fixed')) {
-                closeInlineHubs();
-            }
+        if (hub && !hub.classList.contains('hidden') && !hubGroup) {
+            closeCharacterHubInline();
         }
     }
     handleDelegatedAction(event, 'data-action');
