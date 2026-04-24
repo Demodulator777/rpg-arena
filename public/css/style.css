@@ -33,9 +33,12 @@
 }
 
 @media (max-width: 680px) {
+    .premium-feature-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 200px)) !important;
+    }
     .premium-feature-art-wrap {
         width: 100%;
-        max-width: 220px;
+        max-width: 200px;
         margin: 0 auto;
     }
 }
@@ -2930,6 +2933,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     inset: 0;
     background: radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 46%);
     pointer-events: none;
+}
+.premium-feature-grid {
+    justify-content: center;
+}
+.premium-feature-days {
+    z-index: 3;
 }
 .premium-feature-head {
     display: flex;
