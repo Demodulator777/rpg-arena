@@ -6049,8 +6049,9 @@ async function attack(targetId,targetName,targetClass=null) {
     catch(e) { alert(e.message); }
 }
 function showBattleResult(r, targetName, targetClass=null) {
+    const xpSummary = `${r.xpGained >= 0 ? '+' : ''}${r.xpGained} XP`;
     const summary = r.won
-        ? `+${r.goldGained} gold · +${r.xpGained} XP`
+        ? `+${r.goldGained} gold · ${xpSummary}`
         : `-${r.goldLost} gold`;
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken, {
         enemyName: targetName,
