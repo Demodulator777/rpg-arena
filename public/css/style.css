@@ -1346,13 +1346,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 63px;
     border-radius: 18px;
     border: none;
-    background:
-        linear-gradient(180deg, rgba(10, 16, 28, 0.98), rgba(7, 11, 20, 0.96)),
-        transparent url('/images/assets/inventory/dropdown.png') top center / 100% auto no-repeat;
+    background: transparent url('/images/assets/inventory/dropdown.png') center / 100% 100% no-repeat;
     box-shadow: none;
     z-index: 9999;
-    position: relative;
-    overflow: visible;
 }
 .character-inline-hub.hidden {
     display: none;
