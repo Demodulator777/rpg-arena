@@ -6162,8 +6162,14 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
         const merchantPrince = hasPremium(activePremSell, 'vault_keeper') && hasPremium(activePremSell, 'apprentice');
         const sellRate = merchantPrince ? 0.40 : 0.30;
         const sellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
-        
-        await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+
+        const currentQty = Math.max(1, Number(data.qty || 1));
+        if (currentQty > 1) {
+            data.qty = currentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), item.id]);
+        } else {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+        }
         await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [sellPrice, char.id]);
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
         res.json({ message: `Sold ${data.name} for ${sellPrice} gold.`, goldEarned: sellPrice, character: await buildCharacterResponse(updated, db) });
