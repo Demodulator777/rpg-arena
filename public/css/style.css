@@ -1351,6 +1351,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     z-index: 9999;
     position: relative;
     overflow: visible;
+    isolation: isolate;
 }
 .character-inline-hub::before {
     content: '';
@@ -1363,12 +1364,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         transparent url('/images/assets/inventory/dropdown.png') top center / 100% auto no-repeat,
         transparent url('/images/assets/inventory/dropdown.png') top center / 100% 100% no-repeat;
     pointer-events: none;
-    z-index: -1;
+    z-index: 0;
 }
 .character-inline-hub.hidden {
     display: none;
 }
 .nav-sub-btn {
+    position: relative;
+    z-index: 1;
     width: 100%;
     height: 63px;
     margin: 0;
