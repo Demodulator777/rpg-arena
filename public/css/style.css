@@ -2949,6 +2949,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: relative;
     z-index: 1;
 }
+.premium-feature-body {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+}
 .premium-feature-art-wrap {
     width: 100%;
     aspect-ratio: 1 / 1;
