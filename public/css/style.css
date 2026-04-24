@@ -1355,7 +1355,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .character-inline-hub::before {
     content: '';
     position: absolute;
-    inset: -14px;
+    top: -14px;
+    left: -14px;
+    width: calc(100% + 28px);
+    height: var(--dropdown-frame-height, calc(100% + 28px));
     background: transparent url('/images/assets/inventory/dropdown.png') center / 100% 100% no-repeat;
     pointer-events: none;
     z-index: -1;
