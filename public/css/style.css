@@ -67,7 +67,16 @@
         width: 100%;
     }
     .premium-feature-art-wrap.pc-only { display: none; }
-    .premium-feature-art-wrap.mobile-only { display: block; }
+    .premium-feature-art-wrap.mobile-only { 
+        display: block; 
+        border-radius: var(--radius) var(--radius) 0 0;
+        overflow: hidden;
+    }
+    .premium-feature-art-wrap.mobile-only .premium-feature-art {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
 }
 .premium-feature-card {
     display: flex;
