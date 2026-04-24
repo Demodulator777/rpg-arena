@@ -5553,7 +5553,7 @@ function renderPremium(data) {
             </div>`).join('')}
         </div>` : '';
 
-const cardsHtml = `<div class="premium-feature-grid">
+const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
         ${features.map(f => {
             const isActive = f.active;
             const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
@@ -7677,3 +7677,4 @@ function renderAbyssMap() {
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
+
