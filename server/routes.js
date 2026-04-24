@@ -3079,7 +3079,7 @@ function applyMagicDamageModifiers(attacker, defender) {
     let damageBonus = 0;
     let resistance = 0;
     
-    // Magic increases damage dealt (applies to all damage types)
+    // Magic adds bonus damage. For mages, that bonus is applied to elemental damage later.
     if (attacker.magic) {
         damageBonus = Math.floor(attacker.magic * 0.1); // 10% of magic as bonus damage
     }
@@ -3153,7 +3153,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         physicalDmg = Math.floor(physicalDmg * hit.dmgMult * atkBonusDmg);
         
         const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
-        physicalDmg = Math.max(0, physicalDmg + damageBonus - resistance);
+        const magicToElemental = attacker.class === 'mage';
+        physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
 
         const blockCovers = !ignoreDefenderZones && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
         const blockFails = Math.random() < 0.001;
@@ -3164,6 +3165,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (ed <= 0) continue;
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            if (magicToElemental) ed += damageBonus;
             const elemResist = (defender.elem_resist || {})[elem] || 0;
             const magicResist = Math.floor((defender.magic || 0) * 0.05);
             ed = Math.max(0, ed - elemResist - magicResist);
