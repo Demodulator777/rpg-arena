@@ -5553,7 +5553,7 @@ function renderPremium(data) {
             </div>`).join('')}
         </div>` : '';
 
-    const cardsHtml = `<div class="premium-feature-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,200px));gap:16px;justify-content:center">
+    const cardsHtml = `<div class="premium-feature-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;justify-content:center;align-items:start">
         ${features.map(f => {
             const isActive = f.active;
             const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
