@@ -5238,8 +5238,26 @@ async function sellItem(invId, name, price) {
     catch(e) { showMsg('inv-msg',e.message,true); }
 }
 async function useItem(invId, name) {
-    try { const d=await api('POST',`/game/use/${invId}`); character=d.character; renderTopBar(); renderCharacter(); loadInventory(); showMsg('inv-msg',d.message); }
-    catch(e) { showMsg('inv-msg',e.message,true); }
+    try {
+        const d=await api('POST',`/game/use/${invId}`);
+        character=d.character;
+        renderTopBar();
+        renderCharacter();
+        loadInventory();
+        showMsg('inv-msg',d.message);
+    }
+    catch(e) {
+        const msg = e?.message || 'Could not use this item.';
+        if (/^Health potions are on cooldown\b/i.test(msg)) {
+            await openGameNoticeDialog({
+                title: 'Potion Cooldown',
+                message: msg,
+                confirmLabel: 'Close'
+            });
+            return;
+        }
+        showMsg('inv-msg', msg, true);
+    }
 }
 
 // ── Shop ──────────────────────────────────────────────────────────────────
