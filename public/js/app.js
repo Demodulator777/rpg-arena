@@ -1203,8 +1203,9 @@ function toggleCharacterHubInline() {
         hub.id = 'character-inline-hub-fixed';
         hub.className = 'character-inline-hub';
         hub.style.position = 'fixed';
-        hub.style.left = triggerRect.left + 'px';
-        hub.style.top = (triggerRect.bottom + 8) + 'px';
+        hub.style.left = Math.round(triggerRect.left) + 'px';
+        hub.style.top = Math.round(triggerRect.bottom - 2) + 'px';
+        hub.style.width = Math.round(triggerRect.width) + 'px';
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
@@ -1265,8 +1266,9 @@ function toggleInventoryHubInline() {
         hub.id = 'inventory-inline-hub-fixed';
         hub.className = 'character-inline-hub';
         hub.style.position = 'fixed';
-        hub.style.left = triggerRect.left + 'px';
-        hub.style.top = (triggerRect.bottom + 8) + 'px';
+        hub.style.left = Math.round(triggerRect.left) + 'px';
+        hub.style.top = Math.round(triggerRect.bottom - 2) + 'px';
+        hub.style.width = Math.round(triggerRect.width) + 'px';
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
@@ -6344,9 +6346,13 @@ document.addEventListener('click', (event) => {
             closeModalOverlayById(overlay.id);
             return;
         }
-        const hub = document.getElementById('character-inline-hub');
-        const hubGroup = overlay.closest('.nav-hub-group');
-        if (hub && !hub.classList.contains('hidden') && !hubGroup) {
+        const characterFixedHub = document.getElementById('character-inline-hub-fixed');
+        const inventoryFixedHub = document.getElementById('inventory-inline-hub-fixed');
+        const clickedInsideNavHub =
+            !!overlay.closest('.nav-hub-group') ||
+            !!overlay.closest('#character-inline-hub-fixed') ||
+            !!overlay.closest('#inventory-inline-hub-fixed');
+        if ((characterFixedHub || inventoryFixedHub) && !clickedInsideNavHub) {
             closeCharacterHubInline();
         }
     }
