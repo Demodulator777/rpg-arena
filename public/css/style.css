@@ -33,14 +33,23 @@
 }
 
 @media (max-width: 680px) {
-    .premium-feature-grid {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 200px)) !important;
-    }
     .premium-feature-art-wrap {
         width: 100%;
         max-width: 200px;
         margin: 0 auto;
     }
+}
+.premium-feature-grid {
+    justify-content: center;
+    align-items: stretch;
+}
+.premium-feature-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.premium-feature-card .premium-feature-head {
+    flex: 0 0 auto;
 }
 .assistant-notification.hidden { display: none !important; }
 .assistant-notification::before {
