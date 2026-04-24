@@ -6269,7 +6269,7 @@ function renderInboxFilter(filter) {
                 vs ${escHtml(report.opponentName||report.npcName||'?')}
                 ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
                 ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
-                ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
+                ${report.xpEarned ? ` · <span class="${report.xpEarned >= 0 ? 'gain' : 'loss'}">⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP</span>` : ''}
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
                 <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
@@ -6295,7 +6295,7 @@ function renderInboxFilter(filter) {
                 vs ${escHtml(report.opponentName||report.npcName||'?')}
                 ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
                 ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
-                ${report.xpEarned   ? ` · <span class="gain">⭐ +${report.xpEarned} XP</span>` : ''}
+                ${report.xpEarned ? ` · <span class="${report.xpEarned >= 0 ? 'gain' : 'loss'}">⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP</span>` : ''}
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
                 <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
@@ -6343,7 +6343,7 @@ function viewBattleReport(msgId) {
     const summary = [
         report.won ? '✅ Victory' : '💀 Defeated',
         report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
-        report.xpEarned ? `⭐ +${report.xpEarned} XP` : null
+        report.xpEarned ? `⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP` : null
     ].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
         enemyName: report.opponentName || report.npcName || 'Enemy',
