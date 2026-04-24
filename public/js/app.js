@@ -1283,6 +1283,8 @@ function toggleInventoryHubInline() {
 
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
+        const characterHubButtonCount = document.querySelectorAll('#character-inline-hub .nav-sub-btn').length || 0;
+        const characterFrameHeight = (characterHubButtonCount * 63) + 28;
 
         const hub = document.createElement('div');
         hub.id = 'inventory-inline-hub-fixed';
@@ -1294,6 +1296,7 @@ function toggleInventoryHubInline() {
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
+        hub.style.setProperty('--dropdown-frame-height', `${characterFrameHeight}px`);
 
         const originalHub = document.getElementById('inventory-inline-hub');
         if (!originalHub) return;
@@ -1333,6 +1336,8 @@ function toggleMissionsHubInline() {
 
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
+        const characterHubButtonCount = document.querySelectorAll('#character-inline-hub .nav-sub-btn').length || 0;
+        const characterFrameHeight = (characterHubButtonCount * 63) + 28;
 
         const hub = document.createElement('div');
         hub.id = 'missions-inline-hub-fixed';
@@ -1344,6 +1349,7 @@ function toggleMissionsHubInline() {
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
+        hub.style.setProperty('--dropdown-frame-height', `${characterFrameHeight}px`);
 
         const originalHub = document.getElementById('missions-inline-hub');
         if (!originalHub) return;
