@@ -988,28 +988,12 @@ window.addEventListener('DOMContentLoaded', async () => {
             toggleCharacterHubInline();
         });
     }
-    const inventoryHubTrigger = document.getElementById('inventory-hub-trigger');
-    if (inventoryHubTrigger) {
-        inventoryHubTrigger.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleInventoryHubInline();
-        });
-    }
     document.querySelectorAll('#character-inline-hub .nav-sub-btn').forEach((btn) => {
         btn.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
             const [tabName] = parseActionArgs(btn);
             if (tabName) navigateCharacterHub(tabName);
-        });
-    });
-    document.querySelectorAll('#inventory-inline-hub .nav-sub-btn').forEach((btn) => {
-        btn.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            const [tabName] = parseActionArgs(btn);
-            if (tabName) navigateInventoryHub(tabName);
         });
     });
     if (!document.getElementById('item-tooltip')) {
@@ -1146,17 +1130,15 @@ function showScreen(name) {
     }
 }
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
-const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
-const INVENTORY_SUB_TABS = ['inventory','forge','shop'];
+const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','inventory','premium'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
-    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : INVENTORY_SUB_TABS.includes(name) ? 'inventory' : name;
+    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : name;
     const activeNavBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => btn.dataset.args === `["${navTarget}"]`);
     if (activeNavBtn) activeNavBtn.classList.add('active');
     if (CHARACTER_SUB_TABS.includes(name)) window._characterHubTarget = name;
-    if (INVENTORY_SUB_TABS.includes(name)) window._inventoryHubTarget = name;
     closeInlineHubs();
     
     // Update assistant highlight after tab change
@@ -1222,13 +1204,8 @@ function toggleCharacterHubInline() {
     openInlineHub('character-inline-hub', 'character-hub-trigger', 'navigateCharacterHub');
 }
 
-function toggleInventoryHubInline() {
-    openInlineHub('inventory-inline-hub', 'inventory-hub-trigger', 'navigateInventoryHub');
-}
-
 function closeInlineHubs() {
     document.getElementById('character-inline-hub-fixed')?.remove();
-    document.getElementById('inventory-inline-hub-fixed')?.remove();
 }
 
 function closeCharacterHubInline() {
@@ -1239,14 +1216,8 @@ function navigateCharacterHub(tabName) {
     closeInlineHubs();
     showTab(tabName);
 }
-function navigateInventoryHub(tabName) {
-    closeInlineHubs();
-    showTab(tabName);
-}
 window.toggleCharacterHubInline = toggleCharacterHubInline;
 window.navigateCharacterHub = navigateCharacterHub;
-window.toggleInventoryHubInline = toggleInventoryHubInline;
-window.navigateInventoryHub = navigateInventoryHub;
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
