@@ -1284,7 +1284,8 @@ function toggleInventoryHubInline() {
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
         const characterHubButtonCount = document.querySelectorAll('#character-inline-hub .nav-sub-btn').length || 0;
-        const characterFrameHeight = (characterHubButtonCount * 63) + 28;
+        const dropdownButtonHeight = Math.round(triggerRect.height) || 63;
+        const characterFrameHeight = (characterHubButtonCount * dropdownButtonHeight) + 28;
 
         const hub = document.createElement('div');
         hub.id = 'inventory-inline-hub-fixed';
@@ -1337,7 +1338,8 @@ function toggleMissionsHubInline() {
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
         const characterHubButtonCount = document.querySelectorAll('#character-inline-hub .nav-sub-btn').length || 0;
-        const characterFrameHeight = (characterHubButtonCount * 63) + 28;
+        const dropdownButtonHeight = Math.round(triggerRect.height) || 63;
+        const characterFrameHeight = (characterHubButtonCount * dropdownButtonHeight) + 28;
 
         const hub = document.createElement('div');
         hub.id = 'missions-inline-hub-fixed';
