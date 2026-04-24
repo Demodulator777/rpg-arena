@@ -1691,7 +1691,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         letter-spacing: 0.1em;
     }
     .stat-row {
-        grid-template-columns: 20px minmax(0, 1fr) 50px 32px;
+        grid-template-columns: 18px minmax(0, 1fr) 56px 40px;
         column-gap: 6px;
         padding: 6px 0;
     }
@@ -1709,12 +1709,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .stat-val,
     .stat-total {
         font-size: 0.72rem;
+        white-space: nowrap;
     }
     .stat-val {
         grid-column: 3;
+        justify-self: end;
     }
     .stat-total {
         grid-column: 4;
+        justify-self: end;
     }
     .stat-bonus {
         font-size: 0.54rem;
