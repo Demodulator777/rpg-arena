@@ -1341,9 +1341,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: none;
     flex-direction: column;
     gap: 0;
-    padding: 0;
+    padding: 10px 10px 12px;
     margin: 0;
-    border-radius: 18px;
+    border-radius: 26px;
     border: 1px solid rgba(255,255,255,0.08);
     background:
         radial-gradient(circle at top, rgba(201,146,42,0.12), transparent 46%),
@@ -1355,7 +1355,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: none;
 }
 .nav-sub-btn {
-    height: 56px;
+    height: 60px;
     margin: 0;
     border-radius: 0;
 }
@@ -1369,7 +1369,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-radius: 18px;
 }
 .nav-sub-btn img {
-    height: 56px;
+    height: 60px;
 }
 
 .nav-btn {
@@ -1500,10 +1500,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: 40px;
     }
     .nav-sub-btn {
-        height: 38px;
+        height: 42px;
     }
     .nav-sub-btn img {
-        height: 38px;
+        height: 42px;
     }
     
     .unread-badge {
