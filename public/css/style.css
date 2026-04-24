@@ -1346,7 +1346,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 63px;
     border-radius: 18px;
     border: none;
-    background: transparent url('/images/assets/inventory/dropdown.png') center / 100% 100% no-repeat;
+    background: transparent url('/images/assets/inventory/dropdown.png') center / 150% 150% no-repeat;
     box-shadow: none;
     z-index: 9999;
 }
