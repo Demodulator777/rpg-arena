@@ -1216,6 +1216,7 @@ function toggleCharacterHubInline() {
     if (shouldOpen) {
         // Create a new fixed hub element
         const triggerRect = trigger.getBoundingClientRect();
+        const characterFrameHeight = getCharacterDropdownFrameHeight();
         
         const hub = document.createElement('div');
         hub.id = 'character-inline-hub-fixed';
@@ -1227,6 +1228,7 @@ function toggleCharacterHubInline() {
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
+        hub.style.setProperty('--dropdown-frame-height', `${characterFrameHeight}px`);
         
         // Get the original hub content
         const originalHub = document.getElementById('character-inline-hub');
@@ -1272,6 +1274,15 @@ function navigateCharacterHub(tabName) {
     closeCharacterHubInline();
     showTab(tabName);
 }
+function getCharacterDropdownFrameHeight() {
+    const characterButtons = document.querySelectorAll('#character-inline-hub .nav-sub-btn');
+    const characterHubButtonCount = characterButtons.length || 0;
+    const sampleButton = characterButtons[0];
+    const dropdownButtonHeight = sampleButton
+        ? Math.round(parseFloat(window.getComputedStyle(sampleButton).height))
+        : 63;
+    return (characterHubButtonCount * dropdownButtonHeight) + 28;
+}
 function toggleInventoryHubInline() {
     const trigger = document.getElementById('inventory-hub-trigger');
     if (!trigger) return;
@@ -1283,9 +1294,7 @@ function toggleInventoryHubInline() {
 
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
-        const characterHubButtonCount = document.querySelectorAll('#character-inline-hub .nav-sub-btn').length || 0;
-        const dropdownButtonHeight = Math.round(triggerRect.height) || 63;
-        const characterFrameHeight = (characterHubButtonCount * dropdownButtonHeight) + 28;
+        const characterFrameHeight = getCharacterDropdownFrameHeight();
 
         const hub = document.createElement('div');
         hub.id = 'inventory-inline-hub-fixed';
@@ -1337,9 +1346,7 @@ function toggleMissionsHubInline() {
 
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
-        const characterHubButtonCount = document.querySelectorAll('#character-inline-hub .nav-sub-btn').length || 0;
-        const dropdownButtonHeight = Math.round(triggerRect.height) || 63;
-        const characterFrameHeight = (characterHubButtonCount * dropdownButtonHeight) + 28;
+        const characterFrameHeight = getCharacterDropdownFrameHeight();
 
         const hub = document.createElement('div');
         hub.id = 'missions-inline-hub-fixed';
