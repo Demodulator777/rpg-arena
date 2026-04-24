@@ -51,6 +51,33 @@
 .premium-feature-card .premium-feature-head {
     flex: 0 0 auto;
 }
+@media (max-width: 680px) {
+    .premium-feature-grid {
+        display: flex;
+        flex-direction: column;
+    }
+    .premium-feature-card {
+        width: 100%;
+    }
+}
+.premium-feature-art-wrap {
+    width: 100%;
+    aspect-ratio: 16/9;
+    flex: 0 0 auto;
+}
+.premium-feature-art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.premium-feature-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.premium-feature-card .premium-feature-head {
+    flex: 0 0 auto;
+}
 .assistant-notification.hidden { display: none !important; }
 .assistant-notification::before {
     content: '';
