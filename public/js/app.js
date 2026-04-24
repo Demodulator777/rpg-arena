@@ -2,7 +2,7 @@
 let token = localStorage.getItem('rpg_token');
 let username = localStorage.getItem('rpg_username');
 let character = null;
-let trainTimer = null, unreadTimer = null;
+let trainTimer = null, unreadTimer = null, topbarLiveTimer = null;
 let lbData = [];
 let forgeTab = 'refine', invTab = 'weapons';
 let forgeData = null;
@@ -1128,7 +1128,7 @@ function logout() {
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
-    [trainTimer,unreadTimer].forEach(t=>clearInterval(t));
+    [trainTimer, unreadTimer, topbarLiveTimer].forEach(t=>clearInterval(t));
     showScreen('auth');
 }
 
@@ -1418,10 +1418,42 @@ async function skipTutorial() {
 window.skipTutorial = skipTutorial;
 window.skipTutorial = skipTutorial;
 
+function getLiveCharacterSnapshot(baseCharacter) {
+    if (!baseCharacter) return baseCharacter;
+    const now = Math.floor(Date.now() / 1000);
+    const live = { ...baseCharacter };
+
+    const hpMax = Number(live.hp_max || 0);
+    const hpCurrent = Number(live.hp_current ?? hpMax);
+    const hpLastRegenAt = Number(live.last_regen_at || 0);
+    if (hpMax > 0 && hpCurrent < hpMax && hpLastRegenAt > 0) {
+        const hpHoursElapsed = Math.floor((now - hpLastRegenAt) / 3600);
+        if (hpHoursElapsed > 0) {
+            const hpGain = Math.floor(hpMax * 0.10 * hpHoursElapsed);
+            live.hp_current = Math.min(hpMax, hpCurrent + hpGain);
+        }
+    }
+
+    const mpMax = Number(live.mp_max || 240);
+    const mpCurrent = Number(live.mission_points ?? 0);
+    const mpLastRegenAt = Number(live.mp_last_regen_at || 0);
+    if (mpMax > 0 && mpCurrent < mpMax && mpLastRegenAt > 0) {
+        const currentHourStart = Math.floor(now / 3600) * 3600;
+        const lastRegenHour = Math.floor(mpLastRegenAt / 3600) * 3600;
+        if (currentHourStart > lastRegenHour) {
+            const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
+            const regenPerHour = mpMax > 240 ? 20 : 10;
+            live.mission_points = Math.min(mpMax, mpCurrent + (regenPerHour * hoursElapsed));
+        }
+    }
+
+    return live;
+}
+
 function renderTopBar() {
     if (!character) return;
     syncClientPreferencesFromCharacter();
-    const c=character;
+    const c=getLiveCharacterSnapshot(character);
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
     const lxp=c.level*25;
@@ -1514,7 +1546,7 @@ function renderTopBar() {
 
 // ── Polling ───────────────────────────────────────────────────────────────
 function startPolling() {
-    [trainTimer,unreadTimer].forEach(t=>clearInterval(t));
+    [trainTimer, unreadTimer, topbarLiveTimer].forEach(t=>clearInterval(t));
     trainTimer=setInterval(async()=>{
         try {
             character=await api('GET','/game/character');
@@ -1530,6 +1562,11 @@ function startPolling() {
         } catch {}
     },600000);
     unreadTimer=setInterval(pollUnread,600000);
+    topbarLiveTimer=setInterval(()=>{
+        if (!character) return;
+        renderTopBar();
+        if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
+    },60000);
     pollUnread();
 }
 async function pollUnread() {
@@ -1665,7 +1702,7 @@ function renderElementBadge(elementType, value, type) {
 
 function renderCharacter() {
     if (!character) return;
-    const c = character;
+    const c = getLiveCharacterSnapshot(character);
     const eq = c.equipped||{};
     const lxp = c.level*25;
     const xpPct = Math.min(100,(c.xp/lxp)*100);
