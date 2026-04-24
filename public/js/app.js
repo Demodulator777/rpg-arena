@@ -5561,9 +5561,13 @@ const cardsHtml = `<div class="premium-feature-grid" style="display:grid;grid-te
             const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
             const artSrc = premiumArt[f.id];
             return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column">
-                <div class="premium-feature-art-wrap" style="width:100%;aspect-ratio:16/9;flex:0 0 auto">
+                <div class="premium-feature-art-wrap pc-only">
                     ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
                     ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:100%;object-fit:cover">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%">${f.emoji}</span>`}
+                </div>
+                <div class="premium-feature-art-wrap mobile-only" style="width:100%;position:relative">
+                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
+                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:auto;display:block">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:block;text-align:center;padding:20px">${f.emoji}</span>`}
                 </div>
                 <div class="premium-feature-body" style="flex:1;display:flex;flex-direction:column;padding:12px">
                     <div class="premium-feature-meta">
@@ -5574,7 +5578,7 @@ const cardsHtml = `<div class="premium-feature-grid" style="display:grid;grid-te
                     <button ${actionAttrs('activatePremium', f.id)}
                         style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
                         ${gems < f.cost && !isActive ? 'disabled' : ''}>
-                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
+                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `��� Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
                     </button>
                 </div>
             </div>`;
