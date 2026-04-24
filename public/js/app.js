@@ -996,6 +996,14 @@ const characterHubTrigger = document.getElementById('character-hub-trigger');
             toggleInventoryHubInline();
         });
     }
+    const missionsHubTrigger = document.getElementById('missions-hub-trigger');
+    if (missionsHubTrigger) {
+        missionsHubTrigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleMissionsHubInline();
+        });
+    }
     document.querySelectorAll('#character-inline-hub .nav-sub-btn').forEach((btn) => {
         btn.addEventListener('click', (event) => {
             event.preventDefault();
@@ -1010,6 +1018,14 @@ const characterHubTrigger = document.getElementById('character-hub-trigger');
             event.stopPropagation();
             const [tabName] = parseActionArgs(btn);
             if (tabName) navigateInventoryHub(tabName);
+        });
+    });
+    document.querySelectorAll('#missions-inline-hub .nav-sub-btn').forEach((btn) => {
+        btn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const [tabName] = parseActionArgs(btn);
+            if (tabName) navigateMissionsHub(tabName);
         });
     });
     if (!document.getElementById('item-tooltip')) {
@@ -1148,15 +1164,17 @@ function showScreen(name) {
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
 const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
 const INVENTORY_SUB_TABS = ['inventory','forge','shop'];
+const MISSIONS_SUB_TABS = ['missions','dungeon'];
 function showTab(name) {
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
-    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : INVENTORY_SUB_TABS.includes(name) ? 'inventory' : name;
+    const navTarget = CHARACTER_SUB_TABS.includes(name) ? 'character' : INVENTORY_SUB_TABS.includes(name) ? 'inventory' : MISSIONS_SUB_TABS.includes(name) ? 'missions' : name;
     const activeNavBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => btn.dataset.args === `["${navTarget}"]`);
     if (activeNavBtn) activeNavBtn.classList.add('active');
     if (CHARACTER_SUB_TABS.includes(name)) window._characterHubTarget = name;
     if (INVENTORY_SUB_TABS.includes(name)) window._inventoryHubTarget = name;
+    if (MISSIONS_SUB_TABS.includes(name)) window._missionsHubTarget = name;
     closeCharacterHubInline();
     
     // Update assistant highlight after tab change
@@ -1244,6 +1262,10 @@ function closeCharacterHubInline() {
     if (invHub) invHub.classList.add('hidden');
     const fixedInvHub = document.getElementById('inventory-inline-hub-fixed');
     if (fixedInvHub) fixedInvHub.remove();
+    const missionsHub = document.getElementById('missions-inline-hub');
+    if (missionsHub) missionsHub.classList.add('hidden');
+    const fixedMissionsHub = document.getElementById('missions-inline-hub-fixed');
+    if (fixedMissionsHub) fixedMissionsHub.remove();
 }
 
 function navigateCharacterHub(tabName) {
@@ -1300,10 +1322,62 @@ function navigateInventoryHub(tabName) {
     closeCharacterHubInline();
     showTab(tabName);
 }
+function toggleMissionsHubInline() {
+    const trigger = document.getElementById('missions-hub-trigger');
+    if (!trigger) return;
+
+    const fixedHub = document.getElementById('missions-inline-hub-fixed');
+    const shouldOpen = !fixedHub || fixedHub.classList.contains('hidden');
+
+    closeCharacterHubInline();
+
+    if (shouldOpen) {
+        const triggerRect = trigger.getBoundingClientRect();
+
+        const hub = document.createElement('div');
+        hub.id = 'missions-inline-hub-fixed';
+        hub.className = 'character-inline-hub';
+        hub.style.position = 'fixed';
+        hub.style.left = Math.round(triggerRect.left) + 'px';
+        hub.style.top = Math.round(triggerRect.bottom - 2) + 'px';
+        hub.style.width = Math.round(triggerRect.width) + 'px';
+        hub.style.zIndex = '99999';
+        hub.style.display = 'flex';
+        hub.style.flexDirection = 'column';
+
+        const originalHub = document.getElementById('missions-inline-hub');
+        if (!originalHub) return;
+
+        hub.innerHTML = originalHub.innerHTML;
+
+        hub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const [tabName] = parseActionArgs(btn);
+                if (tabName) navigateMissionsHub(tabName);
+            });
+        });
+
+        const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'missions';
+        hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
+        });
+
+        document.body.appendChild(hub);
+    }
+}
+
+function navigateMissionsHub(tabName) {
+    closeCharacterHubInline();
+    showTab(tabName);
+}
 window.toggleCharacterHubInline = toggleCharacterHubInline;
 window.navigateCharacterHub = navigateCharacterHub;
 window.toggleInventoryHubInline = toggleInventoryHubInline;
 window.navigateInventoryHub = navigateInventoryHub;
+window.toggleMissionsHubInline = toggleMissionsHubInline;
+window.navigateMissionsHub = navigateMissionsHub;
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
@@ -6348,11 +6422,13 @@ document.addEventListener('click', (event) => {
         }
         const characterFixedHub = document.getElementById('character-inline-hub-fixed');
         const inventoryFixedHub = document.getElementById('inventory-inline-hub-fixed');
+        const missionsFixedHub = document.getElementById('missions-inline-hub-fixed');
         const clickedInsideNavHub =
             !!overlay.closest('.nav-hub-group') ||
             !!overlay.closest('#character-inline-hub-fixed') ||
-            !!overlay.closest('#inventory-inline-hub-fixed');
-        if ((characterFixedHub || inventoryFixedHub) && !clickedInsideNavHub) {
+            !!overlay.closest('#inventory-inline-hub-fixed') ||
+            !!overlay.closest('#missions-inline-hub-fixed');
+        if ((characterFixedHub || inventoryFixedHub || missionsFixedHub) && !clickedInsideNavHub) {
             closeCharacterHubInline();
         }
     }
