@@ -3845,6 +3845,16 @@ function syncInvTabButtons() {
     });
 }
 
+function getInventorySellRate() {
+    const activePrem = character?.premium_features || {};
+    return (activePrem.vault_keeper && activePrem.apprentice) ? 0.40 : 0.30;
+}
+
+function getInventorySellPrice(itemData) {
+    const originalPrice = Number(itemData?.original_price || itemData?.price || 0);
+    return Math.max(1, Math.floor(originalPrice * getInventorySellRate()));
+}
+
 function renderGearGrid(el, gear, equipped) {
     window._invGearData = {};
     gear.forEach(i => {
@@ -4002,7 +4012,7 @@ function renderInventory(data) {
         }
         el.innerHTML = '<div class="inv-consumable-grid">' + lootBoxes.map(i => {
             const d = i.item_data;
-            const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
+            const sp = getInventorySellPrice(d);
             const itemImage = d.image || getItemImage(d.name);
             return `<div class="inv-consumable-card lootbox-card">
                 <div class="inv-consumable-top">
@@ -4036,7 +4046,7 @@ function renderInventory(data) {
                 d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat :
                 d.effect.type === 'mp' ? '🔮 Restore ' + d.effect.value + ' MP' : ''
             ) : '';
-            const sp = Math.max(1, Math.floor((d.price || 0) * 0.3));
+            const sp = getInventorySellPrice(d);
             const itemImage = d.image || getItemImage(d.name);
             return `<div class="inv-consumable-card">
                 <div class="inv-consumable-top">
