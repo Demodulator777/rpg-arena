@@ -462,9 +462,19 @@
                     </button>
                 </div>
             </div>
-            <button class="nav-btn" data-action="showTab" data-args='["missions"]'>
-                <img src="/images/missions.png" alt="Missions">
-            </button>
+            <div class="nav-hub-group">
+                <button id="missions-hub-trigger" class="nav-btn" aria-label="Mission Navigation">
+                    <img src="/images/missions.png" alt="Missions">
+                </button>
+                <div id="missions-inline-hub" class="character-inline-hub hidden">
+                    <button class="nav-btn nav-sub-btn" title="Missions" aria-label="Missions" data-action="navigateMissionsHub" data-args='["missions"]'>
+                        <img src="/images/missions.png" alt="Missions">
+                    </button>
+                    <button class="nav-btn nav-sub-btn" title="Dungeon" aria-label="Dungeon" data-action="navigateMissionsHub" data-args='["dungeon"]'>
+                        <img src="/images/dungeon.png" alt="Dungeon">
+                    </button>
+                </div>
+            </div>
             <div class="nav-hub-group">
                 <button id="inventory-hub-trigger" class="nav-btn" aria-label="Inventory Navigation">
                     <img src="/images/inventory.png" alt="Inventory">
@@ -487,9 +497,6 @@
             <button class="nav-btn" data-action="showTab" data-args='["inbox"]'>
                 <img src="/images/inbox.png" alt="Inbox">
                 <span id="unread-badge" class="unread-badge hidden"></span>
-            </button>
-            <button class="nav-btn" data-action="showTab" data-args='["dungeon"]'>
-                <img src="/images/dungeon.png" alt="Dungeon">
             </button>
         </div>
         <div class="sidebar-right">
