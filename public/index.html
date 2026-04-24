@@ -457,6 +457,9 @@
                     <button class="nav-btn nav-sub-btn" title="Training" aria-label="Training" data-action="navigateCharacterHub" data-args='["train"]'>
                         <img src="/images/training.png" alt="Training">
                     </button>
+                    <button class="nav-btn nav-sub-btn" title="Inventory" aria-label="Inventory" data-action="navigateCharacterHub" data-args='["inventory"]'>
+                        <img src="/images/inventory.png" alt="Inventory">
+                    </button>
                     <button class="nav-btn nav-sub-btn" title="Premium" aria-label="Premium" data-action="navigateCharacterHub" data-args='["premium"]'>
                         <img src="/images/premium.png" alt="Premium">
                     </button>
@@ -465,22 +468,12 @@
             <button class="nav-btn" data-action="showTab" data-args='["missions"]'>
                 <img src="/images/missions.png" alt="Missions">
             </button>
-            <div class="nav-hub-group">
-                <button id="inventory-hub-trigger" class="nav-btn" data-action="toggleInventoryHubInline" aria-label="Inventory Navigation">
-                    <img src="/images/inventory.png" alt="Inventory">
-                </button>
-                <div id="inventory-inline-hub" class="character-inline-hub hidden">
-                    <button class="nav-btn nav-sub-btn" title="Inventory" aria-label="Inventory" data-action="navigateInventoryHub" data-args='["inventory"]'>
-                        <img src="/images/inventory.png" alt="Inventory">
-                    </button>
-                    <button class="nav-btn nav-sub-btn" title="Forge" aria-label="Forge" data-action="navigateInventoryHub" data-args='["forge"]'>
-                        <img src="/images/forge.png" alt="Forge">
-                    </button>
-                    <button class="nav-btn nav-sub-btn" title="Shop" aria-label="Shop" data-action="navigateInventoryHub" data-args='["shop"]'>
-                        <img src="/images/shop.png" alt="Shop">
-                    </button>
-                </div>
-            </div>
+            <button class="nav-btn" data-action="showTab" data-args='["forge"]'>
+                <img src="/images/forge.png" alt="Forge">
+            </button>
+            <button class="nav-btn" data-action="showTab" data-args='["shop"]'>
+                <img src="/images/shop.png" alt="Shop">
+            </button>
             <button class="nav-btn" data-action="showTab" data-args='["leaderboard"]'>
                 <img src="/images/leaderboard.png" alt="Leaderboard">
             </button>
