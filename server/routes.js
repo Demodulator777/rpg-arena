@@ -3174,6 +3174,14 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
         const critTag = isCrit ? ' ⚡CRIT' : '';
 
+        if (magicToElemental) {
+            const mageBaseElemRaw = Math.max(1, Math.floor((rawPhysicalDmg * hit.dmgMult * atkBonusDmg) * 0.12));
+            const avgElemResist = Math.floor(ELEMENTS.reduce((sum, elem) => sum + ((defender.elem_resist || {})[elem] || 0), 0) / ELEMENTS.length);
+            const magicResist = Math.floor((defender.magic || 0) * 0.05);
+            const mageBaseElemDmg = Math.max(0, mageBaseElemRaw - avgElemResist - magicResist);
+            totalElemDmg += mageBaseElemDmg;
+        }
+
         if (blockCovers && !blockFails) {
             logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
             totalElemDmg = 0; 
