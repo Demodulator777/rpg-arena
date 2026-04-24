@@ -5560,23 +5560,25 @@ function renderPremium(data) {
             const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
             const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
             const artSrc = premiumArt[f.id];
-            return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:420px">
-                ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
+            return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:420px">
                 <div class="premium-feature-head">
                     <div class="premium-feature-art-wrap">
+                        ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
                         ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true">` : `<span class="premium-feature-emoji">${f.emoji}</span>`}
                     </div>
-                    <div class="premium-feature-meta">
+                    <div class="premium-feature-body">
+                        <div class="premium-feature-meta">
                         <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--text-bright)">${f.name}</div>
                         <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 days</div>
+                        </div>
+                        <div class="premium-feature-desc" style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5;flex:1 1 auto">${f.desc}</div>
+                        <button ${actionAttrs('activatePremium', f.id)}
+                            style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
+                            ${gems < f.cost && !isActive ? 'disabled' : ''}>
+                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
+                        </button>
                     </div>
                 </div>
-                <div class="premium-feature-desc" style="font-size:0.78rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5;flex:1 1 auto">${f.desc}</div>
-                <button ${actionAttrs('activatePremium', f.id)}
-                    style="width:100%;padding:8px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
-                    ${gems < f.cost && !isActive ? 'disabled' : ''}>
-                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `✨ Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
-                </button>
             </div>`;
         }).join('')}
     </div>`;
