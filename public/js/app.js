@@ -5553,7 +5553,7 @@ function renderPremium(data) {
             </div>`).join('')}
         </div>` : '';
 
-    const cardsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+    const cardsHtml = `<div class="premium-feature-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,200px));gap:16px;justify-content:center">
         ${features.map(f => {
             const isActive = f.active;
             const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
@@ -5561,7 +5561,7 @@ function renderPremium(data) {
             const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
             const artSrc = premiumArt[f.id];
             return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:420px">
-                ${isActive ? `<div style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
+                ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
                 <div class="premium-feature-head">
                     <div class="premium-feature-art-wrap">
                         ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true">` : `<span class="premium-feature-emoji">${f.emoji}</span>`}
