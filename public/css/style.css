@@ -2200,6 +2200,34 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: rgba(255,255,255,0.3);
 }
 
+@media (max-width: 680px) {
+    .char-panel .stat-row {
+        grid-template-columns: 18px minmax(0, 1fr) 56px 40px;
+        column-gap: 6px;
+        padding: 6px 0;
+    }
+    .char-panel .stat-label {
+        display: none;
+    }
+    .char-panel .stat-bar-wrap {
+        grid-column: 2;
+        min-width: 0;
+    }
+    .char-panel .stat-val,
+    .char-panel .stat-total {
+        font-size: 0.72rem;
+        white-space: nowrap;
+    }
+    .char-panel .stat-val {
+        grid-column: 3;
+        justify-self: end;
+    }
+    .char-panel .stat-total {
+        grid-column: 4;
+        justify-self: end;
+    }
+}
+
 .element-entry {
     display: inline-flex;
     align-items: center;
