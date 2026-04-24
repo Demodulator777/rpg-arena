@@ -2936,6 +2936,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .premium-feature-grid {
     justify-content: center;
+    align-items: start;
+}
+.premium-feature-card {
+    display: flex;
+    flex-direction: column;
+}
+.premium-feature-card .premium-feature-head {
+    flex: 0 0 auto;
 }
 .premium-feature-days {
     z-index: 4;
