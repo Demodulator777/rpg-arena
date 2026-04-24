@@ -6493,6 +6493,13 @@ function clickElementById(id) {
 document.addEventListener('click', (event) => {
     const overlay = event.target;
     if (overlay instanceof HTMLElement) {
+        const tooltip = document.getElementById('item-tooltip');
+        const clickedTooltipTrigger =
+            !!overlay.closest('[data-hover-action]') ||
+            !!overlay.closest('[data-action="openItemTooltip"]');
+        if (window.innerWidth <= 768 && tooltip && !tooltip.classList.contains('hidden') && !clickedTooltipTrigger) {
+            hideItemTooltip();
+        }
         if (overlay.classList.contains('modal-overlay') && !overlay.classList.contains('hidden')) {
             closeModalOverlayById(overlay.id);
             return;
