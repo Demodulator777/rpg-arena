@@ -1360,6 +1360,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 63px;
     margin: 0;
     border-radius: 0;
+    background: transparent url('/images/assets/inventory/dropdown.png') center / 100% 100% no-repeat;
+    border: none;
+    box-shadow: none;
 }
 .nav-sub-btn:first-child {
     border-radius: 18px 18px 0 0;
@@ -1371,7 +1374,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-radius: 18px;
 }
 .nav-sub-btn img {
-    height: 63px;
+    height: 46px;
+    width: auto;
 }
 
 .nav-btn {
