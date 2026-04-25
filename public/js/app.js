@@ -6520,6 +6520,26 @@ function setChatWidgetStatus(message = '', isError = false) {
     renderChatWidget();
 }
 
+function syncChatRecipientUi() {
+    const recipientInput = document.getElementById('chat-recipient-input');
+    const clearBtn = document.querySelector('.chat-widget-target-clear');
+    const subtitle = document.querySelector('.chat-widget-subtitle');
+    const messageInput = document.getElementById('chat-message-input');
+    const recipientDraft = String(recipientInput?.value || chatPmTarget || '');
+    chatPmTarget = recipientDraft;
+    const canSendPm = recipientDraft.trim().length > 0;
+    if (clearBtn) {
+        clearBtn.textContent = canSendPm ? 'Clear PM' : 'Global';
+        clearBtn.classList.toggle('active', canSendPm);
+    }
+    if (subtitle) {
+        subtitle.textContent = canSendPm ? `PM to ${recipientDraft.trim()}` : 'World channel';
+    }
+    if (messageInput) {
+        messageInput.placeholder = canSendPm ? 'Send private message…' : 'Send global message…';
+    }
+}
+
 function isChatWidgetAvailable() {
     return !!token &&
         !!character &&
@@ -6597,7 +6617,7 @@ function bindChatWidgetEvents() {
     root.addEventListener('input', (event) => {
         if (event.target?.id === 'chat-recipient-input') {
             chatPmTarget = String(event.target.value || '');
-            renderChatWidget();
+            syncChatRecipientUi();
             return;
         }
         if (event.target?.id === 'chat-message-input') {
@@ -6771,6 +6791,13 @@ function toggleChatExpanded() {
 
 function clearChatRecipient() {
     chatPmTarget = '';
+    const input = document.getElementById('chat-recipient-input');
+    if (input) {
+        input.value = '';
+        syncChatRecipientUi();
+        input.focus();
+        return;
+    }
     renderChatWidget();
 }
 
