@@ -7144,6 +7144,27 @@ router.put('/chat/edit/:id', auth, async (req, res) => {
     }
 });
 
+router.delete('/chat/:id', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const messageId = req.params.id;
+        const existing = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+        if (!existing) return res.status(404).json({ error: 'Message not found.' });
+        if (Number(existing.sender_char_id) !== Number(char.id)) {
+            return res.status(403).json({ error: 'You can only delete your own messages.' });
+        }
+
+        await dbRun(db, 'DELETE FROM chat_messages WHERE id = ?', [messageId]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Chat delete failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/messages/:id/read', auth, async (req, res) => {
     try {
         const db = await getDb();
