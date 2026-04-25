@@ -34,12 +34,16 @@
       description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
     },
     area: {
-      image: '/images/dungeon/area.jpg',
+      image: '/images/dungeon/stairs.jpg',
       description: "An open chamber where multiple paths converge. Stone arches lead in several directions."
     },
     treasure: {
       image: '/images/dungeon/treasure.jpg',
       description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
+    },
+    miniboss: {
+      image: '/images/dungeon/boss-chamber.jpg',
+      description: "A powerful guardian blocks this passage. Defeat it to proceed."
     },
     boss: {
       image: '/images/dungeon/boss-chamber.jpg',
@@ -637,9 +641,13 @@ function generateFloor(dungeonId, floor) {
       let visualData = null;
       if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
       else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
+      else if (roomType === 'miniboss') visualData = DUNGEON_VISUALS.miniboss;
       else if (roomType === 'area') visualData = DUNGEON_VISUALS.area;
       else if (roomType === 'treasure') visualData = DUNGEON_VISUALS.treasure;
       else visualData = DUNGEON_VISUALS.corridor;
+      
+      // Ensure visualData is always set
+      if (!visualData) visualData = DUNGEON_VISUALS.corridor;
 
       rooms.push({
         id: i,
@@ -1837,7 +1845,11 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         ? 'Entrance'
         : currentRoom.type === 'treasure'
           ? 'Treasure Room'
-          : 'Corridor';
+          : currentRoom.type === 'miniboss'
+            ? 'Mini-Boss Chamber'
+            : currentRoom.isArea || currentRoom.type === 'area'
+              ? 'Open Chamber'
+              : 'Corridor';
 
     area.innerHTML = `
       <div class="dungeon-game" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
@@ -1982,7 +1994,7 @@ function renderMapGrid() {
                 const isPlayer = idx === D.playerPos;
                 const explored = D.exploredRooms.has(idx);
                 const visible = isRoomVisible(idx);
-                const monsterAlive = room.monsters && room.monsters.some(m => 
+                const monsterAlive = room.monsters && room.monsters.length > 0 && room.monsters.some(m => 
                     !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
                 );
 
@@ -1991,14 +2003,15 @@ function renderMapGrid() {
                 else if (!explored) roomClass += ' map-room-discovered';
                 else if (isPlayer) roomClass += ' map-room-player';
                 else if (room.isBoss) roomClass += ' map-room-boss';
-                else if (room.isMiniBoss) roomClass += ' map-room-miniboss';
+                else if (room.isMiniBoss || room.type === 'miniboss') roomClass += ' map-room-miniboss';
                 else if (room.type === 'treasure') roomClass += ' map-room-treasure';
+                else if (room.isArea || room.type === 'area') roomClass += ' map-room-area';
                 else if (monsterAlive) roomClass += ' map-room-monster';
                 else roomClass += ' map-room-clear';
 
                 const icon = '';
                 const title = explored
-                  ? (room.isBoss ? `Boss Room � #${idx + 1}` : room.isMiniBoss ? `Mini-Boss � #${idx + 1}` : `Room ${idx + 1}`)
+                  ? (room.isBoss ? `Boss Room · #${idx + 1}` : room.isMiniBoss || room.type === 'miniboss' ? `Mini-Boss · #${idx + 1}` : room.type === 'area' ? `Open Chamber · #${idx + 1}` : `Room ${idx + 1}`)
                   : visible
                     ? `Unexplored room #${idx + 1}`
                     : '???';
