@@ -4569,20 +4569,34 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     .chat-widget {
         width: min(360px, calc(100vw - 12px));
-        max-height: calc(100svh - 92px);
+        max-height: calc(100svh - 12px);
         border-radius: 16px;
+        display: flex;
+        flex-direction: column;
     }
     .chat-widget.collapsed {
         width: auto;
     }
+    .chat-widget-body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 12px;
+    }
     .chat-widget-messages {
-        min-height: 80px;
-        max-height: calc(100svh - 280px);
+        flex: 1;
+        min-height: 60px;
+        max-height: none;
         overflow-y: auto;
     }
     .chat-widget-target-row,
     .chat-widget-foot {
         flex-wrap: nowrap;
+        flex-shrink: 0;
+    }
+    .chat-widget-compose {
         flex-shrink: 0;
     }
     .chat-widget-target-row {
