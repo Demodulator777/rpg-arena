@@ -1352,6 +1352,13 @@
   background: rgba(46,204,113,0.08);
   border: 1px solid rgba(46,204,113,0.2);
 }
+.map-room-discovered {
+  width: 4px;
+  height: 4px;
+  background: rgba(241,196,15,0.15);
+  border: 1px solid rgba(241,196,15,0.4);
+  border-radius: 1px;
+}
 @keyframes boss-pulse {
   0%, 100% {
     box-shadow: 0 0 4px rgba(231,76,60,0.3);
