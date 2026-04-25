@@ -3440,9 +3440,11 @@ async function instantBattleRecovery() {
         if (btn) btn.disabled = false;
     }
 }
+let overlayMissionCollectBusy = false;
 function showMissionOverlay(active, displayName) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
+    overlayMissionCollectBusy = false;
     const nameEl=document.getElementById('overlay-mission-name');
     const zoneEl=document.getElementById('overlay-mission-zone');
     const timerEl=document.getElementById('overlay-mission-timer');
@@ -3459,7 +3461,7 @@ function showMissionOverlay(active, displayName) {
         if (timerEl) { timerEl.textContent=done?'✅ Complete!':`${m}:${String(s).padStart(2,'0')}`; timerEl.className='mission-overlay-timer'+(done?' done':''); }
         if (subtextEl) subtextEl.textContent=done?'Collect your rewards!':'Returning when complete...';
         if (fillEl) { fillEl.style.width=pct+'%'; fillEl.className='mission-overlay-progress-fill'+(done?' done':''); }
-        if (collectBtn) collectBtn.disabled=!done;
+        if (collectBtn) collectBtn.disabled=!done || overlayMissionCollectBusy;
         if (done&&overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
     }
     tick();
@@ -3468,11 +3470,30 @@ function showMissionOverlay(active, displayName) {
 }
 function hideMissionOverlay() {
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
+    overlayMissionCollectBusy = false;
     const o = document.getElementById('mission-overlay'); 
     if(o) o.classList.add('hidden');
     window.activeMission = false;
 }
-async function overlayCollectMission() { await collectMission(); }
+async function overlayCollectMission() {
+    if (overlayMissionCollectBusy) return;
+    overlayMissionCollectBusy = true;
+    const collectBtn = document.getElementById('overlay-collect-btn');
+    const previousText = collectBtn ? collectBtn.textContent : '';
+    if (collectBtn) {
+        collectBtn.disabled = true;
+        collectBtn.textContent = 'Collecting...';
+    }
+    await collectMission();
+    const overlayHidden = document.getElementById('mission-overlay')?.classList.contains('hidden');
+    if (!overlayHidden) {
+        overlayMissionCollectBusy = false;
+        if (collectBtn) {
+            collectBtn.disabled = false;
+            collectBtn.textContent = previousText || 'Collect Rewards';
+        }
+    }
+}
 
 // ── Travel Overlay ────────────────────────────────────────────────────────
 function showTravelOverlay() {
