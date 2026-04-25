@@ -3451,6 +3451,7 @@ function showMissionOverlay(active, displayName) {
     const subtextEl=document.getElementById('overlay-mission-subtext');
     const fillEl=document.getElementById('overlay-progress-fill');
     const collectBtn=document.getElementById('overlay-collect-btn');
+    if (collectBtn) collectBtn.textContent = 'Collect Rewards';
     if (nameEl) nameEl.textContent=displayName;
     if (zoneEl) zoneEl.textContent='📍 '+(ZONES[active.zone]?.name||active.zone||'');
     const totalDuration=active.ends_at-(active.started_at||(active.ends_at-600));
