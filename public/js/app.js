@@ -6684,7 +6684,9 @@ function renderChatWidget() {
             <div class="chat-widget-body">
                 <div class="chat-widget-target-row">
                     <input id="chat-recipient-input" class="chat-widget-target-input" type="text" maxlength="24" placeholder="Private to character name (optional)" value="${escHtml(recipientDraft)}">
-                    <button class="chat-widget-target-clear" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">Global</button>
+                    <button class="chat-widget-target-clear ${canSendPm ? 'active' : ''}" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">
+                        ${canSendPm ? 'Clear PM' : 'Global'}
+                    </button>
                 </div>
                 <div class="chat-widget-messages" id="chat-widget-messages">
                     ${visibleMessages.length ? visibleMessages.map(msg => {
