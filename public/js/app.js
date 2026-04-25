@@ -2,7 +2,7 @@
 let token = localStorage.getItem('rpg_token');
 let username = localStorage.getItem('rpg_username');
 let character = null;
-let trainTimer = null, unreadTimer = null, topbarLiveTimer = null;
+let trainTimer = null, unreadTimer = null, topbarLiveTimer = null, chatPollTimer = null;
 let lbData = [];
 let forgeTab = 'refine', invTab = 'weapons';
 let forgeData = null;
@@ -37,6 +37,15 @@ let accountCharacters = [];
 let activeCharacterId = null;
 let maxCharacterSlots = 4;
 let availableCharacterClasses = ['warrior', 'mage', 'rogue', 'paladin'];
+let chatEnabled = true;
+let chatMessages = [];
+let chatLatestId = 0;
+let chatPmTarget = '';
+let chatWidgetCollapsed = false;
+let chatExpanded = false;
+let chatStatusText = '';
+let chatStatusIsError = false;
+let chatStatusTimer = null;
 
 async function loadAbyssData() {
     try {
@@ -530,6 +539,10 @@ function renderTopbarMenu() {
                 <span>Assistant helper</span>
                 <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${chatEnabled ? 'active' : ''}" ${actionAttrs('toggleChatEnabled')}>
+                <span>Global chat widget</span>
+                <span class="topbar-menu-toggle-state">${chatEnabled ? 'On' : 'Off'}</span>
+            </button>
             <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
                 <span>Inbox badge: messages</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
@@ -621,6 +634,10 @@ function renderTopbarMenu() {
             <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
                 <span>Assistant helper</span>
                 <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${chatEnabled ? 'active' : ''}" ${actionAttrs('toggleChatEnabled')}>
+                <span>Global chat widget</span>
+                <span class="topbar-menu-toggle-state">${chatEnabled ? 'On' : 'Off'}</span>
             </button>
             <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
                 <span>Inbox badge: messages</span>
@@ -869,6 +886,10 @@ function renderTopbarMenu() {
                 <span>Assistant helper</span>
                 <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${chatEnabled ? 'active' : ''}" ${actionAttrs('toggleChatEnabled')}>
+                <span>Global chat widget</span>
+                <span class="topbar-menu-toggle-state">${chatEnabled ? 'On' : 'Off'}</span>
+            </button>
             <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
                 <span>Inbox badge: messages</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
@@ -888,6 +909,7 @@ function syncClientPreferencesFromCharacter() {
     if (!character) return;
     alwaysSkipBattleAnimations = !!character.skip_battle_animations;
     assistantEnabled = character.assistant_enabled !== false;
+    chatEnabled = character.chat_enabled !== false;
 }
 
 async function toggleAlwaysSkipBattleAnimations() {
@@ -908,6 +930,16 @@ async function toggleAssistant() {
         document.getElementById('assistant-notification')?.classList.add('hidden');
         document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('assistant-highlight'));
     }
+}
+
+async function toggleChatEnabled() {
+    const nextValue = !chatEnabled;
+    const response = await api('POST', '/game/settings', { chatEnabled: nextValue });
+    if (response?.character) character = response.character;
+    syncClientPreferencesFromCharacter();
+    renderTopbarMenu();
+    syncChatPolling();
+    renderChatWidget();
 }
 
 async function toggleInboxBadgeSetting(settingKey) {
@@ -1127,8 +1159,11 @@ document.addEventListener('DOMContentLoaded',()=>{
 function logout() {
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatStatusText=''; chatStatusIsError=false;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
-    [trainTimer, unreadTimer, topbarLiveTimer].forEach(t=>clearInterval(t));
+    [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
+    chatPollTimer = null;
+    renderChatWidget();
     showScreen('auth');
 }
 
@@ -1160,6 +1195,8 @@ function showScreen(name) {
             if (playerTravelTarget) showTravelOverlay();
         }).catch(() => {});
     }
+    renderChatWidget();
+    syncChatPolling();
 }
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
 const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
@@ -1542,11 +1579,13 @@ function renderTopBar() {
     }
     renderTopbarMenu();
     updatePotionBadge();
+    renderChatWidget();
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────
 function startPolling() {
-    [trainTimer, unreadTimer, topbarLiveTimer].forEach(t=>clearInterval(t));
+    [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
+    chatPollTimer = null;
     trainTimer=setInterval(async()=>{
         try {
             character=await api('GET','/game/character');
@@ -1568,6 +1607,7 @@ function startPolling() {
         if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
     },60000);
     pollUnread();
+    syncChatPolling();
 }
 async function pollUnread() {
     try {
@@ -6455,6 +6495,222 @@ async function sendMessage() {
 }
 
 // ── Item Icon Helper ──────────────────────────────────────────────────────
+function formatChatTime(ts) {
+    if (!ts) return '--:--';
+    return new Date(Number(ts) * 1000).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function setChatWidgetStatus(message = '', isError = false) {
+    chatStatusText = String(message || '');
+    chatStatusIsError = !!isError;
+    if (chatStatusTimer) clearTimeout(chatStatusTimer);
+    if (chatStatusText) {
+        chatStatusTimer = setTimeout(() => {
+            chatStatusText = '';
+            chatStatusIsError = false;
+            renderChatWidget();
+        }, 3200);
+    }
+    renderChatWidget();
+}
+
+function isChatWidgetAvailable() {
+    return !!token &&
+        !!character &&
+        chatEnabled &&
+        document.getElementById('screen-game')?.classList.contains('active');
+}
+
+function trimChatMessages(list) {
+    return (Array.isArray(list) ? list : []).slice(-60);
+}
+
+function getVisibleChatMessages() {
+    const safeMessages = trimChatMessages(chatMessages);
+    return chatExpanded ? safeMessages : safeMessages.slice(-8);
+}
+
+function appendChatMessages(messages = []) {
+    if (!Array.isArray(messages) || !messages.length) return;
+    const seen = new Set(chatMessages.map(msg => Number(msg.id)));
+    for (const msg of messages) {
+        const id = Number(msg?.id || 0);
+        if (!id || seen.has(id)) continue;
+        chatMessages.push(msg);
+        seen.add(id);
+    }
+    chatMessages = trimChatMessages(chatMessages).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+    chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
+}
+
+async function loadChatHistory() {
+    if (!isChatWidgetAvailable()) return;
+    try {
+        const data = await api('GET', '/game/chat/history');
+        chatMessages = trimChatMessages(data?.messages || []);
+        chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
+        renderChatWidget();
+    } catch (e) {
+        console.error('Failed to load chat history:', e);
+        setChatWidgetStatus(e.message || 'Failed to load chat.', true);
+    }
+}
+
+async function pollChat() {
+    if (!isChatWidgetAvailable()) return;
+    try {
+        const data = await api('GET', `/game/chat/history?since=${chatLatestId || 0}`);
+        const incoming = data?.messages || [];
+        if (!incoming.length) return;
+        appendChatMessages(incoming);
+        renderChatWidget();
+    } catch (e) {
+        console.error('Chat poll failed:', e);
+    }
+}
+
+function syncChatPolling() {
+    if (chatPollTimer) clearInterval(chatPollTimer);
+    chatPollTimer = null;
+    if (!isChatWidgetAvailable()) {
+        renderChatWidget();
+        return;
+    }
+    loadChatHistory();
+    chatPollTimer = setInterval(() => { pollChat(); }, 4000);
+}
+
+function bindChatWidgetEvents() {
+    const root = document.getElementById('chat-widget-root');
+    if (!root || root.dataset.chatBound === 'true') return;
+    root.addEventListener('keydown', async (event) => {
+        if (event.target?.id !== 'chat-message-input') return;
+        if (event.key !== 'Enter' || event.shiftKey) return;
+        event.preventDefault();
+        await sendChatMessage();
+    });
+    root.addEventListener('input', (event) => {
+        if (event.target?.id === 'chat-recipient-input') {
+            chatPmTarget = String(event.target.value || '');
+        }
+    });
+    root.dataset.chatBound = 'true';
+}
+
+function renderChatWidget() {
+    const root = document.getElementById('chat-widget-root');
+    if (!root) return;
+    if (!isChatWidgetAvailable()) {
+        root.innerHTML = '';
+        root.classList.add('hidden');
+        return;
+    }
+
+    const prevMessage = document.getElementById('chat-message-input')?.value || '';
+    const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
+    chatPmTarget = recipientDraft;
+    const canSendPm = recipientDraft.trim().length > 0;
+    const statusClass = chatStatusText ? (chatStatusIsError ? 'error' : 'success') : '';
+    const visibleMessages = getVisibleChatMessages();
+    const hiddenCount = Math.max(0, chatMessages.length - visibleMessages.length);
+
+    root.classList.remove('hidden');
+    root.innerHTML = `
+        <section class="chat-widget ${chatWidgetCollapsed ? 'collapsed' : ''}">
+            <div class="chat-widget-header">
+                <div class="chat-widget-title-wrap">
+                    <div class="chat-widget-title">Global Chat</div>
+                    <div class="chat-widget-subtitle">${canSendPm ? `PM to ${escHtml(recipientDraft.trim())}` : 'World channel'}</div>
+                </div>
+                <button class="chat-widget-collapse" title="${chatWidgetCollapsed ? 'Open chat' : 'Collapse chat'}" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
+                    ${chatWidgetCollapsed ? 'Open' : 'Hide'}
+                </button>
+            </div>
+            <div class="chat-widget-body">
+                <div class="chat-widget-target-row">
+                    <input id="chat-recipient-input" class="chat-widget-target-input" type="text" maxlength="24" placeholder="Private to character name (optional)" value="${escHtml(recipientDraft)}">
+                    <button class="chat-widget-target-clear" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">Global</button>
+                </div>
+                <div class="chat-widget-messages" id="chat-widget-messages">
+                    ${visibleMessages.length ? visibleMessages.map(msg => {
+                        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+                        return `
+                            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
+                                <div class="chat-line-meta">
+                                    <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
+                                    <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
+                                    <span class="chat-line-channel">${privateLabel}</span>
+                                </div>
+                                <div class="chat-line-text">${escHtml(msg.message_text || '')}</div>
+                            </div>
+                        `;
+                    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
+                </div>
+                ${chatMessages.length > 8 ? `
+                    <div class="chat-widget-more">
+                        <button class="chat-widget-more-btn" ${actionAttrs('toggleChatExpanded')} data-no-action-lock="true">
+                            ${chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`}
+                        </button>
+                    </div>
+                ` : ''}
+                <div class="chat-widget-compose">
+                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${canSendPm ? 'Send private message…' : 'Send global message…'}" value="${escHtml(prevMessage)}">
+                    <button class="btn-primary chat-send-btn" ${actionAttrs('sendChatMessage')}>Send</button>
+                </div>
+                <div class="chat-widget-foot">
+                    <span class="chat-widget-limit">280 chars</span>
+                    <span id="chat-widget-status" class="chat-widget-status ${statusClass}">${escHtml(chatStatusText)}</span>
+                </div>
+            </div>
+        </section>`;
+
+    bindChatWidgetEvents();
+    const messagesEl = document.getElementById('chat-widget-messages');
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function toggleChatWidgetCollapsed() {
+    chatWidgetCollapsed = !chatWidgetCollapsed;
+    renderChatWidget();
+}
+
+function toggleChatExpanded() {
+    chatExpanded = !chatExpanded;
+    renderChatWidget();
+}
+
+function clearChatRecipient() {
+    chatPmTarget = '';
+    renderChatWidget();
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chat-message-input');
+    const recipientInput = document.getElementById('chat-recipient-input');
+    const message = String(input?.value || '').trim();
+    const recipientName = String(recipientInput?.value || chatPmTarget || '').trim();
+    if (!message) {
+        setChatWidgetStatus('Message required.', true);
+        return;
+    }
+    try {
+        const result = await api('POST', '/game/chat/send', {
+            message,
+            recipientName: recipientName || null
+        });
+        if (input) input.value = '';
+        appendChatMessages(result?.message ? [result.message] : []);
+        setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : 'Message sent.');
+        renderChatWidget();
+    } catch (e) {
+        setChatWidgetStatus(e.message || 'Failed to send chat message.', true);
+    }
+}
+
 function getAssetImagePath(name, basePath='/images/assets') {
     const slug = String(name || '')
         .trim()
