@@ -6521,8 +6521,7 @@ function setChatWidgetStatus(message = '', isError = false) {
 function isChatWidgetAvailable() {
     return !!token &&
         !!character &&
-        chatEnabled &&
-        document.getElementById('screen-game')?.classList.contains('active');
+        chatEnabled;
 }
 
 function trimChatMessages(list) {
