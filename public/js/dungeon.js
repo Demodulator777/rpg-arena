@@ -33,6 +33,10 @@
       image: '/images/dungeon/corridor.jpg',
       description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
     },
+    area: {
+      image: '/images/dungeon/area.jpg',
+      description: "An open chamber where multiple paths converge. Stone arches lead in several directions."
+    },
     treasure: {
       image: '/images/dungeon/treasure.jpg',
       description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
@@ -407,7 +411,7 @@ async function refreshCharacter() {
     if (el) el.textContent = D.tokens;
   }
 
-  // ── Map Generation ─────────────────────────────────────────
+// ── Map Generation ─────────────────────────────────────────
 function generateFloor(dungeonId, floor) {
     const rooms = [];
     const gridW = 24, gridH = 24;
@@ -417,7 +421,7 @@ function generateFloor(dungeonId, floor) {
     const chosen = [];
     const depthMap = {};
     const edgeMap = {};
-    const startIdx = gridH * gridW - gridW;
+    const startIdx = gridH * gridW - gridW; // Start at bottom-center
     const stack = [startIdx];
 
     chosen.push(startIdx);
@@ -425,6 +429,107 @@ function generateFloor(dungeonId, floor) {
     depthMap[startIdx] = 0;
     edgeMap[startIdx] = new Set();
 
+    // First pass: Create main branching structure with DFS
+    while (chosen.length < ROOMS_PER_FLOOR * 0.7 && stack.length > 0) {
+      const current = stack[stack.length - 1];
+      const cx = current % gridW;
+      const cy = Math.floor(current / gridW);
+      const neighbors = [];
+
+      if (cx > 0 && !used[cy * gridW + (cx - 1)]) neighbors.push(cy * gridW + (cx - 1));
+      if (cx < gridW - 1 && !used[cy * gridW + (cx + 1)]) neighbors.push(cy * gridW + (cx + 1));
+      if (cy > 0 && !used[(cy - 1) * gridW + cx]) neighbors.push((cy - 1) * gridW + cx);
+      if (cy < gridH - 1 && !used[(cy + 1) * gridW + cx]) neighbors.push((cy + 1) * gridW + cx);
+
+      if (!neighbors.length) {
+        stack.pop();
+        continue;
+      }
+
+      const pick = neighbors[rand(0, neighbors.length - 1)];
+      used[pick] = true;
+      chosen.push(pick);
+      depthMap[pick] = (depthMap[current] || 0) + 1;
+      edgeMap[pick] = edgeMap[pick] || new Set();
+      edgeMap[current] = edgeMap[current] || new Set();
+      edgeMap[current].add(pick);
+      edgeMap[pick].add(current);
+      stack.push(pick);
+    }
+
+    // Second pass: Create open areas (rooms with 3-4 connections)
+    // These are wider zones where trails converge
+    const areaCount = Math.floor(ROOMS_PER_FLOOR * 0.15);
+    for (let a = 0; a < areaCount; a++) {
+      // Pick a random existing room to expand around
+      const anchorIdx = chosen[rand(1, chosen.length - 1)];
+      const ax = anchorIdx % gridW;
+      const ay = Math.floor(anchorIdx / gridW);
+      
+      // Try to add 2-3 new connections from this area
+      const directions = [
+        { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
+        { dx: 0, dy: -1 }, { dx: 0, dy: 1 }
+      ];
+      const shuffledDirs = directions.sort(() => Math.random() - 0.5);
+      let addedFromArea = 0;
+      
+      for (const dir of shuffledDirs) {
+        if (addedFromArea >= 2) break;
+        const nx = ax + dir.dx;
+        const ny = ay + dir.dy;
+        if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
+        const nIdx = ny * gridW + nx;
+        if (!used[nIdx]) {
+          used[nIdx] = true;
+          chosen.push(nIdx);
+          depthMap[nIdx] = (depthMap[anchorIdx] || 0) + 1;
+          edgeMap[nIdx] = new Set();
+          edgeMap[anchorIdx] = edgeMap[anchorIdx] || new Set();
+          edgeMap[anchorIdx].add(nIdx);
+          edgeMap[nIdx].add(anchorIdx);
+          addedFromArea++;
+        } else {
+          // Connect to existing room for cross-link
+          if (!edgeMap[anchorIdx].has(nIdx) && nIdx !== anchorIdx) {
+            edgeMap[anchorIdx].add(nIdx);
+            edgeMap[nIdx].add(anchorIdx);
+          }
+        }
+      }
+    }
+
+    // Third pass: Add cross-links between nearby parallel paths
+    // This makes adjacent rooms connectable even if not directly on same trail
+    for (let i = 0; i < chosen.length; i++) {
+      const idx = chosen[i];
+      const x = idx % gridW;
+      const y = Math.floor(idx / gridW);
+      
+      // Check orthogonal neighbors - if both exist and aren't connected, add cross-link
+      // This creates shortcuts between parallel trails
+      if (x > 0) {
+        const leftIdx = y * gridW + (x - 1);
+        if (used[leftIdx] && !edgeMap[idx].has(leftIdx)) {
+          // 25% chance to cross-link adjacent rooms
+          if (Math.random() < 0.25) {
+            edgeMap[idx].add(leftIdx);
+            edgeMap[leftIdx].add(idx);
+          }
+        }
+      }
+      if (y > 0) {
+        const aboveIdx = (y - 1) * gridW + x;
+        if (used[aboveIdx] && !edgeMap[idx].has(aboveIdx)) {
+          if (Math.random() < 0.25) {
+            edgeMap[idx].add(aboveIdx);
+            edgeMap[aboveIdx].add(idx);
+          }
+        }
+      }
+    }
+
+    // Fill remaining rooms to reach target count
     while (chosen.length < ROOMS_PER_FLOOR && stack.length > 0) {
       const current = stack[stack.length - 1];
       const cx = current % gridW;
@@ -476,6 +581,8 @@ function generateFloor(dungeonId, floor) {
       const isBoss = (idx === farthest);
       const isStart = (i === 0);
       
+      const connectionCount = (edgeMap[idx] || new Set()).size;
+      const isArea = connectionCount >= 3;
       const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 5;
 
       const connections = [...(edgeMap[idx] || [])]
@@ -493,43 +600,44 @@ function generateFloor(dungeonId, floor) {
       
       // ONLY spawn monsters in non-start, non-boss rooms
       if (!isStart && !isBoss && availableMonsters.length > 0) {
-    const spawnChance = Math.random();
-    if (spawnChance < 0.7) {  // 70% chance for any monster
-        monsters = [];
-        const actualCount = Math.min(monsterCount, 4);
-        for (let m = 0; m < actualCount; m++) {
+        const spawnChance = Math.random();
+        if (spawnChance < 0.7) {  // 70% chance for any monster
+          monsters = [];
+          const actualCount = Math.min(monsterCount, 4);
+          for (let m = 0; m < actualCount; m++) {
             const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
             if (monsterDef) {
-                const isMiniBoss = monsterDef.isMiniBoss === true;
-                const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * (isMiniBoss ? 15 : 12)));
-                const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * (isMiniBoss ? 4 : 3)));
-                const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * (isMiniBoss ? 2 : 1.5)));
-                
-                monsters.push({
-                    id: monsterDef.id,
-                    name: monsterDef.name,
-                    icon: monsterDef.icon,
-                    hp: scaledHp,
-                    atk: scaledAtk,
-                    def: scaledDef,
-                    steal: monsterDef.steal || false,
-                    isMiniBoss: isMiniBoss,
-                    tokenCost: monsterDef.tokenCost || 0,
-                    currentHp: scaledHp,
-                    maxHp: scaledHp,
-                    lastKilled: null,
-                    stolenItems: [],
-                });
+              const isMB = monsterDef.isMiniBoss === true;
+              const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * (isMB ? 15 : 12)));
+              const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * (isMB ? 4 : 3)));
+              const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * (isMB ? 2 : 1.5)));
+              
+              monsters.push({
+                id: monsterDef.id,
+                name: monsterDef.name,
+                icon: monsterDef.icon,
+                hp: scaledHp,
+                atk: scaledAtk,
+                def: scaledDef,
+                steal: monsterDef.steal || false,
+                isMiniBoss: isMB,
+                tokenCost: monsterDef.tokenCost || 0,
+                currentHp: scaledHp,
+                maxHp: scaledHp,
+                lastKilled: null,
+                stolenItems: [],
+              });
             }
           }
         }
       }
 
       // Determine room type and visual
-      let roomType = isBoss ? 'boss' : isStart ? 'start' : (isMiniBoss ? 'miniboss' : (Math.random() < 0.15 ? 'treasure' : 'corridor'));
+      let roomType = isBoss ? 'boss' : isStart ? 'start' : (isMiniBoss ? 'miniboss' : (isArea ? 'area' : (Math.random() < 0.15 ? 'treasure' : 'corridor')));
       let visualData = null;
       if (roomType === 'boss') visualData = DUNGEON_VISUALS.boss;
       else if (roomType === 'start') visualData = DUNGEON_VISUALS.start;
+      else if (roomType === 'area') visualData = DUNGEON_VISUALS.area;
       else if (roomType === 'treasure') visualData = DUNGEON_VISUALS.treasure;
       else visualData = DUNGEON_VISUALS.corridor;
 
@@ -540,6 +648,7 @@ function generateFloor(dungeonId, floor) {
         isBoss,
         isMiniBoss: isMiniBoss || false,
         isStart,
+        isArea,
         connections,
         monsters: monsters,
         looted: false,
@@ -549,7 +658,7 @@ function generateFloor(dungeonId, floor) {
     }
 
     return rooms;
-}
+  }
 
   // ── Combat Engine ──────────────────────────────────────────
 function calcPlayerStats() {
