@@ -21,7 +21,6 @@ BigInt.prototype.toJSON = function() { return Number(this); };
 
 const router = express.Router();
 const _missionStartLock = new Set();
-const _missionCollectLock = new Set();
 const _weeklyClaimableCountCache = new Map();
 
 function invalidateWeeklyClaimableCountCache(charId) {
@@ -5272,14 +5271,9 @@ xpReward = Math.max(0, xpReward);
 
 // ── Missions Collect (UPDATED with skill tree passive bonuses) ────────────
 router.post('/missions/collect', auth, async (req, res) => {
-    const userId = req.user.userId;
-    if (_missionCollectLock.has(userId)) {
-        return res.status(400).json({ error: 'Mission reward already being collected.' });
-    }
-    _missionCollectLock.add(userId);
     try {
         const db = await getDb();
-        const character = await getCurrentCharacter(db, userId);
+        const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         await applyHpRegen(db, character.id);
         await applyMpRegen(db, character.id);
@@ -5478,10 +5472,19 @@ if (freshChar.class === 'rogue') {
             levelUpMessage = `🎉 Level Up! You reached level ${newLevel}! HP restored to full and you received a Common Loot Box!`;
         }
 
+        const missionClaimResult = await dbRun(
+            db,
+            'DELETE FROM active_missions WHERE character_id = ? AND started_at = ? AND ends_at = ?',
+            [freshChar.id, mission.started_at, mission.ends_at]
+        );
+        const claimedMission = missionClaimResult?.rowsAffected ?? missionClaimResult?.changes ?? 0;
+        if (!claimedMission) {
+            return res.status(409).json({ error: 'Mission rewards already collected.' });
+        }
+
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+? WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
-        await dbRun(db, 'DELETE FROM active_missions WHERE character_id = ?', [freshChar.id]);
         
         // ── Skill tree stat tracking ───────────────────────────────────────
         if (playerWon && mission.difficulty === 'hard') {
@@ -6017,8 +6020,6 @@ router.post('/travel/start', auth, async (req, res) => {
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
-    } finally {
-        _missionCollectLock.delete(userId);
     }
 });
 
