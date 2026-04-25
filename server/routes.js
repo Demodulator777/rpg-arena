@@ -21,6 +21,7 @@ BigInt.prototype.toJSON = function() { return Number(this); };
 
 const router = express.Router();
 const _missionStartLock = new Set();
+const _missionCollectLock = new Set();
 const _weeklyClaimableCountCache = new Map();
 
 function invalidateWeeklyClaimableCountCache(charId) {
@@ -5271,9 +5272,14 @@ xpReward = Math.max(0, xpReward);
 
 // ── Missions Collect (UPDATED with skill tree passive bonuses) ────────────
 router.post('/missions/collect', auth, async (req, res) => {
+    const userId = req.user.userId;
+    if (_missionCollectLock.has(userId)) {
+        return res.status(400).json({ error: 'Mission reward already being collected.' });
+    }
+    _missionCollectLock.add(userId);
     try {
         const db = await getDb();
-        const character = await getCurrentCharacter(db, req.user.userId);
+        const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         await applyHpRegen(db, character.id);
         await applyMpRegen(db, character.id);
@@ -6008,9 +6014,11 @@ router.post('/travel/start', auth, async (req, res) => {
             duration: travelTime,
             requiresUnlockFight: !unlocked
         });
-    } catch (e) { 
-        console.error(e); 
-        res.status(500).json({ error: e.message }); 
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    } finally {
+        _missionCollectLock.delete(userId);
     }
 });
 
