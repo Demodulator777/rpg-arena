@@ -8689,7 +8689,7 @@ function generateLootFromBox(boxType, playerLevel) {
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const { componentId } = req.body;
+        const { componentId, expectedUpgradeLevel } = req.body;
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
@@ -8703,10 +8703,17 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         }
         
         const currentUpgrade = item.upgrade_level || 0;
+        const normalizedExpectedUpgrade = Number.isFinite(Number(expectedUpgradeLevel))
+            ? Number(expectedUpgradeLevel)
+            : currentUpgrade;
         const quality = itemData.quality || 'common';
         let maxUpgrade = 3;
         if (quality === 'legendary') maxUpgrade = 5;
         else if (quality === 'epic' || quality === 'rare') maxUpgrade = 4;
+
+        if (normalizedExpectedUpgrade !== currentUpgrade) {
+            return res.status(409).json({ error: 'This upgrade view is outdated. Reopen the item and try again.' });
+        }
 
         if (currentUpgrade >= maxUpgrade) {
             return res.status(400).json({ error: `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!` });
@@ -8766,7 +8773,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         const itemUpdateResult = await dbRun(
             db,
             'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=? AND char_id=? AND upgrade_level=?',
-            [JSON.stringify(upgradedItemData), nextUpgrade, item.id, char.id, currentUpgrade]
+            [JSON.stringify(upgradedItemData), nextUpgrade, item.id, char.id, normalizedExpectedUpgrade]
         );
 
         if (!itemUpdateResult.rowsAffected && itemUpdateResult.rowsAffected !== undefined ? true : itemUpdateResult.changes === 0) {
