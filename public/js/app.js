@@ -6772,7 +6772,10 @@ function renderChatWidget() {
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                                     <span class="chat-line-channel">${privateLabel}</span>
-                                    ${isOwn ? `<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>` : ''}
+                                    ${isOwn ? `
+                                        <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
+                                        <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
+                                    ` : ''}
                                 </div>
                                 <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
                             </div>
@@ -6852,7 +6855,20 @@ function editChatMessage(messageId) {
     renderChatWidget();
 }
 
+function deleteChatMessage(messageId) {
+    if (!confirm('Delete this message? This cannot be undone.')) return;
+    
+    api('DELETE', `/game/chat/${messageId}`).then(() => {
+        chatMessages = chatMessages.filter(m => m.id !== messageId);
+        setChatWidgetStatus('Message deleted.');
+        renderChatWidget();
+    }).catch(e => {
+        setChatWidgetStatus(e.message || 'Failed to delete message.', true);
+    });
+}
+
 window.editChatMessage = editChatMessage;
+window.deleteChatMessage = deleteChatMessage;
 
 async function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
