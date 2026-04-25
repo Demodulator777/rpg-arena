@@ -1926,6 +1926,25 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     opacity: 0.92;
 }
 
+.chat-edit-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    margin-left: auto;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.chat-edit-btn:hover {
+    opacity: 1;
+}
+
+.chat-widget-message-input.editing {
+    border-color: rgba(241,196,15,0.5);
+    background: rgba(241,196,15,0.05);
+}
+
 .chat-widget-foot {
     justify-content: space-between;
     align-items: flex-start;
