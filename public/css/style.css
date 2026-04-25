@@ -1436,6 +1436,31 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+}
+
+@media (min-width: 641px) {
+    .sidebar-buttons::before {
+        content: '';
+        position: absolute;
+        top: 6px;
+        bottom: 6px;
+        left: calc(-50vw + 50% + 22px);
+        right: calc(-50vw + 50% + 22px);
+        border-top: 1px solid rgba(201,146,42,0.22);
+        border-bottom: 1px solid rgba(201,146,42,0.18);
+        background:
+            linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+            linear-gradient(180deg, rgba(17,24,36,0.92), rgba(10,14,22,0.88));
+        clip-path: polygon(26px 0, calc(100% - 26px) 0, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0 50%);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.04),
+            inset 0 -1px 0 rgba(0,0,0,0.35),
+            0 10px 26px rgba(0,0,0,0.18);
+        pointer-events: none;
+        z-index: -1;
+    }
 }
 .nav-hub-group {
     position: relative;
