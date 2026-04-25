@@ -8734,13 +8734,6 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
         }
         
-        if (componentQty <= 1) {
-            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
-        } else {
-            componentData.qty = componentQty - 1;
-            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
-        }
-        
         const upgradedStats = { ...itemData.stats };
         const bonusValue = upgradeValue.bonus;
         
@@ -8770,8 +8763,22 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             desc: `${itemData.desc} [Upgraded +${nextUpgrade} using ${componentData.name}]`
         };
         
-        await dbRun(db, 'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=?', 
-            [JSON.stringify(upgradedItemData), nextUpgrade, item.id]);
+        const itemUpdateResult = await dbRun(
+            db,
+            'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=? AND char_id=? AND upgrade_level=?',
+            [JSON.stringify(upgradedItemData), nextUpgrade, item.id, char.id, currentUpgrade]
+        );
+
+        if (!itemUpdateResult.rowsAffected && itemUpdateResult.rowsAffected !== undefined ? true : itemUpdateResult.changes === 0) {
+            return res.status(409).json({ error: 'Upgrade already in progress. Please wait for the current upgrade to finish.' });
+        }
+
+        if (componentQty <= 1) {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
+        } else {
+            componentData.qty = componentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
+        }
         
         res.json({
             success: true,
