@@ -1899,23 +1899,43 @@ const previewFloors = [0,1,2,3,4].map(offset => {
               <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
             </div>
             <div class="dungeon-path-options">
-              ${currentRoom.connections.map(ci => {
-                const cr = D.rooms[ci];
-                const explored = D.exploredRooms.has(ci);
-                const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : null;
-                const monsterAlive = cr.monsters && cr.monsters.some(m => 
-                  !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
-                );
-                const text = explored ? `Room ${ci+1}` : 'Unknown';
-                return `
-                  <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
-                          ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
-                    <span class="dungeon-path-btn-icon">${directionArrow ? `<img class="dungeon-path-btn-arrow-img" src="/images/assets/${directionArrow}arrow.png" alt="${directionArrow} arrow" loading="lazy" decoding="async">` : `<img class="dungeon-path-btn-arrow-img" src="/images/assets/question.png" alt="Unknown room" loading="lazy" decoding="async">`}</span>
-                    <span class="dungeon-path-btn-text">${text}</span>
-                    ${explored ? `<span class="dungeon-path-btn-roomno">#${ci + 1}</span>` : ''}
-                  </button>
-                `;
-              }).join('')}
+              ${(() => {
+                // Get all connectable rooms: direct connections + nearby discovered rooms
+                const currentRoom = D.rooms[D.playerPos];
+                const connectable = [...(currentRoom.connections || [])];
+                
+                // Add adjacent discovered rooms that aren't in connections yet
+                D.rooms.forEach((r, idx) => {
+                  if (idx === D.playerPos) return;
+                  if (!D.exploredRooms.has(idx)) return;
+                  if (connectable.includes(idx)) return;
+                  
+                  // Check if adjacent in grid
+                  const dx = Math.abs(r.x - currentRoom.x);
+                  const dy = Math.abs(r.y - currentRoom.y);
+                  if (dx <= 1 && dy <= 1 && (dx + dy) > 0 && (r.connections || []).includes(D.playerPos)) {
+                    connectable.push(idx);
+                  }
+                });
+                
+                return connectable.map(ci => {
+                  const cr = D.rooms[ci];
+                  const explored = D.exploredRooms.has(ci);
+                  const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : null;
+                  const monsterAlive = cr.monsters && cr.monsters.length > 0 && cr.monsters.some(m => 
+                    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
+                  );
+                  const text = explored ? `Room ${ci+1}` : 'Unknown';
+                  return `
+                    <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
+                            ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
+                      <span class="dungeon-path-btn-icon">${directionArrow ? `<img class="dungeon-path-btn-arrow-img" src="/images/assets/${directionArrow}arrow.png" alt="${directionArrow} arrow" loading="lazy" decoding="async">` : `<img class="dungeon-path-btn-arrow-img" src="/images/assets/question.png" alt="Unknown room" loading="lazy" decoding="async">`}</span>
+                      <span class="dungeon-path-btn-text">${text}</span>
+                      ${explored ? `<span class="dungeon-path-btn-roomno">#${ci + 1}</span>` : ''}
+                    </button>
+                  `;
+                }).join('');
+              })()}
             </div>
           </div>
 
@@ -1963,7 +1983,17 @@ function isRoomVisible(idx) {
     if (D.exploredRooms.has(idx)) return true;
     const currentRoom = D.rooms[D.playerPos];
     if (!currentRoom || !Array.isArray(currentRoom.connections)) return false;
-    return currentRoom.connections.includes(idx);
+    
+    // Direct path connection
+    if (currentRoom.connections.includes(idx)) return true;
+    
+    // Adjacent rooms in the grid (within 1 tile in any direction)
+    const targetRoom = D.rooms[idx];
+    const dx = Math.abs(targetRoom.x - currentRoom.x);
+    const dy = Math.abs(targetRoom.y - currentRoom.y);
+    if (dx <= 1 && dy <= 1 && (dx + dy) > 0) return true;
+    
+    return false;
 }
 function renderMapGrid() {
     const grid = {};
