@@ -6710,7 +6710,9 @@ function renderChatWidget() {
                 ` : ''}
                 <div class="chat-widget-compose">
                     <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${canSendPm ? 'Send private message…' : 'Send global message…'}" value="${escHtml(prevMessage)}">
-                    <button class="btn-primary chat-send-btn" ${actionAttrs('sendChatMessage')}>Send</button>
+                    <button class="btn-primary chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message">
+                        <img class="chat-send-btn-icon" src="/images/assets/rightarrow.png" alt="Send" loading="lazy" decoding="async">
+                    </button>
                 </div>
                 <div class="chat-widget-foot">
                     <span class="chat-widget-limit">280 chars</span>
