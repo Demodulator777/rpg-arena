@@ -4576,12 +4576,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: auto;
     }
     .chat-widget-messages {
-        min-height: 180px;
-        max-height: calc(100svh - 260px);
+        min-height: 80px;
+        max-height: calc(100svh - 280px);
+        overflow-y: auto;
     }
     .chat-widget-target-row,
     .chat-widget-foot {
         flex-wrap: nowrap;
+        flex-shrink: 0;
     }
     .chat-widget-target-row {
         display: grid;
