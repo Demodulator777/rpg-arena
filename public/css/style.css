@@ -1704,7 +1704,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: fixed;
     right: 18px;
     bottom: 18px;
-    z-index: 120;
+    z-index: 6000;
     display: block;
     pointer-events: none;
 }
@@ -1731,6 +1731,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding: 12px 14px;
     background: linear-gradient(180deg, rgba(52,152,219,0.18), rgba(255,255,255,0.03));
     border-bottom: 1px solid rgba(255,255,255,0.08);
+    cursor: move;
+    user-select: none;
+}
+
+#chat-widget-root.dragging .chat-widget,
+.chat-widget.dragging {
+    box-shadow: 0 28px 70px rgba(0,0,0,0.55);
 }
 
 .chat-widget-title {
@@ -1793,6 +1800,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .chat-widget-target-input,
 .chat-widget-message-input {
     width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.08);
     background: rgba(0,0,0,0.32);
@@ -1873,8 +1882,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .chat-send-btn {
     flex-shrink: 0;
-    min-width: 72px;
-    padding: 10px 14px;
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+
+.chat-send-btn-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    display: block;
 }
 
 .chat-widget-foot {
