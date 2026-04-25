@@ -6507,6 +6507,50 @@ function parseActionArgs(el) {
     }
 }
 
+function isPromiseLike(value) {
+    return !!value && typeof value.then === 'function';
+}
+
+function shouldAutoLockActionTrigger(el, event, attrName) {
+    if (attrName !== 'data-action' || event?.type !== 'click' || !el) return false;
+    if (el.dataset?.noActionLock === 'true') return false;
+    return el instanceof HTMLButtonElement ||
+        el.classList?.contains('btn-primary') ||
+        el.classList?.contains('btn-secondary') ||
+        el.classList?.contains('btn-sm') ||
+        el.classList?.contains('btn-collect') ||
+        el.classList?.contains('btn-confirm-upgrade');
+}
+
+function setActionTriggerBusy(el, busy) {
+    if (!el) return;
+    if (busy) {
+        if (el.dataset.actionBusy === 'true') return;
+        el.dataset.actionBusy = 'true';
+        if (el instanceof HTMLButtonElement) {
+            el.dataset.prevDisabled = el.disabled ? 'true' : 'false';
+            el.disabled = true;
+        } else {
+            el.dataset.prevAriaDisabled = el.getAttribute('aria-disabled') || '';
+            el.setAttribute('aria-disabled', 'true');
+            el.style.pointerEvents = 'none';
+        }
+        return;
+    }
+    delete el.dataset.actionBusy;
+    if (el instanceof HTMLButtonElement) {
+        const wasDisabled = el.dataset.prevDisabled === 'true';
+        delete el.dataset.prevDisabled;
+        el.disabled = wasDisabled;
+    } else {
+        const prevAriaDisabled = el.dataset.prevAriaDisabled;
+        delete el.dataset.prevAriaDisabled;
+        if (prevAriaDisabled) el.setAttribute('aria-disabled', prevAriaDisabled);
+        else el.removeAttribute('aria-disabled');
+        el.style.pointerEvents = '';
+    }
+}
+
 function callNamedAction(actionName, args, event, el) {
     const fn = globalThis[actionName];
     if (typeof fn !== 'function') {
@@ -6521,9 +6565,22 @@ function handleDelegatedAction(event, attrName) {
     const trigger = event.target.closest(selector);
     if (!trigger) return false;
     if (trigger.disabled || trigger.getAttribute('aria-disabled') === 'true') return true;
+    if (trigger.dataset.actionBusy === 'true') return true;
     const actionName = trigger.getAttribute(attrName);
     const args = parseActionArgs(trigger);
-    callNamedAction(actionName, args, event, trigger);
+    const shouldLock = shouldAutoLockActionTrigger(trigger, event, attrName);
+    if (shouldLock) setActionTriggerBusy(trigger, true);
+    try {
+        const result = callNamedAction(actionName, args, event, trigger);
+        if (shouldLock && isPromiseLike(result)) {
+            result.finally(() => setActionTriggerBusy(trigger, false));
+        } else if (shouldLock) {
+            setActionTriggerBusy(trigger, false);
+        }
+    } catch (err) {
+        if (shouldLock) setActionTriggerBusy(trigger, false);
+        throw err;
+    }
     return true;
 }
 
@@ -6703,8 +6760,21 @@ function bindLegacyInlineHandlers(root = document) {
             if (!parsed) continue;
             el.addEventListener(parsed.type, (event) => {
                 if (parsed.stopPropagation) event.stopPropagation();
+                if (parsed.type === 'click' && el.dataset.actionBusy === 'true') return;
                 const args = parsed.rawArgs.map((token) => parseLegacyArg(token, el, event)).filter((v) => v !== undefined);
-                callNamedAction(parsed.actionName, args, event, el);
+                const shouldLock = parsed.type === 'click' && shouldAutoLockActionTrigger(el, event, 'data-action');
+                if (shouldLock) setActionTriggerBusy(el, true);
+                try {
+                    const result = callNamedAction(parsed.actionName, args, event, el);
+                    if (shouldLock && isPromiseLike(result)) {
+                        result.finally(() => setActionTriggerBusy(el, false));
+                    } else if (shouldLock) {
+                        setActionTriggerBusy(el, false);
+                    }
+                } catch (err) {
+                    if (shouldLock) setActionTriggerBusy(el, false);
+                    throw err;
+                }
             });
             el.dataset[`legacyBound${attrName}`] = 'true';
             el.removeAttribute(attrName);
