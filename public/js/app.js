@@ -7412,6 +7412,8 @@ async function openUpgradeModal(inventoryId) {
         `;
 
         document.getElementById('upgrade-modal').classList.remove('hidden');
+        const modalBox = document.querySelector('#upgrade-modal .upgrade-modal-box');
+        if (modalBox) modalBox.scrollTop = 0;
 
     } catch (error) {
         console.error('Error opening upgrade modal:', error);
@@ -7446,6 +7448,12 @@ function selectComponent(id, name, qty, el) {
     `;
     
     selectedInfo.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        const confirmBtn = document.querySelector('#upgrade-modal .btn-confirm-upgrade');
+        if (confirmBtn && window.innerWidth <= 768) {
+            confirmBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
 }
 
 async function confirmUpgrade() {
