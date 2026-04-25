@@ -6761,17 +6761,20 @@ function renderChatWidget() {
                         ${canSendPm ? 'Clear PM' : 'Global'}
                     </button>
                 </div>
-                <div class="chat-widget-messages" id="chat-widget-messages">
+<div class="chat-widget-messages" id="chat-widget-messages">
                     ${visibleMessages.length ? visibleMessages.map(msg => {
                         const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+                        const isOwn = msg.is_outgoing;
+                        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
                         return `
                             <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
                                 <div class="chat-line-meta">
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                                     <span class="chat-line-channel">${privateLabel}</span>
+                                    ${isOwn ? `<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>` : ''}
                                 </div>
-                                <div class="chat-line-text">${escHtml(msg.message_text || '')}</div>
+                                <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
                             </div>
                         `;
                     }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
@@ -6817,30 +6820,73 @@ function clearChatRecipient() {
     const input = document.getElementById('chat-recipient-input');
     if (input) {
         input.value = '';
-        syncChatRecipientUi();
-        input.focus();
-        return;
+    }
+    const chatInput = document.getElementById('chat-message-input');
+    if (chatInput) {
+        delete chatInput.dataset.editingId;
     }
     renderChatWidget();
 }
+
+function clearChatEdit() {
+    const input = document.getElementById('chat-message-input');
+    if (input) {
+        delete input.dataset.editingId;
+    }
+setChatWidgetStatus('', false);
+    renderChatWidget();
+}
+
+function editChatMessage(messageId) {
+    const message = chatMessages.find(m => m.id === messageId);
+    if (!message) return;
+    
+    const input = document.getElementById('chat-message-input');
+    if (!input) return;
+    
+    input.value = message.message_text || '';
+    input.dataset.editingId = messageId;
+    input.focus();
+    
+    setChatWidgetStatus('Edit your message and press Send.', false);
+    renderChatWidget();
+}
+
+window.editChatMessage = editChatMessage;
 
 async function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
     const recipientInput = document.getElementById('chat-recipient-input');
     const message = String(input?.value || '').trim();
     const recipientName = String(recipientInput?.value || chatPmTarget || '').trim();
+    const editingId = input?.dataset?.editingId;
+    
     if (!message) {
         setChatWidgetStatus('Message required.', true);
         return;
     }
+    
     try {
-        const result = await api('POST', '/game/chat/send', {
-            message,
-            recipientName: recipientName || null
-        });
-        if (input) input.value = '';
-        appendChatMessages(result?.message ? [result.message] : []);
-        setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : 'Message sent.');
+        if (editingId) {
+            const result = await api('PUT', `/game/chat/edit/${editingId}`, { message });
+            delete input.dataset.editingId;
+            if (input) input.value = '';
+            
+            const idx = chatMessages.findIndex(m => m.id === Number(editingId));
+            if (idx >= 0) {
+                chatMessages[idx] = { ...chatMessages[idx], message_text: message, edited: true };
+            }
+            
+            setChatWidgetStatus('Message edited.');
+        } else {
+            const result = await api('POST', '/game/chat/send', {
+                message,
+                recipientName: recipientName || null
+            });
+            if (input) input.value = '';
+            appendChatMessages(result?.message ? [result.message] : []);
+            setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : 'Message sent.');
+        }
         renderChatWidget();
     } catch (e) {
         setChatWidgetStatus(e.message || 'Failed to send chat message.', true);
