@@ -46,6 +46,8 @@ let chatExpanded = false;
 let chatStatusText = '';
 let chatStatusIsError = false;
 let chatStatusTimer = null;
+let chatWidgetPosition = null;
+let chatDragState = null;
 
 async function loadAbyssData() {
     try {
@@ -6584,7 +6586,7 @@ function syncChatPolling() {
 }
 
 function bindChatWidgetEvents() {
-    const root = document.getElementById('chat-widget-root');
+    const root = ensureChatWidgetRoot();
     if (!root || root.dataset.chatBound === 'true') return;
     root.addEventListener('keydown', async (event) => {
         if (event.target?.id !== 'chat-message-input') return;
@@ -6597,11 +6599,61 @@ function bindChatWidgetEvents() {
             chatPmTarget = String(event.target.value || '');
         }
     });
+    root.addEventListener('pointerdown', (event) => {
+        const handle = event.target?.closest('.chat-widget-header');
+        if (!handle) return;
+        if (event.target?.closest('button,input,textarea')) return;
+        const rect = root.getBoundingClientRect();
+        chatDragState = {
+            offsetX: event.clientX - rect.left,
+            offsetY: event.clientY - rect.top
+        };
+        root.classList.add('dragging');
+        try { handle.setPointerCapture(event.pointerId); } catch {}
+        event.preventDefault();
+    });
+    window.addEventListener('pointermove', (event) => {
+        if (!chatDragState) return;
+        const margin = 8;
+        const widgetWidth = root.offsetWidth || 360;
+        const widgetHeight = root.offsetHeight || 420;
+        const nextX = Math.max(margin, Math.min(window.innerWidth - widgetWidth - margin, event.clientX - chatDragState.offsetX));
+        const nextY = Math.max(margin, Math.min(window.innerHeight - widgetHeight - margin, event.clientY - chatDragState.offsetY));
+        chatWidgetPosition = { x: nextX, y: nextY };
+        root.style.left = `${nextX}px`;
+        root.style.top = `${nextY}px`;
+        root.style.right = 'auto';
+        root.style.bottom = 'auto';
+    });
+    window.addEventListener('pointerup', () => {
+        if (!chatDragState) return;
+        chatDragState = null;
+        root.classList.remove('dragging');
+    });
     root.dataset.chatBound = 'true';
 }
 
+function ensureChatWidgetRoot() {
+    let root = document.getElementById('chat-widget-root');
+    if (!root) {
+        root = document.createElement('div');
+        root.id = 'chat-widget-root';
+        root.className = 'hidden';
+    }
+    if (root.parentElement !== document.body) {
+        document.body.appendChild(root);
+    }
+    if (chatWidgetPosition?.x != null && chatWidgetPosition?.y != null) {
+        root.style.left = `${chatWidgetPosition.x}px`;
+        root.style.top = `${chatWidgetPosition.y}px`;
+        root.style.right = 'auto';
+        root.style.bottom = 'auto';
+    }
+    return root;
+}
+
 function renderChatWidget() {
-    const root = document.getElementById('chat-widget-root');
+    const root = ensureChatWidgetRoot();
     if (!root) return;
     if (!isChatWidgetAvailable()) {
         root.innerHTML = '';
