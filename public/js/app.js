@@ -6597,9 +6597,19 @@ function bindChatWidgetEvents() {
     root.addEventListener('input', (event) => {
         if (event.target?.id === 'chat-recipient-input') {
             chatPmTarget = String(event.target.value || '');
+            renderChatWidget();
+            return;
+        }
+        if (event.target?.id === 'chat-message-input') {
+            const counter = document.getElementById('chat-widget-limit');
+            if (counter) {
+                const remaining = Math.max(0, 280 - String(event.target.value || '').length);
+                counter.textContent = `${remaining} left`;
+            }
         }
     });
     root.addEventListener('pointerdown', (event) => {
+        if (isMobileChatDockMode()) return;
         const handle = event.target?.closest('.chat-widget-header');
         if (!handle) return;
         if (event.target?.closest('button,input,textarea')) return;
@@ -6613,6 +6623,7 @@ function bindChatWidgetEvents() {
         event.preventDefault();
     });
     window.addEventListener('pointermove', (event) => {
+        if (isMobileChatDockMode()) return;
         if (!chatDragState) return;
         const margin = 8;
         const widgetWidth = root.offsetWidth || 360;
@@ -6633,6 +6644,10 @@ function bindChatWidgetEvents() {
     root.dataset.chatBound = 'true';
 }
 
+function isMobileChatDockMode() {
+    return window.matchMedia('(max-width: 640px)').matches || window.matchMedia('(pointer: coarse)').matches;
+}
+
 function ensureChatWidgetRoot() {
     let root = document.getElementById('chat-widget-root');
     if (!root) {
@@ -6642,6 +6657,15 @@ function ensureChatWidgetRoot() {
     }
     if (root.parentElement !== document.body) {
         document.body.appendChild(root);
+    }
+    if (isMobileChatDockMode()) {
+        chatDragState = null;
+        root.classList.remove('dragging');
+        root.style.left = 'auto';
+        root.style.top = 'auto';
+        root.style.right = '10px';
+        root.style.bottom = '84px';
+        return root;
     }
     if (chatWidgetPosition?.x != null && chatWidgetPosition?.y != null) {
         root.style.left = `${chatWidgetPosition.x}px`;
@@ -6668,6 +6692,7 @@ function renderChatWidget() {
     const statusClass = chatStatusText ? (chatStatusIsError ? 'error' : 'success') : '';
     const visibleMessages = getVisibleChatMessages();
     const hiddenCount = Math.max(0, chatMessages.length - visibleMessages.length);
+    const remainingChars = Math.max(0, 280 - prevMessage.length);
 
     root.classList.remove('hidden');
     root.innerHTML = `
@@ -6715,7 +6740,7 @@ function renderChatWidget() {
                     <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
                 </div>
                 <div class="chat-widget-foot">
-                    <span class="chat-widget-limit">280 chars</span>
+                    <span id="chat-widget-limit" class="chat-widget-limit">${remainingChars} left</span>
                     <span id="chat-widget-status" class="chat-widget-status ${statusClass}">${escHtml(chatStatusText)}</span>
                 </div>
             </div>
