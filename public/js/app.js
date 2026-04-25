@@ -7319,6 +7319,8 @@ async function openUpgradeModal(inventoryId) {
     currentUpgradeItemId = inventoryId;
     selectedComponentId = null;
     selectedComponentName = null;
+    currentUpgradeBaseLevel = null;
+    upgradeConfirmBusy = false;
 
     try {
         const invData = await api('GET', '/game/inventory');
@@ -7327,6 +7329,7 @@ async function openUpgradeModal(inventoryId) {
 
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
+        currentUpgradeBaseLevel = currentUpgrade;
         const quality = itemData.quality || 'common';
         const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
 
@@ -7423,6 +7426,8 @@ async function openUpgradeModal(inventoryId) {
 
 let selectedComponentId = null;
 let selectedComponentName = null;
+let currentUpgradeBaseLevel = null;
+let upgradeConfirmBusy = false;
 
 function selectComponent(id, name, qty, el) {
     if (qty < 1) {
@@ -7461,10 +7466,20 @@ async function confirmUpgrade() {
         showMsg('inv-msg', 'Please select a component first!', true);
         return;
     }
+    if (upgradeConfirmBusy) return;
+
+    upgradeConfirmBusy = true;
+    const confirmBtn = document.querySelector('#upgrade-modal .btn-confirm-upgrade');
+    const previousBtnText = confirmBtn ? confirmBtn.textContent : '';
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Upgrading...';
+    }
     
     try {
         const result = await api('POST', `/game/equipment/upgrade/${currentUpgradeItemId}`, { 
-            componentId: selectedComponentId 
+            componentId: selectedComponentId,
+            expectedUpgradeLevel: currentUpgradeBaseLevel
         });
         
         if (result.success) {
@@ -7487,6 +7502,14 @@ async function confirmUpgrade() {
         }
     } catch (error) {
         showMsg('inv-msg', error.message, true);
+    } finally {
+        if (!document.getElementById('upgrade-modal').classList.contains('hidden')) {
+            upgradeConfirmBusy = false;
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = previousBtnText || 'Confirm Upgrade';
+            }
+        }
     }
 }
 
@@ -7495,6 +7518,8 @@ function closeUpgradeModal() {
     currentUpgradeItemId = null;
     selectedComponentId = null;
     selectedComponentName = null;
+    currentUpgradeBaseLevel = null;
+    upgradeConfirmBusy = false;
 }
 
 async function openExchangeModal() {
