@@ -4541,11 +4541,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .topbar-menu-toggle-state { min-width: 0; }
     #chat-widget-root {
         right: 10px;
-        left: 10px;
+        left: auto;
         bottom: 84px;
     }
     .chat-widget {
-        width: 100%;
+        width: min(280px, calc(100vw - 20px));
+    }
+    .chat-widget.collapsed {
+        width: auto;
     }
     .chat-widget-messages {
         min-height: 180px;
@@ -4559,6 +4562,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .chat-send-btn,
     .chat-widget-target-clear {
         width: 100%;
+    }
+    .chat-widget-header {
+        cursor: default;
     }
 
     .char-hero-content { flex-direction: row; text-align: left; padding: 18px; gap: 12px; align-items: center; }
