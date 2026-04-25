@@ -7026,7 +7026,10 @@ router.get('/chat/history', auth, async (req, res) => {
                 db,
                 `SELECT *
                  FROM chat_messages
-                 WHERE (recipient_char_id IS NULL OR sender_char_id = ? OR recipient_char_id = ?)
+                 WHERE (
+                        recipient_char_id IS NULL
+                        OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
+                    )
                    AND id > ?
                  ORDER BY id ASC
                  LIMIT 80`,
@@ -7037,7 +7040,9 @@ router.get('/chat/history', auth, async (req, res) => {
                 db,
                 `SELECT *
                  FROM chat_messages
-                 WHERE recipient_char_id IS NULL OR sender_char_id = ? OR recipient_char_id = ?
+                 WHERE
+                    recipient_char_id IS NULL
+                    OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
                  ORDER BY id DESC
                  LIMIT 60`,
                 [char.id, char.id]
