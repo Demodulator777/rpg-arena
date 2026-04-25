@@ -46,9 +46,65 @@ function normalizeRewardMaterialId(value) {
 
 const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
 const MESSAGE_RETENTION_SECONDS = 14 * 24 * 60 * 60;
+const CHAT_RETENTION_SECONDS = 12 * 60 * 60;
+const CHAT_MESSAGE_MAX_LENGTH = 280;
+const CHAT_PROFANITY_WORDS = [
+    'asshole',
+    'bitch',
+    'bullshit',
+    'cunt',
+    'dick',
+    'fuck',
+    'fucker',
+    'fucking',
+    'motherfucker',
+    'nigga',
+    'nigger',
+    'pussy',
+    'shit',
+    'slut',
+    'whore'
+];
 
 function parseAdminPassword(req) {
     return String(req.query?.password || req.body?.password || '').trim();
+}
+
+function escapeRegex(text) {
+    return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function maskProfanityWord(word) {
+    const clean = String(word || '');
+    if (clean.length <= 2) return '*'.repeat(clean.length || 1);
+    return `${clean[0]}${'*'.repeat(Math.max(1, clean.length - 2))}${clean[clean.length - 1]}`;
+}
+
+function sanitizeChatMessage(input) {
+    let text = String(input || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    if (text.length > CHAT_MESSAGE_MAX_LENGTH) {
+        text = text.slice(0, CHAT_MESSAGE_MAX_LENGTH).trim();
+    }
+    for (const bannedWord of CHAT_PROFANITY_WORDS) {
+        const re = new RegExp(`\\b${escapeRegex(bannedWord)}\\b`, 'gi');
+        text = text.replace(re, (match) => maskProfanityWord(match));
+    }
+    return text;
+}
+
+function serializeChatMessage(row, currentCharId) {
+    return {
+        id: Number(row.id || 0),
+        sender_char_id: Number(row.sender_char_id || 0),
+        sender_name: row.sender_name || 'Unknown',
+        recipient_char_id: row.recipient_char_id ? Number(row.recipient_char_id) : null,
+        recipient_name: row.recipient_name || null,
+        message_text: row.message_text || '',
+        created_at: Number(row.created_at || 0),
+        is_private: !!row.recipient_char_id,
+        is_outgoing: Number(row.sender_char_id || 0) === Number(currentCharId || 0)
+    };
 }
 
 function buildAdminRewardPayload(input = {}) {
@@ -89,6 +145,11 @@ function describeAdminRewardPayload(payload) {
 async function purgeExpiredMessages(db) {
     const cutoff = Math.floor(Date.now() / 1000) - MESSAGE_RETENTION_SECONDS;
     await dbRun(db, 'DELETE FROM messages WHERE sent_at < ?', [cutoff]);
+}
+
+async function purgeExpiredChatMessages(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - CHAT_RETENTION_SECONDS;
+    await dbRun(db, 'DELETE FROM chat_messages WHERE created_at < ?', [cutoff]);
 }
 
 async function queueReferralRewards(db, userId, rewards = {}) {
@@ -356,6 +417,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN inbox_badge_messages INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN inbox_badge_battles INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN inbox_badge_missions INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN chat_enabled INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN inbox_autoread_messages INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_autoread_battles INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_autoread_missions INTEGER DEFAULT 0',
@@ -366,6 +428,18 @@ const WEEKLY_TASKS = [
             'ALTER TABLE messages ADD COLUMN reward_claimed INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN system_message INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
+            `CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_user_id INTEGER NOT NULL,
+                sender_char_id INTEGER NOT NULL,
+                sender_name TEXT NOT NULL,
+                recipient_char_id INTEGER DEFAULT NULL,
+                recipient_name TEXT DEFAULT NULL,
+                message_text TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )`,
+            'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
+            'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -4543,7 +4617,7 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions FROM users WHERE id = ?', [char.user_id])
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
@@ -4647,6 +4721,7 @@ async function buildCharacterResponse(char, db) {
         inbox_badge_messages: Number(userSettings?.inbox_badge_messages ?? 1) !== 0,
         inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
         inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
+        chat_enabled: Number(userSettings?.chat_enabled ?? 1) !== 0,
         inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
@@ -4845,6 +4920,10 @@ router.post('/settings', auth, async (req, res) => {
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeMissions')) {
             updates.push('inbox_badge_missions = ?');
             args.push(req.body.inboxBadgeMissions ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'chatEnabled')) {
+            updates.push('chat_enabled = ?');
+            args.push(req.body.chatEnabled ? 1 : 0);
         }
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadMessages')) {
             updates.push('inbox_autoread_messages = ?');
@@ -6933,6 +7012,95 @@ router.post('/messages/send', auth, async (req, res) => {
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [sender.id, receiver_id, subject, body]);
         res.json({ message:'Sent!' });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+router.get('/chat/history', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredChatMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id,name');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const sinceId = Math.max(0, Number(req.query?.since || 0));
+        let rows = [];
+        if (sinceId > 0) {
+            rows = await dbAll(
+                db,
+                `SELECT *
+                 FROM chat_messages
+                 WHERE (recipient_char_id IS NULL OR sender_char_id = ? OR recipient_char_id = ?)
+                   AND id > ?
+                 ORDER BY id ASC
+                 LIMIT 80`,
+                [char.id, char.id, sinceId]
+            );
+        } else {
+            rows = await dbAll(
+                db,
+                `SELECT *
+                 FROM chat_messages
+                 WHERE recipient_char_id IS NULL OR sender_char_id = ? OR recipient_char_id = ?
+                 ORDER BY id DESC
+                 LIMIT 60`,
+                [char.id, char.id]
+            );
+            rows.reverse();
+        }
+        res.json({ messages: rows.map(row => serializeChatMessage(row, char.id)) });
+    } catch (e) {
+        console.error('Chat history failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+router.post('/chat/send', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredChatMessages(db);
+        const sender = await getCurrentCharacter(db, req.user.userId, 'id,name');
+        if (!sender) return res.status(404).json({ error: 'No character' });
+
+        const rawMessage = String(req.body?.message || '');
+        const messageText = sanitizeChatMessage(rawMessage);
+        if (!messageText) return res.status(400).json({ error: 'Message required.' });
+
+        const recipientInput = String(req.body?.recipientName || '').trim();
+        let recipient = null;
+        if (recipientInput) {
+            recipient = await dbGet(
+                db,
+                'SELECT id, name FROM characters WHERE lower(name) = lower(?) LIMIT 1',
+                [recipientInput]
+            );
+            if (!recipient) return res.status(404).json({ error: 'Character not found.' });
+            if (Number(recipient.id) === Number(sender.id)) {
+                return res.status(400).json({ error: 'Cannot message yourself.' });
+            }
+        }
+
+        const createdAt = Math.floor(Date.now() / 1000);
+        await dbRun(
+            db,
+            `INSERT INTO chat_messages
+                (sender_user_id, sender_char_id, sender_name, recipient_char_id, recipient_name, message_text, created_at)
+             VALUES (?,?,?,?,?,?,?)`,
+            [
+                req.user.userId,
+                sender.id,
+                sender.name,
+                recipient?.id || null,
+                recipient?.name || null,
+                messageText,
+                createdAt
+            ]
+        );
+
+        const inserted = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = last_insert_rowid()');
+        res.json({
+            success: true,
+            message: serializeChatMessage(inserted, sender.id)
+        });
+    } catch (e) {
+        console.error('Chat send failed:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 router.post('/messages/:id/read', auth, async (req, res) => {
     try {
