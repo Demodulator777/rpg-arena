@@ -18,6 +18,7 @@
   const TOKENS_PER_RUN    = 50;
   const MONSTER_RESPAWN_H = 48;
   const TRAVEL_BASE_MS    = 8000;
+  const TRAVEL_DISCOVERED_MS = 2200;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
   const ROOMS_PER_FLOOR   = 100;
@@ -777,11 +778,8 @@ function travelToRoom(targetIdx) {
     const current = D.rooms[D.playerPos];
     if (!current.connections.includes(targetIdx)) return;
     
-    // Get the target room
     const target = D.rooms[targetIdx];
-    
-    // Check if current room has any alive monsters AND you haven't successfully evaded them
-    const hasAliveMonsters = current.monsters && current.monsters.some(m => 
+    const hasAliveMonsters = current.monsters && current.monsters.some(m =>
         !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
     );
     const hasEvaded = current.monstersEvaded === true;
@@ -791,32 +789,23 @@ function travelToRoom(targetIdx) {
         return;
     }
     
-    // Reset evaded flag when leaving
     if (current.monstersEvaded) {
         current.monstersEvaded = false;
     }
 
-    D.isTraveling = true;
-    updateTravelBtn(targetIdx, true);
-    log(`🚶 Traveling to Room ${targetIdx + 1}...`, 'log-travel');
-
-    const travelMs = TRAVEL_BASE_MS + rand(0, 3000);
+    const targetAlreadyExplored = D.exploredRooms.has(targetIdx);
     const bar = document.getElementById('dungeon-travel-bar');
-    if (bar) {
-        bar.style.transition = `width ${travelMs}ms linear`;
-        bar.style.width = '100%';
-    }
-
-    D.travelTimer = setTimeout(() => {
+    const finishTravel = () => {
         D.playerPos = targetIdx;
         D.exploredRooms.add(targetIdx);
         D.isTraveling = false;
+        D.travelTimer = null;
         saveState();
         saveProgressToDB();
 
-        if (bar) { 
-            bar.style.transition = 'none'; 
-            bar.style.width = '0%'; 
+        if (bar) {
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
         }
 
         log(`📍 Arrived at ${target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`}`, 'log-arrive');
@@ -828,9 +817,25 @@ function travelToRoom(targetIdx) {
         }
 
         renderDungeonView();
-    }, travelMs);
-}
+    };
 
+    if (targetAlreadyExplored) {
+        finishTravel();
+        return;
+    }
+
+    D.isTraveling = true;
+    updateTravelBtn(targetIdx, true);
+    log(`🚶 Traveling to Room ${targetIdx + 1}...`, 'log-travel');
+
+    const travelMs = TRAVEL_BASE_MS + rand(0, 3000);
+    if (bar) {
+        bar.style.transition = `width ${travelMs}ms linear`;
+        bar.style.width = '100%';
+    }
+
+    D.travelTimer = setTimeout(finishTravel, travelMs);
+}
 function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
