@@ -4565,7 +4565,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     #chat-widget-root {
         right: 6px;
         left: auto;
-        bottom: 78px;
+        bottom: 6px;
     }
     .chat-widget {
         width: min(360px, calc(100vw - 12px));
