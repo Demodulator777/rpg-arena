@@ -1336,6 +1336,14 @@
   background: rgba(241,196,15,0.15);
   border: 1px solid rgba(241,196,15,0.4);
 }
+.map-room-miniboss {
+  background: rgba(155,89,182,0.15);
+  border: 1px solid rgba(155,89,182,0.4);
+}
+.map-room-area {
+  background: rgba(52,152,219,0.1);
+  border: 1px solid rgba(52,152,219,0.3);
+}
 .map-room-monster {
   background: rgba(231,76,60,0.1);
   border: 1px solid rgba(231,76,60,0.25);
