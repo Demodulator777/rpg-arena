@@ -102,6 +102,8 @@ function serializeChatMessage(row, currentCharId) {
         recipient_name: row.recipient_name || null,
         message_text: row.message_text || '',
         created_at: Number(row.created_at || 0),
+        edited: !!row.edited,
+        edited_at: row.edited_at ? Number(row.edited_at) : null,
         is_private: !!row.recipient_char_id,
         is_outgoing: Number(row.sender_char_id || 0) === Number(currentCharId || 0)
     };
@@ -428,7 +430,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE messages ADD COLUMN reward_claimed INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN system_message INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
-            `CREATE TABLE IF NOT EXISTS chat_messages (
+`CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 sender_user_id INTEGER NOT NULL,
                 sender_char_id INTEGER NOT NULL,
@@ -436,7 +438,9 @@ const WEEKLY_TASKS = [
                 recipient_char_id INTEGER DEFAULT NULL,
                 recipient_name TEXT DEFAULT NULL,
                 message_text TEXT NOT NULL,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                edited INTEGER DEFAULT 0,
+                edited_at INTEGER DEFAULT NULL
             )`,
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
@@ -7097,7 +7101,7 @@ router.post('/chat/send', auth, async (req, res) => {
             ]
         );
 
-        const inserted = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = last_insert_rowid()');
+const inserted = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = last_insert_rowid()');
         res.json({
             success: true,
             message: serializeChatMessage(inserted, sender.id)
@@ -7107,6 +7111,39 @@ router.post('/chat/send', auth, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
+router.put('/chat/edit/:id', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const messageId = req.params.id;
+        const rawMessage = String(req.body?.message || '');
+        const messageText = sanitizeChatMessage(rawMessage);
+        if (!messageText) return res.status(400).json({ error: 'Message required.' });
+
+        const existing = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+        if (!existing) return res.status(404).json({ error: 'Message not found.' });
+        if (Number(existing.sender_char_id) !== Number(char.id)) {
+            return res.status(403).json({ error: 'You can only edit your own messages.' });
+        }
+
+        const editedAt = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'UPDATE chat_messages SET message_text = ?, edited = 1, edited_at = ? WHERE id = ?', 
+            [messageText, editedAt, messageId]);
+
+        const updated = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+        res.json({
+            success: true,
+            message: serializeChatMessage(updated, char.id)
+        });
+    } catch (e) {
+        console.error('Chat edit failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/messages/:id/read', auth, async (req, res) => {
     try {
         const db = await getDb();
