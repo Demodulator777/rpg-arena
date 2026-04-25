@@ -4977,6 +4977,27 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 }
 
+@media (max-width: 768px) {
+    #upgrade-modal {
+        align-items: flex-start;
+        padding: 10px;
+    }
+    #upgrade-modal .upgrade-modal-box {
+        margin-top: 0;
+        max-height: calc(100svh - 20px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scroll-behavior: smooth;
+    }
+    #upgrade-modal .modal-header {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: linear-gradient(145deg, var(--bg2), var(--bg3));
+        padding-bottom: 10px;
+    }
+}
+
 .selected-component-name {
     font-size: 0.9rem;
     font-weight: 600;
