@@ -6693,8 +6693,16 @@ function renderChatWidget() {
     const visibleMessages = getVisibleChatMessages();
     const hiddenCount = Math.max(0, chatMessages.length - visibleMessages.length);
     const remainingChars = Math.max(0, 280 - prevMessage.length);
+    const mobileDock = isMobileChatDockMode();
 
     root.classList.remove('hidden');
+    if (mobileDock && chatWidgetCollapsed) {
+        root.innerHTML = `
+            <button class="chat-widget-bubble" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true" aria-label="Open chat">
+                <span class="chat-widget-bubble-label">Chat</span>
+            </button>`;
+        return;
+    }
     root.innerHTML = `
         <section class="chat-widget ${chatWidgetCollapsed ? 'collapsed' : ''}">
             <div class="chat-widget-header">
