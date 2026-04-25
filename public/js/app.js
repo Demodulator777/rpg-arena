@@ -6668,6 +6668,29 @@ function isMobileChatDockMode() {
     return window.matchMedia('(max-width: 640px)').matches || window.matchMedia('(pointer: coarse)').matches;
 }
 
+function applyChatDockPosition(root) {
+    if (!root) return;
+    const mobileDock = isMobileChatDockMode();
+    root.style.left = 'auto';
+    root.style.top = 'auto';
+    root.style.right = mobileDock ? '6px' : '18px';
+    root.style.bottom = mobileDock ? '6px' : '18px';
+}
+
+function clampChatWidgetPosition(root) {
+    if (!root || !chatWidgetPosition) return;
+    const margin = 8;
+    const widgetWidth = root.offsetWidth || 360;
+    const widgetHeight = root.offsetHeight || 420;
+    const nextX = Math.max(margin, Math.min(window.innerWidth - widgetWidth - margin, Number(chatWidgetPosition.x || 0)));
+    const nextY = Math.max(margin, Math.min(window.innerHeight - widgetHeight - margin, Number(chatWidgetPosition.y || 0)));
+    chatWidgetPosition = { x: nextX, y: nextY };
+    root.style.left = `${nextX}px`;
+    root.style.top = `${nextY}px`;
+    root.style.right = 'auto';
+    root.style.bottom = 'auto';
+}
+
 function ensureChatWidgetRoot() {
     let root = document.getElementById('chat-widget-root');
     if (!root) {
@@ -6681,18 +6704,14 @@ function ensureChatWidgetRoot() {
     if (isMobileChatDockMode()) {
         chatDragState = null;
         root.classList.remove('dragging');
-        root.style.left = 'auto';
-        root.style.top = 'auto';
-        root.style.right = '10px';
-        root.style.bottom = '84px';
+        applyChatDockPosition(root);
         return root;
     }
-    if (chatWidgetPosition?.x != null && chatWidgetPosition?.y != null) {
-        root.style.left = `${chatWidgetPosition.x}px`;
-        root.style.top = `${chatWidgetPosition.y}px`;
-        root.style.right = 'auto';
-        root.style.bottom = 'auto';
+    if (chatWidgetCollapsed || !chatWidgetPosition || chatWidgetPosition?.x == null || chatWidgetPosition?.y == null) {
+        applyChatDockPosition(root);
+        return root;
     }
+    clampChatWidgetPosition(root);
     return root;
 }
 
@@ -6717,6 +6736,7 @@ function renderChatWidget() {
 
     root.classList.remove('hidden');
     if (mobileDock && chatWidgetCollapsed) {
+        applyChatDockPosition(root);
         root.innerHTML = `
             <button class="chat-widget-bubble" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true" aria-label="Open chat">
                 <span class="chat-widget-bubble-label">Chat</span>
@@ -6781,6 +6801,9 @@ function renderChatWidget() {
 
 function toggleChatWidgetCollapsed() {
     chatWidgetCollapsed = !chatWidgetCollapsed;
+    if (chatWidgetCollapsed) {
+        chatWidgetPosition = null;
+    }
     renderChatWidget();
 }
 
