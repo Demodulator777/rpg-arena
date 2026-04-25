@@ -1705,6 +1705,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     right: 18px;
     bottom: 18px;
     z-index: 120;
+    display: block;
     pointer-events: none;
 }
 
