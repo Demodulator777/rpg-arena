@@ -1615,10 +1615,9 @@ function startPolling() {
         } catch {}
     },600000);
     unreadTimer=setInterval(pollUnread,600000);
-    topbarLiveTimer=setInterval(()=>{
+topbarLiveTimer=setInterval(()=>{
         if (!character) return;
         renderTopBar();
-        if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
     },60000);
     pollUnread();
     syncChatPolling();
