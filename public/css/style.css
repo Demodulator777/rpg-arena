@@ -4637,14 +4637,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .topbar-menu-toggle { align-items: flex-start; flex-direction: column; }
     .topbar-menu-toggle-state { min-width: 0; }
     #chat-widget-root {
-        right: 6px;
-        left: 6px;
-        bottom: 6px;
+        right: 0;
+        left: 0;
+        bottom: 0;
     }
     .chat-widget {
-        width: calc(100vw - 12px);
-        max-height: calc(100svh - 12px);
-        border-radius: 16px;
+        width: 100vw;
+        max-height: 100svh;
+        border-radius: 0;
         display: flex;
         flex-direction: column;
     }
