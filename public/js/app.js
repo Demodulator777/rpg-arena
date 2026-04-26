@@ -6773,7 +6773,7 @@ function ensureChatWidgetRoot() {
 }
 
 function renderChatWidget() {
-    const root = ensureChatWidgetRoot();
+const root = ensureChatWidgetRoot();
     if (!root) return;
     if (!isChatWidgetAvailable()) {
         root.innerHTML = '';
@@ -6781,12 +6781,14 @@ function renderChatWidget() {
         return;
     }
 
-if (chatWidgetCollapsed) {
+    if (chatWidgetCollapsed) {
         root.classList.add('hidden');
         return;
     }
 
-    const prevMessage = document.getElementById('chat-message-input')?.value || '';
+    const input = document.getElementById('chat-message-input');
+    const wasFocused = document.activeElement === input;
+    const prevMessage = input?.value || '';
     const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
     chatPmTarget = recipientDraft;
     const canSendPm = recipientDraft.trim().length > 0;
@@ -6860,7 +6862,15 @@ if (chatWidgetCollapsed) {
             </div>
         </section>`;
 
-    bindChatWidgetEvents();
+bindChatWidgetEvents();
+    if (wasFocused) {
+        const newInput = document.getElementById('chat-message-input');
+        if (newInput) {
+            newInput.value = prevMessage;
+            newInput.focus();
+            newInput.selectionStart = newInput.selectionEnd = prevMessage.length;
+        }
+    }
     const messagesEl = document.getElementById('chat-widget-messages');
     if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
