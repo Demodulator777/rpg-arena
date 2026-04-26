@@ -2039,6 +2039,32 @@ function renderMapGrid() {
                 else if (monsterAlive) roomClass += ' map-room-monster';
                 else roomClass += ' map-room-clear';
 
+                let wallClass = '';
+                if (visible || explored) {
+                    const hasNorth = room.connections.some(c => {
+                        const r = D.rooms[c];
+                        return r && r.y === room.y - 1;
+                    });
+                    const hasSouth = room.connections.some(c => {
+                        const r = D.rooms[c];
+                        return r && r.y === room.y + 1;
+                    });
+                    const hasWest = room.connections.some(c => {
+                        const r = D.rooms[c];
+                        return r && r.x === room.x - 1;
+                    });
+                    const hasEast = room.connections.some(c => {
+                        const r = D.rooms[c];
+                        return r && r.x === room.x + 1;
+                    });
+                    const walls = [];
+                    if (!hasNorth) walls.push('wall-north');
+                    if (!hasSouth) walls.push('wall-south');
+                    if (!hasWest) walls.push('wall-west');
+                    if (!hasEast) walls.push('wall-east');
+                    wallClass = walls.join(' ');
+                }
+
                 const icon = '';
                 const title = explored
                   ? (room.isBoss ? `Boss Room · #${idx + 1}` : room.isMiniBoss || room.type === 'miniboss' ? `Mini-Boss · #${idx + 1}` : room.type === 'area' ? `Open Chamber · #${idx + 1}` : `Room ${idx + 1}`)
@@ -2046,7 +2072,7 @@ function renderMapGrid() {
                     ? `Unexplored room #${idx + 1}`
                     : '???';
 
-                html += `<div class="${roomClass}" title="${title}">${icon}</div>`;
+                html += `<div class="${roomClass} ${wallClass}" title="${title}">${icon}</div>`;
             } else {
                 html += `<div class="map-void"></div>`;
             }
