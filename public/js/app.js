@@ -6731,17 +6731,12 @@ function ensureChatWidgetRoot() {
     if (root.parentElement !== document.body) {
         document.body.appendChild(root);
     }
-    if (isMobileChatDockMode()) {
-        chatDragState = null;
-        root.classList.remove('dragging');
-        applyChatDockPosition(root);
-        return root;
-    }
-    if (chatWidgetCollapsed || !chatWidgetPosition || chatWidgetPosition?.x == null || chatWidgetPosition?.y == null) {
-        applyChatDockPosition(root);
-        return root;
-    }
-    clampChatWidgetPosition(root);
+    root.style.position = 'fixed';
+    root.style.right = '18px';
+    root.style.bottom = '18px';
+    root.style.left = 'auto';
+    root.style.top = 'auto';
+    root.style.zIndex = '200';
     return root;
 }
 
@@ -6764,15 +6759,7 @@ function renderChatWidget() {
     const remainingChars = Math.max(0, 280 - prevMessage.length);
     const mobileDock = isMobileChatDockMode();
 
-    root.classList.remove('hidden');
-    if (mobileDock && chatWidgetCollapsed) {
-        applyChatDockPosition(root);
-        root.innerHTML = `
-            <button class="chat-widget-bubble" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true" aria-label="Open chat">
-                <span class="chat-widget-bubble-label">Chat</span>
-            </button>`;
-        return;
-    }
+root.classList.remove('hidden');
     root.innerHTML = `
         <section class="chat-widget ${chatWidgetCollapsed ? 'collapsed' : ''}">
             <div class="chat-widget-header">
