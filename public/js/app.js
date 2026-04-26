@@ -948,15 +948,12 @@ async function toggleChatEnabled() {
 
 function updateTopbarChatButton() {
     const btn = document.getElementById('topbar-chat-btn');
-    console.log('[CHAT DEBUG] updateTopbarChatButton, btn:', btn, 'chatEnabled:', chatEnabled);
     if (!btn) return;
-    const show = !!chatEnabled;
-    if (show) {
+    if (chatEnabled) {
         btn.classList.remove('hidden');
     } else {
         btn.classList.add('hidden');
     }
-    console.log('[CHAT DEBUG] button classes after:', btn.className);
 }
 
 async function toggleInboxBadgeSetting(settingKey) {
@@ -6598,7 +6595,7 @@ function updateChatMessagesDOM() {
                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                     <span class="chat-line-channel">${privateLabel}</span>
-                    <button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>
+                    ${!isOwn ? `<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>` : ''}
                     ${isOwn ? `
                         <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
                         <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
@@ -6809,7 +6806,7 @@ if (chatWidgetCollapsed) {
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                                     <span class="chat-line-channel">${privateLabel}</span>
-                                    <button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>
+                                    ${!isOwn ? `<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>` : ''}
                                     ${isOwn ? `
                                         <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
                                         <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
@@ -6844,10 +6841,8 @@ if (chatWidgetCollapsed) {
 }
 
 function toggleChatWidgetCollapsed() {
-    console.log('[CHAT DEBUG] toggleChatWidgetCollapsed called, isAvailable:', isChatWidgetAvailable(), 'collapsed:', chatWidgetCollapsed, 'enabled:', chatEnabled);
     if (!isChatWidgetAvailable()) return;
     chatWidgetCollapsed = !chatWidgetCollapsed;
-    console.log('[CHAT DEBUG] after toggle, collapsed:', chatWidgetCollapsed);
     renderChatWidget();
 }
 
