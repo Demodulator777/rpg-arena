@@ -6743,11 +6743,19 @@ function ensureChatWidgetRoot() {
     if (root.parentElement !== document.body) {
         document.body.appendChild(root);
     }
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
     root.style.position = 'fixed';
-    root.style.right = '18px';
-    root.style.bottom = '18px';
-    root.style.left = 'auto';
-    root.style.top = 'auto';
+    if (isMobile) {
+        root.style.right = '0';
+        root.style.bottom = '0';
+        root.style.left = '0';
+        root.style.top = 'auto';
+    } else {
+        root.style.right = '18px';
+        root.style.bottom = '18px';
+        root.style.left = 'auto';
+        root.style.top = 'auto';
+    }
     root.style.zIndex = '200';
     return root;
 }
