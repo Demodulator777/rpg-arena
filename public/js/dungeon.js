@@ -2019,9 +2019,30 @@ function renderMapGrid() {
     const gridWidth = (viewMaxX - viewMinX + 1) * cellSize;
     const gridHeight = (viewMaxY - viewMinY + 1) * cellSize;
     
-    let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}" style="display:block;width:100%;height:auto;">`;
+let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}" style="display:block;width:100%;height:auto;background:rgba(10,15,25,0.9);">`;
     
-for (let y = viewMinY; y <= viewMaxY; y++) {
+    for (let y = viewMinY; y <= viewMaxY; y++) {
+        for (let x = viewMinX; x <= viewMaxX; x++) {
+            const key = `${x},${y}`;
+            if (grid[key] !== undefined) {
+                const idx = grid[key];
+                const room = D.rooms[idx];
+                const cx = (x - viewMinX) * cellSize + cellSize / 2;
+                const cy = (y - viewMinY) * cellSize + cellSize / 2;
+                
+                room._mapX = cx;
+                room._mapY = cy;
+                room._mapIdx = idx;
+            } else {
+                const cx = (x - viewMinX) * cellSize + cellSize / 2;
+                const cy = (y - viewMinY) * cellSize + cellSize / 2;
+                svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="rgba(100,100,120,0.2)" stroke="none"/>`;
+            }
+        }
+    }
+    
+    const drawnCorridors = new Set();
+    for (let y = viewMinY; y <= viewMaxY; y++) {
         for (let x = viewMinX; x <= viewMaxX; x++) {
             const key = `${x},${y}`;
             if (grid[key] !== undefined) {
