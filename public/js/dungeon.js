@@ -2014,38 +2014,14 @@ function renderMapGrid() {
     const viewMaxY = centerY + offset;
     
     const cellSize = 38;
-    const roomSize = 12;
-    const corridorWidth = 5;
+    const roomSize = 8;
+    const corridorWidth = 7;
     const gridWidth = (viewMaxX - viewMinX + 1) * cellSize;
     const gridHeight = (viewMaxY - viewMinY + 1) * cellSize;
     
     let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}" style="display:block;width:100%;height:auto;">`;
     
-    for (let y = viewMinY; y <= viewMaxY; y++) {
-        for (let x = viewMinX; x <= viewMaxX; x++) {
-            const key = `${x},${y}`;
-            if (grid[key] !== undefined) {
-                const idx = grid[key];
-                const room = D.rooms[idx];
-                const isPlayer = idx === D.playerPos;
-                const explored = D.exploredRooms.has(idx);
-                const visible = isRoomVisible(idx);
-                const showRoom = visible || explored;
-                
-                if (!showRoom) continue;
-                
-                const cx = (x - viewMinX) * cellSize + cellSize / 2;
-                const cy = (y - viewMinY) * cellSize + cellSize / 2;
-                
-                room._mapX = cx;
-                room._mapY = cy;
-                room._mapIdx = idx;
-            }
-        }
-    }
-    
-    const drawnCorridors = new Set();
-    for (let y = viewMinY; y <= viewMaxY; y++) {
+for (let y = viewMinY; y <= viewMaxY; y++) {
         for (let x = viewMinX; x <= viewMaxX; x++) {
             const key = `${x},${y}`;
             if (grid[key] !== undefined) {
@@ -2077,46 +2053,60 @@ function renderMapGrid() {
                     const tcy = connRoom._mapY;
                     
                     const isPlayerRoom = idx === D.playerPos || connIdx === D.playerPos;
-                    const corridorColor = isPlayerRoom ? '#9b59b6' : '#4a5568';
+                    const corridorColor = isPlayerRoom ? '#6366f1' : '#374151';
+                    const corridorGlow = isPlayerRoom ? '#818cf8' : '#4b5563';
                     
+                    svg += `<line x1="${cx}" y1="${cy}" x2="${tcx}" y2="${tcy}" stroke="${corridorGlow}" stroke-width="${corridorWidth + 4}" stroke-linecap="round" opacity="0.3"/>`;
                     svg += `<line x1="${cx}" y1="${cy}" x2="${tcx}" y2="${tcy}" stroke="${corridorColor}" stroke-width="${corridorWidth}" stroke-linecap="round"/>`;
                 }
                 
-                let roomColor = '#2d3748';
-                let roomBorder = '#4a5568';
+                let roomColor = '#1f2937';
+                let roomBorder = '#4b5563';
+                let roomGlow = 'none';
                 if (isPlayer) {
-                    roomColor = '#7c3aed';
-                    roomBorder = '#a78bfa';
+                    roomColor = '#4c1d95';
+                    roomBorder = '#8b5cf6';
+                    roomGlow = '#8b5cf6';
                 } else if (room.isBoss) {
-                    roomColor = '#c0392b';
-                    roomBorder = '#e74c3c';
+                    roomColor = '#7f1d1d';
+                    roomBorder = '#ef4444';
+                    roomGlow = '#ef4444';
                 } else if (room.isMiniBoss || room.type === 'miniboss') {
-                    roomColor = '#8e44ad';
-                    roomBorder = '#9b59b6';
+                    roomColor = '#581c87';
+                    roomBorder = '#c084fc';
+                    roomGlow = '#c084fc';
                 } else if (room.type === 'treasure') {
-                    roomColor = '#d68910';
-                    roomBorder = '#f1c40f';
+                    roomColor = '#713f12';
+                    roomBorder = '#fbbf24';
+                    roomGlow = '#fbbf24';
                 } else if (room.type === 'area' || room.isArea) {
-                    roomColor = '#2980b9';
-                    roomBorder = '#3498db';
+                    roomColor = '#1e40af';
+                    roomBorder = '#3b82f6';
+                    roomGlow = '#3b82f6';
                 } else if (room.monsters && room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H))) {
-                    roomColor = '#a93226';
-                    roomBorder = '#e74c3c';
+                    roomColor = '#7f1d1d';
+                    roomBorder = '#f87171';
+                    roomGlow = '#f87171';
                 } else {
-                    roomColor = '#27ae60';
-                    roomBorder = '#2ecc71';
+                    roomColor = '#14532d';
+                    roomBorder = '#22c55e';
+                    roomGlow = '#22c55e';
                 }
                 
                 if (!explored && visible) {
-                    roomColor = '#4a5568';
-                    roomBorder = '#718096';
+                    roomColor = '#1f2937';
+                    roomBorder = '#6b7280';
+                    roomGlow = 'none';
                 }
                 
-                const pulseClass = isPlayer ? ' class="maze-player-pulse"' : '';
-                svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2}" fill="${roomColor}" stroke="${roomBorder}" stroke-width="2"${pulseClass}/>`;
+                if (roomGlow !== 'none') {
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2 + 4}" fill="${roomGlow}" opacity="0.25"/>`;
+                }
+                
+                svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2}" fill="${roomColor}" stroke="${roomBorder}" stroke-width="2"/>`;
                 
                 if (isPlayer) {
-                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 4}" fill="#fff" opacity="0.8"/>`;
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 4}" fill="#fff" opacity="0.9"/>`;
                 }
                 
                 if (room.isBoss) {
