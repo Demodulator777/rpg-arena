@@ -2013,8 +2013,14 @@ function renderMapGrid() {
     const viewMinY = centerY - offset;
     const viewMaxY = centerY + offset;
     
-    let html = `<div class="dungeon-grid-inner" style="grid-template-columns:repeat(${viewSize},1fr);grid-template-rows:repeat(${viewSize},1fr);">`;
-
+    const cellSize = 36;
+    const roomSize = 12;
+    const corridorWidth = 4;
+    const gridWidth = (viewMaxX - viewMinX + 1) * cellSize;
+    const gridHeight = (viewMaxY - viewMinY + 1) * cellSize;
+    
+    let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}" width="${gridWidth}" height="${gridHeight}" style="display:block;">`;
+    
     for (let y = viewMinY; y <= viewMaxY; y++) {
         for (let x = viewMinX; x <= viewMaxX; x++) {
             const key = `${x},${y}`;
@@ -2024,51 +2030,109 @@ function renderMapGrid() {
                 const isPlayer = idx === D.playerPos;
                 const explored = D.exploredRooms.has(idx);
                 const visible = isRoomVisible(idx);
-                const monsterAlive = room.monsters && room.monsters.length > 0 && room.monsters.some(m => 
-                    !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
-                );
-
-                let roomClass = 'map-room';
-                if (!visible) roomClass += ' map-room-fog';
-                else if (!explored) roomClass += ' map-room-discovered';
-                else if (isPlayer) roomClass += ' map-room-player';
-                else if (room.isBoss) roomClass += ' map-room-boss';
-                else if (room.isMiniBoss || room.type === 'miniboss') roomClass += ' map-room-miniboss';
-                else if (room.type === 'treasure') roomClass += ' map-room-treasure';
-                else if (room.isArea || room.type === 'area') roomClass += ' map-room-area';
-                else if (monsterAlive) roomClass += ' map-room-monster';
-                else roomClass += ' map-room-clear';
-
-                let wallClass = '';
-                if (visible || explored) {
-                    const hasNorth = room.connections.some(c => D.rooms[c] && D.rooms[c].y === room.y - 1 && D.rooms[c].x === room.x);
-                    const hasSouth = room.connections.some(c => D.rooms[c] && D.rooms[c].y === room.y + 1 && D.rooms[c].x === room.x);
-                    const hasWest = room.connections.some(c => D.rooms[c] && D.rooms[c].x === room.x - 1 && D.rooms[c].y === room.y);
-                    const hasEast = room.connections.some(c => D.rooms[c] && D.rooms[c].x === room.x + 1 && D.rooms[c].y === room.y);
-                    const walls = [];
-                    if (!hasNorth) walls.push('wall-north');
-                    if (!hasSouth) walls.push('wall-south');
-                    if (!hasWest) walls.push('wall-west');
-                    if (!hasEast) walls.push('wall-east');
-                    wallClass = walls.join(' ');
-                }
-
-                const icon = '';
-                const title = explored
-                  ? (room.isBoss ? `Boss Room · #${idx + 1}` : room.isMiniBoss || room.type === 'miniboss' ? `Mini-Boss · #${idx + 1}` : room.type === 'area' ? `Open Chamber · #${idx + 1}` : `Room ${idx + 1}`)
-                  : visible
-                    ? `Unexplored room #${idx + 1}`
-                    : '???';
-
-                html += `<div class="${roomClass} ${wallClass}" title="${title}">${icon}</div>`;
-            } else {
-                html += `<div class="map-void"></div>`;
+                const showRoom = visible || explored;
+                
+                if (!showRoom) continue;
+                
+                const cx = (x - viewMinX) * cellSize + cellSize / 2;
+                const cy = (y - viewMinY) * cellSize + cellSize / 2;
+                
+                room._mapX = cx;
+                room._mapY = cy;
+                room._mapIdx = idx;
             }
         }
     }
-
-    html += '</div>';
-    return html;
+    
+    const drawnCorridors = new Set();
+    for (let y = viewMinY; y <= viewMaxY; y++) {
+        for (let x = viewMinX; x <= viewMaxX; x++) {
+            const key = `${x},${y}`;
+            if (grid[key] !== undefined) {
+                const idx = grid[key];
+                const room = D.rooms[idx];
+                const explored = D.exploredRooms.has(idx);
+                const visible = isRoomVisible(idx);
+                const showRoom = visible || explored;
+                
+                if (!showRoom || room._mapX === undefined) continue;
+                
+                const cx = room._mapX;
+                const cy = room._mapY;
+                
+                for (const connIdx of (room.connections || [])) {
+                    const connRoom = D.rooms[connIdx];
+                    if (!connRoom) continue;
+                    const connExplored = D.exploredRooms.has(connIdx);
+                    const connVisible = isRoomVisible(connIdx);
+                    if (!connExplored && !connVisible) continue;
+                    if (connRoom._mapX === undefined) continue;
+                    
+                    const corridorKey = [Math.min(idx, connIdx), Math.max(idx, connIdx)].join('-');
+                    if (drawnCorridors.has(corridorKey)) continue;
+                    drawnCorridors.add(corridorKey);
+                    
+                    const tcx = connRoom._mapX;
+                    const tcy = connRoom._mapY;
+                    
+                    const isPlayerRoom = idx === D.playerPos || connIdx === D.playerPos;
+                    const corridorColor = isPlayerRoom ? '#9b59b6' : '#4a5568';
+                    
+                    svg += `<line x1="${cx}" y1="${cy}" x2="${tcx}" y2="${tcy}" stroke="${corridorColor}" stroke-width="${corridorWidth}" stroke-linecap="round"/>`;
+                }
+                
+                let roomColor = '#2d3748';
+                let roomBorder = '#4a5568';
+                if (isPlayer) {
+                    roomColor = '#7c3aed';
+                    roomBorder = '#a78bfa';
+                } else if (room.isBoss) {
+                    roomColor = '#c0392b';
+                    roomBorder = '#e74c3c';
+                } else if (room.isMiniBoss || room.type === 'miniboss') {
+                    roomColor = '#8e44ad';
+                    roomBorder = '#9b59b6';
+                } else if (room.type === 'treasure') {
+                    roomColor = '#d68910';
+                    roomBorder = '#f1c40f';
+                } else if (room.type === 'area' || room.isArea) {
+                    roomColor = '#2980b9';
+                    roomBorder = '#3498db';
+                } else if (room.monsters && room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H))) {
+                    roomColor = '#a93226';
+                    roomBorder = '#e74c3c';
+                } else {
+                    roomColor = '#27ae60';
+                    roomBorder = '#2ecc71';
+                }
+                
+                if (!explored && visible) {
+                    roomColor = '#4a5568';
+                    roomBorder = '#718096';
+                }
+                
+                const pulseClass = isPlayer ? ' class="maze-player-pulse"' : '';
+                svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2}" fill="${roomColor}" stroke="${roomBorder}" stroke-width="2"${pulseClass}/>`;
+                
+                if (isPlayer) {
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 4}" fill="#fff" opacity="0.8"/>`;
+                }
+                
+                if (room.isBoss) {
+                    svg += `<text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="10" fill="#fff">👑</text>`;
+                }
+            }
+        }
+    }
+    
+    for (let i = 0; i < D.rooms.length; i++) {
+        delete D.rooms[i]._mapX;
+        delete D.rooms[i]._mapY;
+        delete D.rooms[i]._mapIdx;
+    }
+    
+    svg += '</svg>';
+    return `<div class="dungeon-maze-container" style="position:relative;width:${gridWidth}px;height:${gridHeight}px;">${svg}</div>`;
 }
 function renderRoomInfo(room) {
     // Check if there are any monsters (array) and if any are alive
