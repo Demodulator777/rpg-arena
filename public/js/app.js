@@ -6568,6 +6568,35 @@ function appendChatMessages(messages = []) {
     chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
 }
 
+function updateChatMessagesDOM() {
+    const container = document.getElementById('chat-widget-messages');
+    if (!container) return;
+    const visibleMessages = getVisibleChatMessages();
+    const expanded = chatExpanded;
+    const messagesHtml = visibleMessages.map(msg => {
+        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+        const isOwn = msg.is_outgoing;
+        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
+        return `
+            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
+                <div class="chat-line-meta">
+                    <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
+                    <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
+                    <span class="chat-line-channel">${privateLabel}</span>
+                    ${isOwn ? `
+                        <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
+                        <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
+                    ` : ''}
+                </div>
+                <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
+            </div>
+        `;
+    }).join('');
+    const emptyHtml = '<div class="chat-empty">No messages yet. Say hello.</div>';
+    container.innerHTML = messagesHtml || emptyHtml;
+    container.scrollTop = container.scrollHeight;
+}
+
 async function loadChatHistory() {
     if (!isChatWidgetAvailable()) return;
     try {
@@ -6588,7 +6617,7 @@ async function pollChat() {
         const incoming = data?.messages || [];
         if (!incoming.length) return;
         appendChatMessages(incoming);
-        renderChatWidget();
+        updateChatMessagesDOM();
     } catch (e) {
         console.error('Chat poll failed:', e);
     }
@@ -6828,6 +6857,8 @@ function clearChatRecipient() {
     if (chatInput) {
         delete chatInput.dataset.editingId;
     }
+    localStorage.removeItem('rpg_chat_editing_id');
+    delete window._chatEditingId;
     renderChatWidget();
 }
 
@@ -6836,7 +6867,9 @@ function clearChatEdit() {
     if (input) {
         delete input.dataset.editingId;
     }
-setChatWidgetStatus('', false);
+    localStorage.removeItem('rpg_chat_editing_id');
+    delete window._chatEditingId;
+    setChatWidgetStatus('', false);
     renderChatWidget();
 }
 
@@ -6847,8 +6880,11 @@ function editChatMessage(messageId) {
     const input = document.getElementById('chat-message-input');
     if (!input) return;
     
+    const editingIdStr = String(messageId);
     input.value = message.message_text || '';
-    input.dataset.editingId = messageId;
+    input.dataset.editingId = editingIdStr;
+    localStorage.setItem('rpg_chat_editing_id', editingIdStr);
+    window._chatEditingId = editingIdStr;
     input.focus();
     
     setChatWidgetStatus('Edit your message and press Send.', false);
@@ -6875,7 +6911,8 @@ async function sendChatMessage() {
     const recipientInput = document.getElementById('chat-recipient-input');
     const message = String(input?.value || '').trim();
     const recipientName = String(recipientInput?.value || chatPmTarget || '').trim();
-    const editingId = input?.dataset?.editingId;
+    // Check multiple sources for editing ID
+    const editingId = input?.dataset?.editingId || localStorage.getItem('rpg_chat_editing_id') || window._chatEditingId;
     
     if (!message) {
         setChatWidgetStatus('Message required.', true);
@@ -6886,6 +6923,8 @@ async function sendChatMessage() {
         if (editingId) {
             const result = await api('PUT', `/game/chat/edit/${editingId}`, { message });
             delete input.dataset.editingId;
+            localStorage.removeItem('rpg_chat_editing_id');
+            delete window._chatEditingId;
             if (input) input.value = '';
             
             const idx = chatMessages.findIndex(m => m.id === Number(editingId));
