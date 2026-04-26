@@ -6583,6 +6583,7 @@ function updateChatMessagesDOM() {
                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                     <span class="chat-line-channel">${privateLabel}</span>
+                    <button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>
                     ${isOwn ? `
                         <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
                         <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
@@ -6801,6 +6802,7 @@ function renderChatWidget() {
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                                     <span class="chat-line-channel">${privateLabel}</span>
+                                    <button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>
                                     ${isOwn ? `
                                         <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
                                         <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
@@ -6891,6 +6893,23 @@ function editChatMessage(messageId) {
     renderChatWidget();
 }
 
+function replyChatMessage(messageId) {
+    const message = chatMessages.find(m => m.id === messageId);
+    if (!message || !message.sender_name) return;
+    
+    const recipientInput = document.getElementById('chat-recipient-input');
+    const input = document.getElementById('chat-message-input');
+    if (!recipientInput) return;
+    
+    recipientInput.value = message.sender_name;
+    chatPmTarget = message.sender_name;
+    clearChatEdit();
+    
+    if (input) input.focus();
+    setChatWidgetStatus(`Replying to ${message.sender_name}.`, false);
+    renderChatWidget();
+}
+
 function deleteChatMessage(messageId) {
     if (!confirm('Delete this message? This cannot be undone.')) return;
     
@@ -6905,6 +6924,7 @@ function deleteChatMessage(messageId) {
 
 window.editChatMessage = editChatMessage;
 window.deleteChatMessage = deleteChatMessage;
+window.replyChatMessage = replyChatMessage;
 
 async function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
