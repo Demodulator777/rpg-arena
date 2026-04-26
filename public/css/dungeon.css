@@ -1342,7 +1342,30 @@
 }
 .map-room-area {
   background: rgba(52,152,219,0.1);
-  border: 1px solid rgba(52,152,219,0.3);
+  border: 1px solid rgba(52,152,219,0.35);
+}
+.map-room-monster {
+  background: rgba(192,57,43,0.15);
+  border: 1px solid rgba(192,57,43,0.45);
+}
+.map-room-clear {
+  background: rgba(39,174,96,0.12);
+  border: 1px solid rgba(39,174,96,0.3);
+}
+
+/* Maze wall borders */
+.map-room[style*="wall-north"],
+.map-room.wall-north-solid {
+  border-top: 2px solid rgba(100, 100, 120, 0.5);
+}
+.map-room.wall-south-solid {
+  border-bottom: 2px solid rgba(100, 100, 120, 0.5);
+}
+.map-room.wall-west-solid {
+  border-left: 2px solid rgba(100, 100, 120, 0.5);
+}
+.map-room.wall-east-solid {
+  border-right: 2px solid rgba(100, 100, 120, 0.5);
 }
 .map-room-monster {
   background: rgba(231,76,60,0.1);
