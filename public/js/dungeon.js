@@ -22,7 +22,6 @@
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
   const ROOMS_PER_FLOOR   = 100;
-  const DIR_ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
   const DIR_IMGS = { up: 'uparrow.png', down: 'downarrow.png', left: 'leftarrow.png', right: 'rightarrow.png' };
 
   // ── Dungeon Visuals ─────────────────────────────────────────
@@ -1924,7 +1923,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                   const cr = D.rooms[ci];
                   const explored = D.exploredRooms.has(ci);
                   const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : null;
-                  const arrowSymbol = directionArrow ? DIR_ARROWS[directionArrow] || '?' : '?';
+                  const arrowImg = directionArrow ? DIR_IMGS[directionArrow] : 'question.png';
                   const monsterAlive = cr.monsters && cr.monsters.length > 0 && cr.monsters.some(m => 
                     !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
                   );
@@ -1932,7 +1931,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                   return `
                     <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
                             ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
-                      <span class="dungeon-path-btn-icon">${arrowSymbol}</span>
+                      <span class="dungeon-path-btn-icon"><img class="dungeon-path-btn-arrow-img" src="/images/assets/${arrowImg}" alt="${directionArrow || 'unknown'}"></span>
                       <span class="dungeon-path-btn-text">${text}</span>
                       ${explored ? `<span class="dungeon-path-btn-roomno">#${ci + 1}</span>` : ''}
                     </button>
@@ -1959,7 +1958,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       if (!iconEl || targetIdx == null) return;
       const explored = D.exploredRooms.has(targetIdx);
       const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, targetIdx) : null;
-      iconEl.textContent = directionArrow ? (DIR_ARROWS[directionArrow] || '?') : '?';
+      const arrowImg = directionArrow ? DIR_IMGS[directionArrow] : 'question.png';
+      iconEl.innerHTML = `<img class="dungeon-path-btn-arrow-img" src="/images/assets/${arrowImg}" alt="${directionArrow || 'unknown'}">`;
     });
   }
 function getRoomDirectionArrow(fromIdx, toIdx) {
