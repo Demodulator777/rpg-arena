@@ -2085,9 +2085,9 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
                 let roomBorder = '#4b5563';
                 let roomGlow = 'none';
                 if (isPlayer) {
-                    roomColor = '#4c1d95';
-                    roomBorder = '#8b5cf6';
-                    roomGlow = '#8b5cf6';
+                    roomColor = '#c026d3';
+                    roomBorder = '#f0abfc';
+                    roomGlow = '#f0abfc';
                 } else if (room.isBoss) {
                     roomColor = '#7f1d1d';
                     roomBorder = '#ef4444';
@@ -2121,13 +2121,14 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
                 }
                 
                 if (roomGlow !== 'none') {
-                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2 + 6}" fill="${roomGlow}" opacity="0.25"/>`;
+                    const pulseClass = isPlayer ? ' class="maze-player-pulse"' : '';
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2 + 6}" fill="${roomGlow}" opacity="0.4"${pulseClass}/>`;
                 }
                 
                 svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2}" fill="${roomColor}" stroke="${roomBorder}" stroke-width="2"/>`;
                 
                 if (isPlayer) {
-                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 4}" fill="#fff" opacity="0.9"/>`;
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 4}" fill="#fff" opacity="0.95"/>`;
                 }
                 
                 if (room.isBoss) {
