@@ -4634,7 +4634,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     .topbar-right::-webkit-scrollbar { display: none; }
     .topbar-currency { font-size: 0.72rem; padding: 3px 8px; white-space: nowrap; flex-shrink: 0; }
-    .topbar-chat-btn, .topbar-menu-btn { font-size: 0.68rem; padding: 4px 10px; flex-shrink: 0; margin-left: auto; }
+    .topbar-chat-btn, .topbar-menu-btn { font-size: 0.68rem; padding: 4px 10px; flex-shrink: 0; margin-left: 0; }
     .topbar-menu-grid { grid-template-columns: 1fr; }
     .topbar-menu-toggle { align-items: flex-start; flex-direction: column; }
     .topbar-menu-toggle-state { min-width: 0; }
