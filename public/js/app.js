@@ -912,6 +912,7 @@ function syncClientPreferencesFromCharacter() {
     alwaysSkipBattleAnimations = !!character.skip_battle_animations;
     assistantEnabled = character.assistant_enabled !== false;
     chatEnabled = character.chat_enabled !== false;
+    updateTopbarChatButton();
 }
 
 async function toggleAlwaysSkipBattleAnimations() {
@@ -939,9 +940,16 @@ async function toggleChatEnabled() {
     const response = await api('POST', '/game/settings', { chatEnabled: nextValue });
     if (response?.character) character = response.character;
     syncClientPreferencesFromCharacter();
+    updateTopbarChatButton();
     renderTopbarMenu();
     syncChatPolling();
     renderChatWidget();
+}
+
+function updateTopbarChatButton() {
+    const btn = document.getElementById('topbar-chat-btn');
+    if (!btn) return;
+    btn.classList.toggle('hidden', !chatEnabled);
 }
 
 async function toggleInboxBadgeSetting(settingKey) {
@@ -6761,14 +6769,14 @@ function renderChatWidget() {
 
 root.classList.remove('hidden');
     root.innerHTML = `
-        <section class="chat-widget ${chatWidgetCollapsed ? 'collapsed' : ''}">
+        <section class="chat-widget">
             <div class="chat-widget-header">
                 <div class="chat-widget-title-wrap">
                     <div class="chat-widget-title">Global Chat</div>
                     <div class="chat-widget-subtitle">${canSendPm ? `PM to ${escHtml(recipientDraft.trim())}` : 'World channel'}</div>
                 </div>
-                <button class="chat-widget-collapse" title="${chatWidgetCollapsed ? 'Open chat' : 'Collapse chat'}" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
-                    ${chatWidgetCollapsed ? 'Open' : 'Hide'}
+                <button class="chat-widget-collapse" title="Close chat" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
+                    ✕
                 </button>
             </div>
             <div class="chat-widget-body">
