@@ -22,6 +22,8 @@
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
   const ROOMS_PER_FLOOR   = 100;
+  const DIR_ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
+  const DIR_IMGS = { up: 'uparrow.png', down: 'downarrow.png', left: 'leftarrow.png', right: 'rightarrow.png' };
 
   // ── Dungeon Visuals ─────────────────────────────────────────
   const DUNGEON_VISUALS = {
@@ -1977,8 +1979,6 @@ function getRoomDirectionArrow(fromIdx, toIdx) {
     return 'right';
   }
 
-const DIR_ARROWS = { up: '↑', down: '↓', left: '←', right: '→' };
-const DIR_IMGS = { up: 'uparrow.png', down: 'downarrow.png', left: 'leftarrow.png', right: 'rightarrow.png' };
 function isRoomVisible(idx) {
     if (D.exploredRooms.has(idx)) return true;
     const currentRoom = D.rooms[D.playerPos];
