@@ -2041,22 +2041,10 @@ function renderMapGrid() {
 
                 let wallClass = '';
                 if (visible || explored) {
-                    const hasNorth = room.connections.some(c => {
-                        const r = D.rooms[c];
-                        return r && r.y === room.y - 1;
-                    });
-                    const hasSouth = room.connections.some(c => {
-                        const r = D.rooms[c];
-                        return r && r.y === room.y + 1;
-                    });
-                    const hasWest = room.connections.some(c => {
-                        const r = D.rooms[c];
-                        return r && r.x === room.x - 1;
-                    });
-                    const hasEast = room.connections.some(c => {
-                        const r = D.rooms[c];
-                        return r && r.x === room.x + 1;
-                    });
+                    const hasNorth = room.connections.some(c => D.rooms[c] && D.rooms[c].y === room.y - 1 && D.rooms[c].x === room.x);
+                    const hasSouth = room.connections.some(c => D.rooms[c] && D.rooms[c].y === room.y + 1 && D.rooms[c].x === room.x);
+                    const hasWest = room.connections.some(c => D.rooms[c] && D.rooms[c].x === room.x - 1 && D.rooms[c].y === room.y);
+                    const hasEast = room.connections.some(c => D.rooms[c] && D.rooms[c].x === room.x + 1 && D.rooms[c].y === room.y);
                     const walls = [];
                     if (!hasNorth) walls.push('wall-north');
                     if (!hasSouth) walls.push('wall-south');
