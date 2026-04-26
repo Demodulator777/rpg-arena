@@ -7113,6 +7113,7 @@ const inserted = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = last_in
 });
 
 router.put('/chat/edit/:id', auth, async (req, res) => {
+    console.log('[CHAT EDIT] Request received:', req.method, req.params.id, req.body);
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
