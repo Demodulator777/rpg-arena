@@ -2051,6 +2051,7 @@ function renderMapGrid() {
             if (grid[key] !== undefined) {
                 const idx = grid[key];
                 const room = D.rooms[idx];
+                const isPlayer = idx === D.playerPos;
                 const explored = D.exploredRooms.has(idx);
                 const visible = isRoomVisible(idx);
                 const showRoom = visible || explored;
