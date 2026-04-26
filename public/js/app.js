@@ -6595,11 +6595,15 @@ function updateChatMessagesDOM() {
                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                     <span class="chat-line-channel">${privateLabel}</span>
-                    ${!isOwn ? `<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>` : ''}
-                    ${isOwn ? `
-                        <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
-                        <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
-                    ` : ''}
+                    ${(() => {
+                        const btns = [];
+                        if (!isOwn) btns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                        if (isOwn) {
+                            btns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
+                            btns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
+                        }
+                        return btns.length ? `<div class="chat-line-actions">${btns.join('')}</div>` : '';
+                    })()}
                 </div>
                 <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
             </div>
@@ -6808,17 +6812,19 @@ if (chatWidgetCollapsed) {
                         const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
                         const isOwn = msg.is_outgoing;
                         const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
+                        const actionBtns = [];
+                        if (!isOwn) actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                        if (isOwn) {
+                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
+                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
+                        }
                         return `
                             <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
                                 <div class="chat-line-meta">
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                                     <span class="chat-line-channel">${privateLabel}</span>
-                                    ${!isOwn ? `<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>` : ''}
-                                    ${isOwn ? `
-                                        <button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>
-                                        <button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>
-                                    ` : ''}
+                                    ${actionBtns.length ? `<div class="chat-line-actions">${actionBtns.join('')}</div>` : ''}
                                 </div>
                                 <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
                             </div>
