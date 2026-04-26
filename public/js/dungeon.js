@@ -2013,13 +2013,13 @@ function renderMapGrid() {
     const viewMinY = centerY - offset;
     const viewMaxY = centerY + offset;
     
-    const cellSize = 36;
+    const cellSize = 38;
     const roomSize = 12;
-    const corridorWidth = 4;
+    const corridorWidth = 5;
     const gridWidth = (viewMaxX - viewMinX + 1) * cellSize;
     const gridHeight = (viewMaxY - viewMinY + 1) * cellSize;
     
-    let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}" width="${gridWidth}" height="${gridHeight}" style="display:block;">`;
+    let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}" style="display:block;width:100%;height:auto;">`;
     
     for (let y = viewMinY; y <= viewMaxY; y++) {
         for (let x = viewMinX; x <= viewMaxX; x++) {
@@ -2133,7 +2133,7 @@ function renderMapGrid() {
     }
     
     svg += '</svg>';
-    return `<div class="dungeon-maze-container" style="position:relative;width:${gridWidth}px;height:${gridHeight}px;">${svg}</div>`;
+    return svg;
 }
 function renderRoomInfo(room) {
     // Check if there are any monsters (array) and if any are alive
