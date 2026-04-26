@@ -1904,9 +1904,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin-bottom: 4px;
     font-size: 0.68rem;
 }
-.chat-line-meta > :last-child {
-    margin-left: auto;
-}
 
 .chat-line-time {
     color: rgba(255,255,255,0.5);
@@ -1961,7 +1958,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     cursor: pointer;
     font-size: 0.75rem;
     padding: 2px 6px;
-    margin-left: auto;
     opacity: 0.6;
     transition: opacity 0.15s;
 }
@@ -1976,6 +1972,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding: 2px 4px;
     opacity: 0.8;
     color: #9fd3ff;
+    margin-left: auto;
     transition: opacity 0.15s;
 }
 .chat-reply-btn:hover {
