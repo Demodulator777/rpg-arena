@@ -1353,22 +1353,22 @@
   border: 1px solid rgba(39,174,96,0.3);
 }
 
-/* Maze wall borders - very prominent */
-.map-room.wall-north {
-  border-top: 4px solid #2a2a3a !important;
-  box-shadow: inset 2px 0 0 #1a1a28, inset -2px 0 0 #1a1a28, inset 0 -2px 0 #1a1a28;
+/* SVG Maze Map Styles */
+.dungeon-maze-svg {
+  background: rgba(20, 25, 35, 0.95);
+  border-radius: 8px;
 }
-.map-room.wall-south {
-  border-bottom: 4px solid #2a2a3a !important;
-  box-shadow: inset 2px 0 0 #1a1a28, inset -2px 0 0 #1a1a28, inset 0 2px 0 #1a1a28;
+.dungeon-maze-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.map-room.wall-west {
-  border-left: 4px solid #2a2a3a !important;
-  box-shadow: inset 2px 0 0 #1a1a28, inset 0 -2px 0 #1a1a28, inset 0 2px 0 #1a1a28;
+.maze-player-pulse {
+  animation: maze-pulse 1.5s ease-in-out infinite;
 }
-.map-room.wall-east {
-  border-right: 4px solid #2a2a3a !important;
-  box-shadow: inset -2px 0 0 #1a1a28, inset 0 -2px 0 #1a1a28, inset 0 2px 0 #1a1a28;
+@keyframes maze-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 .map-room.wall-south {
   border-bottom: 2px solid rgba(80, 80, 100, 0.7);
