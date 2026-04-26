@@ -1899,10 +1899,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .chat-line-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
     margin-bottom: 4px;
     font-size: 0.68rem;
+}
+.chat-line-meta > :first-child {
+    margin-right: auto;
 }
 
 .chat-line-time {
@@ -4625,20 +4628,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: 100%; flex: none; display: flex; flex-direction: row; align-items: center; gap: 6px;
         overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
         scrollbar-width: none; padding-bottom: 2px;
+        justify-content: flex-end;
     }
     .topbar-right::-webkit-scrollbar { display: none; }
     .topbar-currency { font-size: 0.72rem; padding: 3px 8px; white-space: nowrap; flex-shrink: 0; }
-    .topbar-chat-btn, .topbar-menu-btn { font-size: 0.68rem; padding: 4px 10px; flex-shrink: 0; margin-left: 0; }
+    .topbar-chat-btn, .topbar-menu-btn { font-size: 0.68rem; padding: 4px 10px; flex-shrink: 0; margin-left: 4px; }
     .topbar-menu-grid { grid-template-columns: 1fr; }
     .topbar-menu-toggle { align-items: flex-start; flex-direction: column; }
     .topbar-menu-toggle-state { min-width: 0; }
     #chat-widget-root {
         right: 6px;
-        left: auto;
+        left: 6px;
         bottom: 6px;
     }
     .chat-widget {
-        width: min(360px, calc(100vw - 12px));
+        width: calc(100vw - 12px);
         max-height: calc(100svh - 12px);
         border-radius: 16px;
         display: flex;
