@@ -444,6 +444,8 @@ const WEEKLY_TASKS = [
             )`,
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
+            'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
+            'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
