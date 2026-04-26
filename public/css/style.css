@@ -1904,6 +1904,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin-bottom: 4px;
     font-size: 0.68rem;
 }
+.chat-line-meta > :last-child {
+    margin-left: auto;
+}
 
 .chat-line-time {
     color: rgba(255,255,255,0.5);
