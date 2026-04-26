@@ -948,8 +948,15 @@ async function toggleChatEnabled() {
 
 function updateTopbarChatButton() {
     const btn = document.getElementById('topbar-chat-btn');
+    console.log('[CHAT DEBUG] updateTopbarChatButton, btn:', btn, 'chatEnabled:', chatEnabled);
     if (!btn) return;
-    btn.classList.toggle('hidden', !chatEnabled);
+    const show = !!chatEnabled;
+    if (show) {
+        btn.classList.remove('hidden');
+    } else {
+        btn.classList.add('hidden');
+    }
+    console.log('[CHAT DEBUG] button classes after:', btn.className);
 }
 
 async function toggleInboxBadgeSetting(settingKey) {
@@ -6757,6 +6764,11 @@ function renderChatWidget() {
         return;
     }
 
+if (chatWidgetCollapsed) {
+        root.classList.add('hidden');
+        return;
+    }
+
     const prevMessage = document.getElementById('chat-message-input')?.value || '';
     const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
     chatPmTarget = recipientDraft;
@@ -6767,7 +6779,7 @@ function renderChatWidget() {
     const remainingChars = Math.max(0, 280 - prevMessage.length);
     const mobileDock = isMobileChatDockMode();
 
-root.classList.remove('hidden');
+    root.classList.remove('hidden');
     root.innerHTML = `
         <section class="chat-widget">
             <div class="chat-widget-header">
@@ -6832,10 +6844,10 @@ root.classList.remove('hidden');
 }
 
 function toggleChatWidgetCollapsed() {
+    console.log('[CHAT DEBUG] toggleChatWidgetCollapsed called, isAvailable:', isChatWidgetAvailable(), 'collapsed:', chatWidgetCollapsed, 'enabled:', chatEnabled);
+    if (!isChatWidgetAvailable()) return;
     chatWidgetCollapsed = !chatWidgetCollapsed;
-    if (chatWidgetCollapsed) {
-        chatWidgetPosition = null;
-    }
+    console.log('[CHAT DEBUG] after toggle, collapsed:', chatWidgetCollapsed);
     renderChatWidget();
 }
 
