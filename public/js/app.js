@@ -6620,10 +6620,16 @@ function updateChatMessagesDOM() {
 async function loadChatHistory() {
     if (!isChatWidgetAvailable()) return;
     try {
+        const input = document.getElementById('chat-message-input');
+        const inputValue = input?.value || '';
+        const recipientInput = document.getElementById('chat-recipient-input');
+        const recipientValue = recipientInput?.value || '';
         const data = await api('GET', '/game/chat/history');
         chatMessages = trimChatMessages(data?.messages || []);
         chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
         renderChatWidget();
+        if (input) input.value = inputValue;
+        if (recipientInput) recipientInput.value = recipientValue;
     } catch (e) {
         console.error('Failed to load chat history:', e);
         setChatWidgetStatus(e.message || 'Failed to load chat.', true);
@@ -6943,10 +6949,7 @@ function replyChatMessage(messageId) {
     recipientInput.value = '';
     chatPmTarget = '';
     
-    const quotedText = message.message_text.length > 100 
-        ? message.message_text.substring(0, 100) + '...'
-        : message.message_text;
-    input.value = `@${message.sender_name}: "${quotedText}"\n`;
+    input.value = `@${message.sender_name} `;
     clearChatEdit();
     
     input.focus();
