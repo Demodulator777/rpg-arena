@@ -2014,8 +2014,8 @@ function renderMapGrid() {
     const viewMaxY = centerY + offset;
     
     const cellSize = 38;
-    const roomSize = 8;
-    const corridorWidth = 7;
+    const roomSize = 16;
+    const corridorWidth = 14;
     const gridWidth = (viewMaxX - viewMinX + 1) * cellSize;
     const gridHeight = (viewMaxY - viewMinY + 1) * cellSize;
     
@@ -2036,7 +2036,7 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
             } else {
                 const cx = (x - viewMinX) * cellSize + cellSize / 2;
                 const cy = (y - viewMinY) * cellSize + cellSize / 2;
-                svg += `<circle cx="${cx}" cy="${cy}" r="3" fill="rgba(100,100,120,0.2)" stroke="none"/>`;
+                svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="rgba(100,100,120,0.25)" stroke="none"/>`;
             }
         }
     }
@@ -2077,7 +2077,7 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
                     const corridorColor = isPlayerRoom ? '#6366f1' : '#374151';
                     const corridorGlow = isPlayerRoom ? '#818cf8' : '#4b5563';
                     
-                    svg += `<line x1="${cx}" y1="${cy}" x2="${tcx}" y2="${tcy}" stroke="${corridorGlow}" stroke-width="${corridorWidth + 4}" stroke-linecap="round" opacity="0.3"/>`;
+                    svg += `<line x1="${cx}" y1="${cy}" x2="${tcx}" y2="${tcy}" stroke="${corridorGlow}" stroke-width="${corridorWidth + 6}" stroke-linecap="round" opacity="0.3"/>`;
                     svg += `<line x1="${cx}" y1="${cy}" x2="${tcx}" y2="${tcy}" stroke="${corridorColor}" stroke-width="${corridorWidth}" stroke-linecap="round"/>`;
                 }
                 
@@ -2121,7 +2121,7 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
                 }
                 
                 if (roomGlow !== 'none') {
-                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2 + 4}" fill="${roomGlow}" opacity="0.25"/>`;
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2 + 6}" fill="${roomGlow}" opacity="0.25"/>`;
                 }
                 
                 svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2}" fill="${roomColor}" stroke="${roomBorder}" stroke-width="2"/>`;
