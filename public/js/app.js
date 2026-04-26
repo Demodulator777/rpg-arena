@@ -6597,7 +6597,10 @@ function updateChatMessagesDOM() {
                     <span class="chat-line-channel">${privateLabel}</span>
                     ${(() => {
                         const btns = [];
-                        if (!isOwn) btns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                        if (!isOwn) {
+                            btns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">✉</button>`);
+                            btns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                        }
                         if (isOwn) {
                             btns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
                             btns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
@@ -6813,7 +6816,10 @@ if (chatWidgetCollapsed) {
                         const isOwn = msg.is_outgoing;
                         const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
                         const actionBtns = [];
-                        if (!isOwn) actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                        if (!isOwn) {
+                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">✉</button>`);
+                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                        }
                         if (isOwn) {
                             actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
                             actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
@@ -6909,7 +6915,7 @@ function editChatMessage(messageId) {
     renderChatWidget();
 }
 
-function replyChatMessage(messageId) {
+function pmChatMessage(messageId) {
     const message = chatMessages.find(m => m.id === messageId);
     if (!message || !message.sender_name) return;
     
@@ -6922,6 +6928,28 @@ function replyChatMessage(messageId) {
     clearChatEdit();
     
     if (input) input.focus();
+    setChatWidgetStatus(`PM to ${message.sender_name}.`, false);
+    renderChatWidget();
+}
+
+function replyChatMessage(messageId) {
+    const message = chatMessages.find(m => m.id === messageId);
+    if (!message || !message.sender_name) return;
+    
+    const input = document.getElementById('chat-message-input');
+    const recipientInput = document.getElementById('chat-recipient-input');
+    if (!input) return;
+    
+    recipientInput.value = '';
+    chatPmTarget = '';
+    
+    const quotedText = message.message_text.length > 100 
+        ? message.message_text.substring(0, 100) + '...'
+        : message.message_text;
+    input.value = `@${message.sender_name}: "${quotedText}"\n`;
+    clearChatEdit();
+    
+    input.focus();
     setChatWidgetStatus(`Replying to ${message.sender_name}.`, false);
     renderChatWidget();
 }
@@ -6940,6 +6968,7 @@ function deleteChatMessage(messageId) {
 
 window.editChatMessage = editChatMessage;
 window.deleteChatMessage = deleteChatMessage;
+window.pmChatMessage = pmChatMessage;
 window.replyChatMessage = replyChatMessage;
 
 async function sendChatMessage() {
