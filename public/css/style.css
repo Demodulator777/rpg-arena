@@ -1952,13 +1952,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     opacity: 0.92;
 }
 
+.chat-line-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
 .chat-edit-btn {
     background: none;
     border: none;
     cursor: pointer;
     font-size: 0.75rem;
     padding: 2px 6px;
-    margin-left: auto;
     opacity: 0.6;
     transition: opacity 0.15s;
 }
