@@ -5459,6 +5459,7 @@ async function doBannerPull() {
     
     try {
         const data = await api('POST', '/banner/pull');
+        console.log('Pull response:', data);
         
         if (data.won) {
             showMsg('event-msg', '🎴 You won the banner set! Check your inbox!', false);
