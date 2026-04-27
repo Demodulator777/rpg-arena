@@ -453,6 +453,56 @@ const EQUIPMENT_RECIPES = [
                 wind_dmg:10, wind_resist:12 },
         components:{ void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:14000,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 4 — SPITEFORGED  (Banner Set)
+    //  Physical attacker — strength/crit + all-resist (no elemental damage)
+    // ══════════════════════════════════════════════
+    {
+        id:'spiteforged_weapon', setId:'spiteforged', setPiece:'weapon',
+        name:'Spiteforged Trident', emoji:'🔱', quality:'legendary',
+        slot:'weapon',
+        desc:'A trident forged in spite, each prong designed to punish the unworthy.',
+        stats:{ dmg_min:24, dmg_max:46, strength:14, crit_chance:12, hit_chance:8,
+                pyro_resist:12, water_resist:12, wind_resist:12, electro_resist:12 },
+        components:{ void_crystal:3, demon_alloy:2, tanned_hide:2 }, goldCost:18000,
+    },
+    {
+        id:'spiteforged_armor', setId:'spiteforged', setPiece:'armor',
+        name:'Carapace of Last Refrains', emoji:'🐢', quality:'legendary',
+        slot:'armor',
+        desc:'Armor that turns the wearers wrath into unyielding defense.',
+        stats:{ defense:30, armor:18, hp_max:140, strength:10, vitality:6,
+                pyro_resist:10, electro_resist:10 },
+        components:{ void_crystal:2, demon_alloy:4, tanned_hide:2 }, goldCost:22000,
+    },
+    {
+        id:'spiteforged_helmet', setId:'spiteforged', setPiece:'helmet',
+        name:'Crown of Scornful Gaze', emoji:'👁️', quality:'legendary',
+        slot:'helmet',
+        desc:'A crown that watches for those who would dare challenge its bearer.',
+        stats:{ defense:20, armor:10, hp_max:90, crit_chance:15, hit_chance:10,
+                wind_resist:10, water_resist:10 },
+        components:{ void_crystal:2, demon_alloy:2, frost_core:1 }, goldCost:16000,
+    },
+    {
+        id:'spiteforged_shield', setId:'spiteforged', setPiece:'shield',
+        name:'Bulwark of Denied Mercy', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'A shield that offers no quarter and asks none, protecting until the bitter end.',
+        stats:{ defense:34, armor:22, hp_max:110, strength:8,
+                pyro_resist:14, water_resist:14, wind_resist:14, electro_resist:14 },
+        components:{ void_crystal:4, demon_alloy:3, hardwood_plank:2 }, goldCost:24000,
+    },
+    {
+        id:'spiteforged_boots', setId:'spiteforged', setPiece:'boots',
+        name:'Treads of the Unforgiving', emoji:'👢', quality:'legendary',
+        slot:'boots',
+        desc:'Boots that pursue those who flee and never show mercy.',
+        stats:{ defense:18, armor:10, agility:14, crit_chance:12, hit_chance:8,
+                water_resist:8, electro_resist:8 },
+        components:{ void_crystal:2, demon_alloy:2, tanned_hide:3 }, goldCost:14000,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -474,6 +524,17 @@ const CRAFTING_SETS = {
             magic:25, crit_chance:18, hit_chance:12,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
             desc:'5/5: +25 MAG · +18 Crit · +12 Hit · +20 all Elem Resist'
+        },
+    },
+    spiteforged: {
+        name:'Spiteforged Set', emoji:'🔱',
+        bonus3:{ strength:12, crit_chance:10, hit_chance:6,
+            pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
+            desc:'3/5: +12 STR · +10 Crit · +6 Hit · +10 all Elem Resist' },
+        bonus5:{
+            strength:25, crit_chance:20, hit_chance:15,
+            pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
+            desc:'5/5: +25 STR · +20 Crit · +15 Hit · +20 all Elem Resist'
         },
     },
 };
