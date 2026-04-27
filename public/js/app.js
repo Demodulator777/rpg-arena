@@ -5373,6 +5373,7 @@ async function loadBannerEvent() {
     
     try {
         const data = await api('GET', '/banner/current');
+        console.log('Banner data:', data);
         
         if (!data.active) {
             content.innerHTML = `
@@ -5386,6 +5387,7 @@ async function loadBannerEvent() {
         }
         
         const { banner, stats } = data;
+        console.log('Banner:', banner, 'Stats:', stats);
         const oddsPct = (stats.currentOdds * 100).toFixed(1);
         const nextOddsPct = stats.nextOddsUp ? (stats.nextOddsUp * 100).toFixed(1) : null;
         const pityProgress = stats.effectivePulls;
@@ -5394,6 +5396,7 @@ async function loadBannerEvent() {
         content.innerHTML = `
             <div class="event-banner-card">
                 <div class="event-banner-image" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;">
+                    ${banner.image ? `<img src="/images/banner/${banner.image}.png" style="width:200px;max-width:100%;margin-bottom:10px;">` : ''}
                     <div class="event-banner-name" style="font-size:1.4rem;font-weight:700;color:#f1c40f;margin-bottom:8px;">${escHtml(banner.name)}</div>
                     <div class="event-banner-timer" id="event-timer" style="font-size:0.9rem;color:rgba(255,255,255,0.6);"></div>
                 </div>
