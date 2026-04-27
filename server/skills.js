@@ -1684,15 +1684,17 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
             let unlockDesc = '';
             if (isLocked) {
                 if (!condMet && sk.unlockCondition) {
-                    unlockDesc = sk.unlockCondition.replace(/_/g, ' ').replace(/level_(\d+)/, 'Reach Level $1');
+                    const match = sk.unlockCondition.match(/level_(\d+)/);
+                    if (match) {
+                        unlockDesc = 'Reach Level ' + match[1];
+                    } else {
+                        unlockDesc = sk.unlockCondition.replace(/_/g, ' ');
+                    }
                 } else if (!prereqsMet && sk.requires && sk.requires.length > 0) {
                     unlockDesc = 'Train ' + sk.requires.join(', ') + ' to 100%';
                 } else {
                     unlockDesc = 'Complete previous skill';
                 }
-            } else if (sk.unlockCondition) {
-                // Not locked but has unlock condition
-                unlockDesc = '';
             }
 
             enrichedSkills[skId] = {
