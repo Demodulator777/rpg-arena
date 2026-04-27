@@ -406,6 +406,7 @@ if (!char || char.gems < BANNER_COST_GEMS) {
         }
         
         const loot = generateBannerLoot(char.level);
+        console.log('🎴 Generated loot - gold:', loot.gold, 'gems:', loot.gems, 'items:', loot.items.length);
         await saveLootToInventory(db, char.id, loot);
         let newStats;
         try {
