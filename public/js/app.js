@@ -471,15 +471,19 @@ function renderTopbarMenu() {
                 </button>
             </div>
         </div>
-        <div class="topbar-menu-section">
+<div class="topbar-menu-section">
             <div class="topbar-menu-label">Quick Actions</div>
             <div class="topbar-menu-grid">
                 <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
-                    ${switcherLabel}
+                    🧭 ${switcherLabel}
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openGameGuide')}>
                     📘 Open Game Guide
                     <span class="topbar-menu-meta">How progression, classes, and builds work</span>
+                </button>
+                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'event')}>
+                    🎴 Active Event
+                    <span class="topbar-menu-meta">Limited time banner pulls</span>
                 </button>
                 <button class="topbar-menu-action ${character.weekly_claimable_count > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openWeeklyTasksModal')}>
                     📅 Weekly Tasks
@@ -490,14 +494,14 @@ function renderTopbarMenu() {
                     💎✨ Convert MP
                     <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
                 </button>
-                
-                    <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
-                    <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
-                        Copy Invite Link
-                    </button>
-                    <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
-                    <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
-                </div>
+                <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
+                    🐛 Report a Bug
+                </button>
+                <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
+                    Logout
+                </button>
+            </div>
+        </div>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
                     🐛 Report a Bug
                 </button>
@@ -1234,7 +1238,7 @@ function showTab(name) {
     // Show tab-specific help message
     loadTabHelp(name);
     
-    if (name === 'character')   renderCharacter();
+if (name === 'character')   renderCharacter();
     if (name === 'premium')     loadPremium();
     if (name === 'loadout')     renderLoadout();
     if (name === 'train') {
@@ -1252,6 +1256,7 @@ function showTab(name) {
     if (name === 'shop')        loadShop();
     if (name === 'inbox')       loadInbox();
     if (name === 'dungeon')     renderDungeonTab();
+    if (name === 'event')       loadBannerEvent();
 }
 
 function toggleCharacterHubInline() {
@@ -5357,6 +5362,158 @@ function loadShop() {
 }
 function renderShopContent() {
     if (!character) return;
+}
+
+// ── Banner Event ──────────────────────────────────────────────────────────────
+async function loadBannerEvent() {
+    const content = document.getElementById('event-content');
+    if (!content) return;
+    
+    content.innerHTML = '<div class="loading-spinner">Loading...</div>';
+    
+    try {
+        const data = await api('GET', '/banner/current');
+        
+        if (!data.active) {
+            content.innerHTML = `
+                <div class="event-no-banner">
+                    <div class="event-no-banner-icon">🎴</div>
+                    <div class="event-no-banner-title">No Active Event</div>
+                    <div class="event-no-banner-desc">Check back soon for limited time banners!</div>
+                </div>
+            `;
+            return;
+        }
+        
+        const { banner, stats } = data;
+        const oddsPct = (stats.currentOdds * 100).toFixed(1);
+        const nextOddsPct = stats.nextOddsUp ? (stats.nextOddsUp * 100).toFixed(1) : null;
+        const pityProgress = stats.effectivePulls;
+        const pityToGuarantee = 10 - pityProgress;
+        
+        content.innerHTML = `
+            <div class="event-banner-card">
+                <div class="event-banner-image" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;">
+                    <div class="event-banner-name" style="font-size:1.4rem;font-weight:700;color:#f1c40f;margin-bottom:8px;">${escHtml(banner.name)}</div>
+                    <div class="event-banner-timer" id="event-timer" style="font-size:0.9rem;color:rgba(255,255,255,0.6);"></div>
+                </div>
+                
+                <div class="event-pity-card">
+                    <div class="event-pity-header">
+                        <span>Pity Counter</span>
+                        <span>${pityProgress}/10 pulls</span>
+                    </div>
+                    <div class="event-pity-bar">
+                        <div class="event-pity-fill" style="width:${Math.min(100, pityProgress * 10)}%"></div>
+                    </div>
+                    <div class="event-pity-odds">
+                        <span>Current odds: <strong>${oddsPct}%</strong></span>
+                        ${nextOddsPct ? `<span>Next pull: <strong>${nextOddsPct}%</strong></span>` : ''}
+                    </div>
+                </div>
+                
+                <div class="event-odds-table">
+                    <div class="event-odds-row"><span>Pulls 1-5</span><span>0.1%</span></div>
+                    <div class="event-odds-row"><span>Pull 6</span><span>10%</span></div>
+                    <div class="event-odds-row"><span>Pull 7</span><span>40%</span></div>
+                    <div class="event-odds-row"><span>Pull 8</span><span>45%</span></div>
+                    <div class="event-odds-row"><span>Pull 9</span><span>50%</span></div>
+                    <div class="event-odds-row event-guaranteed"><span>Pull 10</span><span>100% Guaranteed</span></div>
+                </div>
+                
+                <div class="event-pull-section">
+                    <div class="event-pull-cost">
+                        <span class="event-cost-label">5x Pulls</span>
+                        <span class="event-cost-value">💎 ${data.cost} gems</span>
+                    </div>
+                    <button class="btn-primary event-pull-btn" id="event-pull-btn" ${actionAttrs('doBannerPull')}>
+                        🎴 Pull 5x
+                    </button>
+                </div>
+                
+                <div id="event-results" class="event-results"></div>
+            </div>
+        `;
+        
+        updateEventTimer(banner.endAt);
+        
+    } catch (e) {
+        content.innerHTML = `<div style="color:var(--red-light);padding:20px;text-align:center;">${escHtml(e.message)}</div>`;
+    }
+}
+
+async function doBannerPull() {
+    const btn = document.getElementById('event-pull-btn');
+    const results = document.getElementById('event-results');
+    if (!btn || !results) return;
+    
+    btn.disabled = true;
+    btn.textContent = 'Pulling...';
+    results.innerHTML = '<div class="loading-spinner">Opening pulls...</div>';
+    
+    try {
+        const data = await api('POST', '/banner/pull');
+        
+        if (data.won) {
+            showMsg('event-msg', '🎴 You won the banner set! Check your inbox!', false);
+        }
+        
+        const itemsHtml = data.items.map(item => {
+            if (item.type === 'gold') {
+                return `<div class="event-item event-item-${item.rarity}">💰 ${item.amount.toLocaleString()} Gold</div>`;
+            } else if (item.type === 'dust') {
+                return `<div class="event-item event-item-${item.rarity}">✨ ${item.amount} Dust</div>`;
+            } else {
+                return `<div class="event-item event-item-${item.rarity}">${item.guaranteed ? '🌟 ' : ''}${escHtml(item.name || 'Item')}</div>`;
+            }
+        }).join('');
+        
+        results.innerHTML = `
+            <div class="event-result-won ${data.won ? 'won' : ''}">${data.won ? '🎴 BANNER SET WON!' : ''}</div>
+            <div class="event-items-grid">${itemsHtml}</div>
+            <div class="event-new-stats">
+                Pulls: ${data.stats.pullCount}/${data.stats.effectivePulls} · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()}
+            </div>
+        `;
+        
+        character.gems = data.gems;
+        renderTopBar();
+        
+        if (data.stats.won) {
+            await loadBannerEvent();
+        }
+        
+    } catch (e) {
+        results.innerHTML = `<div style="color:var(--red-light);padding:10px;text-align:center;">${escHtml(e.message || 'Pull failed')}</div>`;
+    }
+    
+    btn.disabled = false;
+    btn.textContent = '🎴 Pull 5x';
+}
+
+function updateEventTimer(endAt) {
+    const timerEl = document.getElementById('event-timer');
+    if (!timerEl) return;
+    
+    const update = () => {
+        const remaining = endAt * 1000 - Date.now();
+        if (remaining <= 0) {
+            timerEl.textContent = 'Event ended';
+            return;
+        }
+        
+        const hours = Math.floor(remaining / 3600000);
+        const mins = Math.floor((remaining % 3600000) / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        timerEl.textContent = `Ends in ${hours}h ${mins}m ${secs}s`;
+    };
+    
+    update();
+    setInterval(update, 1000);
+}
+
+function renderShopContent() {
+    if (!character) return;
     document.getElementById('shop-gold').textContent=`💰 ${character.gold.toLocaleString()} Gold`;
     document.getElementById('shop-gems').textContent=`💎 ${(character.gems||0).toLocaleString()} Gems`;
     const ld=document.getElementById('current-level-display'); if(ld) ld.textContent=character.level;
@@ -6982,6 +7139,8 @@ window.editChatMessage = editChatMessage;
 window.deleteChatMessage = deleteChatMessage;
 window.pmChatMessage = pmChatMessage;
 window.replyChatMessage = replyChatMessage;
+window.loadBannerEvent = loadBannerEvent;
+window.doBannerPull = doBannerPull;
 
 async function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
