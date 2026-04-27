@@ -412,6 +412,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
@@ -4741,7 +4742,7 @@ const userSettings = char.user_id
 inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
-        profile_pic: userSettings?.profile_pic || `${char.class}.png`,
+        profile_pic: char.profile_pic || `${char.class}.png`,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -4901,7 +4902,7 @@ router.post('/profile-pic/set', auth, async (req, res) => {
         const { profilePic } = req.body;
         if (!profilePic) return res.status(400).json({ error: 'No profile pic specified' });
         
-        const char = await getCurrentCharacter(db, req.user.userId, 'class, unlocked_profile_pics');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, class, unlocked_profile_pics');
         if (!char) return res.status(404).json({ error: 'No character found' });
         
         const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
@@ -4916,8 +4917,8 @@ router.post('/profile-pic/set', auth, async (req, res) => {
             return res.status(403).json({ error: 'Profile pic not unlocked' });
         }
         
-        // Store selected pic in a user preference
-        await dbRun(db, 'UPDATE users SET profile_pic = ? WHERE id = ?', [profilePic, req.user.userId]);
+        // Store selected pic on character
+        await dbRun(db, 'UPDATE characters SET profile_pic = ? WHERE id = ?', [profilePic, char.id]);
         
         res.json({ success: true, profilePic });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -6961,11 +6962,9 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,
-            u.profile_pic,
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.profile_pic,
             (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
             FROM characters c 
-            LEFT JOIN users u ON c.user_id = u.id
             ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         res.json(players.map((p,i) => ({ ...p, rank:i+1 })));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -6999,8 +6998,6 @@ router.get('/player/:id', auth, async (req, res) => {
         const equipped = await getEquippedItems(db, player.id);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
         
-        const userSettings = await dbGet(db, 'SELECT profile_pic FROM users WHERE id = ?', [player.user_id]);
-        
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
@@ -7015,7 +7012,7 @@ router.get('/player/:id', auth, async (req, res) => {
             dungeon_highest_floor: player.dungeon_highest_floor || 0,
             achievements_completed: achievementCountRow?.count || 0,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
-            profile_pic: userSettings?.profile_pic || `${player.class}.png`,
+            profile_pic: player.profile_pic || `${player.class}.png`,
             globalCooldown, perTargetCooldown, hpLow, equipped,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
         });
