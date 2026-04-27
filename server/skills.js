@@ -1678,7 +1678,17 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
 
             hasVisibleSkill = true;
             const trainable = !hasActiveTraining && !isExclusiveLocked && condMet && progress < 100 && (started || prereqsMet);
-            const isLocked = !started && !learned && !trainable;
+            const isLocked = !started && !learned;
+
+            // Build unlock description
+            let unlockDesc = '';
+            if (isLocked) {
+                if (!condMet && sk.unlockCondition) {
+                    unlockDesc = sk.unlockCondition.replace(/_/g, ' ').replace(/level_(\d+)/, 'Reach Level $1');
+                } else if (!prereqsMet && sk.requires && sk.requires.length > 0) {
+                    unlockDesc = 'Train ' + sk.requires.join(', ') + ' to 100%';
+                }
+            }
 
             enrichedSkills[skId] = {
                 ...sk,
@@ -1690,7 +1700,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
                 exclusiveLocked: isExclusiveLocked && !learned,
                 prereqsMet,
                 condMet,
-                unlockConditionDesc: isLocked ? (sk.unlockCondition ? sk.unlockCondition.replace(/_/g, ' ').replace(/level_(\d+)/, 'Level $1') : 'Requires previous skill') : (sk.unlockConditionDesc || null),
+                unlockConditionDesc: unlockDesc || null,
             };
         }
 
