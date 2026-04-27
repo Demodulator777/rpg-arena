@@ -461,7 +461,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value">${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -581,7 +581,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value">${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -818,7 +818,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value">${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
