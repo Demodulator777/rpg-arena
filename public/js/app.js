@@ -461,7 +461,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeTopbarMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -581,7 +581,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeTopbarMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -818,7 +818,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeTopbarMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -1256,7 +1256,10 @@ if (name === 'character')   renderCharacter();
     if (name === 'shop')        loadShop();
     if (name === 'inbox')       loadInbox();
     if (name === 'dungeon')     renderDungeonTab();
-    if (name === 'event')       loadBannerEvent();
+    if (name === 'event') {
+        console.log('Loading banner event tab');
+        loadBannerEvent();
+    }
 }
 
 function toggleCharacterHubInline() {
@@ -7326,6 +7329,14 @@ function clickElementById(id) {
 
 document.addEventListener('click', (event) => {
     const overlay = event.target;
+    
+    // Handle banner menu click
+    if (overlay.classList.contains('topbar-menu-info-value') && overlay.textContent?.includes('Banner')) {
+        showTab('event');
+        closeTopbarMenu();
+        return;
+    }
+    
     if (overlay instanceof HTMLElement) {
         const tooltip = document.getElementById('item-tooltip');
         const clickedTooltipTrigger =
