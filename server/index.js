@@ -32,15 +32,29 @@ app.use((req, res, next) => {
 // Import middleware and modules
 const auth = require('./middleware');  // This is your middleware
 const skillsModule = require('./skills');
+const bannerModule = require('./banner');
 
 // Init DB first, then start server
-getDb().then(() => {
+getDb().then(async (db) => {
+  // Run banner migrations
+  for (const sql of bannerModule.BANNER_MIGRATIONS) {
+    try { await db.execute({ sql }); } catch {}
+  }
+  
+  // Seed default banner if none exists
+  await bannerModule.seedDefaultBanner(db);
+  
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes'));
   
   // Mount skills router with auth middleware
   app.use('/skills', auth, skillsModule.router);
+  
+  // Mount banner router with auth middleware
+  const { router: bannerRouter, seedDefaultBanner } = require('./banner');
+  app.use('/banner', auth, bannerRouter);
+  app.use('/admin/banner', bannerRouter.admin);
   
   // Static files - AFTER API routes
   app.use(express.static(path.join(__dirname, '../public')));
