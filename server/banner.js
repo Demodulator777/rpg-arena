@@ -238,36 +238,36 @@ function generateBannerItemStats(itemType, playerLevel) {
         stats.wind_resist = Math.floor(Math.min(80, level * 1.0 * scale));
         stats.electro_resist = Math.floor(Math.min(80, level * 1.0 * scale));
     } else if (itemType === 'armor') {
-        stats.dmg_min = Math.floor(Math.min(80, 10 + (level * 0.80 * scale)));
-        stats.dmg_max = Math.floor(Math.min(120, 20 + (level * 1.2 * scale)));
+        stats.dmg_min = Math.floor(Math.min(30, 3 + (level * 0.20 * scale)));
+        stats.dmg_max = Math.floor(Math.min(50, 6 + (level * 0.35 * scale)));
         stats.defense = Math.floor(Math.min(250, level * 1.20 * scale));
-        stats.armor = Math.floor(Math.min(180, level * 1.00 * scale));
+        stats.armor = Math.floor(Math.min(220, level * 1.20 * scale));
         stats.hp_max = Math.floor(Math.min(650, level * 2.4 * scale));
         stats.vitality = Math.floor(Math.min(60, level * 0.18 * scale));
         stats.agility = Math.floor(Math.min(40, level * 0.12 * scale));
         stats.pyro_resist = Math.floor(Math.min(80, level * 1.0 * scale));
     } else if (itemType === 'helmet') {
-        stats.dmg_min = Math.floor(Math.min(50, 8 + (level * 0.50 * scale)));
-        stats.dmg_max = Math.floor(Math.min(80, 15 + (level * 0.80 * scale)));
+        stats.dmg_min = Math.floor(Math.min(20, 2 + (level * 0.15 * scale)));
+        stats.dmg_max = Math.floor(Math.min(35, 4 + (level * 0.25 * scale)));
         stats.defense = Math.floor(Math.min(180, level * 0.80 * scale));
-        stats.armor = Math.floor(Math.min(120, level * 0.70 * scale));
+        stats.armor = Math.floor(Math.min(150, level * 0.80 * scale));
         stats.hp_max = Math.floor(Math.min(400, level * 1.6 * scale));
         stats.strength = Math.floor(Math.min(70, level * 0.20 * scale));
         stats.crit_chance = Math.floor(Math.min(12, level * 0.04 * scale));
         stats.water_resist = Math.floor(Math.min(80, level * 1.0 * scale));
     } else if (itemType === 'shield') {
-        stats.dmg_min = Math.floor(Math.min(60, 8 + (level * 0.60 * scale)));
-        stats.dmg_max = Math.floor(Math.min(100, 18 + (level * 1.0 * scale)));
+        stats.dmg_min = Math.floor(Math.min(25, 2 + (level * 0.15 * scale)));
+        stats.dmg_max = Math.floor(Math.min(40, 5 + (level * 0.30 * scale)));
         stats.defense = Math.floor(Math.min(220, level * 1.10 * scale));
-        stats.armor = Math.floor(Math.min(140, level * 0.80 * scale));
+        stats.armor = Math.floor(Math.min(160, level * 0.90 * scale));
         stats.vitality = Math.floor(Math.min(50, level * 0.15 * scale));
         stats.block_chance = Math.floor(Math.min(20, level * 0.06 * scale));
         stats.wind_resist = Math.floor(Math.min(80, level * 1.0 * scale));
     } else if (itemType === 'boots') {
-        stats.dmg_min = Math.floor(Math.min(40, 6 + (level * 0.40 * scale)));
-        stats.dmg_max = Math.floor(Math.min(70, 12 + (level * 0.60 * scale)));
+        stats.dmg_min = Math.floor(Math.min(15, 2 + (level * 0.10 * scale)));
+        stats.dmg_max = Math.floor(Math.min(30, 3 + (level * 0.20 * scale)));
         stats.defense = Math.floor(Math.min(150, level * 0.70 * scale));
-        stats.armor = Math.floor(Math.min(100, level * 0.60 * scale));
+        stats.armor = Math.floor(Math.min(120, level * 0.70 * scale));
         stats.agility = Math.floor(Math.min(70, level * 0.25 * scale));
         stats.hp_max = Math.floor(Math.min(280, level * 1.1 * scale));
         stats.evasion = Math.floor(Math.min(12, level * 0.04 * scale));
@@ -372,6 +372,8 @@ router.post('/pull', async (req, res) => {
             
 if (char) {
                 for (const item of banner.loot_table) {
+                    const itemStats = generateBannerItemStats(item.type, char.level);
+                    const itemPrice = Math.floor(35000 * 1.35);
                     const fullItem = {
                         id: `${item.id}_${Date.now()}`,
                         name: item.name,
@@ -384,8 +386,10 @@ if (char) {
                         quality: 'legendary',
                         stackable: false,
                         qty: 1,
-                        stats: generateBannerItemStats(item.type, char.level),
-                        category: item.type
+                        stats: itemStats,
+                        category: item.type,
+                        price: itemPrice,
+                        original_price: itemPrice
                     };
                     await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
                         [char.id, 'equipment', JSON.stringify(fullItem)]);
