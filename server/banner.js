@@ -288,8 +288,13 @@ router.post('/pull', async (req, res) => {
             }
         }
         
-const items = rollBannerLoot(banner, char.level, won);
-        console.log('Roll result:', items);
+        const items = rollBannerLoot(banner, char.level, won);
+        let newStats;
+        try {
+            newStats = await getPlayerBannerStats(db, req.user.userId, banner.id);
+        } catch {
+            newStats = { pullCount: 0, totalPulls: 0, carryPulls: 0, won: false };
+        }
         
         res.json({
             won,
