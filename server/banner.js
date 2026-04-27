@@ -6,6 +6,18 @@ const router = express.Router();
 const BANNER_COST_GEMS = 100;
 const PULLS_PER_PURCHASE = 5;
 
+async function dbGet(db, sql, args = []) {
+    const r = await db.execute({ sql, args });
+    return r.rows[0] ?? null;
+}
+async function dbRun(db, sql, args = []) {
+    return db.execute({ sql, args });
+}
+async function dbAll(db, sql, args = []) {
+    const r = await db.execute({ sql, args });
+    return r.rows;
+}
+
 function generateBannerItemStats(lootItem, playerLevel) {
     const level = Math.max(1, playerLevel);
     const qualityScale = lootItem.rarity === 'legendary' ? 1.15 :
@@ -72,7 +84,7 @@ function getBannerOdds(pullCount) {
 
 async function getActiveBanner(db) {
     const now = Math.floor(Date.now() / 1000);
-    const banner = await db.get(
+    const banner = await dbGet(
         `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`,
         [now, now]
     );
@@ -91,20 +103,23 @@ const SPITEFORGED_LOOT = [
 
 async function seedDefaultBanner(db) {
     const now = Math.floor(Date.now() / 1000);
-    const existing = await db.get(`SELECT id FROM banner_events WHERE start_at <= ? AND end_at > ?`, [now, now]);
-    if (existing) return; // Already has active banner
+    const existing = await db.execute({ 
+        sql: `SELECT id FROM banner_events WHERE start_at <= ? AND end_at > ?`, 
+        args: [now, now] 
+    });
+    if (existing.rows.length > 0) return;
     
     const weekFromNow = now + 7 * 24 * 60 * 60;
     
-    await db.run(
-        `INSERT INTO banner_events (name, image, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?)`,
-        ['Spiteforged Banner', 'spiteforged', now, weekFromNow, JSON.stringify(SPITEFORGED_LOOT)]
-    );
+    await db.execute({ 
+        sql: `INSERT INTO banner_events (name, image, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?)`,
+        args: ['Spiteforged Banner', 'spiteforged', now, weekFromNow, JSON.stringify(SPITEFORGED_LOOT)]
+    });
     console.log('🎴 Seeded default Spiteforged banner');
 }
 
 async function getPlayerBannerStats(db, userId, bannerId) {
-    const row = await db.get(
+    const row = await dbGet(
         `SELECT pull_count, total_pulls, carry_pulls, won FROM player_banner_pulls WHERE user_id = ? AND banner_id = ?`,
         [userId, bannerId]
     );
@@ -125,7 +140,7 @@ async function getPlayerBannerStats(db, userId, bannerId) {
 }
 
 async function getAllPlayerBannerStats(db, userId) {
-    const rows = await db.all(
+    const rows = await dbAll(
         `SELECT banner_id, pull_count, total_pulls, carry_pulls, won FROM player_banner_pulls WHERE user_id = ?`,
         [userId]
     );
@@ -217,7 +232,7 @@ router.post('/pull', async (req, res) => {
             return res.status(400).json({ error: 'No active banner event' });
         }
         
-        const char = await db.get(
+        const char = await dbGet(
             `SELECT level, gems FROM characters WHERE user_id = ?`,
             [req.user.userId]
         );
@@ -233,16 +248,16 @@ router.post('/pull', async (req, res) => {
         const won = Math.random() < odds;
         
         const gemsAfter = char.gems - BANNER_COST_GEMS;
-        await db.run(`UPDATE characters SET gems = ? WHERE user_id = ?`, [gemsAfter, req.user.userId]);
+        await dbRun(db, `UPDATE characters SET gems = ? WHERE user_id = ?`, [gemsAfter, req.user.userId]);
         
-        await db.run(
+        await dbRun(db,
             `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [req.user.userId, banner.id, newPullCount, newTotalPulls, stats.carryPulls, won ? 1 : 0]
         );
         
         // Update if exists
-        await db.run(
+        await dbRun(db,
             `UPDATE player_banner_pulls SET
              pull_count = pull_count + 1,
              total_pulls = total_pulls + 1,
@@ -253,17 +268,17 @@ router.post('/pull', async (req, res) => {
         
         if (won) {
             // Insert or update to reset carry_pulls and set won
-            await db.run(
+            await dbRun(db,
                 `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won)
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 [req.user.userId, banner.id, newPullCount, newTotalPulls, 0, 1]
             );
-            await db.run(
+            await dbRun(db,
                 `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1 WHERE user_id = ? AND banner_id = ?`,
                 [req.user.userId, banner.id]
             );
             
-            await db.run(
+            await dbRun(db,
                 `INSERT INTO inbox_messages (user_id, char_id, sender_name, subject, message_text, reward_json, created_at)
                  VALUES (?, NULL, 'Event Banner', 'Banner Set Won!', ?, ?, ?, ?)`,
                 [
@@ -306,7 +321,7 @@ router.post('/pull', async (req, res) => {
 router.get('/history', async (req, res) => {
     try {
         const db = await getDb();
-        const rows = await db.all(
+const rows = await dbAll(db,
             `SELECT bh.*, be.name as banner_name, be.loot_table
              FROM player_banner_pulls bh
              JOIN banner_events be ON be.id = bh.banner_id
@@ -373,7 +388,7 @@ adminRouter.use(adminAuth);
 adminRouter.get('/list', async (req, res) => {
     try {
         const db = await getDb();
-        const banners = await db.all(`SELECT * FROM banner_events ORDER BY start_at DESC`);
+        const banners = await dbAll(db, `SELECT * FROM banner_events ORDER BY start_at DESC`);
         res.json({ banners });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -390,12 +405,12 @@ adminRouter.post('/create', async (req, res) => {
         
         const db = await getDb();
         const lootJson = JSON.stringify(loot_table || []);
-        const result = await db.run(
+        const result = await dbRun(db,
             `INSERT INTO banner_events (name, image, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?)`,
             [name, image || null, start_at, end_at, lootJson]
         );
         
-        const banner = await db.get(`SELECT * FROM banner_events WHERE id = ?`, [result.lastInsertId]);
+        const banner = await dbGet(db, `SELECT * FROM banner_events WHERE id = ?`, [result.lastInsertRowid]);
         res.json({ success: true, banner });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -423,9 +438,9 @@ adminRouter.put('/:id', async (req, res) => {
         }
         
         values.push(id);
-        await db.run(`UPDATE banner_events SET ${updates.join(', ')} WHERE id = ?`, values);
+        await dbRun(db, `UPDATE banner_events SET ${updates.join(', ')} WHERE id = ?`, values);
         
-        const banner = await db.get(`SELECT * FROM banner_events WHERE id = ?`, [id]);
+        const banner = await dbGet(db, `SELECT * FROM banner_events WHERE id = ?`, [id]);
         res.json({ success: true, banner });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -437,8 +452,8 @@ adminRouter.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const db = await getDb();
-        await db.run(`DELETE FROM player_banner_pulls WHERE banner_id = ?`, [id]);
-        await db.run(`DELETE FROM banner_events WHERE id = ?`, [id]);
+        await dbRun(db, `DELETE FROM player_banner_pulls WHERE banner_id = ?`, [id]);
+        await dbRun(db, `DELETE FROM banner_events WHERE id = ?`, [id]);
         res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -451,9 +466,9 @@ adminRouter.get('/:id/stats', async (req, res) => {
         const { id } = req.params;
         const db = await getDb();
         
-        const totalPulls = await db.get(`SELECT SUM(total_pulls) as total FROM player_banner_pulls WHERE banner_id = ?`, [id]);
-        const winners = await db.get(`SELECT COUNT(*) as count FROM player_banner_pulls WHERE banner_id = ? AND won = 1`, [id]);
-        const topPullers = await db.all(`
+        const totalPulls = await dbGet(db, `SELECT SUM(total_pulls) as total FROM player_banner_pulls WHERE banner_id = ?`, [id]);
+        const winners = await dbGet(db, `SELECT COUNT(*) as count FROM player_banner_pulls WHERE banner_id = ? AND won = 1`, [id]);
+        const topPullers = await dbAll(db, `
             SELECT p.*, c.name as char_name
             FROM player_banner_pulls p
             JOIN characters c ON c.user_id = p.user_id
