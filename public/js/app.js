@@ -5473,7 +5473,7 @@ async function doBannerPull() {
             }
         }).join('');
         
-        const bonusHtml = [];
+const bonusHtml = [];
         if (data.goldFound > 0) bonusHtml.push(`💰 +${data.goldFound.toLocaleString()} Gold`);
         if (data.gemsFound > 0) bonusHtml.push(`💎 +${data.gemsFound} Gems`);
         
@@ -5488,11 +5488,12 @@ async function doBannerPull() {
             <div class="event-items-grid">${itemsHtml}</div>
             ${bonusHtml.length > 0 ? `<div class="event-bonus-rewards">${bonusHtml.join(' · ')}</div>` : ''}
             <div class="event-new-stats">
-                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: ${data.stats.effectivePulls}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()}
+                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: ${data.stats.effectivePulls}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()} · 💰 ${(character.gold || 0).toLocaleString()}
             </div>
         `;
         
-character.gems = data.gems;
+        character.gems = data.gems;
+        if (data.gold) character.gold = data.gold;
         renderTopBar();
         
         const pityProgress = data.stats.effectivePulls;
