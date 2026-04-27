@@ -394,6 +394,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN unlocked_profile_pics TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
@@ -410,6 +411,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
@@ -4622,8 +4624,8 @@ async function getWeeklyClaimableCount(db, char) {
 async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
-    const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions FROM users WHERE id = ?', [char.user_id])
+const userSettings = char.user_id
+        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
@@ -4736,9 +4738,10 @@ async function buildCharacterResponse(char, db) {
         inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
         inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
         chat_enabled: Number(userSettings?.chat_enabled ?? 1) !== 0,
-        inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
+inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
+        profile_pic: userSettings?.profile_pic || `${char.class}.png`,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -4859,6 +4862,64 @@ router.get('/character', auth, async (req, res) => {
         await applyMpRegen(db, char.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json(await buildCharacterResponse(freshChar, db));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/profile-pics', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'class, unlocked_profile_pics');
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        
+        const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
+        const defaultPic = `${char.class}.png`;
+        
+        const allPics = [
+            { id: defaultPic, name: 'Default', class: char.class, unlocked: true }
+        ];
+        
+        // Add unlocked themed pics
+        for (const picId of unlocked) {
+            allPics.push({
+                id: `${picId}.png`,
+                name: picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId,
+                class: picId.split('-')[0],
+                unlocked: true
+            });
+        }
+        
+        res.json({ 
+            current: defaultPic,
+            available: allPics 
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/profile-pic/set', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { profilePic } = req.body;
+        if (!profilePic) return res.status(400).json({ error: 'No profile pic specified' });
+        
+        const char = await getCurrentCharacter(db, req.user.userId, 'class, unlocked_profile_pics');
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        
+        const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
+        const defaultPic = `${char.class}.png`;
+        const targetPic = profilePic.replace('.png', '');
+        
+        // Check if valid (either default or unlocked)
+        const isDefault = targetPic === defaultPic.replace('.png', '');
+        const isUnlocked = unlocked.includes(targetPic);
+        
+        if (!isDefault && !isUnlocked) {
+            return res.status(403).json({ error: 'Profile pic not unlocked' });
+        }
+        
+        // Store selected pic in a user preference
+        await dbRun(db, 'UPDATE users SET profile_pic = ? WHERE id = ?', [profilePic, req.user.userId]);
+        
+        res.json({ success: true, profilePic });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
