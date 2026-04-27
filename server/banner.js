@@ -219,6 +219,42 @@ const BANNER_DROPS = {
     gemRange: [1, 3]
 };
 
+function generateBannerItemStats(itemType, playerLevel) {
+    const level = Math.max(1, playerLevel);
+    const qualityScale = 1.15; // legendary
+
+    const stats = {};
+    
+    if (itemType === 'weapon') {
+        stats.dmg_min = Math.floor(Math.min(220, 8 + (level * 1.2 * qualityScale)));
+        stats.dmg_max = Math.floor(Math.min(380, 15 + (level * 2.5 * qualityScale)));
+        stats.strength = Math.floor(Math.min(90, level * 0.22 * qualityScale));
+        stats.agility = Math.floor(Math.min(60, level * 0.15 * qualityScale));
+    } else if (itemType === 'armor') {
+        stats.defense = Math.floor(Math.min(140, level * 0.65 * qualityScale));
+        stats.armor = Math.floor(Math.min(70, level * 0.40 * qualityScale));
+        stats.hp_max = Math.floor(Math.min(480, level * 1.8 * qualityScale));
+    } else if (itemType === 'helmet') {
+        stats.defense = Math.floor(Math.min(90, level * 0.45 * qualityScale));
+        stats.hp_max = Math.floor(Math.min(300, level * 1.2 * qualityScale));
+        stats.strength = Math.floor(Math.min(50, level * 0.12 * qualityScale));
+    } else if (itemType === 'shield') {
+        stats.defense = Math.floor(Math.min(110, level * 0.55 * qualityScale));
+        stats.armor = Math.floor(Math.min(60, level * 0.30 * qualityScale));
+    } else if (itemType === 'boots') {
+        stats.defense = Math.floor(Math.min(70, level * 0.35 * qualityScale));
+        stats.agility = Math.floor(Math.min(50, level * 0.18 * qualityScale));
+        stats.hp_max = Math.floor(Math.min(200, level * 0.8 * qualityScale));
+    }
+
+    stats.elem_resist_pyro = Math.floor(Math.min(40, level * 0.12 * qualityScale));
+    stats.elem_resist_water = Math.floor(Math.min(40, level * 0.12 * qualityScale));
+    stats.elem_resist_wind = Math.floor(Math.min(40, level * 0.12 * qualityScale));
+    stats.elem_resist_electro = Math.floor(Math.min(40, level * 0.12 * qualityScale));
+
+    return stats;
+}
+
 // GET /banner/current - Get active banner
 router.get('/current', async (req, res) => {
     try {
@@ -326,7 +362,7 @@ if (char) {
                         quality: 'legendary',
                         stackable: false,
                         qty: 1,
-                        stats: {},
+                        stats: generateBannerItemStats(item.type, char.level),
                         category: item.type
                     };
                     await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
