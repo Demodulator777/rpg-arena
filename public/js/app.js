@@ -1854,7 +1854,7 @@ function renderCharacter() {
 const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
     const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
-            <img src="/images/class/${c.class}.png" alt="${c.class}" data-error-opacity-zero="true">
+            <img src="/images/class/${c.profile_pic || c.class + '.png'}" alt="${c.class}" data-error-opacity-zero="true">
         </div>` : '';
     const item = resolvedEq[slot];
     if (!item) return avatarDiv + `
@@ -5916,7 +5916,7 @@ function renderLeaderboard() {
         const totalEarned = p.total_gold_earned || 0;
         return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
-            <img src="/images/class/${p.class}.png" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
+            <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
             <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
@@ -5974,7 +5974,7 @@ async function openProfile(id) {
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
                 <div class="eq-avatar-center profile-eq-avatar">
-                    <img src="/images/class/${p.class}.png" alt="${p.class}" data-error-opacity-zero="true">
+                    <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
                 </div>` : '';
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
@@ -6010,7 +6010,7 @@ async function openProfile(id) {
         <div class="class-scene-content">
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
-              <img src="/images/class/${p.class}.png" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
+              <img src="/images/class/${p.profile_pic || p.class + '.png'}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
               <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
             </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
