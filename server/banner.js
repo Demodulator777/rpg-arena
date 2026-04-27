@@ -161,10 +161,10 @@ async function seedDefaultBanner(db) {
     console.log('🎴 Seeded default Spiteforged banner');
 }
 
-async function getPlayerBannerStats(db, userId, bannerId) {
+async function getPlayerBannerStats(db, charId, bannerId) {
     const row = await dbGet(db,
-        `SELECT pull_count, total_pulls, carry_pulls, won FROM player_banner_pulls WHERE user_id = ? AND banner_id = ?`,
-        [userId, bannerId]
+        `SELECT pull_count, total_pulls, carry_pulls, won FROM player_banner_pulls WHERE char_id = ? AND banner_id = ?`,
+        [charId, bannerId]
     );
     if (!row) {
         return {
@@ -182,10 +182,10 @@ async function getPlayerBannerStats(db, userId, bannerId) {
     };
 }
 
-async function getAllPlayerBannerStats(db, userId) {
+async function getAllPlayerBannerStats(db, charId) {
     const rows = await dbAll(db,
-        `SELECT banner_id, pull_count, total_pulls, carry_pulls, won FROM player_banner_pulls WHERE user_id = ?`,
-        [userId]
+        `SELECT banner_id, pull_count, total_pulls, carry_pulls, won FROM player_banner_pulls WHERE char_id = ?`,
+        [charId]
     );
     return rows.reduce((acc, row) => {
         acc[row.banner_id] = {
@@ -286,8 +286,13 @@ router.get('/current', async (req, res) => {
             return res.json({ active: false, banner: null });
         }
         
-        const stats = await getPlayerBannerStats(db, req.user.userId, banner.id);
-        const allStats = await getAllPlayerBannerStats(db, req.user.userId);
+        const char = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
+        if (!char) {
+            return res.json({ active: true, banner: null, stats: {} });
+        }
+        
+        const stats = await getPlayerBannerStats(db, char.id, banner.id);
+        const allStats = await getAllPlayerBannerStats(db, char.id);
         const effectivePulls = (stats.carryPulls || 0) + stats.pullCount;
         const currentOdds = getBannerOdds(effectivePulls);
         
@@ -333,11 +338,11 @@ router.post('/pull', async (req, res) => {
             `SELECT id, level, gems FROM characters WHERE user_id = ?`,
             [req.user.userId]
         );
-        if (!char || char.gems < BANNER_COST_GEMS) {
+if (!char || char.gems < BANNER_COST_GEMS) {
             return res.status(400).json({ error: 'Not enough gems' });
         }
         
-        let stats = await getPlayerBannerStats(db, req.user.userId, banner.id);
+        let stats = await getPlayerBannerStats(db, char.id, banner.id);
         const newPullCount = stats.pullCount + 1;
         const newTotalPulls = stats.totalPulls + 1;
         const effectivePulls = (stats.carryPulls || 0) + newPullCount;
@@ -345,20 +350,20 @@ router.post('/pull', async (req, res) => {
         const won = Math.random() < odds;
         
         const gemsAfter = char.gems - BANNER_COST_GEMS;
-        await dbRun(db, `UPDATE characters SET gems = ? WHERE user_id = ?`, [gemsAfter, req.user.userId]);
+        await dbRun(db, `UPDATE characters SET gems = ? WHERE id = ?`, [gemsAfter, char.id]);
         
         // Update or insert player banner stats
-        const existing = await dbGet(db, `SELECT 1 FROM player_banner_pulls WHERE user_id = ? AND banner_id = ?`, [req.user.userId, banner.id]);
+        const existing = await dbGet(db, `SELECT 1 FROM player_banner_pulls WHERE char_id = ? AND banner_id = ?`, [char.id, banner.id]);
         
         if (existing) {
             await dbRun(db,
-                `UPDATE player_banner_pulls SET pull_count = pull_count + 1, total_pulls = total_pulls + 1, won = CASE WHEN won = 1 THEN 1 ELSE ? END WHERE user_id = ? AND banner_id = ?`,
-                [won ? 1 : 0, req.user.userId, banner.id]
+                `UPDATE player_banner_pulls SET pull_count = pull_count + 1, total_pulls = total_pulls + 1, won = CASE WHEN won = 1 THEN 1 ELSE ? END WHERE char_id = ? AND banner_id = ?`,
+                [won ? 1 : 0, char.id, banner.id]
             );
         } else {
             await dbRun(db,
-                `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won) VALUES (?, ?, ?, ?, ?, ?)`,
-                [req.user.userId, banner.id, newPullCount, newTotalPulls, 0, won ? 1 : 0]
+                `INSERT INTO player_banner_pulls (char_id, banner_id, pull_count, total_pulls, carry_pulls, won) VALUES (?, ?, ?, ?, ?, ?)`,
+                [char.id, banner.id, newPullCount, newTotalPulls, 0, won ? 1 : 0]
             );
         }
         
@@ -366,11 +371,11 @@ router.post('/pull', async (req, res) => {
             console.log('🎴 WON! Saving full banner set to inventory for user:', req.user.userId, 'char id:', char.id);
             
             await dbRun(db,
-                `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1, pull_count = 0, total_pulls = total_pulls WHERE user_id = ? AND banner_id = ?`,
-                [req.user.userId, banner.id]
+                `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1, pull_count = 0, total_pulls = total_pulls WHERE char_id = ? AND banner_id = ?`,
+                [char.id, banner.id]
             );
             
-if (char) {
+            if (char) {
                 for (const item of banner.loot_table) {
                     const itemStats = generateBannerItemStats(item.type, char.level);
                     const itemPrice = Math.floor(35000 * 1.35);
@@ -401,7 +406,7 @@ if (char) {
         await saveLootToInventory(db, char.id, loot);
         let newStats;
         try {
-            newStats = await getPlayerBannerStats(db, req.user.userId, banner.id);
+            newStats = await getPlayerBannerStats(db, char.id, banner.id);
         } catch {
             newStats = { pullCount: 0, totalPulls: 0, carryPulls: 0, won: false };
         }
@@ -432,13 +437,16 @@ if (char) {
 router.get('/history', async (req, res) => {
     try {
         const db = await getDb();
-const rows = await dbAll(db,
+        const char = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
+        if (!char) return res.json({ sets: [] });
+        
+        const rows = await dbAll(db,
             `SELECT bh.*, be.name as banner_name, be.loot_table
              FROM player_banner_pulls bh
              JOIN banner_events be ON be.id = bh.banner_id
-             WHERE bh.user_id = ? AND bh.won = 1
+             WHERE bh.char_id = ? AND bh.won = 1
              ORDER BY bh.won DESC`,
-            [req.user.userId]
+            [char.id]
         );
         
         res.json({
@@ -466,15 +474,17 @@ const BANNER_MIGRATIONS = [
         loot_table TEXT DEFAULT '[]',
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`,
+    `ALTER TABLE player_banner_pulls ADD COLUMN char_id INTEGER`,
+    `UPDATE player_banner_pulls SET char_id = (SELECT id FROM characters WHERE characters.user_id = player_banner_pulls.user_id)`,
     `CREATE TABLE IF NOT EXISTS player_banner_pulls (
-        user_id INTEGER NOT NULL,
+        char_id INTEGER NOT NULL,
         banner_id INTEGER NOT NULL,
         pull_count INTEGER DEFAULT 0,
         total_pulls INTEGER DEFAULT 0,
         carry_pulls INTEGER DEFAULT 0,
         won INTEGER DEFAULT 0,
         won_at INTEGER,
-        PRIMARY KEY (user_id, banner_id),
+        PRIMARY KEY (char_id, banner_id),
         FOREIGN KEY (banner_id) REFERENCES banner_events(id)
     )`,
 ];
@@ -583,7 +593,7 @@ adminRouter.get('/:id/stats', async (req, res) => {
         const topPullers = await dbAll(db, `
             SELECT p.*, c.name as char_name
             FROM player_banner_pulls p
-            JOIN characters c ON c.user_id = p.user_id
+            JOIN characters c ON c.id = p.char_id
             WHERE p.banner_id = ?
             ORDER BY p.total_pulls DESC
             LIMIT 10
