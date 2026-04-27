@@ -477,9 +477,19 @@ const BANNER_MIGRATIONS = [
         loot_table TEXT DEFAULT '[]',
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`,
-    // Migration: add char_id and make user_id nullable
-    `ALTER TABLE player_banner_pulls ADD COLUMN char_id INTEGER`,
-    `ALTER TABLE player_banner_pulls ALTER COLUMN user_id DROP NOT NULL`,
+    // Migration: recreate table with char_id instead of user_id
+    `DROP TABLE IF EXISTS player_banner_pulls`,
+    `CREATE TABLE IF NOT EXISTS player_banner_pulls (
+        char_id INTEGER NOT NULL,
+        banner_id INTEGER NOT NULL,
+        pull_count INTEGER DEFAULT 0,
+        total_pulls INTEGER DEFAULT 0,
+        carry_pulls INTEGER DEFAULT 0,
+        won INTEGER DEFAULT 0,
+        won_at INTEGER,
+        PRIMARY KEY (char_id, banner_id),
+        FOREIGN KEY (banner_id) REFERENCES banner_events(id)
+    )`,
 ];
 
 // ── Admin Routes ──────────────────────────────────────────────────────────────
