@@ -586,7 +586,8 @@ adminRouter.delete('/:id', async (req, res) => {
     }
 });
 
-// GET /admin/banner/:id/stats - Get banner stats
+// GET /admin/banner/:id/stats - Get banner stats why no update
+//wtf
 adminRouter.get('/:id/stats', async (req, res) => {
     try {
         const { id } = req.params;
