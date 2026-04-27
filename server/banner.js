@@ -340,7 +340,7 @@ router.post('/pull', async (req, res) => {
             return res.status(400).json({ error: 'No active banner event' });
         }
         
-const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, gold');
+const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, gold, class, unlocked_profile_pics');
         if (!char || char.gems < BANNER_COST_GEMS) {
             return res.status(400).json({ error: 'Not enough gems' });
         }
@@ -378,6 +378,15 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                 [char.id, banner.id]
             );
             
+            // Unlock profile pic for this set (get set ID from first loot item)
+            const setId = banner.loot_table[0]?.id?.split('_')[0] || 'spiteforged';
+            const unlockedPics = JSON.parse(char.unlocked_profile_pics || '[]');
+            const picToUnlock = `${char.class}-${setId}`;
+            if (!unlockedPics.includes(picToUnlock)) {
+                unlockedPics.push(picToUnlock);
+                await dbRun(db, `UPDATE characters SET unlocked_profile_pics = ? WHERE id = ?`, [JSON.stringify(unlockedPics), char.id]);
+            }
+            
             if (char) {
                 for (const item of banner.loot_table) {
                     const itemStats = generateBannerItemStats(item.type, char.level);
@@ -392,6 +401,7 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                         slot: item.type,
                         rarity: 'legendary',
                         quality: 'legendary',
+                        setId: 'spiteforged',
                         stackable: false,
                         qty: 1,
                         stats: itemStats,
