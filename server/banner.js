@@ -3,6 +3,12 @@ const { getDb } = require('./db');
 
 const router = express.Router();
 
+async function getCurrentCharacter(db, userId, fields = '*') {
+    const activeChar = await dbGet(db, 'SELECT active_character_id FROM users WHERE id = ?', [userId]);
+    if (!activeChar || !activeChar.active_character_id) return null;
+    return dbGet(db, `SELECT ${fields} FROM characters WHERE id = ?`, [activeChar.active_character_id]);
+}
+
 const BANNER_COST_GEMS = 100;
 const PULLS_PER_PURCHASE = 5;
 
@@ -286,7 +292,7 @@ router.get('/current', async (req, res) => {
             return res.json({ active: false, banner: null });
         }
         
-        const char = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) {
             return res.json({ active: true, banner: null, stats: {} });
         }
@@ -334,10 +340,7 @@ router.post('/pull', async (req, res) => {
             return res.status(400).json({ error: 'No active banner event' });
         }
         
-        const char = await dbGet(db,
-            `SELECT id, level, gems FROM characters WHERE user_id = ?`,
-            [req.user.userId]
-        );
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems');
 if (!char || char.gems < BANNER_COST_GEMS) {
             return res.status(400).json({ error: 'Not enough gems' });
         }
@@ -437,7 +440,7 @@ if (!char || char.gems < BANNER_COST_GEMS) {
 router.get('/history', async (req, res) => {
     try {
         const db = await getDb();
-        const char = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.json({ sets: [] });
         
         const rows = await dbAll(db,
