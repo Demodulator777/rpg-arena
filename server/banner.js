@@ -267,7 +267,7 @@ router.post('/pull', async (req, res) => {
         
         if (won) {
             await dbRun(db,
-                `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1 WHERE user_id = ? AND banner_id = ?`,
+                `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1, pull_count = 0, total_pulls = total_pulls WHERE user_id = ? AND banner_id = ?`,
                 [req.user.userId, banner.id]
             );
             
@@ -295,13 +295,14 @@ router.post('/pull', async (req, res) => {
         res.json({
             won,
             items,
+            wonItems: won ? banner.loot_table : [],
             gems: gemsAfter,
             stats: {
                 pullCount: newStats.pullCount,
                 totalPulls: newStats.totalPulls,
                 carryPulls: newStats.carryPulls,
-                effectivePulls: newEffectivePulls,
-                currentOdds: getBannerOdds(newEffectivePulls),
+                effectivePulls: 0,
+                currentOdds: getBannerOdds(0),
                 won: newStats.won,
             },
         });
