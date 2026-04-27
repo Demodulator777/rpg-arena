@@ -477,19 +477,8 @@ const BANNER_MIGRATIONS = [
         loot_table TEXT DEFAULT '[]',
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`,
+    // Safe migration: try to add char_id column if doesn't exist
     `ALTER TABLE player_banner_pulls ADD COLUMN char_id INTEGER`,
-    `UPDATE player_banner_pulls SET char_id = (SELECT id FROM characters WHERE characters.user_id = player_banner_pulls.user_id)`,
-    `CREATE TABLE IF NOT EXISTS player_banner_pulls (
-        char_id INTEGER NOT NULL,
-        banner_id INTEGER NOT NULL,
-        pull_count INTEGER DEFAULT 0,
-        total_pulls INTEGER DEFAULT 0,
-        carry_pulls INTEGER DEFAULT 0,
-        won INTEGER DEFAULT 0,
-        won_at INTEGER,
-        PRIMARY KEY (char_id, banner_id),
-        FOREIGN KEY (banner_id) REFERENCES banner_events(id)
-    )`,
 ];
 
 // ── Admin Routes ──────────────────────────────────────────────────────────────
