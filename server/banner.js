@@ -88,6 +88,7 @@ async function getActiveBanner(db) {
         `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`,
         [now, now]
     );
+    console.log('[getActiveBanner] result:', banner);
     if (!banner) return null;
     banner.loot_table = banner.loot_table ? JSON.parse(banner.loot_table) : [];
     return banner;
@@ -182,6 +183,7 @@ function rollBannerLoot(banner, playerLevel, won = false) {
 
 // GET /banner/current - Get active banner
 router.get('/current', async (req, res) => {
+    console.log('[banner/current] user:', req.user?.userId);
     try {
         const db = await getDb();
         const banner = await getActiveBanner(db);
