@@ -1256,10 +1256,7 @@ if (name === 'character')   renderCharacter();
     if (name === 'shop')        loadShop();
     if (name === 'inbox')       loadInbox();
     if (name === 'dungeon')     renderDungeonTab();
-    if (name === 'event') {
-        console.log('Loading banner event tab');
-        loadBannerEvent();
-    }
+    if (name === 'event')       loadBannerEvent();
 }
 
 function toggleCharacterHubInline() {
