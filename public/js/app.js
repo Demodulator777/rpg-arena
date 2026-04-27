@@ -1555,7 +1555,14 @@ function renderTopBar() {
         }
     }
 
-    set('topbar-avatar',el=>{ el.src=`/images/class/${c.class}.png`; el.alt=c.class; el.dataset.errorHide='true'; });
+    set('topbar-avatar',el=>{ 
+        const pic = c.profile_pic || `${c.class}.png`;
+        el.src=`/images/class/${pic}`; 
+        el.alt=c.class; 
+        el.dataset.errorHide='true'; 
+        el.style.cursor = 'pointer';
+        el.onclick = () => showProfilePicSelector();
+    });
     set('topbar-hp-fill',el=>{ el.style.width=hpPct+'%'; el.style.background=hpColor; });
     const setTopbarValue = (id, current, max) => {
         set(id, el => {
@@ -8569,4 +8576,49 @@ function renderAbyssMap() {
     `;
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
+}
+
+async function showProfilePicSelector() {
+    try {
+        const data = await api('GET', '/game/profile-pics');
+        const modal = document.createElement('div');
+        modal.id = 'profile-pic-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        
+        const currentPic = character.profile_pic || `${character.class}.png`;
+        
+        const optionsHtml = data.available.map(pic => {
+            const isSelected = pic.id === currentPic;
+            const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
+            const onclick = pic.unlocked ? `onclick="setProfilePic('${pic.id}');document.getElementById('profile-pic-modal').remove();"` : '';
+            return `<div style="text-align:center;">
+                <img src="/images/class/${pic.id}" style="${imgStyle}" data-error-hide="true" ${onclick} title="${pic.name}${!pic.unlocked ? ' (Locked)' : ''}">
+                <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${pic.name}</div>
+                ${isSelected ? '<div style="font-size:10px;color:#f1c40f;">✓ Selected</div>' : ''}
+            </div>`;
+        }).join('');
+        
+        modal.innerHTML = `
+            <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
+                <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
+                <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:16px;">${optionsHtml}</div>
+                <button class="btn-primary" onclick="document.getElementById('profile-pic-modal').remove()">Close</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } catch (e) {
+        showMsg('inv-msg', e.message, true);
+    }
+}
+
+async function setProfilePic(picId) {
+    try {
+        await api('POST', '/game/profile-pic/set', { profilePic: picId });
+        character.profile_pic = picId;
+        renderTopBar();
+        showMsg('inv-msg', 'Profile picture updated!', false);
+    } catch (e) {
+        showMsg('inv-msg', e.message, true);
+    }
 }
