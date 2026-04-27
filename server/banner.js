@@ -312,20 +312,27 @@ router.post('/pull', async (req, res) => {
                 [req.user.userId, banner.id]
             );
             
-            if (char) {
-                console.log('🎴 Loot table:', JSON.stringify(banner.loot_table));
+if (char) {
                 for (const item of banner.loot_table) {
                     const fullItem = {
-                        ...item,
-                        type: 'equipment',
+                        id: `${item.id}_${Date.now()}`,
+                        name: item.name,
+                        emoji: '⚔️',
+                        tier: 5,
+                        level: char.level,
+                        type: item.type,
+                        slot: item.type,
+                        rarity: 'legendary',
+                        quality: 'legendary',
                         stackable: false,
                         qty: 1,
-                        rarity: 'legendary'
+                        stats: {},
+                        category: item.type
                     };
-                    console.log('🎴 Saving equipment:', fullItem.name, fullItem.type);
                     await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
                         [char.id, 'equipment', JSON.stringify(fullItem)]);
                 }
+            }
                 console.log('🎴 All equipment saved!');
             }
         }
