@@ -18,45 +18,88 @@ async function dbAll(db, sql, args = []) {
     return r.rows;
 }
 
-function generateBannerItemStats(lootItem, playerLevel) {
-    const level = Math.max(1, playerLevel);
-    const qualityScale = lootItem.rarity === 'legendary' ? 1.15 :
-                       lootItem.rarity === 'epic' ? 1.0 :
-                       lootItem.rarity === 'rare' ? 0.8 : 0.6;
+function generateBannerLoot(charLevel) {
+    const result = {
+        items: [],
+        gems: 0,
+        gold: 0
+    };
+    
+    const createMaterialDrop = () => {
+        const totalWeight = BANNER_DROPS.materials.reduce((sum, m) => sum + m.weight, 0);
+        let roll = Math.random() * totalWeight;
+        let selected = BANNER_DROPS.materials[0];
+        for (const mat of BANNER_DROPS.materials) {
+            if (roll < mat.weight) {
+                selected = mat;
+                break;
+            }
+            roll -= mat.weight;
+        }
 
-    const stats = {};
-    const slot = lootItem.type;
-
-    if (slot === 'weapon') {
-        stats.dmg_min = Math.floor(Math.min(220, 8 + (level * 1.2 * qualityScale)));
-        stats.dmg_max = Math.floor(Math.min(380, 15 + (level * 2.5 * qualityScale)));
-        stats.strength = Math.floor(Math.min(90, level * 0.22 * qualityScale));
-        stats.agility = Math.floor(Math.min(60, level * 0.15 * qualityScale));
-    } else if (slot === 'armor') {
-        stats.defense = Math.floor(Math.min(140, level * 0.65 * qualityScale));
-        stats.armor = Math.floor(Math.min(70, level * 0.40 * qualityScale));
-        stats.hp_max = Math.floor(Math.min(480, level * 1.8 * qualityScale));
-    } else if (slot === 'helmet') {
-        stats.defense = Math.floor(Math.min(90, level * 0.45 * qualityScale));
-        stats.hp_max = Math.floor(Math.min(300, level * 1.2 * qualityScale));
-        stats.strength = Math.floor(Math.min(50, level * 0.12 * qualityScale));
-    } else if (slot === 'shield') {
-        stats.defense = Math.floor(Math.min(110, level * 0.55 * qualityScale));
-        stats.armor = Math.floor(Math.min(60, level * 0.30 * qualityScale));
-    } else if (slot === 'boots') {
-        stats.defense = Math.floor(Math.min(70, level * 0.35 * qualityScale));
-        stats.agility = Math.floor(Math.min(50, level * 0.18 * qualityScale));
-        stats.hp_max = Math.floor(Math.min(200, level * 0.8 * qualityScale));
+        const qty = Math.floor(Math.random() * (selected.qty[1] - selected.qty[0] + 1) + selected.qty[0]);
+        return {
+            id: selected.id,
+            name: selected.name,
+            emoji: selected.emoji,
+            type: 'raw_mat',
+            qty: qty,
+            stackable: true,
+            rarity: 'common'
+        };
+    };
+    
+    if (Math.random() < 0.6) {
+        const goldAmount = Math.floor(Math.random() * (BANNER_DROPS.goldRange[1] - BANNER_DROPS.goldRange[0] + 1) + BANNER_DROPS.goldRange[0]);
+        result.gold = goldAmount;
     }
+    
+    if (Math.random() < BANNER_DROPS.gemChance) {
+        const gemAmount = Math.floor(Math.random() * (BANNER_DROPS.gemRange[1] - BANNER_DROPS.gemRange[0] + 1) + BANNER_DROPS.gemRange[0]);
+        result.gems = gemAmount;
+    }
+    
+    for (let i = 0; i < BANNER_DROPS.itemsCount; i++) {
+        result.items.push(createMaterialDrop());
+    }
+    
+    return result;
+}
 
-    const resistScale = qualityScale * 0.12;
-    const resistCap = lootItem.rarity === 'legendary' ? 40 : 34;
-    stats.elem_resist_pyro = Math.floor(Math.min(resistCap, level * resistScale));
-    stats.elem_resist_water = Math.floor(Math.min(resistCap, level * resistScale));
-    stats.elem_resist_wind = Math.floor(Math.min(resistCap, level * resistScale));
-    stats.elem_resist_electro = Math.floor(Math.min(resistCap, level * resistScale));
-
-    return stats;
+async function saveLootToInventory(db, charId, loot) {
+    const addedItems = [];
+    
+    for (const lootItem of loot.items) {
+        if (lootItem.stackable) {
+            const existing = await dbGet(db, `
+                SELECT * FROM inventory 
+                WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?
+            `, [charId, lootItem.type, lootItem.id]);
+            
+            if (existing) {
+                const existingData = JSON.parse(existing.item_data);
+                existingData.qty = (existingData.qty || 1) + lootItem.qty;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(existingData), existing.id]);
+            } else {
+                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
+                    [charId, lootItem.type, JSON.stringify(lootItem)]);
+            }
+        } else {
+            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
+                [charId, lootItem.type, JSON.stringify(lootItem)]);
+        }
+        addedItems.push(lootItem);
+    }
+    
+    if (loot.gold > 0) {
+        await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [loot.gold, charId]);
+    }
+    
+    if (loot.gems > 0) {
+        await dbRun(db, 'UPDATE characters SET gems=gems+? WHERE id=?', [loot.gems, charId]);
+    }
+    
+    return addedItems;
 }
 
 const ODDS_TABLE = {
@@ -155,30 +198,26 @@ async function getAllPlayerBannerStats(db, userId) {
     }, {});
 }
 
-function rollBannerLoot(banner, playerLevel, won = false) {
-    const items = [];
-    const itemCount = PULLS_PER_PURCHASE;
-    
-    for (let i = 0; i < itemCount; i++) {
-        const roll = Math.random();
-        if (won && i === 0) {
-            const guaranteed = banner.loot_table[Math.floor(Math.random() * banner.loot_table.length)];
-            const itemStats = generateBannerItemStats(guaranteed, playerLevel);
-            items.push({ ...guaranteed, stats: itemStats, guaranteed: true, rarity: guaranteed.rarity });
-        } else if (roll < 0.01) {
-            const bannerItem = banner.loot_table[Math.floor(Math.random() * banner.loot_table.length)];
-            const itemStats = generateBannerItemStats(bannerItem, playerLevel);
-            items.push({ ...bannerItem, stats: itemStats, rarity: bannerItem.rarity });
-        } else if (roll < 0.30) {
-            items.push({ type: 'gold', amount: Math.floor(Math.random() * 5000) + 1000, rarity: 'common' });
-        } else if (roll < 0.60) {
-            items.push({ type: 'gold', amount: Math.floor(Math.random() * 2000) + 500, rarity: 'common' });
-        } else {
-            items.push({ type: 'dust', amount: Math.floor(Math.random() * 100) + 50, rarity: 'common' });
-        }
-    }
-    return items;
-}
+const BANNER_DROPS = {
+    itemsCount: 5,
+    materials: [
+        { id: 'iron_ore', name: 'Iron Ore', emoji: '⛏️', weight: 20, qty: [2, 5] },
+        { id: 'mithril_ore', name: 'Mithril Ore', emoji: '✨', weight: 15, qty: [2, 4] },
+        { id: 'dragon_scale_shard', name: 'Dragon Scale Shard', emoji: '🐉', weight: 15, qty: [1, 3] },
+        { id: 'void_shard', name: 'Void Shard', emoji: '🔮', weight: 15, qty: [1, 3] },
+        { id: 'arcane_dust', name: 'Arcane Dust', emoji: '🌟', weight: 20, qty: [3, 6] },
+        { id: 'shadow_essence', name: 'Shadow Essence', emoji: '👁️', weight: 10, qty: [1, 2] },
+        { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 5, qty: [1, 2] }
+    ],
+    gear: [
+        { quality: 'common', chance: 0.30, level: 1 },
+        { quality: 'rare', chance: 0.10, level: 1 },
+        { quality: 'epic', chance: 0.03, level: 1 }
+    ],
+    goldRange: [500, 2000],
+    gemChance: 0.05,
+    gemRange: [1, 3]
+};
 
 // GET /banner/current - Get active banner
 router.get('/current', async (req, res) => {
@@ -266,34 +305,30 @@ router.post('/pull', async (req, res) => {
         }
         
         if (won) {
-            console.log('🎴 WON! Saving items to inventory for user:', req.user.userId);
+            console.log('🎴 WON! Saving full banner set to inventory for user:', req.user.userId);
             await dbRun(db,
                 `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1, pull_count = 0, total_pulls = total_pulls WHERE user_id = ? AND banner_id = ?`,
                 [req.user.userId, banner.id]
             );
             
-            // Get character id
             const charRow = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
-            console.log('🎴 Character row:', charRow);
             if (charRow) {
-                console.log('🎴 Loot table items:', banner.loot_table.length);
-                // Add all loot table items to inventory
                 for (const item of banner.loot_table) {
-                    const itemWithStats = {
+                    const fullItem = {
                         ...item,
-                        stats: generateBannerItemStats(item, char.level)
+                        type: 'equipment',
+                        stackable: false,
+                        qty: 1,
+                        rarity: 'legendary'
                     };
-                    console.log('🎴 Saving item:', item.name);
-                    await dbRun(db,
-                        `INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, 'equipment', ?)`,
-                        [charRow.id, JSON.stringify(itemWithStats)]
-                    );
+                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
+                        [charRow.id, 'equipment', JSON.stringify(fullItem)]);
                 }
-                console.log('🎴 All items saved!');
             }
         }
         
-        const items = rollBannerLoot(banner, char.level, won);
+        const loot = generateBannerLoot(char.level);
+        await saveLootToInventory(db, char.id, loot);
         let newStats;
         try {
             newStats = await getPlayerBannerStats(db, req.user.userId, banner.id);
@@ -303,9 +338,11 @@ router.post('/pull', async (req, res) => {
         
         res.json({
             won,
-            items,
+            items: loot.items,
             wonItems: won ? banner.loot_table : [],
             gems: gemsAfter,
+            goldFound: loot.gold,
+            gemsFound: loot.gems,
             stats: {
                 pullCount: newStats.pullCount,
                 totalPulls: newStats.totalPulls,
