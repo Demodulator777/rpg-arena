@@ -5488,7 +5488,7 @@ async function doBannerPull() {
             <div class="event-items-grid">${itemsHtml}</div>
             ${bonusHtml.length > 0 ? `<div class="event-bonus-rewards">${bonusHtml.join(' · ')}</div>` : ''}
             <div class="event-new-stats">
-                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: 0/10 · Odds: 0.1% · 💎 ${data.gems.toLocaleString()}
+                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: ${data.stats.effectivePulls}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()}
             </div>
         `;
         
