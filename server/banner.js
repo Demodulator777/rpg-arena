@@ -250,24 +250,27 @@ router.post('/pull', async (req, res) => {
         const gemsAfter = char.gems - BANNER_COST_GEMS;
         await dbRun(db, `UPDATE characters SET gems = ? WHERE user_id = ?`, [gemsAfter, req.user.userId]);
         
-        await dbRun(db,
-            `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [req.user.userId, banner.id, newPullCount, newTotalPulls, stats.carryPulls, won ? 1 : 0]
-        );
+        // Update or insert player banner stats
+        const existing = await dbGet(db, `SELECT id FROM player_banner_pulls WHERE user_id = ? AND banner_id = ?`, [req.user.userId, banner.id]);
         
-        // Update if exists
-        await dbRun(db,
-            `UPDATE player_banner_pulls SET
-             pull_count = pull_count + 1,
-             total_pulls = total_pulls + 1,
-             won = CASE WHEN won = 1 THEN 1 ELSE ? END
-             WHERE user_id = ? AND banner_id = ?`,
-            [won ? 1 : 0, req.user.userId, banner.id]
-        );
+        if (existing) {
+            await dbRun(db,
+                `UPDATE player_banner_pulls SET pull_count = pull_count + 1, total_pulls = total_pulls + 1, won = CASE WHEN won = 1 THEN 1 ELSE ? END WHERE user_id = ? AND banner_id = ?`,
+                [won ? 1 : 0, req.user.userId, banner.id]
+            );
+        } else {
+            await dbRun(db,
+                `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won) VALUES (?, ?, ?, ?, ?, ?)`,
+                [req.user.userId, banner.id, newPullCount, newTotalPulls, 0, won ? 1 : 0]
+            );
+        }
         
-        if (won) {
-            // Insert or update to reset carry_pulls and set won
+if (won) {
+            await dbRun(db,
+                `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1 WHERE user_id = ? AND banner_id = ?`,
+                [req.user.userId, banner.id]
+            );
+            
             await dbRun(db,
                 `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won)
                  VALUES (?, ?, ?, ?, ?, ?)`,
