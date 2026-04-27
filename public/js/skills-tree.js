@@ -242,13 +242,13 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
 let displayDesc = sk.desc;
 let displayEmoji = sk.emoji || '⚔️';
 
-// Only show ??? if locked AND not learned AND not training
-if (locked && !learned && !training) {
-    displayName = '???';
-    displayDesc = 'Unknown skill. Train previous skills to discover.';
-    displayEmoji = '❓';
+// Show skill info - for locked skills show unlock condition 
+if (locked && !learned && !training && sk.unlockConditionDesc) {
+    displayName = '🔒 ' + displayName;
+    displayDesc = sk.unlockConditionDesc + ' — ' + displayDesc;
 }
-    const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) : '';
+
+const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) : '';
 
     let progressHtml = '';
     if (training && activeTraining) {
