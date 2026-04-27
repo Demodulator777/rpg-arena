@@ -293,9 +293,9 @@ function getShortestPath(from, to) {
 
 // ── API ───────────────────────────────────────────────────────────────────
 async function api(method, path, body=null) {
-    // Don't add /api prefix for skills routes
+    // Don't add /api prefix for skills and banner routes
     let fullUrl;
-    if (path.startsWith('/skills')) {
+    if (path.startsWith('/skills') || path.startsWith('/banner')) {
         fullUrl = path;
     } else {
         fullUrl = `/api${path}`;
