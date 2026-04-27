@@ -164,14 +164,14 @@ function rollBannerLoot(banner, playerLevel, won = false) {
         if (won && i === 0) {
             const guaranteed = banner.loot_table[Math.floor(Math.random() * banner.loot_table.length)];
             const itemStats = generateBannerItemStats(guaranteed, playerLevel);
-            items.push({ ...guaranteed, stats: itemStats, guaranteed: true });
+            items.push({ ...guaranteed, stats: itemStats, guaranteed: true, rarity: guaranteed.rarity });
         } else if (roll < 0.01) {
             const bannerItem = banner.loot_table[Math.floor(Math.random() * banner.loot_table.length)];
             const itemStats = generateBannerItemStats(bannerItem, playerLevel);
-            items.push({ ...bannerItem, stats: itemStats });
-        } else if (roll < 0.20) {
+            items.push({ ...bannerItem, stats: itemStats, rarity: bannerItem.rarity });
+        } else if (roll < 0.30) {
             items.push({ type: 'gold', amount: Math.floor(Math.random() * 5000) + 1000, rarity: 'common' });
-        } else if (roll < 0.50) {
+        } else if (roll < 0.60) {
             items.push({ type: 'gold', amount: Math.floor(Math.random() * 2000) + 500, rarity: 'common' });
         } else {
             items.push({ type: 'dust', amount: Math.floor(Math.random() * 100) + 50, rarity: 'common' });
@@ -288,9 +288,8 @@ router.post('/pull', async (req, res) => {
             }
         }
         
-        const items = rollBannerLoot(banner, char.level, won);
-        const newStats = await getPlayerBannerStats(db, req.user.userId, banner.id);
-        const newEffectivePulls = (newStats.carryPulls || 0) + newStats.pullCount;
+const items = rollBannerLoot(banner, char.level, won);
+        console.log('Roll result:', items);
         
         res.json({
             won,
