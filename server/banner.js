@@ -272,7 +272,7 @@ router.post('/pull', async (req, res) => {
         }
         
         const char = await dbGet(db,
-            `SELECT level, gems FROM characters WHERE user_id = ?`,
+            `SELECT id, level, gems FROM characters WHERE user_id = ?`,
             [req.user.userId]
         );
         if (!char || char.gems < BANNER_COST_GEMS) {
@@ -311,8 +311,7 @@ router.post('/pull', async (req, res) => {
                 [req.user.userId, banner.id]
             );
             
-            const charRow = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
-            if (charRow) {
+            if (char) {
                 for (const item of banner.loot_table) {
                     const fullItem = {
                         ...item,
@@ -322,7 +321,7 @@ router.post('/pull', async (req, res) => {
                         rarity: 'legendary'
                     };
                     await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
-                        [charRow.id, 'equipment', JSON.stringify(fullItem)]);
+                        [char.id, 'equipment', JSON.stringify(fullItem)]);
                 }
             }
         }
