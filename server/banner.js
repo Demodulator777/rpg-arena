@@ -391,8 +391,8 @@ if (char) {
                 pullCount: newStats.pullCount,
                 totalPulls: newStats.totalPulls,
                 carryPulls: newStats.carryPulls,
-                effectivePulls: 0,
-                currentOdds: getBannerOdds(0),
+                effectivePulls: (newStats.carryPulls || 0) + newStats.pullCount,
+                currentOdds: getBannerOdds((newStats.carryPulls || 0) + newStats.pullCount),
                 won: newStats.won,
             },
         });
