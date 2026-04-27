@@ -5914,9 +5914,11 @@ function renderLeaderboard() {
         const rs=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
         // REMOVE the fallback - only use total_gold_earned
         const totalEarned = p.total_gold_earned || 0;
+        const profilePic = p.profile_pic;
+        const lbImg = profilePic ? `/images/class/${profilePic}` : `/images/class/${p.class}.png`;
         return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
-            <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-error-hide="true">
+            <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
             <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
@@ -7427,6 +7429,16 @@ document.addEventListener('error', (event) => {
     }
     if (target.dataset.errorNextDisplay && target.nextElementSibling) {
         target.nextElementSibling.style.display = target.dataset.errorNextDisplay;
+    }
+    // Handle leaderboard class image fallback - only if profile_pic is null/undefined
+    if (target.classList.contains('lb-class-img')) {
+        const profilePic = target.dataset.profilePic;
+        if (!profilePic || profilePic === 'null' || profilePic === 'undefined') {
+            const defaultClass = target.dataset.class;
+            if (defaultClass) {
+                target.src = `/images/class/${defaultClass}.png`;
+            }
+        }
     }
 }, true);
 
