@@ -4657,7 +4657,15 @@ async function buildCharacterResponse(char, db) {
     const dailyMpSpent = (char.daily_mp_reset_at || 0) >= todayStart2 ? (char.daily_mp_spent || 0) : 0;
     const skillsUnlocked = dailyMpSpent >= MP_SKILL_UNLOCK;
     const activeEvent = getActiveEvent();
-    const eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
+    let eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
+    try {
+        const db = await getDb();
+        const bannerRows = await db.execute({ sql: `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`, args: [now, now] });
+        if (bannerRows.rows.length > 0) {
+            const b = bannerRows.rows[0];
+            eventInfo = { key: 'banner', name: b.name, desc: `Banner event: ${b.name}`, ends_at: b.end_at, isBanner: true };
+        }
+    } catch (e) { console.error('banner check:', e); }
 
     const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
