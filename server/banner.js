@@ -85,7 +85,7 @@ function getBannerOdds(pullCount) {
 async function getActiveBanner(db) {
     const now = Math.floor(Date.now() / 1000);
     const banner = await dbGet(db,
-        `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`,
+        `SELECT id, name, image, start_at, end_at, loot_table FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`,
         [now, now]
     );
     if (!banner) return null;
@@ -265,17 +265,7 @@ router.post('/pull', async (req, res) => {
             );
         }
         
-if (won) {
-            await dbRun(db,
-                `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1 WHERE user_id = ? AND banner_id = ?`,
-                [req.user.userId, banner.id]
-            );
-            
-            await dbRun(db,
-                `INSERT INTO player_banner_pulls (user_id, banner_id, pull_count, total_pulls, carry_pulls, won)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
-                [req.user.userId, banner.id, newPullCount, newTotalPulls, 0, 1]
-            );
+        if (won) {
             await dbRun(db,
                 `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1 WHERE user_id = ? AND banner_id = ?`,
                 [req.user.userId, banner.id]
@@ -413,8 +403,9 @@ adminRouter.post('/create', async (req, res) => {
             [name, image || null, start_at, end_at, lootJson]
         );
         
-        const banner = await dbGet(db, `SELECT * FROM banner_events WHERE id = ?`, [result.lastInsertRowid]);
-        res.json({ success: true, banner });
+        // Get inserted banner - use max id since lastInsertRowid may not work
+        const inserted = await dbGet(db, `SELECT id, name, image, start_at, end_at, loot_table FROM banner_events WHERE name = ? ORDER BY id DESC LIMIT 1`, [name]);
+        res.json({ success: true, banner: inserted });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
