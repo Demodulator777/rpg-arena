@@ -52,9 +52,9 @@ getDb().then(async (db) => {
   app.use('/skills', auth, skillsModule.router);
   
   // Mount banner router with auth middleware
-  const { router: bannerRouter, seedDefaultBanner } = require('./banner');
+  const { router: bannerRouter, admin: adminRouter, seedDefaultBanner } = require('./banner');
   app.use('/banner', auth, bannerRouter);
-  app.use('/admin/banner', bannerRouter.admin);
+  app.use('/admin/banner', adminRouter);
   
   // Static files - AFTER API routes
   app.use(express.static(path.join(__dirname, '../public')));
