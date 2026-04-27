@@ -5466,14 +5466,16 @@ async function doBannerPull() {
         }
         
         const itemsHtml = data.items.map(item => {
-            if (item.type === 'gold') {
-                return `<div class="event-item event-item-${item.rarity}">💰 ${item.amount.toLocaleString()} Gold</div>`;
-            } else if (item.type === 'dust') {
-                return `<div class="event-item event-item-${item.rarity}">✨ ${item.amount} Dust</div>`;
+            if (item.type === 'raw_mat') {
+                return `<div class="event-item event-item-${item.rarity || 'common'}">${item.emoji || '📦'} ${item.qty}x ${item.name}</div>`;
             } else {
-                return `<div class="event-item event-item-${item.rarity}">${item.guaranteed ? '🌟 ' : ''}${escHtml(item.name || 'Item')}</div>`;
+                return `<div class="event-item event-item-${item.rarity || 'common'}">${item.emoji || '🎁'} ${item.name}</div>`;
             }
         }).join('');
+        
+        const bonusHtml = [];
+        if (data.goldFound > 0) bonusHtml.push(`💰 +${data.goldFound.toLocaleString()} Gold`);
+        if (data.gemsFound > 0) bonusHtml.push(`💎 +${data.gemsFound} Gems`);
         
         // Add won items to display
         const wonItemsHtml = data.wonItems ? data.wonItems.map(item => 
@@ -5484,6 +5486,7 @@ async function doBannerPull() {
             <div class="event-result-won ${data.won ? 'won' : ''}">${data.won ? '🎴 BANNER SET WON!' : ''}</div>
             ${wonItemsHtml ? `<div class="event-items-grid">${wonItemsHtml}</div>` : ''}
             <div class="event-items-grid">${itemsHtml}</div>
+            ${bonusHtml.length > 0 ? `<div class="event-bonus-rewards">${bonusHtml.join(' · ')}</div>` : ''}
             <div class="event-new-stats">
                 ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: 0/10 · Odds: 0.1% · 💎 ${data.gems.toLocaleString()}
             </div>
@@ -5491,9 +5494,6 @@ async function doBannerPull() {
         
 character.gems = data.gems;
         renderTopBar();
-        
-        // Reload banner to update pity counter
-        await loadBannerEvent();
     } catch (e) {
         results.innerHTML = `<div style="color:var(--red-light);padding:10px;text-align:center;">${escHtml(e.message || 'Pull failed')}</div>`;
     }
