@@ -271,20 +271,21 @@ router.post('/pull', async (req, res) => {
                 [req.user.userId, banner.id]
             );
             
-            await dbRun(db,
-                `INSERT INTO inbox_messages (user_id, char_id, sender_name, subject, message_text, reward_json, created_at)
-                 VALUES (?, NULL, 'Event Banner', 'Banner Set Won!', ?, ?, ?, ?)`,
-                [
-                    req.user.userId,
-                    `You won the ${banner.name} set!`,
-                    JSON.stringify({ bannerName: banner.name, playerLevel: char.level }),
-                    JSON.stringify(banner.loot_table.map(item => ({
+            // Get character id
+            const charRow = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
+            if (charRow) {
+                // Add all loot table items to inventory
+                for (const item of banner.loot_table) {
+                    const itemWithStats = {
                         ...item,
                         stats: generateBannerItemStats(item, char.level)
-                    }))),
-                    Math.floor(Date.now() / 1000),
-                ]
-            );
+                    };
+                    await dbRun(db,
+                        `INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, 'equipment', ?)`,
+                        [charRow.id, JSON.stringify(itemWithStats)]
+                    );
+                }
+            }
         }
         
         const items = rollBannerLoot(banner, char.level, won);
