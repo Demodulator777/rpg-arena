@@ -5494,6 +5494,17 @@ async function doBannerPull() {
         
 character.gems = data.gems;
         renderTopBar();
+        
+        const pityProgress = data.stats.effectivePulls;
+        const pityEl = document.querySelector('.event-pity-header span:last-child');
+        const pityBar = document.querySelector('.event-pity-fill');
+        const pityOdds = document.querySelector('.event-pity-odds');
+        if (pityEl) pityEl.textContent = `${pityProgress}/10 pulls`;
+        if (pityBar) pityBar.style.width = `${Math.min(100, pityProgress * 10)}%`;
+        if (pityOdds) {
+            const oddsPct = (data.stats.currentOdds * 100).toFixed(1);
+            pityOdds.innerHTML = `<span>Current odds: <strong>${oddsPct}%</strong></span>`;
+        }
     } catch (e) {
         results.innerHTML = `<div style="color:var(--red-light);padding:10px;text-align:center;">${escHtml(e.message || 'Pull failed')}</div>`;
     }
