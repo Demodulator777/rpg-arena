@@ -251,7 +251,7 @@ router.post('/pull', async (req, res) => {
         await dbRun(db, `UPDATE characters SET gems = ? WHERE user_id = ?`, [gemsAfter, req.user.userId]);
         
         // Update or insert player banner stats
-        const existing = await dbGet(db, `SELECT id FROM player_banner_pulls WHERE user_id = ? AND banner_id = ?`, [req.user.userId, banner.id]);
+        const existing = await dbGet(db, `SELECT 1 FROM player_banner_pulls WHERE user_id = ? AND banner_id = ?`, [req.user.userId, banner.id]);
         
         if (existing) {
             await dbRun(db,
