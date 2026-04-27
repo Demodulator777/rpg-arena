@@ -8,6 +8,39 @@
 
 .hidden { display: none !important; }
 
+/* Event Banner Styles */
+.event-content { padding: 16px; }
+.event-no-banner { text-align: center; padding: 40px; }
+.event-no-banner-icon { font-size: 3rem; margin-bottom: 12px; }
+.event-no-banner-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+.event-no-banner-desc { color: rgba(255,255,255, 0.5); }
+.event-banner-card { max-width: 400px; margin: 0 auto; }
+.event-pity-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+.event-pity-header { display: flex; justify-content: space-between; font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
+.event-pity-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.event-pity-fill { height: 100%; background: linear-gradient(90deg, #9b59b6, #8e44ad); border-radius: 4px; transition: width 0.3s; }
+.event-pity-odds { display: flex; justify-content: space-between; font-size: 0.75rem; }
+.event-pity-odds strong { color: #f1c40f; }
+.event-odds-table { margin-bottom: 20px; }
+.event-odds-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.8rem; }
+.event-odds-row.event-guaranteed { background: rgba(241,196,15,0.1); color: #f1c40f; font-weight: 700; }
+.event-pull-section { text-align: center; margin-bottom: 20px; }
+.event-pull-cost { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; font-size: 0.85rem; }
+.event-cost-value { color: #3498db; font-weight: 600; }
+.event-pull-btn { padding: 12px 32px; font-size: 1rem; border-radius: 8px; }
+.event-results { margin-top: 16px; }
+.event-result-won { text-align: center; font-size: 1.2rem; font-weight: 700; color: #f1c40f; padding: 12px; background: rgba(241,196,15,0.1); border-radius: 8px; margin-bottom: 12px; }
+.event-result-won.won { animation: glow-pulse 1s ease-in-out infinite; }
+@keyframes glow-pulse { 0%, 100% { box-shadow: 0 0 10px rgba(241,196,15,0.3); } 50% { box-shadow: 0 0 20px rgba(241,196,15,0.6); } }
+.event-items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.event-item { text-align: center; padding: 10px; border-radius: 6px; font-size: 0.75rem; background: rgba(255,255,255,0.05); }
+.event-item.common { border: 1px solid rgba(255,255,255,0.1); }
+.event-item.uncommon { border: 1px solid rgba(46,204,113,0.4); color: #2ecc71; }
+.event-item.rare { border: 1px solid rgba(52,152,219,0.4); color: #3498db; }
+.event-item.epic { border: 1px solid rgba(155,89,182,0.4); color: #9b59b6; }
+.event-item.legendary { border: 1px solid rgba(241,196,15,0.4); color: #f1c40f; }
+.event-new-stats { text-align: center; font-size: 0.7rem; color: rgba(255,255,255,0.4); }
+
 /* Assistant */
 .assistant-notification {
     position: fixed;
