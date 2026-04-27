@@ -266,6 +266,7 @@ router.post('/pull', async (req, res) => {
         }
         
         if (won) {
+            console.log('🎴 WON! Saving items to inventory for user:', req.user.userId);
             await dbRun(db,
                 `UPDATE player_banner_pulls SET carry_pulls = 0, won = 1, pull_count = 0, total_pulls = total_pulls WHERE user_id = ? AND banner_id = ?`,
                 [req.user.userId, banner.id]
@@ -273,18 +274,22 @@ router.post('/pull', async (req, res) => {
             
             // Get character id
             const charRow = await dbGet(db, `SELECT id FROM characters WHERE user_id = ?`, [req.user.userId]);
+            console.log('🎴 Character row:', charRow);
             if (charRow) {
+                console.log('🎴 Loot table items:', banner.loot_table.length);
                 // Add all loot table items to inventory
                 for (const item of banner.loot_table) {
                     const itemWithStats = {
                         ...item,
                         stats: generateBannerItemStats(item, char.level)
                     };
+                    console.log('🎴 Saving item:', item.name);
                     await dbRun(db,
                         `INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, 'equipment', ?)`,
                         [charRow.id, JSON.stringify(itemWithStats)]
                     );
                 }
+                console.log('🎴 All items saved!');
             }
         }
         
