@@ -6962,8 +6962,11 @@ router.get('/leaderboard', auth, async (req, res) => {
         const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
         const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,
+            u.profile_pic,
             (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
-            FROM characters c ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
+            FROM characters c 
+            LEFT JOIN users u ON c.user_id = u.id
+            ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         res.json(players.map((p,i) => ({ ...p, rank:i+1 })));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -6995,6 +6998,9 @@ router.get('/player/:id', auth, async (req, res) => {
 
         const equipped = await getEquippedItems(db, player.id);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
+        
+        const userSettings = await dbGet(db, 'SELECT profile_pic FROM users WHERE id = ?', [player.user_id]);
+        
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
@@ -7009,6 +7015,7 @@ router.get('/player/:id', auth, async (req, res) => {
             dungeon_highest_floor: player.dungeon_highest_floor || 0,
             achievements_completed: achievementCountRow?.count || 0,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
+            profile_pic: userSettings?.profile_pic || `${player.class}.png`,
             globalCooldown, perTargetCooldown, hpLow, equipped,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
         });
