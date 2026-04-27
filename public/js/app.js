@@ -461,7 +461,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeTopbarMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -581,7 +581,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeTopbarMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -818,7 +818,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">Live Status</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" ${character?.active_event?.isBanner ? 'onclick="showTab(\'event\');closeTopbarMenu()" style="cursor:pointer"' : ''}>${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">Skill Unlock</div>
@@ -5366,6 +5366,7 @@ function renderShopContent() {
 
 // ── Banner Event ──────────────────────────────────────────────────────────────
 async function loadBannerEvent() {
+    console.log('loadBannerEvent called');
     const content = document.getElementById('event-content');
     if (!content) return;
     
@@ -5373,7 +5374,6 @@ async function loadBannerEvent() {
     
     try {
         const data = await api('GET', '/banner/current');
-        console.log('Banner data:', data);
         
         if (!data.active) {
             content.innerHTML = `
@@ -5387,7 +5387,10 @@ async function loadBannerEvent() {
         }
         
         const { banner, stats } = data;
-        console.log('Banner:', banner, 'Stats:', stats);
+        if (!banner) {
+            content.innerHTML = '<p style="color:red">Banner data missing</p>';
+            return;
+        }
         const oddsPct = (stats.currentOdds * 100).toFixed(1);
         const nextOddsPct = stats.nextOddsUp ? (stats.nextOddsUp * 100).toFixed(1) : null;
         const pityProgress = stats.effectivePulls;
@@ -8450,13 +8453,14 @@ async function exchangeFragmentForMaterial(materialId, quantity) {
     try {
         const result = await api('POST', '/game/exchange/fragments', { materialId, quantity });
         showMsg('inv-msg', result.message);
-        loadInventory(); // Refresh inventory
+        loadInventory();
         renderTopBar();
         if (typeof renderCharacter === 'function') renderCharacter();
     } catch (e) {
         showMsg('inv-msg', e.message, true);
     }
 }
+
 async function exitAbyss() {
     try {
         const result = await api('POST', '/game/travel/abyss/exit', {});
@@ -8541,4 +8545,3 @@ function renderAbyssMap() {
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
-
