@@ -6,26 +6,28 @@
 <title>Banner Admin</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#eee;padding:20px}
+body{font:16px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#eee;padding:20px;max-width:800px}
 h1{color:#f1c40f;margin-bottom:20px}
-.btn{padding:8px 16px;border:none;border-radius:4px;cursor:pointer;font-size:14px}
+h2{color:#3498db;margin:30px 0 15px}
+.btn{padding:10px 20px;border:none;border-radius:4px;cursor:pointer;font-size:14px;margin-right:10px}
 .btn-primary{background:#3498db;color:#fff}
 .btn-danger{background:#e74c3c;color:#fff}
 .btn-success{background:#27ae60;color:#fff}
+.btn-secondary{background:#555;color:#fff}
 .btn:disabled{opacity:0.5;cursor:not-allowed}
-input,select{padding:8px;border-radius:4px;border:1px solid #444;background:#2c2c4a;color:#fff;font-size:14px}
-table{border-collapse:collapse;width:100%;margin-top:20px}
-th,td{padding:12px;text-align:left;border-bottom:1px solid #333}
-th{background:#2c2c4a}
-.status-active{color:#27ae60}
-.status-inactive{color:#e74c3c}
-.form-group{margin-bottom:15px}
-.form-group label{display:block;margin-bottom:5px}
-.form-group input,.form-group textarea{width:100%;max-width:400px}
-textarea{height:100px;padding:8px;border-radius:4px;border:1px solid #444;background:#2c2c4a;color:#fff;font-size:14px;font-family:monospace}
-#message{padding:10px;border-radius:4px;margin-bottom:20px;display:none}
+.banner-card{background:#2c2c4a;padding:20px;border-radius:8px;margin-bottom:15px}
+.banner-card.active{border:2px solid #27ae60}
+.banner-card.inactive{border:2px solid #555}
+.banner-name{font-size:18px;font-weight:bold;color:#f1c40f;margin-bottom:5px}
+.banner-dates{color:#888;font-size:13px}
+.banner-status{font-size:14px;margin-top:10px}
+.banner-status.active{color:#27ae60}
+.banner-status.inactive{color:#e74c3c}
+.actions{margin-top:15px}
+#message{padding:12px;border-radius:4px;margin-bottom:20px;display:none}
 #message.success{background:#27ae60;display:block}
 #message.error{background:#e74c3c;display:block}
+.now{color:#f39c12;font-weight:bold}
 </style>
 </head>
 <body>
@@ -33,98 +35,156 @@ textarea{height:100px;padding:8px;border-radius:4px;border:1px solid #444;backgr
 <div id="message"></div>
 
 <h2>Current Banner</h2>
-<div id="current-banner">
-<button class="btn btn-primary" onclick="loadBanners()">Refresh</button>
-</div>
+<div id="current"></div>
 
 <h2>All Banners</h2>
-<table id="banners-table">
-<thead><tr><th>ID</th><th>Name</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
-<tbody></tbody>
-</table>
+<div id="banners"></div>
+
+<h2>Quick Actions</h2>
+<button class="btn btn-success" onclick="activateSpiteforged()">Activate Spiteforged (7 days)</button>
+<button class="btn btn-danger" onclick="deactivateAll()">Deactivate All</button>
+<button class="btn btn-primary" onclick="loadBanners()">Refresh</button>
 
 <h2>Create New Banner</h2>
-<form id="create-form">
+<div class="banner-card">
 <div class="form-group">
-<label>Name</label>
-<input type="text" name="name" required placeholder="Banner Name">
+<label>Banner Name</label><br>
+<input type="text" id="new-name" value="Spiteforged Banner" style="width:300px">
 </div>
 <div class="form-group">
-<label>Image Key</label>
-<input type="text" name="image" placeholder="spiteforged">
+<label>Duration</label><br>
+<select id="new-duration" style="width:300px">
+<option value="1">1 Day</option>
+<option value="3">3 Days</option>
+<option value="7" selected>7 Days</option>
+<option value="14">14 Days</option>
+<option value="30">30 Days</option>
+</select>
 </div>
-<div class="form-group">
-<label>Start (Unix timestamp)</label>
-<input type="number" name="start_at" required>
+<button class="btn btn-primary" onclick="createBanner()">Create & Activate</button>
 </div>
-<div class="form-group">
-<label>End (Unix timestamp)</label>
-<input type="number" name="end_at" required>
-</div>
-<div class="form-group">
-<label>Loot Table (JSON)</label>
-<textarea name="loot_table" placeholder='[{"id":"item1","name":"Item","type":"weapon","rarity":"legendary"}]'></textarea>
-</div>
-<button type="submit" class="btn btn-primary">Create Banner</button>
-</form>
 
 <script>
-const API = '/admin/banner';
-let adminKey = '';
+const SPITEFORGED_LOOT = [
+    { id: 'spiteforged_weapon', name: 'Spiteforged Trident', type: 'weapon', rarity: 'legendary' },
+    { id: 'spiteforged_armor', name: 'Carapace of Last Refrains', type: 'armor', rarity: 'legendary' },
+    { id: 'spiteforged_helmet', name: 'Crown of Scornful Gaze', type: 'helmet', rarity: 'legendary' },
+    { id: 'spiteforged_shield', name: 'Bulwark of Denied Mercy', type: 'shield', rarity: 'legendary' },
+    { id: 'spiteforged_boots', name: 'Treads of the Unforgiving', type: 'boots', rarity: 'legendary' },
+];
+
+const LOOT_SETS = {
+    'spiteforged': { name: 'Spiteforged', loot: SPITEFORGED_LOOT }
+};
+
 function getKey() {
-    const params = new URLSearchParams(location.search);
-    return params.get('key') || '';
+    return new URLSearchParams(location.search).get('key') || '';
 }
 async function api(method, path, body) {
-    const url = API + path + (path.includes('?') ? '&' : '?') + 'key=' + getKey();
+    const url = '/admin/banner' + path + (path.includes('?') ? '&' : '?') + 'key=' + getKey();
     const res = await fetch(url, {
         method,
         headers: {'Content-Type': 'application/json'},
         body: body ? JSON.stringify(body) : undefined
     });
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Error');
-    }
+    if (!res.ok) throw new Error((await res.json()).error);
     return res.json();
 }
 function showMsg(msg, isError) {
     const el = document.getElementById('message');
     el.textContent = msg;
     el.className = isError ? 'error' : 'success';
-    setTimeout(() => el.style.display = 'none', 5000);
+    setTimeout(() => el.style.display = 'none', 4000);
 }
-function formatTs(ts) {
-    return new Date(ts * 1000).toLocaleString();
-}
+function now() { return Math.floor(Date.now() / 1000); }
+function formatTs(ts) { return new Date(ts * 1000).toLocaleString(); }
+function days(n) { return n * 24 * 60 * 60; }
+
 async function loadBanners() {
     try {
         const data = await api('GET', '/list');
-        const tbody = document.querySelector('#banners-table tbody');
-        tbody.innerHTML = data.banners.map(b => {
-            const now = Math.floor(Date.now() / 1000);
-            const active = b.start_at <= now && b.end_at > now;
-            return `<tr>
-                <td>${b.id}</td>
-                <td>${b.name}</td>
-                <td>${formatTs(b.start_at)}</td>
-                <td>${formatTs(b.end_at)}</td>
-                <td class="${active ? 'status-active' : 'status-inactive'}">${active ? 'Active' : 'Inactive'}</td>
-                <td>
-                    <button class="btn btn-danger" onclick="deleteBanner(${b.id})">Delete</button>
-                </td>
-            </tr>`;
-        }).join('');
-        document.getElementById('current-banner').innerHTML = data.banners.find(b => {
-            const now = Math.floor(Date.now() / 1000);
-            return b.start_at <= now && b.end_at > now;
-        }) ? `<div class="status-active">Banner is ACTIVE</div>` : `<div class="status-inactive">No active banner</div>`;
+        const banners = data.banners || [];
+        const current = banners.find(b => b.start_at <= now() && b.end_at > now());
+        
+        document.getElementById('current').innerHTML = current ? `
+            <div class="banner-card active">
+                <div class="banner-name">${current.name}</div>
+                <div class="banner-dates">Ends: ${formatTs(current.end_at)}</div>
+                <div class="banner-status active">ACTIVE</div>
+            </div>
+        ` : '<div class="banner-card"><div class="banner-status inactive">No active banner</div></div>';
+        
+        document.getElementById('banners').innerHTML = banners.map(b => {
+            const active = b.start_at <= now() && b.end_at > now();
+            return `<div class="banner-card ${active ? 'active' : 'inactive'}">
+                <div class="banner-name">${b.name}</div>
+                <div class="banner-dates">${formatTs(b.start_at)} - ${formatTs(b.end_at)}</div>
+                <div class="banner-status ${active ? 'active' : 'inactive'}">${active ? 'ACTIVE' : 'Inactive'}</div>
+                <div class="actions">
+                    ${active ? '<button class="btn btn-danger" onclick="deactivate(' + b.id + ')">Deactivate</button>' : '<button class="btn btn-success" onclick="activate(' + b.id + ')">Activate</button>'}
+                    <button class="btn btn-secondary" onclick="deleteBanner(' + b.id + ')">Delete</button>
+                </div>
+            </div>`;
+        }).join('') || '<p>No banners yet</p>';
     } catch (e) {
         showMsg(e.message, true);
     }
 }
+
+async function createBanner() {
+    const name = document.getElementById('new-name').value;
+    const duration = parseInt(document.getElementById('new-duration').value);
+    const start = now();
+    const end = start + days(duration);
+    
+    try {
+        await api('POST', '/create', { name, image: 'spiteforged', start_at: start, end_at: end, loot_table: SPITEFORGED_LOOT });
+        showMsg('Created ' + name, false);
+        loadBanners();
+    } catch (e) {
+        showMsg(e.message, true);
+    }
+}
+
+async function activate(id) {
+    const start = now();
+    const end = start + days(7);
+    try {
+        await api('PUT', '/' + id, { start_at: start, end_at: end });
+        showMsg('Activated', false);
+        loadBanners();
+    } catch (e) {
+        showMsg(e.message, true);
+    }
+}
+
+async function deactivate(id) {
+    const start = now() - days(1);
+    try {
+        await api('PUT', '/' + id, { end_at: start });
+        showMsg('Deactivated', false);
+        loadBanners();
+    } catch (e) {
+        showMsg(e.message, true);
+    }
+}
+
+async function deactivateAll() {
+    try {
+        const data = await api('GET', '/list');
+        for (const b of data.banners) {
+            const active = b.start_at <= now() && b.end_at > now();
+            if (active) await api('PUT', '/' + b.id, { end_at: now() - 1 });
+        }
+        showMsg('All deactivated', false);
+        loadBanners();
+    } catch (e) {
+        showMsg(e.message, true);
+    }
+}
+
 async function deleteBanner(id) {
-    if (!confirm('Delete banner ' + id + '?')) return;
+    if (!confirm('Delete banner #' + id + '?')) return;
     try {
         await api('DELETE', '/' + id);
         showMsg('Deleted', false);
@@ -133,25 +193,28 @@ async function deleteBanner(id) {
         showMsg(e.message, true);
     }
 }
-document.getElementById('create-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = {
-        name: fd.get('name'),
-        image: fd.get('image') || null,
-        start_at: parseInt(fd.get('start_at')),
-        end_at: parseInt(fd.get('end_at')),
-        loot_table: fd.get('loot_table') ? JSON.parse(fd.get('loot_table')) : []
-    };
+
+async function activateSpiteforged() {
     try {
-        await api('POST', '/create', data);
-        showMsg('Created', false);
-        e.target.reset();
+        const data = await api('GET', '/list');
+        const existing = data.banners.find(b => b.name?.toLowerCase().includes('spiteforged'));
+        if (existing) {
+            const start = now();
+            const end = start + days(7);
+            await api('PUT', '/' + existing.id, { start_at: start, end_at: end });
+            showMsg('Spiteforged activated for 7 days', false);
+        } else {
+            const start = now();
+            const end = start + days(7);
+            await api('POST', '/create', { name: 'Spiteforged Banner', image: 'spiteforged', start_at: start, end_at: end, loot_table: SPITEFORGED_LOOT });
+            showMsg('Spiteforged banner created', false);
+        }
         loadBanners();
     } catch (e) {
         showMsg(e.message, true);
     }
-};
+}
+
 loadBanners();
 </script>
 </body>
