@@ -156,9 +156,6 @@ async function getAllPlayerBannerStats(db, userId) {
 }
 
 function rollBannerLoot(banner, playerLevel, won = false) {
-    console.log('rollBannerLoot called with banner:', banner);
-    console.log('banner.loot_table:', banner.loot_table);
-    
     const items = [];
     const itemCount = PULLS_PER_PURCHASE;
     
@@ -186,10 +183,8 @@ function rollBannerLoot(banner, playerLevel, won = false) {
 // GET /banner/current - Get active banner
 router.get('/current', async (req, res) => {
     try {
-        console.log('[banner/current] Called by user:', req.user?.userId);
         const db = await getDb();
         const banner = await getActiveBanner(db);
-        console.log('[banner/current] Active banner:', banner);
         if (!banner) {
             return res.json({ active: false, banner: null });
         }
