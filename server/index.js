@@ -51,6 +51,11 @@ getDb().then(async (db) => {
   // Mount skills router with auth middleware
   app.use('/skills', auth, skillsModule.router);
   
+  // Admin pages (must be before API router for the HTML route)
+  app.get('/admin/banner', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin/banner.html'));
+  });
+  
   // Mount banner router with auth middleware
   const { router: bannerRouter, admin: adminRouter, seedDefaultBanner } = require('./banner');
   app.use('/banner', auth, bannerRouter);
