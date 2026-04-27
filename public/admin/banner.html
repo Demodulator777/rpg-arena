@@ -41,9 +41,11 @@ h2{color:#3498db;margin:30px 0 15px}
 <div id="banners"></div>
 
 <h2>Quick Actions</h2>
-<button class="btn btn-success" onclick="activateSpiteforged()">Activate Spiteforged (7 days)</button>
-<button class="btn btn-danger" onclick="deactivateAll()">Deactivate All</button>
-<button class="btn btn-primary" onclick="loadBanners()">Refresh</button>
+<div id="actions">
+<button class="btn btn-success" id="btn-spiteforged">Activate Spiteforged (7 days)</button>
+<button class="btn btn-danger" id="btn-deactivate-all">Deactivate All</button>
+<button class="btn btn-primary" id="btn-refresh">Refresh</button>
+</div>
 
 <h2>Create New Banner</h2>
 <div class="banner-card">
@@ -61,7 +63,7 @@ h2{color:#3498db;margin:30px 0 15px}
 <option value="30">30 Days</option>
 </select>
 </div>
-<button class="btn btn-primary" onclick="createBanner()">Create & Activate</button>
+<button class="btn btn-primary" id="btn-create">Create & Activate</button>
 </div>
 
 <script>
@@ -72,10 +74,6 @@ const SPITEFORGED_LOOT = [
     { id: 'spiteforged_shield', name: 'Bulwark of Denied Mercy', type: 'shield', rarity: 'legendary' },
     { id: 'spiteforged_boots', name: 'Treads of the Unforgiving', type: 'boots', rarity: 'legendary' },
 ];
-
-const LOOT_SETS = {
-    'spiteforged': { name: 'Spiteforged', loot: SPITEFORGED_LOOT }
-};
 
 function getKey() {
     return new URLSearchParams(location.search).get('key') || '';
@@ -116,16 +114,30 @@ async function loadBanners() {
         
         document.getElementById('banners').innerHTML = banners.map(b => {
             const active = b.start_at <= now() && b.end_at > now();
-            return `<div class="banner-card ${active ? 'active' : 'inactive'}">
+            const id = b.id;
+            const card = document.createElement('div');
+            card.className = 'banner-card ' + (active ? 'active' : 'inactive');
+            card.innerHTML = `
                 <div class="banner-name">${b.name}</div>
                 <div class="banner-dates">${formatTs(b.start_at)} - ${formatTs(b.end_at)}</div>
                 <div class="banner-status ${active ? 'active' : 'inactive'}">${active ? 'ACTIVE' : 'Inactive'}</div>
                 <div class="actions">
-                    ${active ? '<button class="btn btn-danger" onclick="deactivate(' + b.id + ')">Deactivate</button>' : '<button class="btn btn-success" onclick="activate(' + b.id + ')">Activate</button>'}
-                    <button class="btn btn-secondary" onclick="deleteBanner(' + b.id + ')">Delete</button>
+                    <button class="btn ${active ? 'btn-danger' : 'btn-success'}" data-action="${active ? 'deactivate' : 'activate'}" data-id="${id}">${active ? 'Deactivate' : 'Activate'}</button>
+                    <button class="btn btn-secondary" data-action="delete" data-id="${id}">Delete</button>
                 </div>
-            </div>`;
+            `;
+            return card.outerHTML;
         }).join('') || '<p>No banners yet</p>';
+        
+        document.querySelectorAll('#banners [data-action]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action;
+                const id = parseInt(btn.dataset.id);
+                if (action === 'activate') activate(id);
+                else if (action === 'deactivate') deactivate(id);
+                else if (action === 'delete') deleteBanner(id);
+            });
+        });
     } catch (e) {
         showMsg(e.message, true);
     }
@@ -214,6 +226,11 @@ async function activateSpiteforged() {
         showMsg(e.message, true);
     }
 }
+
+document.getElementById('btn-spiteforged').addEventListener('click', activateSpiteforged);
+document.getElementById('btn-deactivate-all').addEventListener('click', deactivateAll);
+document.getElementById('btn-refresh').addEventListener('click', loadBanners);
+document.getElementById('btn-create').addEventListener('click', createBanner);
 
 loadBanners();
 </script>
