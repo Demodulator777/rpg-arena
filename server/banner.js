@@ -340,8 +340,8 @@ router.post('/pull', async (req, res) => {
             return res.status(400).json({ error: 'No active banner event' });
         }
         
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems');
-if (!char || char.gems < BANNER_COST_GEMS) {
+const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, gold');
+        if (!char || char.gems < BANNER_COST_GEMS) {
             return res.status(400).json({ error: 'Not enough gems' });
         }
         
@@ -420,6 +420,7 @@ if (!char || char.gems < BANNER_COST_GEMS) {
             items: loot.items,
             wonItems: won ? banner.loot_table : [],
             gems: gemsAfter,
+            gold: (char.gold || 0) + loot.gold,
             goldFound: loot.gold,
             gemsFound: loot.gems,
             stats: {
@@ -586,8 +587,7 @@ adminRouter.delete('/:id', async (req, res) => {
     }
 });
 
-// GET /admin/banner/:id/stats - Get banner stats why no update
-//wtf
+// GET /admin/banner/:id/stats - Get banner stats
 adminRouter.get('/:id/stats', async (req, res) => {
     try {
         const { id } = req.params;
