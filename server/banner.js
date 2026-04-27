@@ -384,7 +384,10 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
             const picToUnlock = `${char.class}-${setId}`;
             if (!unlockedPics.includes(picToUnlock)) {
                 unlockedPics.push(picToUnlock);
-                await dbRun(db, `UPDATE characters SET unlocked_profile_pics = ? WHERE id = ?`, [JSON.stringify(unlockedPics), char.id]);
+                await dbRun(db, `UPDATE characters SET unlocked_profile_pics = ?, profile_pic = ? WHERE id = ?`, [JSON.stringify(unlockedPics), `${picToUnlock}.png`, char.id]);
+            } else {
+                // Already unlocked, just set as active
+                await dbRun(db, `UPDATE characters SET profile_pic = ? WHERE id = ?`, [`${picToUnlock}.png`, char.id]);
             }
             
             if (char) {
