@@ -1672,8 +1672,9 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
             const prereqsMet = sk.requires.every(r => Number(progressMap[r] || 0) >= 100 || !!learnedMap[r]);
             const condMet = meetsUnlockCondition(char, sk.unlockCondition, extraStats);
 
-            const isVisible = started || learned || (!isExclusiveLocked && prereqsMet && condMet);
-            if (!isVisible) continue;
+            // Always show skills unless they're completely hidden (prereqs not met AND level not met AND no progress)
+            const completelyHidden = !started && !learned && !prereqsMet && !condMet;
+            if (completelyHidden) continue;
 
             hasVisibleSkill = true;
             const trainable = !hasActiveTraining && !isExclusiveLocked && condMet && progress < 100 && (started || prereqsMet);
@@ -1689,7 +1690,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
                 exclusiveLocked: isExclusiveLocked && !learned,
                 prereqsMet,
                 condMet,
-                unlockConditionDesc: isLocked ? '???' : (sk.unlockConditionDesc || null),
+                unlockConditionDesc: isLocked ? (sk.unlockCondition ? sk.unlockCondition.replace(/_/g, ' ').replace(/level_(\d+)/, 'Level $1') : 'Requires previous skill') : (sk.unlockConditionDesc || null),
             };
         }
 
