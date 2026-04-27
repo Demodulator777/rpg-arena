@@ -242,10 +242,10 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
 let displayDesc = sk.desc;
 let displayEmoji = sk.emoji || '⚔️';
 
-// Show skill info - for locked skills show unlock condition 
-if (locked && !learned && !training && sk.unlockConditionDesc) {
+// Hide description for locked skills, show only unlock requirement
+if (locked && !learned && !training) {
     displayName = '🔒 ' + displayName;
-    displayDesc = sk.unlockConditionDesc + ' — ' + displayDesc;
+    displayDesc = sk.unlockConditionDesc ? '⏳ ' + sk.unlockConditionDesc : '';
 }
 
 const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) : '';
