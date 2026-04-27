@@ -487,4 +487,4 @@ adminRouter.get('/:id/stats', async (req, res) => {
     }
 });
 
-module.exports = { router: { ...router, admin: adminRouter }, BANNER_MIGRATIONS, seedDefaultBanner };
+module.exports = { router, admin: adminRouter, BANNER_MIGRATIONS, seedDefaultBanner };
