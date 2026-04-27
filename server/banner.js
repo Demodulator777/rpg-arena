@@ -477,8 +477,9 @@ const BANNER_MIGRATIONS = [
         loot_table TEXT DEFAULT '[]',
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`,
-    // Safe migration: try to add char_id column if doesn't exist
+    // Migration: add char_id and make user_id nullable
     `ALTER TABLE player_banner_pulls ADD COLUMN char_id INTEGER`,
+    `ALTER TABLE player_banner_pulls ALTER COLUMN user_id DROP NOT NULL`,
 ];
 
 // ── Admin Routes ──────────────────────────────────────────────────────────────
