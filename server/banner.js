@@ -232,7 +232,7 @@ router.post('/pull', async (req, res) => {
             return res.status(400).json({ error: 'No active banner event' });
         }
         
-        const char = await dbGet(
+        const char = await dbGet(db,
             `SELECT level, gems FROM characters WHERE user_id = ?`,
             [req.user.userId]
         );
@@ -321,7 +321,7 @@ router.post('/pull', async (req, res) => {
 router.get('/history', async (req, res) => {
     try {
         const db = await getDb();
-const rows = await dbAll(db,db,
+const rows = await dbAll(db,
             `SELECT bh.*, be.name as banner_name, be.loot_table
              FROM player_banner_pulls bh
              JOIN banner_events be ON be.id = bh.banner_id
@@ -410,7 +410,7 @@ adminRouter.post('/create', async (req, res) => {
             [name, image || null, start_at, end_at, lootJson]
         );
         
-        const banner = await dbGet(db,db, `SELECT * FROM banner_events WHERE id = ?`, [result.lastInsertRowid]);
+        const banner = await dbGet(db, `SELECT * FROM banner_events WHERE id = ?`, [result.lastInsertRowid]);
         res.json({ success: true, banner });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -440,7 +440,7 @@ adminRouter.put('/:id', async (req, res) => {
         values.push(id);
         await dbRun(db, `UPDATE banner_events SET ${updates.join(', ')} WHERE id = ?`, values);
         
-        const banner = await dbGet(db,db, `SELECT * FROM banner_events WHERE id = ?`, [id]);
+        const banner = await dbGet(db, `SELECT * FROM banner_events WHERE id = ?`, [id]);
         res.json({ success: true, banner });
     } catch (e) {
         res.status(500).json({ error: e.message });
