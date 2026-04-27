@@ -221,46 +221,46 @@ const BANNER_DROPS = {
 
 function generateBannerItemStats(itemType, playerLevel) {
     const level = Math.max(1, playerLevel);
-    const scale = 1.35;
+    const scale = 1.3;
 
     const stats = {};
     
     if (itemType === 'weapon') {
-        stats.dmg_min = Math.floor(Math.min(400, 20 + (level * 3.0 * scale)));
-        stats.dmg_max = Math.floor(Math.min(600, 40 + (level * 4.5 * scale)));
-        stats.strength = Math.floor(Math.min(150, level * 0.45 * scale));
-        stats.agility = Math.floor(Math.min(100, level * 0.30 * scale));
-        stats.hit_chance = Math.floor(Math.min(25, level * 0.08 * scale));
-        stats.crit_chance = Math.floor(Math.min(20, level * 0.06 * scale));
-        stats.pyro_resist = Math.floor(Math.min(40, level * 0.12 * scale));
-        stats.water_resist = Math.floor(Math.min(40, level * 0.12 * scale));
-        stats.wind_resist = Math.floor(Math.min(40, level * 0.12 * scale));
-        stats.electro_resist = Math.floor(Math.min(40, level * 0.12 * scale));
-    } else if (itemType === 'armor') {
-        stats.defense = Math.floor(Math.min(250, level * 1.1 * scale));
-        stats.armor = Math.floor(Math.min(120, level * 0.65 * scale));
-        stats.hp_max = Math.floor(Math.min(800, level * 3.0 * scale));
-        stats.vitality = Math.floor(Math.min(80, level * 0.25 * scale));
-        stats.agility = Math.floor(Math.min(50, level * 0.15 * scale));
-        stats.pyro_resist = Math.floor(Math.min(35, level * 0.10 * scale));
-    } else if (itemType === 'helmet') {
-        stats.defense = Math.floor(Math.min(150, level * 0.70 * scale));
-        stats.hp_max = Math.floor(Math.min(450, level * 1.8 * scale));
-        stats.strength = Math.floor(Math.min(80, level * 0.22 * scale));
+        stats.dmg_min = Math.floor(Math.min(350, 15 + (level * 2.5 * scale)));
+        stats.dmg_max = Math.floor(Math.min(550, 30 + (level * 4.0 * scale)));
+        stats.strength = Math.floor(Math.min(120, level * 0.35 * scale));
+        stats.agility = Math.floor(Math.min(80, level * 0.25 * scale));
+        stats.hit_chance = Math.floor(Math.min(20, level * 0.06 * scale));
         stats.crit_chance = Math.floor(Math.min(15, level * 0.05 * scale));
-        stats.water_resist = Math.floor(Math.min(35, level * 0.10 * scale));
-    } else if (itemType === 'shield') {
+        stats.pyro_resist = Math.floor(Math.min(55, level * 0.18 * scale));
+        stats.water_resist = Math.floor(Math.min(55, level * 0.18 * scale));
+        stats.wind_resist = Math.floor(Math.min(55, level * 0.18 * scale));
+        stats.electro_resist = Math.floor(Math.min(55, level * 0.18 * scale));
+    } else if (itemType === 'armor') {
         stats.defense = Math.floor(Math.min(200, level * 0.90 * scale));
-        stats.armor = Math.floor(Math.min(100, level * 0.50 * scale));
+        stats.armor = Math.floor(Math.min(100, level * 0.55 * scale));
+        stats.hp_max = Math.floor(Math.min(650, level * 2.4 * scale));
         stats.vitality = Math.floor(Math.min(60, level * 0.18 * scale));
-        stats.block_chance = Math.floor(Math.min(25, level * 0.08 * scale));
-        stats.wind_resist = Math.floor(Math.min(35, level * 0.10 * scale));
+        stats.agility = Math.floor(Math.min(40, level * 0.12 * scale));
+        stats.pyro_resist = Math.floor(Math.min(50, level * 0.15 * scale));
+    } else if (itemType === 'helmet') {
+        stats.defense = Math.floor(Math.min(130, level * 0.60 * scale));
+        stats.hp_max = Math.floor(Math.min(400, level * 1.6 * scale));
+        stats.strength = Math.floor(Math.min(70, level * 0.20 * scale));
+        stats.crit_chance = Math.floor(Math.min(12, level * 0.04 * scale));
+        stats.water_resist = Math.floor(Math.min(50, level * 0.15 * scale));
+    } else if (itemType === 'shield') {
+        stats.defense = Math.floor(Math.min(160, level * 0.75 * scale));
+        stats.armor = Math.floor(Math.min(85, level * 0.42 * scale));
+        stats.vitality = Math.floor(Math.min(50, level * 0.15 * scale));
+        stats.block_chance = Math.floor(Math.min(20, level * 0.06 * scale));
+        stats.wind_resist = Math.floor(Math.min(50, level * 0.15 * scale));
     } else if (itemType === 'boots') {
-        stats.defense = Math.floor(Math.min(120, level * 0.55 * scale));
-        stats.agility = Math.floor(Math.min(90, level * 0.30 * scale));
-        stats.hp_max = Math.floor(Math.min(300, level * 1.2 * scale));
-        stats.evasion = Math.floor(Math.min(15, level * 0.05 * scale));
-        stats.electro_resist = Math.floor(Math.min(35, level * 0.10 * scale));
+        stats.defense = Math.floor(Math.min(100, level * 0.48 * scale));
+        stats.agility = Math.floor(Math.min(70, level * 0.25 * scale));
+        stats.hp_max = Math.floor(Math.min(280, level * 1.1 * scale));
+        stats.evasion = Math.floor(Math.min(12, level * 0.04 * scale));
+        stats.electro_resist = Math.floor(Math.min(50, level * 0.15 * scale));
     }
 
     return stats;
