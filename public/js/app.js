@@ -5482,13 +5482,11 @@ async function doBannerPull() {
             </div>
         `;
         
-        character.gems = data.gems;
+character.gems = data.gems;
         renderTopBar();
         
-        if (data.stats.won) {
-            await loadBannerEvent();
-        }
-        
+        // Reload banner to update pity counter
+        await loadBannerEvent();
     } catch (e) {
         results.innerHTML = `<div style="color:var(--red-light);padding:10px;text-align:center;">${escHtml(e.message || 'Pull failed')}</div>`;
     }
