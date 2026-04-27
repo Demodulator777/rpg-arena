@@ -5474,11 +5474,17 @@ async function doBannerPull() {
             }
         }).join('');
         
+        // Add won items to display
+        const wonItemsHtml = data.wonItems ? data.wonItems.map(item => 
+            `<div class="event-item event-item-legendary">🌟 ${escHtml(item.name)}</div>`
+        ).join('') : '';
+        
         results.innerHTML = `
             <div class="event-result-won ${data.won ? 'won' : ''}">${data.won ? '🎴 BANNER SET WON!' : ''}</div>
+            ${wonItemsHtml ? `<div class="event-items-grid">${wonItemsHtml}</div>` : ''}
             <div class="event-items-grid">${itemsHtml}</div>
             <div class="event-new-stats">
-                Pulls: ${data.stats.pullCount}/${data.stats.effectivePulls} · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()}
+                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: 0/10 · Odds: 0.1% · 💎 ${data.gems.toLocaleString()}
             </div>
         `;
         
