@@ -333,8 +333,6 @@ if (char) {
                         [char.id, 'equipment', JSON.stringify(fullItem)]);
                 }
             }
-                console.log('🎴 All equipment saved!');
-            }
         }
         
         const loot = generateBannerLoot(char.level);
