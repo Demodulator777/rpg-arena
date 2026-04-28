@@ -853,6 +853,19 @@ function enterDungeon(dungeonId) {
     const def = getDungeonDef(dungeonId);
     if (!def) return;
 
+    // Check if dungeon is locked on another device first
+    apiFetch('GET', '/game/dungeon/lock-check')
+        .then(res => {
+            if (res.locked) {
+                alert('⚠️ Dungeon is already active on another device.\nPlease close it there first.');
+                return;
+            }
+            startDungeonEnter(dungeonId);
+        })
+        .catch(() => startDungeonEnter(dungeonId));
+}
+
+function startDungeonEnter(dungeonId) {
     if (D.savedProgress['tower']) {
         const s = D.savedProgress[dungeonId];
         D.activeDungeon = 'tower';
