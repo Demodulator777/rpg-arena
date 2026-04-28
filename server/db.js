@@ -1,6 +1,4 @@
 const { createClient } = require('@libsql/client');
-const initSqlJs = require('sql.js');
-const fs = require('fs');
 
 let db = null;
 
