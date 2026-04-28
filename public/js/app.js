@@ -1519,8 +1519,8 @@ async function skipTutorial() {
                 bannerEl.style.display = 'none';
             }
             
-            // Re-show events banner if needed
-            checkEvents();
+            // Re-render the top bar/banner state after tutorial mode is removed
+            renderTopBar();
             
             if (document.getElementById('tab-missions').classList.contains('active')) {
                 showMissions();
