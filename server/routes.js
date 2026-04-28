@@ -4858,8 +4858,8 @@ router.post('/tutorial/skip', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Skip tutorial - set flag but keep wins as-is
-        await dbRun(db, 'UPDATE characters SET tutorial_skipped = 1 WHERE id = ?', [char.id]);
+        // Skip tutorial - set flag
+        await db.execute({ sql: 'UPDATE characters SET tutorial_skipped = 1 WHERE id = ?', args: [char.id] });
         const updated = await getCurrentCharacter(db, req.user.userId);
         return res.json({ success: true, character: await buildCharacterResponse(updated, db) });
     } catch (e) {
