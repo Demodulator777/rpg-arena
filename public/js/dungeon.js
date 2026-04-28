@@ -958,6 +958,12 @@ function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
+    // Check if already cleared (server-side protection)
+    if (room.monstersCleared) {
+        log(`⚠️ This room has already been cleared!`, 'log-warning');
+        return;
+    }
+
     // Check if any monsters are alive
     const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
     if (!anyAlive) {
@@ -1079,6 +1085,15 @@ function onRoomCleared(roomIdx) {
         apiFetch('POST', '/game/dungeon/monster-defeated', { monsters: defeatedMonsters })
             .catch(e => console.error('Failed to sync dungeon monster defeats:', e));
     }
+
+    // Mark room as cleared on server to prevent double loot
+    apiFetch('POST', '/game/dungeon/room-clear', { roomId: room.id, floor: D.floor })
+        .then(res => {
+            if (res.cleared) {
+                log(`⚠️ Room already cleared - loot not granted`, 'log-warning');
+            }
+        })
+        .catch(e => console.error('Failed to mark room cleared:', e));
 
     D.combat = null;
     saveState();
