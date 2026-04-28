@@ -261,7 +261,22 @@ let D = {
   dungeonInventory: [],  // Make sure this exists
   blacksmithUnlocked: false,
   guildReputation: 0,    // Add this
+  lockRefreshInterval: null,
 };
+
+// Release lock when leaving tab
+window.addEventListener('beforeunload', () => {
+  if (D.activeDungeon) {
+    navigator.sendBeacon('/game/dungeon/lock-release');
+  }
+});
+
+// Also release on visibility change (mobile)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && D.activeDungeon) {
+    navigator.sendBeacon('/game/dungeon/lock-release');
+  }
+});
 
   // ── Helpers ────────────────────────────────────────────────
   function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -853,16 +868,31 @@ function enterDungeon(dungeonId) {
     const def = getDungeonDef(dungeonId);
     if (!def) return;
 
-    // Check if dungeon is locked on another device first
-    apiFetch('GET', '/game/dungeon/lock-check')
+    // Try to acquire lock first
+    apiFetch('POST', '/game/dungeon/lock-acquire')
         .then(res => {
-            if (res.locked) {
+            if (res.locked || res.error) {
                 alert('⚠️ Dungeon is already active on another device.\nPlease close it there first.');
                 return;
             }
             startDungeonEnter(dungeonId);
+            startLockRefresh();
         })
         .catch(() => startDungeonEnter(dungeonId));
+}
+
+function startLockRefresh() {
+    D.lockRefreshInterval = setInterval(() => {
+        apiFetch('POST', '/game/dungeon/lock-refresh').catch(() => {});
+    }, 15000);
+}
+
+function stopLockRefresh() {
+    if (D.lockRefreshInterval) {
+        clearInterval(D.lockRefreshInterval);
+        D.lockRefreshInterval = null;
+    }
+    apiFetch('POST', '/game/dungeon/lock-release').catch(() => {});
 }
 
 function startDungeonEnter(dungeonId) {
@@ -1250,17 +1280,8 @@ function onPlayerDeath() {
     const c = getChar();
     if (c && c.hp_current !== undefined) c.hp = c.hp_current;
     
-    // Release session lock
-    apiFetch('POST', '/game/dungeon/release-session').catch(e => console.error('Failed to release session:', e));
-    
     // Release lock
-    if (D.combat && D.combat.roomIdx !== undefined) {
-        const room = D.rooms[D.combat.roomIdx];
-        if (room) {
-            apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: false })
-                .catch(e => console.error('Failed to release room:', e));
-        }
-    }
+    stopLockRefresh();
     
     D.savedProgress['tower'] = {
       floor: D.floor,
@@ -2470,11 +2491,11 @@ function dungeonExit() {
         };
     }
     
-    // Save to database FIRST (while D.activeDungeon still has the value)
+    // Save to database FIRST
     saveProgressToDB();
     
-    // Release session lock
-    apiFetch('POST', '/game/dungeon/release-session').catch(e => console.error('Failed to release session:', e));
+    // Release lock
+    stopLockRefresh();
     
     // THEN clear the active dungeon
     D.activeDungeon = null;
@@ -2483,7 +2504,7 @@ function dungeonExit() {
     renderDungeonList();
 }
 
-  function closeDungeonVictory() {
+function closeDungeonVictory() {
     const m = document.getElementById('dungeon-boss-modal');
     if (m) m.classList.add('hidden');
     renderDungeonView();
