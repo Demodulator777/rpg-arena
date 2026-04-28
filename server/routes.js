@@ -637,6 +637,9 @@ const WEEKLY_TASKS = [
             created_at INTEGER
         )`, args: [] });
         
+        // Add session_id column if missing (for existing DBs)
+        await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN session_id TEXT DEFAULT NULL`, args: [] }).catch(() => {});
+        
         // Skill tree migrations
         const { SKILL_TREE_MIGRATIONS } = require('./skills');
         for (const sql of SKILL_TREE_MIGRATIONS) {
@@ -7764,23 +7767,7 @@ router.post('/dungeon/lock-release', auth, async (req, res) => {
 });
 
 router.post('/dungeon/lock-refresh', auth, async (req, res) => {
-});
-
-router.post('/dungeon/lock-refresh', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const char = await getCurrentCharacter(db, req.user.userId, 'id');
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    // Refresh the lock timestamp
-    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
-      [JSON.stringify({ ts: Date.now() }), char.id]
-    );
-    
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.json({ success: true });
 });
 
 router.post('/dungeon/tokens', auth, async (req, res) => {
