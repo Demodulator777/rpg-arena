@@ -395,6 +395,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN unlocked_profile_pics TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN tutorial_skipped INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
@@ -4702,6 +4703,7 @@ const userSettings = char.user_id
 
     return {
         ...withTrain,
+        tutorial_skipped: char.tutorial_skipped || 0,
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
         vitality:     (char.vitality    || 10),
@@ -4856,8 +4858,10 @@ router.post('/tutorial/skip', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
-        // Skip just marks tutorial as done - no free wins, player must earn them
-        res.json({ success: true, character: await buildCharacterResponse(char, db) });
+        // Skip tutorial - set flag but keep wins as-is
+        await dbRun(db, 'UPDATE characters SET tutorial_skipped = 1 WHERE id = ?', [char.id]);
+        const updated = await getCurrentCharacter(db, req.user.userId);
+        return res.json({ success: true, character: await buildCharacterResponse(updated, db) });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
