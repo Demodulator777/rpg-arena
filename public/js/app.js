@@ -1474,22 +1474,19 @@ window.navigateMissionsHub = navigateMissionsHub;
 
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
-    const proceed = await openGameDialog({
-        title: 'Skip Tutorial?',
-        message: 'Are you sure you want to skip the tutorial? You will lose the early protection and fast missions.',
-        confirmLabel: 'Skip Tutorial',
-        cancelLabel: 'Stay',
-        showCancel: true,
-        danger: true
-    });
-    if (!proceed) return;
+    console.log('skipTutorial called');
     try {
         const res = await api('POST', '/game/tutorial/skip');
-        character = res.character;
-        renderTopBar();
-        renderCharacter();
-        showTab('character');
+        console.log('Skip result:', res);
+        if (res.character) {
+            character = res.character;
+            console.log('Character tutorial_skipped:', character.tutorial_skipped);
+            renderTopBar();
+            renderCharacter();
+            showTab('character');
+        }
     } catch (e) {
+        console.error('Skip error:', e);
         alert(e.message);
     }
 }
