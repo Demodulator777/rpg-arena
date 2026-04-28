@@ -1,6 +1,7 @@
 // ── State ─────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('rpg_token');
 let username = localStorage.getItem('rpg_username');
+let tabSession = sessionStorage.getItem('rpg_tab_session') || (() => { const id = Date.now().toString(36) + Math.random().toString(36).slice(2); sessionStorage.setItem('rpg_tab_session', id); return id; })();
 let character = null;
 let trainTimer = null, unreadTimer = null, topbarLiveTimer = null, chatPollTimer = null;
 let lbData = [];
@@ -304,6 +305,7 @@ async function api(method, path, body=null) {
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     const storedToken = localStorage.getItem('rpg_token');
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
+    if (window.tabSession) opts.headers['X-Tab-Session'] = window.tabSession;
     if (body) opts.body = JSON.stringify(body);
     
     try {
@@ -314,6 +316,15 @@ async function api(method, path, body=null) {
             let errMsg;
             try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; } 
             catch { errMsg = text.trim() || `Request failed (${res.status})`; }
+            
+            // Handle session expired - redirect to login
+            if (res.status === 401 && (errMsg === 'Session expired' || errMsg === 'No token' || errMsg === 'Invalid token')) {
+                logout();
+                showScreen('auth');
+                alert('Logged out - please login again');
+                throw new Error(errMsg);
+            }
+            
             throw new Error(errMsg);
         }
         if (!text.trim()) return {};
