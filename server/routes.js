@@ -7695,6 +7695,28 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
   }
 });
 
+router.post('/dungeon/check-cleared', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { roomId, floor } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    let savedProgress = { rooms: [], exploredRooms: [] };
+    if (char.dungeon_progress) {
+      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
+    }
+    
+    const room = savedProgress.rooms?.find(r => r.id === roomId);
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+    
+    res.json({ cleared: !!room.monstersCleared });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/dungeon/mp-spent', auth, async (req, res) => {
   try {
     const db = await getDb();
