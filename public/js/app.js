@@ -1481,9 +1481,17 @@ async function skipTutorial() {
         if (res.character) {
             character = res.character;
             console.log('Character tutorial_skipped:', character.tutorial_skipped);
+            console.log('Character wins:', character.wins);
+            // Force complete re-render
             renderTopBar();
             renderCharacter();
             showTab('character');
+            // Also re-render the topbar banner
+            const bannerEl = document.getElementById('event-banner');
+            if (bannerEl) {
+                bannerEl.classList.remove('event-banner--tutorial');
+                bannerEl.innerHTML = '';
+            }
         }
     } catch (e) {
         console.error('Skip error:', e);
