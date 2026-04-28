@@ -7,7 +7,12 @@ async function getDb() {
   
   // Check for required environment variables
   if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-    throw new Error('Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN environment variables');
+    console.warn('Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN environment variables, using local db')
+    db = createClient({
+      url: "file:local.db",
+  });
+    
+    return db;
   }
   
   db = createClient({
