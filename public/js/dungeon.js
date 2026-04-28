@@ -2917,17 +2917,30 @@ global.dungeonRun = (roomIdx) => {
             return;
         }
         
-        D.combat = { 
-            roomIdx, 
-            monsters: room.monsters.map(m => ({ 
-                ...m, 
-                currentHp: m.currentHp || m.maxHp,
-                lastKilled: m.lastKilled
-            })),
-            currentMonsterIndex: 0,
-            roundLog: [] 
-        };
-        tryRun(roomIdx);
+        // Try to claim room entry atomically first
+        apiFetch('POST', '/game/dungeon/room-enter', { roomId: room.id, floor: D.floor, roomIndex: roomIdx })
+            .then(res => {
+                if (res.locked) {
+                    log(`⚠️ Room already entered from another device!`, 'log-warning');
+                    return;
+                }
+                // Now enter combat
+                D.combat = { 
+                    roomIdx, 
+                    monsters: room.monsters.map(m => ({ 
+                        ...m, 
+                        currentHp: m.currentHp || m.maxHp,
+                        lastKilled: m.lastKilled
+                    })),
+                    currentMonsterIndex: 0,
+                    roundLog: [] 
+                };
+                tryRun(roomIdx);
+            })
+            .catch(e => {
+                console.error('Failed to enter room:', e);
+                log(`⚠️ Failed to enter room`, 'log-danger');
+            });
     }
 };
   global.dungeonAttack       = fightRound;
