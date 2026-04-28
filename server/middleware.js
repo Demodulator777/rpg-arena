@@ -22,22 +22,16 @@ module.exports = async (req, res, next) => {
             return res.status(401).json({ error: 'User not found' });
         }
         
-        // Check if session matches (logout when new login happens)
+        // Check if session matches (logout when new login elsewhere)
         const currentSession = user.rows[0].user_session;
         if (currentSession) {
             try {
                 const sess = JSON.parse(currentSession);
-                // decoded.iat is seconds, sess.ts is milliseconds
-                // Only reject if session was updated within last 60 seconds (new login)
-                if (decoded.iat && sess.ts) {
-                    const sessionAge = Date.now() - sess.ts;
-                    if (sessionAge < 60000 && (decoded.iat * 1000) < sess.ts) {
-                        return res.status(401).json({ error: 'Session expired' });
-                    }
+                // Only reject if session IDs don't match (new login elsewhere)
+                if (decoded.sessionId && sess.id && decoded.sessionId !== sess.id) {
+                    return res.status(401).json({ error: 'Session expired' });
                 }
-            } catch {
-                // No session set, allow token
-            }
+            } catch {}
         }
         
         // Set req.user with both userId and username
