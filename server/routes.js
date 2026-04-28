@@ -7695,7 +7695,7 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
   }
 });
 
-router.post('/dungeon/check-cleared', auth, async (req, res) => {
+router.post('/dungeon/claim-room', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { roomId, floor } = req.body;
@@ -7710,7 +7710,58 @@ router.post('/dungeon/check-cleared', auth, async (req, res) => {
     const room = savedProgress.rooms?.find(r => r.id === roomId);
     if (!room) return res.status(404).json({ error: 'Room not found' });
     
-    res.json({ cleared: !!room.monstersCleared });
+    // Already cleared
+    if (room.monstersCleared) {
+      return res.json({ cleared: true });
+    }
+    
+    // Already claimed by another (older claim)
+    if (room.inCombat && room.inCombat < Date.now() - 300000) {
+      room.inCombat = null;
+    }
+    if (room.inCombat && room.inCombat !== req.user.userId) {
+      return res.json({ claimed: true });
+    }
+    
+    // Lock the room for this player (5 min timeout)
+    room.inCombat = req.user.userId;
+    
+    await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
+      [JSON.stringify(savedProgress), char.id]
+    );
+    
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/release-room', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { roomId, cleared } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    let savedProgress = { rooms: [], exploredRooms: [] };
+    if (char.dungeon_progress) {
+      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
+    }
+    
+    const room = savedProgress.rooms?.find(r => r.id === roomId);
+    if (room) {
+      if (cleared) {
+        room.monstersCleared = Date.now();
+      }
+      room.inCombat = null;
+      
+      await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
+        [JSON.stringify(savedProgress), char.id]
+      );
+    }
+    
+    res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
