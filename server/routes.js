@@ -7618,6 +7618,21 @@ router.get('/dungeon/data', auth, async (req, res) => {
   }
 });
 
+router.get('/dungeon/lock-check', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    // Simple check - if there's an active dungeon_progress, assume someone is in
+    const locked = char.dungeon_progress && char.dungeon_progress.length > 20;
+    
+res.json({ locked });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post('/dungeon/tokens', auth, async (req, res) => {
   try {
     const db = await getDb();
