@@ -4860,12 +4860,18 @@ router.post('/tutorial/skip', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         
+        console.log('Before skip - tutorial_skipped:', char.tutorial_skipped);
+        
         // Skip tutorial - set flag
         await db.execute({ sql: 'UPDATE characters SET tutorial_skipped = 1 WHERE id = ?', args: [char.id] });
+        console.log('After skip - updated');
+        
         const updated = await getCurrentCharacter(db, req.user.userId);
+        console.log('After skip - tutorial_skipped:', updated.tutorial_skipped);
+        
         return res.json({ success: true, character: await buildCharacterResponse(updated, db) });
     } catch (e) {
-        console.error(e);
+        console.error('skip tutorial error:', e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -5332,8 +5338,8 @@ router.post('/missions/start', auth, async (req, res) => {
         const spot = zone.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Spot not found' });
 
-// Tutorial Lock Check: Wins < 4 only allows Easy
-const isTutorial = (character.wins || 0) < 4;
+// Tutorial Lock Check: Wins < 4 only allows Easy (unless skipped)
+const isTutorial = (character.wins || 0) < 4 && !(character.tutorial_skipped);
 if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
     return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
 }
