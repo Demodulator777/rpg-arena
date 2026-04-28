@@ -1888,7 +1888,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
               </div>
               <div class="dungeon-hud-room-desc">${roomDescription}</div>
               <div class="dungeon-hud-room-progress">${exploredCount}/${totalRoomCount} explored</div>
-              ${latestLogMessage ? `<div class="dungeon-hud-room-log">${latestLogMessage}</div>` : ''}
+              ${latestLogMessage ? `<div class="dungeon-hud-room-log"><span>${latestLogMessage}</span></div>` : ''}
               <div class="dungeon-hud-room-info">
                 ${renderRoomInfo(currentRoom)}
               </div>
