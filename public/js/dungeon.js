@@ -1881,7 +1881,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
           </div>
 
           <div class="dungeon-hud-center">
-            <div class="dungeon-hud-room">
+            <div class="dungeon-hud-room ${currentRoom.monsters && currentRoom.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)) ? 'has-monster' : ''}">
               <div class="dungeon-hud-room-title">
                 ${roomLabel}
                 <span class="dungeon-hud-room-id"> � Room ${D.playerPos + 1}</span>
