@@ -1182,6 +1182,7 @@ function logout() {
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
     renderChatWidget();
+    api('POST', '/auth/logout').catch(() => {});
     showScreen('auth');
 }
 
