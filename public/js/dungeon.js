@@ -321,6 +321,11 @@ async function refreshCharacter() {
   async function loadDungeonDataFromDB() {
   try {
     const response = await apiFetch('GET', '/game/dungeon/data');
+    if (response && response.conflict) {
+      log(`⚠️ Dungeon already active on another device. Please close it there first.`, 'log-danger');
+      setTimeout(() => renderDungeonList(), 2000);
+      return false;
+    }
     if (response && response.success) {
       D.tokens = response.tokens || 0;
       D.floor = response.floor || 1;
@@ -1231,6 +1236,9 @@ function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
     const c = getChar();
     if (c && c.hp_current !== undefined) c.hp = c.hp_current;
+    
+    // Release session lock
+    apiFetch('POST', '/game/dungeon/release-session').catch(e => console.error('Failed to release session:', e));
     
     // Release lock
     if (D.combat && D.combat.roomIdx !== undefined) {
@@ -2451,6 +2459,9 @@ function dungeonExit() {
     
     // Save to database FIRST (while D.activeDungeon still has the value)
     saveProgressToDB();
+    
+    // Release session lock
+    apiFetch('POST', '/game/dungeon/release-session').catch(e => console.error('Failed to release session:', e));
     
     // THEN clear the active dungeon
     D.activeDungeon = null;
