@@ -93,6 +93,11 @@ function sanitizeChatMessage(input) {
     return text;
 }
 
+function isTutorialCharacter(char) {
+    if (!char) return false;
+    return Number(char.wins || 0) < 4 && !Number(char.tutorial_skipped || 0);
+}
+
 function serializeChatMessage(row, currentCharId) {
     return {
         id: Number(row.id || 0),
@@ -5339,7 +5344,7 @@ router.post('/missions/start', auth, async (req, res) => {
         if (!spot) return res.status(404).json({ error: 'Spot not found' });
 
 // Tutorial Lock Check: Wins < 4 only allows Easy (unless skipped)
-const isTutorial = (character.wins || 0) < 4 && !(character.tutorial_skipped);
+const isTutorial = isTutorialCharacter(character);
 if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
     return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
 }
@@ -5540,7 +5545,7 @@ if (freshChar.class === 'rogue') {
             dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
         };
         
-        const isTutorial = (freshChar.wins || 0) < 4;
+        const isTutorial = isTutorialCharacter(freshChar);
 
         // Build NPC and override its name with the mission name
         const npc = buildNpc(mission.difficulty, freshChar.level, zoneLevel, playerStats);
@@ -5550,7 +5555,7 @@ if (freshChar.class === 'rogue') {
         
         // Force win for new characters (first 4 battles)
         let forceWinnerId = null;
-        if ((freshChar.wins || 0) < 4) {
+        if (isTutorial) {
             forceWinnerId = freshChar.id;
         }
         
@@ -5560,7 +5565,7 @@ if (freshChar.class === 'rogue') {
         let playerWon = battle.winnerId === freshChar.id;
         
         // Add tutorial note if we used forceWinnerId to flip a loss
-        if (forceWinnerId && (freshChar.wins || 0) < 4) {
+        if (forceWinnerId && isTutorial) {
             if (!battle.log.some(line => line.includes('Tutorial victory'))) {
                 battle.log.push('✨ Tutorial victory - experience gained!');
             }
@@ -6245,7 +6250,8 @@ router.get('/travel/status', auth, async (req, res) => {
                 if (guardian) {
                     // Force win for new characters (first 4 battles)
                     let forceWinnerId = null;
-                    if ((freshChar.wins || 0) < 4) {
+                    const isTutorial = isTutorialCharacter(freshChar);
+                    if (isTutorial) {
                         forceWinnerId = freshChar.id;
                     }
                     
@@ -6253,14 +6259,13 @@ router.get('/travel/status', auth, async (req, res) => {
                     let playerWon = battle.winnerId === freshChar.id;
                     
                     // Add tutorial note
-                    if (forceWinnerId && (freshChar.wins || 0) < 4) {
+                    if (forceWinnerId && isTutorial) {
                         if (!battle.log.some(line => line.includes('Tutorial victory'))) {
                             battle.log.push('✨ Tutorial victory!');
                         }
                     }
                     
                     // Tutorial Check: Don't deplete HP for the first 4 battles
-                    const isTutorial = (freshChar.wins || 0) < 4;
                     const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
                     if (playerWon) {
@@ -9796,7 +9801,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
         }
         
         // Tutorial phase - show guidance
-        const firstFourWins = (char.wins || 0) < 4;
+        const firstFourWins = isTutorialCharacter(char);
         if (firstFourWins) {
             suggestions.push({
                 type: 'newbie',
