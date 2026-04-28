@@ -2432,47 +2432,9 @@
     font-size: 0.7rem;
   }
 
-  .dungeon-hud-room-desc {
-    font-size: 0.65rem;
-    line-height: 1.4;
-    margin-bottom: 8px;
-  }
-
-  .dungeon-hud-bottom {
-    bottom: 18px;
-    gap: 8px;
-  }
-
-  .dungeon-travel-bar-wrap-hud {
-    width: 94vw;
-  }
-
-  .dungeon-path-options {
-    padding: 8px;
-    gap: 8px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    justify-content: flex-start;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    max-width: 98vw;
-  }
-
-  .dungeon-path-btn {
-    width: 46px;
-    min-width: 46px;
-    min-height: 46px;
-  }
-
-  .dungeon-path-btn-icon {
-    width: 100%;
-    height: 100%;
-    font-size: 1.05rem;
-  }
-
-  .dungeon-path-btn-arrow-img {
-    width: 100%;
-    height: 100%;
+  .dungeon-hud-room.has-monster .dungeon-hud-room-desc,
+  .dungeon-hud-room.has-monster .dungeon-hud-room-progress {
+    display: none;
   }
 }
 
