@@ -1037,7 +1037,7 @@ function initiateFight(roomIdx) {
     apiFetch('POST', '/game/dungeon/room-enter', { roomId: room.id, floor: D.floor, roomIndex: roomIdx })
         .then(res => {
             if (res.locked) {
-                log(`⚠️ Room already cleared, try playing from another tab next time;)`, 'log-warning');
+                log(`⚠️ Room already cleared from another tab - try one tab next time;)`, 'log-warning');
                 return;
             }
             startCombat(roomIdx);
@@ -2939,7 +2939,7 @@ global.dungeonRun = (roomIdx) => {
             })
             .catch(e => {
                 console.error('Failed to enter room:', e);
-                log(`⚠️ Failed to enter room, try playing from another tab next time;)`, 'log-danger');
+                log(`⚠️ Failed to enter room, try playing from one tab next time;)`, 'log-danger');
             });
     }
 };
