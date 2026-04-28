@@ -7687,7 +7687,8 @@ router.post('/dungeon/lock-acquire', auth, async (req, res) => {
     `, [JSON.stringify({ ts: now }), char.id, now, lockTimeout]);
     
     // dbRun returns result from db.execute - check affected rows
-    if (!result || !result.meta || result.meta.changes === 0) {
+    const changes = result?.meta?.changes ?? result?.changes ?? 0;
+    if (changes === 0) {
       return res.status(409).json({ error: 'Already in dungeon', locked: true });
     }
     
@@ -7756,7 +7757,8 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       args: [req.user.userId, floor, roomIndex]
     });
     
-    if (result.meta.changes === 0) {
+    const changes = result?.meta?.changes ?? result?.changes ?? 0;
+    if (changes === 0) {
       return res.status(409).json({ error: 'Room already cleared', cleared: true });
     }
     
@@ -7778,6 +7780,9 @@ router.post('/dungeon/lock-release', auth, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+router.post('/dungeon/lock-refresh', auth, async (req, res) => {
 });
 
 router.post('/dungeon/lock-refresh', auth, async (req, res) => {
