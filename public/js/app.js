@@ -8598,7 +8598,7 @@ async function showProfilePicSelector() {
         
         const modal = document.createElement('div');
         modal.id = 'profile-pic-modal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-overflow-scrolling:touch;';
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
         
         const currentPic = character.profile_pic || `${character.class}.png`;
