@@ -7650,21 +7650,26 @@ router.post('/dungeon/lock-acquire', auth, async (req, res) => {
     if (!char) return res.status(404).json({ error: 'Character not found' });
     
     const now = Date.now();
+    const lockTimeout = 30000;
     
-    // Check existing lock
-    if (char.dungeon_session) {
+    // Set our timestamp first
+    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
+      [JSON.stringify({ ts: now }), char.id]
+    );
+    
+    // Immediate read-back - if there's already a NEWER lock, we lost the race
+    const verify = await getCurrentCharacter(db, req.user.userId, 'dungeon_session');
+    if (verify && verify.dungeon_session) {
       try {
-        const sess = JSON.parse(char.dungeon_session);
-        if (sess && sess.ts && (now - sess.ts) < 30000) {
+        const v = JSON.parse(verify.dungeon_session);
+        // If there's a different (newer) timestamp, another request beat us
+        if (v.ts && v.ts > now) {
+          // Clear our old lock
+          await dbRun(db, 'UPDATE characters SET dungeon_session = NULL WHERE id = ?', [char.id]);
           return res.status(409).json({ error: 'Already in dungeon', locked: true });
         }
       } catch {}
     }
-    
-    // Acquire lock
-    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
-      [JSON.stringify({ ts: now }), char.id]
-    );
     
     res.json({ success: true });
   } catch (e) {
