@@ -391,6 +391,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN dungeon_highest_floor INTEGER DEFAULT 1',
             'ALTER TABLE characters ADD COLUMN dungeon_progress TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN dungeon_gold INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN dungeon_session TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
@@ -7605,6 +7606,18 @@ router.get('/dungeon/data', auth, async (req, res) => {
       } catch(e) {}
     }
     
+    // Check for concurrent session - if same user has different session active in last 30s
+    const currentSession = char.dungeon_session;
+    const now = Date.now();
+    if (currentSession && currentSession !== req.user.sessionId && (now - (currentSession.ts || 0)) < 30000) {
+      return res.status(409).json({ error: 'Dungeon already active on another device', conflict: true });
+    }
+    
+    // Lock this session
+    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
+      [JSON.stringify({ id: req.user.sessionId, ts: now }), char.id]
+    );
+    
     res.json({
       success: true,
       tokens,
@@ -7656,280 +7669,23 @@ router.post('/dungeon/progress', auth, async (req, res) => {
       [floor, highestFloor, JSON.stringify(progressData), char.id]
     );
     
-    res.json({ success: true });
+res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
 
-router.post('/dungeon/room-clear', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { roomId, floor } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    let savedProgress = { rooms: [], exploredRooms: [] };
-    if (char.dungeon_progress) {
-      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
-    }
-    
-    const room = savedProgress.rooms?.find(r => r.id === roomId);
-    if (!room) return res.status(404).json({ error: 'Room not found' });
-    
-    if (room.monstersCleared) {
-      return res.status(409).json({ error: 'Room already cleared', cleared: true });
-    }
-    
-    room.monstersCleared = Date.now();
-    
-    await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
-      [JSON.stringify(savedProgress), char.id]
-    );
-    
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/claim-room', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { roomId, floor } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    let savedProgress = { rooms: [], exploredRooms: [] };
-    if (char.dungeon_progress) {
-      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
-    }
-    
-    const room = savedProgress.rooms?.find(r => r.id === roomId);
-    if (!room) return res.status(404).json({ error: 'Room not found' });
-    
-    // Already cleared
-    if (room.monstersCleared) {
-      return res.json({ cleared: true });
-    }
-    
-    // Already claimed by another (older claim)
-    if (room.inCombat && room.inCombat < Date.now() - 300000) {
-      room.inCombat = null;
-    }
-    if (room.inCombat && room.inCombat !== req.user.userId) {
-      return res.json({ claimed: true });
-    }
-    
-    // Lock the room for this player (5 min timeout)
-    room.inCombat = req.user.userId;
-    
-    await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
-      [JSON.stringify(savedProgress), char.id]
-    );
-    
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/release-room', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { roomId, cleared } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    let savedProgress = { rooms: [], exploredRooms: [] };
-    if (char.dungeon_progress) {
-      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
-    }
-    
-    const room = savedProgress.rooms?.find(r => r.id === roomId);
-    if (room) {
-      if (cleared) {
-        room.monstersCleared = Date.now();
-      }
-      room.inCombat = null;
-      
-      await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
-        [JSON.stringify(savedProgress), char.id]
-      );
-    }
-    
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/mp-spent', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { mpSpent } = req.body;
-    const tokensEarned = Math.floor(mpSpent / 20);
-    
-    if (tokensEarned > 0) {
-      const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_tokens');
-      if (!char) return res.status(404).json({ error: 'Character not found' });
-      const result = await dbRun(db, `
-        UPDATE characters 
-        SET dungeon_tokens = dungeon_tokens + ?
-        WHERE id = ?
-        RETURNING dungeon_tokens
-      `, [tokensEarned, char.id]);
-      
-      const updatedChar = await getCurrentCharacter(db, req.user.userId, 'dungeon_tokens');
-      res.json({ success: true, tokensEarned, totalTokens: updatedChar.dungeon_tokens });
-    } else {
-      res.json({ success: true, tokensEarned: 0, totalTokens: null });
-    }
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/add-gold', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { amount } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId, 'id');
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold + ? WHERE id = ?', 
-      [amount, char.id]);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/update-health', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { hp } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId, 'id');
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [hp, char.id]);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/monster-defeated', auth, async (req, res) => {
+router.post('/dungeon/release-session', auth, async (req, res) => {
   try {
     const db = await getDb();
     const char = await getCurrentCharacter(db, req.user.userId, 'id');
     if (!char) return res.status(404).json({ error: 'Character not found' });
-
-    const monsters = Array.isArray(req.body?.monsters) ? req.body.monsters : [];
-    const now = Math.floor(Date.now() / 1000);
-    for (const monster of monsters) {
-      const count = Math.max(1, Number(monster?.count) || 1);
-      const monsterKey = normalizeMonsterKey(monster?.id || monster?.name);
-      const monsterName = String(monster?.name || monster?.id || 'Unknown Monster');
-      await recordMonsterDefeat(db, {
-        charId: char.id,
-        source: 'dungeon',
-        monsterKey,
-        monsterName,
-        count,
-        now
-      });
-    }
-
-    const bounty = await ensureActiveGuildBounty(db, char.id);
-    res.json({ success: true, bounty });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/boss-defeated', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { loot, newFloor, highestFloor, bossName, bossId } = req.body || {};
-
-    const char = await getCurrentCharacter(db, req.user.userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    const now = Math.floor(Date.now() / 1000);
-    await recordMonsterDefeat(db, {
-      charId: char.id,
-      source: 'dungeon_boss',
-      monsterKey: bossId || bossName || `floor_${newFloor || char.dungeon_floor || 1}_boss`,
-      monsterName: bossName || `Floor ${newFloor || char.dungeon_floor || 1} Boss`,
-      count: 1,
-      now
-    });
-
-    let message = '';
     
-    if (loot && typeof loot === 'object') {
-      if (loot.gold) {
-        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', 
-          [loot.gold, char.id]);
-        message += `💰 +${loot.gold} gold! `;
-      }
-      
-      if (loot.gems) {
-        const cappedGems = Math.min(15, loot.gems);
-        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', 
-          [cappedGems, char.id]);
-        message += `💎 +${cappedGems} gems! `;
-      }
-      
-      if (loot.premium) {
-        const now = Math.floor(Date.now() / 1000);
-        let activePrem = {};
-        
-        try {
-          if (char.premium_features) {
-            activePrem = JSON.parse(char.premium_features);
-          }
-        } catch {}
-        
-        const currentExpiry = activePrem[loot.premium.id] || 0;
-        const newExpiry = Math.max(currentExpiry, now) + (loot.premium.days * 24 * 3600);
-        activePrem[loot.premium.id] = newExpiry;
-        
-        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', 
-          [JSON.stringify(activePrem), char.id]);
-        
-        message += `✨ ${loot.premium.emoji} ${loot.premium.name} activated for ${loot.premium.days} days! `;
-      }
-    }
-
-    if (newFloor) {
-      const hf = highestFloor || newFloor;
-      await dbRun(
-        db,
-        'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?',
-        [newFloor, hf, char.id]
-      );
-    }
+    // Clear session if it matches
+    await dbRun(db, "UPDATE characters SET dungeon_session = NULL WHERE id = ? AND dungeon_session IS NOT NULL", [char.id]);
     
-    if (loot?.premium) {
-      try {
-        const subject = `🎉 Dungeon Boss Defeated - Premium Reward!`;
-        const body = `You defeated the boss on floor ${newFloor} and received ${loot.premium.emoji} ${loot.premium.name} for ${loot.premium.days} days! Check the Premium tab to see your new feature.\n\n${loot.premium.desc}`;
-        await dbRun(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?, ?, ?, ?)',
-          [char.id, char.id, subject, body]);
-      } catch (e) { console.error('Failed to send premium notification:', e); }
-    }
-
-    const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
-    
-    res.json({ 
-      success: true, 
-      message: message.trim(),
-      character: await buildCharacterResponse(updatedChar, db)
-    });
+    res.json({ success: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
