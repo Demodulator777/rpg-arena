@@ -2331,7 +2331,10 @@ function renderRoomInfo(room) {
       el.innerHTML = entriesHtml;
     });
     const roomLog = document.querySelector('.dungeon-hud-room-log');
-    if (roomLog) roomLog.textContent = D.dungeonLog[0]?.msg || '';
+    if (roomLog) {
+      roomLog.innerHTML = `<span>${D.dungeonLog[0]?.msg || ''}</span>`;
+      roomLog.style.display = D.dungeonLog[0]?.msg ? 'block' : 'none';
+    }
   }
 
   function showBossVictoryModal(boss, loot) {
