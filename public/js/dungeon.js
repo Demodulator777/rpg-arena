@@ -958,19 +958,23 @@ function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
-    // Check if server says already cleared
-    apiFetch('POST', '/game/dungeon/check-cleared', { roomId: room.id, floor: D.floor })
+    // Check if server says already cleared or claimed
+    apiFetch('POST', '/game/dungeon/claim-room', { roomId: room.id, floor: D.floor })
         .then(res => {
             if (res.cleared) {
-                log(`⚠️ Room already cleared by another player!`, 'log-warning');
+                log(`⚠️ Room already cleared!`, 'log-warning');
                 room.monstersCleared = true;
                 renderDungeonView();
+                return;
+            }
+            if (res.claimed) {
+                log(`⚠️ Room is being fought by another player!`, 'log-warning');
                 return;
             }
             startCombat(roomIdx);
         })
         .catch(e => {
-            console.error('Failed to check room status:', e);
+            console.error('Failed to claim room:', e);
             startCombat(roomIdx);
         });
 }
@@ -1119,6 +1123,10 @@ function onRoomCleared(roomIdx) {
                     .catch(e => console.error('Failed to sync dungeon monster defeats:', e));
             }
 
+            // Release lock and mark cleared
+            apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true })
+                .catch(e => console.error('Failed to release room:', e));
+
             D.combat = null;
             saveState();
             saveProgressToDB();
@@ -1145,14 +1153,11 @@ function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
         log(`💨 Escaped successfully!`, 'log-success');
         
-        // Mark that you successfully fled from these monsters
-        // This allows you to leave the room without fighting
-        if (D.combat && D.combat.monsters) {
-            // Add a flag to the room that monsters have been evaded
-            const room = D.rooms[roomIdx];
-            if (room) {
-                room.monstersEvaded = true;
-            }
+        // Release lock
+        const room = D.rooms[roomIdx];
+        if (room) {
+            apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: false })
+                .catch(e => console.error('Failed to release room:', e));
         }
         
         D.combat = null;
@@ -1222,10 +1227,19 @@ function tryStealFromPlayer(roomIdx, monsterIndex) {
     renderDungeonView();
   }
 
-  function onPlayerDeath() {
+function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
     const c = getChar();
     if (c && c.hp_current !== undefined) c.hp = c.hp_current;
+    
+    // Release lock
+    if (D.combat && D.combat.roomIdx !== undefined) {
+        const room = D.rooms[D.combat.roomIdx];
+        if (room) {
+            apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: false })
+                .catch(e => console.error('Failed to release room:', e));
+        }
+    }
     
     D.savedProgress['tower'] = {
       floor: D.floor,
@@ -1238,7 +1252,7 @@ function tryStealFromPlayer(roomIdx, monsterIndex) {
     saveState();
     saveProgressToDB();
     setTimeout(() => renderDungeonList(), 1500);
-  }
+}
 
 async function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
