@@ -625,6 +625,16 @@ const WEEKLY_TASKS = [
             reward_payload TEXT,
             PRIMARY KEY (raid_id, char_id)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dungeon_room_instances (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            floor_number INTEGER NOT NULL,
+            room_index INTEGER NOT NULL,
+            status TEXT DEFAULT 'active',
+            created_at INTEGER,
+            UNIQUE(user_id, floor_number, room_index)
+        )`, args: [] });
         
         // Skill tree migrations
         const { SKILL_TREE_MIGRATIONS } = require('./skills');
@@ -7684,6 +7694,74 @@ router.post('/dungeon/lock-acquire', auth, async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('lock-acquire error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Atomic room entry - prevents double rewards
+router.post('/dungeon/room-enter', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { roomId, floor, roomIndex } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    const instanceId = `${char.id}_${floor}_${roomIndex}_${Date.now()}`;
+    
+    // Try to insert - if UNIQUE constraint fails, another session already entered
+    await db.execute({
+      sql: `INSERT INTO dungeon_room_instances (id, user_id, char_id, floor_number, room_index, status, created_at)
+            VALUES (?, ?, ?, ?, ?, 'active', ?)`,
+      args: [instanceId, req.user.userId, char.id, floor, roomIndex, Date.now()]
+    });
+    
+    res.json({ success: true, instanceId });
+  } catch (e) {
+    // UNIQUE constraint violation = already entered
+    if (e.message.includes('UNIQUE') || e.message.includes('duplicate')) {
+      return res.status(409).json({ error: 'Room already entered', locked: true });
+    }
+    console.error('room-enter error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Release room when escaping or dying
+router.post('/dungeon/room-exit', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, roomIndex } = req.body;
+    
+    await db.execute({
+      sql: `DELETE FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+      args: [req.user.userId, floor, roomIndex]
+    });
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mark room cleared and claim reward atomically
+router.post('/dungeon/room-clear', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, roomIndex } = req.body;
+    
+    // Update status - only if still active (prevents double claim)
+    const result = await db.execute({
+      sql: `UPDATE dungeon_room_instances SET status = 'cleared' 
+            WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
+      args: [req.user.userId, floor, roomIndex]
+    });
+    
+    if (result.meta.changes === 0) {
+      return res.status(409).json({ error: 'Room already cleared', cleared: true });
+    }
+    
+    res.json({ success: true });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
