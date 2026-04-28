@@ -7667,29 +7667,40 @@ router.post('/dungeon/lock-refresh', auth, async (req, res) => {
   res.json({ success: true });
 });
 
-// Atomic room entry - prevents double rewards
+// Atomic room entry - prevents double reward exploits
 router.post('/dungeon/room-enter', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { roomId, floor, roomIndex } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId);
+    const { userId } = req.user;
+    const char = await getCurrentCharacter(db, userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    // Check if already cleared - don't allow re-entry
+    const alreadyCleared = await db.execute({
+      sql: `SELECT id FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'`,
+      args: [userId, floor, roomIndex]
+    });
+    if (alreadyCleared.rows.length > 0) {
+      return res.status(409).json({ error: 'Room already cleared', locked: true });
+    }
     
     const instanceId = `${char.id}_${floor}_${roomIndex}_${Date.now()}`;
     const tabSession = req.user.tabSession || `default`;
     
-    // Try to insert - if UNIQUE constraint fails, another session already entered
+    // Insert - allow multiple active entries (for tracking), but only first clear wins
     await db.execute({
       sql: `INSERT INTO dungeon_room_instances (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
             VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-      args: [instanceId, req.user.userId, char.id, floor, roomIndex, tabSession, Date.now()]
+      args: [instanceId, userId, char.id, floor, roomIndex, tabSession, Date.now()]
     });
     
     res.json({ success: true, instanceId });
   } catch (e) {
-    // UNIQUE constraint violation = already entered
+    // UNIQUE constraint violation - handle duplicate active entry
     if (e.message.includes('UNIQUE') || e.message.includes('duplicate')) {
-      return res.status(409).json({ error: 'Room already entered', locked: true });
+      // Already active from another tab - still allow (for tracking)
+      return res.json({ success: true, instanceId: 'existing' });
     }
     console.error('room-enter error:', e);
     res.status(500).json({ error: e.message });
