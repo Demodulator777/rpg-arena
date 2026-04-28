@@ -1750,7 +1750,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
    ════════════════════════════════════════════════════════════════════════ */
 .tab-content-area {
     flex: 1; min-width: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 22px 24px; touch-action: pan-y pinch-zoom;
-}
     background:
         linear-gradient(rgba(5,8,14,0.82), rgba(5,8,14,0.82)),
         url('/images/logo/arena.png') center center / cover no-repeat fixed;
