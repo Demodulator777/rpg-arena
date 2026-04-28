@@ -27,12 +27,17 @@ module.exports = async (req, res, next) => {
         if (currentSession) {
             try {
                 const sess = JSON.parse(currentSession);
-                // If token was issued before current session, it's invalid
                 // decoded.iat is seconds, sess.ts is milliseconds
-                if (decoded.iat && sess.ts && (decoded.iat * 1000) < sess.ts) {
-                    return res.status(401).json({ error: 'Session expired' });
+                // Only reject if session was updated within last 60 seconds (new login)
+                if (decoded.iat && sess.ts) {
+                    const sessionAge = Date.now() - sess.ts;
+                    if (sessionAge < 60000 && (decoded.iat * 1000) < sess.ts) {
+                        return res.status(401).json({ error: 'Session expired' });
+                    }
                 }
-            } catch {}
+            } catch {
+                // No session set, allow token
+            }
         }
         
         // Set req.user with both userId and username
