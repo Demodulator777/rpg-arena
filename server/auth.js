@@ -107,16 +107,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check for existing session - only one device at a time
-    if (user.user_session) {
-      try {
-        const sess = JSON.parse(user.user_session);
-        if (sess.ts && (Date.now() - sess.ts) < 60000) {
-          // Session less than 1 minute old - reject new login
-          return res.status(409).json({ error: 'Already logged in on another device' });
-        }
-      } catch {}
-    }
+    // Always allow login - new session overwrites old (logs off other device)
     
     // Generate token
     const token = jwt.sign(
@@ -129,6 +120,12 @@ router.post('/login', async (req, res) => {
     await db.execute({
       sql: 'UPDATE users SET user_session = ? WHERE id = ?',
       args: [JSON.stringify({ ts: Date.now() }), user.id]
+    });
+    
+    // Clear any existing dungeon session (new login invalidates old)
+    await db.execute({
+      sql: 'UPDATE characters SET dungeon_session = NULL WHERE user_id = ?',
+      args: [user.id]
     });
     
     res.json({ token, username: user.username });
