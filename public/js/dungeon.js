@@ -1006,23 +1006,17 @@ function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
-    // Check if server says already cleared or claimed
-    apiFetch('POST', '/game/dungeon/claim-room', { roomId: room.id, floor: D.floor })
+    // Try to claim room entry atomically
+    apiFetch('POST', '/game/dungeon/room-enter', { roomId: room.id, floor: D.floor, roomIndex: roomIdx })
         .then(res => {
-            if (res.cleared) {
-                log(`⚠️ Room already cleared!`, 'log-warning');
-                room.monstersCleared = true;
-                renderDungeonView();
-                return;
-            }
-            if (res.claimed) {
-                log(`⚠️ Room is being fought by another player!`, 'log-warning');
+            if (res.locked) {
+                log(`⚠️ Room already entered from another device!`, 'log-warning');
                 return;
             }
             startCombat(roomIdx);
         })
         .catch(e => {
-            console.error('Failed to claim room:', e);
+            console.error('Failed to enter room:', e);
             startCombat(roomIdx);
         });
 }
@@ -1143,7 +1137,7 @@ function onRoomCleared(roomIdx) {
     room.monstersEvaded = false;
 
     // Mark room as cleared on server FIRST to prevent double loot
-    apiFetch('POST', '/game/dungeon/room-clear', { roomId: room.id, floor: D.floor })
+    apiFetch('POST', '/game/dungeon/room-clear', { floor: D.floor, roomIndex: roomIdx })
         .then(res => {
             if (res.cleared) {
                 log(`⚠️ Room already cleared - no loot gained`, 'log-warning');
@@ -1201,12 +1195,9 @@ function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
         log(`💨 Escaped successfully!`, 'log-success');
         
-        // Release lock
-        const room = D.rooms[roomIdx];
-        if (room) {
-            apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: false })
-                .catch(e => console.error('Failed to release room:', e));
-        }
+        // Release room entry
+        apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
+            .catch(e => console.error('Failed to exit room:', e));
         
         D.combat = null;
         renderDungeonView();
@@ -1280,7 +1271,11 @@ function onPlayerDeath() {
     const c = getChar();
     if (c && c.hp_current !== undefined) c.hp = c.hp_current;
     
-    // Release lock
+    // Release room entry and lock
+    if (D.combat && D.combat.roomIdx !== undefined) {
+        apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: D.combat.roomIdx })
+            .catch(e => console.error('Failed to exit room:', e));
+    }
     stopLockRefresh();
     
     D.savedProgress['tower'] = {
