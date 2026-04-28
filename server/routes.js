@@ -7624,19 +7624,80 @@ router.get('/dungeon/lock-check', auth, async (req, res) => {
     const char = await getCurrentCharacter(db, req.user.userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
     
-    // Only lock if there's an active combat session
+    // Check for active dungeon lock with expiry
     let locked = false;
-    if (char.dungeon_progress) {
+    if (char.dungeon_session) {
       try {
-        const progress = JSON.parse(char.dungeon_progress);
-        // Check if combat is active (combat object exists and has data)
-        if (progress.combat && progress.combat.monsters && progress.combat.monsters.length > 0) {
+        const sess = JSON.parse(char.dungeon_session);
+        const now = Date.now();
+        // Lock expires after 30 seconds of inactivity
+        if (sess && sess.ts && (now - sess.ts) < 30000) {
           locked = true;
         }
       } catch {}
     }
     
     res.json({ locked });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/lock-acquire', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    const now = Date.now();
+    
+    // Check existing lock
+    if (char.dungeon_session) {
+      try {
+        const sess = JSON.parse(char.dungeon_session);
+        if (sess && sess.ts && (now - sess.ts) < 30000) {
+          return res.status(409).json({ error: 'Already in dungeon', locked: true });
+        }
+      } catch {}
+    }
+    
+    // Acquire lock
+    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
+      [JSON.stringify({ ts: now }), char.id]
+    );
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/lock-release', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    await dbRun(db, 'UPDATE characters SET dungeon_session = NULL WHERE id = ?', [char.id]);
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/lock-refresh', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    // Refresh the lock timestamp
+    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
+      [JSON.stringify({ ts: Date.now() }), char.id]
+    );
+    
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
