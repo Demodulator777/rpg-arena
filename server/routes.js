@@ -7652,27 +7652,38 @@ router.post('/dungeon/lock-acquire', auth, async (req, res) => {
     const now = Date.now();
     const lockTimeout = 30000;
     
-    // Set our timestamp first
-    await dbRun(db, 'UPDATE characters SET dungeon_session = ? WHERE id = ?',
-      [JSON.stringify({ ts: now }), char.id]
-    );
-    
-    // Immediate read-back - if there's already a NEWER lock, we lost the race
-    const verify = await getCurrentCharacter(db, req.user.userId, 'dungeon_session');
-    if (verify && verify.dungeon_session) {
+    // Get current lock time first
+    let currentTs = null;
+    if (char.dungeon_session) {
       try {
-        const v = JSON.parse(verify.dungeon_session);
-        // If there's a different (newer) timestamp, another request beat us
-        if (v.ts && v.ts > now) {
-          // Clear our old lock
-          await dbRun(db, 'UPDATE characters SET dungeon_session = NULL WHERE id = ?', [char.id]);
-          return res.status(409).json({ error: 'Already in dungeon', locked: true });
-        }
+        const sess = JSON.parse(char.dungeon_session);
+        currentTs = sess?.ts || null;
       } catch {}
+    }
+    
+    // If recent lock exists, reject immediately
+    if (currentTs && (now - currentTs) < lockTimeout) {
+      return res.status(409).json({ error: 'Already in dungeon', locked: true });
+    }
+    
+    // Try atomic update - only succeeds if no recent lock
+    const result = await dbRun(db, `
+      UPDATE characters 
+      SET dungeon_session = ?
+      WHERE id = ? 
+        AND (dungeon_session IS NULL 
+             OR json_extract(dungeon_session, '$.ts') IS NULL 
+             OR ? - json_extract(dungeon_session, '$.ts') > ?)
+    `, [JSON.stringify({ ts: now }), char.id, now, lockTimeout]);
+    
+    // dbRun returns result from db.execute - check affected rows
+    if (!result || !result.meta || result.meta.changes === 0) {
+      return res.status(409).json({ error: 'Already in dungeon', locked: true });
     }
     
     res.json({ success: true });
   } catch (e) {
+    console.error('lock-acquire error:', e);
     res.status(500).json({ error: e.message });
   }
 });
