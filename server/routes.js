@@ -7655,49 +7655,16 @@ router.get('/dungeon/lock-check', auth, async (req, res) => {
 });
 
 router.post('/dungeon/lock-acquire', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const char = await getCurrentCharacter(db, req.user.userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    const now = Date.now();
-    const lockTimeout = 30000;
-    
-    // Get current lock time first
-    let currentTs = null;
-    if (char.dungeon_session) {
-      try {
-        const sess = JSON.parse(char.dungeon_session);
-        currentTs = sess?.ts || null;
-      } catch {}
-    }
-    
-    // If recent lock exists, reject immediately
-    if (currentTs && (now - currentTs) < lockTimeout) {
-      return res.status(409).json({ error: 'Already in dungeon', locked: true });
-    }
-    
-    // Try atomic update - only succeeds if no recent lock
-    const result = await dbRun(db, `
-      UPDATE characters 
-      SET dungeon_session = ?
-      WHERE id = ? 
-        AND (dungeon_session IS NULL 
-             OR json_extract(dungeon_session, '$.ts') IS NULL 
-             OR ? - json_extract(dungeon_session, '$.ts') > ?)
-    `, [JSON.stringify({ ts: now }), char.id, now, lockTimeout]);
-    
-    // dbRun returns result from db.execute - check affected rows
-    const changes = result?.meta?.changes ?? result?.changes ?? 0;
-    if (changes === 0) {
-      return res.status(409).json({ error: 'Already in dungeon', locked: true });
-    }
-    
-    res.json({ success: true });
-  } catch (e) {
-    console.error('lock-acquire error:', e);
-    res.status(500).json({ error: e.message });
-  }
+  // Auth lock now handles single-device login, dungeon lock not needed
+  res.json({ success: true });
+});
+
+router.post('/dungeon/lock-release', auth, async (req, res) => {
+  res.json({ success: true });
+});
+
+router.post('/dungeon/lock-refresh', auth, async (req, res) => {
+  res.json({ success: true });
 });
 
 // Atomic room entry - prevents double rewards
