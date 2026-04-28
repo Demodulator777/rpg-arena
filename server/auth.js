@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { getDb } = require('./db');
 const auth = require('./middleware');
 
@@ -107,19 +108,21 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Always allow login - new session overwrites old (logs off other device)
+    // Generate unique session ID
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    const now = Date.now();
     
-    // Generate token
+    // Generate token with session ID
     const token = jwt.sign(
-      { userId: user.id, username: user.username }, 
+      { userId: user.id, username: user.username, sessionId }, 
       JWT_SECRET, 
       { expiresIn: '7d' }
     );
     
-    // Store session
+    // Store session with ID
     await db.execute({
       sql: 'UPDATE users SET user_session = ? WHERE id = ?',
-      args: [JSON.stringify({ ts: Date.now() }), user.id]
+      args: [JSON.stringify({ id: sessionId, ts: now }), user.id]
     });
     
     // Clear any existing dungeon session (new login invalidates old)
