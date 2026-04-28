@@ -156,7 +156,16 @@ async function seedDefaultBanner(db) {
         sql: `SELECT id FROM banner_events WHERE start_at <= ? AND end_at > ?`, 
         args: [now, now] 
     });
-    if (existing.rows.length > 0) return;
+    
+    // Carry over pity from expired banner if exists
+    if (existing.rows.length > 0) {
+        const activeBannerId = existing.rows[0].id;
+        const oldPulls = await dbGet(db, `SELECT pull_count, total_pulls FROM player_banner_pulls WHERE banner_id = ?`, [activeBannerId]);
+        if (oldPulls && oldPulls.pull_count > 0) {
+            console.log('🎴 Banner still active, keeping pity');
+            return;
+        }
+    }
     
     const weekFromNow = now + 7 * 24 * 60 * 60;
     
@@ -289,7 +298,7 @@ router.get('/current', async (req, res) => {
         const db = await getDb();
         const banner = await getActiveBanner(db);
         if (!banner) {
-            return res.json({ active: false, banner: null });
+            return res.json({ active: false, banner: null, stats: {} });
         }
         
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
@@ -297,7 +306,30 @@ router.get('/current', async (req, res) => {
             return res.json({ active: true, banner: null, stats: {} });
         }
         
-        const stats = await getPlayerBannerStats(db, char.id, banner.id);
+        let stats = await getPlayerBannerStats(db, char.id, banner.id);
+        
+        // Carry highest pity from any previous banner if current has none
+        if (!stats || stats.pullCount === 0) {
+            const allPulls = await dbAll(db, 
+                `SELECT banner_id, pull_count FROM player_banner_pulls WHERE char_id = ? AND pull_count > 0`, 
+                [char.id]
+            );
+            if (allPulls.length > 0) {
+                const maxPulls = Math.max(...allPulls.map(r => r.pull_count));
+                const existingRow = await dbGet(db, `SELECT pull_count FROM player_banner_pulls WHERE char_id = ? AND banner_id = ?`, [char.id, banner.id]);
+                if (existingRow) {
+                    await dbRun(db, `UPDATE player_banner_pulls SET pull_count = ? WHERE char_id = ? AND banner_id = ? AND pull_count < ?`,
+                        [maxPulls, char.id, banner.id, maxPulls]
+                    );
+                } else {
+                    await dbRun(db, `INSERT INTO player_banner_pulls (char_id, banner_id, pull_count, total_pulls, carry_pulls, won) VALUES (?, ?, ?, ?, ?, ?)`,
+                        [char.id, banner.id, maxPulls, maxPulls, 0, 0]
+                    );
+                }
+                stats.pullCount = maxPulls;
+            }
+        }
+        
         const allStats = await getAllPlayerBannerStats(db, char.id);
         const effectivePulls = (stats.carryPulls || 0) + stats.pullCount;
         const currentOdds = getBannerOdds(effectivePulls);
