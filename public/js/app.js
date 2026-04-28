@@ -50,6 +50,11 @@ let chatStatusTimer = null;
 let chatWidgetPosition = null;
 let chatDragState = null;
 
+function isTutorialCharacter(char = character) {
+    if (!char) return false;
+    return Number(char.wins || 0) < 4 && !Number(char.tutorial_skipped || 0);
+}
+
 async function loadAbyssData() {
     try {
         abyssData = await api('GET', '/game/abyss/data');
@@ -1476,7 +1481,6 @@ window.navigateMissionsHub = navigateMissionsHub;
 async function skipTutorial() {
     console.log('skipTutorial called');
     
-    // Check if already skipped
     if (character?.tutorial_skipped) {
         return;
     }
@@ -1493,13 +1497,30 @@ async function skipTutorial() {
     
     try {
         const res = await api('POST', '/game/tutorial/skip');
-        console.log('Skip result:', res);
+        console.log('Skip result full:', JSON.stringify(res));
+        console.log('Skip res.character keys:', Object.keys(res.character || {}));
         if (res.character) {
+            // Merge the response with current character, ensuring tutorial_skipped is set
             character = { ...character, ...res.character, tutorial_skipped: 1 };
-            console.log('Updated character:', character);
+            console.log('Updated character tutorial_skipped:', character.tutorial_skipped);
+            
+            // Clear tutorial states
+            delete character.isTutorial;
+            
+            // Refresh views
             renderTopBar();
             renderCharacter();
             showTab('character');
+            
+            // Force remove any tutorial overlays by forcing a DOM update
+            const bannerEl = document.getElementById('event-banner');
+            if (bannerEl) {
+                bannerEl.classList.remove('event-banner--tutorial');
+                bannerEl.style.display = 'none';
+            }
+            
+            // Re-show events banner if needed
+            checkEvents();
             
             if (document.getElementById('tab-missions').classList.contains('active')) {
                 showMissions();
@@ -1549,6 +1570,12 @@ function renderTopBar() {
     if (!character) return;
     syncClientPreferencesFromCharacter();
     const c=getLiveCharacterSnapshot(character);
+    
+    // Debug: Force tutorial_skipped into snapshot if missing
+    if (!c.tutorial_skipped && character.tutorial_skipped) {
+        c.tutorial_skipped = character.tutorial_skipped;
+    }
+    
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
     const lxp=c.level*25;
@@ -1557,7 +1584,7 @@ function renderTopBar() {
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
 
     // Tutorial Indicator
-    const isTutorial = (c.wins || 0) < 4 && !c?.tutorial_skipped;
+    const isTutorial = isTutorialCharacter(c);
     const bannerEl = document.getElementById('event-banner');
     if (bannerEl) {
         if (isTutorial) {
@@ -3063,8 +3090,7 @@ function openLocationModal(zoneId) {
                     : '🔒 Travel here first';
                 
                 // Tutorial Lock: Wins < 4 only allows Easy
-                const charWins = parseInt(character?.wins || 0, 10);
-                const isTutorial = (charWins < 4 && !character?.tutorial_skipped) || (character?.level === 1 && charWins < 4);
+                const isTutorial = isTutorialCharacter(character);
                 
                 if (!actionBlocked && isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
                     locked = true;
@@ -3110,8 +3136,7 @@ function openSpotMissions(zoneId, spotId) {
     const actionBlocked = !!window.activeMission || !!playerTravelTarget;
     
     // Tutorial state
-    const charWins = parseInt(character?.wins || 0, 10);
-    const isTutorial = charWins < 4 && !character?.tutorial_skipped;
+    const isTutorial = isTutorialCharacter(character);
 
     const sizes = [
         { key: 'small', label: 'Small', mpCost: 20, duration: isTutorial ? '10s' : '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
