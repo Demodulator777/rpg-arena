@@ -1478,34 +1478,29 @@ async function skipTutorial() {
     
     // Check if already skipped
     if (character?.tutorial_skipped) {
-        alert('Tutorial already skipped');
         return;
     }
     
-    const proceed = confirm('Skip Tutorial?\n\nYou will lose the early protection and fast missions. You can still do Small missions.');
+    const proceed = await openGameDialog({
+        title: 'Skip Tutorial?',
+        message: 'You will lose the early protection. You can still do Small missions after skipping.',
+        confirmLabel: 'Skip Tutorial',
+        cancelLabel: 'Stay',
+        showCancel: true,
+        danger: true
+    });
     if (!proceed) return;
     
     try {
         const res = await api('POST', '/game/tutorial/skip');
         console.log('Skip result:', res);
         if (res.character) {
-            // Update character and force refresh
             character = { ...character, ...res.character, tutorial_skipped: 1 };
             console.log('Updated character:', character);
-            
-            // Force re-render everything
             renderTopBar();
             renderCharacter();
             showTab('character');
             
-            // Also manually remove tutorial banner
-            const bannerEl = document.getElementById('event-banner');
-            if (bannerEl) {
-                bannerEl.classList.remove('event-banner--tutorial');
-                bannerEl.innerHTML = '';
-            }
-            
-            // Force refresh missions view to unlock spots
             if (document.getElementById('tab-missions').classList.contains('active')) {
                 showMissions();
             }
