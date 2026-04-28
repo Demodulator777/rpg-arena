@@ -1540,7 +1540,7 @@ function renderTopBar() {
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
 
     // Tutorial Indicator
-    const isTutorial = (c.wins || 0) < 4;
+    const isTutorial = (c.wins || 0) < 4 && !character?.tutorial_skipped;
     const bannerEl = document.getElementById('event-banner');
     if (bannerEl) {
         if (isTutorial) {
