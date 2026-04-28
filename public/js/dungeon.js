@@ -958,6 +958,27 @@ function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
+    // Check if server says already cleared
+    apiFetch('POST', '/game/dungeon/check-cleared', { roomId: room.id, floor: D.floor })
+        .then(res => {
+            if (res.cleared) {
+                log(`⚠️ Room already cleared by another player!`, 'log-warning');
+                room.monstersCleared = true;
+                renderDungeonView();
+                return;
+            }
+            startCombat(roomIdx);
+        })
+        .catch(e => {
+            console.error('Failed to check room status:', e);
+            startCombat(roomIdx);
+        });
+}
+
+function startCombat(roomIdx) {
+    const room = D.rooms[roomIdx];
+    if (!room || !room.monsters || room.monsters.length === 0) return;
+
     // Check if already cleared (server-side protection)
     if (room.monstersCleared) {
         log(`⚠️ This room has already been cleared!`, 'log-warning');
@@ -1069,36 +1090,55 @@ function onRoomCleared(roomIdx) {
     // Clear evaded flag if it was set
     room.monstersEvaded = false;
 
-    // Roll loot for each monster
-    let totalGold = 0;
-    for (const monster of monsters) {
-        const loot = rollMinorLoot(D.activeDungeon);
-        if (loot.type === 'gold') totalGold += loot.amount;
-        else applyLoot(loot);
-    }
-
-    if (totalGold > 0) {
-        applyLoot({ type: 'gold', amount: totalGold });
-    }
-
-    if (defeatedMonsters.length) {
-        apiFetch('POST', '/game/dungeon/monster-defeated', { monsters: defeatedMonsters })
-            .catch(e => console.error('Failed to sync dungeon monster defeats:', e));
-    }
-
-    // Mark room as cleared on server to prevent double loot
+    // Mark room as cleared on server FIRST to prevent double loot
     apiFetch('POST', '/game/dungeon/room-clear', { roomId: room.id, floor: D.floor })
         .then(res => {
             if (res.cleared) {
-                log(`⚠️ Room already cleared - loot not granted`, 'log-warning');
+                log(`⚠️ Room already cleared - no loot gained`, 'log-warning');
+                D.combat = null;
+                saveState();
+                saveProgressToDB();
+                renderDungeonView();
+                return;
             }
-        })
-        .catch(e => console.error('Failed to mark room cleared:', e));
+            
+            // Only grant loot after server confirms room not cleared
+            let totalGold = 0;
+            for (const monster of monsters) {
+                const loot = rollMinorLoot(D.activeDungeon);
+                if (loot.type === 'gold') totalGold += loot.amount;
+                else applyLoot(loot);
+            }
 
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-    renderDungeonView();
+            if (totalGold > 0) {
+                applyLoot({ type: 'gold', amount: totalGold });
+            }
+
+            if (defeatedMonsters.length) {
+                apiFetch('POST', '/game/dungeon/monster-defeated', { monsters: defeatedMonsters })
+                    .catch(e => console.error('Failed to sync dungeon monster defeats:', e));
+            }
+
+            D.combat = null;
+            saveState();
+            saveProgressToDB();
+            renderDungeonView();
+        })
+        .catch(e => {
+            console.error('Failed to mark room cleared:', e);
+            // Still grant loot on error to not punish player
+            let totalGold = 0;
+            for (const monster of monsters) {
+                const loot = rollMinorLoot(D.activeDungeon);
+                if (loot.type === 'gold') totalGold += loot.amount;
+                else applyLoot(loot);
+            }
+            if (totalGold > 0) applyLoot({ type: 'gold', amount: totalGold });
+            D.combat = null;
+            saveState();
+            saveProgressToDB();
+            renderDungeonView();
+        });
 }
 
 function tryRun(roomIdx) {
