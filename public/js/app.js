@@ -1186,6 +1186,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     ensureCreateClassArt();
 });
 function logout() {
+    // Save token for logout request before clearing
+    const storedToken = localStorage.getItem('rpg_token');
+    
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
     chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatStatusText=''; chatStatusIsError=false;
@@ -1193,8 +1196,15 @@ function logout() {
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
     renderChatWidget();
-    api('POST', '/auth/logout').catch(() => {});
     showScreen('auth');
+    
+    // Logout from server with saved token (ignore errors)
+    if (storedToken) {
+        fetch('/api/auth/logout', { 
+            method: 'POST', 
+            headers: { 'Authorization': `Bearer ${storedToken}` } 
+        }).catch(() => {});
+    }
 }
 
 // ── Character Creation ────────────────────────────────────────────────────
