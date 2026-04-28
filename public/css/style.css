@@ -453,9 +453,22 @@ body {
 /* ════════════════════════════════════════════════════════════════════════
    AUTH SCREENS
    ════════════════════════════════════════════════════════════════════════ */
-.screen { display: none; min-height: 100vh; }
+.screen { display: none; min-height: 100vh; min-height: -webkit-fill-available; }
 .screen.active { display: block; }
-#screen-game.active { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+#screen-game.active { display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; overflow: hidden; overscroll-behavior: contain; }
+
+html, body {
+    height: 100%;
+    height: -webkit-fill-available;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent Safari bounce scroll */
+#screen-game {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: none;
+}
 
 .auth-bg {
     position: fixed; inset: 0; z-index: 0;
@@ -1414,7 +1427,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 /* ════════════════════════════════════════════════════════════════════════
    GAME LAYOUT
    ════════════════════════════════════════════════════════════════════════ */
-.game-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.game-body { display: flex; flex: 1; min-height: 0; overflow: hidden; -webkit-overflow-scrolling: touch; }
 
 /* ════════════════════════════════════════════════════════════════════════
    SIDEBAR / NAV
@@ -1736,7 +1749,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
    TAB CONTENT AREA
    ════════════════════════════════════════════════════════════════════════ */
 .tab-content-area {
-    flex: 1; min-width: 0; overflow-y: auto; padding: 22px 24px;
+    flex: 1; min-width: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 22px 24px; touch-action: pan-y pinch-zoom;
+}
     background:
         linear-gradient(rgba(5,8,14,0.82), rgba(5,8,14,0.82)),
         url('/images/logo/arena.png') center center / cover no-repeat fixed;
@@ -1752,6 +1766,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 
 .game-tab { display: none; position: relative; z-index: 1; }
+
+.topbar { z-index: 2147483646; }
+.menu-overlay { z-index: 2147483645; }
 .game-tab.active { display: block; }
 
 #chat-widget-root {
