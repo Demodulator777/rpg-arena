@@ -875,10 +875,14 @@ function enterDungeon(dungeonId) {
                 alert('⚠️ Dungeon is already active on another device.\nPlease close it there first.');
                 return;
             }
+            // Lock acquired - now verify and enter
             startDungeonEnter(dungeonId);
             startLockRefresh();
         })
-        .catch(() => startDungeonEnter(dungeonId));
+        .catch(e => {
+            console.error('Failed to acquire lock:', e);
+            alert('⚠️ Failed to enter dungeon. Please try again.');
+        });
 }
 
 function startLockRefresh() {
@@ -896,6 +900,29 @@ function stopLockRefresh() {
 }
 
 function startDungeonEnter(dungeonId) {
+    // Verify lock is held before proceeding
+    if (!D.hasLock) {
+        // No lock - need to acquire first
+        apiFetch('POST', '/game/dungeon/lock-acquire')
+            .then(res => {
+                if (res.locked || res.error) {
+                    alert('⚠️ Dungeon is already active on another device.');
+                    return;
+                }
+                D.hasLock = true;
+                proceedStartDungeon(dungeonId);
+            })
+            .catch(e => {
+                console.error('Lock verification failed:', e);
+                alert('⚠️ Failed to verify lock.');
+            });
+        return;
+    }
+    
+    proceedStartDungeon(dungeonId);
+}
+
+function proceedStartDungeon(dungeonId) {
     if (D.savedProgress['tower']) {
         const s = D.savedProgress[dungeonId];
         D.activeDungeon = 'tower';
@@ -1015,9 +1042,10 @@ function initiateFight(roomIdx) {
             }
             startCombat(roomIdx);
         })
+        // Stop on error - don't proceed
         .catch(e => {
             console.error('Failed to enter room:', e);
-            startCombat(roomIdx);
+            log(`⚠️ Failed to enter room`, 'log-danger');
         });
 }
 
