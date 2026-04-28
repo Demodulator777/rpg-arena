@@ -455,19 +455,17 @@ body {
    ════════════════════════════════════════════════════════════════════════ */
 .screen { display: none; min-height: 100vh; min-height: -webkit-fill-available; }
 .screen.active { display: block; }
-#screen-game.active { display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; overflow: hidden; overscroll-behavior: contain; }
+#screen-game.active { display: flex; flex-direction: column; height: 100vh; height: -webkit-fill-available; overflow: hidden; }
 
 html, body {
     height: 100%;
     height: -webkit-fill-available;
-    overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
 }
 
 /* Prevent Safari bounce scroll */
 #screen-game {
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 .auth-bg {
@@ -3275,7 +3273,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     flex-direction: column;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
 }
 .item-tooltip.hidden { display: none; }
 .tt-preview {
