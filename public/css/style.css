@@ -3270,15 +3270,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-radius: 14px; padding: 0;
     box-shadow: 0 20px 60px rgba(0,0,0,0.9);
     pointer-events: auto; overflow: hidden;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
 }
 .item-tooltip.hidden { display: none; }
 .tt-preview {
     width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px;
+    flex-shrink: 0;
 }
 .tt-preview img { width: 140px; height: 140px; object-fit: contain; }
 .tt-preview-emoji { font-size: 5rem; line-height: 1; }
-.tt-body { padding: 12px 14px; }
+.tt-body { padding: 12px 14px; overflow-y: auto; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
 .tt-name { font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--text-bright); }
 .tt-meta { font-size: 0.64rem; color: var(--text-dim); margin-top: 2px; }
 .tt-desc { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 8px; font-style: italic; line-height: 1.5; }
