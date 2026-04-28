@@ -1537,7 +1537,7 @@ function renderTopBar() {
     const set=(id,fn)=>{ const el=document.getElementById(id); if(el) fn(el); };
 
     // Tutorial Indicator
-    const isTutorial = (c.wins || 0) < 4 && !character?.tutorial_skipped;
+    const isTutorial = (c.wins || 0) < 4 && !c?.tutorial_skipped;
     const bannerEl = document.getElementById('event-banner');
     if (bannerEl) {
         if (isTutorial) {
@@ -3044,7 +3044,7 @@ function openLocationModal(zoneId) {
                 
                 // Tutorial Lock: Wins < 4 only allows Easy
                 const charWins = parseInt(character?.wins || 0, 10);
-                const isTutorial = charWins < 4 || (character?.level === 1 && charWins < 4);
+                const isTutorial = (charWins < 4 && !character?.tutorial_skipped) || (character?.level === 1 && charWins < 4);
                 
                 if (!actionBlocked && isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
                     locked = true;
@@ -3091,7 +3091,7 @@ function openSpotMissions(zoneId, spotId) {
     
     // Tutorial state
     const charWins = parseInt(character?.wins || 0, 10);
-    const isTutorial = charWins < 4;
+    const isTutorial = charWins < 4 && !character?.tutorial_skipped;
 
     const sizes = [
         { key: 'small', label: 'Small', mpCost: 20, duration: isTutorial ? '10s' : '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
