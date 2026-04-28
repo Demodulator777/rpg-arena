@@ -27,17 +27,28 @@ module.exports = async (req, res, next) => {
         if (currentSession) {
             try {
                 const sess = JSON.parse(currentSession);
-                // Only reject if session IDs don't match (new login elsewhere)
-                if (decoded.sessionId && sess.id && decoded.sessionId !== sess.id) {
+                // Compare session IDs - if they don't match, another login happened
+                const dbSessionId = sess.id || null;
+                if (decoded.sessionId && dbSessionId && decoded.sessionId !== dbSessionId) {
                     return res.status(401).json({ error: 'Session expired' });
                 }
             } catch {}
         }
         
-        // Set req.user with both userId and username
+        // Set req.user with userId, username, and tabSession for dungeon tracking
+        let tabSession = req.headers['x-tab-session'] || null;
+        let sessionId = null;
+        if (currentSession) {
+            try {
+                const sess = JSON.parse(currentSession);
+                sessionId = sess.id || null;
+            } catch {}
+        }
         req.user = { 
             userId: user.rows[0].id, 
-            username: user.rows[0].username 
+            username: user.rows[0].username,
+            sessionId,
+            tabSession
         };
         next();
     } catch (error) {
