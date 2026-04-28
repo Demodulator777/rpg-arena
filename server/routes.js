@@ -639,7 +639,9 @@ const WEEKLY_TASKS = [
         )`, args: [] });
         
         // Add session_id column if missing (for existing DBs)
-        await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN session_id TEXT DEFAULT NULL`, args: [] }).catch(() => {});
+        try {
+            await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN session_id TEXT DEFAULT NULL`, args: [] });
+        } catch {}
         
         // Skill tree migrations
         const { SKILL_TREE_MIGRATIONS } = require('./skills');
