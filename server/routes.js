@@ -633,8 +633,8 @@ const WEEKLY_TASKS = [
             floor_number INTEGER NOT NULL,
             room_index INTEGER NOT NULL,
             status TEXT DEFAULT 'active',
-            created_at INTEGER,
-            UNIQUE(user_id, floor_number, room_index)
+            session_id TEXT,
+            created_at INTEGER
         )`, args: [] });
         
         // Skill tree migrations
@@ -7676,12 +7676,13 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
     if (!char) return res.status(404).json({ error: 'Character not found' });
     
     const instanceId = `${char.id}_${floor}_${roomIndex}_${Date.now()}`;
+    const tabSession = req.user.tabSession || `default`;
     
     // Try to insert - if UNIQUE constraint fails, another session already entered
     await db.execute({
-      sql: `INSERT INTO dungeon_room_instances (id, user_id, char_id, floor_number, room_index, status, created_at)
-            VALUES (?, ?, ?, ?, ?, 'active', ?)`,
-      args: [instanceId, req.user.userId, char.id, floor, roomIndex, Date.now()]
+      sql: `INSERT INTO dungeon_room_instances (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+            VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
+      args: [instanceId, req.user.userId, char.id, floor, roomIndex, tabSession, Date.now()]
     });
     
     res.json({ success: true, instanceId });
@@ -7713,16 +7714,27 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
 });
 
 // Mark room cleared and claim reward atomically
+// Only FIRST clear gets reward - reject duplicates
 router.post('/dungeon/room-clear', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { floor, roomIndex } = req.body;
+    const { userId } = req.user;
     
-    // Update status - only if still active (prevents double claim)
+    // Check if ANY (any session) already cleared this room - first one wins
+    const existing = await db.execute({
+      sql: `SELECT id FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'`,
+      args: [userId, floor, roomIndex]
+    });
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Room already cleared', cleared: true });
+    }
+    
+    // First to clear - update any active row
     const result = await db.execute({
       sql: `UPDATE dungeon_room_instances SET status = 'cleared' 
             WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
-      args: [req.user.userId, floor, roomIndex]
+      args: [userId, floor, roomIndex]
     });
     
     const changes = result?.meta?.changes ?? result?.changes ?? 0;
@@ -7737,17 +7749,7 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
 });
 
 router.post('/dungeon/lock-release', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const char = await getCurrentCharacter(db, req.user.userId, 'id');
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    await dbRun(db, 'UPDATE characters SET dungeon_session = NULL WHERE id = ?', [char.id]);
-    
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.json({ success: true });
 });
 
 router.post('/dungeon/lock-refresh', auth, async (req, res) => {
