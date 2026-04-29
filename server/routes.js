@@ -7784,17 +7784,18 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
 router.post('/dungeon/room-clear', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const { floor, roomIndex } = req.body;
+    const { floor, roomIndex, floorRunId } = req.body;
     const { userId } = req.user;
     const char = await getCurrentCharacter(db, userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
+    const runKey = String(floorRunId || `${floor}_legacy`);
 
     // Atomically attempt to insert the cleared record.
-    // The table must have a UNIQUE constraint on (user_id, floor_number, room_index).
-    // If another tab already inserted it, this will be rejected — only one winner.
+    // The cleared id is scoped to the current floor instance so restarting the same
+    // floor later doesn't collide with an old clear from a previous run.
     let inserted = false;
     try {
-      const clearedId = `${char.id}_${floor}_${roomIndex}_cleared`;
+      const clearedId = `${char.id}_${runKey}_${roomIndex}_cleared`;
       await db.execute({
         sql: `INSERT INTO dungeon_room_instances
                 (id, user_id, char_id, floor_number, room_index, status, created_at)
