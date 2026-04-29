@@ -257,11 +257,22 @@ function getBossForFloor(floor) {
 
   // ── Loot Tables ────────────────────────────────────────────
   const MINION_LOOT = [
-    { type:'gold',       weight:75, min:5,  max:40  },
-    { type:'potion_hp',  weight:15, name:'Health Potion',  icon:'🧪', heal:50  },
-    { type:'potion_mp',  weight:5, name:'Mana Potion',    icon:'💧', mp:30    },
-    { type:'item_common',weight:5 },
+    { type:'gold',       weight:84, min:12, max:70  },
+    { type:'potion_hp',  weight:7,  icon:'??' },
+    { type:'potion_mp',  weight:3, name:'Mana Potion',    icon:'??', mp:30    },
+    { type:'item_common',weight:6 },
   ];
+
+  function getHealthPotionDropForFloor(floor) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    if (safeFloor >= 25) {
+      return { name:'Major Health Potion', icon:'??', heal:500 };
+    }
+    if (safeFloor >= 12) {
+      return { name:'Greater Health Potion', icon:'??', heal:200 };
+    }
+    return { name:'Small Health Potion', icon:'??', heal:100 };
+  }
 
   const COMMON_ITEMS = [
     { name:'Iron Shard',       icon:'🔩', type:'material', rarity:'common' },
@@ -956,11 +967,12 @@ function runCombatRound(playerStats, monsters, currentMonsterIndex) {
       r -= entry.weight;
       if (r < 0) {
         if (entry.type === 'gold') return { type:'gold', amount: rand(entry.min, entry.max) };
+        if (entry.type === 'potion_hp') return { type:'potion_hp', ...getHealthPotionDropForFloor(D.floor || 1) };
         if (entry.type === 'item_common') return { type:'item', item: COMMON_ITEMS[rand(0, COMMON_ITEMS.length-1)] };
         return { type: entry.type, ...entry };
       }
     }
-    return { type:'gold', amount: rand(5,20) };
+    return { type:'gold', amount: rand(12,35) };
   }
 
 function rollBossLoot(bossDef) {
