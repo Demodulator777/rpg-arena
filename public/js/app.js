@@ -44,6 +44,9 @@ let chatLatestId = 0;
 let chatPmTarget = '';
 let chatWidgetCollapsed = true;
 let chatExpanded = false;
+let chatActiveView = 'global';
+let chatActivePmThread = '';
+let chatUnreadPmIds = new Set();
 let chatStatusText = '';
 let chatStatusIsError = false;
 let chatStatusTimer = null;
@@ -1196,7 +1199,7 @@ function logout() {
     
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
-    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatStatusText=''; chatStatusIsError=false;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatStatusText=''; chatStatusIsError=false;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
@@ -6789,18 +6792,25 @@ function syncChatRecipientUi() {
     const clearBtn = document.querySelector('.chat-widget-target-clear');
     const subtitle = document.querySelector('.chat-widget-subtitle');
     const messageInput = document.getElementById('chat-message-input');
-    const recipientDraft = String(recipientInput?.value || chatPmTarget || '');
+    const recipientDraft = String(recipientInput?.value || chatPmTarget || '').trim();
     chatPmTarget = recipientDraft;
+    if (chatActiveView === 'private' && recipientDraft) {
+        chatActivePmThread = recipientDraft;
+    }
     const canSendPm = recipientDraft.trim().length > 0;
     if (clearBtn) {
-        clearBtn.textContent = canSendPm ? 'Clear PM' : 'Global';
+        clearBtn.textContent = canSendPm ? 'Clear PM' : 'Clear';
         clearBtn.classList.toggle('active', canSendPm);
     }
     if (subtitle) {
-        subtitle.textContent = canSendPm ? `PM to ${recipientDraft.trim()}` : 'World channel';
+        subtitle.textContent = chatActiveView === 'private'
+            ? (canSendPm ? `Private with ${recipientDraft}` : 'Choose a private thread')
+            : 'World channel';
     }
     if (messageInput) {
-        messageInput.placeholder = canSendPm ? 'Send private message…' : 'Send global message…';
+        messageInput.placeholder = chatActiveView === 'private'
+            ? (canSendPm ? 'Send private message…' : 'Choose or enter a character name…')
+            : 'Send global message…';
     }
 }
 
@@ -6814,8 +6824,49 @@ function trimChatMessages(list) {
     return (Array.isArray(list) ? list : []).slice(-60);
 }
 
-function getVisibleChatMessages() {
+function getChatPrivateThreadKey(msg) {
+    if (!msg?.is_private) return '';
+    return String(msg.is_outgoing ? (msg.recipient_name || '') : (msg.sender_name || '')).trim();
+}
+
+function getPrivateChatThreads() {
+    const threadMap = new Map();
+    for (const msg of trimChatMessages(chatMessages)) {
+        if (!msg?.is_private) continue;
+        const key = getChatPrivateThreadKey(msg);
+        if (!key) continue;
+        const existing = threadMap.get(key);
+        if (!existing || Number(msg.created_at || 0) >= Number(existing.latestAt || 0)) {
+            threadMap.set(key, {
+                key,
+                latestAt: Number(msg.created_at || 0),
+                unread: false
+            });
+        }
+    }
+    for (const msg of trimChatMessages(chatMessages)) {
+        if (!msg?.is_private || msg?.is_outgoing) continue;
+        const key = getChatPrivateThreadKey(msg);
+        if (!key) continue;
+        if (chatUnreadPmIds.has(Number(msg.id || 0)) && threadMap.has(key)) {
+            threadMap.get(key).unread = true;
+        }
+    }
+    return Array.from(threadMap.values()).sort((a, b) => Number(b.latestAt || 0) - Number(a.latestAt || 0));
+}
+
+function getFilteredChatMessages() {
     const safeMessages = trimChatMessages(chatMessages);
+    if (chatActiveView === 'private') {
+        const threadKey = String(chatActivePmThread || chatPmTarget || '').trim();
+        if (!threadKey) return [];
+        return safeMessages.filter(msg => msg?.is_private && getChatPrivateThreadKey(msg) === threadKey);
+    }
+    return safeMessages.filter(msg => !msg?.is_private);
+}
+
+function getVisibleChatMessages() {
+    const safeMessages = getFilteredChatMessages();
     return chatExpanded ? safeMessages : safeMessages.slice(-8);
 }
 
@@ -6827,6 +6878,9 @@ function appendChatMessages(messages = []) {
         if (!id || seen.has(id)) continue;
         chatMessages.push(msg);
         seen.add(id);
+        if (msg?.is_private && !msg?.is_outgoing && chatWidgetCollapsed) {
+            chatUnreadPmIds.add(id);
+        }
     }
     chatMessages = trimChatMessages(chatMessages).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
     chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
@@ -6924,6 +6978,9 @@ function bindChatWidgetEvents() {
     root.addEventListener('input', (event) => {
         if (event.target?.id === 'chat-recipient-input') {
             chatPmTarget = String(event.target.value || '');
+            if (chatActiveView === 'private') {
+                chatActivePmThread = String(event.target.value || '').trim();
+            }
             syncChatRecipientUi();
             return;
         }
@@ -7035,7 +7092,14 @@ const root = ensureChatWidgetRoot();
     }
 
     if (chatWidgetCollapsed) {
-        root.classList.add('hidden');
+        const hasUnreadPm = chatUnreadPmIds.size > 0;
+        root.classList.remove('hidden');
+        applyChatDockPosition(root);
+        root.innerHTML = `
+            <button class="chat-widget-bubble ${hasUnreadPm ? 'has-alert' : ''}" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
+                <span class="chat-widget-bubble-label">Chat</span>
+                ${hasUnreadPm ? '<span class="chat-widget-bubble-alert">!</span>' : ''}
+            </button>`;
         return;
     }
 
@@ -7044,12 +7108,32 @@ const root = ensureChatWidgetRoot();
     const prevMessage = input?.value || '';
     const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
     chatPmTarget = recipientDraft;
-    const canSendPm = recipientDraft.trim().length > 0;
+    const privateThreads = getPrivateChatThreads();
+    if (chatActiveView === 'private' && !chatActivePmThread && privateThreads.length) {
+        chatActivePmThread = privateThreads[0].key;
+        chatPmTarget = chatActivePmThread;
+    }
+    if (chatActiveView === 'private' && chatActivePmThread && !privateThreads.some(thread => thread.key === chatActivePmThread)) {
+        chatActivePmThread = '';
+    }
+    const activePrivateTarget = chatActiveView === 'private'
+        ? String(chatActivePmThread || recipientDraft || '').trim()
+        : '';
+    const canSendPm = activePrivateTarget.length > 0;
     const statusClass = chatStatusText ? (chatStatusIsError ? 'error' : 'success') : '';
     const visibleMessages = getVisibleChatMessages();
-    const hiddenCount = Math.max(0, chatMessages.length - visibleMessages.length);
+    const filteredMessages = getFilteredChatMessages();
+    const hiddenCount = Math.max(0, filteredMessages.length - visibleMessages.length);
     const remainingChars = Math.max(0, 280 - prevMessage.length);
     const mobileDock = isMobileChatDockMode();
+    const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
+    const privateCount = privateThreads.length;
+    const threadTabsHtml = privateThreads.length
+        ? privateThreads.map(thread => `<button class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
+                <span>${escHtml(thread.key)}</span>
+                ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
+            </button>`).join('')
+        : '<div class="chat-thread-empty">No private conversations yet.</div>';
 
     root.classList.remove('hidden');
     root.innerHTML = `
@@ -7057,19 +7141,26 @@ const root = ensureChatWidgetRoot();
             <div class="chat-widget-header">
                 <div class="chat-widget-title-wrap">
                     <div class="chat-widget-title">Global Chat</div>
-                    <div class="chat-widget-subtitle">${canSendPm ? `PM to ${escHtml(recipientDraft.trim())}` : 'World channel'}</div>
+                    <div class="chat-widget-subtitle">${chatActiveView === 'private' ? (canSendPm ? `Private with ${escHtml(activePrivateTarget)}` : 'Choose a private thread') : 'World channel'}</div>
                 </div>
                 <button class="chat-widget-collapse" title="Close chat" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
-                    ✕
+                    ???
                 </button>
             </div>
             <div class="chat-widget-body">
-                <div class="chat-widget-target-row">
-                    <input id="chat-recipient-input" class="chat-widget-target-input" type="text" maxlength="24" placeholder="Private to character name (optional)" value="${escHtml(recipientDraft)}">
-                    <button class="chat-widget-target-clear ${canSendPm ? 'active' : ''}" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">
-                        ${canSendPm ? 'Clear PM' : 'Global'}
-                    </button>
+                <div class="chat-widget-view-tabs">
+                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})</button>
+                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})</button>
                 </div>
+                ${chatActiveView === 'private' ? `
+                    <div class="chat-widget-target-row">
+                        <input id="chat-recipient-input" class="chat-widget-target-input" type="text" maxlength="24" placeholder="Character name for new PM" value="${escHtml(activePrivateTarget || recipientDraft)}">
+                        <button class="chat-widget-target-clear ${canSendPm ? 'active' : ''}" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">
+                            ${canSendPm ? 'Clear PM' : 'Clear'}
+                        </button>
+                    </div>
+                    <div class="chat-thread-tabs">${threadTabsHtml}</div>
+                ` : ''}
 <div class="chat-widget-messages" id="chat-widget-messages">
                     ${visibleMessages.length ? visibleMessages.map(msg => {
                         const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
@@ -7077,12 +7168,12 @@ const root = ensureChatWidgetRoot();
                         const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
                         const actionBtns = [];
                         if (!isOwn) {
-                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">✉</button>`);
-                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">???</button>`);
+                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">???</button>`);
                         }
                         if (isOwn) {
-                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
-                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
+                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">??????</button>`);
+                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">???????</button>`);
                         }
                         return `
                             <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
@@ -7097,7 +7188,7 @@ const root = ensureChatWidgetRoot();
                         `;
                     }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
                 </div>
-                ${chatMessages.length > 8 ? `
+                ${filteredMessages.length > 8 ? `
                     <div class="chat-widget-more">
                         <button class="chat-widget-more-btn" ${actionAttrs('toggleChatExpanded')} data-no-action-lock="true">
                             ${chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`}
@@ -7105,7 +7196,7 @@ const root = ensureChatWidgetRoot();
                     </div>
                 ` : ''}
                 <div class="chat-widget-compose">
-                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${canSendPm ? 'Send private message…' : 'Send global message…'}" value="${escHtml(prevMessage)}">
+                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message???' : 'Choose or enter a character name???') : 'Send global message???'}" value="${escHtml(prevMessage)}">
                     <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
                 </div>
                 <div class="chat-widget-foot">
@@ -7131,6 +7222,9 @@ bindChatWidgetEvents();
 function toggleChatWidgetCollapsed() {
     if (!isChatWidgetAvailable()) return;
     chatWidgetCollapsed = !chatWidgetCollapsed;
+    if (!chatWidgetCollapsed) {
+        chatUnreadPmIds.clear();
+    }
     renderChatWidget();
 }
 
@@ -7139,8 +7233,41 @@ function toggleChatExpanded() {
     renderChatWidget();
 }
 
+function switchChatView(view = 'global') {
+    chatActiveView = view === 'private' ? 'private' : 'global';
+    if (chatActiveView === 'private') {
+        const threads = getPrivateChatThreads();
+        if (!chatActivePmThread && threads.length) {
+            chatActivePmThread = threads[0].key;
+        }
+        if (chatActivePmThread) {
+            chatPmTarget = chatActivePmThread;
+        }
+    } else {
+        chatPmTarget = '';
+        chatActivePmThread = '';
+    }
+    renderChatWidget();
+}
+
+function selectPrivateChatThread(threadKey) {
+    const nextKey = String(threadKey || '').trim();
+    if (!nextKey) return;
+    chatActiveView = 'private';
+    chatActivePmThread = nextKey;
+    chatPmTarget = nextKey;
+    for (const msg of chatMessages) {
+        if (!msg?.is_private || msg?.is_outgoing) continue;
+        if (getChatPrivateThreadKey(msg) === nextKey) {
+            chatUnreadPmIds.delete(Number(msg.id || 0));
+        }
+    }
+    renderChatWidget();
+}
+
 function clearChatRecipient() {
     chatPmTarget = '';
+    chatActivePmThread = '';
     const input = document.getElementById('chat-recipient-input');
     if (input) {
         input.value = '';
@@ -7189,12 +7316,12 @@ function pmChatMessage(messageId) {
     
     const recipientInput = document.getElementById('chat-recipient-input');
     const input = document.getElementById('chat-message-input');
-    if (!recipientInput) return;
-    
-    recipientInput.value = message.sender_name;
+    chatActiveView = 'private';
+    chatActivePmThread = message.sender_name;
     chatPmTarget = message.sender_name;
     clearChatEdit();
     
+    if (recipientInput) recipientInput.value = message.sender_name;
     if (input) input.focus();
     setChatWidgetStatus(`PM to ${message.sender_name}.`, false);
     renderChatWidget();
@@ -7235,6 +7362,8 @@ window.editChatMessage = editChatMessage;
 window.deleteChatMessage = deleteChatMessage;
 window.pmChatMessage = pmChatMessage;
 window.replyChatMessage = replyChatMessage;
+window.switchChatView = switchChatView;
+window.selectPrivateChatThread = selectPrivateChatThread;
 window.loadBannerEvent = loadBannerEvent;
 window.doBannerPull = doBannerPull;
 
@@ -7242,7 +7371,9 @@ async function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
     const recipientInput = document.getElementById('chat-recipient-input');
     const message = String(input?.value || '').trim();
-    const recipientName = String(recipientInput?.value || chatPmTarget || '').trim();
+    const recipientName = chatActiveView === 'private'
+        ? String(recipientInput?.value || chatActivePmThread || chatPmTarget || '').trim()
+        : '';
     // Check multiple sources for editing ID
     const editingId = input?.dataset?.editingId || localStorage.getItem('rpg_chat_editing_id') || window._chatEditingId;
     
@@ -7272,6 +7403,11 @@ async function sendChatMessage() {
             });
             if (input) input.value = '';
             appendChatMessages(result?.message ? [result.message] : []);
+            if (recipientName) {
+                chatActiveView = 'private';
+                chatActivePmThread = recipientName;
+                chatPmTarget = recipientName;
+            }
             setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : 'Message sent.');
         }
         renderChatWidget();
