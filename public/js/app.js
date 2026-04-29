@@ -7549,24 +7549,27 @@ function bindChatWidgetEvents() {
     root.dataset.chatBound = 'true';
 }
 
+function syncTopbarChatAlert() {
+    const btn = document.getElementById('topbar-chat-btn');
+    if (!btn) return;
+    const hasUnreadPm = chatUnreadPmIds.size > 0;
+    btn.classList.toggle('has-alert', hasUnreadPm);
+}
+
 function renderChatWidget() {
     const root = ensureChatWidgetRoot();
     if (!root) return;
     if (!isChatWidgetAvailable()) {
         root.innerHTML = '';
         root.classList.add('hidden');
+        syncTopbarChatAlert();
         return;
     }
 
     if (chatWidgetCollapsed) {
-        const hasUnreadPm = chatUnreadPmIds.size > 0;
-        root.classList.remove('hidden');
-        applyChatDockPosition(root);
-        root.innerHTML = `
-            <button class="chat-widget-bubble ${hasUnreadPm ? 'has-alert' : ''}" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
-                <span class="chat-widget-bubble-label">Chat</span>
-                ${hasUnreadPm ? '<span class="chat-widget-bubble-alert">!</span>' : ''}
-            </button>`;
+        root.innerHTML = '';
+        root.classList.add('hidden');
+        syncTopbarChatAlert();
         return;
     }
 
@@ -7602,6 +7605,7 @@ function renderChatWidget() {
         : '<div class="chat-thread-empty">No private conversations yet.</div>';
 
     root.classList.remove('hidden');
+    syncTopbarChatAlert();
     root.innerHTML = `
         <section class="chat-widget">
             <div class="chat-widget-header">
