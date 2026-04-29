@@ -106,6 +106,13 @@ const MINI_BOSS_POOL = [
     { name:'Doom Knight',        icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, tokenCost:10, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
 ];
 
+const CRAWLER_BASE = {
+    id: 'the_crawler',
+    name: 'The Crawler',
+    icon: '🕷️',
+    image: '/images/dungeon/crawler.jpg',
+};
+
 function getMiniBossForFloor(floor) {
     const available = MINI_BOSS_POOL.filter(m => m.minFloor <= floor);
     if (available.length === 0) return null;
@@ -125,6 +132,25 @@ function getMiniBossForFloor(floor) {
         isMiniBoss: true,
         currentHp: Math.round(miniBoss.baseHp * scale),
         maxHp: Math.round(miniBoss.baseHp * scale),
+        lastKilled: null,
+        stolenItems: [],
+    };
+}
+
+function getCrawlerForFloor(floor) {
+    const boss = getBossForFloor(floor);
+    return {
+        id: CRAWLER_BASE.id,
+        name: CRAWLER_BASE.name,
+        icon: CRAWLER_BASE.icon,
+        image: CRAWLER_BASE.image,
+        hp: Math.round(boss.hp * 1.45),
+        atk: Math.round(boss.atk * 1.35),
+        def: Math.round(boss.def * 1.25),
+        steal: false,
+        isCrawler: true,
+        currentHp: Math.round(boss.hp * 1.45),
+        maxHp: Math.round(boss.hp * 1.45),
         lastKilled: null,
         stolenItems: [],
     };
@@ -255,6 +281,7 @@ let D = {
   rooms: [],
   playerPos: 0,
   exploredRooms: new Set(),
+  crawler: null,
   combat: null,
   travelTimer: null,
   isTraveling: false,
@@ -305,6 +332,7 @@ document.addEventListener('visibilitychange', () => {
       if (raw) {
         const parsed = JSON.parse(raw);
         parsed.exploredRooms = new Set(parsed.exploredRooms || []);
+        parsed.crawler = parsed.crawler || null;
         D = { ...D, ...parsed };
       }
     } catch(e) {}
@@ -354,7 +382,8 @@ async function refreshCharacter() {
           pos: response.progress.playerPos,
           rooms: response.progress.rooms,
           explored: response.progress.exploredRooms,
-          combat: response.progress.combat
+          combat: response.progress.combat,
+          crawler: response.progress.crawler || null
         };
       }
       
@@ -395,7 +424,8 @@ async function refreshCharacter() {
         progress: {
           rooms: D.rooms || [],
           playerPos: D.playerPos || 0,
-          exploredRooms: [...(D.exploredRooms || [])]
+          exploredRooms: [...(D.exploredRooms || [])],
+          crawler: D.crawler || null
         },
         activeDungeon: D.activeDungeon,
         combat: D.combat
@@ -439,7 +469,7 @@ async function refreshCharacter() {
   }
 
 // ── Map Generation ─────────────────────────────────────────
-function generateFloor(dungeonId, floor) {
+  function generateFloor(dungeonId, floor) {
     const rooms = [];
     const gridW = 24, gridH = 24;
     const total = gridW * gridH;
@@ -714,6 +744,129 @@ function generateFloor(dungeonId, floor) {
     return rooms;
   }
 
+  function spawnCrawlerForCurrentFloor() {
+    if (!Array.isArray(D.rooms) || D.rooms.length === 0) return null;
+    const eligibleRooms = D.rooms.filter(room => !room.isStart && !room.isBoss);
+    if (!eligibleRooms.length) return null;
+    const spawnRoom = eligibleRooms[rand(0, eligibleRooms.length - 1)];
+    const monster = getCrawlerForFloor(D.floor || 1);
+    return {
+      roomIdx: spawnRoom.id,
+      monster,
+      active: true,
+      encountered: false,
+      chaseTurnsLeft: 0,
+      defeated: false,
+    };
+  }
+
+  function ensureCrawlerState() {
+    if (!D.activeDungeon || !Array.isArray(D.rooms) || D.rooms.length === 0) return;
+    if (D.crawler && typeof D.crawler.roomIdx === 'number' && D.crawler.monster) return;
+    D.crawler = spawnCrawlerForCurrentFloor();
+  }
+
+  function getCrawlerRoom() {
+    if (!D.crawler || D.crawler.defeated || !D.crawler.active) return null;
+    return D.rooms[D.crawler.roomIdx] || null;
+  }
+
+  function buildRoomPath(startIdx, targetIdx) {
+    if (startIdx === targetIdx) return [startIdx];
+    const visited = new Set([startIdx]);
+    const queue = [[startIdx]];
+    while (queue.length) {
+      const path = queue.shift();
+      const roomIdx = path[path.length - 1];
+      const room = D.rooms[roomIdx];
+      if (!room) continue;
+      for (const nextIdx of room.connections || []) {
+        if (visited.has(nextIdx)) continue;
+        const nextPath = [...path, nextIdx];
+        if (nextIdx === targetIdx) return nextPath;
+        visited.add(nextIdx);
+        queue.push(nextPath);
+      }
+    }
+    return [];
+  }
+
+  function logCrawlerPresence() {
+    if (!D.crawler || D.crawler.defeated || !D.crawler.active) return;
+    const path = buildRoomPath(D.playerPos, D.crawler.roomIdx);
+    if (path.length === 2) {
+      log(`🕷️ You hear skittering just beyond the next chamber...`, 'log-danger');
+    } else if (path.length === 3) {
+      log(`🕷️ The stone beneath your feet trembles for a moment. Something huge is moving nearby.`, 'log-warning');
+    }
+  }
+
+  function startCrawlerEncounter(source = 'encounter') {
+    ensureCrawlerState();
+    if (!D.crawler || D.crawler.defeated || !D.crawler.monster) return false;
+    D.crawler.roomIdx = D.playerPos;
+    D.crawler.active = true;
+    D.crawler.encountered = true;
+    D.crawler.chaseTurnsLeft = Math.max(D.crawler.chaseTurnsLeft || 0, 3);
+    D.combat = {
+      roomIdx: D.playerPos,
+      monsters: [{
+        ...D.crawler.monster,
+        currentHp: D.crawler.monster.currentHp || D.crawler.monster.maxHp,
+        maxHp: D.crawler.monster.maxHp || D.crawler.monster.hp,
+      }],
+      currentMonsterIndex: 0,
+      roundLog: [{
+        actor: 'monster',
+        text: source === 'chase'
+          ? `The Crawler catches up to you and blocks the path ahead!`
+          : `The Crawler drops from the dark and pins your escape route!`
+      }],
+      isCrawler: true,
+    };
+    log(`🕷️ The Crawler is upon you! Running may be your only chance.`, 'log-danger');
+    saveState();
+    saveProgressToDB();
+    renderCombatPanel();
+    return true;
+  }
+
+  function moveCrawlerAfterPlayerMove() {
+    ensureCrawlerState();
+    if (!D.crawler || D.crawler.defeated || !D.crawler.active || D.combat) return false;
+
+    if (D.crawler.roomIdx === D.playerPos) {
+      return startCrawlerEncounter(D.crawler.encountered ? 'chase' : 'encounter');
+    }
+
+    let nextRoomIdx = D.crawler.roomIdx;
+    if (D.crawler.encountered && D.crawler.chaseTurnsLeft > 0) {
+      const chasePath = buildRoomPath(D.crawler.roomIdx, D.playerPos);
+      if (chasePath.length > 1) nextRoomIdx = chasePath[1];
+      D.crawler.chaseTurnsLeft -= 1;
+      if (D.crawler.chaseTurnsLeft <= 0 && nextRoomIdx !== D.playerPos) {
+        D.crawler.encountered = false;
+        D.crawler.chaseTurnsLeft = 0;
+        log(`🕷️ The skittering fades. The Crawler loses your trail... for now.`, 'log-warning');
+      }
+    } else {
+      const currentRoom = D.rooms[D.crawler.roomIdx];
+      const options = (currentRoom?.connections || []).filter(idx => idx !== D.playerPos);
+      if (options.length) nextRoomIdx = options[rand(0, options.length - 1)];
+    }
+
+    D.crawler.roomIdx = nextRoomIdx;
+    D.crawler.active = true;
+    D.crawler.monster.currentHp = Math.max(1, D.crawler.monster.currentHp || D.crawler.monster.maxHp || D.crawler.monster.hp);
+
+    if (D.crawler.roomIdx === D.playerPos) {
+      return startCrawlerEncounter('chase');
+    }
+
+    logCrawlerPresence();
+    return false;
+  }
+
   // ── Combat Engine ──────────────────────────────────────────
 function calcPlayerStats() {
   const c = getChar();
@@ -955,14 +1108,17 @@ function proceedStartDungeon(dungeonId) {
         D.rooms = s.rooms;
         D.playerPos = s.pos;
         D.exploredRooms = new Set(s.explored);
+        D.crawler = s.crawler || null;
         
         if (!D.rooms || D.rooms.length === 0) {
             D.rooms = generateFloor('tower', D.floor);
             D.playerPos = D.rooms.findIndex(r => r.isStart);
             D.exploredRooms = new Set([D.playerPos]);
+            D.crawler = spawnCrawlerForCurrentFloor();
             saveState();
             saveProgressToDB();
         }
+        ensureCrawlerState();
         
         log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
         renderDungeonView();
@@ -983,6 +1139,7 @@ function proceedStartDungeon(dungeonId) {
     if (D.playerPos === -1) D.playerPos = 0;
     
     D.exploredRooms = new Set([D.playerPos]);
+    D.crawler = spawnCrawlerForCurrentFloor();
     D.dungeonLog = [];
     saveState();
     saveProgressToDB();
@@ -1033,8 +1190,9 @@ function travelToRoom(targetIdx) {
             const loot = rollMinorLoot(D.activeDungeon);
             applyLoot(loot);
         }
-
-        renderDungeonView();
+        if (!moveCrawlerAfterPlayerMove()) {
+            renderDungeonView();
+        }
     };
 
     if (targetAlreadyExplored) {
@@ -1152,7 +1310,9 @@ function fightRound() {
     }
 
     if (nextIndex === -1 || allMonstersDead) {
-        if (defeatedMonster.isBoss) {
+        if (D.combat.isCrawler || defeatedMonster.isCrawler) {
+            onCrawlerDefeated();
+        } else if (defeatedMonster.isBoss) {
             onBossDefeated();
         } else {
             onRoomCleared(D.combat.roomIdx);
@@ -1163,6 +1323,20 @@ function fightRound() {
     }
 } else {
     renderCombatPanel();
+}
+
+function onCrawlerDefeated() {
+    if (!D.crawler) return;
+    D.crawler.defeated = true;
+    D.crawler.active = false;
+    D.crawler.encountered = false;
+    D.crawler.chaseTurnsLeft = 0;
+    D.crawler.monster.currentHp = 0;
+    log(`🏆 Against all odds, you bring down The Crawler!`, 'log-boss');
+    D.combat = null;
+    saveState();
+    saveProgressToDB();
+    renderDungeonView();
 }
 }
 
@@ -1247,12 +1421,22 @@ function onRoomCleared(roomIdx) {
 function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
         log(`💨 Escaped successfully!`, 'log-success');
+        if (D.combat && D.combat.isCrawler && D.crawler) {
+            D.crawler.encountered = true;
+            D.crawler.active = true;
+            D.crawler.roomIdx = roomIdx;
+            D.crawler.chaseTurnsLeft = Math.max(D.crawler.chaseTurnsLeft || 0, 3);
+        }
         
         // Release room entry
-        apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
-            .catch(e => console.error('Failed to exit room:', e));
+        if (!(D.combat && D.combat.isCrawler)) {
+            apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
+                .catch(e => console.error('Failed to exit room:', e));
+        }
         
         D.combat = null;
+        saveState();
+        saveProgressToDB();
         renderDungeonView();
     } else {
         log(`⚠️ Failed to escape! The monsters attack!`, 'log-danger');
@@ -1336,6 +1520,7 @@ function onPlayerDeath() {
       pos: D.playerPos,
       rooms: D.rooms,
       explored: [...D.exploredRooms],
+      crawler: D.crawler,
     };
     D.combat = null;
     D.activeDungeon = null;
@@ -1409,6 +1594,7 @@ function onBossDefeated() {
   D.rooms = generateFloor(D.activeDungeon, D.floor);
   D.playerPos = D.rooms.findIndex(r => r.isStart);
   D.exploredRooms = new Set([D.playerPos]);
+  D.crawler = spawnCrawlerForCurrentFloor();
   D.combat = null;
   saveState();
   saveProgressToDB();
@@ -2162,6 +2348,7 @@ function renderMapGrid() {
     }
 
     const currentRoom = D.rooms[D.playerPos];
+    const crawlerRoomIdx = D.crawler && !D.crawler.defeated && D.crawler.active ? D.crawler.roomIdx : null;
     const centerX = currentRoom.x;
     const centerY = currentRoom.y;
     
@@ -2210,7 +2397,7 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
                 const isPlayer = idx === D.playerPos;
                 const explored = D.exploredRooms.has(idx);
                 const visible = isRoomVisible(idx);
-                const showRoom = visible || explored;
+                const showRoom = visible || explored || crawlerRoomIdx === idx;
                 
                 if (!showRoom || room._mapX === undefined) continue;
                 
@@ -2288,6 +2475,12 @@ let svg = `<svg class="dungeon-maze-svg" viewBox="0 0 ${gridWidth} ${gridHeight}
                 
                 if (isPlayer) {
                     svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 4}" fill="#fff" opacity="0.95"/>`;
+                }
+
+                if (crawlerRoomIdx === idx) {
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 2 + 8}" fill="rgba(239,68,68,0.18)" stroke="rgba(248,113,113,0.55)" stroke-width="2"/>`;
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 3}" fill="#991b1b" stroke="#fca5a5" stroke-width="1.5"/>`;
+                    svg += `<circle cx="${cx}" cy="${cy}" r="${roomSize / 7}" fill="#fee2e2" opacity="0.95"/>`;
                 }
                 
                 if (room.isBoss) {
@@ -2451,8 +2644,8 @@ function renderRoomInfo(room) {
         <div class="dungeon-overlay-backdrop"></div>
         <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
             <div class="combat-header">
-                ${currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
-                <div class="combat-title">⚔️ Combat: ${monsters.length} Enemies</div>
+                ${D.combat.isCrawler ? `<div class="combat-boss-warning">🕷️ THE CRAWLER</div>` : currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
+                <div class="combat-title">${D.combat.isCrawler ? 'Run or be torn apart.' : `⚔️ Combat: ${monsters.length} Enemies`}</div>
             </div>
 
             <div class="combat-fighters">
@@ -2536,6 +2729,7 @@ function dungeonExit() {
             pos: D.playerPos,
             rooms: D.rooms, 
             explored: [...D.exploredRooms],
+            crawler: D.crawler,
         };
     }
     
@@ -2905,6 +3099,7 @@ global.debugDungeonDetails = function() {
       rooms: [],
       playerPos: 0,
       exploredRooms: new Set(),
+      crawler: null,
       combat: null,
       travelTimer: null,
       isTraveling: false,
