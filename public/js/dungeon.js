@@ -98,7 +98,7 @@ const GUILD_RANKS = [
 
   // ── Mini-Boss Pool (costs 5-10 tokens) ──────────────────────────────────────────
 const MINI_BOSS_POOL = [
-    { name:'Shadow Stalker',     icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:10, image:'/images/dungeon/miniboss1.jpg' },
+    { name:'Shadow Stalker',     icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:5, image:'/images/dungeon/miniboss1.jpg' },
     { name:'Crystal Golem',      icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
     { name:'Flame Revenant',     icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, tokenCost:7,  minFloor:20, image:'/images/dungeon/miniboss3.jpg' },
     { name:'Frost Wyrmling',     icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, tokenCost:8,  minFloor:25, image:'/images/dungeon/miniboss4.jpg' },
@@ -110,7 +110,7 @@ function getMiniBossForFloor(floor) {
     const available = MINI_BOSS_POOL.filter(m => m.minFloor <= floor);
     if (available.length === 0) return null;
     const miniBoss = available[rand(0, available.length - 1)];
-    const scale = 1 + (floor - 10) * 0.08;
+    const scale = 1 + Math.max(0, floor - miniBoss.minFloor) * 0.08;
     
     return {
         name: miniBoss.name,
@@ -608,7 +608,8 @@ function generateFloor(dungeonId, floor) {
       
       const connectionCount = (edgeMap[idx] || new Set()).size;
       const isArea = connectionCount >= 3;
-      const isMiniBoss = !isStart && !isBoss && Math.random() < 0.10 && floor >= 5;
+      const miniBossTemplate = getMiniBossForFloor(floor);
+      const isMiniBoss = !isStart && !isBoss && !!miniBossTemplate && Math.random() < 0.10;
 
       const connections = [...(edgeMap[idx] || [])]
         .map(gridNeighbor => roomIndexByGrid[gridNeighbor])
@@ -626,7 +627,7 @@ function generateFloor(dungeonId, floor) {
       // ONLY spawn monsters in non-start, non-boss rooms
       if (!isStart && !isBoss) {
         if (isMiniBoss) {
-          const miniBossDef = getMiniBossForFloor(floor);
+          const miniBossDef = miniBossTemplate;
           if (miniBossDef) {
             monsters = [{
               id: miniBossDef.id || miniBossDef.name.toLowerCase().replace(/[^\w]+/g, '_'),
@@ -2982,3 +2983,4 @@ global.dungeonRun = (roomIdx) => {
   loadState();
 
 })(window);
+
