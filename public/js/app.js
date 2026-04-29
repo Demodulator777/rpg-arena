@@ -7056,7 +7056,7 @@ function syncChatPolling() {
 
 function bindChatWidgetEvents() {
     const root = ensureChatWidgetRoot();
-    if (!root || root.dataset.chatBound === 'true') return;
+    if (!root || root.dataset.chatBoundV2 === 'true') return;
     root.addEventListener('keydown', async (event) => {
         if (event.target?.id !== 'chat-message-input') return;
         if (event.key !== 'Enter' || event.shiftKey) return;
@@ -7113,7 +7113,7 @@ function bindChatWidgetEvents() {
         chatDragState = null;
         root.classList.remove('dragging');
     });
-    root.dataset.chatBound = 'true';
+    root.dataset.chatBoundV2 = 'true';
 }
 
 function isMobileChatDockMode() {
