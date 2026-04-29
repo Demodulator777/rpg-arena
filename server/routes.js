@@ -9398,12 +9398,21 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         
         const nextUpgrade = currentUpgrade + 1;
         
+        const baseItemName = String(itemData.name || '').replace(/\s\+\d+$/, '').trim();
+        const baseItemDesc = String(itemData.desc || '')
+            .replace(/^undefined\s*/i, '')
+            .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
+            .trim();
+
         const upgradedItemData = {
             ...itemData,
+            name: baseItemName || itemData.name || '',
             stats: upgradedStats,
             upgradedStats: upgradedStatsList,
             upgradeLevel: nextUpgrade
         };
+        if (baseItemDesc) upgradedItemData.desc = baseItemDesc;
+        else delete upgradedItemData.desc;
         
         const itemUpdateResult = await dbRun(
             db,
