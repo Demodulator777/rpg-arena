@@ -6955,6 +6955,7 @@ function getVisibleChatMessages() {
 function appendChatMessages(messages = []) {
     if (!Array.isArray(messages) || !messages.length) return;
     const seen = new Set(chatMessages.map(msg => Number(msg.id)));
+    let unreadChanged = false;
     for (const msg of messages) {
         const id = Number(msg?.id || 0);
         if (!id || seen.has(id)) continue;
@@ -6962,10 +6963,14 @@ function appendChatMessages(messages = []) {
         seen.add(id);
         if (msg?.is_private && !msg?.is_outgoing && chatWidgetCollapsed) {
             chatUnreadPmIds.add(id);
+            unreadChanged = true;
         }
     }
     chatMessages = trimChatMessages(chatMessages).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
     chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
+    if (unreadChanged && typeof syncTopbarChatAlert === 'function') {
+        syncTopbarChatAlert();
+    }
 }
 
 function updateChatMessagesDOM() {
@@ -7306,6 +7311,9 @@ function toggleChatWidgetCollapsed() {
     chatWidgetCollapsed = !chatWidgetCollapsed;
     if (!chatWidgetCollapsed) {
         chatUnreadPmIds.clear();
+    }
+    if (typeof syncTopbarChatAlert === 'function') {
+        syncTopbarChatAlert();
     }
     renderChatWidget();
 }
