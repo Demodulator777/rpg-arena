@@ -1917,6 +1917,40 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     align-items: center;
     gap: 6px;
 }
+.chat-thread-tab {
+    padding: 0;
+    overflow: hidden;
+}
+.chat-thread-tab-main {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    padding: 7px 10px;
+    font-size: inherit;
+    font-weight: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+.chat-thread-tab-close {
+    border: 0;
+    border-left: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.58);
+    width: 26px;
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+.chat-thread-tab-close:hover {
+    background: rgba(231,76,60,0.14);
+    color: #ffb2a8;
+}
 .chat-view-tab.active,
 .chat-thread-tab.active {
     border-color: rgba(52,152,219,0.32);
