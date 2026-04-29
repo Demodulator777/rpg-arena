@@ -806,8 +806,10 @@ async function refreshCharacter() {
     if (!D.crawler || D.crawler.defeated || !D.crawler.monster) return false;
     D.crawler.roomIdx = D.playerPos;
     D.crawler.active = true;
-    D.crawler.encountered = true;
-    D.crawler.chaseTurnsLeft = Math.max(D.crawler.chaseTurnsLeft || 0, 3);
+    if (!D.crawler.encountered) {
+      D.crawler.encountered = true;
+      D.crawler.chaseTurnsLeft = 3;
+    }
     D.combat = {
       roomIdx: D.playerPos,
       monsters: [{
@@ -1408,10 +1410,8 @@ function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
         log(`💨 Escaped successfully!`, 'log-success');
         if (D.combat && D.combat.isCrawler && D.crawler) {
-            D.crawler.encountered = true;
             D.crawler.active = true;
             D.crawler.roomIdx = roomIdx;
-            D.crawler.chaseTurnsLeft = Math.max(D.crawler.chaseTurnsLeft || 0, 3);
         }
         
         // Release room entry
