@@ -9402,9 +9402,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             ...itemData,
             stats: upgradedStats,
             upgradedStats: upgradedStatsList,
-            upgradeLevel: nextUpgrade,
-            name: `${itemData.name.split(' +')[0]} +${nextUpgrade}`,
-            desc: `${itemData.desc} [Upgraded +${nextUpgrade} using ${componentData.name}]`
+            upgradeLevel: nextUpgrade
         };
         
         const itemUpdateResult = await dbRun(
