@@ -1160,8 +1160,9 @@ function travelToRoom(targetIdx) {
         !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
     );
     const hasEvaded = current.monstersEvaded === true;
+    const canLeaveWithoutFight = current.isMiniBoss || current.type === 'miniboss';
     
-    if (hasAliveMonsters && !hasEvaded) {
+    if (hasAliveMonsters && !hasEvaded && !canLeaveWithoutFight) {
         log(`⚠️ You must defeat or escape from the ${current.monsters.length} enemies in this room before leaving!`, 'log-danger');
         return;
     }
@@ -3145,4 +3146,3 @@ global.dungeonRun = (roomIdx) => {
   loadState();
 
 })(window);
-
