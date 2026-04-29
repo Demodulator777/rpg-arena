@@ -7751,24 +7751,36 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
     if (alreadyCleared.rows.length > 0) {
       return res.status(409).json({ error: 'Room already cleared', locked: true });
     }
-    
-    const instanceId = `${char.id}_${floor}_${roomIndex}_${Date.now()}`;
+
+    const now = Date.now();
+    const staleCutoff = now - (10 * 60 * 1000);
+
+    // Self-heal poisoned room state:
+    // a character should only have one active room claim at a time, and old claims
+    // should never block future combat starts.
+    await db.execute({
+      sql: `DELETE FROM dungeon_room_instances
+            WHERE user_id = ?
+              AND status = 'active'
+              AND (
+                floor_number = ?
+                OR created_at IS NULL
+                OR created_at < ?
+              )`,
+      args: [userId, floor, staleCutoff]
+    });
+
+    const instanceId = `${char.id}_${floor}_${roomIndex}_${now}`;
     const tabSession = req.user.tabSession || `default`;
-    
-    // Insert - allow multiple active entries (for tracking), but only first clear wins
+
     await db.execute({
       sql: `INSERT INTO dungeon_room_instances (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
             VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-      args: [instanceId, userId, char.id, floor, roomIndex, tabSession, Date.now()]
+      args: [instanceId, userId, char.id, floor, roomIndex, tabSession, now]
     });
-    
+
     res.json({ success: true, instanceId });
   } catch (e) {
-    // UNIQUE constraint violation - handle duplicate active entry
-    if (e.message.includes('UNIQUE') || e.message.includes('duplicate')) {
-      // Already active from another tab - still allow (for tracking)
-      return res.json({ success: true, instanceId: 'existing' });
-    }
     console.error('room-enter error:', e);
     res.status(500).json({ error: e.message });
   }
