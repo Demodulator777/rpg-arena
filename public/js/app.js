@@ -47,6 +47,7 @@ let chatExpanded = false;
 let chatActiveView = 'global';
 let chatActivePmThread = '';
 let chatUnreadPmIds = new Set();
+let chatClosedPmThreads = new Set();
 let chatStatusText = '';
 let chatStatusIsError = false;
 let chatStatusTimer = null;
@@ -1204,7 +1205,7 @@ function logout() {
     
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
-    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
@@ -6962,7 +6963,9 @@ function getPrivateChatThreads() {
             threadMap.get(key).unread = true;
         }
     }
-    return Array.from(threadMap.values()).sort((a, b) => Number(b.latestAt || 0) - Number(a.latestAt || 0));
+    return Array.from(threadMap.values())
+        .filter(thread => !chatClosedPmThreads.has(thread.key))
+        .sort((a, b) => Number(b.latestAt || 0) - Number(a.latestAt || 0));
 }
 
 function getFilteredChatMessages() {
@@ -6989,6 +6992,10 @@ function appendChatMessages(messages = []) {
         if (!id || seen.has(id)) continue;
         chatMessages.push(msg);
         seen.add(id);
+        if (msg?.is_private) {
+            const threadKey = getChatPrivateThreadKey(msg);
+            if (threadKey) chatClosedPmThreads.delete(threadKey);
+        }
         if (msg?.is_private && !msg?.is_outgoing && chatWidgetCollapsed) {
             chatUnreadPmIds.add(id);
             unreadChanged = true;
@@ -7244,10 +7251,13 @@ const root = ensureChatWidgetRoot();
     const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
     const privateCount = privateThreads.length;
     const threadTabsHtml = privateThreads.length
-        ? privateThreads.map(thread => `<button class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
-                <span>${escHtml(thread.key)}</span>
-                ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
-            </button>`).join('')
+        ? privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
+                <button class="chat-thread-tab-main" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
+                    <span>${escHtml(thread.key)}</span>
+                    ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
+                </button>
+                <button class="chat-thread-tab-close" ${actionAttrs('closePrivateChatThread', thread.key)} data-no-action-lock="true" title="Close private chat">X</button>
+            </div>`).join('')
         : '<div class="chat-thread-empty">No private conversations yet.</div>';
 
     root.classList.remove('hidden');
@@ -7338,6 +7348,24 @@ function toggleChatWidgetCollapsed() {
     if (!isChatWidgetAvailable()) return;
     chatWidgetCollapsed = !chatWidgetCollapsed;
     if (!chatWidgetCollapsed) {
+        if (chatUnreadPmIds.size > 0) {
+            let newestUnread = null;
+            for (const msg of trimChatMessages(chatMessages)) {
+                const id = Number(msg?.id || 0);
+                if (!chatUnreadPmIds.has(id) || !msg?.is_private || msg?.is_outgoing) continue;
+                if (!newestUnread || Number(msg.created_at || 0) >= Number(newestUnread.created_at || 0)) {
+                    newestUnread = msg;
+                }
+            }
+            if (newestUnread) {
+                const threadKey = getChatPrivateThreadKey(newestUnread);
+                if (threadKey) {
+                    chatActiveView = 'private';
+                    chatActivePmThread = threadKey;
+                    chatPmTarget = threadKey;
+                }
+            }
+        }
         chatUnreadPmIds.clear();
     }
     if (typeof syncTopbarChatAlert === 'function') {
@@ -7378,6 +7406,24 @@ function selectPrivateChatThread(threadKey) {
         if (!msg?.is_private || msg?.is_outgoing) continue;
         if (getChatPrivateThreadKey(msg) === nextKey) {
             chatUnreadPmIds.delete(Number(msg.id || 0));
+        }
+    }
+    renderChatWidget();
+}
+
+function closePrivateChatThread(threadKey) {
+    const nextKey = String(threadKey || '').trim();
+    if (!nextKey) return;
+    chatClosedPmThreads.add(nextKey);
+    if (chatActivePmThread === nextKey) {
+        chatActivePmThread = '';
+        chatPmTarget = '';
+        const remainingThreads = getPrivateChatThreads();
+        if (remainingThreads.length) {
+            chatActivePmThread = remainingThreads[0].key;
+            chatPmTarget = remainingThreads[0].key;
+        } else {
+            chatActiveView = 'global';
         }
     }
     renderChatWidget();
@@ -7482,6 +7528,7 @@ window.pmChatMessage = pmChatMessage;
 window.replyChatMessage = replyChatMessage;
 window.switchChatView = switchChatView;
 window.selectPrivateChatThread = selectPrivateChatThread;
+window.closePrivateChatThread = closePrivateChatThread;
 window.loadBannerEvent = loadBannerEvent;
 window.doBannerPull = doBannerPull;
 
