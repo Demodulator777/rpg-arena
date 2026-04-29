@@ -7810,9 +7810,9 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       const clearedId = `${char.id}_${floor}_${roomIndex}_cleared_${Date.now()}`;
       await db.execute({
         sql: `INSERT INTO dungeon_room_instances
-              (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
-              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
-        args: [clearedId, userId, char.id, floor, roomIndex, req.user.tabSession || 'default', Date.now()]
+              (id, user_id, char_id, floor_number, room_index, status, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?)`,
+        args: [clearedId, userId, char.id, floor, roomIndex, Date.now()]
       });
     }
     
