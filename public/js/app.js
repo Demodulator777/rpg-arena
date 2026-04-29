@@ -6033,6 +6033,7 @@ function renderLeaderboard() {
 async function openProfile(id) {
     const modal=document.getElementById('profile-modal'), content=document.getElementById('profile-content');
     if (!modal||!content) return;
+    hideItemTooltip();
     content.innerHTML='<p class="loading">Loading profile...</p>'; modal.classList.remove('hidden');
     try {
         character = await api('GET','/game/character');
@@ -6172,7 +6173,7 @@ function miniStat(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val" style="font-size:0.9rem">${val}</span></div>`;
 }
-function closeProfile() { document.getElementById('profile-modal').classList.add('hidden'); }
+function closeProfile() { hideItemTooltip(); document.getElementById('profile-modal').classList.add('hidden'); }
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
 
