@@ -4475,7 +4475,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .mz-spot-stats { font-size: 0.68rem; color: var(--text-dim); }
 .mz-missions-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 13px; padding: 0 24px 32px; }
 @media(max-width:500px){ .mz-missions-grid { grid-template-columns: 1fr; padding: 0 14px 24px; } }
-.mz-mission-card { background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all 0.15s; }
+.mz-mission-card { background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; }
+.mz-mission-img-wrap { flex-shrink: 0; }
+.mz-mission-info { flex: 1; min-height: 50px; }
 .mz-mission-card:hover { border-color: rgba(52,143,209,0.4); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
 .mz-mission-img-wrap { position: relative; overflow: hidden; }
 .mz-mission-img { width: 100%; height: 148px; object-fit: cover; display: block; background: var(--bg3); transition: transform 0.2s; }
