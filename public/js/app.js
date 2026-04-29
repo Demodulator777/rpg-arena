@@ -3197,7 +3197,6 @@ function openSpotMissions(zoneId, spotId) {
                         <div class="mz-mission-name">${m.name}</div>
                         <div style="height:20px;line-height:20px">&nbsp;</div>
                     </div>
-                    </div>
                 </div>
             `).join('')}
         </div>`;
