@@ -3395,7 +3395,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .mat-qty { font-size: 1.05rem; color: var(--gold); font-weight: 700; }
 
 .item-tooltip {
-    position: fixed; z-index: 2000; width: 220px;
+    position: fixed; z-index: 10001; width: 220px;
     background: rgba(8,12,22,0.97); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 0;
     box-shadow: 0 20px 60px rgba(0,0,0,0.9);
