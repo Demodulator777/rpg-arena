@@ -647,6 +647,9 @@ const WEEKLY_TASKS = [
         try {
             await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN session_id TEXT DEFAULT NULL`, args: [] });
         } catch {}
+        try {
+            await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN created_at INTEGER DEFAULT NULL`, args: [] });
+        } catch {}
         
         // Skill tree migrations
         const { SKILL_TREE_MIGRATIONS } = require('./skills');
@@ -7753,7 +7756,6 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
     }
 
     const now = Date.now();
-    const staleCutoff = now - (10 * 60 * 1000);
 
     // Self-heal poisoned room state:
     // a character should only have one active room claim at a time, and old claims
@@ -7761,13 +7763,8 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
     await db.execute({
       sql: `DELETE FROM dungeon_room_instances
             WHERE user_id = ?
-              AND status = 'active'
-              AND (
-                floor_number = ?
-                OR created_at IS NULL
-                OR created_at < ?
-              )`,
-      args: [userId, floor, staleCutoff]
+              AND status = 'active'`,
+      args: [userId]
     });
 
     const instanceId = `${char.id}_${floor}_${roomIndex}_${now}`;
