@@ -624,34 +624,56 @@ function generateFloor(dungeonId, floor) {
       let monsters = [];
       
       // ONLY spawn monsters in non-start, non-boss rooms
-      if (!isStart && !isBoss && availableMonsters.length > 0) {
-        const spawnChance = Math.random();
-        if (spawnChance < 0.7) {  // 70% chance for any monster
-          monsters = [];
-          const actualCount = Math.min(monsterCount, 4);
-          for (let m = 0; m < actualCount; m++) {
-            const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
-            if (monsterDef) {
-              const isMB = monsterDef.isMiniBoss === true;
-              const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * (isMB ? 15 : 12)));
-              const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * (isMB ? 4 : 3)));
-              const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * (isMB ? 2 : 1.5)));
-              
-              monsters.push({
-                id: monsterDef.id,
-                name: monsterDef.name,
-                icon: monsterDef.icon,
-                hp: scaledHp,
-                atk: scaledAtk,
-                def: scaledDef,
-                steal: monsterDef.steal || false,
-                isMiniBoss: isMB,
-                tokenCost: monsterDef.tokenCost || 0,
-                currentHp: scaledHp,
-                maxHp: scaledHp,
-                lastKilled: null,
-                stolenItems: [],
-              });
+      if (!isStart && !isBoss) {
+        if (isMiniBoss) {
+          const miniBossDef = getMiniBossForFloor(floor);
+          if (miniBossDef) {
+            monsters = [{
+              id: miniBossDef.id || miniBossDef.name.toLowerCase().replace(/[^\w]+/g, '_'),
+              name: miniBossDef.name,
+              icon: miniBossDef.icon,
+              image: miniBossDef.image,
+              hp: miniBossDef.hp,
+              atk: miniBossDef.atk,
+              def: miniBossDef.def,
+              steal: miniBossDef.steal || false,
+              isMiniBoss: true,
+              tokenCost: miniBossDef.tokenCost || 0,
+              currentHp: miniBossDef.currentHp || miniBossDef.hp,
+              maxHp: miniBossDef.maxHp || miniBossDef.hp,
+              lastKilled: null,
+              stolenItems: [],
+            }];
+          }
+        } else if (availableMonsters.length > 0) {
+          const spawnChance = Math.random();
+          if (spawnChance < 0.7) {  // 70% chance for any monster
+            monsters = [];
+            const actualCount = Math.min(monsterCount, 4);
+            for (let m = 0; m < actualCount; m++) {
+              const monsterDef = availableMonsters[rand(0, availableMonsters.length - 1)];
+              if (monsterDef) {
+                const isMB = monsterDef.isMiniBoss === true;
+                const scaledHp = Math.floor(monsterDef.hp + (Math.pow(floor, 1.3) * (isMB ? 15 : 12)));
+                const scaledAtk = Math.floor(monsterDef.atk + (Math.pow(floor, 1.2) * (isMB ? 4 : 3)));
+                const scaledDef = Math.floor(monsterDef.def + (Math.pow(floor, 1.1) * (isMB ? 2 : 1.5)));
+                
+                monsters.push({
+                  id: monsterDef.id,
+                  name: monsterDef.name,
+                  icon: monsterDef.icon,
+                  hp: scaledHp,
+                  atk: scaledAtk,
+                  def: scaledDef,
+                  steal: monsterDef.steal || false,
+                  isMiniBoss: isMB,
+                  tokenCost: monsterDef.tokenCost || 0,
+                  currentHp: scaledHp,
+                  maxHp: scaledHp,
+                  lastKilled: null,
+                  stolenItems: [],
+                });
+              }
             }
           }
         }
