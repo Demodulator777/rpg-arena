@@ -1151,6 +1151,11 @@ function openAuthLegalModal() {
 function closeAuthLegalModal() {
     document.getElementById('auth-legal-modal')?.classList.add('hidden');
 }
+function togglePasswordVisibility(inputId, el) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.type = el?.checked ? 'text' : 'password';
+}
 function openGameGuide() {
     closeTopbarMenu();
     document.getElementById('game-guide-modal')?.classList.remove('hidden');
