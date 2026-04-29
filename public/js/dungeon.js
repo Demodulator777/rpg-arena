@@ -281,6 +281,7 @@ let D = {
   rooms: [],
   playerPos: 0,
   exploredRooms: new Set(),
+  floorRunId: null,
   crawler: null,
   combat: null,
   travelTimer: null,
@@ -333,9 +334,14 @@ document.addEventListener('visibilitychange', () => {
         const parsed = JSON.parse(raw);
         parsed.exploredRooms = new Set(parsed.exploredRooms || []);
         parsed.crawler = parsed.crawler || null;
+        parsed.floorRunId = parsed.floorRunId || null;
         D = { ...D, ...parsed };
       }
     } catch(e) {}
+  }
+
+  function createFloorRunId() {
+    return `floor_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
 async function refreshCharacter() {
@@ -383,7 +389,8 @@ async function refreshCharacter() {
           rooms: response.progress.rooms,
           explored: response.progress.exploredRooms,
           combat: response.progress.combat,
-          crawler: response.progress.crawler || null
+          crawler: response.progress.crawler || null,
+          floorRunId: response.progress.floorRunId || null
         };
       }
       
@@ -425,7 +432,8 @@ async function refreshCharacter() {
           rooms: D.rooms || [],
           playerPos: D.playerPos || 0,
           exploredRooms: [...(D.exploredRooms || [])],
-          crawler: D.crawler || null
+          crawler: D.crawler || null,
+          floorRunId: D.floorRunId || null
         },
         activeDungeon: D.activeDungeon,
         combat: D.combat
@@ -1111,12 +1119,14 @@ function proceedStartDungeon(dungeonId) {
         D.playerPos = s.pos;
         D.exploredRooms = new Set(s.explored);
         D.crawler = s.crawler || null;
+        D.floorRunId = s.floorRunId || createFloorRunId();
         
         if (!D.rooms || D.rooms.length === 0) {
             D.rooms = generateFloor('tower', D.floor);
             D.playerPos = D.rooms.findIndex(r => r.isStart);
             D.exploredRooms = new Set([D.playerPos]);
             D.crawler = spawnCrawlerForCurrentFloor();
+            D.floorRunId = createFloorRunId();
             saveState();
             saveProgressToDB();
         }
@@ -1142,6 +1152,7 @@ function proceedStartDungeon(dungeonId) {
     
     D.exploredRooms = new Set([D.playerPos]);
     D.crawler = spawnCrawlerForCurrentFloor();
+    D.floorRunId = createFloorRunId();
     D.dungeonLog = [];
     saveState();
     saveProgressToDB();
@@ -1353,7 +1364,7 @@ function onRoomCleared(roomIdx) {
     room.monstersEvaded = false;
 
     // Mark room as cleared on server FIRST to prevent double loot
-    apiFetch('POST', '/game/dungeon/room-clear', { floor: D.floor, roomIndex: roomIdx })
+    apiFetch('POST', '/game/dungeon/room-clear', { floor: D.floor, roomIndex: roomIdx, floorRunId: D.floorRunId })
         .then(res => {
             // res.cleared means server says already cleared — no reward
             if (res && res.cleared) {
@@ -1500,6 +1511,7 @@ function onPlayerDeath() {
       rooms: D.rooms,
       explored: [...D.exploredRooms],
       crawler: D.crawler,
+      floorRunId: D.floorRunId,
     };
     D.combat = null;
     D.activeDungeon = null;
@@ -1574,6 +1586,7 @@ function onBossDefeated() {
   D.playerPos = D.rooms.findIndex(r => r.isStart);
   D.exploredRooms = new Set([D.playerPos]);
   D.crawler = spawnCrawlerForCurrentFloor();
+  D.floorRunId = createFloorRunId();
   D.combat = null;
   saveState();
   saveProgressToDB();
@@ -2709,6 +2722,7 @@ function dungeonExit() {
             rooms: D.rooms, 
             explored: [...D.exploredRooms],
             crawler: D.crawler,
+            floorRunId: D.floorRunId,
         };
     }
     
@@ -3078,6 +3092,7 @@ global.debugDungeonDetails = function() {
       rooms: [],
       playerPos: 0,
       exploredRooms: new Set(),
+      floorRunId: null,
       crawler: null,
       combat: null,
       travelTimer: null,
