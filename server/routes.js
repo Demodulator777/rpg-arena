@@ -2773,8 +2773,8 @@ async function finalizeGuildRaid(db, raid, members) {
             : Math.max(0, Math.floor(Number(fighter.hp || 1) * hpRatio));
         await dbRun(
             db,
-            'UPDATE characters SET hp_current = ?, raid_cooldown_until = ?, last_battle_at = ? WHERE id = ?',
-            [nextHp, raidCooldownUntil, now, char.id]
+            'UPDATE characters SET hp_current = ?, raid_cooldown_until = ? WHERE id = ?',
+            [nextHp, raidCooldownUntil, char.id]
         );
         await dbRun(
             db,
@@ -7158,6 +7158,57 @@ router.get('/chat/history', auth, async (req, res) => {
         res.json({ messages: rows.map(row => serializeChatMessage(row, char.id)) });
     } catch (e) {
         console.error('Chat history failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+router.get('/chat/characters', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const rawQuery = String(req.query?.q || '').trim().toLowerCase();
+        const prefixQuery = rawQuery ? `${rawQuery}%` : '';
+        const containsQuery = rawQuery ? `%${rawQuery}%` : '';
+
+        const rows = await dbAll(
+            db,
+            `SELECT id, name
+             FROM characters
+             WHERE id != ?
+               AND (
+                    ? = ''
+                    OR lower(name) LIKE ?
+                    OR lower(name) LIKE ?
+               )
+             ORDER BY
+                CASE
+                    WHEN ? != '' AND lower(name) = ? THEN 0
+                    WHEN ? != '' AND lower(name) LIKE ? THEN 1
+                    ELSE 2
+                END,
+                name COLLATE NOCASE ASC
+             LIMIT 8`,
+            [
+                char.id,
+                rawQuery,
+                prefixQuery,
+                containsQuery,
+                rawQuery,
+                rawQuery,
+                rawQuery,
+                prefixQuery
+            ]
+        );
+
+        res.json({
+            characters: rows.map(row => ({
+                id: Number(row.id),
+                name: row.name
+            }))
+        });
+    } catch (e) {
+        console.error('Chat character lookup failed:', e);
         res.status(500).json({ error: e.message });
     }
 });
