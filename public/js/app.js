@@ -4138,7 +4138,8 @@ function renderInventory(data) {
     // Helper to get item image path
     const getItemImage = (itemName) => {
         if (!itemName) return '';
-        const imageName = itemName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+        const baseName = String(itemName).replace(/\s\+\d+$/, '');
+        const imageName = baseName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
         return `/images/assets/${imageName}.png`;
     };
 
@@ -5023,7 +5024,7 @@ function createLootboxModal() {
 function getItemImagePath(itemName) {
     if (!itemName) return '/images/assets/prize.png';
     // Convert to lowercase, replace spaces with hyphens, remove special chars
-    let imageName = itemName.toLowerCase()
+    let imageName = String(itemName).replace(/\s\+\d+$/, '').toLowerCase()
         .replace(/[^\w\s-]/g, '')
         .replace(/\s+/g, '-');
     return `/assets/items/${imageName}.png`;
