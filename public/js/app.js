@@ -52,6 +52,11 @@ let chatStatusIsError = false;
 let chatStatusTimer = null;
 let chatWidgetPosition = null;
 let chatDragState = null;
+let chatRecipientSuggestions = [];
+let chatMentionSuggestions = [];
+let chatSuggestionTimer = null;
+let chatSuggestionRequestId = 0;
+let chatMentionRange = null;
 
 function isTutorialCharacter(char = character) {
     if (!char) return false;
@@ -1199,7 +1204,7 @@ function logout() {
     
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
-    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatStatusText=''; chatStatusIsError=false;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
@@ -6824,6 +6829,83 @@ function trimChatMessages(list) {
     return (Array.isArray(list) ? list : []).slice(-60);
 }
 
+function renderChatSuggestions() {
+    const recipientBox = document.getElementById('chat-recipient-suggestions');
+    if (recipientBox) {
+        recipientBox.innerHTML = chatRecipientSuggestions.length
+            ? chatRecipientSuggestions.map(entry => `
+                <button class="chat-suggest-item" ${actionAttrs('chooseChatRecipientSuggestion', entry.name)} data-no-action-lock="true">
+                    <span class="chat-suggest-name">${escHtml(entry.name)}</span>
+                </button>
+            `).join('')
+            : '';
+        recipientBox.classList.toggle('hidden', !chatRecipientSuggestions.length);
+    }
+
+    const mentionBox = document.getElementById('chat-mention-suggestions');
+    if (mentionBox) {
+        mentionBox.innerHTML = chatMentionSuggestions.length
+            ? chatMentionSuggestions.map(entry => `
+                <button class="chat-suggest-item" ${actionAttrs('chooseChatMentionSuggestion', entry.name)} data-no-action-lock="true">
+                    <span class="chat-suggest-name">@${escHtml(entry.name)}</span>
+                </button>
+            `).join('')
+            : '';
+        mentionBox.classList.toggle('hidden', !chatMentionSuggestions.length);
+    }
+}
+
+function clearChatSuggestions(kind = 'all') {
+    if (kind === 'recipient' || kind === 'all') chatRecipientSuggestions = [];
+    if (kind === 'mention' || kind === 'all') {
+        chatMentionSuggestions = [];
+        chatMentionRange = null;
+    }
+    renderChatSuggestions();
+}
+
+async function fetchChatCharacterSuggestions(query = '', kind = 'recipient') {
+    const currentRequestId = ++chatSuggestionRequestId;
+    try {
+        const data = await api('GET', `/game/chat/characters?q=${encodeURIComponent(String(query || '').trim())}`);
+        if (currentRequestId !== chatSuggestionRequestId) return;
+        const nextList = Array.isArray(data?.characters) ? data.characters : [];
+        if (kind === 'recipient') {
+            chatRecipientSuggestions = nextList;
+        } else {
+            chatMentionSuggestions = nextList;
+        }
+        renderChatSuggestions();
+    } catch (e) {
+        console.error('Chat suggestions failed:', e);
+        if (kind === 'recipient') chatRecipientSuggestions = [];
+        else chatMentionSuggestions = [];
+        renderChatSuggestions();
+    }
+}
+
+function queueChatSuggestionFetch(query = '', kind = 'recipient') {
+    if (chatSuggestionTimer) clearTimeout(chatSuggestionTimer);
+    chatSuggestionTimer = setTimeout(() => {
+        fetchChatCharacterSuggestions(query, kind);
+    }, 120);
+}
+
+function getActiveChatMentionQuery(input) {
+    if (!input) return null;
+    const caret = Number(input.selectionStart ?? input.value.length);
+    const left = String(input.value || '').slice(0, caret);
+    const match = left.match(/(^|\s)@([A-Za-z0-9_]*)$/);
+    if (!match) return null;
+    const fullMatch = match[0];
+    const query = match[2] || '';
+    return {
+        start: caret - fullMatch.length + fullMatch.indexOf('@'),
+        end: caret,
+        query
+    };
+}
+
 function getChatPrivateThreadKey(msg) {
     if (!msg?.is_private) return '';
     return String(msg.is_outgoing ? (msg.recipient_name || '') : (msg.sender_name || '')).trim();
@@ -7366,6 +7448,313 @@ window.switchChatView = switchChatView;
 window.selectPrivateChatThread = selectPrivateChatThread;
 window.loadBannerEvent = loadBannerEvent;
 window.doBannerPull = doBannerPull;
+
+function syncChatRecipientUi() {
+    const recipientInput = document.getElementById('chat-recipient-input');
+    const clearBtn = document.querySelector('.chat-widget-target-clear');
+    const subtitle = document.querySelector('.chat-widget-subtitle');
+    const messageInput = document.getElementById('chat-message-input');
+    const recipientDraft = String(recipientInput?.value || chatPmTarget || '').trim();
+    chatPmTarget = recipientDraft;
+    if (chatActiveView === 'private' && recipientDraft) {
+        chatActivePmThread = recipientDraft;
+    }
+    const canSendPm = recipientDraft.trim().length > 0;
+    if (clearBtn) {
+        clearBtn.textContent = canSendPm ? 'Clear PM' : 'Clear';
+        clearBtn.classList.toggle('active', canSendPm);
+    }
+    if (subtitle) {
+        subtitle.textContent = chatActiveView === 'private'
+            ? (canSendPm ? `Private with ${recipientDraft}` : 'Choose a private thread')
+            : 'World channel';
+    }
+    if (messageInput) {
+        messageInput.placeholder = chatActiveView === 'private'
+            ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...')
+            : 'Send global message...';
+    }
+    renderChatSuggestions();
+}
+
+function bindChatWidgetEvents() {
+    const root = ensureChatWidgetRoot();
+    if (!root || root.dataset.chatBound === 'true') return;
+    root.addEventListener('keydown', async (event) => {
+        if (event.target?.id !== 'chat-message-input') return;
+        if (event.key !== 'Enter' || event.shiftKey) return;
+        event.preventDefault();
+        await sendChatMessage();
+    });
+    root.addEventListener('input', (event) => {
+        if (event.target?.id === 'chat-recipient-input') {
+            chatPmTarget = String(event.target.value || '');
+            if (chatActiveView === 'private') {
+                chatActivePmThread = String(event.target.value || '').trim();
+            }
+            syncChatRecipientUi();
+            const query = String(event.target.value || '').trim();
+            if (query) queueChatSuggestionFetch(query, 'recipient');
+            else clearChatSuggestions('recipient');
+            return;
+        }
+        if (event.target?.id === 'chat-message-input') {
+            const counter = document.getElementById('chat-widget-limit');
+            if (counter) {
+                const remaining = Math.max(0, 280 - String(event.target.value || '').length);
+                counter.textContent = `${remaining} left`;
+            }
+            const mention = getActiveChatMentionQuery(event.target);
+            if (mention) {
+                chatMentionRange = mention;
+                queueChatSuggestionFetch(mention.query, 'mention');
+            } else {
+                clearChatSuggestions('mention');
+            }
+        }
+    });
+    root.addEventListener('pointerdown', (event) => {
+        if (isMobileChatDockMode()) return;
+        const handle = event.target?.closest('.chat-widget-header');
+        if (!handle) return;
+        if (event.target?.closest('button,input,textarea')) return;
+        const rect = root.getBoundingClientRect();
+        chatDragState = {
+            offsetX: event.clientX - rect.left,
+            offsetY: event.clientY - rect.top
+        };
+        root.classList.add('dragging');
+        try { handle.setPointerCapture(event.pointerId); } catch {}
+        event.preventDefault();
+    });
+    window.addEventListener('pointermove', (event) => {
+        if (isMobileChatDockMode()) return;
+        if (!chatDragState) return;
+        const margin = 8;
+        const widgetWidth = root.offsetWidth || 360;
+        const widgetHeight = root.offsetHeight || 420;
+        const nextX = Math.max(margin, Math.min(window.innerWidth - widgetWidth - margin, event.clientX - chatDragState.offsetX));
+        const nextY = Math.max(margin, Math.min(window.innerHeight - widgetHeight - margin, event.clientY - chatDragState.offsetY));
+        chatWidgetPosition = { x: nextX, y: nextY };
+        root.style.left = `${nextX}px`;
+        root.style.top = `${nextY}px`;
+        root.style.right = 'auto';
+        root.style.bottom = 'auto';
+    });
+    window.addEventListener('pointerup', () => {
+        if (!chatDragState) return;
+        chatDragState = null;
+        root.classList.remove('dragging');
+    });
+    root.dataset.chatBound = 'true';
+}
+
+function renderChatWidget() {
+    const root = ensureChatWidgetRoot();
+    if (!root) return;
+    if (!isChatWidgetAvailable()) {
+        root.innerHTML = '';
+        root.classList.add('hidden');
+        return;
+    }
+
+    if (chatWidgetCollapsed) {
+        const hasUnreadPm = chatUnreadPmIds.size > 0;
+        root.classList.remove('hidden');
+        applyChatDockPosition(root);
+        root.innerHTML = `
+            <button class="chat-widget-bubble ${hasUnreadPm ? 'has-alert' : ''}" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
+                <span class="chat-widget-bubble-label">Chat</span>
+                ${hasUnreadPm ? '<span class="chat-widget-bubble-alert">!</span>' : ''}
+            </button>`;
+        return;
+    }
+
+    const input = document.getElementById('chat-message-input');
+    const wasFocused = document.activeElement === input;
+    const prevMessage = input?.value || '';
+    const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
+    chatPmTarget = recipientDraft;
+    const privateThreads = getPrivateChatThreads();
+    if (chatActiveView === 'private' && !chatActivePmThread && privateThreads.length) {
+        chatActivePmThread = privateThreads[0].key;
+        chatPmTarget = chatActivePmThread;
+    }
+    if (chatActiveView === 'private' && chatActivePmThread && !privateThreads.some(thread => thread.key === chatActivePmThread)) {
+        chatActivePmThread = '';
+    }
+    const activePrivateTarget = chatActiveView === 'private'
+        ? String(chatActivePmThread || recipientDraft || '').trim()
+        : '';
+    const canSendPm = activePrivateTarget.length > 0;
+    const statusClass = chatStatusText ? (chatStatusIsError ? 'error' : 'success') : '';
+    const visibleMessages = getVisibleChatMessages();
+    const filteredMessages = getFilteredChatMessages();
+    const hiddenCount = Math.max(0, filteredMessages.length - visibleMessages.length);
+    const remainingChars = Math.max(0, 280 - prevMessage.length);
+    const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
+    const privateCount = privateThreads.length;
+    const threadTabsHtml = privateThreads.length
+        ? privateThreads.map(thread => `<button class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
+                <span>${escHtml(thread.key)}</span>
+                ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
+            </button>`).join('')
+        : '<div class="chat-thread-empty">No private conversations yet.</div>';
+
+    root.classList.remove('hidden');
+    root.innerHTML = `
+        <section class="chat-widget">
+            <div class="chat-widget-header">
+                <div class="chat-widget-title-wrap">
+                    <div class="chat-widget-title">Global Chat</div>
+                    <div class="chat-widget-subtitle">${chatActiveView === 'private' ? (canSendPm ? `Private with ${escHtml(activePrivateTarget)}` : 'Choose a private thread') : 'World channel'}</div>
+                </div>
+                <button class="chat-widget-collapse" title="Close chat" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
+                    X
+                </button>
+            </div>
+            <div class="chat-widget-body">
+                <div class="chat-widget-view-tabs">
+                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})</button>
+                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})</button>
+                </div>
+                ${chatActiveView === 'private' ? `
+                    <div class="chat-widget-target-row">
+                        <input id="chat-recipient-input" class="chat-widget-target-input" type="text" maxlength="24" placeholder="Character name for new PM" value="${escHtml(activePrivateTarget || recipientDraft)}">
+                        <button class="chat-widget-target-clear ${canSendPm ? 'active' : ''}" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">
+                            ${canSendPm ? 'Clear PM' : 'Clear'}
+                        </button>
+                    </div>
+                    <div id="chat-recipient-suggestions" class="chat-suggest-list hidden"></div>
+                    <div class="chat-thread-tabs">${threadTabsHtml}</div>
+                ` : ''}
+                <div class="chat-widget-messages" id="chat-widget-messages">
+                    ${visibleMessages.length ? visibleMessages.map(msg => {
+                        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+                        const isOwn = msg.is_outgoing;
+                        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
+                        const actionBtns = [];
+                        if (!isOwn) {
+                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
+                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
+                        }
+                        if (isOwn) {
+                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
+                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
+                        }
+                        return `
+                            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
+                                <div class="chat-line-meta">
+                                    <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
+                                    <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
+                                    <span class="chat-line-channel">${privateLabel}</span>
+                                    ${actionBtns.length ? `<div class="chat-line-actions">${actionBtns.join('')}</div>` : ''}
+                                </div>
+                                <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
+                            </div>
+                        `;
+                    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
+                </div>
+                ${filteredMessages.length > 8 ? `
+                    <div class="chat-widget-more">
+                        <button class="chat-widget-more-btn" ${actionAttrs('toggleChatExpanded')} data-no-action-lock="true">
+                            ${chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`}
+                        </button>
+                    </div>
+                ` : ''}
+                <div class="chat-widget-compose">
+                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...') : 'Send global message...'}" value="${escHtml(prevMessage)}">
+                    <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
+                </div>
+                <div id="chat-mention-suggestions" class="chat-suggest-list hidden"></div>
+                <div class="chat-widget-foot">
+                    <span id="chat-widget-limit" class="chat-widget-limit">${remainingChars} left</span>
+                    <span id="chat-widget-status" class="chat-widget-status ${statusClass}">${escHtml(chatStatusText)}</span>
+                </div>
+            </div>
+        </section>`;
+
+    bindChatWidgetEvents();
+    if (wasFocused) {
+        const newInput = document.getElementById('chat-message-input');
+        if (newInput) {
+            newInput.value = prevMessage;
+            newInput.focus();
+            newInput.selectionStart = newInput.selectionEnd = prevMessage.length;
+        }
+    }
+    const messagesEl = document.getElementById('chat-widget-messages');
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+    renderChatSuggestions();
+}
+
+function switchChatView(view = 'global') {
+    chatActiveView = view === 'private' ? 'private' : 'global';
+    if (chatActiveView === 'private') {
+        const threads = getPrivateChatThreads();
+        if (!chatActivePmThread && threads.length) {
+            chatActivePmThread = threads[0].key;
+        }
+        if (chatActivePmThread) {
+            chatPmTarget = chatActivePmThread;
+        }
+    } else {
+        chatPmTarget = '';
+        chatActivePmThread = '';
+    }
+    clearChatSuggestions();
+    renderChatWidget();
+}
+
+function clearChatRecipient() {
+    chatPmTarget = '';
+    chatActivePmThread = '';
+    clearChatSuggestions('recipient');
+    const input = document.getElementById('chat-recipient-input');
+    if (input) {
+        input.value = '';
+    }
+    const chatInput = document.getElementById('chat-message-input');
+    if (chatInput) {
+        delete chatInput.dataset.editingId;
+        chatInput.focus();
+    }
+    localStorage.removeItem('rpg_chat_editing_id');
+    delete window._chatEditingId;
+    syncChatRecipientUi();
+}
+
+function chooseChatRecipientSuggestion(name) {
+    const nextName = String(name || '').trim();
+    if (!nextName) return;
+    chatPmTarget = nextName;
+    chatActivePmThread = nextName;
+    const input = document.getElementById('chat-recipient-input');
+    if (input) input.value = nextName;
+    clearChatSuggestions('recipient');
+    syncChatRecipientUi();
+    document.getElementById('chat-message-input')?.focus();
+}
+
+function chooseChatMentionSuggestion(name) {
+    const nextName = String(name || '').trim();
+    const input = document.getElementById('chat-message-input');
+    if (!nextName || !input) return;
+    const range = chatMentionRange || getActiveChatMentionQuery(input);
+    if (!range) return;
+    const value = String(input.value || '');
+    input.value = `${value.slice(0, range.start)}@${nextName} ${value.slice(range.end)}`;
+    const caret = range.start + nextName.length + 2;
+    input.focus();
+    input.setSelectionRange(caret, caret);
+    const counter = document.getElementById('chat-widget-limit');
+    if (counter) counter.textContent = `${Math.max(0, 280 - input.value.length)} left`;
+    clearChatSuggestions('mention');
+}
+
+window.switchChatView = switchChatView;
+window.chooseChatRecipientSuggestion = chooseChatRecipientSuggestion;
+window.chooseChatMentionSuggestion = chooseChatMentionSuggestion;
 
 async function sendChatMessage() {
     const input = document.getElementById('chat-message-input');
