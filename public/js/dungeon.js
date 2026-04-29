@@ -137,6 +137,51 @@ function getMiniBossForFloor(floor) {
     };
 }
 
+function rebalanceMiniBossMonster(monster, floor) {
+    if (!monster || !monster.isMiniBoss) return monster;
+    if (Number(monster.rebalanceVersion || 0) >= 1) return monster;
+
+    const template = MINI_BOSS_POOL.find(entry =>
+        entry.name === monster.name ||
+        String(entry.name || '').toLowerCase().replace(/[^\w]+/g, '_') === monster.id
+    );
+    if (!template) {
+        return { ...monster, rebalanceVersion: 1 };
+    }
+
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const scale = 1
+        + Math.max(0, safeFloor - template.minFloor) * 0.12
+        + Math.max(0, safeFloor - 1) * 0.035;
+
+    const newMaxHp = Math.round(template.baseHp * scale * 2);
+    const newDef = Math.round(template.baseDef * scale * 2);
+    const newAtk = Math.round(template.baseAtk * scale);
+    const previousMax = Math.max(1, Number(monster.maxHp || monster.hp || newMaxHp));
+    const hpRatio = Math.max(0, Math.min(1, Number(monster.currentHp ?? previousMax) / previousMax));
+    const nextCurrentHp = monster.lastKilled ? 0 : Math.max(1, Math.round(newMaxHp * hpRatio));
+
+    return {
+        ...monster,
+        atk: newAtk,
+        def: newDef,
+        hp: newMaxHp,
+        maxHp: newMaxHp,
+        currentHp: nextCurrentHp,
+        tokenCost: 0,
+        rebalanceVersion: 1,
+    };
+}
+
+function normalizeMiniBossRooms(rooms, floor) {
+    if (!Array.isArray(rooms)) return [];
+    return rooms.map(room => {
+        if (!Array.isArray(room.monsters) || !room.monsters.length) return room;
+        const monsters = room.monsters.map(monster => rebalanceMiniBossMonster(monster, floor));
+        return { ...room, monsters };
+    });
+}
+
 function getCrawlerForFloor(floor) {
     const boss = getBossForFloor(floor);
     return {
@@ -346,6 +391,7 @@ document.addEventListener('visibilitychange', () => {
         parsed.exploredRooms = new Set(parsed.exploredRooms || []);
         parsed.crawler = parsed.crawler || null;
         parsed.floorRunId = parsed.floorRunId || null;
+        parsed.rooms = normalizeMiniBossRooms(parsed.rooms || [], parsed.floor || 1);
         D = { ...D, ...parsed };
       }
     } catch(e) {}
@@ -397,7 +443,7 @@ async function refreshCharacter() {
         D.savedProgress[response.progress.activeDungeon] = {
           floor: response.progress.floor,
           pos: response.progress.playerPos,
-          rooms: response.progress.rooms,
+          rooms: normalizeMiniBossRooms(response.progress.rooms || [], response.progress.floor || 1),
           explored: response.progress.exploredRooms,
           combat: response.progress.combat,
           crawler: response.progress.crawler || null,
@@ -1127,14 +1173,14 @@ function proceedStartDungeon(dungeonId) {
         const s = D.savedProgress[dungeonId];
         D.activeDungeon = 'tower';
         D.floor = s.floor;
-        D.rooms = s.rooms;
+        D.rooms = normalizeMiniBossRooms(s.rooms || [], s.floor || 1);
         D.playerPos = s.pos;
         D.exploredRooms = new Set(s.explored);
         D.crawler = s.crawler || null;
         D.floorRunId = s.floorRunId || createFloorRunId();
         
         if (!D.rooms || D.rooms.length === 0) {
-            D.rooms = generateFloor('tower', D.floor);
+            D.rooms = normalizeMiniBossRooms(generateFloor('tower', D.floor), D.floor);
             D.playerPos = D.rooms.findIndex(r => r.isStart);
             D.exploredRooms = new Set([D.playerPos]);
             D.crawler = spawnCrawlerForCurrentFloor();
@@ -1152,7 +1198,7 @@ function proceedStartDungeon(dungeonId) {
     // ── Fresh run — start from the player's current floor (loaded from DB) ──
     D.activeDungeon = 'tower';
     const startFloor = D.floor || 1;  // already set by loadDungeonDataFromDB
-    D.rooms = generateFloor('tower', startFloor);
+    D.rooms = normalizeMiniBossRooms(generateFloor('tower', startFloor), startFloor);
     
     if (!D.rooms || D.rooms.length === 0) {
         log('Failed to generate dungeon. Please try again.', 'log-danger');
@@ -1594,7 +1640,7 @@ function onBossDefeated() {
   }).catch(e => console.error('Failed to save boss defeat:', e));
   
   delete D.savedProgress['tower'];
-  D.rooms = generateFloor(D.activeDungeon, D.floor);
+  D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
   D.playerPos = D.rooms.findIndex(r => r.isStart);
   D.exploredRooms = new Set([D.playerPos]);
   D.crawler = spawnCrawlerForCurrentFloor();
