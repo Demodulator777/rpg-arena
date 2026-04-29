@@ -7741,10 +7741,8 @@ router.post('/dungeon/lock-refresh', auth, async (req, res) => {
 router.post('/dungeon/room-enter', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const { roomId, floor, roomIndex } = req.body;
+    const { floor, roomIndex } = req.body;
     const { userId } = req.user;
-    const char = await getCurrentCharacter(db, userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
     
     // Check if already cleared - don't allow re-entry
     const alreadyCleared = await db.execute({
@@ -7755,28 +7753,9 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
       return res.status(409).json({ error: 'Room already cleared', locked: true });
     }
 
-    const now = Date.now();
-
-    // Self-heal poisoned room state:
-    // a character should only have one active room claim at a time, and old claims
-    // should never block future combat starts.
-    await db.execute({
-      sql: `DELETE FROM dungeon_room_instances
-            WHERE user_id = ?
-              AND status = 'active'`,
-      args: [userId]
-    });
-
-    const instanceId = `${char.id}_${floor}_${roomIndex}_${now}`;
-    const tabSession = req.user.tabSession || `default`;
-
-    await db.execute({
-      sql: `INSERT INTO dungeon_room_instances (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
-            VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`,
-      args: [instanceId, userId, char.id, floor, roomIndex, tabSession, now]
-    });
-
-    res.json({ success: true, instanceId });
+    // Room entry itself should never block combat; the actual one-reward guarantee
+    // is enforced in /dungeon/room-clear.
+    res.json({ success: true });
   } catch (e) {
     console.error('room-enter error:', e);
     res.status(500).json({ error: e.message });
@@ -7807,6 +7786,8 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     const db = await getDb();
     const { floor, roomIndex } = req.body;
     const { userId } = req.user;
+    const char = await getCurrentCharacter(db, userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
     
     // Check if ANY (any session) already cleared this room - first one wins
     const existing = await db.execute({
@@ -7826,7 +7807,13 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     
     const changes = result?.meta?.changes ?? result?.changes ?? 0;
     if (changes === 0) {
-      return res.status(409).json({ error: 'Room already cleared', cleared: true });
+      const clearedId = `${char.id}_${floor}_${roomIndex}_cleared_${Date.now()}`;
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+              (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+        args: [clearedId, userId, char.id, floor, roomIndex, req.user.tabSession || 'default', Date.now()]
+      });
     }
     
     res.json({ success: true });
