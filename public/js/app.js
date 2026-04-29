@@ -3114,6 +3114,7 @@ function openLocationModal(zoneId) {
                     </div>
                     <div class="mz-spot-info">
                         <div class="mz-spot-name">${spot.name}</div>
+                        <div style="height:20px;line-height:20px">&nbsp;</div>
                     </div>
                 </div>`;
             }).join('')}
@@ -3194,6 +3195,7 @@ function openSpotMissions(zoneId, spotId) {
                     </div>
                     <div class="mz-mission-info">
                         <div class="mz-mission-name">${m.name}</div>
+                        <div style="height:20px;line-height:20px">&nbsp;</div>
                     </div>
                     </div>
                 </div>
@@ -3266,7 +3268,9 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
                 freshCard.addEventListener('click', () => doStartMission(zoneId, spotId, idx, sizeKey));
                 const reward = freshCard.querySelector('.mz-mission-reward');
                 if (reward) {
-                    reward.innerHTML = '';
+                    reward.style.height = '20px';
+                    reward.style.lineHeight = '20px';
+                    reward.innerHTML = '&nbsp;';
                 }
             }
         }
