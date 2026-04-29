@@ -4333,6 +4333,8 @@ function showItemTooltip(event, itemId) {
     
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const displayName = getDisplayItemName(d, info.upgrade_level || 0);
+    const displayDesc = getCanonicalItemDesc(d.desc);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
@@ -4355,9 +4357,9 @@ function showItemTooltip(event, itemId) {
                 :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
+            <div class="tt-name" style="color:${qColor}">${displayName}</div>
             <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
-            ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
+            ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
         </div>
@@ -4439,7 +4441,9 @@ function showItemTooltip(event, itemId) {
     
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
-    const imgSrc = d.img||(d.name&&!d.consumable?`/images/assets/${d.name.toLowerCase().replace(/\s+/g,'-')}.png`:null);
+    const displayName = getDisplayItemName(d, info.upgrade_level || 0);
+    const displayDesc = getCanonicalItemDesc(d.desc);
+    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
     for (const stat of allStats) {
@@ -4468,9 +4472,9 @@ function showItemTooltip(event, itemId) {
                 :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${d.name||''}</div>
+            <div class="tt-name" style="color:${qColor}">${displayName}</div>
             <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
-            ${d.desc?`<div class="tt-desc">${d.desc}</div>`:''}
+            ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
         </div>
@@ -5028,6 +5032,29 @@ function getItemImagePath(itemName) {
         .replace(/[^\w\s-]/g, '')
         .replace(/\s+/g, '-');
     return `/assets/items/${imageName}.png`;
+}
+
+function getCanonicalItemName(itemName) {
+    return String(itemName || '').replace(/\s\+\d+$/, '').trim();
+}
+
+function getDisplayItemName(itemLike, fallbackUpgradeLevel = 0) {
+    const rawName = typeof itemLike === 'string' ? itemLike : (itemLike?.name || '');
+    const baseName = getCanonicalItemName(rawName);
+    const upgradeLevel = Number(
+        typeof itemLike === 'object'
+            ? (itemLike?.upgradeLevel ?? itemLike?.upgrade_level ?? fallbackUpgradeLevel)
+            : fallbackUpgradeLevel
+    ) || 0;
+    return upgradeLevel > 0 ? `${baseName} +${upgradeLevel}` : baseName;
+}
+
+function getCanonicalItemDesc(desc) {
+    const cleaned = String(desc || '')
+        .replace(/^undefined\s*/i, '')
+        .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
+        .trim();
+    return cleaned;
 }
 
 // Helper: Escape HTML
