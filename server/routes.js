@@ -7781,6 +7781,8 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
 
 // Mark room cleared and claim reward atomically
 // Only FIRST clear gets reward - reject duplicates
+// routes.js  — replace the FIRST router.post('/dungeon/room-clear', ...) block (lines 7784-7823)
+
 router.post('/dungeon/room-clear', auth, async (req, res) => {
   try {
     const db = await getDb();
@@ -7788,36 +7790,33 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     const { userId } = req.user;
     const char = await getCurrentCharacter(db, userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    // Check if ANY (any session) already cleared this room - first one wins
-    const existing = await db.execute({
-      sql: `SELECT id FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'`,
-      args: [userId, floor, roomIndex]
-    });
-    if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Room already cleared', cleared: true });
-    }
-    
-    // First to clear - update any active row
-    const result = await db.execute({
-      sql: `UPDATE dungeon_room_instances SET status = 'cleared' 
-            WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
-      args: [userId, floor, roomIndex]
-    });
-    
-    const changes = result?.meta?.changes ?? result?.changes ?? 0;
-    if (changes === 0) {
-      const clearedId = `${char.id}_${floor}_${roomIndex}_cleared_${Date.now()}`;
+
+    // Atomically attempt to insert the cleared record.
+    // The table must have a UNIQUE constraint on (user_id, floor_number, room_index).
+    // If another tab already inserted it, this will be rejected — only one winner.
+    let inserted = false;
+    try {
+      const clearedId = `${char.id}_${floor}_${roomIndex}_cleared`;
       await db.execute({
         sql: `INSERT INTO dungeon_room_instances
-              (id, user_id, char_id, floor_number, room_index, status, created_at)
+                (id, user_id, char_id, floor_number, room_index, status, created_at)
               VALUES (?, ?, ?, ?, ?, 'cleared', ?)`,
         args: [clearedId, userId, char.id, floor, roomIndex, Date.now()]
       });
+      inserted = true;
+    } catch (uniqueErr) {
+      // UNIQUE constraint violation — another tab already cleared this room
+      inserted = false;
     }
-    
+
+    if (!inserted) {
+      // Already cleared by another session — block reward
+      return res.status(409).json({ error: 'Room already cleared', cleared: true });
+    }
+
     res.json({ success: true });
   } catch (e) {
+    console.error('room-clear error:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -7866,38 +7865,6 @@ router.post('/dungeon/progress', auth, async (req, res) => {
       dungeon_progress = ?
       WHERE id = ?`,
       [floor, highestFloor, JSON.stringify(progressData), char.id]
-    );
-    
-    res.json({ success: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-router.post('/dungeon/room-clear', auth, async (req, res) => {
-  try {
-    const db = await getDb();
-    const { roomId, floor } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId);
-    if (!char) return res.status(404).json({ error: 'Character not found' });
-    
-    let savedProgress = { rooms: [], exploredRooms: [] };
-    if (char.dungeon_progress) {
-      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
-    }
-    
-    const room = savedProgress.rooms?.find(r => r.id === roomId);
-    if (!room) return res.status(404).json({ error: 'Room not found' });
-    
-    if (room.monstersCleared) {
-      return res.status(409).json({ error: 'Room already cleared', cleared: true });
-    }
-    
-    room.monstersCleared = Date.now();
-    
-    await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
-      [JSON.stringify(savedProgress), char.id]
     );
     
     res.json({ success: true });
