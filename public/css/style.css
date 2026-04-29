@@ -2105,55 +2105,52 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin-left: auto;
 }
 
-.chat-edit-btn {
-    background: none;
-    border: none;
+.chat-pm-btn,
+.chat-reply-btn,
+.chat-edit-btn,
+.chat-delete-btn {
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
     cursor: pointer;
-    font-size: 0.75rem;
-    padding: 2px 6px;
-    opacity: 0.6;
-    transition: opacity 0.15s;
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 4px 7px;
+    border-radius: 8px;
+    font-weight: 700;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+    opacity: 0.92;
+}
+.chat-pm-btn,
+.chat-reply-btn {
+    color: #9fd3ff;
+    border-color: rgba(52,152,219,0.22);
+    background: rgba(52,152,219,0.1);
+}
+.chat-pm-btn:hover,
+.chat-reply-btn:hover {
+    opacity: 1;
+    background: rgba(52,152,219,0.16);
+    border-color: rgba(52,152,219,0.38);
+}
+.chat-edit-btn {
+    color: #f5d070;
+    border-color: rgba(241,196,15,0.24);
+    background: rgba(241,196,15,0.1);
 }
 .chat-edit-btn:hover {
     opacity: 1;
-}
-.chat-reply-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 2px 4px;
-    opacity: 0.8;
-    color: #9fd3ff;
-    transition: opacity 0.15s;
-}
-.chat-reply-btn:hover {
-    opacity: 1;
-}
-.chat-pm-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 2px 4px;
-    opacity: 0.7;
-    color: #9fd3ff;
-    transition: opacity 0.15s;
-}
-.chat-pm-btn:hover {
-    opacity: 1;
+    background: rgba(241,196,15,0.16);
+    border-color: rgba(241,196,15,0.4);
 }
 .chat-delete-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 2px 4px;
-    opacity: 0.6;
-    transition: opacity 0.15s;
+    color: #ffb2a8;
+    border-color: rgba(231,76,60,0.24);
+    background: rgba(231,76,60,0.1);
 }
 .chat-delete-btn:hover {
     opacity: 1;
+    background: rgba(231,76,60,0.16);
+    border-color: rgba(231,76,60,0.38);
 }
 
 .chat-widget-message-input.editing {
