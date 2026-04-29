@@ -152,19 +152,13 @@ const SPITEFORGED_LOOT = [
 
 async function seedDefaultBanner(db) {
     const now = Math.floor(Date.now() / 1000);
-    const existing = await db.execute({ 
-        sql: `SELECT id FROM banner_events WHERE start_at <= ? AND end_at > ?`, 
-        args: [now, now] 
-    });
-    
-    // Carry over pity from expired banner if exists
-    if (existing.rows.length > 0) {
-        const activeBannerId = existing.rows[0].id;
-        const oldPulls = await dbGet(db, `SELECT pull_count, total_pulls FROM player_banner_pulls WHERE banner_id = ?`, [activeBannerId]);
-        if (oldPulls && oldPulls.pull_count > 0) {
-            console.log('🎴 Banner still active, keeping pity');
-            return;
-        }
+    const existingAny = await dbGet(db, `SELECT id FROM banner_events ORDER BY id DESC LIMIT 1`);
+
+    // Only seed the default banner for a brand-new database.
+    // If banner rows already exist, keep that history/state exactly as-is
+    // instead of creating duplicates on every server restart.
+    if (existingAny) {
+        return;
     }
     
     const weekFromNow = now + 7 * 24 * 60 * 60;
