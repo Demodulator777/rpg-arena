@@ -110,7 +110,9 @@ function getMiniBossForFloor(floor) {
     const available = MINI_BOSS_POOL.filter(m => m.minFloor <= floor);
     if (available.length === 0) return null;
     const miniBoss = available[rand(0, available.length - 1)];
-    const scale = 1 + Math.max(0, floor - miniBoss.minFloor) * 0.08;
+    const scale = 1
+        + Math.max(0, floor - miniBoss.minFloor) * 0.12
+        + Math.max(0, floor - 1) * 0.035;
     
     return {
         name: miniBoss.name,
