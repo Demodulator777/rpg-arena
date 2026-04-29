@@ -3114,7 +3114,6 @@ function openLocationModal(zoneId) {
                     </div>
                     <div class="mz-spot-info">
                         <div class="mz-spot-name">${spot.name}</div>
-                        <div class="mz-spot-stats">💰 ${zone.payoutBase[spot.difficulty]?.[0] || 0}–${zone.payoutBase[spot.difficulty]?.[1] || 0} gold</div>
                     </div>
                 </div>`;
             }).join('')}
@@ -3195,9 +3194,7 @@ function openSpotMissions(zoneId, spotId) {
                     </div>
                     <div class="mz-mission-info">
                         <div class="mz-mission-name">${m.name}</div>
-                        <div class="mz-mission-reward" style="color:${dc[spot.difficulty]}">
-                            💰 ${zone.payoutBase[spot.difficulty][0]}–${zone.payoutBase[spot.difficulty][1]} gold
-                        </div>
+                    </div>
                     </div>
                 </div>
             `).join('')}
@@ -3269,7 +3266,7 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
                 freshCard.addEventListener('click', () => doStartMission(zoneId, spotId, idx, sizeKey));
                 const reward = freshCard.querySelector('.mz-mission-reward');
                 if (reward) {
-                    reward.innerHTML = `💰 ${Math.floor(zone.payoutBase[spot.difficulty][0] * mult)}–${Math.floor(zone.payoutBase[spot.difficulty][1] * mult)} gold`;
+                    reward.innerHTML = '';
                 }
             }
         }
