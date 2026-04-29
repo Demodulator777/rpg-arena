@@ -96,7 +96,7 @@ const GUILD_RANKS = [
     { theme:'#92400e', themeGlow:'rgba(146,64,14,0.4)',   name:'Celestial Ruins' },
   ];
 
-  // ── Mini-Boss Pool (costs 5-10 tokens) ──────────────────────────────────────────
+  // ── Mini-Boss Pool ──────────────────────────────────────────
 const MINI_BOSS_POOL = [
     { name:'Shadow Stalker',     icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:5, image:'/images/dungeon/miniboss1.jpg' },
     { name:'Crystal Golem',      icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
@@ -125,13 +125,13 @@ function getMiniBossForFloor(floor) {
         name: miniBoss.name,
         icon: miniBoss.icon,
         image: miniBoss.image,
-        hp: Math.round(miniBoss.baseHp * scale),
+        hp: Math.round(miniBoss.baseHp * scale * 2),
         atk: Math.round(miniBoss.baseAtk * scale),
-        def: Math.round(miniBoss.baseDef * scale),
-        tokenCost: miniBoss.tokenCost,
+        def: Math.round(miniBoss.baseDef * scale * 2),
+        tokenCost: 0,
         isMiniBoss: true,
-        currentHp: Math.round(miniBoss.baseHp * scale),
-        maxHp: Math.round(miniBoss.baseHp * scale),
+        currentHp: Math.round(miniBoss.baseHp * scale * 2),
+        maxHp: Math.round(miniBoss.baseHp * scale * 2),
         lastKilled: null,
         stolenItems: [],
     };
@@ -2534,7 +2534,7 @@ function renderRoomInfo(room) {
                     <div class="monster-hp-bar-wrap">
                         <div class="monster-hp-bar" style="width:${hpPct}%"></div>
                     </div>
-                    <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def} · 🗝️ Costs ${m.tokenCost} tokens</div>
+                    <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def}</div>
                 </div>
                 <div class="monster-btns">
                     <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ Challenge Mini-Boss</button>
@@ -2981,14 +2981,6 @@ function claimGuildBounty() {
     if (!room || !room.isMiniBoss) return;
     
     const miniBoss = room.monsters[0];  // Changed from room.monster
-    if (D.tokens < miniBoss.tokenCost) {
-        log(`🗝️ Need ${miniBoss.tokenCost} tokens to challenge this mini-boss. You have ${D.tokens}.`, 'log-danger');
-        return;
-    }
-    
-    const success = await spendTokens(miniBoss.tokenCost);
-    if (!success) return;
-    
     D.combat = {
         roomIdx,
         monsters: [{ ...miniBoss, currentHp: miniBoss.maxHp }],  // Changed to array
