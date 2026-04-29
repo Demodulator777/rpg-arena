@@ -7798,14 +7798,18 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       const clearedId = `${char.id}_${runKey}_${roomIndex}_cleared`;
       await db.execute({
         sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, status, created_at)
-              VALUES (?, ?, ?, ?, ?, 'cleared', ?)`,
-        args: [clearedId, userId, char.id, floor, roomIndex, Date.now()]
+                (id, user_id, char_id, floor_number, room_index, status)
+              VALUES (?, ?, ?, ?, ?, 'cleared')`,
+        args: [clearedId, userId, char.id, floor, roomIndex]
       });
       inserted = true;
     } catch (uniqueErr) {
-      // UNIQUE constraint violation — another tab already cleared this room
-      inserted = false;
+      const msg = String(uniqueErr?.message || '');
+      if (msg.includes('UNIQUE') || msg.includes('duplicate') || msg.includes('constraint')) {
+        inserted = false;
+      } else {
+        throw uniqueErr;
+      }
     }
 
     if (!inserted) {
