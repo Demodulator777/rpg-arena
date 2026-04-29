@@ -604,6 +604,25 @@ body {
     border-color: var(--gold);
     background: rgba(255,255,255,0.07);
 }
+.auth-password-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: -4px;
+    margin-bottom: 2px;
+    color: rgba(255,255,255,0.72);
+    font-size: 0.78rem;
+    user-select: none;
+    cursor: pointer;
+}
+.auth-password-toggle input {
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+.auth-password-toggle span {
+    line-height: 1;
+}
 .auth-referral-note {
     margin-top: -4px;
     margin-bottom: 4px;
