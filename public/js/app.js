@@ -7681,10 +7681,13 @@ function renderChatWidget() {
     const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
     const privateCount = privateThreads.length;
     const threadTabsHtml = privateThreads.length
-        ? privateThreads.map(thread => `<button class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
-                <span>${escHtml(thread.key)}</span>
-                ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
-            </button>`).join('')
+        ? privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
+                <button class="chat-thread-tab-main" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
+                    <span>${escHtml(thread.key)}</span>
+                    ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
+                </button>
+                <button class="chat-thread-tab-close" ${actionAttrs('closePrivateChatThread', thread.key)} data-no-action-lock="true" title="Close private chat">✕</button>
+            </div>`).join('')
         : '<div class="chat-thread-empty">No private conversations yet.</div>';
 
     root.classList.remove('hidden');
