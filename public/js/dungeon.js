@@ -1215,21 +1215,7 @@ function travelToRoom(targetIdx) {
 function initiateFight(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
-
-    // Try to claim room entry atomically
-    apiFetch('POST', '/game/dungeon/room-enter', { roomId: room.id, floor: D.floor, roomIndex: roomIdx })
-        .then(res => {
-            if (res.locked) {
-                log(`⚠️ Room already cleared from another tab - try one tab next time;)`, 'log-warning');
-                return;
-            }
-            startCombat(roomIdx);
-        })
-        // Stop on error - don't proceed
-        .catch(e => {
-            console.error('Failed to enter room:', e);
-            log(`⚠️ Failed to enter room`, 'log-danger');
-        });
+    startCombat(roomIdx);
 }
 
 function startCombat(roomIdx) {
@@ -3137,30 +3123,17 @@ global.dungeonRun = (roomIdx) => {
             return;
         }
         
-        // Try to claim room entry atomically first
-        apiFetch('POST', '/game/dungeon/room-enter', { roomId: room.id, floor: D.floor, roomIndex: roomIdx })
-            .then(res => {
-                if (res.locked) {
-                    log(`⚠️ Room already entered from another device!`, 'log-warning');
-                    return;
-                }
-                // Now enter combat
-                D.combat = { 
-                    roomIdx, 
-                    monsters: room.monsters.map(m => ({ 
-                        ...m, 
-                        currentHp: m.currentHp || m.maxHp,
-                        lastKilled: m.lastKilled
-                    })),
-                    currentMonsterIndex: 0,
-                    roundLog: [] 
-                };
-                tryRun(roomIdx);
-            })
-            .catch(e => {
-                console.error('Failed to enter room:', e);
-                log(`⚠️ Failed to enter room, try playing from one tab next time;)`, 'log-danger');
-            });
+        D.combat = { 
+            roomIdx, 
+            monsters: room.monsters.map(m => ({ 
+                ...m, 
+                currentHp: m.currentHp || m.maxHp,
+                lastKilled: m.lastKilled
+            })),
+            currentMonsterIndex: 0,
+            roundLog: [] 
+        };
+        tryRun(roomIdx);
     }
 };
   global.dungeonAttack       = fightRound;
