@@ -1391,6 +1391,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-color: rgba(52,152,219,0.5);
     transform: translateY(-1px);
 }
+.topbar-chat-btn.has-alert {
+    position: relative;
+}
+.topbar-chat-btn.has-alert::after {
+    content: '!';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ff6666, #c0392b);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 900;
+    box-shadow: 0 4px 12px rgba(192,57,43,0.38);
+}
 
 .topbar-menu-btn {
     font-size: 0.74rem;
