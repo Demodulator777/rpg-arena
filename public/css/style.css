@@ -1964,6 +1964,38 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: rgba(255,255,255,0.34);
 }
 
+.chat-suggest-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: -2px;
+}
+
+.chat-suggest-item {
+    width: 100%;
+    text-align: left;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: var(--text-bright);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.chat-suggest-item:hover {
+    border-color: rgba(52,152,219,0.28);
+    background: rgba(52,152,219,0.12);
+}
+
+.chat-suggest-name {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .chat-widget-messages {
     min-height: 220px;
     max-height: 300px;
