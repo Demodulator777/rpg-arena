@@ -7144,7 +7144,7 @@ const root = ensureChatWidgetRoot();
                     <div class="chat-widget-subtitle">${chatActiveView === 'private' ? (canSendPm ? `Private with ${escHtml(activePrivateTarget)}` : 'Choose a private thread') : 'World channel'}</div>
                 </div>
                 <button class="chat-widget-collapse" title="Close chat" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
-                    ???
+                    X
                 </button>
             </div>
             <div class="chat-widget-body">
@@ -7168,12 +7168,12 @@ const root = ensureChatWidgetRoot();
                         const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
                         const actionBtns = [];
                         if (!isOwn) {
-                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">???</button>`);
-                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">???</button>`);
+                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
+                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
                         }
                         if (isOwn) {
-                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">??????</button>`);
-                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">???????</button>`);
+                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
+                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
                         }
                         return `
                             <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
@@ -7196,7 +7196,7 @@ const root = ensureChatWidgetRoot();
                     </div>
                 ` : ''}
                 <div class="chat-widget-compose">
-                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message???' : 'Choose or enter a character name???') : 'Send global message???'}" value="${escHtml(prevMessage)}">
+                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...') : 'Send global message...'}" value="${escHtml(prevMessage)}">
                     <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
                 </div>
                 <div class="chat-widget-foot">
