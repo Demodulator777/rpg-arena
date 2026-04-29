@@ -1354,33 +1354,31 @@ function onRoomCleared(roomIdx) {
     // Mark room as cleared on server FIRST to prevent double loot
     apiFetch('POST', '/game/dungeon/room-clear', { floor: D.floor, roomIndex: roomIdx })
         .then(res => {
-            if (res.cleared) {
-                log(`⚠️ Room already cleared - no loot gained`, 'log-warning');
+            // res.cleared means server says already cleared — no reward
+            if (res && res.cleared) {
+                log(`⚠️ Room already cleared — no loot gained.`, 'log-warning');
+                room.monstersCleared = Date.now(); // sync local state
                 D.combat = null;
                 saveState();
                 saveProgressToDB();
                 renderDungeonView();
                 return;
             }
-            
-            // Only grant loot after server confirms room not cleared
+
+            // Server confirmed this is the first clear — grant loot
             let totalGold = 0;
             for (const monster of monsters) {
                 const loot = rollMinorLoot(D.activeDungeon);
                 if (loot.type === 'gold') totalGold += loot.amount;
                 else applyLoot(loot);
             }
-
-            if (totalGold > 0) {
-                applyLoot({ type: 'gold', amount: totalGold });
-            }
+            if (totalGold > 0) applyLoot({ type: 'gold', amount: totalGold });
 
             if (defeatedMonsters.length) {
                 apiFetch('POST', '/game/dungeon/monster-defeated', { monsters: defeatedMonsters })
-                    .catch(e => console.error('Failed to sync dungeon monster defeats:', e));
+                    .catch(e => console.error('Failed to sync monster defeats:', e));
             }
 
-            // Release lock and mark cleared
             apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true })
                 .catch(e => console.error('Failed to release room:', e));
 
@@ -1390,15 +1388,9 @@ function onRoomCleared(roomIdx) {
             renderDungeonView();
         })
         .catch(e => {
+            // Network error or server rejection — do NOT grant loot
             console.error('Failed to mark room cleared:', e);
-            // Still grant loot on error to not punish player
-            let totalGold = 0;
-            for (const monster of monsters) {
-                const loot = rollMinorLoot(D.activeDungeon);
-                if (loot.type === 'gold') totalGold += loot.amount;
-                else applyLoot(loot);
-            }
-            if (totalGold > 0) applyLoot({ type: 'gold', amount: totalGold });
+            log(`⚠️ Server error confirming room clear. No loot granted. Try reconnecting.`, 'log-warning');
             D.combat = null;
             saveState();
             saveProgressToDB();
