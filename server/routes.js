@@ -3397,6 +3397,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
     let roundEndedPrematurely = false;
     let winnerId = null;
+    let roundsCompleted = 0;
 
     for (let round = 1; round <= 10; round++) {
         const atkZoneA = fighterA.attackZones[round-1] || 'chest';
@@ -3415,6 +3416,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         
         totalDmgToA += dmgToA;
         totalDmgToB += dmgToB;
+        roundsCompleted = round;
         
         hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
         hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
@@ -3476,17 +3478,13 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
     }
 
-    if (!roundEndedPrematurely) {
-        log.push('---');
-        if (winnerId === fighterA.id) {
-            log.push(`After 10 rounds: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
-            log.push(`🏆 ${fighterA.name} wins by dealing more damage!`);
-        } else {
-            log.push(`After 10 rounds: ${fighterB.name} dealt ${totalDmgToA} damage, ${fighterA.name} dealt ${totalDmgToB} damage`);
-            log.push(`🏆 ${fighterB.name} wins by dealing more damage!`);
-        }
+    log.push('---');
+    if (winnerId === fighterA.id) {
+        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
+        log.push(`Winner: ${roundEndedPrematurely ? fighterA.name + ' wins!' : fighterA.name + ' wins by dealing more damage!'}`);
     } else {
-        log.push(`🏆 ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins!`);
+        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterB.name} dealt ${totalDmgToA} damage, ${fighterA.name} dealt ${totalDmgToB} damage`);
+        log.push(`Winner: ${roundEndedPrematurely ? fighterB.name + ' wins!' : fighterB.name + ' wins by dealing more damage!'}`);
     }
     
     return {
