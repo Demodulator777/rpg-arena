@@ -3352,6 +3352,9 @@ async function travelToZone(zoneId) {
         const currentMap = character?.current_map || 'overworld';
         const prereq = getTravelGatekeeperPrereq(zoneId, currentMap);
         const currentZone = character?.location || 'forest';
+        const zoneAlreadyUnlocked = currentMap === 'abyss'
+            ? unlockedAbyssZones.has(zoneId)
+            : unlockedTravelZones.has(zoneId);
         if (prereq && !unlockedTravelZones.has(prereq.unlockZone) && currentZone !== prereq.unlockZone) {
             showMsg('missions-msg', `Please challenge "${prereq.guardianName}" first.`, true);
             return;
@@ -3363,7 +3366,7 @@ async function travelToZone(zoneId) {
         };
         const guardian = guardianZones[currentMap]?.[zoneId];
         
-        if (guardian) {
+        if (guardian && !zoneAlreadyUnlocked) {
             const hpCurrent = character?.hp_current || 0;
             const hpMax = character?.hp_max || 1;
             const hpPercent = Math.round((hpCurrent / hpMax) * 100);
