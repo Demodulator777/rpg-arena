@@ -930,6 +930,8 @@ async function refreshCharacter() {
       return startCrawlerEncounter('chase');
     }
 
+    saveState();
+    saveProgressToDB();
     logCrawlerPresence();
     return false;
   }
