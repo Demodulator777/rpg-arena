@@ -4299,7 +4299,8 @@ function showItemTooltip(event, itemId) {
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
-    const displayDesc = getCanonicalItemDesc(d.desc);
+    const displayDesc = getDisplayItemDesc(d);
+    const upgradeInfoHtml = getItemUpgradeTooltipHtml(d, info.upgrade_level || 0);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
@@ -4325,6 +4326,7 @@ function showItemTooltip(event, itemId) {
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
             <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
+            ${upgradeInfoHtml}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
         </div>
@@ -4470,6 +4472,9 @@ function showEqTooltip(event, itemJson) {
     let item; try { item = typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
     const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
+    const displayName = getDisplayItemName(item, item.upgrade_level || 0);
+    const displayDesc = getDisplayItemDesc(item);
+    const upgradeInfoHtml = getItemUpgradeTooltipHtml(item, item.upgrade_level || 0);
 
     let statsHtml = Object.entries(item.stats||{})
         .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
@@ -4484,9 +4489,10 @@ function showEqTooltip(event, itemJson) {
             ${imgSrc?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>`:`<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${item.name||''}</div>
+            <div class="tt-name" style="color:${qColor}">${displayName}</div>
             <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
-            ${item.desc?`<div class="tt-desc">${item.desc}</div>`:''}
+            ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
+            ${upgradeInfoHtml}
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
         </div>`;
     tooltip.classList.remove('hidden');
@@ -5014,12 +5020,87 @@ function getDisplayItemName(itemLike, fallbackUpgradeLevel = 0) {
     return upgradeLevel > 0 ? `${baseName} +${upgradeLevel}` : baseName;
 }
 
+const ITEM_DESC_FALLBACKS = {
+    'Spiteforged Trident': 'Three bladed vows of hatred, quenched in black surf and driven to pierce pride, plate, and prayer alike.',
+    'Carapace of Last Refrains': 'A war-shell plated with the echoes of final curses, hardening every grudge into stubborn, iron resolve.',
+    'Crown of Scornful Gaze': 'Its sleepless eye judges every challenger first, weighing them only for the manner of their humiliation.',
+    'Bulwark of Denied Mercy': 'A spitebound wall raised by warriors who survived by refusing mercy, surrender, and clean endings.',
+    'Treads of the Unforgiving': 'Each step lands like a sentence passed, hounding the fleeing until regret is the only ground left beneath them.'
+};
+
 function getCanonicalItemDesc(desc) {
     const cleaned = String(desc || '')
         .replace(/^undefined\s*/i, '')
         .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
         .trim();
     return cleaned;
+}
+
+function getDisplayItemDesc(itemLike) {
+    const directDesc = getCanonicalItemDesc(typeof itemLike === 'string' ? '' : itemLike?.desc);
+    if (directDesc) return directDesc;
+    const baseName = getCanonicalItemName(typeof itemLike === 'string' ? itemLike : (itemLike?.name || ''));
+    return ITEM_DESC_FALLBACKS[baseName] || '';
+}
+
+function getUpgradeHistoryEntries(itemLike, fallbackUpgradeLevel = 0) {
+    const rawHistory = itemLike?.upgradeHistory ?? itemLike?.upgrade_history;
+    const history = Array.isArray(rawHistory) ? rawHistory
+        .map(entry => ({
+            level: Number(entry?.level || 0),
+            component: String(entry?.component || '').trim(),
+            bonus: Number(entry?.bonus || 0),
+            stats: Array.isArray(entry?.stats) ? entry.stats.filter(Boolean) : []
+        }))
+        .filter(entry => entry.level > 0)
+        .sort((a, b) => a.level - b.level)
+        : [];
+    if (history.length) return history;
+
+    const upgradeLevel = Number(
+        itemLike?.upgradeLevel ?? itemLike?.upgrade_level ?? fallbackUpgradeLevel
+    ) || 0;
+    const upgradedStats = Array.isArray(itemLike?.upgradedStats)
+        ? itemLike.upgradedStats
+        : (Array.isArray(itemLike?.upgraded_stats) ? itemLike.upgraded_stats : []);
+    if (upgradeLevel > 0 || upgradedStats.length) {
+        return [{
+            level: upgradeLevel || 1,
+            component: '',
+            bonus: 0,
+            stats: upgradedStats
+        }];
+    }
+    return [];
+}
+
+function getItemUpgradeTooltipHtml(itemLike, fallbackUpgradeLevel = 0) {
+    const upgradeLevel = Number(
+        itemLike?.upgradeLevel ?? itemLike?.upgrade_level ?? fallbackUpgradeLevel
+    ) || 0;
+    if (upgradeLevel <= 0) return '';
+    const history = getUpgradeHistoryEntries(itemLike, fallbackUpgradeLevel);
+    const latest = history[history.length - 1] || null;
+    const latestStats = Array.isArray(latest?.stats) ? latest.stats : [];
+    const latestStatsText = latestStats.length
+        ? latestStats.map(stat => STAT_LABELS[stat] || String(stat).replace(/_/g, ' ')).join(', ')
+        : 'Enhanced stats applied';
+    const historyLines = history.length > 1
+        ? `<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">${history.slice(-3).reverse().map(entry => {
+            const statsText = (entry.stats || []).length
+                ? entry.stats.map(stat => STAT_LABELS[stat] || String(stat).replace(/_/g, ' ')).join(', ')
+                : 'Enhanced stats';
+            const componentText = entry.component ? ` using ${escHtml(entry.component)}` : '';
+            const bonusText = entry.bonus ? ` (+${entry.bonus})` : '';
+            return `<div style="font-size:0.68rem;color:rgba(255,255,255,0.62)">+${entry.level}${componentText}: ${escHtml(statsText)}${bonusText}</div>`;
+        }).join('')}</div>`
+        : '';
+    const latestComponent = latest?.component ? ` · ${escHtml(latest.component)}` : '';
+    return `<div class="tt-vs" style="margin-top:8px">
+        Upgrades: <strong>+${upgradeLevel}</strong>
+        <span style="color:rgba(255,255,255,0.62)"> · Latest: ${escHtml(latestStatsText)}${latestComponent}</span>
+        ${historyLines}
+    </div>`;
 }
 
 // Helper: Escape HTML
