@@ -3778,11 +3778,11 @@ const ZONE_LEVELS = {
 };
 
 const OVERWORLD_TRAVEL_ROUTES = {
-    forest: { swamp: 60, mountains: 90 },
-    swamp: { forest: 60, mountains: 90, ruins: 120, dark_city: 90 },
-    mountains: { forest: 90, swamp: 90, ruins: 120 },
-    ruins: { swamp: 120, mountains: 120, dark_city: 60 },
-    dark_city: { swamp: 90, ruins: 60 }
+    forest: { swamp: 60 },
+    swamp: { forest: 60, mountains: 90 },
+    mountains: { swamp: 90, ruins: 120 },
+    ruins: { mountains: 120, dark_city: 60 },
+    dark_city: { ruins: 60 }
 };
 
 const TRAVEL_GUARDIANS = {
@@ -3797,6 +3797,14 @@ const TRAVEL_GUARDIANS = {
         void: { difficulty: 'nightmare', name: 'Void Gatekeeper' },
         citadel: { difficulty: 'nightmare', name: 'Citadel Watcher' },
         eternal_dark: { difficulty: 'nightmare', name: 'Eternal Warden' },
+    }
+};
+
+const TRAVEL_GATEKEEPER_PREREQS = {
+    overworld: {
+        mountains: { unlockZone: 'swamp', guardianName: 'Bog Warden' },
+        ruins: { unlockZone: 'mountains', guardianName: 'Frost Sentinel' },
+        dark_city: { unlockZone: 'ruins', guardianName: 'Crypt Keeper' },
     }
 };
 
@@ -3832,6 +3840,10 @@ function getTravelUnlockSet(char, currentMap = 'overworld') {
     else set.add('forest');
     if (char?.location) set.add(char.location);
     return set;
+}
+
+function getTravelGatekeeperPrereq(currentMap, targetZone) {
+    return (TRAVEL_GATEKEEPER_PREREQS[currentMap] || {})[targetZone] || null;
 }
 
 async function unlockTravelZone(db, char, targetZone, currentMap = 'overworld') {
@@ -6186,13 +6198,18 @@ router.post('/travel/start', auth, async (req, res) => {
         
         if (!zone) return res.status(400).json({ error: 'Invalid zone' });
         if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
+        const travelUnlockSet = getTravelUnlockSet(character, currentMap);
+        const prereq = getTravelGatekeeperPrereq(currentMap, targetZone);
+        if (prereq && !travelUnlockSet.has(prereq.unlockZone)) {
+            return res.status(400).json({ error: `Please challenge "${prereq.guardianName}" first.` });
+        }
         const now = Math.floor(Date.now() / 1000);
         if (Number(character.global_cooldown_until || 0) > now) {
             const remain = Number(character.global_cooldown_until || 0) - now;
             return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
         }
         if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
-        const allowedNodes = getTravelUnlockSet(character, currentMap);
+        const allowedNodes = travelUnlockSet;
         allowedNodes.add(character.location);
         allowedNodes.add(targetZone);
         const route = getShortestTravel(currentMap, character.location, targetZone, allowedNodes);
