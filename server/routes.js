@@ -6086,7 +6086,7 @@ function scaleItemToLevel(recipe, playerLevel) {
     item.goldCost = item.price;
     item.img = item.img || getAssetImagePath(item.name);
     
-    item.desc = `${recipe.desc} (Crafted at level ${level})`;
+    item.desc = recipe.desc || '';
     
     return item;
 }
