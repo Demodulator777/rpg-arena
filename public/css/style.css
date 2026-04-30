@@ -2587,9 +2587,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .stat-row {
     display: grid;
-    grid-template-columns: 24px 108px minmax(120px, 1fr) 64px 40px;
+    grid-template-columns: 24px 108px minmax(56px, 1fr) max-content max-content;
     align-items: center;
-    column-gap: 10px;
+    column-gap: 8px;
     padding: 8px 0;
     border-bottom: 1px solid rgba(255,255,255,0.04); transition: background 0.12s;
 }
@@ -2627,6 +2627,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: var(--text-dim);
     font-weight: 600;
     min-width: 0;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: flex-end;
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -2636,7 +2639,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-weight: 700;
     color: var(--text-bright);
     min-width: 0;
+    justify-self: end;
     text-align: right;
+    white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
 .stat-bonus {
@@ -2723,7 +2728,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 920px) {
     .stat-row {
-        grid-template-columns: 24px 96px minmax(90px, 1fr) 58px 36px;
+        grid-template-columns: 24px 92px minmax(44px, 1fr) max-content max-content;
+        column-gap: 6px;
     }
 }
 
@@ -2864,7 +2870,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 680px) {
     .char-panel .stat-row {
-        grid-template-columns: 18px minmax(0, 1fr) 56px 40px;
+        grid-template-columns: 18px minmax(24px, 1fr) max-content max-content;
         column-gap: 6px;
         padding: 6px 0;
     }
