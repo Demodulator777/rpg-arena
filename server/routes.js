@@ -3217,15 +3217,15 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     let physicalDamagePenalty = 1.0;
     if (attacker.class === 'mage') physicalDamagePenalty = 0.40;
 
-    let atkHitChance = hit.hitChance + ((attacker.hit_chance || 0) * 0.005) + ((attacker.hit_bonus || 0) * 0.005);
-    if (atkPenalty) atkHitChance *= 0.85;
+    const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
+    const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
+    const zoneAdjustedHitStat = totalHitStat * hit.hitChance;
+    let atkHitChance = Math.max(0.05, Math.min(0.95, (zoneAdjustedHitStat - defAgi) / 100));
+    if (atkPenalty) atkHitChance = Math.max(0.05, atkHitChance * 0.85);
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
     if (ignoreDefenderZones) atkHitChance = 1.0;
 
-    const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
-    const atkAgi = attacker.agility || 0;
-    let agiDiff = Math.max(0, defAgi - atkAgi);
-    let dodgeChance = Math.min(0.10, agiDiff / 200);
+    let dodgeChance = 0;
     if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
     if (ignoreDefenderZones) dodgeChance = 0;
