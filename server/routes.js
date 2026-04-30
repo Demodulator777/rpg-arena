@@ -5237,40 +5237,6 @@ router.post('/upgrade', auth, async (req, res) => {
 });
 
 // ── Training (old stat training, keep as is) ──────────────────────────────
-router.post('/train', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId);
-        if (!char) return res.status(404).json({ error: 'No character' });
-        const now = Math.floor(Date.now() / 1000);
-        if (char.training_stat && char.training_ends_at && now >= char.training_ends_at) {
-            await dbRun(db, `UPDATE characters SET ${char.training_stat}=${char.training_stat}+?,training_stat=NULL,training_ends_at=NULL WHERE id=?`, [TRAINING_GAIN, char.id]);
-        }
-        const ref = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
-        if (ref.training_stat && now < ref.training_ends_at)
-            return res.status(400).json({ error: `Already training. ${ref.training_ends_at - now}s left.` });
-        const { stat } = req.body;
-        if (!['strength','defense','agility','magic'].includes(stat))
-            return res.status(400).json({ error: 'Invalid stat' });
-        await dbRun(db, 'UPDATE characters SET training_stat=?,training_ends_at=? WHERE id=?', [stat, now+TRAINING_DURATION_SEC, char.id]);
-        res.json({ message:`Training ${stat}!`, endsAt: now+TRAINING_DURATION_SEC, stat });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
-});
-
-router.post('/train/collect', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId);
-        if (!char || !char.training_stat) return res.status(400).json({ error: 'Not training' });
-        const now = Math.floor(Date.now() / 1000);
-        if (now < char.training_ends_at) return res.status(400).json({ error: `${char.training_ends_at - now}s remaining.` });
-        await dbRun(db, `UPDATE characters SET ${char.training_stat}=${char.training_stat}+?,training_stat=NULL,training_ends_at=NULL WHERE id=?`, [TRAINING_GAIN, char.id]);
-        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
-        res.json({ message:`+${TRAINING_GAIN} ${char.training_stat}!`, character: await buildCharacterResponse(updated, db) });
-    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
-});
-
-// ── Loadout ───────────────────────────────────────────────────────────────
 router.post('/loadout', auth, async (req, res) => {
     try {
         const db = await getDb();
