@@ -2587,7 +2587,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .stat-row {
     display: grid;
-    grid-template-columns: 24px 108px minmax(56px, 1fr) max-content max-content;
+    grid-template-columns: 24px 108px minmax(56px, 1fr) 78px 52px;
     align-items: center;
     column-gap: 8px;
     padding: 8px 0;
@@ -2627,9 +2627,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: var(--text-dim);
     font-weight: 600;
     min-width: 0;
-    display: inline-flex;
-    align-items: baseline;
-    justify-content: flex-end;
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -2639,7 +2636,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-weight: 700;
     color: var(--text-bright);
     min-width: 0;
-    justify-self: end;
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -2728,7 +2724,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 920px) {
     .stat-row {
-        grid-template-columns: 24px 92px minmax(44px, 1fr) max-content max-content;
+        grid-template-columns: 24px 88px minmax(40px, 1fr) 72px 48px;
         column-gap: 6px;
     }
 }
@@ -2870,7 +2866,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 680px) {
     .char-panel .stat-row {
-        grid-template-columns: 18px minmax(24px, 1fr) max-content max-content;
+        grid-template-columns: 18px minmax(18px, 1fr) 68px 48px;
         column-gap: 6px;
         padding: 6px 0;
     }
