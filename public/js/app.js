@@ -5950,8 +5950,6 @@ async function rerollShop() {
 function setLbSort(sort,btn) { lbSort=sort; document.querySelectorAll('.lb-filters .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadLeaderboard(); }
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
-    const mmBox = document.getElementById('matchmaking-box');
-    if (mmBox && !mmBox.dataset.loaded) { mmBox.dataset.loaded='1'; findOpponent('similar'); }
     try {
         const [freshCharacter, leaderboard] = await Promise.all([
             api('GET','/game/character'),
@@ -5964,18 +5962,14 @@ async function loadLeaderboard() {
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
 function filterLeaderboard() { renderLeaderboard(); }
-function renderLeaderboard() {
-    const q=(document.getElementById('lb-search')?.value||'').toLowerCase();
-    const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)):lbData;
-    if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
-    document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>{
-        const rank=p.rank||(i+1), rc=rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
-        const rs=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
-        // REMOVE the fallback - only use total_gold_earned
-        const totalEarned = p.total_gold_earned || 0;
-        const profilePic = p.profile_pic;
-        const lbImg = profilePic ? `/images/class/${profilePic}` : `/images/class/${p.class}.png`;
-        return `<div class="lb-row" ${actionAttrs('openProfile', p.id)}>
+function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
+    const rank = p.rank || fallbackRank;
+    const rc = rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
+    const rs = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
+    const totalEarned = p.total_gold_earned || 0;
+    const profilePic = p.profile_pic;
+    const lbImg = profilePic ? `/images/class/${profilePic}` : `/images/class/${p.class}.png`;
+    return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
             <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
@@ -5985,7 +5979,19 @@ function renderLeaderboard() {
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
             </div>
         </div>`;
-    }).join('');
+}
+function renderLeaderboard() {
+    const q=(document.getElementById('lb-search')?.value||'').toLowerCase();
+    const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)):lbData;
+    const mmBox = document.getElementById('matchmaking-box');
+    const myRow = lbData.find(p => p.id === character?.id);
+    if (mmBox) {
+        mmBox.innerHTML = myRow
+            ? buildLeaderboardRow(myRow, myRow.rank || 1, 'lb-self-row')
+            : '<p class="empty" style="padding:10px">Your character is not ranked yet.</p>';
+    }
+    if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
+    document.getElementById('leaderboard-list').innerHTML=filtered.map((p,i)=>buildLeaderboardRow(p, i + 1)).join('');
 }
 // ── Profile ───────────────────────────────────────────────────────────────
 async function openProfile(id) {
