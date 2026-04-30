@@ -3850,7 +3850,8 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
     if (!guardianDef) return null;
     const zone = zoneMap[targetZone];
     const zoneLevel = zone?.minLevel || 1;
-    const npc = buildNpc(guardianDef.difficulty, playerLevel, zoneLevel, playerStats);
+    const assumedPlayerLevel = zoneLevel;
+    const npc = buildNpc(guardianDef.difficulty, assumedPlayerLevel, zoneLevel, playerStats);
     npc.name = guardianDef.name;
     npc.class = 'npc';
     npc.ignoreDefenderZones = true;
