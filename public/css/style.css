@@ -3679,6 +3679,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: linear-gradient(90deg, rgba(201,146,42,0.04), rgba(16,25,41,0.9));
     transform: translateX(2px);
 }
+.lb-self-row {
+    border-color: rgba(201,146,42,0.28);
+    background: linear-gradient(90deg, rgba(201,146,42,0.08), rgba(16,25,41,0.92));
+}
+.lb-self-row:hover {
+    transform: none;
+}
 .lb-rank { text-align: center; font-weight: 700; font-size: 1rem; }
 .lb-rank.gold-rank   { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.4); }
 .lb-rank.silver-rank { color: #c0c0c0; }
