@@ -47,6 +47,12 @@ let chatExpanded = false;
 let chatActiveView = 'global';
 let chatActivePmThread = '';
 let chatUnreadPmIds = new Set();
+let chatSeenGlobalId = 0;
+let chatSeenPmThreadIds = {};
+let chatHighlightedGlobalIds = new Set();
+let chatHighlightedPmIds = new Set();
+let chatReadStateForCharId = 0;
+let chatReadStateLoadedFromStorage = false;
 let chatClosedPmThreads = new Set();
 let chatStatusText = '';
 let chatStatusIsError = false;
@@ -1210,7 +1216,7 @@ function logout() {
     
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
-    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatSeenGlobalId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
@@ -6906,6 +6912,99 @@ function getChatPrivateThreadKey(msg) {
     return String(msg.is_outgoing ? (msg.recipient_name || '') : (msg.sender_name || '')).trim();
 }
 
+function getChatReadStateStorageKey() {
+    const charId = Number(character?.id || 0);
+    return charId ? `rpg_chat_read_state_${charId}` : '';
+}
+
+function persistChatReadState() {
+    const key = getChatReadStateStorageKey();
+    if (!key) return;
+    try {
+        localStorage.setItem(key, JSON.stringify({
+            global: Number(chatSeenGlobalId || 0),
+            pm: chatSeenPmThreadIds || {}
+        }));
+    } catch {}
+}
+
+function ensureChatReadStateLoaded() {
+    const charId = Number(character?.id || 0);
+    if (!charId) return false;
+    if (chatReadStateForCharId === charId) return chatReadStateLoadedFromStorage;
+    chatReadStateForCharId = charId;
+    chatSeenGlobalId = 0;
+    chatSeenPmThreadIds = {};
+    chatHighlightedGlobalIds = new Set();
+    chatHighlightedPmIds = new Set();
+    chatReadStateLoadedFromStorage = false;
+    const key = getChatReadStateStorageKey();
+    if (!key) return false;
+    try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        chatSeenGlobalId = Number(parsed?.global || 0);
+        chatSeenPmThreadIds = parsed?.pm && typeof parsed.pm === 'object' ? parsed.pm : {};
+        chatReadStateLoadedFromStorage = true;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function getUnreadGlobalMessageIds() {
+    ensureChatReadStateLoaded();
+    return trimChatMessages(chatMessages)
+        .filter(msg => !msg?.is_private && !msg?.is_outgoing && Number(msg?.id || 0) > Number(chatSeenGlobalId || 0))
+        .map(msg => Number(msg.id || 0));
+}
+
+function getUnreadPrivateMessageIds(threadKey = '') {
+    ensureChatReadStateLoaded();
+    const key = String(threadKey || '').trim();
+    if (!key) return [];
+    const seenId = Number(chatSeenPmThreadIds?.[key] || 0);
+    return trimChatMessages(chatMessages)
+        .filter(msg => msg?.is_private && !msg?.is_outgoing && getChatPrivateThreadKey(msg) === key && Number(msg?.id || 0) > seenId)
+        .map(msg => Number(msg.id || 0));
+}
+
+function hasUnreadPrivateThreads() {
+    return getPrivateChatThreads().some(thread => thread.unread);
+}
+
+function markGlobalMessagesRead(highlight = true) {
+    ensureChatReadStateLoaded();
+    const unreadIds = getUnreadGlobalMessageIds();
+    chatHighlightedGlobalIds = highlight ? new Set(unreadIds) : new Set();
+    const latestGlobalId = trimChatMessages(chatMessages)
+        .filter(msg => !msg?.is_private && !msg?.is_outgoing)
+        .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), Number(chatSeenGlobalId || 0));
+    if (latestGlobalId > Number(chatSeenGlobalId || 0)) {
+        chatSeenGlobalId = latestGlobalId;
+        persistChatReadState();
+    }
+}
+
+function markPrivateThreadRead(threadKey, highlight = true) {
+    ensureChatReadStateLoaded();
+    const key = String(threadKey || '').trim();
+    if (!key) {
+        chatHighlightedPmIds = new Set();
+        return;
+    }
+    const unreadIds = getUnreadPrivateMessageIds(key);
+    chatHighlightedPmIds = highlight ? new Set(unreadIds) : new Set();
+    const latestThreadId = trimChatMessages(chatMessages)
+        .filter(msg => msg?.is_private && !msg?.is_outgoing && getChatPrivateThreadKey(msg) === key)
+        .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), Number(chatSeenPmThreadIds?.[key] || 0));
+    if (latestThreadId > Number(chatSeenPmThreadIds?.[key] || 0)) {
+        chatSeenPmThreadIds[key] = latestThreadId;
+        persistChatReadState();
+    }
+}
+
 function getPrivateChatThreads() {
     const threadMap = new Map();
     for (const msg of trimChatMessages(chatMessages)) {
@@ -6925,7 +7024,7 @@ function getPrivateChatThreads() {
         if (!msg?.is_private || msg?.is_outgoing) continue;
         const key = getChatPrivateThreadKey(msg);
         if (!key) continue;
-        if (chatUnreadPmIds.has(Number(msg.id || 0)) && threadMap.has(key)) {
+        if (getUnreadPrivateMessageIds(key).length > 0 && threadMap.has(key)) {
             threadMap.get(key).unread = true;
         }
     }
@@ -6951,8 +7050,9 @@ function getVisibleChatMessages() {
 
 function appendChatMessages(messages = []) {
     if (!Array.isArray(messages) || !messages.length) return;
+    ensureChatReadStateLoaded();
     const seen = new Set(chatMessages.map(msg => Number(msg.id)));
-    let unreadChanged = false;
+    let readStateChanged = false;
     for (const msg of messages) {
         const id = Number(msg?.id || 0);
         if (!id || seen.has(id)) continue;
@@ -6962,14 +7062,30 @@ function appendChatMessages(messages = []) {
             const threadKey = getChatPrivateThreadKey(msg);
             if (threadKey) chatClosedPmThreads.delete(threadKey);
         }
-        if (msg?.is_private && !msg?.is_outgoing && chatWidgetCollapsed) {
-            chatUnreadPmIds.add(id);
-            unreadChanged = true;
+        if (msg?.is_private && !msg?.is_outgoing) {
+            const threadKey = getChatPrivateThreadKey(msg);
+            const activeThreadKey = String(chatActivePmThread || chatPmTarget || '').trim();
+            if (!chatWidgetCollapsed && chatActiveView === 'private' && threadKey && threadKey === activeThreadKey) {
+                chatHighlightedPmIds.add(id);
+                if (id > Number(chatSeenPmThreadIds?.[threadKey] || 0)) {
+                    chatSeenPmThreadIds[threadKey] = id;
+                    readStateChanged = true;
+                }
+            }
+        } else if (!msg?.is_private && !msg?.is_outgoing) {
+            if (!chatWidgetCollapsed && chatActiveView === 'global') {
+                chatHighlightedGlobalIds.add(id);
+                if (id > Number(chatSeenGlobalId || 0)) {
+                    chatSeenGlobalId = id;
+                    readStateChanged = true;
+                }
+            }
         }
     }
     chatMessages = trimChatMessages(chatMessages).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
     chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
-    if (unreadChanged && typeof syncTopbarChatAlert === 'function') {
+    if (readStateChanged) persistChatReadState();
+    if (typeof syncTopbarChatAlert === 'function') {
         syncTopbarChatAlert();
     }
 }
@@ -7019,8 +7135,23 @@ async function loadChatHistory() {
         const recipientInput = document.getElementById('chat-recipient-input');
         const recipientValue = recipientInput?.value || '';
         const data = await api('GET', '/game/chat/history');
+        const hadStoredReadState = ensureChatReadStateLoaded();
         chatMessages = trimChatMessages(data?.messages || []);
         chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
+        if (!hadStoredReadState) {
+            chatSeenGlobalId = trimChatMessages(chatMessages)
+                .filter(msg => !msg?.is_private && !msg?.is_outgoing)
+                .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
+            chatSeenPmThreadIds = {};
+            for (const msg of trimChatMessages(chatMessages)) {
+                if (!msg?.is_private || msg?.is_outgoing) continue;
+                const threadKey = getChatPrivateThreadKey(msg);
+                if (!threadKey) continue;
+                chatSeenPmThreadIds[threadKey] = Math.max(Number(chatSeenPmThreadIds[threadKey] || 0), Number(msg?.id || 0));
+            }
+            chatReadStateLoadedFromStorage = true;
+            persistChatReadState();
+        }
         renderChatWidget();
         if (input) input.value = inputValue;
         if (recipientInput) recipientInput.value = recipientValue;
@@ -7037,7 +7168,7 @@ async function pollChat() {
         const incoming = data?.messages || [];
         if (!incoming.length) return;
         appendChatMessages(incoming);
-        updateChatMessagesDOM();
+        renderChatWidget();
     } catch (e) {
         console.error('Chat poll failed:', e);
     }
@@ -7314,25 +7445,11 @@ function toggleChatWidgetCollapsed() {
     if (!isChatWidgetAvailable()) return;
     chatWidgetCollapsed = !chatWidgetCollapsed;
     if (!chatWidgetCollapsed) {
-        if (chatUnreadPmIds.size > 0) {
-            let newestUnread = null;
-            for (const msg of trimChatMessages(chatMessages)) {
-                const id = Number(msg?.id || 0);
-                if (!chatUnreadPmIds.has(id) || !msg?.is_private || msg?.is_outgoing) continue;
-                if (!newestUnread || Number(msg.created_at || 0) >= Number(newestUnread.created_at || 0)) {
-                    newestUnread = msg;
-                }
-            }
-            if (newestUnread) {
-                const threadKey = getChatPrivateThreadKey(newestUnread);
-                if (threadKey) {
-                    chatActiveView = 'private';
-                    chatActivePmThread = threadKey;
-                    chatPmTarget = threadKey;
-                }
-            }
-        }
-        chatUnreadPmIds.clear();
+        chatActiveView = 'global';
+        chatActivePmThread = '';
+        chatPmTarget = '';
+        chatHighlightedPmIds = new Set();
+        markGlobalMessagesRead(true);
     }
     if (typeof syncTopbarChatAlert === 'function') {
         syncTopbarChatAlert();
@@ -7354,11 +7471,15 @@ function switchChatView(view = 'global') {
         }
         if (chatActivePmThread) {
             chatPmTarget = chatActivePmThread;
+            markPrivateThreadRead(chatActivePmThread, true);
         }
     } else {
         chatPmTarget = '';
         chatActivePmThread = '';
+        chatHighlightedPmIds = new Set();
+        markGlobalMessagesRead(true);
     }
+    clearChatSuggestions();
     renderChatWidget();
 }
 
@@ -7368,12 +7489,7 @@ function selectPrivateChatThread(threadKey) {
     chatActiveView = 'private';
     chatActivePmThread = nextKey;
     chatPmTarget = nextKey;
-    for (const msg of chatMessages) {
-        if (!msg?.is_private || msg?.is_outgoing) continue;
-        if (getChatPrivateThreadKey(msg) === nextKey) {
-            chatUnreadPmIds.delete(Number(msg.id || 0));
-        }
-    }
+    markPrivateThreadRead(nextKey, true);
     renderChatWidget();
 }
 
@@ -7601,8 +7717,8 @@ function bindChatWidgetEvents() {
 function syncTopbarChatAlert() {
     const btn = document.getElementById('topbar-chat-btn');
     if (!btn) return;
-    const hasUnreadPm = chatUnreadPmIds.size > 0;
-    btn.classList.toggle('has-alert', hasUnreadPm);
+    const hasUnread = getUnreadGlobalMessageIds().length > 0 || hasUnreadPrivateThreads();
+    btn.classList.toggle('has-alert', hasUnread);
 }
 
 function renderChatWidget() {
@@ -7646,6 +7762,9 @@ function renderChatWidget() {
     const remainingChars = Math.max(0, 280 - prevMessage.length);
     const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
     const privateCount = privateThreads.length;
+    const unreadGlobalIds = getUnreadGlobalMessageIds();
+    const hasUnreadGlobal = unreadGlobalIds.length > 0;
+    const hasUnreadPrivate = privateThreads.some(thread => thread.unread);
     const threadTabsHtml = privateThreads.length
         ? privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
                 <button class="chat-thread-tab-main" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
@@ -7671,8 +7790,8 @@ function renderChatWidget() {
             </div>
             <div class="chat-widget-body">
                 <div class="chat-widget-view-tabs">
-                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})</button>
-                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})</button>
+                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})${hasUnreadGlobal ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
+                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})${hasUnreadPrivate ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
                 </div>
                 ${chatActiveView === 'private' ? `
                     <div class="chat-widget-target-row">
@@ -7688,6 +7807,7 @@ function renderChatWidget() {
                     ${visibleMessages.length ? visibleMessages.map(msg => {
                         const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
                         const isOwn = msg.is_outgoing;
+                        const isUnreadHighlight = !isOwn && ((!msg.is_private && chatHighlightedGlobalIds.has(Number(msg.id || 0))) || (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0))));
                         const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
                         const actionBtns = [];
                         if (!isOwn) {
@@ -7699,7 +7819,7 @@ function renderChatWidget() {
                             actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
                         }
                         return `
-                            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
+                            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'} ${isUnreadHighlight ? 'unread-highlight' : ''}">
                                 <div class="chat-line-meta">
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
                                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
