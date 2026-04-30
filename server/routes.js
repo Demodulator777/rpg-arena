@@ -4546,21 +4546,58 @@ function makeConsumableRewardItem(itemId) {
 }
 
 async function addStackableInventoryItem(db, charId, itemType, itemData, qty = 1) {
-    const existing = await dbGet(
-        db,
-        `SELECT * FROM inventory WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?`,
-        [charId, itemType, itemData.id]
+    const normalizedItemData = { ...itemData };
+    const isLootbox = itemType === 'consumable' && (
+        normalizedItemData.category === 'lootbox' ||
+        String(normalizedItemData.id || '').startsWith('lootbox_')
     );
-    if (existing) {
-        const current = JSON.parse(existing.item_data);
-        current.qty = (current.qty || 1) + qty;
-        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(current), existing.id]);
-        return;
+
+    if (isLootbox) {
+        if (!normalizedItemData.source) {
+            normalizedItemData.source = 'reward';
+            normalizedItemData.sell_price_cap = 1;
+        }
+
+        const existingRows = await dbAll(
+            db,
+            `SELECT * FROM inventory WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?`,
+            [charId, itemType, normalizedItemData.id]
+        );
+        const normalizedCap = Number(normalizedItemData.sell_price_cap || 0);
+        const existing = existingRows.find(row => {
+            const data = JSON.parse(row.item_data);
+            const rowSource = data.source || null;
+            if (normalizedItemData.source === 'shop') {
+                return rowSource === 'shop' || rowSource === null;
+            }
+            return rowSource === normalizedItemData.source && Number(data.sell_price_cap || 0) === normalizedCap;
+        });
+
+        if (existing) {
+            const current = JSON.parse(existing.item_data);
+            current.qty = (current.qty || 1) + qty;
+            if (normalizedItemData.source === 'shop' && !current.source) current.source = 'shop';
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(current), existing.id]);
+            return;
+        }
+    } else {
+        const existing = await dbGet(
+            db,
+            `SELECT * FROM inventory WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?`,
+            [charId, itemType, normalizedItemData.id]
+        );
+        if (existing) {
+            const current = JSON.parse(existing.item_data);
+            current.qty = (current.qty || 1) + qty;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(current), existing.id]);
+            return;
+        }
     }
+
     await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [
         charId,
         itemType,
-        JSON.stringify({ ...itemData, qty })
+        JSON.stringify({ ...normalizedItemData, qty })
     ]);
 }
 
@@ -6318,6 +6355,15 @@ function getAllZones(currentMap = 'overworld') {
     return ZONES;
 }
 
+function getSellPriceForInventoryItem(itemData, sellRate) {
+    const originalPrice = Number(itemData?.original_price || itemData?.price || 0);
+    const rawSellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
+    const explicitCap = Number(itemData?.sell_price_cap || 0);
+    const fallbackCap = (itemData?.source === 'banner' || itemData?.setId === 'spiteforged') ? 1000 : 0;
+    const effectiveCap = explicitCap > 0 ? explicitCap : fallbackCap;
+    return effectiveCap > 0 ? Math.min(rawSellPrice, effectiveCap) : rawSellPrice;
+}
+
 // ── Sell item ─────────────────────────────────────────────────────────────
 router.post('/sell/:inventoryId', auth, async (req, res) => {
     try {
@@ -6333,13 +6379,10 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
         }
         const data = JSON.parse(item.item_data);
         
-        // Use original_price if available, otherwise fall back to price
-        const originalPrice = data.original_price || data.price;
-        
         const activePremSell = getActivePremium(char);
         const merchantPrince = hasPremium(activePremSell, 'vault_keeper') && hasPremium(activePremSell, 'apprentice');
         const sellRate = merchantPrince ? 0.40 : 0.30;
-        const sellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
+        const sellPrice = getSellPriceForInventoryItem(data, sellRate);
 
         const currentQty = Math.max(1, Number(data.qty || 1));
         if (currentQty > 1) {
@@ -6527,13 +6570,10 @@ router.post('/shop/buy', auth, async (req, res) => {
             }
         }
         if (item.consumable) {
-            const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='consumable' AND json_extract(item_data,'$.id')=?`, [character.id, item.id]);
-            if (existing) {
-                const data = JSON.parse(existing.item_data); data.qty = (data.qty||1)+1;
-                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), existing.id]);
-            } else {
-                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'consumable',?)`, [character.id, JSON.stringify({ ...item, qty:1 })]);
-            }
+            const shopConsumable = (item.category === 'lootbox' || String(item.id || '').startsWith('lootbox_'))
+                ? { ...item, source: 'shop' }
+                : item;
+            await addStackableInventoryItem(db, character.id, 'consumable', shopConsumable, 1);
         } else {
             await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'equipment',?)`, [character.id, JSON.stringify(item)]);
             try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND json_extract(item_data,'$.id')=?`, [character.id, item.id]); } catch {}
@@ -9228,6 +9268,8 @@ function generateLootFromBox(boxType, playerLevel) {
                 result.items.push({
                     ...item,
                     type: 'equipment',
+                    source: 'lootbox',
+                    sell_price_cap: 1000,
                     stackable: false,
                     qty: 1
                 });
@@ -9251,6 +9293,8 @@ function generateLootFromBox(boxType, playerLevel) {
                 result.items[index] = {
                     ...legendaryItem,
                     type: 'equipment',
+                    source: 'lootbox',
+                    sell_price_cap: 1000,
                     stackable: false,
                     qty: 1
                 };
