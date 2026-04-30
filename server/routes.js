@@ -3226,7 +3226,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
     if (ignoreDefenderZones) atkHitChance = 1.0;
 
-    let dodgeChance = 0;
+    const atkAgi = attacker.agility || 0;
+    const agiDiff = Math.max(0, defAgi - atkAgi);
+    let dodgeChance = Math.min(0.10, agiDiff / 200);
     if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
     if (ignoreDefenderZones) dodgeChance = 0;
