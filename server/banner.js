@@ -435,8 +435,10 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                         qty: 1,
                         stats: itemStats,
                         category: item.type,
+                        source: 'banner',
                         price: itemPrice,
-                        original_price: itemPrice
+                        original_price: itemPrice,
+                        sell_price_cap: 1000
                     };
                     await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
                         [char.id, 'equipment', JSON.stringify(fullItem)]);
