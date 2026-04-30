@@ -2259,18 +2259,12 @@ const previewFloors = [0,1,2,3,4].map(offset => {
 
 <div class="dungeon-hud-top">
   <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
-  <div class="dungeon-hud-log-inline dungeon-log-entries-target"></div>
   <div class="dungeon-hud-floor">Floor ${D.floor}</div>
   <div class="dungeon-hud-actions">
     <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>Guild</button>
     <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" ${actionAttrs('dungeonExit')}>Exit</button>
   </div>
 </div>
-
-          <div class="dungeon-hud-log">
-            <div class="dungeon-hud-log-title">Log</div>
-            <div class="dungeon-hud-log-entries dungeon-log-entries-target"></div>
-          </div>
 
           <div class="dungeon-hud-minimap">
             <div class="dungeon-hud-minimap-title">Map</div>
@@ -2728,12 +2722,6 @@ function renderRoomInfo(room) {
     `;
 }
   function renderLog() {
-    const entriesHtml = D.dungeonLog.slice(0, 20).map(e =>
-      `<div class="dungeon-log-entry ${e.cls||''}">${e.msg}</div>`
-    ).join('');
-    document.querySelectorAll('.dungeon-log-entries-target').forEach(el => {
-      el.innerHTML = entriesHtml;
-    });
     const roomLog = document.querySelector('.dungeon-hud-room-log');
     if (roomLog) {
       roomLog.innerHTML = `<span>${D.dungeonLog[0]?.msg || ''}</span>`;
