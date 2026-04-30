@@ -9340,13 +9340,26 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             .replace(/^undefined\s*/i, '')
             .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
             .trim();
+        const previousUpgradeHistory = Array.isArray(itemData.upgradeHistory)
+            ? itemData.upgradeHistory
+            : (Array.isArray(itemData.upgrade_history) ? itemData.upgrade_history : []);
+        const nextUpgradeHistory = [
+            ...previousUpgradeHistory,
+            {
+                level: nextUpgrade,
+                component: componentData.name,
+                bonus: bonusValue,
+                stats: upgradedStatsList
+            }
+        ];
 
         const upgradedItemData = {
             ...itemData,
             name: baseItemName || itemData.name || '',
             stats: upgradedStats,
             upgradedStats: upgradedStatsList,
-            upgradeLevel: nextUpgrade
+            upgradeLevel: nextUpgrade,
+            upgradeHistory: nextUpgradeHistory
         };
         if (baseItemDesc) upgradedItemData.desc = baseItemDesc;
         else delete upgradedItemData.desc;
