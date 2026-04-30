@@ -5325,6 +5325,11 @@ router.post('/missions/start', auth, async (req, res) => {
         const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
+        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?',
+            [character.id, now]);
+        if (activeTraining) {
+            return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
+        }
         if (Number(character.global_cooldown_until || 0) > now) {
             const remain = Number(character.global_cooldown_until || 0) - now;
             return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
