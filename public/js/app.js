@@ -5027,6 +5027,7 @@ const ITEM_DESC_FALLBACKS = {
 function getCanonicalItemDesc(desc) {
     const cleaned = String(desc || '')
         .replace(/^undefined\s*/i, '')
+        .replace(/\s*\(Crafted at level \d+\)\s*$/i, '')
         .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
         .trim();
     return cleaned;
