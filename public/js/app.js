@@ -3974,9 +3974,18 @@ function getInventorySellRate() {
     return (activePrem.vault_keeper && activePrem.apprentice) ? 0.40 : 0.30;
 }
 
+function getInventorySellCap(itemData) {
+    const explicitCap = Number(itemData?.sell_price_cap || 0);
+    if (explicitCap > 0) return explicitCap;
+    if (itemData?.source === 'banner' || itemData?.setId === 'spiteforged') return 1000;
+    return 0;
+}
+
 function getInventorySellPrice(itemData) {
     const originalPrice = Number(itemData?.original_price || itemData?.price || 0);
-    return Math.max(1, Math.floor(originalPrice * getInventorySellRate()));
+    const rawSellPrice = Math.max(1, Math.floor(originalPrice * getInventorySellRate()));
+    const cap = getInventorySellCap(itemData);
+    return cap > 0 ? Math.min(rawSellPrice, cap) : rawSellPrice;
 }
 
 function renderGearGrid(el, gear, equipped) {
@@ -4312,7 +4321,7 @@ function showItemTooltip(event, itemId) {
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
-    const sp = Math.max(1, Math.floor((d.price||0)*0.3));
+    const sp = getInventorySellPrice(d);
     const sn = (d.name||'').replace(/'/g,"\\'");
 
     tooltip.innerHTML = `
@@ -4425,9 +4434,7 @@ function showItemTooltip(event, itemId) {
     const hasVaultKeeper = !!activePrem.vault_keeper;
     const hasApprentice = !!activePrem.apprentice;
     const merchantPrince = hasVaultKeeper && hasApprentice;
-    const sellRate = merchantPrince ? 0.40 : 0.30;
-    const originalPrice = d.original_price || d.price || 0;
-    const sellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
+    const sellPrice = getInventorySellPrice(d);
     const sn = (d.name||'').replace(/'/g,"\\'");
 
     tooltip.innerHTML = `
