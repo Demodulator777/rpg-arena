@@ -1697,7 +1697,6 @@ function startPolling() {
             character=await api('GET','/game/character');
             renderTopBar();
             if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
-            if (document.getElementById('tab-train')?.classList.contains('active'))     renderTraining();
             if (document.getElementById('tab-upgrade')?.classList.contains('active'))   renderUpgrade();
             if (document.getElementById('tab-missions')?.classList.contains('active')) {
                 await checkTravelStatus();
@@ -2668,52 +2667,6 @@ async function saveLoadout() {
 }
 
 // ── Training ──────────────────────────────────────────────────────────────
-function renderTraining() {
-    if (!character) return;
-    
-    // Check if we're on the train tab - if not, don't render
-    const trainTab = document.getElementById('tab-train');
-    if (!trainTab || !trainTab.classList.contains('active')) return;
-    
-    const c = character;
-    const statusEl = document.getElementById('train-status');
-    const allBtns = document.querySelectorAll('.btn-train');
-    const oldBtn = document.getElementById('collect-btn');
-    
-    // Only try to update elements if they exist (old training UI)
-    // The skill tree uses its own UI now
-    if (c.trainingDone) {
-        if (statusEl) {
-            statusEl.className = 'train-status-bar ready';
-            statusEl.textContent = `✅ ${capitalize(c.training_stat)} training complete!`;
-            statusEl.classList.remove('hidden');
-        }
-        if (allBtns.length) allBtns.forEach(b => b.disabled = true);
-        if (!oldBtn && document.getElementById('train-grid')) {
-            const btn = document.createElement('button');
-            btn.id = 'collect-btn';
-            btn.className = 'btn-primary';
-            btn.style.cssText = 'grid-column:1/-1;margin-top:8px';
-            btn.textContent = `⚡ Collect +1 ${capitalize(c.training_stat)}`;
-            btn.addEventListener('click', collectTraining);
-            document.getElementById('train-grid').after(btn);
-        }
-    } else if (c.trainingActive) {
-        if (statusEl) {
-            statusEl.className = 'train-status-bar';
-            statusEl.textContent = `⏳ Training ${capitalize(c.training_stat)}... ${c.trainingSecondsLeft}s`;
-            statusEl.classList.remove('hidden');
-        }
-        if (allBtns.length) allBtns.forEach(b => b.disabled = true);
-        if (oldBtn) oldBtn.remove();
-    } else {
-        if (statusEl) statusEl.classList.add('hidden');
-        if (allBtns.length) allBtns.forEach(b => b.disabled = false);
-        if (oldBtn) oldBtn.remove();
-    }
-}
-
-// ── Upgrade ───────────────────────────────────────────────────────────────
 function renderUpgrade() {
     if (!character) return;
     const c = character;
