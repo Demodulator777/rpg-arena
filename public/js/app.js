@@ -247,11 +247,19 @@ const ZONES = {
 };
 
 const ZONE_ROUTES = {
-    forest:    { swamp:60, mountains:90 },
-    swamp:     { forest:60, mountains:90, ruins:120, dark_city:90 },
-    mountains: { forest:90, swamp:90, ruins:120 },
-    ruins:     { swamp:120, mountains:120, dark_city:60 },
-    dark_city: { swamp:90, ruins:60 }
+    forest:    { swamp:60 },
+    swamp:     { forest:60, mountains:90 },
+    mountains: { swamp:90, ruins:120 },
+    ruins:     { mountains:120, dark_city:60 },
+    dark_city: { ruins:60 }
+};
+
+const TRAVEL_GATEKEEPER_PREREQS = {
+    overworld: {
+        mountains: { unlockZone: 'swamp', guardianName: 'Bog Warden' },
+        ruins: { unlockZone: 'mountains', guardianName: 'Frost Sentinel' },
+        dark_city: { unlockZone: 'ruins', guardianName: 'Crypt Keeper' }
+    }
 };
 
 // ── Component Upgrade Values (for frontend) ────────────────────────────────
@@ -310,6 +318,29 @@ function getShortestPath(from, to) {
     while (cur) { path.unshift(cur); cur=prev[cur]; }
     if (path[0]!==from) return null;
     return { path, time:dist[to] };
+}
+
+function getTravelGatekeeperPrereq(zoneId, currentMap = 'overworld') {
+    return (TRAVEL_GATEKEEPER_PREREQS[currentMap] || {})[zoneId] || null;
+}
+
+function buildCurvedRoutePath(fromPos, toPos, pairKey) {
+    const x1 = Number(fromPos?.x || 0);
+    const y1 = Number(fromPos?.y || 0);
+    const x2 = Number(toPos?.x || 0);
+    const y2 = Number(toPos?.y || 0);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.max(0.001, Math.hypot(dx, dy));
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const perpX = -dy / len;
+    const perpY = dx / len;
+    const sign = String(pairKey || '').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 2 === 0 ? 1 : -1;
+    const bend = Math.min(7, Math.max(3, len * 0.18)) * sign;
+    const cx = mx + (perpX * bend);
+    const cy = my + (perpY * bend);
+    return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────
@@ -2910,7 +2941,7 @@ function renderWorldMap() {
     const currentZone=character?.location||'forest';
     const playerLevel=character?.level||1;
     const drawnPairs=new Set();
-    let svgLines=`<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
+    let svgLines=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
     for (const [fromId,neighbors] of Object.entries(ZONE_ROUTES)) {
         for (const toId of Object.keys(neighbors)) {
             const key=[fromId,toId].sort().join('-');
@@ -2919,13 +2950,16 @@ function renderWorldMap() {
             const from=ZONES[fromId],to=ZONES[toId];
             if (!from||!to) continue;
             const isActive=[currentZone,playerTravelTarget].includes(fromId)||[currentZone,playerTravelTarget].includes(toId);
-            svgLines+=`<line x1="${from.pos.x}%" y1="${from.pos.y}%" x2="${to.pos.x}%" y2="${to.pos.y}%" style="stroke:${isActive?'rgba(241,196,15,0.5)':'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none"/>`;
+            const path = buildCurvedRoutePath(from.pos, to.pos, key);
+            svgLines+=`<path d="${path}" style="stroke:${isActive?'rgba(241,196,15,0.5)':'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none;stroke-linecap:round"/>`;
         }
     }
     svgLines+='</svg>';
     
     let pinsHtml=Object.entries(ZONES).map(([zoneId,zone])=>{
-        const isUnlocked=unlockedTravelZones.has(zoneId) || currentZone===zoneId;
+        const prereq = getTravelGatekeeperPrereq(zoneId, 'overworld');
+        const prereqMet = !prereq || unlockedTravelZones.has(prereq.unlockZone) || currentZone===prereq.unlockZone;
+        const isUnlocked=(unlockedTravelZones.has(zoneId) || currentZone===zoneId) && prereqMet;
         const isCurrent=currentZone===zoneId;
         const isTraveling=playerTravelTarget===zoneId;
         const pinStyle=`position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked?'opacity:0.82':''}`;
@@ -2937,7 +2971,7 @@ function renderWorldMap() {
                 <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
             </div>
             <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):'Gatekeeper'}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):(prereq && !prereqMet ? `Beat ${prereq.guardianName}` : 'Gatekeeper')}</div>
         </div>`;
     }).join('');
     
@@ -3027,9 +3061,14 @@ function openLocationModal(zoneId) {
     const isUnlocked = currentMap === 'abyss'
         ? (unlockedAbyssZones.has(zoneId) || isCurrent)
         : (unlockedTravelZones.has(zoneId) || isCurrent);
+    const prereq = currentMap === 'abyss' ? null : getTravelGatekeeperPrereq(zoneId, 'overworld');
+    const prereqMet = currentMap === 'abyss' ? true : (!prereq || unlockedTravelZones.has(prereq.unlockZone) || currentZone === prereq.unlockZone);
+    const canChallengeThisGatekeeper = isUnlocked || prereqMet;
     let travelInfo = '';
     if (!isCurrent) {
-        travelInfo = isUnlocked
+        travelInfo = !canChallengeThisGatekeeper
+            ? `Please challenge ${prereq.guardianName} first`
+            : isUnlocked
             ? `Travel required to reach ${zone.name}`
             : `Defeat the gatekeeper to unlock ${zone.name}`;
     }
@@ -3045,7 +3084,7 @@ function openLocationModal(zoneId) {
                 <div class="mz-hero-actions">
                     ${isCurrent
                         ? `<span class="mz-here-badge">📍 You are here</span>`
-                        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked ? 'disabled' : ''}>
+                        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked || !canChallengeThisGatekeeper ? 'disabled' : ''}>
                             ${isUnlocked ? '🚶 Travel here' : '⚔️ Challenge for entry'}${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
                     }
@@ -3310,12 +3349,18 @@ async function doTravelToZone(zoneId) {
 
 async function travelToZone(zoneId) {
     try {
+        const currentMap = character?.current_map || 'overworld';
+        const prereq = getTravelGatekeeperPrereq(zoneId, currentMap);
+        const currentZone = character?.location || 'forest';
+        if (prereq && !unlockedTravelZones.has(prereq.unlockZone) && currentZone !== prereq.unlockZone) {
+            showMsg('missions-msg', `Please challenge "${prereq.guardianName}" first.`, true);
+            return;
+        }
         // Check if target zone has a gatekeeper and show warning
         const guardianZones = {
             overworld: { swamp: 'Bog Warden', mountains: 'Frost Sentinel', ruins: 'Crypt Keeper', dark_city: 'Shadow Gatekeeper' },
             abyss: { crimson: 'Crimson Gatekeeper', void: 'Void Gatekeeper', citadel: 'Citadel Watcher', eternal_dark: 'Eternal Warden' }
         };
-        const currentMap = character?.current_map || 'overworld';
         const guardian = guardianZones[currentMap]?.[zoneId];
         
         if (guardian) {
@@ -9333,7 +9378,7 @@ function renderAbyssMap() {
     const routes = abyssData.routes;
     
     // Draw connections between Abyss zones
-    let svgLines = `<svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
+    let svgLines = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
     
     for (const [fromId, neighbors] of Object.entries(routes)) {
         for (const toId of Object.keys(neighbors)) {
@@ -9344,7 +9389,8 @@ function renderAbyssMap() {
             const to = zones[toId];
             if (!from || !to) continue;
             const isActive = [currentZone, playerTravelTarget].includes(fromId) || [currentZone, playerTravelTarget].includes(toId);
-            svgLines += `<line x1="${from.pos.x}%" y1="${from.pos.y}%" x2="${to.pos.x}%" y2="${to.pos.y}%" style="stroke:${isActive ? 'rgba(155,89,182,0.5)' : 'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none"/>`;
+            const path = buildCurvedRoutePath(from.pos, to.pos, key);
+            svgLines += `<path d="${path}" style="stroke:${isActive ? 'rgba(155,89,182,0.5)' : 'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none;stroke-linecap:round"/>`;
         }
     }
     svgLines += '</svg>';
