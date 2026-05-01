@@ -66,8 +66,7 @@ getDb().then(async (db) => {
   
   // Serve test folder
   app.use('/test', express.static(path.join(__dirname, '../public/test')));
-});
-
+  
   const PORT = process.env.PORT || 3009;
   app.listen(PORT, () => console.log(`⚔️  RPG Arena running on http://localhost:${PORT}`));
 }).catch(err => {
