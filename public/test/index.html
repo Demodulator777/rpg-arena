@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unity Game Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #1a1a2e; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #9b59b6; margin-bottom: 20px; }
+        .game-frame { width: 100%; height: 80vh; border: 2px solid #9b59b6; border-radius: 12px; background: #0a0a1a; }
+        .info { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin-top: 20px; font-size: 0.9rem; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Unity Game Test</h1>
+        <iframe id="gameFrame" class="game-frame" src="about:blank"></iframe>
+        <div class="info">
+            <p>Drop your Unity WebGL build files here (index.html, Build/, TemplateData/) and update the iframe src to load it.</p>
+            <p>Current: <input type="text" id="urlInput" style="width:300px;padding:8px;background:#0a0a1a;border:1px solid #333;border-radius:4px;color:#e0e0e0" placeholder="Enter game URL...">
+            <button onclick="loadGame()" style="padding:8px 16px;background:#9b59b6;border:none;border-radius:4px;color:white;cursor:pointer;margin-left:8px">Load</button></p>
+        </div>
+    </div>
+    <script>
+        function loadGame() {
+            const url = document.getElementById('urlInput').value;
+            if (url) {
+                document.getElementById('gameFrame').src = url;
+            }
+        }
+    </script>
+</body>
+</html>
