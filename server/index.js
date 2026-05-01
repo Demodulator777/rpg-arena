@@ -11,9 +11,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
-  const cspDirectives = [
+const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' 'unsafe-eval'",
     "connect-src 'self'",
     "img-src 'self' data: blob:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
@@ -22,7 +22,7 @@ app.use((req, res, next) => {
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'"
-  ];
+];
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
