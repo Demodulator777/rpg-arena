@@ -62,10 +62,28 @@ getDb().then(async (db) => {
   app.use('/admin/banner', adminRouter);
   
 // Static files - AFTER API routes
-  app.use(express.static(path.join(__dirname, '../public')));
-  
-  // Serve test folder
-  app.use('/test', express.static(path.join(__dirname, '../public/test')));
+app.use(express.static(path.join(__dirname, '../public'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
+        }
+        if (filePath.endsWith('.data')) {
+            res.setHeader('Content-Type', 'application/octet-stream');
+        }
+    }
+}));
+
+// Serve test folder
+app.use('/test', express.static(path.join(__dirname, '../public/test'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
+        }
+        if (filePath.endsWith('.data')) {
+            res.setHeader('Content-Type', 'application/octet-stream');
+        }
+    }
+}));
   
   const PORT = process.env.PORT || 3009;
   app.listen(PORT, () => console.log(`⚔️  RPG Arena running on http://localhost:${PORT}`));
