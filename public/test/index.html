@@ -8,31 +8,19 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         #unity-container { width: 960px; height: 600px; }
-        #unity-canvas { width: 100%; height: 100%; background: #000; }
+        #unity-canvas { width: 100%; height: 100%; background: #000; display: block; }
+        #unity-loading-bar { background: #333; height: 20px; margin-top: 10px; border-radius: 10px; overflow: hidden; }
+        #unity-progress-bar-full { background: #9b59b6; height: 100%; width: 0%; transition: width 0.3s; }
     </style>
 </head>
 <body>
     <div id="unity-container">
         <canvas id="unity-canvas"></canvas>
+        <div id="unity-loading-bar">
+            <div id="unity-progress-bar-full"></div>
+        </div>
     </div>
-    <script src="Build/clean.loader.js"></script>
-    <script>
-        var canvas = document.querySelector("#unity-canvas");
-        var buildUrl = "Build";
-        var config = {
-            dataUrl: buildUrl + "/clean.data",
-            frameworkUrl: buildUrl + "/clean.framework.js",
-            codeUrl: buildUrl + "/clean.wasm",
-            streamingAssetsUrl: "StreamingAssets",
-            companyName: "DefaultCompany",
-            productName: "My project",
-            productVersion: "1.0",
-        };
-        createUnityInstance(canvas, config).then((unityInstance) => {
-            console.log("Unity loaded!");
-        }).catch((message) => {
-            alert(message);
-        });
-    </script>
+    <script src="unity-init.js"></script>
 </body>
 </html>
+
