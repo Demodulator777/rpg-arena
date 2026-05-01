@@ -61,13 +61,12 @@ getDb().then(async (db) => {
   app.use('/banner', auth, bannerRouter);
   app.use('/admin/banner', adminRouter);
   
-  // Static files - AFTER API routes
+// Static files - AFTER API routes
   app.use(express.static(path.join(__dirname, '../public')));
   
-  // Catch-all route for SPA - MUST BE LAST
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
-  });
+  // Serve test folder
+  app.use('/test', express.static(path.join(__dirname, '../public/test')));
+});
 
   const PORT = process.env.PORT || 3009;
   app.listen(PORT, () => console.log(`⚔️  RPG Arena running on http://localhost:${PORT}`));
