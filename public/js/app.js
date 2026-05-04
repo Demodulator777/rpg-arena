@@ -1077,8 +1077,21 @@ async function saveRecoveryEmail() {
         const res = await api('POST', '/auth/email', { email });
         if (character) character.email = res?.email || null;
         setTopbarMenuFlash(res?.email ? 'Recovery email saved.' : 'Recovery email cleared.');
+        await openGameNoticeDialog({
+            title: 'Recovery Email',
+            message: res?.email
+                ? `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Recovery email saved.</div><div style="margin-top:8px;font-size:0.85rem;color:var(--text-dim)">${escHtml(res.email)}</div>`
+                : `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Recovery email cleared.</div><div style="margin-top:8px;font-size:0.85rem;color:var(--text-dim)">Password reset will be unavailable unless you add one.</div>`,
+            confirmLabel: 'OK',
+        });
     } catch (e) {
         setTopbarMenuFlash(e.message || 'Failed to save email.', true);
+        await openGameNoticeDialog({
+            title: 'Recovery Email',
+            message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Could not save recovery email.</div><div style="margin-top:8px;font-size:0.85rem;color:var(--red-light)">${escHtml(e.message || 'Unknown error')}</div>`,
+            confirmLabel: 'OK',
+            danger: true,
+        });
     }
 }
 
