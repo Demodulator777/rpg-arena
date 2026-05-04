@@ -2355,6 +2355,8 @@ router.get('/training/status', async (req, res) => {
             skill_id: training.skill_id,
             skillName: training.skill_id.replace(/_/g, ' '),
             branchId: training.branch_id,
+            doubleSpeed: !!Number(training.double_speed || 0),
+            double_speed: Number(training.double_speed || 0),
             endsAt: Number(training.ends_at || 0),
             progressStart: Number(training.progress_start || 0),
             remaining,
@@ -2556,12 +2558,13 @@ router.post('/train/start', async (req, res) => {
             message: `Training started: ${sk.name} (${chosenHours}h)` ,
             skillId,
             branchId,
+            doubleSpeed: !!doubleSpeed,
             endsAt: now + duration,
             progressStart: currentProgress,
             progressTarget: targetProgress,
             progressGain,
             maxHours,
-            hoursToFull: getHoursToFull(targetProgress, sk, 1),
+            hoursToFull: getHoursToFull(targetProgress, sk, speed),
         });
     } catch (e) {
         console.error('skill train start error', e);
