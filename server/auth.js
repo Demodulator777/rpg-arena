@@ -41,11 +41,16 @@ function getPublicBaseUrl(req) {
 }
 
 function getSmtpConfig() {
-  const host = String(process.env.SMTP_HOST || '').trim();
-  const port = Number(process.env.SMTP_PORT || 0);
   const user = String(process.env.SMTP_USER || '').trim();
   const pass = String(process.env.SMTP_PASS || '').trim();
   const from = String(process.env.SMTP_FROM || process.env.SMTP_USER || '').trim();
+
+  // Defaults for common Gmail setup; override via env at any time.
+  let host = String(process.env.SMTP_HOST || '').trim();
+  let port = Number(process.env.SMTP_PORT || 0);
+  if (!host && user && user.toLowerCase().endsWith('@gmail.com')) host = 'smtp.gmail.com';
+  if (!port && host === 'smtp.gmail.com') port = 465;
+
   if (!host || !port || !user || !pass || !from) return null;
   return { host, port, user, pass, from };
 }
@@ -84,13 +89,18 @@ If you didn’t request this, you can ignore this email.`;
 }
 
 router.post('/register', async (req, res) => {
-  const { username, password, referralCode } = req.body;
+  const { username, password, referralCode, email } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   if (username.length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
   try {
     const db = await getDb();
+
+    const normalizedEmail = normalizeEmail(email);
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
+    }
 
     // Check if username already exists
     const existingUser = await db.execute({
@@ -106,6 +116,16 @@ router.post('/register', async (req, res) => {
     const userCount = Number(userCountResult.rows?.[0]?.count || 0);
     if (userCount >= MAX_REGISTERED_USERS) {
       return res.status(403).json({ error: `Server is currently full. The beta user limit of ${MAX_REGISTERED_USERS} accounts has been reached.` });
+    }
+
+    if (normalizedEmail) {
+      const existingEmail = await db.execute({
+        sql: 'SELECT id FROM users WHERE email = ? COLLATE NOCASE LIMIT 1',
+        args: [normalizedEmail]
+      });
+      if (existingEmail.rows.length > 0) {
+        return res.status(400).json({ error: 'That email is already used by another account.' });
+      }
     }
 
     const normalizedReferral = normalizeReferralCode(referralCode);
@@ -128,8 +148,8 @@ router.post('/register', async (req, res) => {
     
     // Insert new user with assistant enabled by default
     const result = await db.execute({
-      sql: 'INSERT INTO users (username, password_hash, assistant_enabled, referred_by_user_id) VALUES (?, ?, ?, ?)',
-      args: [username, hash, 1, referrerUserId]
+      sql: 'INSERT INTO users (username, password_hash, email, assistant_enabled, referred_by_user_id) VALUES (?, ?, ?, ?, ?)',
+      args: [username, hash, normalizedEmail || null, 1, referrerUserId]
     });
 
     if (referrerUserId) {
