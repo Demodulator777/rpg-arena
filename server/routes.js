@@ -792,9 +792,11 @@ const DEFAULT_ATTACK_ZONES = ['chest','chest','solar_plexus','chest','head','sol
 const DEFAULT_BLOCK_ZONES  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
 const HP_REGEN_RATE     = 0.10;
 const HP_REGEN_INTERVAL = 3600;
-const MP_MAX            = 240;
+const MP_MAX            = 120;
 const MP_REGEN_AMOUNT   = 10;
 const MP_SKILL_UNLOCK   = 60;
+// Global nerf to mission base gold rolls (before size multipliers).
+const MISSION_BASE_GOLD_MULT = 1 / 3;
 const MISSION_SIZES = {
     small:  { mpCost: 20, duration: 600,  label: 'Small',  rewardMult: 1.0 },
     medium: { mpCost: 40, duration: 1200, label: 'Medium', rewardMult: 1.8 },
@@ -808,7 +810,7 @@ const HEALTH_POTION_COOLDOWN = 30 * 60;
 const PREMIUM_FEATURES = {
     arcane_reservoir: {
         id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', cost: 30,
-        desc: '2× max MP (480) and 2× MP regen (+20/hr instead of +10/hr).',
+        desc: '2× max MP (240) and 2× MP regen (+20/hr instead of +10/hr).',
         effect: { mp_max_mult: 2, mp_regen_mult: 2 },
     },
     warlord: {
@@ -5449,7 +5451,8 @@ if (sizeKey === 'small') {
 let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
 xpReward = Math.max(0, xpReward);
 
-        const goldReward = Math.floor((Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold) * sizeConf.rewardMult);
+        const baseGoldRoll = (Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold);
+        const goldReward = Math.floor(baseGoldRoll * MISSION_BASE_GOLD_MULT * sizeConf.rewardMult);
 
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (missionIdx !== undefined && missionList[missionIdx]) ? missionList[missionIdx] : missionList[Math.floor(Math.random() * missionList.length)];
@@ -5608,7 +5611,9 @@ if (freshChar.class === 'rogue') {
         const isTutorial = isTutorialCharacter(freshChar);
 
         // Build NPC and override its name with the mission name
-        const npc = buildNpc(mission.difficulty, freshChar.level, zoneLevel, playerStats);
+        // If a player is underleveled for a zone, missions should still scale to the zone's minimum level.
+        const missionEffectiveLevel = Math.max(Number(freshChar.level || 1), Number(zoneLevel || 1));
+        const npc = buildNpc(mission.difficulty, missionEffectiveLevel, zoneLevel, playerStats);
         const npcName = getNPCNameFromMission(mission.mission_name);
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
