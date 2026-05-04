@@ -3897,7 +3897,48 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
     const zone = zoneMap[targetZone];
     const zoneLevel = zone?.minLevel || 1;
     const assumedPlayerLevel = zoneLevel;
-    const npc = buildNpc(guardianDef.difficulty, assumedPlayerLevel, zoneLevel, playerStats);
+
+    // Gatekeepers should feel like a fixed, memorable skill check. We keep their stats deterministic
+    // (no random elemental rolls / random zones) and for Nightmare we pin them to the high end.
+    let guardianStatsForScaling = null;
+    if (guardianDef.difficulty === 'nightmare') {
+        // buildNpc('nightmare') scales between 0.8..1.5 based on playerPower/5000.
+        // Force the top end (1.5) by providing an intentionally high power score.
+        guardianStatsForScaling = {
+            hp_max: 999999,
+            strength: 999999,
+            defense: 999999,
+            agility: 999999,
+            magic: 999999,
+            hit_chance: 999999,
+            crit_chance: 999999
+        };
+    }
+
+    const npc = buildNpc(guardianDef.difficulty, assumedPlayerLevel, zoneLevel, guardianStatsForScaling);
+    npc.attackZones = DEFAULT_ATTACK_ZONES;
+    npc.blockZones = DEFAULT_BLOCK_ZONES;
+
+    // Ensure elemental damage/resists are fixed (no RNG) so the guardian doesn't "jump around" in power.
+    // We intentionally set all elements at the high end for the selected difficulty.
+    try {
+        const effectiveLevel = Number(assumedPlayerLevel || 1) + (Number(zoneLevel || 1) * 2);
+        const difficultyMultipliers = {
+            easy: { armorMult: 0.6, elemMult: 0.5 },
+            medium: { armorMult: 1.0, elemMult: 1.0 },
+            hard: { armorMult: 1.5, elemMult: 1.8 },
+            normal: { armorMult: 1.0, elemMult: 1.0 },
+            nightmare: { armorMult: 1.2 * 1.5, elemMult: 1.4 * 1.5 }, // pinned to the high end
+        };
+        const mult = difficultyMultipliers[guardianDef.difficulty] || difficultyMultipliers.hard;
+        const elemBase = 10 + (effectiveLevel * 0.5);
+        const resistBase = 10 + (effectiveLevel * 0.4);
+        const elemVal = Math.max(1, Math.floor(elemBase * mult.elemMult));
+        const resistVal = Math.max(1, Math.floor(resistBase * mult.armorMult));
+        npc.elem_dmg = { pyro: elemVal, water: elemVal, wind: elemVal, electro: elemVal };
+        npc.elem_resist = { pyro: resistVal, water: resistVal, wind: resistVal, electro: resistVal };
+    } catch {}
+
     npc.name = guardianDef.name;
     npc.class = 'npc';
     npc.ignoreDefenderZones = true;
