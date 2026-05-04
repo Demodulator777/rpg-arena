@@ -793,7 +793,7 @@ const DEFAULT_BLOCK_ZONES  = ['cross_guard','mid_guard','cross_guard','high_guar
 const HP_REGEN_RATE     = 0.10;
 const HP_REGEN_INTERVAL = 3600;
 const MP_MAX            = 120;
-const MP_REGEN_AMOUNT   = 10;
+const MP_REGEN_AMOUNT   = 5;
 const MP_SKILL_UNLOCK   = 60;
 // Global nerf to mission base gold rolls (before size multipliers).
 const MISSION_BASE_GOLD_MULT = 1 / 3;
@@ -810,7 +810,7 @@ const HEALTH_POTION_COOLDOWN = 30 * 60;
 const PREMIUM_FEATURES = {
     arcane_reservoir: {
         id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', cost: 30,
-        desc: '2× max MP (240) and 2× MP regen (+20/hr instead of +10/hr).',
+        desc: '2× max MP (240) and 2× MP regen (+10/hr instead of +5/hr).',
         effect: { mp_max_mult: 2, mp_regen_mult: 2 },
     },
     warlord: {
@@ -3011,7 +3011,7 @@ async function applyMpRegen(db, characterId) {
     if (currentHourStart <= lastRegenHour) return;
     const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
     const activePrem = getActivePremium(char);
-    const regenPerHour = hasPremium(activePrem, 'arcane_reservoir') ? 20 : 10;
+    const regenPerHour = hasPremium(activePrem, 'arcane_reservoir') ? (MP_REGEN_AMOUNT * 2) : MP_REGEN_AMOUNT;
     const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
     const currentMp = char.mission_points ?? 0;
     if (currentMp >= mpMax) {
