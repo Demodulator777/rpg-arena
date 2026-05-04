@@ -737,6 +737,15 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
+            <div class="topbar-menu-info-card" style="margin-top:10px">
+                <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
+                <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
+                <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+                    <input id="settings-email" class="input-field" style="flex:1;margin:0" placeholder="you@example.com" value="${escHtml(character?.email || '')}">
+                    <button class="topbar-menu-inline-btn" style="flex-shrink:0" ${actionAttrs('saveRecoveryEmail')}>Save</button>
+                </div>
+                <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
+            </div>
         </div>`;
 }
 
