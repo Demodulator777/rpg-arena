@@ -3014,6 +3014,18 @@ async function applyMpRegen(db, characterId) {
     const regenPerHour = hasPremium(activePrem, 'arcane_reservoir') ? (MP_REGEN_AMOUNT * 2) : MP_REGEN_AMOUNT;
     const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
     const currentMp = char.mission_points ?? 0;
+
+    // If MP max was reduced (or premium expired), old DB values can exceed the new cap.
+    // Clamp once here to self-heal the stored value.
+    if (currentMp > mpMax) {
+        await dbRun(
+            db,
+            'UPDATE characters SET mission_points=?, mp_last_regen_at=? WHERE id=?',
+            [mpMax, currentHourStart, characterId]
+        );
+        return;
+    }
+
     if (currentMp >= mpMax) {
         await dbRun(db, 'UPDATE characters SET mp_last_regen_at=? WHERE id=?', [currentHourStart, characterId]);
         return;
