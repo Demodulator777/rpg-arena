@@ -93,6 +93,20 @@ function sanitizeChatMessage(input) {
     return text;
 }
 
+function normalizeCharacterName(input) {
+    return String(input || '').replace(/\s+/g, ' ').trim();
+}
+
+function containsProfanity(input) {
+    const text = String(input || '');
+    if (!text) return false;
+    for (const bannedWord of CHAT_PROFANITY_WORDS) {
+        const re = new RegExp(`\\b${escapeRegex(bannedWord)}\\b`, 'i');
+        if (re.test(text)) return true;
+    }
+    return false;
+}
+
 function isTutorialCharacter(char) {
     if (!char) return false;
     return Number(char.wins || 0) < 4 && !Number(char.tutorial_skipped || 0);
@@ -454,6 +468,7 @@ const WEEKLY_TASKS = [
             )`,
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_name_nocase ON characters(name COLLATE NOCASE)',
             'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
             'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
         ];
@@ -4826,14 +4841,19 @@ inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 
 router.post('/character', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const { name, class: characterClass } = req.body;
+        const { class: characterClass } = req.body;
+        const normalizedName = normalizeCharacterName(req.body?.name);
         const userId = req.user.userId;
         const classDef = CLASSES[characterClass];
         if (!classDef) return res.status(400).json({ error: 'Invalid class.' });
+        if (!normalizedName) return res.status(400).json({ error: 'Character name required.' });
+        if (containsProfanity(normalizedName)) return res.status(400).json({ error: 'Please choose a different name.' });
         const existingCount = await dbGet(db, 'SELECT COUNT(*) AS count FROM characters WHERE user_id = ?', [userId]);
         if ((existingCount?.count || 0) >= 4) return res.status(400).json({ error: 'You can only create up to 4 characters on one account.' });
         const existingClass = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ?', [userId, characterClass]);
         if (existingClass) return res.status(400).json({ error: `You already have a ${characterClass} character.` });
+        const existingName = await dbGet(db, 'SELECT id FROM characters WHERE trim(name) = ? COLLATE NOCASE LIMIT 1', [normalizedName]);
+        if (existingName) return res.status(400).json({ error: 'That name is already taken.' });
         await dbRun(db, `
             INSERT INTO characters (
                 user_id, name, class, level, xp, gold,
@@ -4847,7 +4867,7 @@ router.post('/character', auth, async (req, res) => {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             userId,
-            name,
+            normalizedName,
             characterClass,
             1,
             0,
@@ -5354,6 +5374,16 @@ router.post('/missions/start', auth, async (req, res) => {
             return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
         }
 
+        // Backend-enforced PvP cooldown: prevents bypassing the client overlay.
+        const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
+        const activePrem = getActivePremium(character);
+        const effectivePvpCooldown = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
+        const lastBattleAt = Number(character.last_battle_at || 0);
+        if (lastBattleAt + effectivePvpCooldown > now) {
+            const secs = (lastBattleAt + effectivePvpCooldown) - now;
+            return res.status(400).json({ error: `Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'} before starting a mission.` });
+        }
+
         const currentMap = character.current_map || 'overworld';
         let zone;
 
@@ -5418,7 +5448,6 @@ xpReward = Math.max(0, xpReward);
         const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
         const missionName = (missionIdx !== undefined && missionList[missionIdx]) ? missionList[missionIdx] : missionList[Math.floor(Math.random() * missionList.length)];
         
-        const activePrem = getActivePremium(character);
         const baseDuration = sizeConf.duration;
         let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
         if (hasPremium(activePrem, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
