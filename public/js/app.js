@@ -368,11 +368,20 @@ async function api(method, path, body=null) {
             try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; } 
             catch { errMsg = text.trim() || `Request failed (${res.status})`; }
             
-            // Handle session expired - redirect to login
-            if (res.status === 401 && (errMsg === 'Session expired' || errMsg === 'No token' || errMsg === 'Invalid token')) {
-                logout();
-                showScreen('auth');
-                alert('Logged out - please login again');
+            // Handle single-device login enforcement without spamming alerts:
+            // we only want to auto-logout when the server says the session was replaced.
+            if (res.status === 401 && errMsg === 'Session expired') {
+                if (!window.__forcedLogoutShown) {
+                    window.__forcedLogoutShown = true;
+                    logout();
+                    alert('Logged out: your account was logged in from another device/browser.');
+                }
+                throw new Error(errMsg);
+            }
+            // If the token is missing/invalid, don't spam alerts; just surface the error.
+            // (The UI can navigate to login as needed.)
+            if (res.status === 401 && (errMsg === 'No token' || errMsg === 'Invalid token')) {
+                if (!window.__auth401Seen) window.__auth401Seen = true;
                 throw new Error(errMsg);
             }
             
@@ -1204,6 +1213,8 @@ async function login() {
     try {
         const data=await api('POST','/auth/login',{username:document.getElementById('login-user').value.trim(),password:document.getElementById('login-pass').value});
         token=data.token; username=data.username;
+        window.__forcedLogoutShown = false;
+        window.__auth401Seen = false;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
         try {
             const [charData] = await Promise.all([
@@ -1226,6 +1237,8 @@ async function register() {
             referralCode: document.getElementById('reg-referral')?.value.trim() || ''
         });
         token=data.token; username=data.username;
+        window.__forcedLogoutShown = false;
+        window.__auth401Seen = false;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
         showScreen('create');
     } catch(e) { setError('auth-error',e.message); }
