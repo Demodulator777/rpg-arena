@@ -1749,8 +1749,8 @@ function getLiveCharacterSnapshot(baseCharacter) {
         const lastRegenHour = Math.floor(mpLastRegenAt / 3600) * 3600;
         if (currentHourStart > lastRegenHour) {
             const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
-            // Base MP is 120 and Arcane Reservoir doubles to 240 (and doubles regen).
-            const regenPerHour = mpMax > 120 ? 20 : 10;
+            // Base MP is 120 (+5/hr) and Arcane Reservoir doubles to 240 (+10/hr).
+            const regenPerHour = mpMax > 120 ? 10 : 5;
             live.mission_points = Math.min(mpMax, mpCurrent + (regenPerHour * hoursElapsed));
         }
     }
@@ -2985,7 +2985,7 @@ function renderSkills() {
             </div>
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP spent today</div>
         </div>`:''}
-        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +10/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration</div>`;
+        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +5/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration</div>`;
 
     renderEventBanner('skills-event-banner');
 
@@ -3328,7 +3328,7 @@ function openSpotMissions(zoneId, spotId) {
                 </div>`;
             }).join('')}
         </div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 120}</strong> · MP regenerates +10/hr</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 120}</strong> · MP regenerates +5/hr</div>
         <div class="mz-section-label">Choose a mission</div>
         <div class="mz-missions-grid" id="spot-missions-list">
             ${spot.missions.map((m, idx) => `
