@@ -503,7 +503,7 @@ function closeCharacterSwitcher() {
 
 function getSkillUnlockMenuState() {
     const mp = character?.mission_points ?? 0;
-    const mpMax = character?.mp_max || 240;
+    const mpMax = character?.mp_max || 120;
     const dailySpent = character?.daily_mp_spent ?? 0;
     const unlocked = !!character?.skills_unlocked;
     return {
@@ -1741,7 +1741,7 @@ function getLiveCharacterSnapshot(baseCharacter) {
         }
     }
 
-    const mpMax = Number(live.mp_max || 240);
+    const mpMax = Number(live.mp_max || 120);
     const mpCurrent = Number(live.mission_points ?? 0);
     const mpLastRegenAt = Number(live.mp_last_regen_at || 0);
     if (mpMax > 0 && mpCurrent < mpMax && mpLastRegenAt > 0) {
@@ -1749,7 +1749,8 @@ function getLiveCharacterSnapshot(baseCharacter) {
         const lastRegenHour = Math.floor(mpLastRegenAt / 3600) * 3600;
         if (currentHourStart > lastRegenHour) {
             const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
-            const regenPerHour = mpMax > 240 ? 20 : 10;
+            // Base MP is 120 and Arcane Reservoir doubles to 240 (and doubles regen).
+            const regenPerHour = mpMax > 120 ? 20 : 10;
             live.mission_points = Math.min(mpMax, mpCurrent + (regenPerHour * hoursElapsed));
         }
     }
@@ -1829,7 +1830,7 @@ function renderTopBar() {
     setTopbarValue('topbar-hp-text', hpCur, c.hp_max);
     set('topbar-xp-fill',el=>{ el.style.width=xpPct+'%'; });
     setTopbarValue('topbar-xp-text', c.xp, lxp);
-    const mp=c.mission_points??0, mpMax=c.mp_max||240;
+    const mp=c.mission_points??0, mpMax=c.mp_max||120;
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
     const dms=c.daily_mp_spent??0, unl=c.skills_unlocked;
     set('topbar-mp-fill',el=>{ el.style.width=mpPct+'%'; });
@@ -2136,7 +2137,7 @@ const eqGrid = `
 
     // FIX: Use c.mp_max from backend response (already includes premium bonus)
     const mpCurrent = c.mission_points || 0;
-    const mpMax = c.mp_max || 240;  // This should already include Arcane Reservoir 2x bonus
+    const mpMax = c.mp_max || 120;  // This should already include Arcane Reservoir 2x bonus
     const mpPct = Math.min(100, Math.round((mpCurrent / mpMax) * 100));
 
     const charSheet = document.getElementById('char-sheet');
@@ -2960,7 +2961,7 @@ function renderEventBanner(containerId) {
 function renderSkills() {
     if (!character) return;
     const c=character;
-    const mp=character?.mission_points??0, mpMax=character?.mp_max||240;
+    const mp=character?.mission_points??0, mpMax=character?.mp_max||120;
     const dailyMpSpent=character?.daily_mp_spent??0;
     const unlocked=character?.skills_unlocked||(dailyMpSpent>=60);
     const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
@@ -3327,7 +3328,7 @@ function openSpotMissions(zoneId, spotId) {
                 </div>`;
             }).join('')}
         </div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 240}</strong> · MP regenerates +10/hr</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 120}</strong> · MP regenerates +10/hr</div>
         <div class="mz-section-label">Choose a mission</div>
         <div class="mz-missions-grid" id="spot-missions-list">
             ${spot.missions.map((m, idx) => `
