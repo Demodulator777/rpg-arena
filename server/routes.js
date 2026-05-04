@@ -447,6 +447,10 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN inbox_autoread_messages INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_autoread_battles INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_autoread_missions INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN password_reset_expires_at INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN password_reset_requested_at INTEGER DEFAULT NULL',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN sender_label TEXT DEFAULT NULL',
@@ -469,6 +473,7 @@ const WEEKLY_TASKS = [
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_name_nocase ON characters(name COLLATE NOCASE)',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE)',
             'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
             'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
         ];
@@ -4717,7 +4722,7 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
 const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, email, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
@@ -4822,6 +4827,7 @@ const userSettings = char.user_id
         assistant_enabled: Number(userSettings?.assistant_enabled ?? 1) !== 0,
         skip_battle_animations: Number(userSettings?.skip_battle_animations ?? 0) !== 0,
         referral_code: userSettings?.username || null,
+        email: userSettings?.email || null,
         referrals_registered: Number(userSettings?.referrals_registered || 0),
         referrals_level5: Number(userSettings?.referrals_level5 || 0),
         pending_referral_gold: pendingReferralGold,
