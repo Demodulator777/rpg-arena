@@ -1072,23 +1072,13 @@ async function toggleInboxBadgeSetting(settingKey) {
 
 async function saveRecoveryEmail() {
     const input = document.getElementById('settings-email');
-    const msg = document.getElementById('settings-email-msg');
     const email = input ? String(input.value || '').trim() : '';
     try {
         const res = await api('POST', '/auth/email', { email });
         if (character) character.email = res?.email || null;
-        if (msg) {
-            msg.textContent = res?.email ? 'Recovery email saved.' : 'Recovery email cleared.';
-            msg.classList.remove('hidden');
-            msg.classList.remove('error');
-        }
-        renderTopbarMenu();
+        setTopbarMenuFlash(res?.email ? 'Recovery email saved.' : 'Recovery email cleared.');
     } catch (e) {
-        if (msg) {
-            msg.textContent = e.message || 'Failed to save email.';
-            msg.classList.remove('hidden');
-            msg.classList.add('error');
-        }
+        setTopbarMenuFlash(e.message || 'Failed to save email.', true);
     }
 }
 
