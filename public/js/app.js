@@ -1285,6 +1285,7 @@ async function register() {
         const data=await api('POST','/auth/register',{
             username:document.getElementById('reg-user').value.trim(),
             password:document.getElementById('reg-pass').value,
+            email: document.getElementById('reg-email')?.value.trim() || '',
             referralCode: document.getElementById('reg-referral')?.value.trim() || ''
         });
         token=data.token; username=data.username;
