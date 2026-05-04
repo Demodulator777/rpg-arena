@@ -632,6 +632,15 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
+            <div class="topbar-menu-info-card" style="margin-top:10px">
+                <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
+                <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
+                <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+                    <input id="settings-email" class="input-field" style="flex:1;margin:0" placeholder="you@example.com" value="${escHtml(character?.email || '')}">
+                    <button class="topbar-menu-inline-btn" style="flex-shrink:0" ${actionAttrs('saveRecoveryEmail')}>Save</button>
+                </div>
+                <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
+            </div>
         </div>`;
 }
 
@@ -1043,6 +1052,28 @@ async function toggleInboxBadgeSetting(settingKey) {
     pollUnread();
 }
 
+async function saveRecoveryEmail() {
+    const input = document.getElementById('settings-email');
+    const msg = document.getElementById('settings-email-msg');
+    const email = input ? String(input.value || '').trim() : '';
+    try {
+        const res = await api('POST', '/auth/email', { email });
+        if (character) character.email = res?.email || null;
+        if (msg) {
+            msg.textContent = res?.email ? 'Recovery email saved.' : 'Recovery email cleared.';
+            msg.classList.remove('hidden');
+            msg.classList.remove('error');
+        }
+        renderTopbarMenu();
+    } catch (e) {
+        if (msg) {
+            msg.textContent = e.message || 'Failed to save email.';
+            msg.classList.remove('hidden');
+            msg.classList.add('error');
+        }
+    }
+}
+
 function renderCharacterSwitcher() {
     const content = document.getElementById('character-switch-content');
     if (!content) return;
@@ -1197,6 +1228,26 @@ function openAuthLegalModal() {
 function closeAuthLegalModal() {
     document.getElementById('auth-legal-modal')?.classList.add('hidden');
 }
+function openForgotPasswordModal() {
+    document.getElementById('forgot-password-msg')?.classList.add('hidden');
+    const input = document.getElementById('forgot-identifier');
+    if (input) input.value = '';
+    document.getElementById('forgot-password-modal')?.classList.remove('hidden');
+}
+function closeForgotPasswordModal() {
+    document.getElementById('forgot-password-modal')?.classList.add('hidden');
+}
+function openResetPasswordModal(token) {
+    window.__pendingResetToken = String(token || '');
+    document.getElementById('reset-password-msg')?.classList.add('hidden');
+    const input = document.getElementById('reset-new-pass');
+    if (input) input.value = '';
+    document.getElementById('reset-password-modal')?.classList.remove('hidden');
+}
+function closeResetPasswordModal() {
+    document.getElementById('reset-password-modal')?.classList.add('hidden');
+    window.__pendingResetToken = '';
+}
 function togglePasswordVisibility(inputId, el) {
     const input = document.getElementById(inputId);
     if (!input) return;
@@ -1245,6 +1296,14 @@ async function register() {
 }
 document.addEventListener('DOMContentLoaded',()=>{
     hydrateReferralFromUrl();
+    try {
+        const params = new URLSearchParams(window.location.search || '');
+        const token = params.get('reset_token');
+        if (token) {
+            showScreen('auth');
+            openResetPasswordModal(token);
+        }
+    } catch {}
     const pairs=[['login-user','login-pass'],['reg-user','reg-pass'],['reg-referral','reg-pass']];
     pairs.forEach(([u,p])=>{
         const uel=document.getElementById(u), pel=document.getElementById(p);
@@ -1254,6 +1313,52 @@ document.addEventListener('DOMContentLoaded',()=>{
     });
     ensureCreateClassArt();
 });
+
+async function requestPasswordReset() {
+    const identifier = document.getElementById('forgot-identifier')?.value?.trim() || '';
+    const msg = document.getElementById('forgot-password-msg');
+    try {
+        const res = await api('POST', '/auth/password/forgot', { identifier });
+        if (msg) {
+            msg.textContent = res?.message || 'If the account exists, a reset link will be sent.';
+            msg.classList.remove('hidden');
+            msg.classList.remove('error');
+        }
+    } catch (e) {
+        if (msg) {
+            msg.textContent = e.message || 'Failed to request reset.';
+            msg.classList.remove('hidden');
+            msg.classList.add('error');
+        }
+    }
+}
+
+async function submitPasswordReset() {
+    const token = String(window.__pendingResetToken || '').trim();
+    const newPassword = String(document.getElementById('reset-new-pass')?.value || '');
+    const msg = document.getElementById('reset-password-msg');
+    if (!token) {
+        if (msg) { msg.textContent = 'Missing reset token.'; msg.classList.remove('hidden'); msg.classList.add('error'); }
+        return;
+    }
+    try {
+        const res = await api('POST', '/auth/password/reset', { token, newPassword });
+        if (msg) {
+            msg.textContent = res?.message || 'Password reset. Please log in again.';
+            msg.classList.remove('hidden');
+            msg.classList.remove('error');
+        }
+        // Force client to drop any existing token and return to login.
+        logout();
+        showScreen('auth');
+    } catch (e) {
+        if (msg) {
+            msg.textContent = e.message || 'Failed to reset password.';
+            msg.classList.remove('hidden');
+            msg.classList.add('error');
+        }
+    }
+}
 function logout() {
     // Save token for logout request before clearing
     const storedToken = localStorage.getItem('rpg_token');
