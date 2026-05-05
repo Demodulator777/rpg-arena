@@ -3429,6 +3429,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-radius: 14px; padding: 0;
     box-shadow: 0 20px 60px rgba(0,0,0,0.9);
     pointer-events: auto; overflow: hidden;
+    /* Keep tooltip usable even for tall items (lots of stats/lines). */
+    max-height: calc(100vh - 16px);
+    display: flex;
+    flex-direction: column;
 }
 .item-tooltip.hidden { display: none; }
 .tt-preview {
@@ -3437,7 +3441,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .tt-preview img { width: 140px; height: 140px; object-fit: contain; }
 .tt-preview-emoji { font-size: 5rem; line-height: 1; }
-.tt-body { padding: 12px 14px; }
+.tt-body {
+    padding: 12px 14px;
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .tt-name { font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--text-bright); }
 .tt-meta { font-size: 0.64rem; color: var(--text-dim); margin-top: 2px; }
 .tt-desc { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 8px; font-style: italic; line-height: 1.5; }
@@ -3446,7 +3455,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .tt-stat-name { flex: 1; color: var(--text-dim); text-transform: capitalize; }
 .tt-stat-val { font-weight: 700; color: var(--text-bright); }
 .tt-vs { font-size: 0.66rem; color: var(--text-dim); border-top: 1px solid var(--border); padding-top: 6px; margin-bottom: 8px; }
-.tt-actions { display: flex; gap: 5px; border-top: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; }
+.tt-actions {
+    display: flex;
+    gap: 5px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 10px 14px;
+    flex-shrink: 0;
+}
 .tt-btn { flex: 1; padding: 7px 4px; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid; transition: background 0.12s; }
 .tt-btn-primary  { background: var(--blue-dim); border-color: rgba(52,152,219,0.35); color: var(--blue); }
 .tt-btn-primary:hover { background: rgba(52,152,219,0.25); }
