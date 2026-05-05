@@ -2175,6 +2175,14 @@ const eqGrid = `
             <span>🏆 Achievements</span>
             <span id="achievements-summary-inline" class="achievement-launch-meta">Loading...</span>
           </button>
+          <div class="profile-badges-inline">
+            ${(Array.isArray(c.profile_badges) ? c.profile_badges : []).slice(0,3).map(id => `<span class="profile-badge-chip" data-badge-id="${escHtml(id)}">🏅</span>`).join('')}
+            ${((Array.isArray(c.profile_badges) ? c.profile_badges : []).length ? '' : '<span class="profile-badges-empty">No profile badges set</span>')}
+          </div>
+          <button class="achievement-launch-btn" ${actionAttrs('openBadgePickerModal')}>
+            <span>🎖️ Profile Badges</span>
+            <span class="achievement-launch-meta">Pick up to 3</span>
+          </button>
         </div>
         <div class="char-panel char-panel-equipment">
           <h3>EQUIPMENT</h3>
@@ -2194,8 +2202,10 @@ const eqGrid = `
       </div>
     </div>`;
     ensureAchievementsModal();
+    ensureBadgePickerModal();
     renderTopBar();
     loadAchievements();
+    refreshInlineBadgeChips();
 }
 function statRow(icon,label,val,max,cls) {
     return `<div class="stat-row"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span>
@@ -2373,6 +2383,118 @@ async function openAchievementsModal() {
 function closeAchievementsModal() {
     document.getElementById('achievements-modal')?.classList.add('hidden');
 }
+
+function ensureBadgePickerModal() {
+    if (document.getElementById('badge-picker-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="badge-picker-modal" class="modal-overlay hidden">
+            <div class="modal-box achievements-modal-box">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
+                    <div>
+                        <div style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light);font-weight:800">Profile Badges</div>
+                        <div style="font-size:0.78rem;color:var(--text-dim)">Pick up to 3 completed achievements to show on your profile and leaderboard.</div>
+                    </div>
+                    <button class="btn-secondary btn-sm" data-action="closeBadgePickerModal">Close</button>
+                </div>
+                <div id="badge-picker-content" class="achievements-panel-loading">Loading...</div>
+                <div id="badge-picker-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
+            </div>
+        </div>
+    `);
+}
+
+function closeBadgePickerModal() {
+    document.getElementById('badge-picker-modal')?.classList.add('hidden');
+}
+window.closeBadgePickerModal = closeBadgePickerModal;
+
+function getAchievementItemMap() {
+    const items = window._achievementsData?.items || [];
+    const map = new Map();
+    for (const a of items) {
+        if (a?.id) map.set(String(a.id), a);
+    }
+    return map;
+}
+
+function refreshInlineBadgeChips() {
+    const map = getAchievementItemMap();
+    document.querySelectorAll('.profile-badge-chip').forEach(el => {
+        const id = String(el.dataset.badgeId || '');
+        const def = map.get(id);
+        el.textContent = def?.icon || '🏅';
+        el.title = def?.name || id || 'Badge';
+    });
+}
+
+async function openBadgePickerModal() {
+    ensureBadgePickerModal();
+    const modal = document.getElementById('badge-picker-modal');
+    const content = document.getElementById('badge-picker-content');
+    if (!modal || !content) return;
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="achievements-panel-loading">Loading achievements...</div>';
+    try {
+        const data = window._achievementsData || await api('GET', '/game/achievements');
+        window._achievementsData = data;
+        renderAchievementsSummary(data);
+        renderBadgePicker(data);
+        refreshInlineBadgeChips();
+    } catch (e) {
+        content.innerHTML = `<div class="achievements-panel-loading">${escHtml(e.message)}</div>`;
+    }
+}
+window.openBadgePickerModal = openBadgePickerModal;
+
+function renderBadgePicker(data) {
+    const content = document.getElementById('badge-picker-content');
+    if (!content) return;
+    const items = (data?.items || []).filter(a => a?.completed);
+    const current = Array.isArray(character?.profile_badges) ? character.profile_badges.slice(0, 3).map(String) : [];
+
+    const optionsHtml = ['<option value=\"\">(None)</option>'].concat(
+        items.map(a => `<option value="${escHtml(a.id)}">${escHtml(`${a.icon || '🏅'} ${a.name}`)}</option>`)
+    ).join('');
+
+    const buildSelect = (idx) => `
+        <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:0.7rem;color:var(--text-dim);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Badge ${idx + 1}</div>
+            <select id="badge-slot-${idx}" class="input-field" style="width:100%">${optionsHtml}</select>
+        </div>`;
+
+    content.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr;gap:12px">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+                ${[0,1,2].map(buildSelect).join('')}
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button class="btn-secondary" data-action="closeBadgePickerModal">Cancel</button>
+                <button class="btn-primary" data-action="saveProfileBadges">Save Badges</button>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-dim)">Only completed achievements can be displayed. Duplicate selections will be ignored.</div>
+        </div>
+    `;
+
+    for (let i = 0; i < 3; i++) {
+        const sel = document.getElementById(`badge-slot-${i}`);
+        if (!sel) continue;
+        sel.value = current[i] || '';
+    }
+}
+
+async function saveProfileBadges() {
+    try {
+        const picks = [0,1,2].map(i => document.getElementById(`badge-slot-${i}`)?.value || '').filter(Boolean);
+        const res = await api('POST', '/game/profile/badges', { badges: picks });
+        if (res?.character) character = res.character;
+        renderCharacter();
+        closeBadgePickerModal();
+        await openGameNoticeDialog({ title: '🎖️ Profile Badges', message: 'Your profile badges were updated.' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🎖️ Profile Badges', message: e.message || String(e) });
+    }
+}
+window.saveProfileBadges = saveProfileBadges;
 
 async function claimAchievement(achievementId) {
     try {
@@ -6198,10 +6320,14 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const totalEarned = p.total_gold_earned || 0;
     const profilePic = p.profile_pic;
     const lbImg = profilePic ? `/images/class/${profilePic}` : `/images/class/${p.class}.png`;
+    const badges = Array.isArray(p.profile_badges) ? p.profile_badges : [];
+    const badgeHtml = badges.length
+        ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
+        : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div><div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
+            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
