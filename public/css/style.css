@@ -5143,6 +5143,45 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border: 1px solid rgba(255,255,255,0.08);
 }
 
+.battle-stats {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.12));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+}
+.battle-stats:empty { display: none; }
+.battle-stats-col {
+    padding: 10px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    min-width: 0;
+}
+.battle-stats-title {
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: var(--gold-light);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.battle-stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 0.78rem;
+    padding: 3px 0;
+    border-bottom: 1px dashed rgba(255,255,255,0.06);
+}
+.battle-stats-row:last-child { border-bottom: none; }
+.battle-stats-k { color: var(--text-dim); }
+.battle-stats-v { color: var(--text-bright); font-weight: 700; text-align: right; }
+
 @media (max-width: 640px) {
     .battle-result-box.modal-box {
         padding: 12px;
@@ -5249,6 +5288,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         flex: 1 1 auto;
         min-height: 160px;
         margin-bottom: 8px;
+    }
+
+    .battle-stats {
+        margin-bottom: 8px;
+        grid-template-columns: 1fr;
     }
 }
 
