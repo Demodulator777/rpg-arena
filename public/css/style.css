@@ -3433,9 +3433,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     max-height: calc(100vh - 16px);
     display: flex;
     flex-direction: column;
-    /* Single, seamless scroll area. */
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    /* Fixed footer layout: body scrolls, actions always visible. */
+    overflow: hidden;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
 }
 .item-tooltip.hidden { display: none; }
 .tt-preview {
@@ -3448,6 +3449,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .tt-body {
     padding: 12px 14px;
     flex: 1;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
 }
 .tt-name { font-size: 0.9rem; font-weight: 700; line-height: 1.2; color: var(--text-bright); }
 .tt-meta { font-size: 0.64rem; color: var(--text-dim); margin-top: 2px; }
@@ -3463,8 +3469,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-top: 1px solid rgba(255,255,255,0.08);
     padding: 10px 14px;
     flex-shrink: 0;
-    position: sticky;
-    bottom: 0;
     background: rgba(8,12,22,0.97);
 }
 .tt-btn { flex: 1; padding: 7px 4px; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid; transition: background 0.12s; }
