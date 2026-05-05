@@ -6651,35 +6651,31 @@ function formatBattleDamageStat(s) {
     return elem > 0 ? `${phys} +${elem} elem` : phys;
 }
 
-function renderBattleStatsColumn(title, s) {
-    if (!s) return '';
-    const rows = [
-        ['Damage (Phys+Elem)', formatBattleDamageStat(s)],
-        ['Armor', Number(s.armor ?? 0).toLocaleString()],
-        ['Magic', Number(s.magic ?? 0).toLocaleString()],
-        ['HP', Number(s.hp ?? 0).toLocaleString()],
-        ['Agility', Number(s.agility ?? 0).toLocaleString()],
-        ['Hit Chance', Number(s.hitChance ?? 0).toLocaleString()],
-        ['Crit Chance', Number(s.critChance ?? 0).toLocaleString()],
-    ];
-    return `
-        <div class="battle-stats-col">
-            <div class="battle-stats-title">${escHtml(title)}</div>
-            ${rows.map(([k,v]) => `
-                <div class="battle-stats-row">
-                    <span class="battle-stats-k">${escHtml(k)}</span>
-                    <span class="battle-stats-v">${escHtml(String(v))}</span>
-                </div>
-            `).join('')}
-        </div>`;
-}
-
 function renderBattleStatsPanel(battleStats, enemyName) {
     if (!battleStats || (!battleStats.you && !battleStats.enemy)) return '';
-    return (
-        renderBattleStatsColumn('You (Battle Stats)', battleStats.you) +
-        renderBattleStatsColumn(enemyName || 'Enemy', battleStats.enemy)
-    );
+    const you = battleStats.you || {};
+    const enemy = battleStats.enemy || {};
+    const rows = [
+        ['Damage (Phys+Elem)', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
+        ['Armor', Number(you.armor ?? 0).toLocaleString(), Number(enemy.armor ?? 0).toLocaleString()],
+        ['Magic', Number(you.magic ?? 0).toLocaleString(), Number(enemy.magic ?? 0).toLocaleString()],
+        ['HP', Number(you.hp ?? 0).toLocaleString(), Number(enemy.hp ?? 0).toLocaleString()],
+        ['Agility', Number(you.agility ?? 0).toLocaleString(), Number(enemy.agility ?? 0).toLocaleString()],
+        ['Hit Chance', Number(you.hitChance ?? 0).toLocaleString(), Number(enemy.hitChance ?? 0).toLocaleString()],
+        ['Crit Chance', Number(you.critChance ?? 0).toLocaleString(), Number(enemy.critChance ?? 0).toLocaleString()],
+    ];
+    return `
+        <div class="battle-stats-grid">
+            <div class="battle-stats-h"></div>
+            <div class="battle-stats-h">${escHtml('You')}</div>
+            <div class="battle-stats-h">${escHtml(enemyName || 'Enemy')}</div>
+            ${rows.map(([k, vYou, vEnemy]) => `
+                <div class="battle-stats-k">${escHtml(k)}</div>
+                <div class="battle-stats-v">${escHtml(String(vYou))}</div>
+                <div class="battle-stats-v">${escHtml(String(vEnemy))}</div>
+            `).join('')}
+        </div>
+    `;
 }
 
 function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = {}) {
