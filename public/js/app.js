@@ -6665,9 +6665,6 @@ function renderBattleStatsPanel(battleStats, enemyName) {
     ];
     return `
         <div class="battle-stats-grid">
-            <div class="battle-stats-h">${escHtml('You')}</div>
-            <div class="battle-stats-h battle-stats-h-mid"></div>
-            <div class="battle-stats-h">${escHtml(enemyName || 'Enemy')}</div>
             ${rows.map(([k, vYou, vEnemy]) => `
                 <div class="battle-stats-v battle-stats-v-left">${escHtml(String(vYou))}</div>
                 <div class="battle-stats-k battle-stats-k-mid">${escHtml(k)}</div>
