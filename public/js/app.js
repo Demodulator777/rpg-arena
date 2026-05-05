@@ -4538,15 +4538,14 @@ function showItemTooltip(event, itemId) {
     const r = event.currentTarget.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
 
-    // Ensure the tooltip has a definite height when content would overflow the viewport.
-    // This prevents the footer buttons from being clipped on some browsers.
+    // Always give the tooltip a definite height (clamped to the viewport).
+    // With only max-height, some browsers won't size grid `1fr` rows correctly and the footer can get clipped.
     tooltip.style.height = '';
     const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||340;
     const maxH = Math.max(220, window.innerHeight - 16);
-    if (th > maxH) {
-        tooltip.style.height = maxH + 'px';
-    }
-    const th2 = tooltip.offsetHeight || th;
+    const finalH = Math.min(Math.max(220, th), maxH);
+    tooltip.style.height = finalH + 'px';
+    const th2 = tooltip.offsetHeight || finalH;
     let left = r.right+12, top = r.top;
     if (left+tw>window.innerWidth-8) left = r.left-tw-12;
     if (top+th2>window.innerHeight-8) top = window.innerHeight-th2-8;
