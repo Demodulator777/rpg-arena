@@ -3431,8 +3431,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: auto;
     /* Keep tooltip usable even for tall items (lots of stats/lines). */
     max-height: calc(100vh - 16px);
-    display: flex;
-    flex-direction: column;
+    /* Use grid to guarantee footer visibility (more reliable than flex with max-height). */
+    display: grid;
+    grid-template-rows: auto 1fr auto;
     /* Fixed footer layout: body scrolls, actions always visible. */
     overflow: hidden;
     overscroll-behavior: contain;
@@ -3448,7 +3449,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .tt-preview-emoji { font-size: 5rem; line-height: 1; }
 .tt-body {
     padding: 12px 14px;
-    flex: 1;
     min-height: 0;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
