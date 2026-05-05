@@ -2566,6 +2566,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-size: 0.86rem;
     line-height: 1;
 }
+
+/* Badge picker: ensure <select>/<option> are readable across browsers */
+#badge-picker-modal select.input-field {
+    background: rgba(8,12,22,0.97);
+    color: var(--text-bright);
+}
+#badge-picker-modal select.input-field option {
+    background: rgba(8,12,22,0.98);
+    color: var(--text-bright);
+}
 .achievement-launch-meta {
     color: var(--gold);
     font-size: 0.72rem;
