@@ -434,6 +434,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN profile_pic TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN profile_badges TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
@@ -5053,6 +5054,15 @@ inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
+        profile_badges: (() => {
+            try {
+                const raw = char.profile_badges;
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed.slice(0, 3).map(String) : [];
+            } catch {
+                return [];
+            }
+        })(),
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -5241,6 +5251,38 @@ router.post('/profile-pic/set', auth, async (req, res) => {
         
         res.json({ success: true, profilePic });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/profile/badges', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const badgesRaw = req.body?.badges;
+        const badges = Array.isArray(badgesRaw)
+            ? badgesRaw.map(v => String(v || '').trim()).filter(Boolean)
+            : [];
+
+        const unique = Array.from(new Set(badges)).slice(0, 3);
+
+        // Validate: chosen badges must be completed achievements for this character.
+        const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
+        for (const id of unique) {
+            const def = ACHIEVEMENTS.find(a => a.id === id);
+            if (!def) return res.status(400).json({ error: `Unknown achievement: ${id}` });
+            const progress = await getAchievementMetricValue(db, char, def, metricSnapshot);
+            if (progress < def.target) {
+                return res.status(400).json({ error: `Achievement not completed: ${def.name}` });
+            }
+        }
+
+        await dbRun(db, 'UPDATE characters SET profile_badges=? WHERE id=?', [JSON.stringify(unique), char.id]);
+        const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ success: true, badges: unique, character: await buildCharacterResponse(fresh, db) });
+    } catch (e) {
+        res.status(500).json({ error: e?.message || String(e) });
+    }
 });
 
 router.post('/referrals/claim', auth, async (req, res) => {
@@ -7287,11 +7329,23 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.profile_pic,
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.profile_pic,c.profile_badges,
             (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
             FROM characters c 
             ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
-        res.json(players.map((p,i) => ({ ...p, rank:i+1 })));
+        const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
+        res.json(players.map((p,i) => {
+            let ids = [];
+            try {
+                const parsed = p.profile_badges ? JSON.parse(p.profile_badges) : [];
+                if (Array.isArray(parsed)) ids = parsed.slice(0, 3).map(String);
+            } catch {}
+            const badges = ids.map(id => {
+                const def = defById.get(id);
+                return def ? { id: def.id, icon: def.icon, name: def.name } : null;
+            }).filter(Boolean);
+            return { ...p, rank: i + 1, profile_badges: badges };
+        }));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
