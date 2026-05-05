@@ -3571,7 +3571,8 @@ async function collectMission() {
             enemyName: d.npcName || 'Enemy',
             missionName: d.missionName || '',
             battleType: 'mission',
-            tutorialMessage: d.tutorialMessage
+            tutorialMessage: d.tutorialMessage,
+            battleStats: d.battleStats || null
         });
         else showMissionModal(msg);
         renderCurrentMap(); renderCharacter();
@@ -4536,10 +4537,19 @@ function showItemTooltip(event, itemId) {
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+
+    // Ensure the tooltip has a definite height when content would overflow the viewport.
+    // This prevents the footer buttons from being clipped on some browsers.
+    tooltip.style.height = '';
     const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||340;
+    const maxH = Math.max(220, window.innerHeight - 16);
+    if (th > maxH) {
+        tooltip.style.height = maxH + 'px';
+    }
+    const th2 = tooltip.offsetHeight || th;
     let left = r.right+12, top = r.top;
     if (left+tw>window.innerWidth-8) left = r.left-tw-12;
-    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    if (top+th2>window.innerHeight-8) top = window.innerHeight-th2-8;
     tooltip.style.left = Math.max(8,left)+'px';
     tooltip.style.top  = Math.max(8,top)+'px';
 }
@@ -6627,8 +6637,49 @@ function showBattleResult(r, targetName, targetClass=null) {
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken, {
         enemyName: targetName,
         enemyClass: targetClass,
-        battleType: 'pvp'
+        battleType: 'pvp',
+        battleStats: r.battleStats || null
     });
+}
+
+function formatBattleDamageStat(s) {
+    if (!s) return '—';
+    const min = Number(s.dmgMin ?? 0);
+    const max = Number(s.dmgMax ?? 0);
+    const elem = Number(s.elemDmg ?? 0);
+    const phys = min === max ? `${min}` : `${min}-${max}`;
+    return elem > 0 ? `${phys} +${elem} elem` : phys;
+}
+
+function renderBattleStatsColumn(title, s) {
+    if (!s) return '';
+    const rows = [
+        ['Damage (Phys+Elem)', formatBattleDamageStat(s)],
+        ['Armor', Number(s.armor ?? 0).toLocaleString()],
+        ['Magic', Number(s.magic ?? 0).toLocaleString()],
+        ['HP', Number(s.hp ?? 0).toLocaleString()],
+        ['Agility', Number(s.agility ?? 0).toLocaleString()],
+        ['Hit Chance', `${Number(s.hitChance ?? 0)}%`],
+        ['Crit Chance', `${Number(s.critChance ?? 0)}%`],
+    ];
+    return `
+        <div class="battle-stats-col">
+            <div class="battle-stats-title">${escHtml(title)}</div>
+            ${rows.map(([k,v]) => `
+                <div class="battle-stats-row">
+                    <span class="battle-stats-k">${escHtml(k)}</span>
+                    <span class="battle-stats-v">${escHtml(String(v))}</span>
+                </div>
+            `).join('')}
+        </div>`;
+}
+
+function renderBattleStatsPanel(battleStats, enemyName) {
+    if (!battleStats || (!battleStats.you && !battleStats.enemy)) return '';
+    return (
+        renderBattleStatsColumn('You (Battle Stats)', battleStats.you) +
+        renderBattleStatsColumn(enemyName || 'Enemy', battleStats.enemy)
+    );
 }
 
 function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = {}) {
@@ -6636,6 +6687,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
     if (!modal) { showMissionModal(summary); return; }
     
     const fighters = document.getElementById('battle-fighters');
+    const statsEl = document.getElementById('battle-stats');
     const battleLog = Array.isArray(log) ? log : [];
     
     let enemyName = options.enemyName || 'Enemy';
@@ -6679,6 +6731,10 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
                     ? [missionVisual.spotName, missionVisual.zoneName].filter(Boolean).join(' · ')
                     : ''
             })}`;
+    }
+
+    if (statsEl) {
+        statsEl.innerHTML = renderBattleStatsPanel(options.battleStats || null, enemyName);
     }
     
     modal.classList.remove('hidden');
@@ -6920,7 +6976,8 @@ function viewBattleReport(msgId) {
         enemyName: report.opponentName || report.npcName || 'Enemy',
         enemyClass: report.opponentClass || null,
         missionName: report.missionName || '',
-        battleType: report.type === 'pvp' ? 'pvp' : 'mission'
+        battleType: report.type === 'pvp' ? 'pvp' : 'mission',
+        battleStats: report.battleStats || null
     });
 }
 async function markInboxRead(id, refreshInbox = true) {
