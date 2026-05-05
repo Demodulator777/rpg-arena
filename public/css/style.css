@@ -5023,11 +5023,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .battle-result-box {
     max-width: 700px;
     width: 100%;
-    max-height: calc(100vh - 56px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    display: flex;
-    flex-direction: column;
+    /* Scrolling is handled by .modal-box (this element also has .modal-box). */
+    display: block;
 }
 
 .battle-result-box .battle-playback-toolbar {
@@ -5148,7 +5145,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.12));
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--radius);
-    overflow: hidden;
+    overflow: visible;
 }
 .battle-stats:empty { display: none; }
 .battle-stats-grid {
@@ -5280,8 +5277,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
 
     .battle-log {
-        flex: 1 1 auto;
-        min-height: 160px;
+        min-height: unset;
         margin-bottom: 8px;
     }
 
