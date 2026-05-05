@@ -565,6 +565,12 @@ const WEEKLY_TASKS = [
             claimed_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, achievement_id)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_gatekeeper_defeats (
+            char_id INTEGER NOT NULL,
+            gatekeeper_key TEXT NOT NULL,
+            defeated_at INTEGER NOT NULL,
+            PRIMARY KEY (char_id, gatekeeper_key)
+        )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_mission_spot_stats (
             char_id INTEGER NOT NULL,
             map_type TEXT NOT NULL DEFAULT 'overworld',
@@ -1498,6 +1504,106 @@ const ACHIEVEMENTS = [
     },
 ];
 
+// Gatekeeper achievements (one-time travel progression milestones).
+ACHIEVEMENTS.push(
+    {
+        id: 'gatekeeper_overworld_swamp',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Bog Breaker',
+        desc: 'Defeat the Bog Warden and unlock Rotting Swamp travel.',
+        icon: '🐊',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:swamp',
+        target: 1,
+        rewards: { gold: 5000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_overworld_mountains',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Frostpiercer',
+        desc: 'Defeat the Frost Sentinel and unlock Frozen Mountains travel.',
+        icon: '❄️',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:mountains',
+        target: 1,
+        rewards: { gold: 8000, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_overworld_ruins',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Crypt Cracker',
+        desc: 'Defeat the Crypt Keeper and unlock Ancient Ruins travel.',
+        icon: '🏺',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:ruins',
+        target: 1,
+        rewards: { gold: 12000, gems: 5, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_overworld_dark_city',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Shadow Unbarred',
+        desc: 'Defeat the Shadow Gatekeeper and unlock Dark City travel.',
+        icon: '🌑',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:dark_city',
+        target: 1,
+        rewards: { gold: 20000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_abyss_crimson',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Crimson Threshold',
+        desc: 'Defeat the Crimson Gatekeeper.',
+        icon: '🩸',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:crimson',
+        target: 1,
+        rewards: { gold: 25000, gems: 5 },
+    },
+    {
+        id: 'gatekeeper_abyss_void',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Voidwalker’s Seal',
+        desc: 'Defeat the Void Gatekeeper.',
+        icon: '🕳️',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:void',
+        target: 1,
+        rewards: { gold: 30000, gems: 7 },
+    },
+    {
+        id: 'gatekeeper_abyss_citadel',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Watcher’s Fall',
+        desc: 'Defeat the Citadel Watcher.',
+        icon: '🛡️',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:citadel',
+        target: 1,
+        rewards: { gold: 35000, gems: 10 },
+    },
+    {
+        id: 'gatekeeper_abyss_eternal_dark',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Eternal Warden Broken',
+        desc: 'Defeat the Eternal Warden.',
+        icon: '🌌',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:eternal_dark',
+        target: 1,
+        rewards: { gold: 50000, gems: 15, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    }
+);
+
 function buildExtendedAchievements() {
     const extras = [];
     const addFromBase = (base, overrides) => extras.push({ ...base, ...overrides });
@@ -2213,7 +2319,7 @@ function buildExtendedAchievements() {
 ACHIEVEMENTS.push(...buildExtendedAchievements());
 
 async function buildAchievementMetricSnapshot(db, char) {
-    const [missionRows, monsterRows, referralRow, raidRow] = await Promise.all([
+    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows] = await Promise.all([
         dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
         dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
         char.user_id
@@ -2224,7 +2330,8 @@ async function buildAchievementMetricSnapshot(db, char) {
                 COUNT(CASE WHEN gr.status = 'completed' AND gm.reward_payload IS NOT NULL THEN 1 END) AS raids_won
             FROM guild_raid_members gm
             JOIN guild_raids gr ON gr.id = gm.raid_id
-            WHERE gm.char_id = ?`, [char.id])
+            WHERE gm.char_id = ?`, [char.id]),
+        dbAll(db, 'SELECT gatekeeper_key FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id])
     ]);
 
     const missionTotals = {
@@ -2264,6 +2371,14 @@ async function buildAchievementMetricSnapshot(db, char) {
         }
     }
 
+    const gatekeeperTotals = { total: 0, keys: new Set() };
+    for (const row of gatekeeperRows) {
+        const key = String(row.gatekeeper_key || '').trim();
+        if (!key) continue;
+        gatekeeperTotals.total += 1;
+        gatekeeperTotals.keys.add(key);
+    }
+
     return {
         wins: char.wins || 0,
         battles: (char.wins || 0) + (char.losses || 0),
@@ -2282,6 +2397,7 @@ async function buildAchievementMetricSnapshot(db, char) {
         referrals_level5: Number(referralRow?.referrals_level5 || 0),
         missionTotals,
         monsterTotals,
+        gatekeeperTotals,
     };
 }
 
@@ -2323,6 +2439,12 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
         if (metric === 'monster_types_total') return sourceMetrics.keys.size;
         if (!achievement.metric_key) return 0;
         return sourceMetrics.byKey[achievement.metric_key] || 0;
+    }
+
+    if (metric === 'gatekeeper_defeats_total') return metrics.gatekeeperTotals?.total || 0;
+    if (metric === 'gatekeeper_defeated') {
+        if (!achievement.metric_key) return 0;
+        return metrics.gatekeeperTotals?.keys?.has(achievement.metric_key) ? 1 : 0;
     }
 
     return 0;
@@ -3902,6 +4024,17 @@ function getTravelUnlockSet(char, currentMap = 'overworld') {
 
 function getTravelGatekeeperPrereq(currentMap, targetZone) {
     return (TRAVEL_GATEKEEPER_PREREQS[currentMap] || {})[targetZone] || null;
+}
+
+async function recordGatekeeperDefeat(db, charId, gatekeeperKey) {
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        await dbRun(
+            db,
+            'INSERT OR IGNORE INTO character_gatekeeper_defeats (char_id, gatekeeper_key, defeated_at) VALUES (?,?,?)',
+            [charId, String(gatekeeperKey || ''), now]
+        );
+    } catch {}
 }
 
 async function unlockTravelZone(db, char, targetZone, currentMap = 'overworld') {
@@ -6424,6 +6557,8 @@ router.get('/travel/status', auth, async (req, res) => {
 
                     if (playerWon) {
                         await unlockTravelZone(db, freshChar, targetZone, currentMap);
+                        await recordGatekeeperDefeat(db, freshChar.id, `${currentMap}:${targetZone}`);
+                        invalidateWeeklyClaimableCountCache(freshChar.id);
                         await dbRun(db, 'UPDATE characters SET location=?, hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
                             [targetZone, newHp, freshChar.id]);
                         character.unlocked_zones = freshChar.unlocked_zones;
