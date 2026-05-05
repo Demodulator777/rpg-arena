@@ -5292,8 +5292,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
     .battle-stats {
         margin-bottom: 8px;
-        grid-template-columns: 1fr;
+        padding: 8px;
+        gap: 8px;
+        /* Keep side-by-side comparison even on phones. */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
+    .battle-stats-col { padding: 8px; }
+    .battle-stats-title { font-size: 0.68rem; margin-bottom: 6px; }
+    .battle-stats-row { font-size: 0.72rem; padding: 2px 0; }
 }
 
 .fighter-card {
