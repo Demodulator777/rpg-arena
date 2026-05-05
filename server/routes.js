@@ -572,6 +572,49 @@ const WEEKLY_TASKS = [
             defeated_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, gatekeeper_key)
         )`, args: [] });
+
+        // Backfill: older characters may already have zones unlocked (beaten gatekeepers) before we tracked it.
+        try {
+            const rows = await dbAll(db, 'SELECT id, unlocked_zones FROM characters', []);
+            const now = Math.floor(Date.now() / 1000);
+            for (const r of rows) {
+                const charId = Number(r.id || 0);
+                if (!charId) continue;
+                let parsed = null;
+                try { parsed = r.unlocked_zones ? JSON.parse(r.unlocked_zones) : null; } catch {}
+                const unlocks = (() => {
+                    const defaults = { overworld: ['forest'], abyss: ['shadowfen'] };
+                    if (!parsed) return defaults;
+                    if (Array.isArray(parsed)) {
+                        return { ...defaults, overworld: Array.from(new Set([...defaults.overworld, ...parsed])) };
+                    }
+                    return {
+                        overworld: Array.from(new Set([...(defaults.overworld || []), ...((parsed && parsed.overworld) || [])])),
+                        abyss: Array.from(new Set([...(defaults.abyss || []), ...((parsed && parsed.abyss) || [])])),
+                    };
+                })();
+
+                const add = async (key) => {
+                    await dbRun(
+                        db,
+                        'INSERT OR IGNORE INTO character_gatekeeper_defeats (char_id, gatekeeper_key, defeated_at) VALUES (?,?,?)',
+                        [charId, key, now]
+                    );
+                };
+
+                // Overworld gatekeepers correspond to having that zone unlocked for travel.
+                if (unlocks.overworld.includes('swamp')) await add('overworld:swamp');
+                if (unlocks.overworld.includes('mountains')) await add('overworld:mountains');
+                if (unlocks.overworld.includes('ruins')) await add('overworld:ruins');
+                if (unlocks.overworld.includes('dark_city')) await add('overworld:dark_city');
+
+                // Abyss gatekeepers (if those zones exist in the unlock list).
+                if (unlocks.abyss.includes('crimson')) await add('abyss:crimson');
+                if (unlocks.abyss.includes('void')) await add('abyss:void');
+                if (unlocks.abyss.includes('citadel')) await add('abyss:citadel');
+                if (unlocks.abyss.includes('eternal_dark')) await add('abyss:eternal_dark');
+            }
+        } catch {}
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_mission_spot_stats (
             char_id INTEGER NOT NULL,
             map_type TEXT NOT NULL DEFAULT 'overworld',
