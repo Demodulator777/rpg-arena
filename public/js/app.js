@@ -6659,8 +6659,8 @@ function renderBattleStatsColumn(title, s) {
         ['Magic', Number(s.magic ?? 0).toLocaleString()],
         ['HP', Number(s.hp ?? 0).toLocaleString()],
         ['Agility', Number(s.agility ?? 0).toLocaleString()],
-        ['Hit Chance', `${Number(s.hitChance ?? 0)}%`],
-        ['Crit Chance', `${Number(s.critChance ?? 0)}%`],
+        ['Hit Chance', Number(s.hitChance ?? 0).toLocaleString()],
+        ['Crit Chance', Number(s.critChance ?? 0).toLocaleString()],
     ];
     return `
         <div class="battle-stats-col">
