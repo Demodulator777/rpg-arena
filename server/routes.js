@@ -3569,6 +3569,30 @@ function createTutorialBattleResult(playerFighter, npc) {
     };
 }
 
+function summarizeBattleStats(fighter) {
+    if (!fighter) return null;
+    const physMin = Number(fighter.dmgMin ?? fighter.dmg_min ?? 0);
+    const physMax = Number(fighter.dmgMax ?? fighter.dmg_max ?? 0);
+    const elem = fighter.elem_dmg || {};
+    const elemTotal =
+        Number(elem.pyro || 0) +
+        Number(elem.water || 0) +
+        Number(elem.wind || 0) +
+        Number(elem.electro || 0);
+    const hpMax = Number(fighter.hpMax ?? fighter.hp_max ?? fighter.hp ?? 0);
+    return {
+        dmgMin: physMin,
+        dmgMax: physMax,
+        elemDmg: elemTotal,
+        armor: Number(fighter.armor ?? 0),
+        magic: Number(fighter.magic ?? 0),
+        hp: hpMax,
+        agility: Number(fighter.agility ?? 0),
+        hitChance: Number(fighter.hit_chance ?? 0),
+        critChance: Number(fighter.crit_chance ?? 0),
+    };
+}
+
 function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     // Base difficulty multipliers
     const difficultyMultipliers = {
@@ -5676,6 +5700,11 @@ if (freshChar.class === 'rogue') {
         if (isTutorial) {
             forceWinnerId = freshChar.id;
         }
+
+        const battleStats = {
+            you: summarizeBattleStats(playerFighter),
+            enemy: summarizeBattleStats(npc),
+        };
         
         const battle = isTutorial
             ? createTutorialBattleResult(playerFighter, npc)
@@ -5904,7 +5933,8 @@ const payload = JSON.stringify({
     npcName: npcName,  // Use the extracted NPC name here
     missionName: mission.mission_name,
     totalDmgDealt: battle.totalDmgToB,
-    totalDmgTaken: battle.totalDmgToA
+    totalDmgTaken: battle.totalDmgToA,
+    battleStats
 });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
         } catch {}
@@ -5921,6 +5951,7 @@ const payload = JSON.stringify({
             character: await buildCharacterResponse(updatedChar, db),
             totalDmgDealt: battle.totalDmgToB,
             totalDmgTaken: battle.totalDmgToA,
+            battleStats,
             missionName: mission.mission_name,
         });
     } catch (e) {
@@ -6999,6 +7030,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         const battle = runBattle(fighterA, fighterB);
         const attackerWon = battle.winnerId === freshA.id;
+
+        const battleStatsForAttacker = { you: summarizeBattleStats(fighterA), enemy: summarizeBattleStats(fighterB) };
+        const battleStatsForDefender = { you: summarizeBattleStats(fighterB), enemy: summarizeBattleStats(fighterA) };
         
         if (attackerWon) {
             await recordShieldlessWin(db, freshA, equippedA);
@@ -7077,7 +7111,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 opponentName:freshA.name,
                 opponentClass:freshA.class,
                 totalDmgDealt:battle.totalDmgToA,
-                totalDmgTaken:battle.totalDmgToB
+                totalDmgTaken:battle.totalDmgToB,
+                battleStats: battleStatsForDefender
             });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshD.id, defSubject, `BATTLE_REPORT:${defPayload}`]);
         } catch (e) { console.error('Failed to send defender report:', e); }
@@ -7093,7 +7128,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 opponentName:freshD.name,
                 opponentClass:freshD.class,
                 totalDmgDealt:battle.totalDmgToB,
-                totalDmgTaken:battle.totalDmgToA
+                totalDmgTaken:battle.totalDmgToA,
+                battleStats: battleStatsForAttacker
             });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshA.id, atkSubject, `BATTLE_REPORT:${atkPayload}`]);
         } catch (e) { console.error('Failed to send attacker report:', e); }
@@ -7105,6 +7141,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             character: await buildCharacterResponse(updatedAttacker, db),
             totalDmgDealt: battle.totalDmgToB,
             totalDmgTaken: battle.totalDmgToA,
+            battleStats: battleStatsForAttacker,
         });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
