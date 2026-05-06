@@ -8268,14 +8268,27 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
     const db = await getDb();
     const { floor, roomIndex } = req.body;
     const { userId } = req.user;
+    const ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
+
+    const char = await getCurrentCharacter(db, userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
     
-    // Check if already cleared - don't allow re-entry
-    const alreadyCleared = await db.execute({
-      sql: `SELECT id FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'`,
-      args: [userId, floor, roomIndex]
+    // Do not permanently block re-entry. Only block reward re-claims inside the respawn window.
+    // (Client allows re-entering rooms freely; this endpoint just helps prevent duplicate loot.)
+    const lastClear = await db.execute({
+      sql: `SELECT created_at
+            FROM dungeon_room_instances
+            WHERE char_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'
+            ORDER BY COALESCE(created_at, 0) DESC
+            LIMIT 1`,
+      args: [char.id, floor, roomIndex]
     });
-    if (alreadyCleared.rows.length > 0) {
-      return res.status(409).json({ error: 'Room already cleared', locked: true });
+    if (lastClear.rows.length > 0) {
+      const clearedAt = Number(lastClear.rows[0].created_at || 0) || 0;
+      // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
+      if (clearedAt > 0 && (Date.now() - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
+        return res.status(409).json({ error: 'Room reward on cooldown', locked: true });
+      }
     }
 
     // Room entry itself should never block combat; the actual one-reward guarantee
@@ -8316,33 +8329,45 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     const char = await getCurrentCharacter(db, userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const runKey = String(floorRunId || `${floor}_legacy`);
+    const ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
+    const now = Date.now();
 
-    // Atomically attempt to insert the cleared record.
-    // The cleared id is scoped to the current floor instance so restarting the same
-    // floor later doesn't collide with an old clear from a previous run.
-    let inserted = false;
-    try {
-      const clearedId = `${char.id}_${runKey}_${roomIndex}_cleared`;
-      await db.execute({
-        sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, status)
-              VALUES (?, ?, ?, ?, ?, 'cleared')`,
-        args: [clearedId, userId, char.id, floor, roomIndex]
-      });
-      inserted = true;
-    } catch (uniqueErr) {
-      const msg = String(uniqueErr?.message || '');
-      if (msg.includes('UNIQUE') || msg.includes('duplicate') || msg.includes('constraint')) {
-        inserted = false;
-      } else {
-        throw uniqueErr;
+    // Use a stable id per user+floor+room, and allow re-clearing after the respawn window.
+    // (Room monster respawn is 48h; reward should follow the same cooldown.)
+    const stableId = `${char.id}_${floor}_${roomIndex}_cleared`;
+
+    const existing = await db.execute({
+      sql: `SELECT created_at
+            FROM dungeon_room_instances
+            WHERE id = ? AND status = 'cleared'
+            LIMIT 1`,
+      args: [stableId]
+    });
+
+    if (existing.rows.length > 0) {
+      const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
+      // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
+      if (clearedAt > 0 && (now - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
+        return res.status(409).json({ error: 'Room already cleared', cleared: true });
       }
+
+      // Cooldown elapsed — refresh timestamp so the next claim is gated again.
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+              WHERE id = ?`,
+        args: [now, char.id, floor, roomIndex, runKey, stableId]
+      });
+
+      return res.json({ success: true, recleared: true });
     }
 
-    if (!inserted) {
-      // Already cleared by another session — block reward
-      return res.status(409).json({ error: 'Room already cleared', cleared: true });
-    }
+    await db.execute({
+      sql: `INSERT INTO dungeon_room_instances
+              (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+            VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+      args: [stableId, userId, char.id, floor, roomIndex, runKey, now]
+    });
 
     res.json({ success: true });
   } catch (e) {
