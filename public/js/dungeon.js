@@ -1298,8 +1298,13 @@ function startCombat(roomIdx) {
 
     // Check if already cleared (server-side protection)
     if (room.monstersCleared) {
-        log(`⚠️ This room has already been cleared!`, 'log-warning');
-        return;
+        // Cooldown is aligned with MONSTER_RESPAWN_H. After respawn, allow clearing again.
+        if (!elapsed(room.monstersCleared, MONSTER_RESPAWN_H)) {
+            const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monstersCleared) / 3600000).toFixed(1);
+            log(`💤 Room reward on cooldown (${hoursLeft}h)`, 'log-info');
+            return;
+        }
+        room.monstersCleared = null;
     }
 
     // Check if any monsters are alive
@@ -1473,6 +1478,12 @@ function onRoomCleared(roomIdx) {
 function tryRun(roomIdx) {
     if (chance(RUN_ESCAPE_CHANCE)) {
         log(`💨 Escaped successfully!`, 'log-success');
+
+        // Mark the room as evaded so travel is allowed even if multiple monsters are alive.
+        // (Reset in travelToRoom once you actually leave.)
+        const room = D.rooms && D.rooms[roomIdx];
+        if (room) room.monstersEvaded = true;
+
         if (D.combat && D.combat.isCrawler && D.crawler) {
             D.crawler.active = true;
             D.crawler.roomIdx = roomIdx;
