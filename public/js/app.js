@@ -1471,6 +1471,7 @@ if (name === 'character')   renderCharacter();
     if (name === 'forge')       loadForge();
     if (name === 'inventory')   { syncInvTabButtons(); loadInventory(); }
     if (name === 'leaderboard') loadLeaderboard();
+    if (name === 'squads')      loadSquads();
     if (name === 'shop')        loadShop();
     if (name === 'inbox')       loadInbox();
     if (name === 'dungeon')     renderDungeonTab();
@@ -6312,6 +6313,119 @@ async function loadLeaderboard() {
     }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
+
+// ── Squads ────────────────────────────────────────────────────────────────
+let squadsData = null;
+async function loadSquads() {
+    const el = document.getElementById('squads-content');
+    if (!el) return;
+    el.innerHTML = '<p class="loading">Loading squads...</p>';
+    try {
+        const [me, lb] = await Promise.all([
+            api('GET', '/game/squads/me').catch(() => ({ squad: null, members: [] })),
+            api('GET', '/game/squads/leaderboard')
+        ]);
+        squadsData = { me, lb };
+        renderSquads();
+    } catch (e) {
+        el.innerHTML = `<p class="loading">${escHtml(e.message)}</p>`;
+    }
+}
+
+function renderSquads() {
+    const el = document.getElementById('squads-content');
+    if (!el) return;
+    const me = squadsData?.me || {};
+    const lb = squadsData?.lb || [];
+    const squad = me.squad;
+    const members = me.members || [];
+
+    const myCard = squad ? `
+        <div class="squads-card">
+            <div class="squads-card-head">
+                <div>
+                    <div class="squads-title">🛡️ ${escHtml(squad.name)}</div>
+                    <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
+                </div>
+                <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
+            </div>
+            <div class="squads-members">
+                ${members.map(m => `<div class="squads-member">
+                    <span class="squads-member-name">${escHtml(m.name)}</span>
+                    <span class="squads-member-sub">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                </div>`).join('')}
+            </div>
+        </div>
+    ` : `
+        <div class="squads-card">
+            <div class="squads-title">🛡️ Squads</div>
+            <div class="squads-meta">Create a squad or join one by invite code.</div>
+            <div class="squads-actions">
+                <input id="squad-name" class="input-field" placeholder="Squad name (3-20 chars)">
+                <button class="btn-primary" ${actionAttrs('createSquad')}>Create</button>
+            </div>
+            <div class="squads-actions" style="margin-top:10px">
+                <input id="squad-code" class="input-field" placeholder="Invite code">
+                <button class="btn-secondary" ${actionAttrs('joinSquad')}>Join</button>
+            </div>
+        </div>
+    `;
+
+    const lbHtml = `
+        <div class="squads-card">
+            <div class="squads-title">🏆 Top Squads</div>
+            <div class="squads-leaderboard">
+                ${(lb || []).map((s, idx) => `
+                    <div class="squad-row">
+                        <div class="squad-rank">#${idx + 1}</div>
+                        <div class="squad-info">
+                            <div class="squad-name">${escHtml(s.name)}</div>
+                            <div class="squad-sub">Members: ${s.member_count} · Avg Lv: ${s.avg_level} · Avg Gold: ${Number(s.avg_gold||0).toLocaleString()}</div>
+                        </div>
+                        <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+
+    el.innerHTML = `<div class="squads-grid">${myCard}${lbHtml}</div>`;
+}
+
+async function createSquad() {
+    const name = document.getElementById('squad-name')?.value || '';
+    try {
+        const res = await api('POST', '/game/squads/create', { name });
+        await openGameNoticeDialog({ title: '🛡️ Squad Created', message: `Created "${res.squad?.name || name}".` });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🛡️ Squads', message: e.message || String(e) });
+    }
+}
+window.createSquad = createSquad;
+
+async function joinSquad() {
+    const code = document.getElementById('squad-code')?.value || '';
+    try {
+        const res = await api('POST', '/game/squads/join', { code });
+        await openGameNoticeDialog({ title: '🛡️ Joined Squad', message: `Joined "${res.squad?.name || 'Squad'}".` });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🛡️ Squads', message: e.message || String(e) });
+    }
+}
+window.joinSquad = joinSquad;
+
+async function leaveSquad() {
+    try {
+        await api('POST', '/game/squads/leave');
+        await openGameNoticeDialog({ title: '🛡️ Squads', message: 'You left the squad.' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🛡️ Squads', message: e.message || String(e) });
+    }
+}
+window.leaveSquad = leaveSquad;
 function filterLeaderboard() { renderLeaderboard(); }
 function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const rank = p.rank || fallbackRank;
