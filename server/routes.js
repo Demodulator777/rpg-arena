@@ -572,6 +572,21 @@ const WEEKLY_TASKS = [
             defeated_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, gatekeeper_key)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            invite_code TEXT NOT NULL UNIQUE,
+            owner_char_id INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_members (
+            squad_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            joined_at INTEGER NOT NULL,
+            PRIMARY KEY (squad_id, char_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_squad_members_char_id ON squad_members(char_id)`, args: [] });
 
         // Backfill: older characters may already have zones unlocked (beaten gatekeepers) before we tracked it.
         try {
@@ -5442,6 +5457,124 @@ router.get('/achievements', auth, async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+function normalizeSquadName(name) {
+    const n = String(name || '').trim().replace(/\s+/g, ' ');
+    if (n.length < 3) return null;
+    if (n.length > 20) return null;
+    // keep it simple: letters/numbers/spaces/hyphen/underscore
+    if (!/^[a-zA-Z0-9 _-]+$/.test(n)) return null;
+    return n;
+}
+
+function makeInviteCode() {
+    const part = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `${part()}${part()}`;
+}
+
+router.get('/squads/me', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.json({ squad: null, members: [] });
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
+        const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned
+            FROM squad_members sm JOIN characters c ON c.id = sm.char_id
+            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id]);
+        res.json({ squad, members });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/create', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
+        const name = normalizeSquadName(req.body?.name);
+        if (!name) return res.status(400).json({ error: 'Invalid squad name (3-20 chars, letters/numbers/spaces/-/_).' });
+
+        let code = makeInviteCode();
+        for (let i = 0; i < 5; i++) {
+            const exists = await dbGet(db, 'SELECT 1 FROM squads WHERE invite_code=? LIMIT 1', [code]);
+            if (!exists) break;
+            code = makeInviteCode();
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const ins = await dbRun(db, 'INSERT INTO squads (name, invite_code, owner_char_id, created_at) VALUES (?,?,?,?)', [name, code, char.id, now]);
+        const squadId = Number(ins.lastInsertRowid || 0);
+        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [squadId, char.id, 'leader', now]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [squadId]);
+        res.json({ success: true, squad });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/join', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
+        const code = String(req.body?.code || '').trim().toUpperCase();
+        if (!code) return res.status(400).json({ error: 'Invite code required.' });
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE invite_code=? LIMIT 1', [code]);
+        if (!squad) return res.status(404).json({ error: 'Squad not found.' });
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [squad.id, char.id, 'member', now]);
+        res.json({ success: true, squad });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/leave', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.json({ success: true });
+        await dbRun(db, 'DELETE FROM squad_members WHERE char_id=?', [char.id]);
+        // If squad is empty, delete it.
+        const left = await dbGet(db, 'SELECT COUNT(*) AS c FROM squad_members WHERE squad_id=?', [membership.squad_id]);
+        if (Number(left?.c || 0) <= 0) {
+            await dbRun(db, 'DELETE FROM squads WHERE id=?', [membership.squad_id]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/leaderboard', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        // Use lifetime total_gold_earned for "cumulative gold".
+        const rows = await dbAll(db, `
+            SELECT
+                s.id,
+                s.name,
+                COUNT(sm.char_id) AS member_count,
+                CAST(AVG(c.level) AS INTEGER) AS avg_level,
+                CAST(AVG(c.gold) AS INTEGER) AS avg_gold,
+                SUM(c.total_gold_earned) AS total_gold_earned
+            FROM squads s
+            JOIN squad_members sm ON sm.squad_id = s.id
+            JOIN characters c ON c.id = sm.char_id
+            GROUP BY s.id
+            ORDER BY total_gold_earned DESC
+            LIMIT 200
+        `, []);
+        res.json(rows.map(r => ({
+            id: Number(r.id || 0),
+            name: r.name,
+            member_count: Number(r.member_count || 0),
+            avg_level: Number(r.avg_level || 0),
+            avg_gold: Number(r.avg_gold || 0),
+            total_gold_earned: Number(r.total_gold_earned || 0),
+        })));
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
