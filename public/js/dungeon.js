@@ -1253,6 +1253,32 @@ function proceedStartDungeon(dungeonId) {
         D.exploredRooms = new Set(s.explored);
         D.crawler = s.crawler || null;
         D.floorRunId = s.floorRunId || createFloorRunId();
+
+        // Defensive: if saved rooms were generated with a different floor (or older rules),
+        // the floor number and the monster counts can desync (e.g. 2 enemies on floor 3).
+        // In that case, regenerate the floor for the current floor to restore consistency.
+        const expectedMaxEnemies = (floor) => {
+            const f = Math.max(1, Number(floor) || 1);
+            if (f >= 30) return 4;
+            if (f >= 20) return 3;
+            if (f >= 10) return 2;
+            return 1;
+        };
+        const expMax = expectedMaxEnemies(D.floor);
+        const hasInvalidCounts = Array.isArray(D.rooms) && D.rooms.some(r => {
+            if (!r || r.isStart || r.isBoss || r.isMiniBoss || r.type === 'miniboss') return false;
+            const ms = Array.isArray(r.monsters) ? r.monsters : [];
+            return ms.length > expMax;
+        });
+        if (hasInvalidCounts) {
+            D.rooms = normalizeMiniBossRooms(generateFloor('tower', D.floor), D.floor);
+            D.playerPos = D.rooms.findIndex(r => r.isStart);
+            D.exploredRooms = new Set([D.playerPos]);
+            D.crawler = spawnCrawlerForCurrentFloor();
+            D.floorRunId = createFloorRunId();
+            saveState();
+            saveProgressToDB();
+        }
         
         if (!D.rooms || D.rooms.length === 0) {
             D.rooms = normalizeMiniBossRooms(generateFloor('tower', D.floor), D.floor);
