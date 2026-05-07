@@ -8367,21 +8367,21 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       hasStatus = names.has('status');
     } catch {}
 
-    // Use a stable id per user+floor+room, and allow re-clearing after the respawn window.
-    // (Room monster respawn is 48h; reward should follow the same cooldown.)
-    const stableId = `${char.id}_${floor}_${roomIndex}_cleared`;
-
+    // Legacy DBs may have UNIQUE(user_id, floor_number, room_index) from older anti-exploit logic.
+    // So we treat (user_id,floor,roomIndex) as the natural key and "re-clear" by updating the
+    // existing row after cooldown rather than inserting a new one that would violate the unique index.
     const existing = await db.execute({
       sql: hasCreatedAt
-        ? `SELECT created_at
+        ? `SELECT id, created_at
            FROM dungeon_room_instances
-           WHERE id = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+           WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+           ORDER BY COALESCE(created_at, 0) DESC
            LIMIT 1`
         : `SELECT id
            FROM dungeon_room_instances
-           WHERE id = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+           WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
            LIMIT 1`,
-      args: [stableId]
+      args: [userId, floor, roomIndex]
     });
 
     if (existing.rows.length > 0) {
@@ -8399,50 +8399,83 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
         await db.execute({
           sql: `UPDATE dungeon_room_instances
                 SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
-                WHERE id = ?`,
-          args: [now, char.id, floor, roomIndex, runKey, stableId]
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
         });
       } else if (hasCreatedAt) {
         await db.execute({
           sql: `UPDATE dungeon_room_instances
                 SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
-                WHERE id = ?`,
-          args: [now, char.id, floor, roomIndex, stableId]
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
         });
       } else {
         // No created_at column: treat as always re-clearable, but keep row present.
         await db.execute({
           sql: `UPDATE dungeon_room_instances
                 SET char_id = ?, floor_number = ?, room_index = ?
-                WHERE id = ?`,
-          args: [char.id, floor, roomIndex, stableId]
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [char.id, floor, roomIndex, userId, floor, roomIndex]
         });
       }
 
       return res.json({ success: true, recleared: true });
     }
 
-    if (hasSessionId && hasCreatedAt) {
-      await db.execute({
-        sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
-              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
-        args: [stableId, userId, char.id, floor, roomIndex, runKey, now]
-      });
-    } else if (hasCreatedAt) {
-      await db.execute({
-        sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
-              VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
-        args: [stableId, userId, char.id, floor, roomIndex, now]
-      });
-    } else {
-      await db.execute({
-        sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
-              VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
-        args: [stableId, userId, char.id, floor, roomIndex]
-      });
+    // No existing row for this (user,floor,room) — insert. If a legacy UNIQUE constraint still
+    // trips (races/old ids), fall back to an UPDATE by the natural key.
+    const newId = `${char.id}_${floor}_${roomIndex}_cleared`;
+    try {
+      if (hasSessionId && hasCreatedAt) {
+        await db.execute({
+          sql: `INSERT INTO dungeon_room_instances
+                  (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+                VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+          args: [newId, userId, char.id, floor, roomIndex, runKey, now]
+        });
+      } else if (hasCreatedAt) {
+        await db.execute({
+          sql: `INSERT INTO dungeon_room_instances
+                  (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+                VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
+          args: [newId, userId, char.id, floor, roomIndex, now]
+        });
+      } else {
+        await db.execute({
+          sql: `INSERT INTO dungeon_room_instances
+                  (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+                VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
+          args: [newId, userId, char.id, floor, roomIndex]
+        });
+      }
+    } catch (insertErr) {
+      const msg = String(insertErr?.message || '');
+      if (msg.includes('UNIQUE') || msg.includes('constraint')) {
+        if (hasCreatedAt && hasSessionId) {
+          await db.execute({
+            sql: `UPDATE dungeon_room_instances
+                  SET created_at = ?, char_id = ?, session_id = ?
+                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [now, char.id, runKey, userId, floor, roomIndex]
+          });
+        } else if (hasCreatedAt) {
+          await db.execute({
+            sql: `UPDATE dungeon_room_instances
+                  SET created_at = ?, char_id = ?
+                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [now, char.id, userId, floor, roomIndex]
+          });
+        } else {
+          await db.execute({
+            sql: `UPDATE dungeon_room_instances
+                  SET char_id = ?
+                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [char.id, userId, floor, roomIndex]
+          });
+        }
+      } else {
+        throw insertErr;
+      }
     }
 
     res.json({ success: true });
