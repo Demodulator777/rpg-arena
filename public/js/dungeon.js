@@ -459,16 +459,21 @@ async function refreshCharacter() {
       D.floor = response.floor || 1;
       D.highestFloor = response.highestFloor || 1;
       
-      if (response.progress && response.progress.activeDungeon) {
-        D.savedProgress[response.progress.activeDungeon] = {
-          floor: response.progress.floor,
-          pos: response.progress.playerPos,
-          rooms: normalizeMiniBossRooms(response.progress.rooms || [], response.progress.floor || 1),
-          explored: response.progress.exploredRooms,
-          combat: response.progress.combat,
-          crawler: response.progress.crawler || null,
-          floorRunId: response.progress.floorRunId || null
-        };
+      if (response.progress) {
+        // Edge case: if activeDungeon is null (death/exit path), we still want resume to work.
+        const key = response.progress.activeDungeon || 'tower';
+        const rooms = normalizeMiniBossRooms(response.progress.rooms || [], response.progress.floor || 1);
+        if (rooms && rooms.length) {
+          D.savedProgress[key] = {
+            floor: response.progress.floor,
+            pos: response.progress.playerPos,
+            rooms,
+            explored: response.progress.exploredRooms,
+            combat: response.progress.combat,
+            crawler: response.progress.crawler || null,
+            floorRunId: response.progress.floorRunId || null
+          };
+        }
       }
       
       updateTokenDisplay();
