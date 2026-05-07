@@ -8856,7 +8856,8 @@ function calcDungeonPlayerStatsFromChar(char) {
     atk = strength * 2 + agility * 0.5;
     def = defense + strength * 0.3;
   }
-  const hp = Number(char.hp_current ?? char.hp ?? 100);
+  // Some DBs don't have a legacy `hp` column; rely on hp_current/hp_max.
+  const hp = Number(char.hp_current ?? char.hp_max ?? 100);
   const maxHp = Number(char.hp_max ?? 100);
   return { atk: Math.floor(atk), def: Math.floor(def), hp, maxHp };
 }
@@ -9219,7 +9220,7 @@ router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
     const db = await getDb();
     const floor = Math.max(1, Number(req.body?.floor || 1));
     const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const existing = await dbGet(
@@ -9293,7 +9294,7 @@ router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
     if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
     if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
 
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const row = await dbGet(
@@ -9418,7 +9419,7 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
     const kind = String(req.body?.kind || 'room').toLowerCase(); // room | boss
     const floorRunId = req.body?.floorRunId || null;
 
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp, dungeon_tokens, dungeon_floor, dungeon_highest_floor, dungeon_progress, premium_features');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, dungeon_tokens, dungeon_floor, dungeon_highest_floor, dungeon_progress, premium_features');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const existing = await dbGet(
@@ -9546,7 +9547,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
     if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
 
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp, dungeon_floor, dungeon_highest_floor, premium_features');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, dungeon_floor, dungeon_highest_floor, premium_features');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const row = await dbGet(
