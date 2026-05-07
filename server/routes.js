@@ -8834,7 +8834,7 @@ function buildCrawlerStatsForFloor(floor) {
   };
 }
 
-function calcDungeonPlayerStatsFromChar(char) {
+function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null) {
   const cClass = String(char.class || '').toLowerCase();
   const strength = Number(char.strength || 10);
   const defense = Number(char.defense || 5);
@@ -8856,10 +8856,14 @@ function calcDungeonPlayerStatsFromChar(char) {
     atk = strength * 2 + agility * 0.5;
     def = defense + strength * 0.3;
   }
-  // Some DBs don't have a legacy `hp` column; rely on hp_current/hp_max.
-  const hp = Number(char.hp_current ?? char.hp_max ?? 100);
-  const maxHp = Number(char.hp_max ?? 100);
+  const maxHp = Math.max(1, Number(hpMaxOverride ?? char.hp_max ?? 100));
+  const hp = Number(char.hp_current ?? maxHp);
   return { atk: Math.floor(atk), def: Math.floor(def), hp, maxHp };
+}
+
+async function getTrueHpMaxForChar(db, char) {
+  const equippedArray = await getEquippedItemsArray(db, char.id);
+  return Math.max(1, Number(calcHpMax(char, equippedArray) || char.hp_max || 100));
 }
 
 async function upsertCrawlerStat(db, charId, event) {
@@ -9448,12 +9452,13 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
     const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
     const now = Math.floor(Date.now() / 1000);
     const combatId = `dng_${kind}_${char.id}_${floor}_${roomIndex}_${seed}_${now}`;
-    const pStats = calcDungeonPlayerStatsFromChar(char);
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
     // Never let combat start with a stale/incorrect low HP snapshot.
     // If hp_current is unset/invalid, fall back to hp_max; otherwise trust hp_current.
     const safeStartHp = (() => {
       const hpCur = Number(char.hp_current);
-      const hpMax = Math.max(1, Number(char.hp_max || 1));
+      const hpMax = Math.max(1, Number(trueHpMax || 1));
       if (!Number.isFinite(hpCur) || hpCur <= 0) return hpMax;
       return Math.min(hpMax, hpCur);
     })();
@@ -9510,7 +9515,7 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
       floorRunId: String(floorRunId || `${floor}_legacy`),
       round: 1,
       playerHp: Math.max(0, safeStartHp),
-      playerMaxHp: Math.max(1, pStats.maxHp),
+      playerMaxHp: Math.max(1, trueHpMax),
       monsters,
       currentMonsterIndex: 0,
       escapeReady: false,
@@ -9575,14 +9580,15 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
 
     const state = JSON.parse(row.state_json || '{}');
     const kind = String(row.combat_type || state.kind || 'room').toLowerCase();
-    const pStats = calcDungeonPlayerStatsFromChar(char);
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
 
     // If state is missing (or corrupted), fall back to the DB HP (not a computed default),
     // otherwise HP can "jump" unexpectedly.
     const dbHpCur = Number(char.hp_current);
     const fallbackHp = (Number.isFinite(dbHpCur) && dbHpCur >= 0) ? dbHpCur : pStats.hp;
     let playerHp = Math.max(0, Number(state.playerHp ?? fallbackHp));
-    const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? pStats.maxHp));
+    const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? trueHpMax));
     let rngState = Number(row.rng_state || 0) >>> 0;
 
     const monsters = Array.isArray(state.monsters) ? state.monsters : [];
@@ -9647,7 +9653,10 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     }
 
     // Persist server-authoritative player HP every action.
-    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [playerHp, char.id]);
+    // Clamp against true HP max (includes gear/set bonuses), otherwise full-elixir can appear to "reset" HP.
+    const clampedHp = Math.max(0, Math.min(playerMaxHp, playerHp));
+    playerHp = clampedHp;
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [clampedHp, char.id]);
 
     let ended = false;
     let outcome = null;
