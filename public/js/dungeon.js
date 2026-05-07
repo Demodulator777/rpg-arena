@@ -177,7 +177,27 @@ function normalizeMiniBossRooms(rooms, floor) {
     if (!Array.isArray(rooms)) return [];
     return rooms.map(room => {
         if (!Array.isArray(room.monsters) || !room.monsters.length) return room;
-        const monsters = room.monsters.map(monster => rebalanceMiniBossMonster(monster, floor));
+        const now = Date.now();
+        const respawnMs = MONSTER_RESPAWN_H * 3600000;
+        const monsters = room.monsters.map(monster => {
+            // If a monster was killed long ago, treat it as respawned so it doesn't render at 0 HP.
+            // (Some older saved states keep lastKilled/currentHp=0 even after the respawn window.)
+            let lastKilled = monster?.lastKilled ?? null;
+            if (typeof lastKilled === 'number' && lastKilled > 0 && lastKilled < 1000000000000) {
+                // seconds -> ms
+                lastKilled = lastKilled * 1000;
+            }
+            if (typeof lastKilled === 'number' && lastKilled > 0 && (now - lastKilled) >= respawnMs) {
+                const maxHp = Number(monster?.maxHp || monster?.hp || 1);
+                return rebalanceMiniBossMonster({
+                    ...monster,
+                    lastKilled: null,
+                    maxHp,
+                    currentHp: Math.max(1, maxHp),
+                }, floor);
+            }
+            return rebalanceMiniBossMonster(monster, floor);
+        });
         return { ...room, monsters };
     });
 }
