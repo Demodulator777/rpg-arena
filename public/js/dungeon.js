@@ -1767,6 +1767,8 @@ function renderDungeonRaidHub(guildData) {
     const apprenticeReq = GUILD_RANKS.find(r => r.name === 'Apprentice')?.reputationNeeded || 10;
     const canCreateRaid = reputation >= apprenticeReq;
     const isRaidLocked = cooldownLeft > 0;
+    // Commitment is character-scoped (not account-scoped), so switching characters can run parallel raids.
+    // Commitment is character-scoped (not account-scoped), so switching characters can run parallel raids.
     const existingRaid = allRaids.find(raid => raid.status === 'forming' && (raid.isLeader || raid.isMember));
     const hasRaidCommitment = !!existingRaid;
     const createLocked = isRaidLocked || hasRaidCommitment;
@@ -1788,7 +1790,7 @@ function renderDungeonRaidHub(guildData) {
         if (raid.reward?.gems) rewardBits.push(`${Number(raid.reward.gems).toLocaleString()} Gems`);
         if (raid.reward?.item?.itemData?.name) rewardBits.push(raid.reward.item.itemData.name);
 
-        const canJoin = raid.status === 'forming' && !raid.isMember && raid.memberCount < 6;
+        const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6;
         const canStart = raid.status === 'forming' && raid.isLeader;
         const canClaim = raid.status === 'completed' && raid.isMember && !raid.rewardClaimed && raid.reward;
         const autoStartLabel = raid.autoStartMode === 'full'
@@ -1816,8 +1818,11 @@ function renderDungeonRaidHub(guildData) {
                     ${rewardBits.length ? `<div class="exchange-reward"><span class="reward-item">Rewards: ${rewardBits.join(' · ')}</span></div>` : ''}
                     ${resultLog}
                     ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
+                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<div class="exchange-desc raid-summary" style="margin-top:8px;color:var(--text-dim)">Another character on your account is already in this raid.</div>` : ''}
                     ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>Start Raid</button>` : ''}
                     ${canClaim ? `<button class="exchange-btn" ${actionAttrs('claimGuildRaidReward', raid.id)}>Claim Reward</button>` : ''}
+                    ${raid.status === 'forming' && raid.isMember && !raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('leaveGuildRaid', raid.id)}>Leave Raid</button>` : ''}
+                    ${raid.status === 'forming' && raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('deleteGuildRaid', raid.id)}>Delete Raid</button>` : ''}
                 </div>
             </div>
         `;
@@ -1910,6 +1915,28 @@ function joinGuildRaid(raidId) {
         .catch(e => console.error('Raid join failed:', e));
 }
 
+function leaveGuildRaid(raidId) {
+    apiFetch('POST', '/game/dungeon/guild/raid/leave', { raidId })
+        .then(response => {
+            if (response && response.success) {
+                log(response.message || 'Left raid.', 'log-success');
+                refreshRaidUi();
+            }
+        })
+        .catch(e => console.error('Raid leave failed:', e));
+}
+
+function deleteGuildRaid(raidId) {
+    apiFetch('POST', '/game/dungeon/guild/raid/delete', { raidId })
+        .then(response => {
+            if (response && response.success) {
+                log(response.message || 'Raid deleted.', 'log-success');
+                refreshRaidUi();
+            }
+        })
+        .catch(e => console.error('Raid delete failed:', e));
+}
+
 function startGuildRaid(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/start', { raidId })
         .then(response => {
@@ -1944,6 +1971,7 @@ function renderDungeonRaidHub(guildData) {
     const apprenticeReq = GUILD_RANKS.find(r => r.name === 'Apprentice')?.reputationNeeded || 10;
     const canCreateRaid = reputation >= apprenticeReq;
     const isRaidLocked = cooldownLeft > 0;
+    // Commitment is character-scoped (not account-scoped), so switching characters can run parallel raids.
     const existingRaid = allRaids.find(raid => raid.status === 'forming' && (raid.isLeader || raid.isMember));
     const hasRaidCommitment = !!existingRaid;
     const createLocked = isRaidLocked || hasRaidCommitment;
