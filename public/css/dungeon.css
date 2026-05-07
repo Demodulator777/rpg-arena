@@ -2477,6 +2477,10 @@
   .dungeon-hud-room.has-monster .dungeon-hud-room-progress {
     display: none;
   }
+  /* During encounters, the "running log" ticker is noisy and can overlap controls on WebKit. */
+  .dungeon-hud-room.has-monster .dungeon-hud-room-log {
+    display: none !important;
+  }
 }
 
 @media (max-width: 480px) {
