@@ -1987,7 +1987,7 @@ function renderDungeonRaidHub(guildData) {
                 ${member.isLeader ? 'Leader' : 'Member'} В· ${member.name} Lv.${member.level}
             </span>
         `).join('');
-        const canJoin = raid.status === 'forming' && !raid.isMember && raid.memberCount < 6;
+        const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6;
         const canStart = raid.status === 'forming' && raid.isLeader;
         const autoStartLabel = raid.autoStartPlayers > 0
             ? `Auto-start at ${raid.autoStartPlayers} player${raid.autoStartPlayers === 1 ? '' : 's'}`
@@ -2043,7 +2043,11 @@ function renderDungeonRaidHub(guildData) {
                         </div>
                     ` : ''}
                     ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
+                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<button class="exchange-btn" disabled title="Another character on your account is already in this raid.">Join Raid</button>` : ''}
+                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<div class="exchange-desc raid-summary" style="margin-top:8px;color:var(--text-dim)">Another character on your account is already in this raid.</div>` : ''}
                     ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>Start Raid</button>` : ''}
+                    ${raid.status === 'forming' && raid.isMember && !raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('leaveGuildRaid', raid.id)}>Leave Raid</button>` : ''}
+                    ${raid.status === 'forming' && raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('deleteGuildRaid', raid.id)}>Delete Raid</button>` : ''}
                     ${mercenaryCards}
                 </div>
             </div>
