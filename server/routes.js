@@ -8283,10 +8283,12 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
     // Some environments may have an older dungeon_room_instances schema. Avoid 500s by
     // only referencing columns that actually exist.
     let hasCreatedAt = true;
+    let hasStatus = true;
     try {
       const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
       const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
       hasCreatedAt = names.has('created_at');
+      hasStatus = names.has('status');
     } catch {}
     
     // Do not permanently block re-entry. Only block reward re-claims inside the respawn window.
@@ -8295,7 +8297,7 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
       const lastClear = await db.execute({
         sql: `SELECT created_at
               FROM dungeon_room_instances
-              WHERE char_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'
+              WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
               ORDER BY COALESCE(created_at, 0) DESC
               LIMIT 1`,
         args: [char.id, floor, roomIndex]
@@ -8356,11 +8358,13 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     // only referencing columns that actually exist.
     let hasSessionId = true;
     let hasCreatedAt = true;
+    let hasStatus = true;
     try {
       const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
       const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
       hasSessionId = names.has('session_id');
       hasCreatedAt = names.has('created_at');
+      hasStatus = names.has('status');
     } catch {}
 
     // Use a stable id per user+floor+room, and allow re-clearing after the respawn window.
@@ -8371,11 +8375,11 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       sql: hasCreatedAt
         ? `SELECT created_at
            FROM dungeon_room_instances
-           WHERE id = ? AND status = 'cleared'
+           WHERE id = ? ${hasStatus ? "AND status = 'cleared'" : ''}
            LIMIT 1`
         : `SELECT id
            FROM dungeon_room_instances
-           WHERE id = ? AND status = 'cleared'
+           WHERE id = ? ${hasStatus ? "AND status = 'cleared'" : ''}
            LIMIT 1`,
       args: [stableId]
     });
@@ -8428,15 +8432,15 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     } else if (hasCreatedAt) {
       await db.execute({
         sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, status, created_at)
-              VALUES (?, ?, ?, ?, ?, 'cleared', ?)`,
+                (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+              VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
         args: [stableId, userId, char.id, floor, roomIndex, now]
       });
     } else {
       await db.execute({
         sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, status)
-              VALUES (?, ?, ?, ?, ?, 'cleared')`,
+                (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+              VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
         args: [stableId, userId, char.id, floor, roomIndex]
       });
     }
