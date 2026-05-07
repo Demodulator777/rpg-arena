@@ -5557,7 +5557,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
                 s.name,
                 COUNT(sm.char_id) AS member_count,
                 CAST(AVG(c.level) AS INTEGER) AS avg_level,
-                CAST(AVG(c.gold) AS INTEGER) AS avg_gold,
+                CAST(AVG(c.total_gold_earned) AS INTEGER) AS avg_gold_earned,
                 SUM(c.total_gold_earned) AS total_gold_earned
             FROM squads s
             JOIN squad_members sm ON sm.squad_id = s.id
@@ -5571,7 +5571,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
             name: r.name,
             member_count: Number(r.member_count || 0),
             avg_level: Number(r.avg_level || 0),
-            avg_gold: Number(r.avg_gold || 0),
+            avg_gold_earned: Number(r.avg_gold_earned || 0),
             total_gold_earned: Number(r.total_gold_earned || 0),
         })));
     } catch (e) { res.status(500).json({ error: e.message }); }
