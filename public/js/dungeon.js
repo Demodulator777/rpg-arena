@@ -1466,9 +1466,15 @@ function fightRound() {
                 }
                 const c = getChar();
                 if (c && res.player && typeof res.player.hp === 'number') {
-                    c.hp_current = res.player.hp;
-                    c.hp = res.player.hp;
-                    if (typeof renderTopBar === 'function') renderTopBar();
+                    const maxHp = Number(c.hp_max || res.player.maxHp || 0) || Number(res.player.maxHp || 0) || 0;
+                    const nextHp = Number(res.player.hp);
+                    if (maxHp > 0 && (nextHp < 0 || nextHp > maxHp)) {
+                        console.warn('[dungeon] Ignoring invalid server HP', { nextHp, maxHp });
+                    } else {
+                        c.hp_current = res.player.hp;
+                        c.hp = res.player.hp;
+                        if (typeof renderTopBar === 'function') renderTopBar();
+                    }
                 }
                 if (res.ended && res.outcome === 'player_dead') {
                     D.combat.resolving = false;
@@ -1523,9 +1529,16 @@ function fightRound() {
                 if (res.player && typeof res.player.hp === 'number') {
                     const c = getChar();
                     if (c) {
+                        // Safety: don't apply obviously bogus HP from transient server bugs.
+                        const maxHp = Number(c.hp_max || res.player.maxHp || 0) || Number(res.player.maxHp || 0) || 0;
+                        const nextHp = Number(res.player.hp);
+                        if (maxHp > 0 && (nextHp < 0 || nextHp > maxHp)) {
+                            console.warn('[dungeon] Ignoring invalid server HP', { nextHp, maxHp });
+                        } else {
                         c.hp_current = res.player.hp;
                         c.hp = res.player.hp;
                         if (typeof renderTopBar === 'function') renderTopBar();
+                        }
                     }
                 }
 
