@@ -101,6 +101,7 @@
   object-fit: cover;
   transform: scale(1.02);
   filter: saturate(1.05) contrast(1.05);
+  z-index: 0;
 }
 
 .dungeon-game-scene-fallback {
@@ -109,6 +110,7 @@
   background:
     radial-gradient(1200px 600px at 50% 20%, rgba(124,58,237,0.15), transparent 60%),
     linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.75));
+  z-index: 0;
 }
 
 .dungeon-game-vignette {
@@ -118,6 +120,7 @@
     radial-gradient(900px 420px at 50% 40%, rgba(0,0,0,0.15), rgba(0,0,0,0.7)),
     linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55));
   pointer-events: none;
+  z-index: 1;
 }
 
 .dungeon-hud-top {
@@ -307,7 +310,8 @@
 .dungeon-hud-center {
   position: absolute;
   left: 50%;
-  top: 54%;
+  /* WebKit can resolve vh/svh differently and pull this up into the top HUD; clamp it down. */
+  top: max(54%, 140px);
   transform: translate(-50%, -50%);
   width: min(620px, 92vw);
   pointer-events: none;
