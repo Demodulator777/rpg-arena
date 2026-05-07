@@ -134,7 +134,8 @@
   background: rgba(6, 10, 18, 0.85);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
-  z-index: 10;
+  /* Keep HUD actions above the central room card on Safari/WebKit. */
+  z-index: 60;
 }
 
 .dungeon-hud-title {
@@ -204,7 +205,7 @@
   background: rgba(6, 10, 18, 0.85);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
-  z-index: 10;
+  z-index: 60;
 }
 
 .dungeon-minimap {
@@ -310,7 +311,9 @@
   transform: translate(-50%, -50%);
   width: min(620px, 92vw);
   pointer-events: none;
-  z-index: 10;
+  /* Central card should never cover the top HUD actions. */
+  z-index: 20;
+  max-height: calc(100% - 120px);
 }
 
 .dungeon-hud-room {
@@ -319,6 +322,9 @@
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
+  /* Avoid WebKit layout oddities where the card can expand upward and sit over HUD actions. */
+  max-height: min(420px, calc(100vh - 190px));
+  overflow: auto;
 }
 
 .dungeon-hud-room-title {
@@ -511,7 +517,8 @@
   display: none;
   align-items: flex-start;
   justify-content: center;
-  z-index: 30;
+  /* Must sit above sidebar hubs (z-index: 9999), topbar (200), and chat widget (6000). */
+  z-index: 20000;
   overflow-y: auto;
   padding: 20px;
   box-sizing: border-box;
@@ -526,19 +533,19 @@
   inset: 0;
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(4px);
-  z-index: 29;
+  z-index: 19999;
 }
 
 .dungeon-overlay-card {
   position: relative;
-  z-index: 31;
+  z-index: 20001;
   width: min(720px, 92vw);
   margin: auto;
 }
 
 .guild-overlay-card {
   position: relative;
-  z-index: 31;
+  z-index: 20001;
   width: min(880px, 94vw);
   margin: auto;
 }
