@@ -9270,7 +9270,8 @@ router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
 
     const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
     const crawler = buildCrawlerStatsForFloor(floor);
-    const pStats = calcDungeonPlayerStatsFromChar(char);
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
     const now = Math.floor(Date.now() / 1000);
     const combatId = `crawl_${char.id}_${floor}_${seed}_${now}`;
 
@@ -9341,7 +9342,8 @@ router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid combat state.' });
     }
 
-    const pStats = calcDungeonPlayerStatsFromChar(char);
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
     let playerHp = Math.max(0, Number(state.playerHp ?? pStats.hp));
     const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? pStats.maxHp));
     let rngState = Number(row.rng_state || 0) >>> 0;
