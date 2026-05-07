@@ -1379,9 +1379,10 @@ function startCombat(roomIdx) {
         if (!elapsed(Number(room.monstersCleared), MONSTER_RESPAWN_H)) {
             const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - Number(room.monstersCleared)) / 3600000).toFixed(1);
             log(`💤 Room reward on cooldown (${hoursLeft}h)`, 'log-info');
-            return;
+            // Cooldown should only block loot, not combat itself.
         }
-        room.monstersCleared = null;
+        // Only clear the flag when cooldown elapsed; otherwise keep it so we still know loot is gated.
+        if (elapsed(Number(room.monstersCleared), MONSTER_RESPAWN_H)) room.monstersCleared = null;
     }
 
     // Check if any monsters are alive
