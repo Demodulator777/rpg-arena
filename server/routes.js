@@ -8287,7 +8287,9 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
       const clearedAt = Number(lastClear.rows[0].created_at || 0) || 0;
       // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
       if (clearedAt > 0 && (Date.now() - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
-        return res.status(409).json({ error: 'Room reward on cooldown', locked: true });
+        // Important: do NOT use non-2xx here; client uses a shared api() wrapper that treats
+        // non-2xx as "server error", but this is an expected gameplay state.
+        return res.json({ success: false, locked: true, cooldown: true, error: 'Room reward on cooldown' });
       }
     }
 
@@ -8348,7 +8350,8 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
       // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
       if (clearedAt > 0 && (now - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
-        return res.status(409).json({ error: 'Room already cleared', cleared: true });
+        // Important: return 200 with a flag; client uses res.cleared to decide "no loot".
+        return res.json({ success: true, cleared: true });
       }
 
       // Cooldown elapsed — refresh timestamp so the next claim is gated again.
