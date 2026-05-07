@@ -2581,6 +2581,22 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .squads-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; }
 .squads-actions { display:flex; gap: 10px; align-items:center; }
 .squads-actions .input-field { flex: 1; margin: 0; }
+.squads-actions { flex-wrap: wrap; }
+#tab-squads .squads-actions .input-field {
+    min-height: 44px;
+    font-size: 1rem;
+    line-height: 1.2;
+    direction: ltr;
+    text-align: left;
+}
+#tab-squads .squads-actions .btn-primary,
+#tab-squads .squads-actions .btn-secondary {
+    flex: 0 0 auto;
+}
+@media (max-width: 520px) {
+    #tab-squads .squads-actions { gap: 8px; }
+    #tab-squads .squads-actions .input-field { min-width: 220px; }
+}
 .squads-members { margin-top: 12px; display: grid; gap: 8px; }
 .squads-member { padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.18); }
 .squads-member-name { display:block; font-weight: 800; color: var(--text-bright); }
