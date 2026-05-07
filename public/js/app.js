@@ -1734,7 +1734,9 @@ function getLiveCharacterSnapshot(baseCharacter) {
     const hpMax = Number(live.hp_max || 0);
     const hpCurrent = Number(live.hp_current ?? hpMax);
     const hpLastRegenAt = Number(live.last_regen_at || 0);
-    if (hpMax > 0 && hpCurrent < hpMax && hpLastRegenAt > 0) {
+    // While inside the dungeon we intentionally keep HP "locked" to prevent regen/potion
+    // edge-cases during boss / room combat. Topbar should match dungeon HP, so skip regen here.
+    if (!window.__dungeonActive && hpMax > 0 && hpCurrent < hpMax && hpLastRegenAt > 0) {
         const hpHoursElapsed = Math.floor((now - hpLastRegenAt) / 3600);
         if (hpHoursElapsed > 0) {
             const hpGain = Math.floor(hpMax * 0.10 * hpHoursElapsed);
