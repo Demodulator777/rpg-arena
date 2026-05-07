@@ -1174,6 +1174,7 @@ function proceedStartDungeon(dungeonId) {
     if (D.savedProgress['tower']) {
         const s = D.savedProgress[dungeonId];
         D.activeDungeon = 'tower';
+        global.__dungeonActive = true;
         D.floor = s.floor;
         D.rooms = normalizeMiniBossRooms(s.rooms || [], s.floor || 1);
         D.playerPos = s.pos;
@@ -1199,6 +1200,7 @@ function proceedStartDungeon(dungeonId) {
 
     // ── Fresh run — start from the player's current floor (loaded from DB) ──
     D.activeDungeon = 'tower';
+    global.__dungeonActive = true;
     const startFloor = D.floor || 1;  // already set by loadDungeonDataFromDB
     D.rooms = normalizeMiniBossRooms(generateFloor('tower', startFloor), startFloor);
     
@@ -1586,6 +1588,7 @@ function onPlayerDeath() {
     };
     D.combat = null;
     D.activeDungeon = null;
+    global.__dungeonActive = false;
     saveState();
     saveProgressToDB();
     setTimeout(() => renderDungeonList(), 1500);
@@ -2117,6 +2120,7 @@ function renderDungeonList() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
     D.activeDungeon = null;
+    global.__dungeonActive = false;
 
     // Check BOTH saved progress AND database floor value
     const hasSave = !!D.savedProgress['tower'];
@@ -2793,6 +2797,7 @@ function dungeonExit() {
     
     // THEN clear the active dungeon
     D.activeDungeon = null;
+    global.__dungeonActive = false;
     D.combat = null;
     saveState();
     renderDungeonList();
