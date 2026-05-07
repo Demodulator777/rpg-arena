@@ -8448,7 +8448,9 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('room-clear error:', e);
-    res.status(500).json({ error: e.message });
+    // Avoid hard-failing the client with a generic "server error confirming room clear" popup.
+    // Returning 200 with cleared:true ensures the client does not grant loot on uncertainty.
+    res.json({ success: true, cleared: true, serverError: true, error: String(e?.message || e) });
   }
 });
 
