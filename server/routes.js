@@ -3355,9 +3355,6 @@ function calcHpMax(char, equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.hp_max) base += data.stats.hp_max;
-            // Gear vitality should increase max HP (same scaling as base vitality).
-            // We intentionally do NOT apply gear defense here to avoid inflating HP too hard.
-            if (data?.stats?.vitality) base += Number(data.stats.vitality || 0) * 25;
         } catch {}
     }
     return base;
