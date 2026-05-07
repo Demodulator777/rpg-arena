@@ -3,6 +3,7 @@ const { getDb } = require('./db');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
 const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+const crypto = require('crypto');
 
 // Import skill tree functions
 const { 
@@ -727,6 +728,23 @@ const WEEKLY_TASKS = [
             session_id TEXT,
             created_at INTEGER
         )`, args: [] });
+
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dungeon_combat_sessions (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            floor_number INTEGER NOT NULL,
+            room_index INTEGER NOT NULL,
+            combat_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            seed INTEGER NOT NULL,
+            rng_state INTEGER NOT NULL,
+            turn_nonce INTEGER NOT NULL DEFAULT 0,
+            state_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_dungeon_combat_char ON dungeon_combat_sessions(char_id, floor_number, combat_type, status)`, args: [] });
 
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_crawler_stats (
             char_id INTEGER PRIMARY KEY,
@@ -8719,9 +8737,15 @@ router.post('/dungeon/add-gold', auth, async (req, res) => {
     const { amount } = req.body;
     const char = await getCurrentCharacter(db, req.user.userId, 'id');
     if (!char) return res.status(404).json({ error: 'Character not found' });
-    await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold + ? WHERE id = ?', 
-      [amount, char.id]);
-    res.json({ success: true });
+
+    // Legacy endpoint (client-side loot). Dungeon loot is now granted server-side via combat sessions.
+    // Keep it for backwards compatibility, but clamp aggressively to reduce exploit value.
+    const safeAmount = Math.max(0, Math.min(250, Number(amount || 0)));
+    if (safeAmount <= 0) return res.json({ success: true });
+
+    await dbRun(db, 'UPDATE characters SET dungeon_gold = COALESCE(dungeon_gold, 0) + ? WHERE id = ?', 
+      [safeAmount, char.id]);
+    res.json({ success: true, amount: safeAmount });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -8731,10 +8755,1000 @@ router.post('/dungeon/update-health', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { hp } = req.body;
-    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, hp_current, hp_max');
     if (!char) return res.status(404).json({ error: 'Character not found' });
-    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [hp, char.id]);
-    res.json({ success: true });
+
+    // Legacy endpoint (client-side combat). Combat is now server-authoritative; we disallow healing via this API.
+    const maxHp = Math.max(1, Number(char.hp_max || 1));
+    const currentHp = Math.max(0, Number(char.hp_current || 0));
+    let safeHp = Math.max(0, Math.min(maxHp, Number(hp ?? currentHp)));
+    // Never allow increasing HP through this sync endpoint.
+    if (safeHp > currentHp) safeHp = currentHp;
+
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [safeHp, char.id]);
+    res.json({ success: true, hp: safeHp });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function mulberry32Next(state) {
+  // Deterministic PRNG step (unsigned 32-bit state).
+  let t = (state + 0x6D2B79F5) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  return { state: t >>> 0, value };
+}
+
+function rngIntInclusive(rngState, min, max) {
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  const next = mulberry32Next(rngState >>> 0);
+  const span = (hi - lo) + 1;
+  const n = lo + Math.floor(next.value * span);
+  return { rngState: next.state, n };
+}
+
+function buildDungeonBossStatsForFloor(floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const BOSS_POOL = [
+    { name: 'Death Knight Malachar', baseHp: 600, baseAtk: 45, baseDef: 20 },
+    { name: 'Ignarath the Eternal', baseHp: 700, baseAtk: 55, baseDef: 25 },
+    { name: 'Nyxaroth the Devourer', baseHp: 800, baseAtk: 65, baseDef: 30 },
+    { name: 'The Hollow King', baseHp: 900, baseAtk: 70, baseDef: 35 },
+    { name: 'Voidborn Colossus', baseHp: 1000, baseAtk: 80, baseDef: 40 },
+    { name: 'The Undying Empress', baseHp: 1100, baseAtk: 90, baseDef: 45 },
+    { name: 'Abyssal Sovereign', baseHp: 1200, baseAtk: 95, baseDef: 50 },
+  ];
+  const idx = (safeFloor - 1) % BOSS_POOL.length;
+  const tier = Math.floor((safeFloor - 1) / BOSS_POOL.length);
+  const base = BOSS_POOL[idx];
+  const scale = 1 + (safeFloor - 1) * 0.18 + tier * 0.5;
+  return {
+    name: base.name,
+    hp: Math.round(base.baseHp * scale),
+    atk: Math.round(base.baseAtk * scale),
+    def: Math.round(base.baseDef * scale),
+  };
+}
+
+function buildCrawlerStatsForFloor(floor) {
+  const boss = buildDungeonBossStatsForFloor(floor);
+  // Must match client tuning in public/js/dungeon.js
+  const hpMult = 2.9;   // 1.45 * 2
+  const atkMult = 1.35;
+  const defMult = 2.5;  // 1.25 * 2
+  const maxHp = Math.round(boss.hp * hpMult);
+  return {
+    id: 'the_crawler',
+    name: 'The Crawler',
+    icon: '🕷️',
+    image: '/images/dungeon/crawler.jpg',
+    hp: maxHp,
+    maxHp,
+    currentHp: maxHp,
+    atk: Math.round(boss.atk * atkMult),
+    def: Math.round(boss.def * defMult),
+    isCrawler: true,
+  };
+}
+
+function calcDungeonPlayerStatsFromChar(char) {
+  const cClass = String(char.class || '').toLowerCase();
+  const strength = Number(char.strength || 10);
+  const defense = Number(char.defense || 5);
+  const agility = Number(char.agility || 10);
+  const magic = Number(char.magic || 10);
+  let atk = 0;
+  let def = 0;
+  if (cClass === 'mage') {
+    atk = magic * 2.2 + strength * 0.2;
+    def = defense * 0.4 + magic * 0.2;
+  } else if (cClass === 'rogue') {
+    atk = agility * 1.7 + strength * 0.5;
+    def = defense * 0.5 + agility * 0.3;
+  } else if (cClass === 'paladin') {
+    atk = strength * 1.2 + magic * 1.0;
+    def = defense * 1.2 + magic * 0.3;
+  } else {
+    // warrior/default
+    atk = strength * 2 + agility * 0.5;
+    def = defense + strength * 0.3;
+  }
+  const hp = Number(char.hp_current ?? char.hp ?? 100);
+  const maxHp = Number(char.hp_max ?? 100);
+  return { atk: Math.floor(atk), def: Math.floor(def), hp, maxHp };
+}
+
+async function upsertCrawlerStat(db, charId, event) {
+  const now = Math.floor(Date.now() / 1000);
+  await dbRun(db, `INSERT INTO character_crawler_stats (char_id, encounters, defeats, deaths)
+    VALUES (?, 0, 0, 0)
+    ON CONFLICT(char_id) DO NOTHING`, [charId]);
+  if (event === 'defeat') {
+    await dbRun(db, `UPDATE character_crawler_stats SET defeats = defeats + 1, last_defeat_at = ? WHERE char_id = ?`, [now, charId]);
+  } else if (event === 'death') {
+    await dbRun(db, `UPDATE character_crawler_stats SET deaths = deaths + 1, last_death_at = ? WHERE char_id = ?`, [now, charId]);
+  } else if (event === 'encounter') {
+    await dbRun(db, `UPDATE character_crawler_stats SET encounters = encounters + 1, last_encounter_at = ? WHERE char_id = ?`, [now, charId]);
+  }
+  invalidateWeeklyClaimableCountCache(charId);
+}
+
+// ---------------- Dungeon Combat (Server-Authoritative) ----------------
+// Step 2: extend server-authoritative combat to all dungeon mobs.
+// This does NOT yet make dungeon map generation server-authoritative; it hardens battle math + loot grants.
+
+const DUNGEON_RUN_ESCAPE_CHANCE = 0.75;
+const DUNGEON_STEAL_CHANCE = 0.18; // currently unused in server sim (reserved)
+const DUNGEON_ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
+const DUNGEON_BOSS_TOKEN_COST = 50;
+
+const DUNGEON_MONSTER_POOL = [
+  { id:'skeleton',    name:'Skeleton Warrior', hp:80,  atk:12, def:5,  steal:true,  minFloor:1  },
+  { id:'ghost',       name:'Wailing Ghost',    hp:60,  atk:18, def:2,  steal:false, minFloor:1  },
+  { id:'zombie',      name:'Rotting Zombie',   hp:120, atk:8,  def:8,  steal:true,  minFloor:1  },
+  { id:'lich',        name:'Lich Apprentice',  hp:70,  atk:22, def:3,  steal:false, minFloor:3  },
+  { id:'fire_imp',    name:'Fire Imp',         hp:90,  atk:20, def:6,  steal:false, minFloor:3  },
+  { id:'lava_golem',  name:'Lava Golem',       hp:180, atk:14, def:22, steal:false, minFloor:5  },
+  { id:'salamander',  name:'Fire Salamander',  hp:110, atk:25, def:8,  steal:true,  minFloor:5  },
+  { id:'pyromancer',  name:'Pyromancer Shade', hp:85,  atk:32, def:4,  steal:false, minFloor:7  },
+  { id:'void_wraith', name:'Void Wraith',      hp:130, atk:38, def:10, steal:true,  minFloor:8  },
+  { id:'abyssal_eye', name:'Abyssal Eye',      hp:100, atk:45, def:5,  steal:false, minFloor:10 },
+  { id:'shadow_lord', name:'Shadow Lord',      hp:200, atk:30, def:28, steal:true,  minFloor:12 },
+  { id:'void_titan',  name:'Void Titan',       hp:250, atk:42, def:35, steal:true,  minFloor:15 },
+  { id:'dread_knight',name:'Dread Knight',     hp:300, atk:50, def:40, steal:true,  minFloor:20 },
+  { id:'elder_lich',  name:'Elder Lich',       hp:220, atk:60, def:20, steal:false, minFloor:25 },
+];
+
+const DUNGEON_MINI_BOSS_POOL = [
+  { id:'shadow_stalker', name:'Shadow Stalker', baseHp:400, baseAtk:55, baseDef:25, minFloor:5,  image:'/images/dungeon/miniboss1.jpg' },
+  { id:'crystal_golem',  name:'Crystal Golem',  baseHp:600, baseAtk:40, baseDef:45, minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
+  { id:'flame_revenant', name:'Flame Revenant', baseHp:350, baseAtk:70, baseDef:20, minFloor:20, image:'/images/dungeon/miniboss3.jpg' },
+  { id:'frost_wyrmling', name:'Frost Wyrmling', baseHp:450, baseAtk:60, baseDef:30, minFloor:25, image:'/images/dungeon/miniboss4.jpg' },
+  { id:'void_stalker',   name:'Void Stalker',   baseHp:500, baseAtk:75, baseDef:28, minFloor:30, image:'/images/dungeon/miniboss5.jpg' },
+  { id:'doom_knight',    name:'Doom Knight',    baseHp:700, baseAtk:65, baseDef:50, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
+];
+
+const DUNGEON_COMMON_ITEMS = [
+  { id:'iron_shard',      name:'Iron Shard',     emoji:'🔩', rarity:'common' },
+  { id:'bone_fragment',   name:'Bone Fragment',  emoji:'🦴', rarity:'common' },
+  { id:'dim_crystal',     name:'Dim Crystal',    emoji:'💎', rarity:'common' },
+  { id:'frayed_cloth',    name:'Frayed Cloth',   emoji:'🧵', rarity:'common' },
+  { id:'tarnished_coin',  name:'Tarnished Coin', emoji:'🪙', rarity:'common' },
+];
+
+function buildRegularMonsterForFloor(monsterId, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const base = DUNGEON_MONSTER_POOL.find(m => m.id === monsterId);
+  if (!base) return null;
+  return {
+    id: base.id,
+    name: base.name,
+    icon: '👾',
+    hp: Math.round(base.hp + safeFloor * 8),
+    atk: Math.round(base.atk + safeFloor * 2.5),
+    def: Math.round(base.def + safeFloor * 1.2),
+    steal: !!base.steal,
+    isMiniBoss: false,
+    tokenCost: 0,
+    maxHp: Math.round(base.hp + safeFloor * 8),
+    currentHp: Math.round(base.hp + safeFloor * 8),
+  };
+}
+
+function buildMiniBossForFloor(miniBossKey, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const template = DUNGEON_MINI_BOSS_POOL.find(m => m.id === miniBossKey || m.name === miniBossKey);
+  if (!template) return null;
+  const scale = 1
+    + Math.max(0, safeFloor - template.minFloor) * 0.12
+    + Math.max(0, safeFloor - 1) * 0.035;
+  const maxHp = Math.round(template.baseHp * scale * 2);
+  return {
+    id: template.id,
+    name: template.name,
+    icon: '💀',
+    image: template.image,
+    hp: maxHp,
+    maxHp,
+    currentHp: maxHp,
+    atk: Math.round(template.baseAtk * scale),
+    def: Math.round(template.baseDef * scale * 2),
+    steal: false,
+    isMiniBoss: true,
+    tokenCost: 0,
+  };
+}
+
+function getHealthPotionDropForFloorServer(floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  if (safeFloor >= 25) return { id:'hp_potion_major', name:'Major Health Potion', heal:500, emoji:'🧪' };
+  if (safeFloor >= 12) return { id:'hp_potion_greater', name:'Greater Health Potion', heal:200, emoji:'🧪' };
+  return { id:'hp_potion_small', name:'Small Health Potion', heal:100, emoji:'🧪' };
+}
+
+function rollMinorLootServer(rngState, floor) {
+  // weights align with client MINION_LOOT
+  const table = [
+    { type:'gold', weight:84 },
+    { type:'potion_hp', weight:7 },
+    { type:'potion_mp', weight:3 },
+    { type:'item_common', weight:6 },
+  ];
+  const total = table.reduce((s, e) => s + e.weight, 0);
+  const r1 = rngIntInclusive(rngState, 0, total - 1);
+  rngState = r1.rngState;
+  let r = r1.n;
+  let chosen = table[0];
+  for (const entry of table) {
+    r -= entry.weight;
+    if (r < 0) { chosen = entry; break; }
+  }
+  if (chosen.type === 'gold') {
+    const g = rngIntInclusive(rngState, 12, 70);
+    return { rngState: g.rngState, loot: { type:'gold', amount: g.n } };
+  }
+  if (chosen.type === 'potion_hp') {
+    return { rngState, loot: { type:'potion_hp', ...getHealthPotionDropForFloorServer(floor) } };
+  }
+  if (chosen.type === 'potion_mp') {
+    return { rngState, loot: { type:'potion_mp', id:'mp_potion_small', name:'Mana Potion', mp:30, emoji:'💧' } };
+  }
+  const pick = rngIntInclusive(rngState, 0, DUNGEON_COMMON_ITEMS.length - 1);
+  const item = DUNGEON_COMMON_ITEMS[pick.n] || DUNGEON_COMMON_ITEMS[0];
+  return { rngState: pick.rngState, loot: { type:'item_common', item } };
+}
+
+async function grantDungeonMinorLoot(db, charId, floor, monsterCount, rngState) {
+  let totalGold = 0;
+  const granted = [];
+  for (let i = 0; i < monsterCount; i++) {
+    const rolled = rollMinorLootServer(rngState, floor);
+    rngState = rolled.rngState;
+    const loot = rolled.loot;
+    if (loot.type === 'gold') {
+      totalGold += Number(loot.amount || 0);
+      continue;
+    }
+    if (loot.type === 'potion_hp') {
+      const itemData = {
+        id: loot.id,
+        name: loot.name,
+        emoji: loot.emoji || '🧪',
+        desc: `Restores ${loot.heal} HP.`,
+        effect: { type: 'heal', value: loot.heal },
+        consumable: true,
+        category: 'consumable',
+      };
+      await addStackableInventoryItem(db, charId, 'consumable', itemData, 1);
+      granted.push({ type:'consumable', id: itemData.id, name: itemData.name, qty: 1 });
+      continue;
+    }
+    if (loot.type === 'potion_mp') {
+      const itemData = {
+        id: loot.id,
+        name: loot.name,
+        emoji: loot.emoji || '💧',
+        desc: `Restores ${loot.mp} MP.`,
+        effect: { type: 'mp', value: loot.mp },
+        consumable: true,
+        category: 'consumable',
+      };
+      await addStackableInventoryItem(db, charId, 'consumable', itemData, 1);
+      granted.push({ type:'consumable', id: itemData.id, name: itemData.name, qty: 1 });
+      continue;
+    }
+    if (loot.type === 'item_common') {
+      const mat = loot.item;
+      await addStackableInventoryItem(db, charId, 'raw_mat', { id: mat.id, name: mat.name, emoji: mat.emoji, rarity: mat.rarity }, 1);
+      granted.push({ type:'material', id: mat.id, name: mat.name, qty: 1 });
+      continue;
+    }
+  }
+  if (totalGold > 0) {
+    await dbRun(db, 'UPDATE characters SET dungeon_gold = COALESCE(dungeon_gold, 0) + ? WHERE id = ?', [totalGold, charId]);
+    granted.push({ type:'dungeon_gold', amount: totalGold });
+  }
+  return { rngState, granted };
+}
+
+async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex, floorRunId) {
+  const runKey = String(floorRunId || `${floor}_legacy`);
+  const now = Date.now();
+
+  let hasSessionId = true;
+  let hasCreatedAt = true;
+  let hasStatus = true;
+  try {
+    const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+    const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+    hasSessionId = names.has('session_id');
+    hasCreatedAt = names.has('created_at');
+    hasStatus = names.has('status');
+  } catch {}
+
+  const existing = await db.execute({
+    sql: hasCreatedAt
+      ? `SELECT id, created_at
+         FROM dungeon_room_instances
+         WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+         ORDER BY COALESCE(created_at, 0) DESC
+         LIMIT 1`
+      : `SELECT id
+         FROM dungeon_room_instances
+         WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+         LIMIT 1`,
+    args: [userId, floor, roomIndex]
+  });
+
+  if (existing.rows.length > 0) {
+    if (hasCreatedAt) {
+      const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
+      if (clearedAt > 0 && (now - clearedAt) < DUNGEON_ROOM_CLEAR_COOLDOWN_MS) {
+        return { cleared: true };
+      }
+    }
+
+    // cooldown elapsed (or unknown timestamp): refresh timestamp
+    if (hasCreatedAt && hasSessionId) {
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+        args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
+      });
+    } else if (hasCreatedAt) {
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
+              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+        args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
+      });
+    } else {
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET char_id = ?, floor_number = ?, room_index = ?
+              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+        args: [char.id, floor, roomIndex, userId, floor, roomIndex]
+      });
+    }
+    return { cleared: false, recleared: true };
+  }
+
+  const newId = `${char.id}_${floor}_${roomIndex}_cleared`;
+  try {
+    if (hasSessionId && hasCreatedAt) {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+        args: [newId, userId, char.id, floor, roomIndex, runKey, now]
+      });
+    } else if (hasCreatedAt) {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+              VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
+        args: [newId, userId, char.id, floor, roomIndex, now]
+      });
+    } else {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+              VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
+        args: [newId, userId, char.id, floor, roomIndex]
+      });
+    }
+  } catch (insertErr) {
+    const msg = String(insertErr?.message || '');
+    if (msg.includes('UNIQUE') || msg.includes('constraint')) {
+      if (hasCreatedAt && hasSessionId) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?, session_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, runKey, userId, floor, roomIndex]
+        });
+      } else if (hasCreatedAt) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, userId, floor, roomIndex]
+        });
+      } else {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET char_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [char.id, userId, floor, roomIndex]
+        });
+      }
+      return { cleared: false, recleared: true };
+    }
+    throw insertErr;
+  }
+
+  return { cleared: false, recleared: false };
+}
+
+function rollBossLootServer(rngState, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const goldMin = 100 + safeFloor * 30;
+  const goldMax = 300 + safeFloor * 80;
+  let gemMin = Math.max(1, safeFloor);
+  let gemMax = Math.max(2, safeFloor * 2);
+  gemMin = Math.min(15, gemMin);
+  gemMax = Math.min(15, gemMax);
+
+  const goldRoll = rngIntInclusive(rngState, goldMin, goldMax);
+  rngState = goldRoll.rngState;
+  const gemRoll = rngIntInclusive(rngState, gemMin, gemMax);
+  rngState = gemRoll.rngState;
+
+  const featureIds = Array.isArray(PREMIUM_FEATURE_IDS) ? PREMIUM_FEATURE_IDS : [];
+  const fPick = rngIntInclusive(rngState, 0, Math.max(0, featureIds.length - 1));
+  rngState = fPick.rngState;
+  const featureId = featureIds[fPick.n] || featureIds[0] || null;
+
+  const daysRange = safeFloor <= 5 ? [5, 10] : safeFloor <= 15 ? [7, 14] : [10, 30];
+  const dayRoll = rngIntInclusive(rngState, daysRange[0], daysRange[1]);
+  rngState = dayRoll.rngState;
+
+  const feature = featureId ? PREMIUM_FEATURES?.[featureId] : null;
+  const premium = featureId && feature ? {
+    id: featureId,
+    name: feature.name,
+    emoji: feature.emoji,
+    days: dayRoll.n,
+    seconds: dayRoll.n * 24 * 3600,
+    desc: feature.desc,
+  } : null;
+
+  return {
+    rngState,
+    loot: { gold: goldRoll.n, gems: gemRoll.n, premium }
+  };
+}
+
+// Server-authoritative Crawler combat (step 1 of anti-cheat hardening).
+router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const floor = Math.max(1, Number(req.body?.floor || 1));
+    const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const existing = await dbGet(
+      db,
+      `SELECT id, seed, rng_state, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE char_id = ? AND floor_number = ? AND combat_type = 'crawler' AND status = 'active'
+       LIMIT 1`,
+      [char.id, floor]
+    );
+
+    if (existing?.id) {
+      const state = JSON.parse(existing.state_json || '{}');
+      return res.json({
+        success: true,
+        combatId: existing.id,
+        turnNonce: Number(existing.turn_nonce || 0),
+        player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+        monster: state.monster,
+        round: state.round || 1,
+        log: [{ actor: 'monster', text: 'The Crawler is already on you!' }],
+      });
+    }
+
+    const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
+    const crawler = buildCrawlerStatsForFloor(floor);
+    const pStats = calcDungeonPlayerStatsFromChar(char);
+    const now = Math.floor(Date.now() / 1000);
+    const combatId = `crawl_${char.id}_${floor}_${seed}_${now}`;
+
+    const state = {
+      floor,
+      roomIndex,
+      round: 1,
+      playerHp: Math.max(0, pStats.hp),
+      playerMaxHp: Math.max(1, pStats.maxHp),
+      monster: crawler,
+    };
+
+    await dbRun(
+      db,
+      `INSERT INTO dungeon_combat_sessions
+        (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
+      [combatId, char.user_id, char.id, floor, roomIndex, 'crawler', 'active', seed, seed, 0, JSON.stringify(state), now, now]
+    );
+
+    // Count encounter server-side too (best-effort; client also pings it).
+    await upsertCrawlerStat(db, char.id, 'encounter');
+
+    return res.json({
+      success: true,
+      combatId,
+      turnNonce: 0,
+      player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+      monster: state.monster,
+      round: state.round,
+      log: [{ actor: 'monster', text: 'The Crawler drops from the dark and pins your escape route!' }],
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const combatId = String(req.body?.combatId || '');
+    const action = String(req.body?.action || '').toLowerCase();
+    const clientNonce = Number(req.body?.turnNonce ?? -1);
+    if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
+    if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
+
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const row = await dbGet(
+      db,
+      `SELECT id, rng_state, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE id = ? AND char_id = ? AND combat_type = 'crawler' AND status = 'active'
+       LIMIT 1`,
+      [combatId, char.id]
+    );
+    if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
+
+    const serverNonce = Number(row.turn_nonce || 0);
+    if (clientNonce !== serverNonce) {
+      return res.status(409).json({ error: 'Out-of-sync action (double-submit or stale state).', turnNonce: serverNonce });
+    }
+
+    const state = JSON.parse(row.state_json || '{}');
+    const monster = state.monster || null;
+    if (!monster || !monster.isCrawler) {
+      return res.status(400).json({ error: 'Invalid combat state.' });
+    }
+
+    const pStats = calcDungeonPlayerStatsFromChar(char);
+    let playerHp = Math.max(0, Number(state.playerHp ?? pStats.hp));
+    const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? pStats.maxHp));
+    let rngState = Number(row.rng_state || 0) >>> 0;
+    const log = [];
+
+    if (action === 'run') {
+      // Mirror client "75% flee" but server-authoritative.
+      const r = mulberry32Next(rngState);
+      rngState = r.state;
+      const escaped = r.value < 0.75;
+      log.push({ actor: 'player', text: '💨 You attempt to flee...' });
+      if (escaped) {
+        log.push({ actor: 'player', text: '✅ Escape successful. You can leave now, or keep fighting.' });
+        state.escapeReady = true;
+      } else {
+        log.push({ actor: 'monster', text: '⚠️ Escape failed! The Crawler strikes!' });
+        const dmgRoll = rngIntInclusive(rngState, -2, 2);
+        rngState = dmgRoll.rngState;
+        const mDmg = Math.max(1, Math.floor(monster.atk - pStats.def * 0.5 + dmgRoll.n));
+        playerHp = Math.max(0, playerHp - mDmg);
+        log.push({ actor: 'monster', text: `💥 ${monster.name} hits you for ${mDmg}!`, dmg: mDmg });
+        log.push({ actor: 'player', text: `🛡️ You take ${mDmg} damage.` });
+      }
+    } else {
+      // fight
+      const pRoll = rngIntInclusive(rngState, -3, 3);
+      rngState = pRoll.rngState;
+      const pDmg = Math.max(1, Math.floor(pStats.atk - monster.def * 0.5 + pRoll.n));
+      monster.currentHp = Math.max(0, Number(monster.currentHp || monster.maxHp || monster.hp) - pDmg);
+      log.push({ actor: 'player', text: `You strike ${monster.name} for ${pDmg} damage!`, dmg: pDmg });
+
+      if (monster.currentHp > 0) {
+        const mRoll = rngIntInclusive(rngState, -2, 2);
+        rngState = mRoll.rngState;
+        const mDmg = Math.max(1, Math.floor(monster.atk - pStats.def * 0.5 + mRoll.n));
+        playerHp = Math.max(0, playerHp - mDmg);
+        log.push({ actor: 'monster', text: `${monster.name} hits you for ${mDmg}!`, dmg: mDmg });
+      } else {
+        log.push({ actor: 'player', text: `🏆 Against all odds, you bring down The Crawler!` });
+      }
+    }
+
+    // Persist server-authoritative HP.
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [playerHp, char.id]);
+
+    state.playerHp = playerHp;
+    state.playerMaxHp = playerMaxHp;
+    state.monster = monster;
+    state.round = Math.max(1, Number(state.round || 1) + 1);
+
+    let ended = false;
+    let outcome = null;
+    if (playerHp <= 0) {
+      ended = true;
+      outcome = 'player_dead';
+      await upsertCrawlerStat(db, char.id, 'death');
+    } else if (monster.currentHp <= 0) {
+      ended = true;
+      outcome = 'crawler_defeated';
+      await upsertCrawlerStat(db, char.id, 'defeat');
+    }
+
+    const nextNonce = serverNonce + 1;
+    const now = Math.floor(Date.now() / 1000);
+    await dbRun(
+      db,
+      `UPDATE dungeon_combat_sessions
+       SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
+       WHERE id = ?`,
+      [rngState, nextNonce, JSON.stringify(state), now, combatId]
+    );
+
+    if (ended) {
+      await dbRun(db, `UPDATE dungeon_combat_sessions SET status = 'ended', updated_at = ? WHERE id = ?`, [now, combatId]);
+    }
+
+    res.json({
+      success: true,
+      turnNonce: nextNonce,
+      player: { hp: playerHp, maxHp: playerMaxHp },
+      monster,
+      escapeReady: !!state.escapeReady,
+      ended,
+      outcome,
+      log,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Server-authoritative combat for all dungeon mobs (regular rooms + bosses).
+router.post('/dungeon/combat/start', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const floor = Math.max(1, Number(req.body?.floor || 1));
+    const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
+    const kind = String(req.body?.kind || 'room').toLowerCase(); // room | boss
+    const floorRunId = req.body?.floorRunId || null;
+
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp, dungeon_tokens, dungeon_floor, dungeon_highest_floor, dungeon_progress, premium_features');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const existing = await dbGet(
+      db,
+      `SELECT id, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE char_id = ? AND floor_number = ? AND room_index = ? AND combat_type = ? AND status = 'active'
+       LIMIT 1`,
+      [char.id, floor, roomIndex, kind]
+    );
+    if (existing?.id) {
+      const state = JSON.parse(existing.state_json || '{}');
+      return res.json({
+        success: true,
+        combatId: existing.id,
+        turnNonce: Number(existing.turn_nonce || 0),
+        kind,
+        player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+        monsters: state.monsters || [],
+        currentMonsterIndex: Number(state.currentMonsterIndex || 0),
+        escapeReady: !!state.escapeReady,
+        log: [{ actor: 'monster', text: 'Combat resumes...' }],
+      });
+    }
+
+    const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
+    const now = Math.floor(Date.now() / 1000);
+    const combatId = `dng_${kind}_${char.id}_${floor}_${roomIndex}_${seed}_${now}`;
+    const pStats = calcDungeonPlayerStatsFromChar(char);
+
+    let monsters = [];
+    if (kind === 'boss') {
+      const boss = buildDungeonBossStatsForFloor(floor);
+      monsters = [{
+        id: `boss_floor_${floor}`,
+        name: boss.name,
+        icon: '⚠️',
+        hp: boss.hp,
+        maxHp: boss.hp,
+        currentHp: boss.hp,
+        atk: boss.atk,
+        def: boss.def,
+        steal: false,
+        isBoss: true,
+      }];
+
+      // Token gate is server-side now (prevents client bypass).
+      const tokens = Number(char.dungeon_tokens || 0);
+      if (tokens < DUNGEON_BOSS_TOKEN_COST) {
+        return res.status(400).json({ error: `Need ${DUNGEON_BOSS_TOKEN_COST} tokens to challenge the boss. You have ${tokens}.` });
+      }
+      await dbRun(db, 'UPDATE characters SET dungeon_tokens = dungeon_tokens - ? WHERE id = ?', [DUNGEON_BOSS_TOKEN_COST, char.id]);
+    } else {
+      let progress = null;
+      try { progress = char.dungeon_progress ? JSON.parse(char.dungeon_progress) : null; } catch {}
+      const rooms = Array.isArray(progress?.rooms) ? progress.rooms : [];
+      const room = rooms[roomIndex];
+      const roomMonsters = Array.isArray(room?.monsters) ? room.monsters : [];
+      if (!room || roomMonsters.length === 0) return res.status(400).json({ error: 'No enemies in this room.' });
+
+      monsters = roomMonsters.map(m => {
+        const id = String(m.id || '').trim();
+        const isMiniBoss = !!m.isMiniBoss || String(room.type || '') === 'miniboss';
+        const built = isMiniBoss ? (buildMiniBossForFloor(id || m.name, floor)) : buildRegularMonsterForFloor(id, floor);
+        if (!built) {
+          // Fallback: clamp to something safe if unknown.
+          const hp = Math.max(1, Number(m.maxHp || m.hp || 100));
+          return { id: id || 'unknown', name: String(m.name || id || 'Unknown'), icon: String(m.icon || '👾'), hp, maxHp: hp, currentHp: hp, atk: Math.max(1, Number(m.atk || 10)), def: Math.max(0, Number(m.def || 0)), steal: !!m.steal };
+        }
+        // Preserve lastKilled state semantics: if dead, keep at 0 HP.
+        const currentHp = m.lastKilled ? 0 : built.currentHp;
+        return { ...built, currentHp, maxHp: built.maxHp || built.hp };
+      });
+    }
+
+    const state = {
+      floor,
+      roomIndex,
+      kind,
+      floorRunId: String(floorRunId || `${floor}_legacy`),
+      round: 1,
+      playerHp: Math.max(0, pStats.hp),
+      playerMaxHp: Math.max(1, pStats.maxHp),
+      monsters,
+      currentMonsterIndex: 0,
+      escapeReady: false,
+    };
+
+    await dbRun(
+      db,
+      `INSERT INTO dungeon_combat_sessions
+        (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
+      [combatId, char.user_id, char.id, floor, roomIndex, kind, 'active', seed, seed, 0, JSON.stringify(state), now, now]
+    );
+
+    // Return updated token count for boss starts.
+    const refreshed = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE id = ?', [char.id]);
+
+    res.json({
+      success: true,
+      combatId,
+      turnNonce: 0,
+      kind,
+      player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+      monsters: state.monsters,
+      currentMonsterIndex: 0,
+      escapeReady: false,
+      tokens: Number(refreshed?.dungeon_tokens ?? char.dungeon_tokens ?? 0),
+      log: kind === 'boss'
+        ? [{ actor: 'monster', text: '⚠️ Boss battle begins!' }]
+        : [{ actor: 'monster', text: 'Enemies close in...' }],
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/combat/act', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const combatId = String(req.body?.combatId || '');
+    const action = String(req.body?.action || '').toLowerCase(); // fight | run
+    const clientNonce = Number(req.body?.turnNonce ?? -1);
+    if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
+    if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
+
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, hp, dungeon_floor, dungeon_highest_floor, premium_features');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const row = await dbGet(
+      db,
+      `SELECT id, combat_type, rng_state, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE id = ? AND char_id = ? AND status = 'active'
+       LIMIT 1`,
+      [combatId, char.id]
+    );
+    if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
+
+    const serverNonce = Number(row.turn_nonce || 0);
+    if (clientNonce !== serverNonce) {
+      return res.status(409).json({ error: 'Out-of-sync action (double-submit or stale state).', turnNonce: serverNonce });
+    }
+
+    const state = JSON.parse(row.state_json || '{}');
+    const kind = String(row.combat_type || state.kind || 'room').toLowerCase();
+    const pStats = calcDungeonPlayerStatsFromChar(char);
+
+    let playerHp = Math.max(0, Number(state.playerHp ?? pStats.hp));
+    const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? pStats.maxHp));
+    let rngState = Number(row.rng_state || 0) >>> 0;
+
+    const monsters = Array.isArray(state.monsters) ? state.monsters : [];
+    let currentMonsterIndex = Math.max(0, Number(state.currentMonsterIndex || 0));
+    const log = [];
+    const lootGranted = [];
+
+    const aliveMonsters = () => monsters.filter(m => Number(m.currentHp || 0) > 0);
+
+    if (action === 'run') {
+      const r = mulberry32Next(rngState);
+      rngState = r.state;
+      const escaped = r.value < DUNGEON_RUN_ESCAPE_CHANCE;
+      log.push({ actor: 'player', text: '💨 You attempt to flee...' });
+      if (escaped) {
+        log.push({ actor: 'player', text: '✅ Escape successful. You can leave now, or keep fighting.' });
+        state.escapeReady = true;
+      } else {
+        log.push({ actor: 'monster', text: '⚠️ Escape failed! The enemies strike!' });
+        let total = 0;
+        for (const m of aliveMonsters()) {
+          const roll = rngIntInclusive(rngState, -2, 2);
+          rngState = roll.rngState;
+          const mDmg = Math.max(1, Math.floor(Number(m.atk || 1) - pStats.def * 0.5 + roll.n));
+          total += mDmg;
+          log.push({ actor: 'monster', text: `💥 ${m.name} hits you for ${mDmg}!`, dmg: mDmg });
+        }
+        playerHp = Math.max(0, playerHp - total);
+        if (total > 0) log.push({ actor: 'player', text: `🛡️ You take ${total} damage.` });
+      }
+    } else {
+      const target = monsters[currentMonsterIndex];
+      if (!target || Number(target.currentHp || 0) <= 0) {
+        // Find next alive
+        const idx = monsters.findIndex(m => Number(m.currentHp || 0) > 0);
+        if (idx >= 0) currentMonsterIndex = idx;
+      }
+
+      const cur = monsters[currentMonsterIndex];
+      if (!cur) return res.status(400).json({ error: 'No target.' });
+
+      const pRoll = rngIntInclusive(rngState, -3, 3);
+      rngState = pRoll.rngState;
+      const pDmg = Math.max(1, Math.floor(pStats.atk - Number(cur.def || 0) * 0.5 + pRoll.n));
+      cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
+      log.push({ actor: 'player', text: `You strike ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
+
+      // All alive monsters attack back
+      let totalPlayerDmg = 0;
+      for (const m of aliveMonsters()) {
+        const roll = rngIntInclusive(rngState, -2, 2);
+        rngState = roll.rngState;
+        const mDmg = Math.max(1, Math.floor(Number(m.atk || 1) - pStats.def * 0.5 + roll.n));
+        totalPlayerDmg += mDmg;
+        log.push({ actor: 'monster', text: `${m.name} hits you for ${mDmg}!`, dmg: mDmg });
+      }
+      playerHp = Math.max(0, playerHp - totalPlayerDmg);
+
+      if (cur.currentHp <= 0) {
+        log.push({ actor: 'player', text: `✅ ${cur.name} defeated!` });
+      }
+    }
+
+    // Persist server-authoritative player HP every action.
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [playerHp, char.id]);
+
+    let ended = false;
+    let outcome = null;
+    let cleared = false;
+    let bossLoot = null;
+    let newFloor = null;
+    let highestFloor = null;
+    let tokens = null;
+
+    if (playerHp <= 0) {
+      ended = true;
+      outcome = 'player_dead';
+    } else if (aliveMonsters().length === 0) {
+      ended = true;
+      if (kind === 'boss') {
+        outcome = 'boss_defeated';
+        const rolled = rollBossLootServer(rngState, state.floor || 1);
+        rngState = rolled.rngState;
+        bossLoot = rolled.loot;
+
+        if (bossLoot?.gold) {
+          await dbRun(db, 'UPDATE characters SET gold = gold + ?, total_gold_earned = COALESCE(total_gold_earned,0) + ? WHERE id = ?', [bossLoot.gold, bossLoot.gold, char.id]);
+        }
+        if (bossLoot?.gems) {
+          const g = Math.min(15, bossLoot.gems);
+          await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned,0) + ? WHERE id = ?', [g, g, char.id]);
+          bossLoot.gems = g;
+        }
+        if (bossLoot?.premium?.id) {
+          const refreshed = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+          const activePrem = applyPremiumFeatureToCharacter(refreshed, bossLoot.premium.id, bossLoot.premium.days * 24 * 3600);
+          await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', [JSON.stringify(activePrem), char.id]);
+        }
+
+        // Advance floor server-side.
+        const currentFloor = Math.max(1, Number(state.floor || char.dungeon_floor || 1));
+        newFloor = currentFloor + 1;
+        highestFloor = Math.max(Number(char.dungeon_highest_floor || 1), newFloor);
+        await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?', [newFloor, highestFloor, char.id]);
+
+        // Boss kill stat
+        await recordMonsterDefeat(db, {
+          charId: char.id,
+          source: 'dungeon_boss',
+          monsterKey: `floor_${currentFloor}_boss`,
+          monsterName: String(state.monsters?.[0]?.name || `Floor ${currentFloor} Boss`),
+          count: 1,
+          now: Math.floor(Date.now() / 1000)
+        });
+
+        const tRow = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE id = ?', [char.id]);
+        tokens = Number(tRow?.dungeon_tokens || 0);
+      } else {
+        outcome = 'room_cleared';
+        const claim = await claimDungeonRoomClearInternal(db, char.user_id, char, state.floor || 1, state.roomIndex || 0, state.floorRunId || null);
+        cleared = !!claim.cleared;
+        if (!cleared) {
+          const { granted, rngState: nextRng } = await grantDungeonMinorLoot(db, char.id, state.floor || 1, Math.max(1, monsters.length), rngState);
+          rngState = nextRng;
+          lootGranted.push(...granted);
+
+          // Record monster defeat counts for achievements/bounties.
+          const now = Math.floor(Date.now() / 1000);
+          const byKey = new Map();
+          for (const m of monsters) {
+            const key = normalizeMonsterKey(m.id || m.name);
+            const name = String(m.name || m.id || 'Unknown Monster');
+            byKey.set(key, { key, name, count: (byKey.get(key)?.count || 0) + 1 });
+          }
+          for (const entry of byKey.values()) {
+            await recordMonsterDefeat(db, { charId: char.id, source: 'dungeon', monsterKey: entry.key, monsterName: entry.name, count: entry.count, now });
+          }
+        }
+      }
+    }
+
+    state.playerHp = playerHp;
+    state.playerMaxHp = playerMaxHp;
+    state.monsters = monsters;
+    state.currentMonsterIndex = currentMonsterIndex;
+    state.round = Math.max(1, Number(state.round || 1) + 1);
+
+    const nextNonce = serverNonce + 1;
+    const now = Math.floor(Date.now() / 1000);
+    await dbRun(
+      db,
+      `UPDATE dungeon_combat_sessions
+       SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
+       WHERE id = ?`,
+      [rngState, nextNonce, JSON.stringify(state), now, combatId]
+    );
+
+    if (ended) {
+      await dbRun(db, `UPDATE dungeon_combat_sessions SET status = 'ended', updated_at = ? WHERE id = ?`, [now, combatId]);
+    }
+
+    res.json({
+      success: true,
+      turnNonce: nextNonce,
+      kind,
+      player: { hp: playerHp, maxHp: playerMaxHp },
+      monsters,
+      currentMonsterIndex,
+      escapeReady: !!state.escapeReady,
+      ended,
+      outcome,
+      cleared,
+      lootGranted,
+      bossLoot,
+      newFloor,
+      highestFloor,
+      tokens,
+      log,
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -8772,10 +9786,27 @@ router.post('/dungeon/monster-defeated', auth, async (req, res) => {
 router.post('/dungeon/boss-defeated', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const { loot, newFloor, highestFloor, bossName, bossId } = req.body || {};
+    const { loot, newFloor, highestFloor, bossName, bossId, combatId } = req.body || {};
 
     const char = await getCurrentCharacter(db, req.user.userId);
     if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Hardening: boss rewards are now granted by server-authoritative combat sessions.
+    // Require a valid ended boss combat session to prevent arbitrary client reward injection.
+    if (!combatId) {
+      return res.status(400).json({ error: 'Boss rewards are granted by server combat. (missing combatId)' });
+    }
+    const recent = await dbGet(
+      db,
+      `SELECT id FROM dungeon_combat_sessions
+       WHERE id = ? AND char_id = ? AND combat_type = 'boss' AND status = 'ended'
+       LIMIT 1`,
+      [String(combatId), char.id]
+    );
+    if (!recent?.id) {
+      return res.status(403).json({ error: 'Invalid boss combat session.' });
+    }
+
     const now = Math.floor(Date.now() / 1000);
     await recordMonsterDefeat(db, {
       charId: char.id,
@@ -9023,7 +10054,7 @@ router.post('/dungeon/crawler-event', auth, async (req, res) => {
     }
 
     // New stats can affect achievements; refresh weekly claimable badge count.
-    try { weeklyClaimableCache.delete(char.id); } catch {}
+    try { invalidateWeeklyClaimableCountCache(char.id); } catch {}
 
     res.json({ success: true });
   } catch (e) {
