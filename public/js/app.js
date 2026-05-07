@@ -6382,7 +6382,7 @@ function renderSquads() {
                         <div class="squad-rank">#${idx + 1}</div>
                         <div class="squad-info">
                             <div class="squad-name">${escHtml(s.name)}</div>
-                            <div class="squad-sub">Members: ${s.member_count} · Avg Lv: ${s.avg_level} · Avg Gold: ${Number(s.avg_gold||0).toLocaleString()}</div>
+                            <div class="squad-sub">Members: ${s.member_count} · Avg Lv: ${s.avg_level} · Avg Earned: ${Number(s.avg_gold_earned||0).toLocaleString()}</div>
                         </div>
                         <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
                     </div>
