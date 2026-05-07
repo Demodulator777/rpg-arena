@@ -8279,24 +8279,35 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
 
     const char = await getCurrentCharacter(db, userId, 'id');
     if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Some environments may have an older dungeon_room_instances schema. Avoid 500s by
+    // only referencing columns that actually exist.
+    let hasCreatedAt = true;
+    try {
+      const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+      const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+      hasCreatedAt = names.has('created_at');
+    } catch {}
     
     // Do not permanently block re-entry. Only block reward re-claims inside the respawn window.
     // (Client allows re-entering rooms freely; this endpoint just helps prevent duplicate loot.)
-    const lastClear = await db.execute({
-      sql: `SELECT created_at
-            FROM dungeon_room_instances
-            WHERE char_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'
-            ORDER BY COALESCE(created_at, 0) DESC
-            LIMIT 1`,
-      args: [char.id, floor, roomIndex]
-    });
-    if (lastClear.rows.length > 0) {
-      const clearedAt = Number(lastClear.rows[0].created_at || 0) || 0;
-      // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
-      if (clearedAt > 0 && (Date.now() - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
-        // Important: do NOT use non-2xx here; client uses a shared api() wrapper that treats
-        // non-2xx as "server error", but this is an expected gameplay state.
-        return res.json({ success: false, locked: true, cooldown: true, error: 'Room reward on cooldown' });
+    if (hasCreatedAt) {
+      const lastClear = await db.execute({
+        sql: `SELECT created_at
+              FROM dungeon_room_instances
+              WHERE char_id = ? AND floor_number = ? AND room_index = ? AND status = 'cleared'
+              ORDER BY COALESCE(created_at, 0) DESC
+              LIMIT 1`,
+        args: [char.id, floor, roomIndex]
+      });
+      if (lastClear.rows.length > 0) {
+        const clearedAt = Number(lastClear.rows[0].created_at || 0) || 0;
+        // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
+        if (clearedAt > 0 && (Date.now() - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
+          // Important: do NOT use non-2xx here; client uses a shared api() wrapper that treats
+          // non-2xx as "server error", but this is an expected gameplay state.
+          return res.json({ success: false, locked: true, cooldown: true, error: 'Room reward on cooldown' });
+        }
       }
     }
 
@@ -8357,19 +8368,26 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     const stableId = `${char.id}_${floor}_${roomIndex}_cleared`;
 
     const existing = await db.execute({
-      sql: `SELECT created_at
-            FROM dungeon_room_instances
-            WHERE id = ? AND status = 'cleared'
-            LIMIT 1`,
+      sql: hasCreatedAt
+        ? `SELECT created_at
+           FROM dungeon_room_instances
+           WHERE id = ? AND status = 'cleared'
+           LIMIT 1`
+        : `SELECT id
+           FROM dungeon_room_instances
+           WHERE id = ? AND status = 'cleared'
+           LIMIT 1`,
       args: [stableId]
     });
 
     if (existing.rows.length > 0) {
-      const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
-      // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
-      if (clearedAt > 0 && (now - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
-        // Important: return 200 with a flag; client uses res.cleared to decide "no loot".
-        return res.json({ success: true, cleared: true });
+      if (hasCreatedAt) {
+        const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
+        // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
+        if (clearedAt > 0 && (now - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
+          // Important: return 200 with a flag; client uses res.cleared to decide "no loot".
+          return res.json({ success: true, cleared: true });
+        }
       }
 
       // Cooldown elapsed — refresh timestamp so the next claim is gated again.
