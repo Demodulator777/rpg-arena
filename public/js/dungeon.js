@@ -1504,8 +1504,22 @@ function onRoomCleared(roomIdx) {
 }
 
 function tryRun(roomIdx) {
+    if (!D.combat) return;
+    const pushCombatLog = (actor, text) => {
+        if (!D.combat) return;
+        if (!Array.isArray(D.combat.roundLog)) D.combat.roundLog = [];
+        D.combat.roundLog.push({ actor, text });
+    };
+
+    // If we've already "successfully escaped", require an explicit decision.
+    if (D.combat.escapeReady) {
+        renderCombatPanel();
+        return;
+    }
+
+    pushCombatLog('player', `💨 You attempt to flee...`);
     if (chance(RUN_ESCAPE_CHANCE)) {
-        log(`💨 Escaped successfully!`, 'log-success');
+        pushCombatLog('player', `✅ Escape successful. You can leave now, or keep fighting.`);
 
         // Mark the room as evaded so travel is allowed even if multiple monsters are alive.
         // (Reset in travelToRoom once you actually leave.)
@@ -1516,19 +1530,12 @@ function tryRun(roomIdx) {
             D.crawler.active = true;
             D.crawler.roomIdx = roomIdx;
         }
-        
-        // Release room entry
-        if (!(D.combat && D.combat.isCrawler)) {
-            apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
-                .catch(e => console.error('Failed to exit room:', e));
-        }
-        
-        D.combat = null;
-        saveState();
-        saveProgressToDB();
-        renderDungeonView();
+
+        // Keep the combat modal open: user must choose "Get Out" (or keep fighting).
+        D.combat.escapeReady = true;
+        renderCombatPanel();
     } else {
-        log(`⚠️ Failed to escape! The monsters attack!`, 'log-danger');
+        pushCombatLog('monster', `⚠️ Escape failed! The enemies strike!`);
         const c = getChar();
         if (c && D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
             const pStats = calcPlayerStats();
@@ -1539,12 +1546,13 @@ function tryRun(roomIdx) {
                 if (m.currentHp > 0) {
                     const mDmg = Math.max(1, Math.floor(m.atk - pStats.def * 0.5 + rand(-2, 2)));
                     totalDamage += mDmg;
-                    log(`💥 ${m.name} hits you for ${mDmg}!`, 'log-danger');
+                    pushCombatLog('monster', `💥 ${m.name} hits you for ${mDmg}!`);
                 }
             }
             
             c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - totalDamage);
             c.hp = c.hp_current;
+            pushCombatLog('player', `💔 You take ${totalDamage} damage.`);
             
             if (c.hp_current <= 0) {
                 onPlayerDeath();
@@ -1553,6 +1561,29 @@ function tryRun(roomIdx) {
             renderCombatPanel();
         }
     }
+}
+
+function confirmEscape(roomIdx) {
+    if (!D.combat) return;
+
+    // Release room entry (regular rooms only; crawler escape keeps chase logic intact).
+    if (!(D.combat && D.combat.isCrawler)) {
+        apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
+            .catch(e => console.error('Failed to exit room:', e));
+    }
+
+    D.combat = null;
+    saveState();
+    saveProgressToDB();
+    renderDungeonView();
+}
+
+function cancelEscape() {
+    if (!D.combat) return;
+    D.combat.escapeReady = false;
+    if (!Array.isArray(D.combat.roundLog)) D.combat.roundLog = [];
+    D.combat.roundLog.push({ actor: 'player', text: `⚔️ You decide to keep fighting.` });
+    renderCombatPanel();
 }
 
 function tryStealFromPlayer(roomIdx, monsterIndex) {
@@ -2759,6 +2790,8 @@ function renderRoomInfo(room) {
         `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
     ).join('');
 
+    const escapeReady = !!D.combat.escapeReady;
+
     overlay.innerHTML = `
         <div class="dungeon-overlay-backdrop"></div>
         <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
@@ -2788,8 +2821,15 @@ function renderRoomInfo(room) {
             <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
 
             <div class="combat-actions">
-                <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonAttack')}>⚔️ Strike</button>
-                <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
+                ${escapeReady
+                    ? `
+                        <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonEscapeConfirm')}>🚪 Get Out</button>
+                        <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ Keep Fighting</button>
+                      `
+                    : `
+                        <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonAttack')}>⚔️ Strike</button>
+                        <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
+                      `}
             </div>
         </div>
     `;
@@ -3262,6 +3302,8 @@ global.dungeonRun = (roomIdx) => {
 };
   global.dungeonAttack       = fightRound;
   global.dungeonRunCombat    = () => { if(D.combat) tryRun(D.combat.roomIdx); };
+  global.dungeonEscapeConfirm = () => { if(D.combat) confirmEscape(D.combat.roomIdx); };
+  global.dungeonEscapeCancel  = () => { cancelEscape(); };
   global.dungeonFightBoss    = fightBoss;
   global.dungeonExit         = dungeonExit;
   global.closeDungeonVictory = closeDungeonVictory;
