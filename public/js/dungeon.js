@@ -1371,10 +1371,13 @@ function startCombat(roomIdx) {
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
     // Check if already cleared (server-side protection)
+    // Hardening: invalid persisted timestamps (string/boolean/etc.) should not soft-lock combat.
+    if (room.monstersCleared && (!Number.isFinite(Number(room.monstersCleared)) || Number(room.monstersCleared) <= 0)) room.monstersCleared = null;
+    room.monsters.forEach(m => { if (m && m.lastKilled && (!Number.isFinite(Number(m.lastKilled)) || Number(m.lastKilled) <= 0)) m.lastKilled = null; });
     if (room.monstersCleared) {
         // Cooldown is aligned with MONSTER_RESPAWN_H. After respawn, allow clearing again.
-        if (!elapsed(room.monstersCleared, MONSTER_RESPAWN_H)) {
-            const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monstersCleared) / 3600000).toFixed(1);
+        if (!elapsed(Number(room.monstersCleared), MONSTER_RESPAWN_H)) {
+            const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - Number(room.monstersCleared)) / 3600000).toFixed(1);
             log(`💤 Room reward on cooldown (${hoursLeft}h)`, 'log-info');
             return;
         }
@@ -1382,9 +1385,9 @@ function startCombat(roomIdx) {
     }
 
     // Check if any monsters are alive
-    const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
+    const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(Number(m.lastKilled), MONSTER_RESPAWN_H));
     if (!anyAlive) {
-        const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monsters[0].lastKilled) / 3600000).toFixed(1);
+        const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - Number(room.monsters[0].lastKilled)) / 3600000).toFixed(1);
         log(`💤 Monsters respawn in ${hoursLeft}h`, 'log-info');
         return;
     }
@@ -3711,7 +3714,7 @@ global.dungeonRun = (roomIdx) => {
     const room = D.rooms[roomIdx];
     if (room && room.monsters && room.monsters.length > 0) {
         // Check if any monsters are alive
-        const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
+        const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(Number(m.lastKilled), MONSTER_RESPAWN_H));
         if (!anyAlive) {
             log(`💤 All monsters are dead or respawning.`, 'log-info');
             return;
