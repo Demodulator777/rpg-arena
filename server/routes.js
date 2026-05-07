@@ -3354,17 +3354,13 @@ function calcHpMax(char, equippedItems) {
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            // Gear can contribute to HP directly (hp_max) and indirectly (vitality/defense scale HP).
-            // Historically we only applied hp_max here, which caused high-vitality gear to "not count".
-            const hpBonus = Number(data?.stats?.hp_max || 0);
-            const vitBonus = Number(data?.stats?.vitality || 0);
-            const defBonus = Number(data?.stats?.defense || 0);
-            if (Number.isFinite(hpBonus) && hpBonus) base += hpBonus;
-            if (Number.isFinite(vitBonus) && vitBonus) base += vitBonus * 25;
-            if (Number.isFinite(defBonus) && defBonus) base += defBonus * 2;
+            if (data?.stats?.hp_max) base += data.stats.hp_max;
+            // Gear vitality should increase max HP (same scaling as base vitality).
+            // We intentionally do NOT apply gear defense here to avoid inflating HP too hard.
+            if (data?.stats?.vitality) base += Number(data.stats.vitality || 0) * 25;
         } catch {}
     }
-    return Math.max(1, Math.floor(Number(base) || 1));
+    return base;
 }
 
 function calcBaseDamage(char, equippedItems) {
