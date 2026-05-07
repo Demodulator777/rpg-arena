@@ -1405,6 +1405,9 @@ function startCombat(roomIdx) {
     // Ensure the server has the latest room monster roster for validation.
     saveProgressToDB();
 
+    // Pull a fresh character snapshot before starting server combat, so the UI HP matches the DB HP.
+    // (Prevents confusing "HP jumped" moments when local character is stale.)
+    Promise.resolve(refreshCharacter?.()).catch(() => {}).finally(() => {
     apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId })
         .then(res => {
             if (!D.combat || D.combat.roomIdx !== roomIdx) return;
@@ -1433,6 +1436,7 @@ function startCombat(roomIdx) {
                 renderCombatPanel();
             }
         });
+    });
 }
 
 function fightRound() {
@@ -2062,6 +2066,7 @@ async function fightBoss(roomIdx) {
     };
     renderCombatPanel();
 
+    Promise.resolve(refreshCharacter?.()).catch(() => {}).finally(() => {
     apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'boss', floorRunId: D.floorRunId })
         .then(res => {
             if (!D.combat || D.combat.roomIdx !== roomIdx) return;
@@ -2094,6 +2099,7 @@ async function fightBoss(roomIdx) {
                 renderCombatPanel();
             }
         });
+    });
 }
 
 function onBossDefeated() {
