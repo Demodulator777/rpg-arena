@@ -894,6 +894,9 @@ async function refreshCharacter() {
   function startCrawlerEncounter(source = 'encounter') {
     ensureCrawlerState();
     if (!D.crawler || D.crawler.defeated || !D.crawler.monster) return false;
+
+    // Achievement tracking
+    apiFetch('POST', '/game/dungeon/crawler-event', { event: 'encounter' }).catch(() => {});
     D.crawler.roomIdx = D.playerPos;
     D.crawler.active = true;
     if (!D.crawler.encountered) {
@@ -1417,7 +1420,7 @@ function fightRound() {
     renderCombatPanel();
 }
 
-function onCrawlerDefeated() {
+  function onCrawlerDefeated() {
     if (!D.crawler) return;
     D.crawler.defeated = true;
     D.crawler.active = false;
@@ -1425,11 +1428,12 @@ function onCrawlerDefeated() {
     D.crawler.chaseTurnsLeft = 0;
     D.crawler.monster.currentHp = 0;
     log(`🏆 Against all odds, you bring down The Crawler!`, 'log-boss');
+    apiFetch('POST', '/game/dungeon/crawler-event', { event: 'defeat' }).catch(() => {});
     D.combat = null;
     saveState();
     saveProgressToDB();
     renderDungeonView();
-}
+  }
 }
 
 function onRoomCleared(roomIdx) {
@@ -1625,6 +1629,9 @@ function tryStealFromPlayer(roomIdx, monsterIndex) {
 
 function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
+    if (D.combat && (D.combat.isCrawler || D.combat.monsters?.some(m => m.isCrawler))) {
+        apiFetch('POST', '/game/dungeon/crawler-event', { event: 'death' }).catch(() => {});
+    }
     const c = getChar();
     if (c && c.hp_current !== undefined) c.hp = c.hp_current;
     
