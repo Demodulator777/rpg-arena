@@ -510,10 +510,11 @@
 
 .dungeon-overlay {
   position: fixed;
-  top: 0;
+  /* Leave the global topbar accessible (menu/settings) while forcing a full-screen dungeon decision UI. */
+  top: calc(var(--topbar-h, 64px) + env(safe-area-inset-top, 0px));
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: env(safe-area-inset-bottom, 0px);
   display: none;
   align-items: flex-start;
   justify-content: center;
@@ -529,7 +530,8 @@
 }
 
 .dungeon-overlay-backdrop {
-  position: fixed;
+  /* Backdrop should only cover the dungeon layer, not the global topbar. */
+  position: absolute;
   inset: 0;
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(4px);
@@ -1579,9 +1581,37 @@
 .dungeon-combat-panel {
   background: var(--dungeon-surface);
   border: 1px solid var(--dtheme, #7c3aed);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 0;
+  padding: 16px;
   box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.dungeon-combat-panel .combat-fighters {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.dungeon-combat-panel .combat-log {
+  max-height: 32vh;
+}
+
+.dungeon-combat-panel .combat-actions {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  gap: 12px;
+}
+
+.dungeon-combat-panel .combat-actions .dungeon-btn {
+  flex: 1;
 }
 .combat-boss-warning {
   text-align: center;
@@ -2595,9 +2625,9 @@
   padding-bottom: 4px;
 }
 
-/* Ensure the backdrop doesn't interfere with scrolling */
+/* Backdrop should block clicks to underlying HUD/nav; the overlay card itself scrolls. */
 .dungeon-overlay-backdrop {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 /* Make the modal card itself have some margin to ensure it doesn't touch edges */
