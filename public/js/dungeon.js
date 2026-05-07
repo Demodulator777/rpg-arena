@@ -896,8 +896,8 @@ async function refreshCharacter() {
   }
 
   function startCrawlerEncounter(source = 'encounter') {
-    ensureCrawlerState();
-    if (!D.crawler || D.crawler.defeated || !D.crawler.monster) return false;
+  ensureCrawlerState();
+  if (!D.crawler || D.crawler.defeated || !D.crawler.monster) return false;
 
     // Achievement tracking
     apiFetch('POST', '/game/dungeon/crawler-event', { event: 'encounter' }).catch(() => {});
@@ -922,11 +922,51 @@ async function refreshCharacter() {
           : `The Crawler drops from the dark and pins your escape route!`
       }],
       isCrawler: true,
+      serverAuth: true,
+      resolving: true,
+      combatId: null,
+      turnNonce: 0,
     };
     log(`🕷️ The Crawler is upon you! Running may be your only chance.`, 'log-danger');
     saveState();
     saveProgressToDB();
     renderCombatPanel();
+
+    // Server-authoritative crawler combat session (prevents client-side manipulation).
+    apiFetch('POST', '/game/dungeon/crawler-combat/start', { floor: D.floor, roomIndex: D.playerPos })
+      .then(res => {
+        if (!D.combat || !D.combat.isCrawler) return;
+        if (!res || !res.success) throw new Error(res?.error || 'Failed to start crawler combat.');
+        D.combat.combatId = res.combatId;
+        D.combat.turnNonce = Number(res.turnNonce || 0);
+        if (res.monster) {
+          D.combat.monsters = [{
+            ...D.combat.monsters[0],
+            ...res.monster,
+            currentHp: res.monster.currentHp ?? res.monster.hp ?? D.combat.monsters[0].currentHp,
+            maxHp: res.monster.maxHp ?? res.monster.hp ?? D.combat.monsters[0].maxHp,
+          }];
+          if (D.crawler && D.crawler.monster) {
+            D.crawler.monster.currentHp = D.combat.monsters[0].currentHp;
+            D.crawler.monster.maxHp = D.combat.monsters[0].maxHp;
+          }
+        }
+        if (Array.isArray(res.log) && res.log.length) {
+          D.combat.roundLog.push(...res.log);
+        }
+        D.combat.resolving = false;
+        saveState();
+        saveProgressToDB();
+        renderCombatPanel();
+      })
+      .catch(err => {
+        console.error('Failed to start crawler combat:', err);
+        if (D.combat && D.combat.isCrawler) {
+          D.combat.resolving = false;
+          D.combat.roundLog.push({ actor: 'monster', text: '⚠️ Server combat unavailable. Try reconnecting.' });
+          renderCombatPanel();
+        }
+      });
     return true;
   }
 
@@ -1355,12 +1395,220 @@ function startCombat(roomIdx) {
         currentMonsterIndex: 0,
         playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
         roundLog: [],
+        serverAuth: true,
+        resolving: true,
+        combatId: null,
+        turnNonce: 0,
     };
     renderCombatPanel();
+
+    // Ensure the server has the latest room monster roster for validation.
+    saveProgressToDB();
+
+    apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId })
+        .then(res => {
+            if (!D.combat || D.combat.roomIdx !== roomIdx) return;
+            if (!res || !res.success) throw new Error(res?.error || 'Failed to start combat.');
+            D.combat.combatId = res.combatId;
+            D.combat.turnNonce = Number(res.turnNonce || 0);
+            if (Array.isArray(res.monsters) && res.monsters.length) {
+                D.combat.monsters = res.monsters.map(m => ({
+                    ...m,
+                    currentHp: m.currentHp ?? m.hp ?? m.maxHp,
+                    maxHp: m.maxHp ?? m.hp ?? m.currentHp,
+                }));
+                D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
+            }
+            if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
+            D.combat.resolving = false;
+            saveState();
+            saveProgressToDB();
+            renderCombatPanel();
+        })
+        .catch(err => {
+            console.error('Failed to start server combat:', err);
+            if (D.combat && D.combat.roomIdx === roomIdx) {
+                D.combat.resolving = false;
+                D.combat.roundLog.push({ actor: 'monster', text: '⚠️ Server combat unavailable. Try reconnecting.' });
+                renderCombatPanel();
+            }
+        });
 }
 
 function fightRound() {
     if (!D.combat) return;
+    if (D.combat.serverAuth) {
+        // Crawler has its own endpoints for now.
+        if (D.combat.isCrawler) {
+        if (D.combat.resolving) return;
+        if (!D.combat.combatId) {
+            D.combat.roundLog.push({ actor: 'player', text: '...' });
+            renderCombatPanel();
+            return;
+        }
+        D.combat.resolving = true;
+        renderCombatPanel();
+        apiFetch('POST', '/game/dungeon/crawler-combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce })
+            .then(res => {
+                if (!D.combat || !D.combat.isCrawler) return;
+                if (!res || !res.success) throw new Error(res?.error || 'Crawler action failed.');
+                D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
+                if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
+                if (res.monster) {
+                    const m = { ...D.combat.monsters[0], ...res.monster };
+                    m.currentHp = Number(res.monster.currentHp ?? m.currentHp ?? m.maxHp ?? m.hp);
+                    m.maxHp = Number(res.monster.maxHp ?? m.maxHp ?? m.hp);
+                    D.combat.monsters = [m];
+                    if (D.crawler && D.crawler.monster) {
+                        D.crawler.monster.currentHp = m.currentHp;
+                        D.crawler.monster.maxHp = m.maxHp;
+                    }
+                }
+                const c = getChar();
+                if (c && res.player && typeof res.player.hp === 'number') {
+                    c.hp_current = res.player.hp;
+                    c.hp = res.player.hp;
+                    if (typeof renderTopBar === 'function') renderTopBar();
+                }
+                if (res.ended && res.outcome === 'player_dead') {
+                    D.combat.resolving = false;
+                    onPlayerDeath();
+                    return;
+                }
+                if (res.ended && res.outcome === 'crawler_defeated') {
+                    // Keep existing client handling (marks crawler defeated + UI), but battle math already validated server-side.
+                    D.combat.resolving = false;
+                    onCrawlerDefeated();
+                    return;
+                }
+                D.combat.resolving = false;
+                saveState();
+                saveProgressToDB();
+                renderCombatPanel();
+            })
+            .catch(err => {
+                console.error('Crawler fight action failed:', err);
+                if (D.combat && D.combat.isCrawler) {
+                    D.combat.resolving = false;
+                    D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
+                    renderCombatPanel();
+                }
+            });
+        return;
+        }
+
+        // Regular room + boss combat uses unified endpoint.
+        if (D.combat.resolving) return;
+        if (!D.combat.combatId) {
+            D.combat.roundLog.push({ actor: 'monster', text: '⚠️ Still connecting to server combat...' });
+            renderCombatPanel();
+            return;
+        }
+        D.combat.resolving = true;
+        renderCombatPanel();
+        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce })
+            .then(res => {
+                if (!D.combat) return;
+                if (!res || !res.success) throw new Error(res?.error || 'Combat action failed.');
+                D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
+                if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
+                if (Array.isArray(res.monsters) && res.monsters.length) {
+                    D.combat.monsters = res.monsters.map(m => ({
+                        ...m,
+                        currentHp: m.currentHp ?? m.hp ?? m.maxHp,
+                        maxHp: m.maxHp ?? m.hp ?? m.currentHp,
+                    }));
+                    D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
+                }
+                if (res.player && typeof res.player.hp === 'number') {
+                    const c = getChar();
+                    if (c) {
+                        c.hp_current = res.player.hp;
+                        c.hp = res.player.hp;
+                        if (typeof renderTopBar === 'function') renderTopBar();
+                    }
+                }
+
+                if (res.ended && res.outcome === 'player_dead') {
+                    D.combat.resolving = false;
+                    onPlayerDeath();
+                    return;
+                }
+
+                if (res.ended && res.outcome === 'room_cleared') {
+                    // Loot is granted server-side; we just refresh UI.
+                    const room = D.rooms && D.rooms[D.combat.roomIdx];
+                    if (room && Array.isArray(room.monsters)) {
+                        room.monsters.forEach(m => { m.lastKilled = Date.now(); m.currentHp = 0; });
+                        room.monstersEvaded = false;
+                        room.monstersCleared = Date.now();
+                    }
+                    if (Array.isArray(res.lootGranted) && res.lootGranted.length) {
+                        for (const it of res.lootGranted) {
+                            if (it.type === 'dungeon_gold') log(`💰 +${it.amount} dungeon gold`, 'log-loot');
+                            else log(`🎁 Loot granted: ${it.name || it.id || it.type}`, 'log-loot');
+                        }
+                    } else if (res.cleared) {
+                        log(`⚠️ Room already cleared — no loot gained.`, 'log-warning');
+                    }
+                    if (room && room.id) {
+                        apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true }).catch(() => {});
+                    }
+                    D.combat = null;
+                    saveState();
+                    saveProgressToDB();
+                    refreshCharacter();
+                    renderDungeonView();
+                    return;
+                }
+
+                if (res.ended && res.outcome === 'boss_defeated') {
+                    const loot = res.bossLoot;
+                    const boss = D.combat.monsters?.[0] || { name: 'Boss', icon: '⚠️' };
+                    if (loot) {
+                        log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
+                        log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | ✨ ${loot.premium?.name || 'Premium'}`, 'log-success');
+                    }
+                    if (typeof res.tokens === 'number') {
+                        D.tokens = res.tokens;
+                        updateTokenDisplay();
+                    }
+                    if (typeof res.newFloor === 'number') {
+                        D.floor = res.newFloor;
+                        if (typeof res.highestFloor === 'number') D.highestFloor = res.highestFloor;
+                    }
+
+                    // Regenerate next floor locally (map gen is still client-side).
+                    delete D.savedProgress['tower'];
+                    D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
+                    D.playerPos = D.rooms.findIndex(r => r.isStart);
+                    D.exploredRooms = new Set([D.playerPos]);
+                    D.crawler = spawnCrawlerForCurrentFloor();
+                    D.floorRunId = createFloorRunId();
+                    D.combat = null;
+                    saveState();
+                    saveProgressToDB();
+                    refreshCharacter();
+                    if (loot) showBossVictoryModal(boss, loot);
+                    else renderDungeonView();
+                    return;
+                }
+
+                D.combat.resolving = false;
+                saveState();
+                saveProgressToDB();
+                renderCombatPanel();
+            })
+            .catch(err => {
+                console.error('Server combat action failed:', err);
+                if (D.combat) {
+                    D.combat.resolving = false;
+                    D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
+                    renderCombatPanel();
+                }
+            });
+        return;
+    }
     
     const c = getChar();
     if (!c) return;
@@ -1526,6 +1774,120 @@ function tryRun(roomIdx) {
     }
 
     pushCombatLog('player', `💨 You attempt to flee...`);
+
+    // Server-authoritative fleeing (Crawler uses its own endpoint; others use unified endpoint).
+    if (D.combat.serverAuth && D.combat.isCrawler) {
+        if (D.combat.resolving) return;
+        if (!D.combat.combatId) {
+            pushCombatLog('monster', `⚠️ Still connecting to server combat...`);
+            renderCombatPanel();
+            return;
+        }
+        D.combat.resolving = true;
+        renderCombatPanel();
+        apiFetch('POST', '/game/dungeon/crawler-combat/act', { combatId: D.combat.combatId, action: 'run', turnNonce: D.combat.turnNonce })
+            .then(res => {
+                if (!D.combat || !D.combat.isCrawler) return;
+                if (!res || !res.success) throw new Error(res?.error || 'Crawler flee failed.');
+                D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
+                if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
+                if (res.monster) {
+                    const m = { ...D.combat.monsters[0], ...res.monster };
+                    m.currentHp = Number(res.monster.currentHp ?? m.currentHp ?? m.maxHp ?? m.hp);
+                    m.maxHp = Number(res.monster.maxHp ?? m.maxHp ?? m.hp);
+                    D.combat.monsters = [m];
+                    if (D.crawler && D.crawler.monster) {
+                        D.crawler.monster.currentHp = m.currentHp;
+                        D.crawler.monster.maxHp = m.maxHp;
+                    }
+                }
+                const c = getChar();
+                if (c && res.player && typeof res.player.hp === 'number') {
+                    c.hp_current = res.player.hp;
+                    c.hp = res.player.hp;
+                    if (typeof renderTopBar === 'function') renderTopBar();
+                }
+                if (res.ended && res.outcome === 'player_dead') {
+                    D.combat.resolving = false;
+                    onPlayerDeath();
+                    return;
+                }
+                if (res.escapeReady) {
+                    D.combat.escapeReady = true;
+                    const room = D.rooms && D.rooms[roomIdx];
+                    if (room) room.monstersEvaded = true;
+                }
+                D.combat.resolving = false;
+                saveState();
+                saveProgressToDB();
+                renderCombatPanel();
+            })
+            .catch(err => {
+                console.error('Crawler flee action failed:', err);
+                if (D.combat && D.combat.isCrawler) {
+                    D.combat.resolving = false;
+                    pushCombatLog('monster', `⚠️ ${String(err.message || err)}`);
+                    renderCombatPanel();
+                }
+            });
+        return;
+    }
+
+    if (D.combat.serverAuth) {
+        if (D.combat.resolving) return;
+        if (!D.combat.combatId) {
+            pushCombatLog('monster', `⚠️ Still connecting to server combat...`);
+            renderCombatPanel();
+            return;
+        }
+        D.combat.resolving = true;
+        renderCombatPanel();
+        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'run', turnNonce: D.combat.turnNonce })
+            .then(res => {
+                if (!D.combat) return;
+                if (!res || !res.success) throw new Error(res?.error || 'Flee failed.');
+                D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
+                if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
+                if (Array.isArray(res.monsters) && res.monsters.length) {
+                    D.combat.monsters = res.monsters.map(m => ({
+                        ...m,
+                        currentHp: m.currentHp ?? m.hp ?? m.maxHp,
+                        maxHp: m.maxHp ?? m.hp ?? m.currentHp,
+                    }));
+                    D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
+                }
+                const c = getChar();
+                if (c && res.player && typeof res.player.hp === 'number') {
+                    c.hp_current = res.player.hp;
+                    c.hp = res.player.hp;
+                    if (typeof renderTopBar === 'function') renderTopBar();
+                }
+                if (res.ended && res.outcome === 'player_dead') {
+                    D.combat.resolving = false;
+                    onPlayerDeath();
+                    return;
+                }
+                if (res.escapeReady) {
+                    D.combat.escapeReady = true;
+                    const room = D.rooms && D.rooms[roomIdx];
+                    if (room) room.monstersEvaded = true;
+                }
+                D.combat.resolving = false;
+                saveState();
+                saveProgressToDB();
+                renderCombatPanel();
+            })
+            .catch(err => {
+                console.error('Server flee failed:', err);
+                if (D.combat) {
+                    D.combat.resolving = false;
+                    pushCombatLog('monster', `⚠️ ${String(err.message || err)}`);
+                    renderCombatPanel();
+                }
+            });
+        return;
+    }
+
     if (chance(RUN_ESCAPE_CHANCE)) {
         pushCombatLog('player', `✅ Escape successful. You can leave now, or keep fighting.`);
 
@@ -1665,29 +2027,60 @@ function onPlayerDeath() {
 async function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isBoss) return;
-    
-    const success = await spendTokens(TOKENS_PER_RUN);
-    if (!success) {
-      log(`🗝️ Need ${TOKENS_PER_RUN} tokens to challenge the boss. You have ${D.tokens}.`, 'log-danger');
-      return;
-    }
-    
+
+    // Boss fights are server-authoritative (includes token gate + loot).
     const _def = getDungeonDef();
     const boss = _def.boss;
-
     D.combat = {
-      roomIdx,
-      monsters: [{  // Changed to array
-        ...boss,
-        currentHp: boss.hp,
-        maxHp: boss.hp,
-        stolenItems: [],
-        isBoss: true,
-      }],
-      currentMonsterIndex: 0,
-      roundLog: [],
+        roomIdx,
+        monsters: [{
+            ...boss,
+            currentHp: boss.hp,
+            maxHp: boss.hp,
+            stolenItems: [],
+            isBoss: true,
+        }],
+        currentMonsterIndex: 0,
+        roundLog: [],
+        serverAuth: true,
+        resolving: true,
+        combatId: null,
+        turnNonce: 0,
     };
     renderCombatPanel();
+
+    apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'boss', floorRunId: D.floorRunId })
+        .then(res => {
+            if (!D.combat || D.combat.roomIdx !== roomIdx) return;
+            if (!res || !res.success) throw new Error(res?.error || 'Failed to start boss combat.');
+            D.combat.combatId = res.combatId;
+            D.combat.turnNonce = Number(res.turnNonce || 0);
+            if (Array.isArray(res.monsters) && res.monsters.length) {
+                D.combat.monsters = res.monsters.map(m => ({
+                    ...m,
+                    currentHp: m.currentHp ?? m.hp ?? m.maxHp,
+                    maxHp: m.maxHp ?? m.hp ?? m.currentHp,
+                }));
+                D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
+            }
+            if (typeof res.tokens === 'number') {
+                D.tokens = res.tokens;
+                updateTokenDisplay();
+            }
+            if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
+            D.combat.resolving = false;
+            saveState();
+            saveProgressToDB();
+            renderCombatPanel();
+        })
+        .catch(err => {
+            console.error('Failed to start boss combat:', err);
+            if (D.combat && D.combat.roomIdx === roomIdx) {
+                D.combat.resolving = false;
+                D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
+                renderCombatPanel();
+            }
+        });
 }
 
 function onBossDefeated() {
@@ -2802,6 +3195,7 @@ function renderRoomInfo(room) {
     ).join('');
 
     const escapeReady = !!D.combat.escapeReady;
+    const isBusy = !!D.combat.resolving;
 
     overlay.innerHTML = `
         <div class="dungeon-overlay-backdrop"></div>
@@ -2831,18 +3225,18 @@ function renderRoomInfo(room) {
 
             <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
 
-            <div class="combat-actions">
-                ${escapeReady
-                    ? `
-                        <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonEscapeConfirm')}>🚪 Get Out</button>
-                        <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ Keep Fighting</button>
-                      `
-                    : `
-                        <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonAttack')}>⚔️ Strike</button>
-                        <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
-                      `}
-            </div>
-        </div>
+             <div class="combat-actions">
+                 ${escapeReady
+                     ? `
+                         <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonEscapeConfirm')}>🚪 Get Out</button>
+                         <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ Keep Fighting</button>
+                       `
+                     : `
+                         <button class="dungeon-btn dungeon-btn-fight" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonAttack')}>⚔️ Strike</button>
+                         <button class="dungeon-btn dungeon-btn-run" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
+                       `}
+             </div>
+         </div>
     `;
 }
   function renderLog() {
@@ -3297,18 +3691,14 @@ global.dungeonRun = (roomIdx) => {
             log(`💤 All monsters are dead or respawning.`, 'log-info');
             return;
         }
-        
-        D.combat = { 
-            roomIdx, 
-            monsters: room.monsters.map(m => ({ 
-                ...m, 
-                currentHp: m.currentHp || m.maxHp,
-                lastKilled: m.lastKilled
-            })),
-            currentMonsterIndex: 0,
-            roundLog: [] 
-        };
-        tryRun(roomIdx);
+
+        // Start combat (server-authoritative) and attempt to flee from the combat panel.
+        startCombat(roomIdx);
+        setTimeout(() => {
+            if (D.combat && D.combat.roomIdx === roomIdx) {
+                tryRun(roomIdx);
+            }
+        }, 200);
     }
 };
   global.dungeonAttack       = fightRound;
