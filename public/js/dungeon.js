@@ -1455,7 +1455,8 @@ function onRoomCleared(roomIdx) {
         .then(res => {
             // res.cleared means server says already cleared — no reward
             if (res && res.cleared) {
-                log(`⚠️ Room already cleared — no loot gained.`, 'log-warning');
+                const extra = res.serverError && res.error ? ` (${String(res.error).slice(0, 120)})` : '';
+                log(`⚠️ Room already cleared — no loot gained.${extra}`, 'log-warning');
                 room.monstersCleared = Date.now(); // sync local state
                 D.combat = null;
                 saveState();
