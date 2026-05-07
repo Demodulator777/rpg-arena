@@ -1389,9 +1389,10 @@ function startCombat(roomIdx) {
         return;
     }
 
+    // Server-authoritative combat: don't show client-computed monster stats (they may differ).
     D.combat = {
         roomIdx,
-        monsters: room.monsters.map(m => ({ ...m, currentHp: m.currentHp || m.maxHp })),
+        monsters: [],
         currentMonsterIndex: 0,
         playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
         roundLog: [],
@@ -1412,6 +1413,7 @@ function startCombat(roomIdx) {
         .then(res => {
             if (!D.combat || D.combat.roomIdx !== roomIdx) return;
             if (!res || !res.success) throw new Error(res?.error || 'Failed to start combat.');
+            if (res?.debug) console.debug('[dungeon combat start]', res.debug);
             D.combat.combatId = res.combatId;
             D.combat.turnNonce = Number(res.turnNonce || 0);
             if (Array.isArray(res.monsters) && res.monsters.length) {
@@ -1520,6 +1522,7 @@ function fightRound() {
             .then(res => {
                 if (!D.combat) return;
                 if (!res || !res.success) throw new Error(res?.error || 'Combat action failed.');
+                if (res?.debug) console.debug('[dungeon combat act]', res.debug);
                 D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
                 if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
                 if (Array.isArray(res.monsters) && res.monsters.length) {
@@ -1863,6 +1866,7 @@ function tryRun(roomIdx) {
             .then(res => {
                 if (!D.combat) return;
                 if (!res || !res.success) throw new Error(res?.error || 'Flee failed.');
+                if (res?.debug) console.debug('[dungeon combat act]', res.debug);
                 D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
                 if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
                 if (Array.isArray(res.monsters) && res.monsters.length) {
@@ -3185,11 +3189,13 @@ function renderRoomInfo(room) {
     const monsters = D.combat.monsters;
     const currentMonster = monsters[D.combat.currentMonsterIndex];
     const pStats = calcPlayerStats();
-    const hpPct = Math.round(currentMonster.currentHp / currentMonster.maxHp * 100);
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
+    const isLoadingMonsters = !!D.combat.serverAuth && !!D.combat.resolving && (!Array.isArray(monsters) || monsters.length === 0);
     
     // Build monster list HTML
-    const monsterListHtml = monsters.map((m, idx) => {
+    const monsterListHtml = isLoadingMonsters
+        ? `<div style="padding:10px;color:var(--dungeon-muted)">Loading enemies...</div>`
+        : monsters.map((m, idx) => {
         const isCurrent = idx === D.combat.currentMonsterIndex;
         const isDead = m.currentHp <= 0;
         const hpPercent = isDead ? 0 : Math.round(m.currentHp / m.maxHp * 100);
