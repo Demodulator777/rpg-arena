@@ -8341,6 +8341,17 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
     const ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
     const now = Date.now();
 
+    // Some environments may have an older dungeon_room_instances schema. Avoid 500s by
+    // only referencing columns that actually exist.
+    let hasSessionId = true;
+    let hasCreatedAt = true;
+    try {
+      const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+      const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+      hasSessionId = names.has('session_id');
+      hasCreatedAt = names.has('created_at');
+    } catch {}
+
     // Use a stable id per user+floor+room, and allow re-clearing after the respawn window.
     // (Room monster respawn is 48h; reward should follow the same cooldown.)
     const stableId = `${char.id}_${floor}_${roomIndex}_cleared`;
@@ -8362,22 +8373,55 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
       }
 
       // Cooldown elapsed — refresh timestamp so the next claim is gated again.
-      await db.execute({
-        sql: `UPDATE dungeon_room_instances
-              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
-              WHERE id = ?`,
-        args: [now, char.id, floor, roomIndex, runKey, stableId]
-      });
+      if (hasCreatedAt && hasSessionId) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+                WHERE id = ?`,
+          args: [now, char.id, floor, roomIndex, runKey, stableId]
+        });
+      } else if (hasCreatedAt) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
+                WHERE id = ?`,
+          args: [now, char.id, floor, roomIndex, stableId]
+        });
+      } else {
+        // No created_at column: treat as always re-clearable, but keep row present.
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET char_id = ?, floor_number = ?, room_index = ?
+                WHERE id = ?`,
+          args: [char.id, floor, roomIndex, stableId]
+        });
+      }
 
       return res.json({ success: true, recleared: true });
     }
 
-    await db.execute({
-      sql: `INSERT INTO dungeon_room_instances
-              (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
-            VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
-      args: [stableId, userId, char.id, floor, roomIndex, runKey, now]
-    });
+    if (hasSessionId && hasCreatedAt) {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+        args: [stableId, userId, char.id, floor, roomIndex, runKey, now]
+      });
+    } else if (hasCreatedAt) {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, status, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?)`,
+        args: [stableId, userId, char.id, floor, roomIndex, now]
+      });
+    } else {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, status)
+              VALUES (?, ?, ?, ?, ?, 'cleared')`,
+        args: [stableId, userId, char.id, floor, roomIndex]
+      });
+    }
 
     res.json({ success: true });
   } catch (e) {
