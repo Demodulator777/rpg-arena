@@ -3099,8 +3099,8 @@ function renderRoomInfo(room) {
                 <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" data-error-hide="true" data-error-next-display="block">
                 <div style="display:none;font-size:3rem">${boss.icon}</div>
                 <div class="boss-name-big">${boss.name}</div>
-                <div class="boss-stats">
-                    ❤️ ${boss.hp} HP · ⚔️ ${boss.atk} ATK · 🛡️ ${boss.def} DEF
+                <div class="boss-stats" style="color:var(--dungeon-muted)">
+                    Stats revealed in battle.
                 </div>
                 <div class="boss-drop-preview">
                     Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} gold · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} gems · ✨ Random Premium Feature (${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]} days)
@@ -3114,16 +3114,14 @@ function renderRoomInfo(room) {
 
     if (room.isMiniBoss && anyMonsterAlive) {
         const m = aliveMonster;
-        const hpPct = Math.round(m.currentHp / m.maxHp * 100);
         return `
             <div class="dungeon-room-monster">
                 <div class="monster-icon">⚠️ ${m.icon}</div>
                 <div class="monster-info">
                     <div class="monster-name">MINI-BOSS: ${m.name}</div>
-                    <div class="monster-hp-bar-wrap">
-                        <div class="monster-hp-bar" style="width:${hpPct}%"></div>
+                    <div class="monster-stats" style="color:var(--dungeon-muted)">
+                        Stats revealed in battle.
                     </div>
-                    <div class="monster-stats">❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def}</div>
                 </div>
                 <div class="monster-btns">
                     <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ Challenge Mini-Boss</button>
@@ -3134,7 +3132,6 @@ function renderRoomInfo(room) {
 
     if (anyMonsterAlive) {
         const m = aliveMonster;
-        const hpPct = Math.round(m.currentHp / m.maxHp * 100);
         const monsterNames = room.monsters.map(m => m.name).join(', ');
         
         return `
@@ -3145,11 +3142,8 @@ function renderRoomInfo(room) {
                     <div class="monster-list" style="font-size:0.7rem;color:var(--dungeon-muted);margin-bottom:6px">
                         ${monsterNames}
                     </div>
-                    <div class="monster-hp-bar-wrap">
-                        <div class="monster-hp-bar" style="width:${hpPct}%"></div>
-                    </div>
                     <div class="monster-stats">
-                        ${monsterCount > 1 ? `${aliveCount} enemies remaining` : `❤️ ${m.currentHp}/${m.maxHp} · ⚔️ ${m.atk} · 🛡️ ${m.def}`}
+                        ${monsterCount > 1 ? `${aliveCount} enemies remaining` : `Stats revealed in battle.`}
                         ${m.steal && monsterCount === 1 ? '· 🎒 Can steal' : ''}
                     </div>
                     ${monsterCount > 1 ? `<div class="monster-warning" style="font-size:0.65rem;color:#e74c3c;margin-top:4px">⚠️ All enemies attack together each round!</div>` : ''}
@@ -3575,17 +3569,10 @@ function claimGuildBounty() {
   async function fightMiniBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isMiniBoss) return;
-    
-    const miniBoss = room.monsters[0];  // Changed from room.monster
-    D.combat = {
-        roomIdx,
-        monsters: [{ ...miniBoss, currentHp: miniBoss.maxHp }],  // Changed to array
-        currentMonsterIndex: 0,
-        playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
-        roundLog: [],
-        isMiniBoss: true,
-    };
-    renderCombatPanel();
+
+    // Mini-bosses must use the same server-authoritative combat flow as normal rooms.
+    // The old local-only mini-boss combat path could desync HP (including snapping to full HP after the fight).
+    startCombat(roomIdx);
 }
 
   // ── CSS Loading ──────────────────────────────────────────
