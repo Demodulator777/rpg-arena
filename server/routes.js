@@ -9449,6 +9449,14 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
     const now = Math.floor(Date.now() / 1000);
     const combatId = `dng_${kind}_${char.id}_${floor}_${roomIndex}_${seed}_${now}`;
     const pStats = calcDungeonPlayerStatsFromChar(char);
+    // Never let combat start with a stale/incorrect low HP snapshot.
+    // If hp_current is unset/invalid, fall back to hp_max; otherwise trust hp_current.
+    const safeStartHp = (() => {
+      const hpCur = Number(char.hp_current);
+      const hpMax = Math.max(1, Number(char.hp_max || 1));
+      if (!Number.isFinite(hpCur) || hpCur <= 0) return hpMax;
+      return Math.min(hpMax, hpCur);
+    })();
 
     let monsters = [];
     if (kind === 'boss') {
@@ -9501,7 +9509,7 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
       kind,
       floorRunId: String(floorRunId || `${floor}_legacy`),
       round: 1,
-      playerHp: Math.max(0, pStats.hp),
+      playerHp: Math.max(0, safeStartHp),
       playerMaxHp: Math.max(1, pStats.maxHp),
       monsters,
       currentMonsterIndex: 0,
@@ -9569,7 +9577,11 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     const kind = String(row.combat_type || state.kind || 'room').toLowerCase();
     const pStats = calcDungeonPlayerStatsFromChar(char);
 
-    let playerHp = Math.max(0, Number(state.playerHp ?? pStats.hp));
+    // If state is missing (or corrupted), fall back to the DB HP (not a computed default),
+    // otherwise HP can "jump" unexpectedly.
+    const dbHpCur = Number(char.hp_current);
+    const fallbackHp = (Number.isFinite(dbHpCur) && dbHpCur >= 0) ? dbHpCur : pStats.hp;
+    let playerHp = Math.max(0, Number(state.playerHp ?? fallbackHp));
     const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? pStats.maxHp));
     let rngState = Number(row.rng_state || 0) >>> 0;
 
