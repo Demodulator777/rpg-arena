@@ -3040,7 +3040,8 @@ async function maybeAutoStartGuildRaids(db) {
 
 async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
     const members = await getGuildRaidMembers(db, raid.id);
-    const viewerMember = members.find(m => String(m.char_id) === String(viewerCharId) || String(m.user_id) === String(viewerUserId)) || null;
+    const viewerCharMember = members.find(m => String(m.char_id) === String(viewerCharId)) || null;
+    const viewerUserMember = members.find(m => String(m.user_id) === String(viewerUserId)) || null;
     const autoStartMode = String(raid.auto_start_mode || 'manual');
     const autoStartPlayers = autoStartMode.startsWith('count_')
         ? Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoStartMode.split('_')[1] || 0)))
@@ -3066,7 +3067,13 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
         mercenaryPool,
         memberCount: members.length,
         isLeader: String(raid.leader_char_id) === String(viewerCharId),
-        isMember: !!viewerMember,
+        // Membership should be character-scoped. Account-scoped membership is provided separately
+        // so the UI can block joining the same raid with multiple characters while still allowing
+        // parallel raids across different characters.
+        isMember: !!viewerCharMember,
+        isAccountMember: !!viewerUserMember,
+        accountMemberCharId: viewerUserMember ? viewerUserMember.char_id : null,
+        accountMemberName: viewerUserMember ? (viewerUserMember.name || null) : null,
         members: members.map(member => ({
             charId: member.char_id,
             userId: member.user_id,
@@ -8717,7 +8724,7 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
     }
     const existingLead = await getOpenRaidForLeader(db, char.id);
     if (existingLead) return res.status(400).json({ error: 'You already lead an active forming raid.' });
-    const existingMember = await getActiveRaidMembershipForUser(db, req.user.userId);
+    const existingMember = await getActiveRaidMembershipForChar(db, char.id);
     if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
 
     const requestedFloor = Math.max(1, Number(req.body?.floor || 1));
@@ -8788,7 +8795,7 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
     const raidId = Number(req.body?.raidId || 0);
     const raid = await getGuildRaidById(db, raidId);
     if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
-    const existingMember = await getActiveRaidMembershipForUser(db, req.user.userId);
+    const existingMember = await getActiveRaidMembershipForChar(db, char.id);
     if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
     const members = await getGuildRaidMembers(db, raidId);
     if (members.some(member => String(member.user_id) === String(req.user.userId))) {
@@ -8805,6 +8812,61 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
     await tryStartGuildRaidIfReady(db, raidId);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ success: true, message: 'Joined the raid party.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Leave a forming raid (character-scoped). Leaders must delete instead.
+router.post('/dungeon/guild/raid/leave', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    if (!raidId) return res.status(400).json({ error: 'Missing raidId.' });
+
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) === String(char.id)) {
+      return res.status(400).json({ error: 'Raid leader must delete the raid instead of leaving.' });
+    }
+
+    await dbRun(db, 'DELETE FROM guild_raid_members WHERE raid_id = ? AND char_id = ?', [raidId, char.id]);
+
+    // If no members remain (unlikely because leader can't leave), clean up.
+    const remaining = await dbGet(db, 'SELECT COUNT(*) AS c FROM guild_raid_members WHERE raid_id = ?', [raidId]);
+    if (Number(remaining?.c || 0) <= 0) {
+      await dbRun(db, 'DELETE FROM guild_raids WHERE id = ?', [raidId]);
+    }
+
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Left the raid.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete a forming raid (leader only).
+router.post('/dungeon/guild/raid/delete', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    if (!raidId) return res.status(400).json({ error: 'Missing raidId.' });
+
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can delete this raid.' });
+    }
+
+    await dbRun(db, 'DELETE FROM guild_raid_members WHERE raid_id = ?', [raidId]);
+    await dbRun(db, 'DELETE FROM guild_raids WHERE id = ?', [raidId]);
+
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid deleted.', raids });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
