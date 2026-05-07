@@ -8905,6 +8905,13 @@ const DUNGEON_MONSTER_POOL = [
   { id:'void_titan',  name:'Void Titan',       hp:250, atk:42, def:35, steal:true,  minFloor:15 },
   { id:'dread_knight',name:'Dread Knight',     hp:300, atk:50, def:40, steal:true,  minFloor:20 },
   { id:'elder_lich',  name:'Elder Lich',       hp:220, atk:60, def:20, steal:false, minFloor:25 },
+  // Mini-bosses can also appear as regular spawns in the current client generator.
+  { id:'shadow_stalker', name:'Shadow Stalker', hp:400, atk:55, def:25, steal:true,  minFloor:10, isMiniBoss:true },
+  { id:'crystal_golem',  name:'Crystal Golem',  hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss:true },
+  { id:'flame_revenant', name:'Flame Revenant', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss:true },
+  { id:'frost_wyrmling', name:'Frost Wyrmling', hp:450, atk:60, def:30, steal:true,  minFloor:25, isMiniBoss:true },
+  { id:'void_stalker',   name:'Void Stalker',   hp:500, atk:75, def:28, steal:true,  minFloor:30, isMiniBoss:true },
+  { id:'doom_knight',    name:'Doom Knight',    hp:700, atk:65, def:50, steal:true,  minFloor:35, isMiniBoss:true },
 ];
 
 const DUNGEON_MINI_BOSS_POOL = [
@@ -8928,18 +8935,30 @@ function buildRegularMonsterForFloor(monsterId, floor) {
   const safeFloor = Math.max(1, Number(floor) || 1);
   const base = DUNGEON_MONSTER_POOL.find(m => m.id === monsterId);
   if (!base) return null;
+
+  // Match client generator:
+  // 1) availableMonsters = getMonstersForFloor(floor) => linear scaling
+  // 2) per-room monster scaling uses floor^exponent bump (see public/js/dungeon.js generateFloor)
+  const availableHp  = Math.round(base.hp  + safeFloor * 8);
+  const availableAtk = Math.round(base.atk + safeFloor * 2.5);
+  const availableDef = Math.round(base.def + safeFloor * 1.2);
+  const isMB = !!base.isMiniBoss;
+  const scaledHp  = Math.floor(availableHp  + (Math.pow(safeFloor, 1.3) * (isMB ? 15 : 12)));
+  const scaledAtk = Math.floor(availableAtk + (Math.pow(safeFloor, 1.2) * (isMB ? 4 : 3)));
+  const scaledDef = Math.floor(availableDef + (Math.pow(safeFloor, 1.1) * (isMB ? 2 : 1.5)));
+
   return {
     id: base.id,
     name: base.name,
-    icon: '👾',
-    hp: Math.round(base.hp + safeFloor * 8),
-    atk: Math.round(base.atk + safeFloor * 2.5),
-    def: Math.round(base.def + safeFloor * 1.2),
+    icon: isMB ? '💀' : '👾',
+    hp: scaledHp,
+    atk: scaledAtk,
+    def: scaledDef,
     steal: !!base.steal,
-    isMiniBoss: false,
+    isMiniBoss: isMB,
     tokenCost: 0,
-    maxHp: Math.round(base.hp + safeFloor * 8),
-    currentHp: Math.round(base.hp + safeFloor * 8),
+    maxHp: scaledHp,
+    currentHp: scaledHp,
   };
 }
 
@@ -9224,7 +9243,7 @@ router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
     const db = await getDb();
     const floor = Math.max(1, Number(req.body?.floor || 1));
     const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const existing = await dbGet(
@@ -9298,7 +9317,7 @@ router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
     if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
     if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
 
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const row = await dbGet(
@@ -9423,7 +9442,7 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
     const kind = String(req.body?.kind || 'room').toLowerCase(); // room | boss
     const floorRunId = req.body?.floorRunId || null;
 
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, dungeon_tokens, dungeon_floor, dungeon_highest_floor, dungeon_progress, premium_features');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max, dungeon_tokens, dungeon_floor, dungeon_highest_floor, dungeon_progress, premium_features');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const existing = await dbGet(
@@ -9542,6 +9561,12 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
       currentMonsterIndex: 0,
       escapeReady: false,
       tokens: Number(refreshed?.dungeon_tokens ?? char.dungeon_tokens ?? 0),
+      debug: {
+        hp_current_db: Number(char.hp_current ?? null),
+        hp_max_db: Number(char.hp_max ?? null),
+        hp_max_true: Number(trueHpMax ?? null),
+        hp_start: Number(state.playerHp ?? null),
+      },
       log: kind === 'boss'
         ? [{ actor: 'monster', text: '⚠️ Boss battle begins!' }]
         : [{ actor: 'monster', text: 'Enemies close in...' }],
@@ -9560,7 +9585,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
     if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
 
-    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, agility, magic, hp_current, hp_max, dungeon_floor, dungeon_highest_floor, premium_features');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max, dungeon_floor, dungeon_highest_floor, premium_features');
     if (!char) return res.status(404).json({ error: 'Character not found' });
 
     const row = await dbGet(
@@ -9587,7 +9612,8 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     // otherwise HP can "jump" unexpectedly.
     const dbHpCur = Number(char.hp_current);
     const fallbackHp = (Number.isFinite(dbHpCur) && dbHpCur >= 0) ? dbHpCur : pStats.hp;
-    let playerHp = Math.max(0, Number(state.playerHp ?? fallbackHp));
+    const playerHpBefore = Math.max(0, Number(state.playerHp ?? fallbackHp));
+    let playerHp = playerHpBefore;
     const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? trueHpMax));
     let rngState = Number(row.rng_state || 0) >>> 0;
 
@@ -9769,6 +9795,13 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
       newFloor,
       highestFloor,
       tokens,
+      debug: {
+        hp_current_db: Number(char.hp_current ?? null),
+        hp_max_db: Number(char.hp_max ?? null),
+        hp_max_true: Number(trueHpMax ?? null),
+        hp_before: Number(playerHpBefore ?? null),
+        hp_after: Number(playerHp ?? null),
+      },
       log,
     });
   } catch (e) {
