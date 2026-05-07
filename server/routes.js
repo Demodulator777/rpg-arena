@@ -727,6 +727,16 @@ const WEEKLY_TASKS = [
             session_id TEXT,
             created_at INTEGER
         )`, args: [] });
+
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_crawler_stats (
+            char_id INTEGER PRIMARY KEY,
+            encounters INTEGER NOT NULL DEFAULT 0,
+            defeats INTEGER NOT NULL DEFAULT 0,
+            deaths INTEGER NOT NULL DEFAULT 0,
+            last_encounter_at INTEGER NOT NULL DEFAULT 0,
+            last_defeat_at INTEGER NOT NULL DEFAULT 0,
+            last_death_at INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
         
         // Add session_id column if missing (for existing DBs)
         try {
@@ -1202,6 +1212,61 @@ const ACHIEVEMENTS = [
         metric: 'dungeon_floor',
         target: 50,
         rewards: { gold: 250000, gems: 60, premium: { id: 'iron_fortress', days: 10 } },
+    },
+    {
+        id: 'crawler_encounters_1',
+        chain: 'crawler_encounters',
+        category: 'dungeon',
+        name: 'Skittering Heard',
+        desc: 'Encounter The Crawler 1 time.',
+        icon: '🕷️',
+        metric: 'crawler_encounters',
+        target: 1,
+        rewards: { gold: 250 },
+    },
+    {
+        id: 'crawler_encounters_5',
+        chain: 'crawler_encounters',
+        category: 'dungeon',
+        name: 'It Knows Your Scent',
+        desc: 'Encounter The Crawler 5 times.',
+        icon: '🕷️',
+        metric: 'crawler_encounters',
+        target: 5,
+        rewards: { gold: 750 },
+    },
+    {
+        id: 'crawler_encounters_20',
+        chain: 'crawler_encounters',
+        category: 'dungeon',
+        name: 'Marked By The Crawler',
+        desc: 'Encounter The Crawler 20 times.',
+        icon: '🕷️',
+        metric: 'crawler_encounters',
+        target: 20,
+        rewards: { gold: 2500, gems: 5 },
+    },
+    {
+        id: 'crawler_defeats_1',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Slayer',
+        desc: 'Defeat The Crawler.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 1,
+        rewards: { gold: 3000, gems: 5 },
+    },
+    {
+        id: 'crawler_deaths_1',
+        chain: 'crawler_deaths',
+        category: 'dungeon',
+        name: 'Crawler Food',
+        desc: 'Die to The Crawler.',
+        icon: '💀',
+        metric: 'crawler_deaths',
+        target: 1,
+        rewards: { gold: 150 },
     },
     {
         id: 'mp_60',
@@ -1950,8 +2015,8 @@ function buildExtendedAchievements() {
         });
 
     extras.push(
-        {
-            id: 'raids_participated_1',
+    {
+        id: 'raids_participated_1',
             chain: 'raids_participated',
             category: 'raids',
             name: 'First Into the Breach',
@@ -2378,7 +2443,7 @@ function buildExtendedAchievements() {
 ACHIEVEMENTS.push(...buildExtendedAchievements());
 
 async function buildAchievementMetricSnapshot(db, char) {
-    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows] = await Promise.all([
+    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow] = await Promise.all([
         dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
         dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
         char.user_id
@@ -2390,7 +2455,8 @@ async function buildAchievementMetricSnapshot(db, char) {
             FROM guild_raid_members gm
             JOIN guild_raids gr ON gr.id = gm.raid_id
             WHERE gm.char_id = ?`, [char.id]),
-        dbAll(db, 'SELECT gatekeeper_key FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id])
+        dbAll(db, 'SELECT gatekeeper_key FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id]),
+        dbGet(db, 'SELECT encounters, defeats, deaths FROM character_crawler_stats WHERE char_id = ?', [char.id]),
     ]);
 
     const missionTotals = {
@@ -2454,6 +2520,9 @@ async function buildAchievementMetricSnapshot(db, char) {
         raids_won: Number(raidRow?.raids_won || 0),
         referrals_registered: Number(referralRow?.referrals_registered || 0),
         referrals_level5: Number(referralRow?.referrals_level5 || 0),
+        crawler_encounters: Number(crawlerRow?.encounters || 0),
+        crawler_defeats: Number(crawlerRow?.defeats || 0),
+        crawler_deaths: Number(crawlerRow?.deaths || 0),
         missionTotals,
         monsterTotals,
         gatekeeperTotals,
@@ -2478,6 +2547,9 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'raids_won') return metrics.raids_won;
     if (metric === 'referrals_registered') return metrics.referrals_registered;
     if (metric === 'referrals_level5') return metrics.referrals_level5;
+    if (metric === 'crawler_encounters') return metrics.crawler_encounters || 0;
+    if (metric === 'crawler_defeats') return metrics.crawler_defeats || 0;
+    if (metric === 'crawler_deaths') return metrics.crawler_deaths || 0;
 
     if (metric === 'mission_wins_total') return metrics.missionTotals.wins;
     if (metric === 'mission_fights_total') return metrics.missionTotals.fights;
@@ -4038,6 +4110,7 @@ const TRAVEL_GUARDIANS = {
         ruins: { difficulty: 'hard', name: 'Crypt Keeper' },
         dark_city: { difficulty: 'nightmare', name: 'Shadow Gatekeeper' },
     },
+
     abyss: {
         crimson: { difficulty: 'nightmare', name: 'Crimson Gatekeeper' },
         void: { difficulty: 'nightmare', name: 'Void Gatekeeper' },
@@ -8913,6 +8986,46 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
     await tryStartGuildRaidIfReady(db, raidId);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
     res.json({ success: true, message: 'Joined the raid party.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Track crawler achievements (encounters/defeats/deaths).
+router.post('/dungeon/crawler-event', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const event = String(req.body?.event || '').toLowerCase();
+    const now = Math.floor(Date.now() / 1000);
+
+    if (!['encounter', 'defeat', 'death'].includes(event)) {
+      return res.status(400).json({ error: 'Invalid crawler event.' });
+    }
+
+    await dbRun(db, `INSERT INTO character_crawler_stats (char_id, encounters, defeats, deaths)
+      VALUES (?, 0, 0, 0)
+      ON CONFLICT(char_id) DO NOTHING`, [char.id]);
+
+    if (event === 'encounter') {
+      await dbRun(db, `UPDATE character_crawler_stats
+        SET encounters = encounters + 1, last_encounter_at = ?
+        WHERE char_id = ?`, [now, char.id]);
+    } else if (event === 'defeat') {
+      await dbRun(db, `UPDATE character_crawler_stats
+        SET defeats = defeats + 1, last_defeat_at = ?
+        WHERE char_id = ?`, [now, char.id]);
+    } else if (event === 'death') {
+      await dbRun(db, `UPDATE character_crawler_stats
+        SET deaths = deaths + 1, last_death_at = ?
+        WHERE char_id = ?`, [now, char.id]);
+    }
+
+    // New stats can affect achievements; refresh weekly claimable badge count.
+    try { weeklyClaimableCache.delete(char.id); } catch {}
+
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
