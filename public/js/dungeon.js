@@ -1378,7 +1378,7 @@ function startCombat(roomIdx) {
         // Cooldown is aligned with MONSTER_RESPAWN_H. After respawn, allow clearing again.
         if (!elapsed(Number(room.monstersCleared), MONSTER_RESPAWN_H)) {
             const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - Number(room.monstersCleared)) / 3600000).toFixed(1);
-            log(`💤 Room reward on cooldown (${hoursLeft}h)`, 'log-info');
+            log(`💤 Loot on cooldown (${hoursLeft}h) — you can still fight.`, 'log-info');
             // Cooldown should only block loot, not combat itself.
         }
         // Only clear the flag when cooldown elapsed; otherwise keep it so we still know loot is gated.
@@ -3191,7 +3191,7 @@ function renderRoomInfo(room) {
     if (!overlay || !D.combat) return;
     const def = getDungeonDef(D.activeDungeon);
     const monsters = D.combat.monsters;
-    const currentMonster = monsters[D.combat.currentMonsterIndex];
+    const currentMonster = monsters[D.combat.currentMonsterIndex] || {};
     const pStats = calcPlayerStats();
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
     const isLoadingMonsters = !!D.combat.serverAuth && !!D.combat.resolving && (!Array.isArray(monsters) || monsters.length === 0);
