@@ -3607,7 +3607,7 @@ function claimGuildBounty() {
     const link = document.createElement('link');
     link.id = 'dungeon-css';
     link.rel = 'stylesheet';
-    link.href = 'css/dungeon.css';
+    link.href = 'css/dungeon.css?v=2026-05-08-hud-layer-fix';
     document.head.appendChild(link);
   }
 
