@@ -208,7 +208,8 @@
   background: rgba(6, 10, 18, 0.85);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
-  z-index: 60;
+  /* Keep the minimap under the central room card (so it never covers boss buttons). */
+  z-index: 30;
 }
 
 .dungeon-minimap {
@@ -309,15 +310,20 @@
 
 .dungeon-hud-center {
   position: absolute;
-  left: 50%;
-  /* WebKit can resolve vh/svh differently and pull this up into the top HUD; clamp it down. */
-  top: max(54%, 140px);
-  transform: translate(-50%, -50%);
-  width: min(620px, 92vw);
+  /* More robust than top/% transforms on Safari/WebKit: center within a fixed inset box. */
+  left: 12px;
+  right: 12px;
+  top: 72px;
+  bottom: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: none;
+  width: auto;
   pointer-events: none;
   /* Central card should never cover the top HUD actions. */
-  z-index: 20;
-  max-height: calc(100% - 120px);
+  z-index: 50;
+  max-height: none;
 }
 
 .dungeon-hud-room {
@@ -327,7 +333,7 @@
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
   /* Avoid WebKit layout oddities where the card can expand upward and sit over HUD actions. */
-  max-height: min(420px, calc(100vh - 190px));
+  max-height: 100%;
   overflow: auto;
 }
 
@@ -2455,10 +2461,12 @@
   }
 
   .dungeon-hud-center {
-    top: auto;
+    left: 8px;
+    right: 8px;
+    top: 64px;
     bottom: 182px;
-    transform: translateX(-50%);
-    width: min(80vw, 500px);
+    transform: none;
+    width: auto;
   }
 
   .dungeon-hud-room {
@@ -2524,10 +2532,12 @@
   }
 
   .dungeon-hud-center {
-    top: auto;
+    left: 6px;
+    right: 6px;
+    top: 56px;
     bottom: 198px;
-    transform: translateX(-50%);
-    width: min(80vw, 332px);
+    transform: none;
+    width: auto;
   }
 
   .dungeon-hud-room {
@@ -2561,8 +2571,12 @@
   }
 
   .dungeon-hud-center {
-    top: 52%;
-    width: 80vw;
+    left: 8px;
+    right: 8px;
+    top: 56px;
+    bottom: 110px;
+    transform: none;
+    width: auto;
   }
 
   .dungeon-hud-room {
