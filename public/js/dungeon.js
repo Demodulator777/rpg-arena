@@ -1502,10 +1502,15 @@ function fightRound() {
                 }
                 const c = getChar();
                 if (c && res.player && typeof res.player.hp === 'number') {
-                    const maxHp = Number(c.hp_max || res.player.maxHp || 0) || Number(res.player.maxHp || 0) || 0;
+                    const serverMaxHp = Number(res.player.maxHp || 0) || 0;
+                    if (serverMaxHp > 0 && (!Number.isFinite(Number(c.hp_max)) || Number(c.hp_max) < serverMaxHp)) {
+                        // Keep client snapshot in sync with server-computed "true" max HP (gear/set bonuses).
+                        c.hp_max = serverMaxHp;
+                    }
+                    const maxHp = serverMaxHp > 0 ? serverMaxHp : (Number(c.hp_max || 0) || 0);
                     const nextHp = Number(res.player.hp);
                     if (maxHp > 0 && (nextHp < 0 || nextHp > maxHp)) {
-                        console.warn('[dungeon] Ignoring invalid server HP', { nextHp, maxHp });
+                        console.warn('[dungeon] Ignoring invalid server HP', { nextHp, maxHp, serverMaxHp });
                     } else {
                         c.hp_current = res.player.hp;
                         c.hp = res.player.hp;
@@ -1567,10 +1572,14 @@ function fightRound() {
                     const c = getChar();
                     if (c) {
                         // Safety: don't apply obviously bogus HP from transient server bugs.
-                        const maxHp = Number(c.hp_max || res.player.maxHp || 0) || Number(res.player.maxHp || 0) || 0;
+                        const serverMaxHp = Number(res.player.maxHp || 0) || 0;
+                        if (serverMaxHp > 0 && (!Number.isFinite(Number(c.hp_max)) || Number(c.hp_max) < serverMaxHp)) {
+                            c.hp_max = serverMaxHp;
+                        }
+                        const maxHp = serverMaxHp > 0 ? serverMaxHp : (Number(c.hp_max || 0) || 0);
                         const nextHp = Number(res.player.hp);
                         if (maxHp > 0 && (nextHp < 0 || nextHp > maxHp)) {
-                            console.warn('[dungeon] Ignoring invalid server HP', { nextHp, maxHp });
+                            console.warn('[dungeon] Ignoring invalid server HP', { nextHp, maxHp, serverMaxHp });
                         } else {
                         c.hp_current = res.player.hp;
                         c.hp = res.player.hp;
