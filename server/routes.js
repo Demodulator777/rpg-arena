@@ -3362,7 +3362,14 @@ function calcHpMax(char, equippedItems) {
 
 function calcBaseDamage(char, equippedItems) {
     const setBonuses = getEquippedSetBonuses(equippedItems);
-    const totalStrength = (char.strength || 1) + (setBonuses.strength || 0);
+    let itemStr = 0;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.strength) itemStr += Number(data.stats.strength || 0);
+        } catch {}
+    }
+    const totalStrength = (char.strength || 1) + (setBonuses.strength || 0) + itemStr;
     let dmgMin = Math.floor(totalStrength * 0.5);
     let dmgMax = dmgMin + 4;
     if (setBonuses.dmg_min) dmgMin += setBonuses.dmg_min;
@@ -3380,7 +3387,14 @@ function calcBaseDamage(char, equippedItems) {
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
 function calcArmorValue(char, equippedItems) {
     const setBonuses = getEquippedSetBonuses(equippedItems);
-    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0)) / 4);
+    let itemDef = 0;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.defense) itemDef += Number(data.stats.defense || 0);
+        } catch {}
+    }
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 4);
     if (setBonuses.armor) armor += setBonuses.armor;
     for (const item of equippedItems) {
         try {
