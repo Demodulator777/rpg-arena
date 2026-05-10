@@ -2490,6 +2490,21 @@
   .dungeon-hud-room.has-monster .dungeon-hud-room-log {
     display: none !important;
   }
+
+  /* Encounter layout: give the enemy preview/actions the full vertical space instead of a tiny inner scrollbox. */
+  .dungeon-game.dungeon-has-encounter .dungeon-hud-bottom {
+    display: none;
+  }
+  .dungeon-game.dungeon-has-encounter .dungeon-hud-center {
+    bottom: 12px;
+  }
+  .dungeon-game.dungeon-has-encounter .dungeon-hud-minimap {
+    bottom: 12px;
+  }
+  .dungeon-game.dungeon-has-encounter .dungeon-hud-room {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 480px) {
