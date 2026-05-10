@@ -2496,10 +2496,14 @@
     display: none;
   }
   .dungeon-game.dungeon-has-encounter .dungeon-hud-center {
-    bottom: 12px;
+    /* Leave space for the minimap; we want the preview higher, not covering the map. */
+    bottom: 210px;
   }
   .dungeon-game.dungeon-has-encounter .dungeon-hud-minimap {
-    bottom: 12px;
+    /* Keep the minimap in its usual mobile region. */
+    bottom: 65px;
+    /* And ensure nothing can cover it (Safari/WebKit layering). */
+    z-index: 55;
   }
   .dungeon-game.dungeon-has-encounter .dungeon-hud-room {
     max-height: none;
