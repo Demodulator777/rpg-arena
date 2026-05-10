@@ -1043,14 +1043,15 @@ function calcPlayerStats() {
       break;
   }
   
-  const hp = c.hp_current || c.hp || 100;
-  const maxHp = c.hp_max || 100;
+  // Important: hp_current can be 0 (dead). Never use `||` here or we "auto-heal" to fallback values.
+  const hp = Number(c.hp_current ?? c.hp ?? 100);
+  const maxHp = Number(c.hp_max ?? 100);
   
   return { 
     atk: Math.floor(atk), 
     def: Math.floor(def), 
-    hp: hp, 
-    maxHp: maxHp 
+    hp: Number.isFinite(hp) ? hp : 100,
+    maxHp: Number.isFinite(maxHp) ? maxHp : 100
   };
 }
 
@@ -1204,6 +1205,30 @@ function enterDungeon(dungeonId) {
             alert('⚠️ Failed to enter dungeon. Please try again.');
         });
 }
+
+  // Prefetch server-authoritative combat state as soon as you enter a room with enemies.
+  // This makes the "Fight" button feel instant even on higher latency connections.
+  function prefetchCombatForRoom(roomIdx) {
+    if (D.combat) return;
+    const room = D.rooms?.[roomIdx];
+    if (!room || !Array.isArray(room.monsters) || room.monsters.length === 0) return;
+    const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(Number(m.lastKilled), MONSTER_RESPAWN_H));
+    if (!anyAlive) return;
+
+    const key = `${D.floor}:${roomIdx}:${String(D.floorRunId || '')}`;
+    if (D._combatPrefetch && D._combatPrefetch.key === key) return;
+
+    D._combatPrefetch = {
+      key,
+      res: null,
+      promise: apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId })
+        .then(res => {
+          if (D._combatPrefetch && D._combatPrefetch.key === key) D._combatPrefetch.res = res;
+          return res;
+        })
+        .catch(() => null),
+    };
+  }
 
 function startLockRefresh() {
     D.lockRefreshInterval = setInterval(() => {
@@ -1424,7 +1449,8 @@ function startCombat(roomIdx) {
         roomIdx,
         monsters: [],
         currentMonsterIndex: 0,
-        playerHpBefore: getChar()?.hp_current || getChar()?.hp || 100,
+        // hp_current can be 0; don't fall back to 100.
+        playerHpBefore: Number(getChar()?.hp_current ?? getChar()?.hp ?? 100),
         roundLog: [],
         serverAuth: true,
         resolving: true,
@@ -1433,13 +1459,13 @@ function startCombat(roomIdx) {
     };
     renderCombatPanel();
 
-    // Ensure the server has the latest room monster roster for validation.
-    saveProgressToDB();
+    // Speed: reuse a prefetched combat session when available.
+    const preKey = `${D.floor}:${roomIdx}:${String(D.floorRunId || '')}`;
+    const startPromise = (D._combatPrefetch && D._combatPrefetch.key === preKey)
+        ? (D._combatPrefetch.res ? Promise.resolve(D._combatPrefetch.res) : (D._combatPrefetch.promise || Promise.resolve(null)))
+        : apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId });
 
-    // Pull a fresh character snapshot before starting server combat, so the UI HP matches the DB HP.
-    // (Prevents confusing "HP jumped" moments when local character is stale.)
-    Promise.resolve(refreshCharacter?.()).catch(() => {}).finally(() => {
-    apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId })
+    startPromise
         .then(res => {
             if (!D.combat || D.combat.roomIdx !== roomIdx) return;
             if (!res || !res.success) throw new Error(res?.error || 'Failed to start combat.');
@@ -1457,7 +1483,9 @@ function startCombat(roomIdx) {
             if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
             D.combat.resolving = false;
             saveState();
+            // Best-effort: sync progress + fresh character snapshot after combat has started.
             saveProgressToDB();
+            Promise.resolve(refreshCharacter?.()).catch(() => {});
             renderCombatPanel();
         })
         .catch(err => {
@@ -1468,7 +1496,6 @@ function startCombat(roomIdx) {
                 renderCombatPanel();
             }
         });
-    });
 }
 
 function fightRound() {
@@ -1672,12 +1699,13 @@ function fightRound() {
     const c = getChar();
     if (!c) return;
     
-    const currentHp = c.hp_current || c.hp || 100;
+    // hp_current can be 0; avoid `||` fallbacks (they "auto-heal" dead characters in UI).
+    const currentHp = Number(c.hp_current ?? c.hp ?? 100);
     const pStats = { 
         atk: calcPlayerStats().atk, 
         def: calcPlayerStats().def, 
         hp: currentHp, 
-        maxHp: c.hp_max || 100 
+        maxHp: Number(c.hp_max ?? 100) 
     };
     
     const { log: roundLog, playerDmgTaken, monsterDead, allMonstersDead, currentMonsterIndex } = 
@@ -1980,7 +2008,8 @@ function tryRun(roomIdx) {
                 }
             }
             
-            c.hp_current = Math.max(0, (c.hp_current || c.hp || 100) - totalDamage);
+            // hp_current can be 0; don't treat it as "missing".
+            c.hp_current = Math.max(0, Number((c.hp_current ?? c.hp ?? 100)) - totalDamage);
             c.hp = c.hp_current;
             pushCombatLog('player', `💔 You take ${totalDamage} damage.`);
             
@@ -2774,7 +2803,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       });
   }
 
-    function renderDungeonView() {
+  function renderDungeonView() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
 
@@ -2819,8 +2848,13 @@ const previewFloors = [0,1,2,3,4].map(offset => {
               ? 'Open Chamber'
               : 'Corridor';
 
+    const roomHasAliveMonsters =
+      !!(currentRoom.monsters && currentRoom.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)));
+    // On small screens, we need more vertical room for the enemy preview/actions. Hide bottom travel UI during encounters.
+    const isEncounter = roomHasAliveMonsters && !currentRoom.isBoss && !currentRoom.monstersEvaded;
+
     area.innerHTML = `
-      <div class="dungeon-game" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
+      <div class="dungeon-game ${isEncounter ? 'dungeon-has-encounter' : ''}" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
         <div class="dungeon-game-screen">
           ${roomImage ? `
             <img class="dungeon-game-scene" src="${roomImage}" alt="Dungeon Scene" data-error-hide="true">
@@ -2842,7 +2876,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
           </div>
 
           <div class="dungeon-hud-center">
-            <div class="dungeon-hud-room ${currentRoom.monsters && currentRoom.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)) ? 'has-monster' : ''}">
+            <div class="dungeon-hud-room ${roomHasAliveMonsters ? 'has-monster' : ''}">
               <div class="dungeon-hud-room-title">
                 ${roomLabel}
                 <span class="dungeon-hud-room-id"> � Room ${D.playerPos + 1}</span>
@@ -2907,6 +2941,9 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       </div>
     `;
 
+    if (roomHasAliveMonsters && !currentRoom.isBoss && !currentRoom.monstersEvaded) {
+      prefetchCombatForRoom(D.playerPos);
+    }
     renderLog();
   }
 
