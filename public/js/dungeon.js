@@ -1421,6 +1421,19 @@ function startCombat(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
+    // Prevent entering combat at 0 HP (otherwise the UI can get stuck "connecting" and server will reject anyway).
+    const c0 = getChar();
+    const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
+    if (Number.isFinite(hp0) && hp0 <= 0) {
+        const msg = 'You are at 0 HP. Leave the dungeon to recover before fighting again.';
+        if (typeof openGameDialog === 'function') {
+            openGameDialog({ title: 'Out of HP', message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+        } else {
+            alert(msg);
+        }
+        return;
+    }
+
     // Check if already cleared (server-side protection)
     // Hardening: invalid persisted timestamps (string/boolean/etc.) should not soft-lock combat.
     if (room.monstersCleared && (!Number.isFinite(Number(room.monstersCleared)) || Number(room.monstersCleared) <= 0)) room.monstersCleared = null;
@@ -2116,6 +2129,19 @@ function onPlayerDeath() {
 async function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isBoss) return;
+
+    // Prevent entering boss combat at 0 HP (server rejects; client should show a clear modal instead).
+    const c0 = getChar();
+    const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
+    if (Number.isFinite(hp0) && hp0 <= 0) {
+        const msg = 'You are at 0 HP. Leave the dungeon to recover before challenging the boss.';
+        if (typeof openGameDialog === 'function') {
+            await openGameDialog({ title: 'Out of HP', message: msg, confirmLabel: 'OK', showCancel: false });
+        } else {
+            alert(msg);
+        }
+        return;
+    }
 
     // Boss fights are server-authoritative (includes token gate + loot).
     const _def = getDungeonDef();
