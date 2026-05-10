@@ -3565,7 +3565,7 @@ function closeDungeonVictory() {
                       ${exchange.reward.item ? `<span class="reward-item">📦 ${exchange.reward.item}</span>` : ''}
                       ${currentRank.discount > 0 ? `<span class="reward-discount">✨ +${currentRank.discount}% Gold Bonus (${currentRank.name})</span>` : ''}
                     </div>
-<button class="exchange-btn" ${actionAttrs('exchangeAtGuild', exchange.id)} ${!canExchange ? 'disabled' : ''}>
+<button class="exchange-btn" ${actionAttrs('exchangeAtGuild', exchange.id)} ${(!canExchange || D._guildExchangeInFlight) ? 'disabled' : ''}>
                       ${canExchange ? 'Exchange' : missingReason || 'Missing Requirements'}
                     </button>
                   </div>
@@ -3612,6 +3612,9 @@ function closeGuild() {
 }
 
 function exchangeAtGuild(exchangeId) {
+  if (D._guildExchangeInFlight) return;
+  D._guildExchangeInFlight = true;
+  renderGuild(); // re-render so buttons disable immediately
   apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId })
     .then(response => {
       if (response.success) {
@@ -3623,7 +3626,12 @@ function exchangeAtGuild(exchangeId) {
         refreshCharacter(); // Refresh main character
       }
     })
-    .catch(e => console.error('Exchange failed:', e));
+    .catch(e => console.error('Exchange failed:', e))
+    .finally(() => {
+      D._guildExchangeInFlight = false;
+      // ensure buttons re-enable even if request failed
+      renderGuild();
+    });
 }
 
 function claimGuildBounty() {
