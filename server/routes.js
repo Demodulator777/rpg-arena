@@ -3597,16 +3597,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const blockFails = Math.random() < 0.001;
 
         const elemDmgs = attacker.elem_dmg || {};
-        let mageElemBonusApplied = false;
         for (const elem of ELEMENTS) {
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-            if (magicToElemental && !mageElemBonusApplied) {
-                ed += damageBonus;
-                mageElemBonusApplied = true;
-            }
+            // Mage: Magic scaling should apply to each element independently (not just the first).
+            if (magicToElemental) ed += damageBonus;
             const elemResist = (defender.elem_resist || {})[elem] || 0;
             const magicResist = Math.floor((defender.magic || 0) * 0.05);
             ed = Math.max(0, ed - elemResist - magicResist);
