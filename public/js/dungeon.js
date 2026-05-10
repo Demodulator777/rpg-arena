@@ -915,12 +915,8 @@ async function refreshCharacter() {
         maxHp: D.crawler.monster.maxHp || D.crawler.monster.hp,
       }],
       currentMonsterIndex: 0,
-      roundLog: [{
-        actor: 'monster',
-        text: source === 'chase'
-          ? `The Crawler catches up to you and blocks the path ahead!`
-          : `The Crawler drops from the dark and pins your escape route!`
-      }],
+      // Server will provide the authoritative intro line; avoid duplicating it client-side.
+      roundLog: [],
       isCrawler: true,
       serverAuth: true,
       resolving: true,
