@@ -9489,13 +9489,19 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
     const combatId = `dng_${kind}_${char.id}_${floor}_${roomIndex}_${seed}_${now}`;
     const trueHpMax = await getTrueHpMaxForChar(db, char);
     const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
-    // Never let combat start with a stale/incorrect low HP snapshot.
-    // If hp_current is unset/invalid, fall back to hp_max; otherwise trust hp_current.
+    // Don't "auto-heal" 0 HP characters. If you're dead, you must regen/heal outside the dungeon.
+    const hpCurRaw = Number(char.hp_current);
+    if (Number.isFinite(hpCurRaw) && hpCurRaw <= 0) {
+      return res.status(400).json({ error: 'You are at 0 HP. Leave the dungeon to recover before fighting again.' });
+    }
+
+    // Never let combat start with a stale/incorrect HP snapshot.
+    // If hp_current is unset/invalid, fall back to hp_max; otherwise trust hp_current (including small values).
     const safeStartHp = (() => {
       const hpCur = Number(char.hp_current);
       const hpMax = Math.max(1, Number(trueHpMax || 1));
-      if (!Number.isFinite(hpCur) || hpCur <= 0) return hpMax;
-      return Math.min(hpMax, hpCur);
+      if (!Number.isFinite(hpCur)) return hpMax;
+      return Math.min(hpMax, Math.max(0, hpCur));
     })();
 
     let monsters = [];
