@@ -10329,13 +10329,20 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
     
     const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
     
-    if (exchange.cost.dungeonGold && (char.dungeon_gold || 0) < exchange.cost.dungeonGold) {
-      return res.status(400).json({ error: `Need ${exchange.cost.dungeonGold} dungeon gold` });
-    }
-    
+    // Atomic cost deduction to prevent rapid-click races driving dungeon_gold below 0.
     if (exchange.cost.dungeonGold) {
-      await dbRun(db, 'UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE id = ?', 
-        [exchange.cost.dungeonGold, char.id]);
+      const cost = Number(exchange.cost.dungeonGold || 0);
+      if (cost <= 0) return res.status(400).json({ error: 'Invalid exchange cost' });
+      const deduct = await db.execute({
+        sql: `UPDATE characters
+              SET dungeon_gold = dungeon_gold - ?
+              WHERE id = ? AND COALESCE(dungeon_gold, 0) >= ?
+              RETURNING dungeon_gold`,
+        args: [cost, char.id, cost]
+      });
+      if (!deduct?.rows || deduct.rows.length === 0) {
+        return res.status(400).json({ error: `Need ${cost} dungeon gold` });
+      }
     }
     
     if (exchange.reward.gold) {
