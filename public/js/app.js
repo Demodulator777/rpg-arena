@@ -3694,6 +3694,7 @@ async function collectMission() {
         
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
             enemyName: d.npcName || 'Enemy',
+            enemyLevel: d.npcLevel ?? null,
             missionName: d.missionName || '',
             battleType: 'mission',
             tutorialMessage: d.tutorialMessage,
@@ -6825,7 +6826,7 @@ async function findOpponent(direction='similar') {
         const myAttackBlockReason = getMyAttackBlockReason();
         const attackBtn = myAttackBlockReason
             ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">🛡️ ${myAttackBlockReason}</button>`
-            : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name, p.class)}>⚔️ Attack</button>`;
+            : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name, p.class, p.level)}>⚔️ Attack</button>`;
         const diffLabel = powerDiff > 10 ? '⬆️ Stronger' : powerDiff < -10 ? '⬇️ Weaker' : '↔️ Similar';
         if (box) box.innerHTML = `
             <div class="matchmaking-card">
@@ -6846,7 +6847,7 @@ async function findOpponent(direction='similar') {
             </div>`;
     } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
-async function attack(targetId,targetName,targetClass=null) {
+async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
     if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
     const blockReason = getMyAttackBlockReason();
     if (blockReason) { alert(blockReason); return; }
@@ -6866,11 +6867,11 @@ async function attack(targetId,targetName,targetClass=null) {
             });
         }
         
-        showBattleResult(r,targetName,targetClass);
+        showBattleResult(r,targetId,targetName,targetClass,targetLevel);
     }
     catch(e) { alert(e.message); }
 }
-function showBattleResult(r, targetName, targetClass=null) {
+function showBattleResult(r, targetId, targetName, targetClass=null, targetLevel=null) {
     const xpSummary = `${r.xpGained >= 0 ? '+' : ''}${r.xpGained} XP`;
     const summary = r.won
         ? `+${r.goldGained} gold · ${xpSummary}`
@@ -6878,6 +6879,7 @@ function showBattleResult(r, targetName, targetClass=null) {
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken, {
         enemyName: targetName,
         enemyClass: targetClass,
+        enemyLevel: targetLevel ?? (_matchmakingTarget && String(_matchmakingTarget.id) === String(targetId) ? _matchmakingTarget.level : null),
         battleType: 'pvp',
         battleStats: r.battleStats || null
     });
@@ -7209,6 +7211,7 @@ function viewBattleReport(msgId) {
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
         enemyName: report.opponentName || report.npcName || 'Enemy',
         enemyClass: report.opponentClass || null,
+        enemyLevel: report.opponentLevel ?? report.npcLevel ?? null,
         missionName: report.missionName || '',
         battleType: report.type === 'pvp' ? 'pvp' : 'mission',
         battleStats: report.battleStats || null
