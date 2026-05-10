@@ -3584,7 +3584,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
         const isCrit = Math.random() < Math.min(0.95, baseCritChance + critBonus);
         
-        rawPhysicalDmg = isCrit ? attacker.dmgMax : attacker.dmgMin + Math.floor(Math.random() * (attacker.dmgMax - attacker.dmgMin + 1));
+        // Design rule: non-crit hits should always use the configured MIN damage (no random roll).
+        // If data is inverted (min > max), keep non-crit using dmgMin, but make crit use the highest value.
+        const dmgMinConfigured = Number(attacker.dmgMin || 0);
+        const dmgMaxConfigured = Number(attacker.dmgMax || 0);
+        const dmgCrit = Math.max(dmgMinConfigured, dmgMaxConfigured);
+        rawPhysicalDmg = isCrit ? dmgCrit : dmgMinConfigured;
         rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
         let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
         physicalDmg = Math.floor(physicalDmg * hit.dmgMult * atkBonusDmg);
