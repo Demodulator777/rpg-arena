@@ -6396,6 +6396,7 @@ const payload = JSON.stringify({
     xpEarned, 
     type: 'mission', 
     npcName: npcName,  // Use the extracted NPC name here
+    npcLevel: missionEffectiveLevel,
     missionName: mission.mission_name,
     totalDmgDealt: battle.totalDmgToB,
     totalDmgTaken: battle.totalDmgToA,
@@ -6418,6 +6419,7 @@ const payload = JSON.stringify({
             totalDmgTaken: battle.totalDmgToA,
             battleStats,
             missionName: mission.mission_name,
+            npcLevel: missionEffectiveLevel,
         });
     } catch (e) {
         console.error('Mission collect error:', e);
@@ -7577,6 +7579,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 type:'pvp',
                 opponentName:freshA.name,
                 opponentClass:freshA.class,
+                opponentLevel:freshA.level,
                 totalDmgDealt:battle.totalDmgToA,
                 totalDmgTaken:battle.totalDmgToB,
                 battleStats: battleStatsForDefender
@@ -7594,6 +7597,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 type:'pvp',
                 opponentName:freshD.name,
                 opponentClass:freshD.class,
+                opponentLevel:freshD.level,
                 totalDmgDealt:battle.totalDmgToB,
                 totalDmgTaken:battle.totalDmgToA,
                 battleStats: battleStatsForAttacker
