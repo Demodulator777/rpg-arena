@@ -4086,6 +4086,8 @@ async function buildCombatFighter(db, char) {
         class: char.class,
         weapon: weapon,
         hp: hpCurrent,
+        // For battle reports we want to show potential/full HP, not current HP after the fight.
+        hpMax,
         dmgMin: dmgMin + (skillPassives.dmg_min || 0),
         dmgMax: dmgMax + (skillPassives.dmg_max || 0),
         strength: (char.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
