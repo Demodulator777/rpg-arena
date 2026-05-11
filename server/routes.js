@@ -6280,7 +6280,7 @@ if (freshChar.class === 'rogue') {
             name: freshChar.name,
             class: freshChar.class,
             hp: hpCurrent,
-            hpMax: hpMax,
+            hpMax: hpMax + ((skillPassives.vitality || 0) * 25),
             dmgMin: dmgMin + (skillPassives.dmg_min || 0),
             dmgMax: dmgMax + (skillPassives.dmg_max || 0),
             strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
@@ -7773,6 +7773,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             totalDmgDealt: battle.totalDmgToB,
             totalDmgTaken: battle.totalDmgToA,
             battleStats: battleStatsForAttacker,
+            opponentName: freshD.name,
+            opponentClass: freshD.class,
+            opponentLevel: freshD.level,
         });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
