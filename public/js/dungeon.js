@@ -2125,6 +2125,13 @@ function onPlayerDeath() {
 async function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isBoss) return;
+    
+    // Check tokens before attempting boss fight
+    const tokensNeeded = 50;
+    if ((D.tokens || 0) < tokensNeeded) {
+        log(`⚠️ Need ${tokensNeeded} tokens to challenge the boss. You have ${D.tokens || 0}.`, 'log-warning');
+        return;
+    }
 
     // Prevent entering boss combat at 0 HP (server rejects; client should show a clear modal instead).
     const c0 = getChar();
