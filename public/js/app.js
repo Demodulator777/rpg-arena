@@ -2266,25 +2266,7 @@ function renderAchievementRewardSummary(achievement) {
 }
 
 function getVisibleAchievements(items) {
-    const groups = new Map();
-    for (const item of items) {
-        const key = item.chain || item.metric || item.id;
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(item);
-    }
-
-    const visible = [];
-    for (const group of groups.values()) {
-        group.sort((a, b) => (a.target || 0) - (b.target || 0));
-        const nextUnclaimed = group.find(item => !item.claimed);
-        if (nextUnclaimed) {
-            visible.push(nextUnclaimed);
-        } else if (group.length) {
-            visible.push(group[group.length - 1]);
-        }
-    }
-
-    return visible.sort((a, b) => {
+    return items.sort((a, b) => {
         if (a.claimable !== b.claimable) return a.claimable ? -1 : 1;
         if (a.completed !== b.completed) return a.completed ? 1 : -1;
         return (a.target || 0) - (b.target || 0);
