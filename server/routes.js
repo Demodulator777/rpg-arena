@@ -2478,9 +2478,12 @@ function buildExtendedAchievements() {
             target: 15,
             rewards: { gold: 250000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
-        
-        // Level achievements (every 10 levels)
-        { id: 'level_10', category: 'progression', name: 'Apprentice', desc: 'Reach level 10.', icon: '⭐', metric: 'level', target: 10, rewards: { gold: 2500 } },
+    );
+
+// New progression achievements
+ACHIEVEMENTS.push(
+    // Level achievements (every 10 levels)
+    { id: 'level_10', category: 'progression', name: 'Apprentice', desc: 'Reach level 10.', icon: '⭐', metric: 'level', target: 10, rewards: { gold: 2500 } },
         { id: 'level_20', category: 'progression', name: 'Adventurer', desc: 'Reach level 20.', icon: '⭐', metric: 'level', target: 20, rewards: { gold: 5000 } },
         { id: 'level_30', category: 'progression', name: 'Warrior', desc: 'Reach level 30.', icon: '⭐', metric: 'level', target: 30, rewards: { gold: 10000 } },
         { id: 'level_40', category: 'progression', name: 'Soldier', desc: 'Reach level 40.', icon: '⭐', metric: 'level', target: 40, rewards: { gold: 15000, gems: 5 } },
@@ -2561,7 +2564,7 @@ function buildExtendedAchievements() {
         
         // Raid wins
         { id: 'raids_won_5', category: 'guild', name: 'Raid Champion', desc: 'Win 5 guild raids.', icon: '🏆', metric: 'raids_won', target: 5, rewards: { gold: 25000 } },
-    );
+        );
 
     const referralsBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_10');
     addFromBase(referralsBase, {
@@ -2600,7 +2603,9 @@ function buildExtendedAchievements() {
 
 const extended = buildExtendedAchievements();
 console.log('[DEBUG] Extended achievements count:', extended.length);
+console.log('[DEBUG] ACHIEVEMENTS length after push:', ACHIEVEMENTS.length);
 ACHIEVEMENTS.push(...extended);
+console.log('[DEBUG] Final ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 async function buildAchievementMetricSnapshot(db, char) {
     const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow] = await Promise.all([
