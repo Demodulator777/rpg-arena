@@ -2547,11 +2547,8 @@ function buildExtendedAchievements() {
         { id: 'gems_earned_500', category: 'economy', name: 'Gem Emperor', desc: 'Earn 500 gems total.', icon: '💎', metric: 'gems_earned', target: 500, rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
         
         // Hard missions completed
-        { id: 'hard_missions_5', category: 'missions', name: 'Risk Taker', desc: 'Complete 5 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 5, rewards: { gold: 5000 } },
         { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
-        { id: 'hard_missions_25', category: 'missions', name: 'Fearless', desc: 'Complete 25 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 25, rewards: { gold: 25000, gems: 10 } },
         { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
-        { id: 'hard_missions_100', category: 'missions', name: 'Warrior Soul', desc: 'Complete 100 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 100, rewards: { gold: 100000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } } },
         
         // Raid participation
         { id: 'raids_1', category: 'guild', name: 'Raid Beginner', desc: 'Participate in 1 guild raid.', icon: '⚔️', metric: 'raids_participated', target: 1, rewards: { gold: 5000 } },
@@ -2561,10 +2558,7 @@ function buildExtendedAchievements() {
         { id: 'raids_50', category: 'guild', name: 'Raid Legend', desc: 'Participate in 50 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 50, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
         
         // Raid wins
-        { id: 'raids_won_1', category: 'guild', name: 'First Victory', desc: 'Win 1 guild raid.', icon: '🏆', metric: 'raids_won', target: 1, rewards: { gold: 7500 } },
         { id: 'raids_won_5', category: 'guild', name: 'Raid Champion', desc: 'Win 5 guild raids.', icon: '🏆', metric: 'raids_won', target: 5, rewards: { gold: 25000 } },
-        { id: 'raids_won_10', category: 'guild', name: 'Raid Master', desc: 'Win 10 guild raids.', icon: '🏆', metric: 'raids_won', target: 10, rewards: { gold: 50000, gems: 15 } },
-        { id: 'raids_won_25', category: 'guild', name: 'Raid Warlord', desc: 'Win 25 guild raids.', icon: '🏆', metric: 'raids_won', target: 25, rewards: { gold: 125000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     );
 
     const referralsBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_10');
