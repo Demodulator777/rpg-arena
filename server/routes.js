@@ -1802,10 +1802,12 @@ ACHIEVEMENTS.push(
 );
 
 function buildExtendedAchievements() {
+    console.log('[DEBUG] buildExtendedAchievements called, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
     const extras = [];
     const addFromBase = (base, overrides) => extras.push({ ...base, ...overrides });
 
     const battlesBase = ACHIEVEMENTS.find((a) => a.id === 'battles_500');
+    console.log('[DEBUG] battlesBase found:', !!battlesBase);
     addFromBase(battlesBase, {
         id: 'battles_1000',
         name: 'Battleforged',
@@ -2596,7 +2598,9 @@ function buildExtendedAchievements() {
     return extras;
 }
 
-ACHIEVEMENTS.push(...buildExtendedAchievements());
+const extended = buildExtendedAchievements();
+console.log('[DEBUG] Extended achievements count:', extended.length);
+ACHIEVEMENTS.push(...extended);
 
 async function buildAchievementMetricSnapshot(db, char) {
     const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow] = await Promise.all([
