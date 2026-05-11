@@ -2480,91 +2480,7 @@ function buildExtendedAchievements() {
         },
     );
 
-// New progression achievements
-ACHIEVEMENTS.push(
-    // Level achievements (every 10 levels)
-    { id: 'level_10', category: 'progression', name: 'Apprentice', desc: 'Reach level 10.', icon: '⭐', metric: 'level', target: 10, rewards: { gold: 2500 } },
-        { id: 'level_20', category: 'progression', name: 'Adventurer', desc: 'Reach level 20.', icon: '⭐', metric: 'level', target: 20, rewards: { gold: 5000 } },
-        { id: 'level_30', category: 'progression', name: 'Warrior', desc: 'Reach level 30.', icon: '⭐', metric: 'level', target: 30, rewards: { gold: 10000 } },
-        { id: 'level_40', category: 'progression', name: 'Soldier', desc: 'Reach level 40.', icon: '⭐', metric: 'level', target: 40, rewards: { gold: 15000, gems: 5 } },
-        { id: 'level_50', category: 'progression', name: 'Elite', desc: 'Reach level 50.', icon: '⭐', metric: 'level', target: 50, rewards: { gold: 25000, gems: 10 } },
-        { id: 'level_60', category: 'progression', name: 'Veteran', desc: 'Reach level 60.', icon: '⭐', metric: 'level', target: 60, rewards: { gold: 35000, gems: 15 } },
-        { id: 'level_70', category: 'progression', name: 'Champion', desc: 'Reach level 70.', icon: '⭐', metric: 'level', target: 70, rewards: { gold: 50000, gems: 20 } },
-        { id: 'level_80', category: 'progression', name: 'Hero', desc: 'Reach level 80.', icon: '⭐', metric: 'level', target: 80, rewards: { gold: 75000, gems: 25 } },
-        { id: 'level_90', category: 'progression', name: 'Master', desc: 'Reach level 90.', icon: '⭐', metric: 'level', target: 90, rewards: { gold: 100000, gems: 30 } },
-        { id: 'level_100', category: 'progression', name: 'Legend', desc: 'Reach level 100.', icon: '⭐', metric: 'level', target: 100, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-        { id: 'level_110', category: 'progression', name: 'Mythic', desc: 'Reach level 110.', icon: '⭐', metric: 'level', target: 110, rewards: { gold: 200000, gems: 50 } },
-        { id: 'level_120', category: 'progression', name: 'Ancient', desc: 'Reach level 120.', icon: '⭐', metric: 'level', target: 120, rewards: { gold: 250000, gems: 60 } },
-        { id: 'level_130', category: 'progression', name: 'Eternal', desc: 'Reach level 130.', icon: '⭐', metric: 'level', target: 130, rewards: { gold: 300000, gems: 75 } },
-        { id: 'level_140', category: 'progression', name: 'Divine', desc: 'Reach level 140.', icon: '⭐', metric: 'level', target: 140, rewards: { gold: 350000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-        { id: 'level_150', category: 'progression', name: 'Transcendent', desc: 'Reach level 150.', icon: '⭐', metric: 'level', target: 150, rewards: { gold: 400000, gems: 100 } },
-        { id: 'level_160', category: 'progression', name: 'Celestial', desc: 'Reach level 160.', icon: '⭐', metric: 'level', target: 160, rewards: { gold: 450000, gems: 110 } },
-        { id: 'level_170', category: 'progression', name: 'Immortal', desc: 'Reach level 170.', icon: '⭐', metric: 'level', target: 170, rewards: { gold: 500000, gems: 125 } },
-        { id: 'level_180', category: 'progression', name: 'Omnipotent', desc: 'Reach level 180.', icon: '⭐', metric: 'level', target: 180, rewards: { gold: 550000, gems: 150 } },
-        { id: 'level_190', category: 'progression', name: 'Supreme', desc: 'Reach level 190.', icon: '⭐', metric: 'level', target: 190, rewards: { gold: 600000, gems: 175 } },
-        { id: 'level_200', category: 'progression', name: 'Ultimate', desc: 'Reach level 200.', icon: '⭐', metric: 'level', target: 200, rewards: { gold: 750000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-        
-        // Gold earned achievements (granular tiers)
-        { id: 'gold_earned_5k', category: 'economy', name: 'Penny Pincher', desc: 'Earn 5,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000, rewards: { gold: 1000 } },
-        { id: 'gold_earned_10k', category: 'economy', name: 'Gold Digger', desc: 'Earn 10,000 gold total.', icon: '💰', metric: 'gold_earned', target: 10000, rewards: { gold: 2000 } },
-        { id: 'gold_earned_25k', category: 'economy', name: 'Coin Collector', desc: 'Earn 25,000 gold total.', icon: '💰', metric: 'gold_earned', target: 25000, rewards: { gold: 4000 } },
-        { id: 'gold_earned_50k', category: 'economy', name: 'Wealth Builder', desc: 'Earn 50,000 gold total.', icon: '💰', metric: 'gold_earned', target: 50000, rewards: { gold: 7500 } },
-        { id: 'gold_earned_75k', category: 'economy', name: 'Money Maker', desc: 'Earn 75,000 gold total.', icon: '💰', metric: 'gold_earned', target: 75000, rewards: { gold: 10000 } },
-        { id: 'gold_earned_100k', category: 'economy', name: 'Rich', desc: 'Earn 100,000 gold total.', icon: '💰', metric: 'gold_earned', target: 100000, rewards: { gold: 15000 } },
-        { id: 'gold_earned_250k', category: 'economy', name: 'Fortune', desc: 'Earn 250,000 gold total.', icon: '💰', metric: 'gold_earned', target: 250000, rewards: { gold: 30000, gems: 10 } },
-        { id: 'gold_earned_500k', category: 'economy', name: 'Tycoon', desc: 'Earn 500,000 gold total.', icon: '💰', metric: 'gold_earned', target: 500000, rewards: { gold: 50000, gems: 15 } },
-        { id: 'gold_earned_750k', category: 'economy', name: 'Mogul', desc: 'Earn 750,000 gold total.', icon: '💰', metric: 'gold_earned', target: 750000, rewards: { gold: 75000, gems: 20 } },
-        { id: 'gold_earned_1m', category: 'economy', name: 'Magnate', desc: 'Earn 1,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 1000000, rewards: { gold: 100000, gems: 30, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-        { id: 'gold_earned_2m', category: 'economy', name: 'Empire', desc: 'Earn 2,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 2000000, rewards: { gold: 150000, gems: 40 } },
-        { id: 'gold_earned_3m', category: 'economy', name: 'Banking', desc: 'Earn 3,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 3000000, rewards: { gold: 200000, gems: 50 } },
-        { id: 'gold_earned_4m', category: 'economy', name: 'Tycoon Empire', desc: 'Earn 4,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 4000000, rewards: { gold: 250000, gems: 60 } },
-        { id: 'gold_earned_5m', category: 'economy', name: 'Trillionaire', desc: 'Earn 5,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000000, rewards: { gold: 350000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-        
-        // Total missions completed achievements
-        { id: 'missions_complete_10', category: 'missions', name: 'Missioner', desc: 'Complete 10 missions.', icon: '📜', metric: 'total_missions_completed', target: 10, rewards: { gold: 3000 } },
-        { id: 'missions_complete_50', category: 'missions', name: 'Taskmaster', desc: 'Complete 50 missions.', icon: '📜', metric: 'total_missions_completed', target: 50, rewards: { gold: 10000, gems: 5 } },
-        { id: 'missions_complete_100', category: 'missions', name: 'Questgiver', desc: 'Complete 100 missions.', icon: '📜', metric: 'total_missions_completed', target: 100, rewards: { gold: 25000, gems: 10 } },
-        { id: 'missions_complete_250', category: 'missions', name: 'Adventurer', desc: 'Complete 250 missions.', icon: '📜', metric: 'total_missions_completed', target: 250, rewards: { gold: 50000, gems: 15 } },
-        { id: 'missions_complete_500', category: 'missions', name: 'Explorer', desc: 'Complete 500 missions.', icon: '📜', metric: 'total_missions_completed', target: 500, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-        { id: 'missions_complete_750', category: 'missions', name: 'Seeker', desc: 'Complete 750 missions.', icon: '📜', metric: 'total_missions_completed', target: 750, rewards: { gold: 150000, gems: 30 } },
-        { id: 'missions_complete_1000', category: 'missions', name: 'Champion of Tasks', desc: 'Complete 1,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 1000, rewards: { gold: 250000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-        
-        // Dungeon floor achievements (every 10 floors)
-        { id: 'dungeon_floor_10', category: 'dungeon', name: 'Tower Explorer', desc: 'Reach floor 10 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 10, rewards: { gold: 5000 } },
-        { id: 'dungeon_floor_20', category: 'dungeon', name: 'Floor 20', desc: 'Reach floor 20 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 20, rewards: { gold: 10000, gems: 5 } },
-        { id: 'dungeon_floor_30', category: 'dungeon', name: 'Floor 30', desc: 'Reach floor 30 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 30, rewards: { gold: 20000, gems: 10 } },
-        { id: 'dungeon_floor_40', category: 'dungeon', name: 'Floor 40', desc: 'Reach floor 40 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 40, rewards: { gold: 35000, gems: 15 } },
-        { id: 'dungeon_floor_50', category: 'dungeon', name: 'Tower Master', desc: 'Reach floor 50 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 50, rewards: { gold: 50000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-        { id: 'dungeon_floor_60', category: 'dungeon', name: 'Floor 60', desc: 'Reach floor 60 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 60, rewards: { gold: 75000, gems: 25 } },
-        { id: 'dungeon_floor_70', category: 'dungeon', name: 'Floor 70', desc: 'Reach floor 70 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 70, rewards: { gold: 100000, gems: 30 } },
-        { id: 'dungeon_floor_80', category: 'dungeon', name: 'Floor 80', desc: 'Reach floor 80 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 80, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-        { id: 'dungeon_floor_90', category: 'dungeon', name: 'Floor 90', desc: 'Reach floor 90 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 90, rewards: { gold: 200000, gems: 50 } },
-        { id: 'dungeon_floor_100', category: 'dungeon', name: 'Tower Legend', desc: 'Reach floor 100 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 100, rewards: { gold: 300000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-        
-        // Gems earned achievements (granular tiers)
-        { id: 'gems_earned_5', category: 'economy', name: 'Gem Finder', desc: 'Earn 5 gems total.', icon: '💎', metric: 'gems_earned', target: 5, rewards: { gold: 1000 } },
-        { id: 'gems_earned_10', category: 'economy', name: 'Gem Collector', desc: 'Earn 10 gems total.', icon: '💎', metric: 'gems_earned', target: 10, rewards: { gold: 2000 } },
-        { id: 'gems_earned_25', category: 'economy', name: 'Gem Hunter', desc: 'Earn 25 gems total.', icon: '💎', metric: 'gems_earned', target: 25, rewards: { gold: 5000 } },
-        { id: 'gems_earned_50', category: 'economy', name: 'Gem Hoarder', desc: 'Earn 50 gems total.', icon: '💎', metric: 'gems_earned', target: 50, rewards: { gold: 10000 } },
-        { id: 'gems_earned_75', category: 'economy', name: 'Gem Master', desc: 'Earn 75 gems total.', icon: '💎', metric: 'gems_earned', target: 75, rewards: { gold: 15000 } },
-        { id: 'gems_earned_100', category: 'economy', name: 'Gem Tycoon', desc: 'Earn 100 gems total.', icon: '💎', metric: 'gems_earned', target: 100, rewards: { gold: 20000, gems: 5 } },
-        { id: 'gems_earned_250', category: 'economy', name: 'Gem Baron', desc: 'Earn 250 gems total.', icon: '💎', metric: 'gems_earned', target: 250, rewards: { gold: 40000, gems: 10 } },
-        { id: 'gems_earned_500', category: 'economy', name: 'Gem Emperor', desc: 'Earn 500 gems total.', icon: '💎', metric: 'gems_earned', target: 500, rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-        
-        // Hard missions completed
-        { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
-        { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
-        
-        // Raid participation
-        { id: 'raids_1', category: 'guild', name: 'Raid Beginner', desc: 'Participate in 1 guild raid.', icon: '⚔️', metric: 'raids_participated', target: 1, rewards: { gold: 5000 } },
-        { id: 'raids_5', category: 'guild', name: 'Raid Apprentice', desc: 'Participate in 5 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 5, rewards: { gold: 15000 } },
-        { id: 'raids_10', category: 'guild', name: 'Raid Veteran', desc: 'Participate in 10 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 10, rewards: { gold: 30000, gems: 10 } },
-        { id: 'raids_25', category: 'guild', name: 'Raid Elite', desc: 'Participate in 25 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 25, rewards: { gold: 75000, gems: 20 } },
-        { id: 'raids_50', category: 'guild', name: 'Raid Legend', desc: 'Participate in 50 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 50, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-        
-        // Raid wins
-        { id: 'raids_won_5', category: 'guild', name: 'Raid Champion', desc: 'Win 5 guild raids.', icon: '🏆', metric: 'raids_won', target: 5, rewards: { gold: 25000 } },
-        );
+// New progression achievements (moved to after buildExtendedAchievements call)
 
     const referralsBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_10');
     addFromBase(referralsBase, {
@@ -2606,6 +2522,94 @@ console.log('[DEBUG] Extended achievements count:', extended.length);
 console.log('[DEBUG] ACHIEVEMENTS length after push:', ACHIEVEMENTS.length);
 ACHIEVEMENTS.push(...extended);
 console.log('[DEBUG] Final ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+
+// Add new progression achievements
+ACHIEVEMENTS.push(
+    // Level achievements (every 10 levels)
+    { id: 'level_10', category: 'progression', name: 'Apprentice', desc: 'Reach level 10.', icon: '⭐', metric: 'level', target: 10, rewards: { gold: 2500 } },
+    { id: 'level_20', category: 'progression', name: 'Adventurer', desc: 'Reach level 20.', icon: '⭐', metric: 'level', target: 20, rewards: { gold: 5000 } },
+    { id: 'level_30', category: 'progression', name: 'Warrior', desc: 'Reach level 30.', icon: '⭐', metric: 'level', target: 30, rewards: { gold: 10000 } },
+    { id: 'level_40', category: 'progression', name: 'Soldier', desc: 'Reach level 40.', icon: '⭐', metric: 'level', target: 40, rewards: { gold: 15000, gems: 5 } },
+    { id: 'level_50', category: 'progression', name: 'Elite', desc: 'Reach level 50.', icon: '⭐', metric: 'level', target: 50, rewards: { gold: 25000, gems: 10 } },
+    { id: 'level_60', category: 'progression', name: 'Veteran', desc: 'Reach level 60.', icon: '⭐', metric: 'level', target: 60, rewards: { gold: 35000, gems: 15 } },
+    { id: 'level_70', category: 'progression', name: 'Champion', desc: 'Reach level 70.', icon: '⭐', metric: 'level', target: 70, rewards: { gold: 50000, gems: 20 } },
+    { id: 'level_80', category: 'progression', name: 'Hero', desc: 'Reach level 80.', icon: '⭐', metric: 'level', target: 80, rewards: { gold: 75000, gems: 25 } },
+    { id: 'level_90', category: 'progression', name: 'Master', desc: 'Reach level 90.', icon: '⭐', metric: 'level', target: 90, rewards: { gold: 100000, gems: 30 } },
+    { id: 'level_100', category: 'progression', name: 'Legend', desc: 'Reach level 100.', icon: '⭐', metric: 'level', target: 100, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'level_110', category: 'progression', name: 'Mythic', desc: 'Reach level 110.', icon: '⭐', metric: 'level', target: 110, rewards: { gold: 200000, gems: 50 } },
+    { id: 'level_120', category: 'progression', name: 'Ancient', desc: 'Reach level 120.', icon: '⭐', metric: 'level', target: 120, rewards: { gold: 250000, gems: 60 } },
+    { id: 'level_130', category: 'progression', name: 'Eternal', desc: 'Reach level 130.', icon: '⭐', metric: 'level', target: 130, rewards: { gold: 300000, gems: 75 } },
+    { id: 'level_140', category: 'progression', name: 'Divine', desc: 'Reach level 140.', icon: '⭐', metric: 'level', target: 140, rewards: { gold: 350000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'level_150', category: 'progression', name: 'Transcendent', desc: 'Reach level 150.', icon: '⭐', metric: 'level', target: 150, rewards: { gold: 400000, gems: 100 } },
+    { id: 'level_160', category: 'progression', name: 'Celestial', desc: 'Reach level 160.', icon: '⭐', metric: 'level', target: 160, rewards: { gold: 450000, gems: 110 } },
+    { id: 'level_170', category: 'progression', name: 'Immortal', desc: 'Reach level 170.', icon: '⭐', metric: 'level', target: 170, rewards: { gold: 500000, gems: 125 } },
+    { id: 'level_180', category: 'progression', name: 'Omnipotent', desc: 'Reach level 180.', icon: '⭐', metric: 'level', target: 180, rewards: { gold: 550000, gems: 150 } },
+    { id: 'level_190', category: 'progression', name: 'Supreme', desc: 'Reach level 190.', icon: '⭐', metric: 'level', target: 190, rewards: { gold: 600000, gems: 175 } },
+    { id: 'level_200', category: 'progression', name: 'Ultimate', desc: 'Reach level 200.', icon: '⭐', metric: 'level', target: 200, rewards: { gold: 750000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
+    // Gold earned achievements
+    { id: 'gold_earned_5k', category: 'economy', name: 'Penny Pincher', desc: 'Earn 5,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000, rewards: { gold: 1000 } },
+    { id: 'gold_earned_10k', category: 'economy', name: 'Gold Digger', desc: 'Earn 10,000 gold total.', icon: '💰', metric: 'gold_earned', target: 10000, rewards: { gold: 2000 } },
+    { id: 'gold_earned_25k', category: 'economy', name: 'Coin Collector', desc: 'Earn 25,000 gold total.', icon: '💰', metric: 'gold_earned', target: 25000, rewards: { gold: 4000 } },
+    { id: 'gold_earned_50k', category: 'economy', name: 'Wealth Builder', desc: 'Earn 50,000 gold total.', icon: '💰', metric: 'gold_earned', target: 50000, rewards: { gold: 7500 } },
+    { id: 'gold_earned_75k', category: 'economy', name: 'Money Maker', desc: 'Earn 75,000 gold total.', icon: '💰', metric: 'gold_earned', target: 75000, rewards: { gold: 10000 } },
+    { id: 'gold_earned_100k', category: 'economy', name: 'Rich', desc: 'Earn 100,000 gold total.', icon: '💰', metric: 'gold_earned', target: 100000, rewards: { gold: 15000 } },
+    { id: 'gold_earned_250k', category: 'economy', name: 'Fortune', desc: 'Earn 250,000 gold total.', icon: '💰', metric: 'gold_earned', target: 250000, rewards: { gold: 30000, gems: 10 } },
+    { id: 'gold_earned_500k', category: 'economy', name: 'Tycoon', desc: 'Earn 500,000 gold total.', icon: '💰', metric: 'gold_earned', target: 500000, rewards: { gold: 50000, gems: 15 } },
+    { id: 'gold_earned_750k', category: 'economy', name: 'Mogul', desc: 'Earn 750,000 gold total.', icon: '💰', metric: 'gold_earned', target: 750000, rewards: { gold: 75000, gems: 20 } },
+    { id: 'gold_earned_1m', category: 'economy', name: 'Magnate', desc: 'Earn 1,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 1000000, rewards: { gold: 100000, gems: 30, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'gold_earned_2m', category: 'economy', name: 'Empire', desc: 'Earn 2,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 2000000, rewards: { gold: 150000, gems: 40 } },
+    { id: 'gold_earned_3m', category: 'economy', name: 'Banking', desc: 'Earn 3,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 3000000, rewards: { gold: 200000, gems: 50 } },
+    { id: 'gold_earned_4m', category: 'economy', name: 'Tycoon Empire', desc: 'Earn 4,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 4000000, rewards: { gold: 250000, gems: 60 } },
+    { id: 'gold_earned_5m', category: 'economy', name: 'Trillionaire', desc: 'Earn 5,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000000, rewards: { gold: 350000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
+    // Total missions completed
+    { id: 'missions_complete_10', category: 'missions', name: 'Missioner', desc: 'Complete 10 missions.', icon: '📜', metric: 'total_missions_completed', target: 10, rewards: { gold: 3000 } },
+    { id: 'missions_complete_50', category: 'missions', name: 'Taskmaster', desc: 'Complete 50 missions.', icon: '📜', metric: 'total_missions_completed', target: 50, rewards: { gold: 10000, gems: 5 } },
+    { id: 'missions_complete_100', category: 'missions', name: 'Questgiver', desc: 'Complete 100 missions.', icon: '📜', metric: 'total_missions_completed', target: 100, rewards: { gold: 25000, gems: 10 } },
+    { id: 'missions_complete_250', category: 'missions', name: 'Adventurer', desc: 'Complete 250 missions.', icon: '📜', metric: 'total_missions_completed', target: 250, rewards: { gold: 50000, gems: 15 } },
+    { id: 'missions_complete_500', category: 'missions', name: 'Explorer', desc: 'Complete 500 missions.', icon: '📜', metric: 'total_missions_completed', target: 500, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'missions_complete_750', category: 'missions', name: 'Seeker', desc: 'Complete 750 missions.', icon: '📜', metric: 'total_missions_completed', target: 750, rewards: { gold: 150000, gems: 30 } },
+    { id: 'missions_complete_1000', category: 'missions', name: 'Champion of Tasks', desc: 'Complete 1,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 1000, rewards: { gold: 250000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // Dungeon floor achievements
+    { id: 'dungeon_floor_10', category: 'dungeon', name: 'Tower Explorer', desc: 'Reach floor 10 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 10, rewards: { gold: 5000 } },
+    { id: 'dungeon_floor_20', category: 'dungeon', name: 'Floor 20', desc: 'Reach floor 20 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 20, rewards: { gold: 10000, gems: 5 } },
+    { id: 'dungeon_floor_30', category: 'dungeon', name: 'Floor 30', desc: 'Reach floor 30 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 30, rewards: { gold: 20000, gems: 10 } },
+    { id: 'dungeon_floor_40', category: 'dungeon', name: 'Floor 40', desc: 'Reach floor 40 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 40, rewards: { gold: 35000, gems: 15 } },
+    { id: 'dungeon_floor_50', category: 'dungeon', name: 'Tower Master', desc: 'Reach floor 50 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 50, rewards: { gold: 50000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'dungeon_floor_60', category: 'dungeon', name: 'Floor 60', desc: 'Reach floor 60 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 60, rewards: { gold: 75000, gems: 25 } },
+    { id: 'dungeon_floor_70', category: 'dungeon', name: 'Floor 70', desc: 'Reach floor 70 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 70, rewards: { gold: 100000, gems: 30 } },
+    { id: 'dungeon_floor_80', category: 'dungeon', name: 'Floor 80', desc: 'Reach floor 80 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 80, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'dungeon_floor_90', category: 'dungeon', name: 'Floor 90', desc: 'Reach floor 90 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 90, rewards: { gold: 200000, gems: 50 } },
+    { id: 'dungeon_floor_100', category: 'dungeon', name: 'Tower Legend', desc: 'Reach floor 100 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 100, rewards: { gold: 300000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
+    // Gems earned achievements
+    { id: 'gems_earned_5', category: 'economy', name: 'Gem Finder', desc: 'Earn 5 gems total.', icon: '💎', metric: 'gems_earned', target: 5, rewards: { gold: 1000 } },
+    { id: 'gems_earned_10', category: 'economy', name: 'Gem Collector', desc: 'Earn 10 gems total.', icon: '💎', metric: 'gems_earned', target: 10, rewards: { gold: 2000 } },
+    { id: 'gems_earned_25', category: 'economy', name: 'Gem Hunter', desc: 'Earn 25 gems total.', icon: '💎', metric: 'gems_earned', target: 25, rewards: { gold: 5000 } },
+    { id: 'gems_earned_50', category: 'economy', name: 'Gem Hoarder', desc: 'Earn 50 gems total.', icon: '💎', metric: 'gems_earned', target: 50, rewards: { gold: 10000 } },
+    { id: 'gems_earned_75', category: 'economy', name: 'Gem Master', desc: 'Earn 75 gems total.', icon: '💎', metric: 'gems_earned', target: 75, rewards: { gold: 15000 } },
+    { id: 'gems_earned_100', category: 'economy', name: 'Gem Tycoon', desc: 'Earn 100 gems total.', icon: '💎', metric: 'gems_earned', target: 100, rewards: { gold: 20000, gems: 5 } },
+    { id: 'gems_earned_250', category: 'economy', name: 'Gem Baron', desc: 'Earn 250 gems total.', icon: '💎', metric: 'gems_earned', target: 250, rewards: { gold: 40000, gems: 10 } },
+    { id: 'gems_earned_500', category: 'economy', name: 'Gem Emperor', desc: 'Earn 500 gems total.', icon: '💎', metric: 'gems_earned', target: 500, rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+
+    // Hard missions
+    { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
+    { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
+
+    // Raids participated
+    { id: 'raids_1', category: 'guild', name: 'Raid Beginner', desc: 'Participate in 1 guild raid.', icon: '⚔️', metric: 'raids_participated', target: 1, rewards: { gold: 5000 } },
+    { id: 'raids_5', category: 'guild', name: 'Raid Apprentice', desc: 'Participate in 5 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 5, rewards: { gold: 15000 } },
+    { id: 'raids_10', category: 'guild', name: 'Raid Veteran', desc: 'Participate in 10 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 10, rewards: { gold: 30000, gems: 10 } },
+    { id: 'raids_25', category: 'guild', name: 'Raid Elite', desc: 'Participate in 25 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 25, rewards: { gold: 75000, gems: 20 } },
+    { id: 'raids_50', category: 'guild', name: 'Raid Legend', desc: 'Participate in 50 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 50, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
+    // Raids won
+    { id: 'raids_won_5', category: 'guild', name: 'Raid Champion', desc: 'Win 5 guild raids.', icon: '🏆', metric: 'raids_won', target: 5, rewards: { gold: 25000 } },
+);
+
+console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 async function buildAchievementMetricSnapshot(db, char) {
     const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow] = await Promise.all([
@@ -5200,6 +5204,7 @@ async function grantAchievementRewards(db, char, rewards) {
 
 async function getCharacterAchievements(db, char) {
     console.log('[DEBUG] getCharacterAchievements - ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+    console.log('[DEBUG] Sample IDs:', ACHIEVEMENTS.slice(-10).map(a=>a.id));
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
     const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
