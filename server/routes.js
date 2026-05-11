@@ -5199,8 +5199,7 @@ async function grantAchievementRewards(db, char, rewards) {
 }
 
 async function getCharacterAchievements(db, char) {
-    console.log('[DEBUG] ACHIEVEMENTS length:', ACHIEVEMENTS.length);
-    console.log('[DEBUG] First few IDs:', ACHIEVEMENTS.slice(0,5).map(a=>a.id));
+    console.log('[DEBUG] getCharacterAchievements - ACHIEVEMENTS length:', ACHIEVEMENTS.length);
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
     const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
