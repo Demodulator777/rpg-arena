@@ -6849,7 +6849,7 @@ async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
             });
         }
         
-        showBattleResult(r,targetId,targetName,targetClass,targetLevel);
+        showBattleResult(r,targetId,targetName,targetClass,r.opponentLevel ?? targetLevel);
     }
     catch(e) { alert(e.message); }
 }
