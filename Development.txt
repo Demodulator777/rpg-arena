@@ -1,0 +1,192 @@
+Development Backlog (Organized)
+🐞 Critical Bugs / Exploits
+Dungeon & Raid Bugs
+Dungeon rewards can be duplicated by opening multiple tabs
+Losing to dungeon boss sometimes drops player back to Room 1 (possibly caused by recent code update)
+Gatekeeper warning still appears after Gatekeeper is defeated
+Raid system shows player as “already in raid” when using a different character
+Raid system missing:
+Leave raid option
+Delete raid option
+Server / Logic Bugs
+Monster respawn protection bug:
+After 48h monster respawn, server still throws “room already cleared” error
+Add 48h cleanup/reset to protection system
+Travel logic currently forces narrow trail movement
+Cannot move naturally to adjacent fields
+Rework map flow:
+Long trails leading into larger open sections
+More freedom of movement inside sections
+Magic damage/stat calculations may be incorrect
+Mobile UI Bugs
+Chatbox on mobile can disappear when screen moves
+Input field should remain fixed/attached to viewport
+Economy / Item Bugs
+Void Shard inconsistency:
+Dungeon exchange requires 5 Void Shards
+Existing Void Shards may not count
+Clarify whether dungeon uses separate shard type
+Dungeon crafting/exchange should ideally use dungeon-only materials
+Raw materials are too limited
+Update drops to be mission-specific
+⚔️ Core Gameplay Improvements
+Character Systems
+Character names must be unique
+Add “name already taken” validation
+Delete character function
+Change class function
+Password reset & email implementation
+Add battle history/record against specific characters
+New Player Experience
+Starter equipment set for new players
+Each class receives:
+Beginner armor
+Class-specific weapon
+Class-specific weapons based on character preview sets
+Equipment & Progression
+Equipment skins (cost: 5 gems)
+Item skins + personalized item names
+Requires moderation system
+Full set unlock system:
+Unlock permanent profile appearance after obtaining full set
+Appearance remains unlocked even after removing set
+Upgradeable crafted equipment:
+Random stat enhancement system
+Example:
+Up to 5 upgrades
+Uses common mission materials
+Chance-based stat increases
+Level 29+ equipment rebalance:
+Weapons should reach 90+ damage
+Boots should always provide some armor
+Amulets should support:
+Damage
+Armor
+All stats
+🏰 Guilds / Squads / Clan Warfare
+Squads
+Automatic raid join for squad members
+Allows squads to behave like actual party systems
+Squad/Game Forum system
+Guild Features
+Guild bounty system
+Example:
+Defeat X monsters weekly
+Receive guild rewards
+Weekly guild tasks
+Clan Wars / Castle Wars
+Basic Structure
+5 outposts per castle
+Attackers and defenders assign players to outposts
+Combined stats create “raw power” battles
+Victory Conditions
+Attackers win 3/5 outposts:
+Partial loot reward
+Attackers fully eliminate defenders:
+Full takeover
+Scout System
+Attackers may send up to 3 scouts before battle
+Scouts compare agility against defenders
+Successful scouts reveal:
+Defender positions
+Outpost strength
+Failed scouts:
+Can be intercepted/captured
+Cannot participate in war
+Additional Notes
+Inspired by older BK war systems, but expanded
+Could include:
+Counter-scouting
+Battle preparation phase
+Multi-directional attacks
+🧙 Balance Changes
+Classes
+Paladins should receive agility penalties on physical damage (similar to mage balancing)
+Dungeon Design
+Dungeon materials should remain self-contained
+Avoid using overworld mission materials inside dungeon systems
+🎯 PvP / Competitive Modes
+Tournament Mode
+Deathmatch
+HP regeneration on successful hits
+Last player standing wins
+Rank Challenges
+Add skill-based/minigame style rank challenges
+Should feel actually difficult and interactive
+🐉 Companion / Pet System
+Spirit Beasts — “Elementals”
+Unlock
+Found after reaching Floor 5 in dungeon
+Core Features
+Companion fights alongside player
+Can specialize into:
+Defense
+Damage
+Magic support
+Evasion
+Training System
+Only one elemental affinity at a time
+Feeding materials changes build/stats
+Has growth limits
+Dungeon Utility
+Detects traps
+Warns player about upcoming dangers
+Dungeon Expansion
+Add dungeon traps/mechanics tied to companions
+📦 Economy / Crafting Systems
+Lootboxes
+Lootboxes for crafting pieces
+Gem + Gold variants:
+Gold-only boxes = lower-tier rewards
+Banner systems:
+Increased odds
+Guaranteed rewards/pity system
+Material Systems
+Material Transmuter
+Burn 2 materials → random material of same rarity/value tier
+🧠 Training Systems
+Skill Training
+Train class skill duration
+Example:
+12h training = +1 minute duration
+MP Storage System
+Training rewards artifacts that store excess MP
+Example:
+5 storage slots maximum
+Each stores 60 MP
+Stored MP usable during large missions
+📜 Quests & Progression
+Quest System
+Daily quests
+Weekly quests
+Achievements
+Group missions
+Independent mission starts
+Auto-start quest options
+🎨 UI / Customization
+Themes
+Dark mode
+Light mode
+Custom themes
+🧩 High-Priority Recommended Focus
+Immediate Priorities
+Fix dungeon duplication exploit
+Fix respawn/server protection bug
+Unique character names
+Raid leave/delete systems
+Mobile chatbox fix
+Dungeon progression reset bug
+Raw material rebalance
+Strong Mid-Term Features
+Starter gear system
+Guild bounties/tasks
+Equipment skins
+Daily/weekly quests
+Clan wars
+Spirit Beast system
+Long-Term Expansion Systems
+Advanced crafting upgrades
+Tournament modes
+Full guild warfare
+Companion evolution systems
+Item personalization/moderation systems
