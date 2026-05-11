@@ -7591,6 +7591,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const fighterA = {
             id: freshA.id, name: freshA.name, class: freshA.class,
             hp: hpA,
+            hpMax: hpMaxA + ((skillPassivesA.vitality || 0) * 25),
             dmgMin: dmgMinA + (skillPassivesA.dmg_min || 0),
             dmgMax: dmgMaxA + (skillPassivesA.dmg_max || 0),
             strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + (skillPassivesA.strength || 0),
@@ -7626,6 +7627,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const fighterB = {
             id: freshD.id, name: freshD.name,
             hp: freshD.hp_current ?? hpMaxD,
+            hpMax: hpMaxD + ((skillPassivesD.vitality || 0) * 25),
             dmgMin: dmgMinD + (skillPassivesD.dmg_min || 0),
             dmgMax: dmgMaxD + (skillPassivesD.dmg_max || 0),
             strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + (skillPassivesD.strength || 0),
