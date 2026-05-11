@@ -1,26 +1,12 @@
 Development Backlog (Organized)
-🐞 Critical Bugs / Exploits
+🐞 Critical Bugs / Exploits (Delete after fixing the bug)
 Dungeon & Raid Bugs
-Dungeon rewards can be duplicated by opening multiple tabs
-Losing to dungeon boss sometimes drops player back to Room 1 (possibly caused by recent code update)
-Gatekeeper warning still appears after Gatekeeper is defeated
-Raid system shows player as “already in raid” when using a different character
-Raid system missing:
-Leave raid option
-Delete raid option
+No known bugs, already fixed the reported bugs
 Server / Logic Bugs
-Monster respawn protection bug:
-After 48h monster respawn, server still throws “room already cleared” error
-Add 48h cleanup/reset to protection system
-Travel logic currently forces narrow trail movement
-Cannot move naturally to adjacent fields
-Rework map flow:
-Long trails leading into larger open sections
-More freedom of movement inside sections
 Magic damage/stat calculations may be incorrect
+Paladin scaling issue
 Mobile UI Bugs
-Chatbox on mobile can disappear when screen moves
-Input field should remain fixed/attached to viewport
+Only iOS related, need to check all overlays, stacking orders
 Economy / Item Bugs
 Void Shard inconsistency:
 Dungeon exchange requires 5 Void Shards
@@ -35,7 +21,6 @@ Character names must be unique
 Add “name already taken” validation
 Delete character function
 Change class function
-Password reset & email implementation
 Add battle history/record against specific characters
 New Player Experience
 Starter equipment set for new players
@@ -56,6 +41,7 @@ Example:
 Up to 5 upgrades
 Uses common mission materials
 Chance-based stat increases
+Need to add functionality to increase specific stats, say 2 upgrades roll into our selected stats, then random, this should cost a lot of materials
 Level 29+ equipment rebalance:
 Weapons should reach 90+ damage
 Boots should always provide some armor
@@ -65,9 +51,9 @@ Armor
 All stats
 🏰 Guilds / Squads / Clan Warfare
 Squads
-Automatic raid join for squad members
+Automatic raid join for squad members (up to 6 for 1 raid) So once the squad is formed any squad member with priority can start a raid with all members.
 Allows squads to behave like actual party systems
-Squad/Game Forum system
+Squad/Game Forum system???
 Guild Features
 Guild bounty system
 Example:
@@ -94,14 +80,14 @@ Failed scouts:
 Can be intercepted/captured
 Cannot participate in war
 Additional Notes
-Inspired by older BK war systems, but expanded
 Could include:
 Counter-scouting
-Battle preparation phase
-Multi-directional attacks
+Battle preparation phase (12h to set outposts, 12h to scount, so first 12h are used by defenders to select which outposts they want to defend, if it's not done manually, then system selects players randomly, so players are set to outposts by squad/clan members with priorities, then after 12h the outposts are set and can't be changed, the attackers can send out scounts to each outpost, up to 3 scouts, if scout has high enough agility, more than the combined outpost agility, he then returns with information about the outpost that just shows combined stat strength, if the scount has less agility he gets captured, he attempts to fight the outpost, if he survives the battle (5 rounds) he then returns back with no info, saying I almost got smoked there lol, if scount doesn't survive the 5 rounds, he never returns. So attackers can either examine 3 different outpost or send scouts to same outpost, if they decide to send scouts to same outpost their agility is combined.
+Multi-directional attacks (basically attacking the same outpost with multiple parties if you manage to clear the outpost, so you follow your battle plan, clear outpost 1, attack outpost 3 etc., it has to be set before battle, because there are no live controls)
 🧙 Balance Changes
 Classes
-Paladins should receive agility penalties on physical damage (similar to mage balancing)
+Paladins should receive agility penalties (similar to mage physical balancing)
+Paladins seem weak, like the class doesn't belong, they have magic, but it seems worthless?
 Dungeon Design
 Dungeon materials should remain self-contained
 Avoid using overworld mission materials inside dungeon systems
