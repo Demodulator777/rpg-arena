@@ -3744,13 +3744,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
-    if (!ignoreDefenderZones && !rageActive && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
-
-    let divineNegate = false;
-    if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
-
-    const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
-    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
     let rageActive = false;
 
     if (attacker.class === 'warrior' && attacker.rageReady) {
@@ -3759,6 +3752,14 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         attacker.rageHits = 0;
         atkHitChance = Math.min(1.0, atkHitChance * 1.5);
     }
+
+    if (!ignoreDefenderZones && !rageActive && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
+
+    let divineNegate = false;
+    if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
+
+    const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
+    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
 
     if (!atkHit) {
         if (divineNegate) {
