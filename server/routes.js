@@ -3660,7 +3660,12 @@ function calculateMagicShield(attacker, defender) {
     // Shield created from magic advantage over opponent's magic
     if (defenderMagic > attackerMagic) {
         const magicAdvantage = defenderMagic - attackerMagic;
-        const shieldValue = Math.floor(magicAdvantage / 4);
+        let shieldValue = Math.floor(magicAdvantage / 4);
+        
+        // Paladins also gain shield from defense (1 HP per 4 defense)
+        if (defender.class === 'paladin') {
+            shieldValue += Math.floor((defender.defense || 0) / 4);
+        }
         
         return {
             active: true,
