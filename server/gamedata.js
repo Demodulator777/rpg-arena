@@ -503,6 +503,55 @@ const EQUIPMENT_RECIPES = [
                 water_resist:8, electro_resist:8 },
         components:{ void_crystal:2, demon_alloy:2, tanned_hide:3 }, goldCost:14000,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 5 — SHADEWALKER  (Rogue set)
+    //  Shadow assassin — agility/crit + all-resist (no elemental damage, low armor)
+    // ══════════════════════════════════════════════
+    {
+        id:'shadewalker_weapon', setId:'shadewalker', setPiece:'weapon',
+        name:"Shadewalker's Kiss", emoji:'🗡️', quality:'legendary',
+        slot:'weapon',
+        desc:'A dagger that drinks the light from the air before it drinks blood. No blade is keener, no strike more silent.',
+        stats:{ dmg_min:18, dmg_max:36, agility:20, crit_chance:14, hit_chance:10,
+                pyro_resist:8, water_resist:8 },
+        components:{ shadow_weave:3, void_crystal:2, tanned_hide:1 }, goldCost:18000,
+    },
+    {
+        id:'shadewalker_armor', setId:'shadewalker', setPiece:'armor',
+        name:"Shadewalker's Shroud", emoji:'🌫️', quality:'legendary',
+        slot:'armor',
+        desc:'Woven from midnight silk and the last breath of a dying star. Those who wear it fade into the dark long before they strike.',
+        stats:{ defense:22, armor:8, hp_max:100, agility:18, crit_chance:8,
+                wind_resist:12, electro_resist:12 },
+        components:{ shadow_weave:4, void_crystal:2, frost_core:1 }, goldCost:20000,
+    },
+    {
+        id:'shadewalker_helmet', setId:'shadewalker', setPiece:'helmet',
+        name:"Shadewalker's Gambeson", emoji:'🖤', quality:'legendary',
+        slot:'helmet',
+        desc:'Light quilted armor that moves like water and hides like shadow. No leather creaks, no buckle shines — only the kill reveals you were there.',
+        stats:{ defense:14, armor:6, hp_max:70, agility:16, hit_chance:12,
+                water_resist:10, pyro_resist:10 },
+        components:{ shadow_weave:2, tanned_hide:3, void_crystal:1 }, goldCost:15000,
+    },
+    {
+        id:'shadewalker_shield', setId:'shadewalker', setPiece:'shield',
+        name:"Shadewalker's Echo", emoji:'🔪', quality:'legendary',
+        slot:'shield', rogueOffhand:true,
+        desc:'Twin to the Kiss, this blade waits in silence for the perfect opening. Rogues wield it in their off-hand as naturally as breathing. Non-rogues cannot grasp its balance.',
+        stats:{ dmg_min:12, dmg_max:26, agility:16, crit_chance:10, hit_chance:8,
+                electro_resist:8, wind_resist:8 },
+        components:{ shadow_weave:2, void_crystal:2, demon_alloy:1 }, goldCost:16000,
+    },
+    {
+        id:'shadewalker_boots', setId:'shadewalker', setPiece:'boots',
+        name:"Shadewalker's Grace", emoji:'👟', quality:'legendary',
+        slot:'boots',
+        desc:'Soles that never scuff, never squeak, never leave a trail. Every step is a whisper, every landing is silence.',
+        stats:{ defense:12, armor:5, agility:22, hit_chance:8, crit_chance:10, evasion:5 },
+        components:{ shadow_weave:2, tanned_hide:2, frost_core:1 }, goldCost:13000,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -535,6 +584,18 @@ const CRAFTING_SETS = {
             strength:25, crit_chance:20, hit_chance:15,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
             desc:'5/5: +25 STR · +20 Crit · +15 Hit · +20 all Elem Resist'
+        },
+    },
+    shadewalker: {
+        name:'Shadewalker Set', emoji:'🗡️',
+        bonus3:{ agility:15, crit_chance:10, hit_chance:8,
+            pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
+            desc:'3/5: +15 AGI · +10 Crit · +8 Hit · +10 all Elem Resist' },
+        bonus5:{
+            agility:30, crit_chance:18, hit_chance:15,
+            pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
+            evasion:5,
+            desc:'5/5: +30 AGI · +18 Crit · +15 Hit · +20 all Elem Resist · +5% Evasion'
         },
     },
 };
