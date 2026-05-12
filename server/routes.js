@@ -3825,6 +3825,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
                 finalDmg -= absorbedAmount;
                 defenderShield.remaining -= absorbedAmount;
+                if (defenderShield.remaining <= 0) {
+                    defenderShield.active = false;
+                }
                 justAbsorbed = true;
             }
 
