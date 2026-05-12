@@ -3373,7 +3373,7 @@ function hasShieldEquipped(items = []) {
     return (items || []).some(item => {
         try {
             const raw = item?.item_data ? JSON.parse(item.item_data) : item;
-            return raw?.slot === 'shield';
+            return raw?.slot === 'shield' && raw?.rogueOffhand !== true;
         } catch {
             return false;
         }
@@ -4338,7 +4338,7 @@ async function buildCombatFighter(db, char) {
         const hasShield = equippedArray.some(item => {
             try {
                 const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-                return data?.slot === 'shield';
+                return data?.slot === 'shield' && data?.rogueOffhand !== true;
             } catch {
                 return false;
             }
@@ -4641,6 +4641,10 @@ function getAssetImagePath(name, basePath = '/images/assets') {
     const slug = String(name || '')
         .trim()
         .toLowerCase()
+        // Prefer possessive names to map cleanly to asset slugs:
+        // "Shadewalker's Kiss" -> "shadewalkers-kiss" (not "shadewalker-s-kiss").
+        .replace(/'s\b/g, 's')
+        .replace(/'/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
     return slug ? `${basePath}/${slug}.png` : null;
@@ -5474,10 +5478,9 @@ const userSettings = char.user_id
 
     // Rogue no-shield agility bonus
     let noShieldAgiBonus = 0;
-    if (char.class === 'rogue') {  // Use 'char' here since that's the parameter name in buildCharacterResponse
-        const hasShield = !!equippedObj.shield;
+    if (char.class === 'rogue') {
+        const hasShield = !!equippedObj.shield && equippedObj.shield.rogueOffhand !== true;
         if (!hasShield) {
-            // 5% agility bonus when no shield equipped
             noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
         }
     }
@@ -6427,9 +6430,10 @@ const skillMods     = await computeClassModifiersWithProgress(db, freshChar.clas
         // Rogue no-shield agility bonus
 let noShieldAgiBonus = 0;
 if (freshChar.class === 'rogue') {
-    const equipped = await getEquippedItems(db, freshChar.id);  // Get equipped items
+    const equipped = await getEquippedItems(db, freshChar.id);
     const hasShield = !!equipped.shield;
-    if (!hasShield) {
+    const shieldIsOffhand = hasShield && equipped.shield.rogueOffhand === true;
+    if (!hasShield || shieldIsOffhand) {
         noShieldAgiBonus = Math.floor((freshChar.agility || 0) * 0.05);
     }
 }      
@@ -7102,6 +7106,10 @@ router.post('/equip/:inventoryId', auth, async (req, res) => {
         if (!item || item.item_type !== 'equipment') return res.status(400).json({ error: 'Item not found' });
         const data = JSON.parse(item.item_data);
         if (!EQUIPMENT_SLOTS.includes(data.slot)) return res.status(400).json({ error: `Invalid slot: ${data.slot}` });
+        // Rogue offhand dagger: only rogues can equip it in the shield slot
+        if (data.slot === 'shield' && data.rogueOffhand && char.class !== 'rogue') {
+            return res.status(400).json({ error: 'Only rogues can wield this offhand dagger.' });
+        }
         let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
         if (!eq) {
             await dbRun(db, 'INSERT INTO equipment (char_id) VALUES (?)', [char.id]);
@@ -7768,7 +7776,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         let noShieldAgiBonusA = 0;
         if (freshA.class === 'rogue') {
             const hasShield = equippedA.some(i => {
-                try { return JSON.parse(i.item_data).slot === 'shield'; } 
+                try { const d = JSON.parse(i.item_data); return d.slot === 'shield' && d.rogueOffhand !== true; } 
                 catch { return false; }
             });
             if (!hasShield) noShieldAgiBonusA = 5;
@@ -7785,7 +7793,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         let noShieldAgiBonusD = 0;
         if (freshD.class === 'rogue') {
             const hasShield = equippedD.some(i => {
-                try { return JSON.parse(i.item_data).slot === 'shield'; } 
+                try { const d = JSON.parse(i.item_data); return d.slot === 'shield' && d.rogueOffhand !== true; } 
                 catch { return false; }
             });
             if (!hasShield) noShieldAgiBonusD = 5;
