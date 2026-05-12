@@ -324,6 +324,7 @@
   /* Central card should never cover the top HUD actions. */
   z-index: 50;
   max-height: none;
+  overflow-x: hidden;
 }
 
 .dungeon-hud-room {
@@ -332,6 +333,9 @@
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .dungeon-hud-room-title {
