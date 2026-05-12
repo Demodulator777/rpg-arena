@@ -4539,6 +4539,26 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
     npc.name = guardianDef.name;
     npc.class = 'npc';
     npc.ignoreDefenderZones = true;
+
+    // Gatekeeper stat overrides — these are fixed, memorable skill checks
+    if (targetZone === 'mountains') {
+        npc.magic = 80;
+        npc.crit_chance = 70;
+        npc.armor = 46;
+    } else if (targetZone === 'ruins') {
+        npc.dmgMin = 120;
+        npc.dmgMax = 160;
+        npc.agility = 120;
+        npc.magic = 150;
+        npc.crit_chance = 120;
+        npc.armor = 120;
+    } else if (targetZone === 'dark_city') {
+        npc.agility = 200;
+        npc.magic = 500;
+        npc.crit_chance = 250;
+        npc.armor = 200;
+    }
+
     return npc;
 }
 
@@ -6429,6 +6449,36 @@ if (freshChar.class === 'rogue') {
         const npcName = getNPCNameFromMission(mission.mission_name);
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
+
+        // Zone-based stat overrides — hard = gatekeeper level, medium = 75%, easy = 50%
+        if (mission.zone === 'mountains') {
+            if (mission.difficulty === 'hard') {
+                npc.magic = 80; npc.crit_chance = 70; npc.armor = 46;
+            } else if (mission.difficulty === 'medium') {
+                npc.magic = 60; npc.crit_chance = 52; npc.armor = 34;
+            } else if (mission.difficulty === 'easy') {
+                npc.magic = 40; npc.crit_chance = 35; npc.armor = 23;
+            }
+        } else if (mission.zone === 'ruins') {
+            if (mission.difficulty === 'hard') {
+                npc.dmgMin = 120; npc.dmgMax = 160; npc.agility = 120;
+                npc.magic = 150; npc.crit_chance = 120; npc.armor = 120;
+            } else if (mission.difficulty === 'medium') {
+                npc.dmgMin = 90; npc.dmgMax = 120; npc.agility = 90;
+                npc.magic = 112; npc.crit_chance = 90; npc.armor = 90;
+            } else if (mission.difficulty === 'easy') {
+                npc.dmgMin = 60; npc.dmgMax = 80; npc.agility = 60;
+                npc.magic = 75; npc.crit_chance = 60; npc.armor = 60;
+            }
+        } else if (mission.zone === 'dark_city') {
+            if (mission.difficulty === 'hard') {
+                npc.agility = 200; npc.magic = 500; npc.crit_chance = 250; npc.armor = 200;
+            } else if (mission.difficulty === 'medium') {
+                npc.agility = 150; npc.magic = 375; npc.crit_chance = 187; npc.armor = 150;
+            } else if (mission.difficulty === 'easy') {
+                npc.agility = 100; npc.magic = 250; npc.crit_chance = 125; npc.armor = 100;
+            }
+        }
         
         // Force win for new characters (first 4 battles)
         let forceWinnerId = null;
