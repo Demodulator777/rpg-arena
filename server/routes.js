@@ -7381,6 +7381,12 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         if (!item || item.item_type !== 'consumable') return res.status(400).json({ error: 'Item not found' });
         const data = JSON.parse(item.item_data);
         if (!data.effect) return res.status(400).json({ error: 'No effect' });
+
+        // Block potion use during active dungeon combat
+        if (data.effect.type === 'heal' || data.effect.type === 'heal_full') {
+            const activeCombat = await dbGet(db, 'SELECT id FROM dungeon_combat_sessions WHERE char_id=? AND status=\'active\' LIMIT 1', [char.id]);
+            if (activeCombat) return res.status(400).json({ error: 'Cannot use potions during dungeon combat.' });
+        }
         
         const equippedArray = await getEquippedItemsArray(db, char.id);
         const trueHpMax = calcHpMax(char, equippedArray);
