@@ -3654,12 +3654,12 @@ function getEquippedWeaponData(equippedItems) {
 
 // ── Magic Shield & Elemental Damage Functions ─────────────────────────────────
 function calculateMagicShield(attacker, defender) {
-    const attackerCrit = attacker.crit_chance || 0;
     const defenderMagic = defender.magic || 0;
+    const attackerMagic = attacker.magic || 0;
     
-    // Shield created from magic advantage over opponent's crit
-    if (defenderMagic > attackerCrit) {
-        const magicAdvantage = defenderMagic - attackerCrit;
+    // Shield created from magic advantage over opponent's magic
+    if (defenderMagic > attackerMagic) {
+        const magicAdvantage = defenderMagic - attackerMagic;
         const shieldValue = Math.floor(magicAdvantage / 4);
         
         return {
@@ -3821,6 +3821,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 finalDmg -= absorbedAmount;
                 defenderShield.remaining -= absorbedAmount;
                 justAbsorbed = true;
+            }
+
+            // Shield regenerates 5% of its max value per turn after absorbing
+            if (defenderShield && defenderShield.active && defenderShield.remaining < defenderShield.value) {
+                const regen = Math.max(1, Math.floor(defenderShield.value * 0.05));
+                defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
             }
 
             logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${Math.floor(finalDmg)} damage`;
