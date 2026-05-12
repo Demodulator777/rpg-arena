@@ -1,5 +1,8 @@
 Development Backlog (Organized)
 🐞 Critical Bugs / Exploits (Delete after fixing the bug)
+Agility, hit chance and crit chance are displayed wrong in battle reports
+Not only displayed, seems like it affects battle calculation as well
+Spiteforged set has incorrect stats in the banner
 Dungeon & Raid Bugs
 No known bugs, already fixed the reported bugs
 Server / Logic Bugs
