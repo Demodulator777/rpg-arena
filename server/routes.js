@@ -3719,8 +3719,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
     const zoneAdjustedHitStat = totalHitStat * hit.hitChance;
-    const effectiveDefAgi = defAgi * 0.5;
-    let atkHitChance = Math.max(0, Math.min(0.95, (zoneAdjustedHitStat - effectiveDefAgi + 50) / 100));
+    let atkHitChance = Math.max(0, Math.min(1.0, (zoneAdjustedHitStat - defAgi + 100) / 100));
     if (atkPenalty) atkHitChance = Math.max(0, atkHitChance * 0.85);
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
     if (ignoreDefenderZones) atkHitChance = 1.0;
