@@ -4536,6 +4536,17 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
         npc.elem_resist = { pyro: resistVal, water: resistVal, wind: resistVal, electro: resistVal };
     } catch {}
 
+    // Random elemental resists for hard+ gatekeepers — at least 2 types, up to all 4
+    if (guardianDef.difficulty === 'hard' || guardianDef.difficulty === 'nightmare') {
+        const allElem = ['pyro', 'water', 'wind', 'electro'];
+        const count = Math.min(4, 2 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0));
+        const chosen = [...allElem].sort(() => Math.random() - 0.5).slice(0, count);
+        const maxR = Math.min(100, Math.floor(20 + zoneLevel * 2.5));
+        const resists = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        for (const el of chosen) resists[el] = Math.floor(Math.random() * maxR * 0.7) + Math.floor(maxR * 0.3);
+        npc.elem_resist = resists;
+    }
+
     npc.name = guardianDef.name;
     npc.class = 'npc';
     npc.ignoreDefenderZones = true;
