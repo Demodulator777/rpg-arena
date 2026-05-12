@@ -3732,6 +3732,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
     if (ignoreDefenderZones) dodgeChance = 0;
 
+    let isBackstab = false;
+    if (attacker.class === 'rogue') {
+        const bsDiff = Math.max(0, (attacker.agility || 0) - (defender.agility || 0));
+        isBackstab = Math.random() < Math.min(0.20, 0.05 + bsDiff * 0.001);
+    }
+
     let forceMiss = Math.random() < dodgeChance;
 
     let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
@@ -3785,7 +3791,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 }
                 let gDmg = Math.floor(gPhys * atkHitChance) + Math.floor(gElem * atkHitChance);
                 if (gDmg > 0 && (defender.armor || 0) > 0) {
-                    gDmg = Math.max(1, gDmg - Math.min(gDmg - 1, defender.armor));
+                    const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                    gDmg = Math.max(1, gDmg - Math.min(gDmg - 1, effArmor));
                 }
                 let absorbed = 0;
                 if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && gDmg > 0) {
@@ -3804,7 +3811,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
                     if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
                 } else {
-                    logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow — ${Math.floor(gDmg)} damage`;
+                    const bsTag = isBackstab ? ' BACKSTAB!' : '';
+                    logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.floor(gDmg)} damage`;
                     if (gElem > 0) logLine += ` including ${Math.floor(gElem * atkHitChance)} elemental damage`;
                 }
             }
@@ -3866,7 +3874,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             finalDmg = physicalDmg;
 
             if (finalDmg > 0 && (defender.armor || 0) > 0) {
-                const physReduction = Math.min(finalDmg - 1, defender.armor);
+                const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                const physReduction = Math.min(finalDmg - 1, effArmor);
                 finalDmg = Math.max(1, finalDmg - physReduction);
             }
 
@@ -3896,7 +3905,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
             }
 
-            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag} — ${Math.floor(finalDmg)} damage`;
+            const bsTag = isBackstab ? ' BACKSTAB!' : '';
+            logLine = `Round ${roundNum}: ${attacker.name} lands a hit${critTag}${bsTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
             if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
 
