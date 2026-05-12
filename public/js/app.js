@@ -1439,6 +1439,9 @@ const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
 const INVENTORY_SUB_TABS = ['inventory','forge','shop'];
 const MISSIONS_SUB_TABS = ['missions','dungeon'];
 function showTab(name) {
+    if (window.__dungeonActive && name !== 'dungeon') {
+        return;
+    }
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
