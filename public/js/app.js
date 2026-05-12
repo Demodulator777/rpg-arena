@@ -2195,9 +2195,10 @@ const eqGrid = `
           <h3>RECORD</h3>
           <div class="record-row">
             <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
-            <div class="record-item"><div class="record-num">${c.wins+c.losses}</div><div class="record-lbl">BATTLES</div></div>
+            <div class="record-item"><div class="record-num">${c.wins+c.losses+c.draws}</div><div class="record-lbl">BATTLES</div></div>
             <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
           </div>
+          ${c.draws?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 14px;font-size:0.78rem;color:var(--text-dim)">Draws <strong style="color:var(--gold);float:right">${c.draws}</strong></div>`:''}
           ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
           ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
           ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
@@ -6430,6 +6431,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">${p.draws||0}</div><div class="lb-stat-lbl">DRAWS</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
             </div>
         </div>`;
@@ -6459,7 +6461,7 @@ async function openProfile(id) {
         const classIcon={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[p.class]||'⚔️';
         const name=p.name||'Unknown', level=p.level??'?';
         const isMe=p.user_id===character?.user_id;
-        const wins=p.wins??0, losses=p.losses??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
+        const wins=p.wins??0, losses=p.losses??0, draws=p.draws??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
         const achievementsCompleted = p.achievements_completed || 0;
         const dungeonHighestFloor = p.dungeon_highest_floor || 0;
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
@@ -6553,6 +6555,7 @@ async function openProfile(id) {
               <div style="display:flex;flex-direction:column;gap:7px">
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Draws</span><span style="color:var(--gold);font-weight:600">${draws}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Dungeon Floor</span><span style="color:#8fd3ff;font-weight:600">🕯️ ${dungeonHighestFloor}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Achievements</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
@@ -6718,7 +6721,7 @@ function finalizeBattlePlayback() {
     const logEl = document.getElementById('battle-log');
     const out = document.getElementById('battle-outcome');
     if (!battlePlaybackMeta || !logEl || !out) return;
-    const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage } = battlePlaybackMeta;
+    const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage, isDraw } = battlePlaybackMeta;
     
     logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName, getBattleLogTintRole(line, enemyName))).join('');
     
@@ -6732,10 +6735,12 @@ function finalizeBattlePlayback() {
     }
     
     logEl.scrollTop = logEl.scrollHeight;
-    out.className = won ? 'won battle-outcome battle-outcome-visible' : 'lost battle-outcome battle-outcome-visible';
-    out.innerHTML = won
-        ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
-        : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
+    out.className = isDraw ? 'draw battle-outcome battle-outcome-visible' : (won ? 'won battle-outcome battle-outcome-visible' : 'lost battle-outcome battle-outcome-visible');
+    out.innerHTML = isDraw
+        ? `🤝 DRAW!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
+        : won
+            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
+            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
     updateBattlePlaybackStatus('Battle complete', true);
 }
 
@@ -6768,7 +6773,7 @@ function startBattlePlayback(log, meta) {
     const out = document.getElementById('battle-outcome');
     if (logEl) logEl.innerHTML = '';
     if (out) {
-        out.className = `battle-outcome ${meta.won ? 'won' : 'lost'}`;
+        out.className = `battle-outcome ${meta.isDraw ? 'draw' : meta.won ? 'won' : 'lost'}`;
         out.innerHTML = '<span class="battle-outcome-pending">Battle in progress...</span>';
     }
     if (alwaysSkipBattleAnimations) {
@@ -6816,7 +6821,7 @@ async function findOpponent(direction='similar') {
                     <img src="/images/class/${p.class}.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
                     <div style="flex:1">
                         <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ci[p.class]||'⚔️'} ${escHtml(p.name)}</div>
-                        <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} · ${p.wins}W/${p.losses}L</div>
+                        <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} · ${p.wins}W/${p.losses}L${(p.draws||0)?`/${p.draws}D`:''}</div>
                         <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} · Power ${power}</div>
                     </div>
                     ${attackBtn}
@@ -6855,15 +6860,18 @@ async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
 }
 function showBattleResult(r, targetId, targetName, targetClass=null, targetLevel=null) {
     const xpSummary = `${r.xpGained >= 0 ? '+' : ''}${r.xpGained} XP`;
-    const summary = r.won
-        ? `+${r.goldGained} gold · ${xpSummary}`
-        : `-${r.goldLost} gold`;
+    const summary = r.isDraw
+        ? `Draw! No gold lost`
+        : r.won
+            ? `+${r.goldGained} gold · ${xpSummary}`
+            : `-${r.goldLost} gold`;
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken, {
         enemyName: targetName,
         enemyClass: targetClass,
         enemyLevel: targetLevel ?? (_matchmakingTarget && String(_matchmakingTarget.id) === String(targetId) ? _matchmakingTarget.level : null),
         battleType: 'pvp',
-        battleStats: r.battleStats || null
+        battleStats: r.battleStats || null,
+        isDraw: r.isDraw
     });
 }
 
@@ -6958,7 +6966,8 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
     modal.classList.remove('hidden');
     startBattlePlayback(battleLog, { 
         won, summary, dmgDealt, dmgTaken, enemyName,
-        tutorialMessage: options.tutorialMessage 
+        tutorialMessage: options.tutorialMessage,
+        isDraw: options.isDraw
     });
 }
 
@@ -6979,20 +6988,23 @@ async function loadHistory() {
         if (!battles.length){list.innerHTML='<p class="empty">No battles yet.</p>';return;}
         const myId=character.id;
         list.innerHTML=battles.map(b=>{
-            const won=b.winner_id===myId, opp=b.attacker_id===myId?b.defender_name:b.attacker_name;
+            const isDraw=b.winner_id===0, won=b.winner_id===myId, opp=b.attacker_id===myId?b.defender_name:b.attacker_name;
             const type=b.battle_type==='mission'?'⚔️ Mission':b.attacker_id===myId?'⚔️ Attacked':'🛡️ Defended vs';
-            return `<div class="history-item" ${actionAttrs('showHistoryLog', b.log, b.attacker_name, b.defender_name)}>
-        <div class="history-header"><div class="history-vs">${type} <strong>${opp}</strong></div><div class="history-result ${won?'won':'lost'}">${won?'🏆 WIN':'💀 LOSS'}</div></div>
+            const resultCls=isDraw?'draw':(won?'won':'lost');
+            const resultLabel=isDraw?'🤝 DRAW':(won?'🏆 WIN':'💀 LOSS');
+            return `<div class="history-item" ${actionAttrs('showHistoryLog', b.log, b.attacker_name, b.defender_name, isDraw)}>
+        <div class="history-header"><div class="history-vs">${type} <strong>${opp}</strong></div><div class="history-result ${resultCls}">${resultLabel}</div></div>
         <div class="history-date">${new Date(b.fought_at*1000).toLocaleDateString()}</div>
       </div>`;
         }).join('');
     } catch(e) { list.innerHTML=`<p class="loading">${e.message}</p>`; }
 }
-function showHistoryLog(logJson,a,d) {
+function showHistoryLog(logJson,a,d,isDraw) {
     const log=typeof logJson==='string'?JSON.parse(logJson):logJson;
     showBattleReportModal(log, false, `📜 ${a} vs ${d}`, null, null, {
         enemyName: d,
-        battleType: 'history'
+        battleType: 'history',
+        isDraw
     });
 }
 
@@ -7186,7 +7198,7 @@ function viewBattleReport(msgId) {
     const report = window._reportCache?.[msgId];
     if (!report) { alert('Report not found. Try reloading the inbox.'); return; }
     const summary = [
-        report.won ? '✅ Victory' : '💀 Defeated',
+        report.isDraw ? '🤝 Draw' : (report.won ? '✅ Victory' : '💀 Defeated'),
         report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
         report.xpEarned ? `⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP` : null
     ].filter(Boolean).join(' · ');
@@ -7196,7 +7208,8 @@ function viewBattleReport(msgId) {
         enemyLevel: report.opponentLevel ?? report.npcLevel ?? null,
         missionName: report.missionName || '',
         battleType: report.type === 'pvp' ? 'pvp' : 'mission',
-        battleStats: report.battleStats || null
+        battleStats: report.battleStats || null,
+        isDraw: report.isDraw
     });
 }
 async function markInboxRead(id, refreshInbox = true) {
