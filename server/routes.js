@@ -3744,13 +3744,21 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
-    if (!ignoreDefenderZones && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
+    if (!ignoreDefenderZones && !rageActive && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
 
     let divineNegate = false;
     if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
 
     const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
     let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
+    let rageActive = false;
+
+    if (attacker.class === 'warrior' && attacker.rageReady) {
+        rageActive = true;
+        attacker.rageReady = false;
+        attacker.rageHits = 0;
+        atkHitChance = Math.min(1.0, atkHitChance * 1.5);
+    }
 
     if (!atkHit) {
         if (divineNegate) {
@@ -3841,7 +3849,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
 
         const blockCovers = !ignoreDefenderZones && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
-        const blockFails = Math.random() < 0.001;
+        const blockFails = rageActive || Math.random() < 0.001;
 
         const elemDmgs = attacker.elem_dmg || {};
         for (const elem of ELEMENTS) {
@@ -3908,7 +3916,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
             }
 
-            const bsTag = isBackstab ? ' BACKSTABS' : ' lands a hit';
+            const bsTag = isBackstab ? ' BACKSTABS' : (blockCovers && rageActive ? ' BLOCK PENETRATION' : ' lands a hit');
             logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
             if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
@@ -3942,6 +3950,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 damageCounter += counterDmg;
             }
         }
+    }
+    // Warrior rage: track hits taken
+    if (defender.class === 'warrior' && finalDmg > 0) {
+        defender.rageHits = (defender.rageHits || 0) + 1;
+        if (defender.rageHits >= 3) defender.rageReady = true;
     }
     return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg };
 }
