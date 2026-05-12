@@ -3795,7 +3795,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
                 if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
             } else {
-                logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow — ${Math.floor(gDmg)} damage (partial)`;
+                logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow — ${Math.floor(gDmg)} damage`;
                 if (gElem > 0) logLine += ` including ${Math.floor(gElem * atkHitChance)} elemental damage`;
             }
         }
