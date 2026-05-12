@@ -3796,6 +3796,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const reducedPhys = Math.max(1, physPortion - Math.min(physPortion - 1, effArmor));
                     gDmg = reducedPhys + elemPortion;
                 }
+                gDmg = Math.max(1, gDmg);
                 let absorbed = 0;
                 if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && gDmg > 0) {
                     absorbed = Math.min(defenderShield.remaining, gDmg);
