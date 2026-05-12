@@ -2574,6 +2574,17 @@
   .dungeon-path-btn-icon {
     font-size: 1rem;
   }
+
+  .monster-btns {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .monster-btns .dungeon-btn {
+    width: 100%;
+    text-align: center;
+    font-size: 0.85rem;
+    padding: 10px 0;
+  }
 }
 
 /* Landscape mode optimization */
