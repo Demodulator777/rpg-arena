@@ -85,11 +85,10 @@
 
 .dungeon-game-screen {
   position: relative;
-  height: min(78vh, 720px);
+  min-height: min(78vh, 720px);
   background: #05070c;
   border: 1px solid var(--dungeon-border);
   border-radius: 16px;
-  overflow-y: auto;
   overflow-x: hidden;
   box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
 }
