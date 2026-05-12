@@ -4157,7 +4157,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     const difficultyMultipliers = {
         easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
         medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
-        hard: { hpMult: 1.8, dmgMult: 2.0, agiMult: 1.3, armorMult: 1.5, elemMult: 1.8 },
+        hard: { hpMult: 1.8, dmgMult: 2.0, agiMult: 2.0, armorMult: 1.5, elemMult: 1.8, magicMult: 2.5, critMult: 2.5 },
         normal: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
         nightmare: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 } // Base, will be overridden
     };
@@ -4218,10 +4218,10 @@ const playerPower = (playerStats.hp_max || 100) * 0.5 +
     const dmgMin = Math.floor(baseDmgMin * mult.dmgMult);
     const dmgMax = Math.floor(baseDmgMax * mult.dmgMult);
     const agility = Math.floor(baseAgi * mult.agiMult);
-    const magic = Math.floor(baseMagic * mult.dmgMult);
+    const magic = Math.floor(baseMagic * (mult.magicMult || mult.dmgMult));
     const vitality = Math.floor(baseVitality * mult.hpMult);
     const hit_chance = Math.min(85, Math.floor(baseHitChance));
-    const crit_chance = Math.min(30, Math.floor(baseCritChance * mult.dmgMult));
+    const crit_chance = Math.min(30, Math.floor(baseCritChance * (mult.critMult || mult.dmgMult)));
     const armor = Math.floor(baseArmor * mult.armorMult);
     
     // Random attack/block zones
