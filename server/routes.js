@@ -385,6 +385,7 @@ const WEEKLY_TASKS = [
     try {
         const db = await getDb();
         const migrations = [
+            'ALTER TABLE characters ADD COLUMN draws INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN attack_cooldown_until INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_battle_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN vitality INTEGER DEFAULT 10',
@@ -3939,8 +3940,13 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         if (hpA <= 0 || hpB <= 0) {
             roundEndedPrematurely = true;
             if (hpA <= 0 && hpB <= 0) {
-                log.push(`Round ${round}: Both fighters fall simultaneously!`);
-                winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+                if (totalDmgToB === totalDmgToA) {
+                    log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`);
+                    winnerId = 0;
+                } else {
+                    log.push(`Round ${round}: Both fighters fall simultaneously!`);
+                    winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+                }
             } else if (hpA <= 0) {
                 log.push(`Round ${round}: ${fighterA.name} has fallen!`);
                 winnerId = fighterB.id;
@@ -3985,11 +3991,18 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
         }
     } else if (!roundEndedPrematurely) {
-        winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        if (totalDmgToB === totalDmgToA) {
+            winnerId = 0;
+        } else {
+            winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        }
     }
 
     log.push('---');
-    if (winnerId === fighterA.id) {
+    if (winnerId === 0) {
+        log.push(`After ${roundsCompleted} rounds: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
+        log.push(`Result: Draw — equal damage!`);
+    } else if (winnerId === fighterA.id) {
         log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
         log.push(`Winner: ${roundEndedPrematurely ? fighterA.name + ' wins!' : fighterA.name + ' wins by dealing more damage!'}`);
     } else {
@@ -5355,6 +5368,7 @@ const userSettings = char.user_id
         tutorial_skipped: char.tutorial_skipped || 0,
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
+        draws:        (char.draws       || 0),
         vitality:     (char.vitality    || 10),
         gems:         char.gems        || 0,
         hp_max:       hpMax,
@@ -7684,11 +7698,14 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         const battle = runBattle(fighterA, fighterB);
         const attackerWon = battle.winnerId === freshA.id;
+        const isDraw = battle.winnerId === 0;
 
         const battleStatsForAttacker = { you: summarizeBattleStats(fighterA), enemy: summarizeBattleStats(fighterB) };
         const battleStatsForDefender = { you: summarizeBattleStats(fighterB), enemy: summarizeBattleStats(fighterA) };
         
-        if (attackerWon) {
+        if (isDraw) {
+            // No achievements for draws
+        } else if (attackerWon) {
             await recordShieldlessWin(db, freshA, equippedA);
             await recordDamageStyleWin(db, freshA.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
         } else {
@@ -7706,8 +7723,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const atkGoldStake = Math.floor((freshA.gold || 0) * 0.10);
         const defStakeRate = hasPremium(premD, 'vault_keeper') ? 0.05 : 0.10;
         const defGoldStake = Math.floor((freshD.gold || 0) * defStakeRate);
-        const goldGained   = attackerWon ? defGoldStake  : -atkGoldStake;
-        const defGoldChange = attackerWon ? -defGoldStake : atkGoldStake;
+        const goldGained   = attackerWon ? defGoldStake  : (isDraw ? 0 : -atkGoldStake);
+        const defGoldChange = attackerWon ? -defGoldStake : (isDraw ? 0 : atkGoldStake);
 
         const pvpCooldownA = hasPremium(premA, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
         const newHpA = Math.max(0, battle.hpRemainingA);
@@ -7733,16 +7750,16 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         await ensureWeeklyTaskState(db, freshA);
         await ensureWeeklyTaskState(db, freshD);
-        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
-            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
+            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
-        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
-            [defGoldChange, attackerWon?0:1, attackerWon?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, freshD.id]);
+        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
+            [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, freshD.id]);
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                [freshA.id, freshD.id, battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained)]);
+                [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained)]);
         } catch (e) {
-            try { await dbRun(db, 'INSERT INTO battles (attacker_id,defender_id,winner_id,log) VALUES (?,?,?,?)', [freshA.id, freshD.id, battle.winnerId, JSON.stringify(battle.log)]); } catch {}
+            try { await dbRun(db, 'INSERT INTO battles (attacker_id,defender_id,winner_id,log) VALUES (?,?,?,?)', [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, JSON.stringify(battle.log)]); } catch {}
         }
         await dbRun(db, 'UPDATE characters SET last_battle_at=? WHERE id=?', [now, freshA.id]);
         try {
@@ -7754,10 +7771,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         } catch {}
         await dbRun(db, 'UPDATE characters SET attack_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
         try {
-            const defSubject = attackerWon ? `⚔️ ${freshA.name} attacked and defeated you! (-${defGoldStake} gold)` : `🛡️ You defended against ${freshA.name} and won! (+${atkGoldStake} gold)`;
+            const defSubject = isDraw ? `⚔️ ${freshA.name} attacked you — it was a draw!` : (attackerWon ? `⚔️ ${freshA.name} attacked and defeated you! (-${defGoldStake} gold)` : `🛡️ You defended against ${freshA.name} and won! (+${atkGoldStake} gold)`);
             const defPayload = JSON.stringify({
                 log: battle.log,
                 won: !attackerWon,
+                isDraw,
                 goldEarned: defGoldChange>0?defGoldChange:0,
                 goldLost: defGoldChange<0?-defGoldChange:0,
                 xpEarned:0,
@@ -7772,10 +7790,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshD.id, defSubject, `BATTLE_REPORT:${defPayload}`]);
         } catch (e) { console.error('Failed to send defender report:', e); }
         try {
-            const atkSubject = attackerWon ? `⚔️ You defeated ${freshD.name}! (+${defGoldStake} gold)` : `💀 You lost to ${freshD.name}. (-${atkGoldStake} gold)`;
+            const atkSubject = isDraw ? `⚔️ You fought ${freshD.name} to a draw!` : (attackerWon ? `⚔️ You defeated ${freshD.name}! (+${defGoldStake} gold)` : `💀 You lost to ${freshD.name}. (-${atkGoldStake} gold)`);
             const atkPayload = JSON.stringify({
                 log: battle.log,
                 won: attackerWon,
+                isDraw,
                 goldEarned: goldGained>0?goldGained:0,
                 goldLost: goldGained<0?-goldGained:0,
                 xpEarned:xpGained,
@@ -7791,7 +7810,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         } catch (e) { console.error('Failed to send attacker report:', e); }
         const updatedAttacker = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [freshA.id]);
         res.json({ 
-            won: attackerWon, log: battle.log, xpGained, 
+            won: attackerWon, isDraw, log: battle.log, xpGained, 
             goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, 
             leveledUp, atkLevelUpMessage,
             character: await buildCharacterResponse(updatedAttacker, db),
@@ -7809,9 +7828,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
 router.get('/leaderboard', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const allowedSorts = ['wins','losses','gold','level','total_gold_earned'];
+        const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.profile_pic,c.profile_badges,
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,
             (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
             FROM characters c 
             ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
@@ -7860,7 +7879,7 @@ router.get('/player/:id', auth, async (req, res) => {
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
         
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
-            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
+            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
         res.json({
             id:player.id, user_id: player.user_id, name:player.name, class:player.class, level:player.level,
@@ -7869,7 +7888,7 @@ router.get('/player/:id', auth, async (req, res) => {
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
             hp_max:hpMax,
             hp_current: player.hp_current ?? hpMax,
-            wins:player.wins, losses:player.losses,
+            wins:player.wins, losses:player.losses, draws:player.draws||0,
             dungeon_highest_floor: player.dungeon_highest_floor || 0,
             achievements_completed: achievementCountRow?.count || 0,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
@@ -7887,7 +7906,7 @@ router.get('/battles', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,a.class as attacker_class,d.name as defender_name,d.class as defender_class,w.name as winner_name
-            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id JOIN characters w ON b.winner_id=w.id
+            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 10`, [char.id, char.id]);
         res.json(battles.map(b => ({ ...b, log: JSON.parse(b.log) })));
     } catch (e) { res.status(500).json({ error: e.message }); }
