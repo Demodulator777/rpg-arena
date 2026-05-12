@@ -3773,7 +3773,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
             if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
-                const critElemMult = magicToElemental ? 2.1 : 2.0;
+                const critElemMult = magicToElemental ? 1.2 : 1.1;
                 ed = Math.floor(ed * critElemMult);
             }
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
