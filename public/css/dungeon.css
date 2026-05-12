@@ -89,7 +89,8 @@
   background: #05070c;
   border: 1px solid var(--dungeon-border);
   border-radius: 16px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
 }
 
@@ -332,9 +333,6 @@
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
-  /* Avoid WebKit layout oddities where the card can expand upward and sit over HUD actions. */
-  max-height: 100%;
-  overflow: auto;
 }
 
 .dungeon-hud-room-title {
