@@ -4396,6 +4396,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .battle-outcome.won  { color: var(--green); text-shadow: 0 0 25px rgba(39,174,96,0.5); }
 .battle-outcome.lost { color: var(--red-light); text-shadow: 0 0 25px rgba(224,82,82,0.4); }
+.battle-outcome.draw { color: var(--gold); text-shadow: 0 0 25px rgba(241,196,15,0.5); }
 .battle-outcome.battle-outcome-visible { opacity: 1; transform: translateY(0); }
 .battle-outcome-pending { color: rgba(255,255,255,0.55); }
 .battle-log {
