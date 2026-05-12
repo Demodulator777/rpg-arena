@@ -6431,7 +6431,6 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
-                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">${p.draws||0}</div><div class="lb-stat-lbl">DRAWS</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
             </div>
         </div>`;
