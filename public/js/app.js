@@ -2977,7 +2977,7 @@ function renderUpgrade() {
         { key: 'magic', asset: 'magic', icon: '✨', label: 'Magic' },
         { key: 'vitality', asset: 'vitality', icon: '❤️', label: 'Vitality', hint: 'Also boosts current HP' },
         { key: 'hit_chance', asset: 'accuracy', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
-        { key: 'crit_chance', asset: 'critical', icon: '💥', label: 'Crit Chance', hint: '% chance to hit max dmg' },
+        { key: 'crit_chance', asset: 'critical', icon: '💥', label: 'Crit Chance', hint: 'Chance to hit max dmg' },
     ];
     
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
