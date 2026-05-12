@@ -549,7 +549,7 @@ const EQUIPMENT_RECIPES = [
         name:"Shadewalker's Grace", emoji:'👟', quality:'legendary',
         slot:'boots',
         desc:'Soles that never scuff, never squeak, never leave a trail. Every step is a whisper, every landing is silence.',
-        stats:{ defense:12, armor:5, agility:12, hit_chance:6, crit_chance:6, evasion:5 },
+        stats:{ defense:12, armor:5, agility:12, hit_chance:6, crit_chance:6 },
         components:{ shadow_weave:2, tanned_hide:2, frost_core:1 }, goldCost:13000,
     },
 ];
@@ -594,8 +594,7 @@ const CRAFTING_SETS = {
         bonus5:{
             agility:30, crit_chance:18, hit_chance:15,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            evasion:5,
-            desc:'5/5: +30 AGI · +18 Crit · +15 Hit · +20 all Elem Resist · +5% Evasion'
+            desc:'5/5: +30 AGI · +18 Crit · +15 Hit · +20 all Elem Resist'
         },
     },
 };
