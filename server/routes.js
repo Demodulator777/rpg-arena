@@ -7823,7 +7823,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         const setBonusesD = getEquippedSetBonuses(equippedD);
         const fighterB = {
-            id: freshD.id, name: freshD.name,
+            id: freshD.id, name: freshD.name, class: freshD.class,
             hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + ((skillPassivesD.vitality || 0) * 25),
             dmgMin: dmgMinD + (skillPassivesD.dmg_min || 0),
