@@ -3597,6 +3597,17 @@ function calcElemResist(char, equippedItems) {
     return resist;
 }
 
+function getEquippedStatTotal(equippedItems, statName) {
+    let total = 0;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.[statName]) total += Number(data.stats[statName]);
+        } catch {}
+    }
+    return total;
+}
+
 function getEquippedSetCounts(equippedItems) {
     const counts = {};
     for (const item of equippedItems) {
@@ -4251,7 +4262,7 @@ async function buildCombatFighter(db, char) {
         dmgMax: dmgMax + (skillPassives.dmg_max || 0),
         strength: (char.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
         agility: (char.agility || 0) + (setBonuses.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
-        magic: (char.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0),
+        magic: (char.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0) + getEquippedStatTotal(equippedArray, 'magic'),
         defense: (char.defense || 0) + (setBonuses.defense || 0) + (skillPassives.defense || 0),
         hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + (skillPassives.hit_chance || 0),
         crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0),
@@ -6288,7 +6299,7 @@ if (freshChar.class === 'rogue') {
             dmgMax: dmgMax + (skillPassives.dmg_max || 0),
             strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0),
             agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus,
-            magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0),
+            magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0) + getEquippedStatTotal(equippedArray, 'magic'),
             defense: (freshChar.defense || 0) + (setBonuses.defense || 0) + (skillPassives.defense || 0),
             hit_chance: (freshChar.hit_chance || 0) + (setBonuses.hit_chance || 0) + (skillPassives.hit_chance || 0),
             crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0),
@@ -7599,7 +7610,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             dmgMax: dmgMaxA + (skillPassivesA.dmg_max || 0),
             strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + (skillPassivesA.strength || 0),
             agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + (skillPassivesA.agility || 0) + noShieldAgiBonusA,
-            magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + (skillPassivesA.magic || 0),
+            magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + (skillPassivesA.magic || 0) + getEquippedStatTotal(equippedA, 'magic'),
             defense: (freshA.defense || 0) + (setBonusesA.defense || 0) + (skillPassivesA.defense || 0),
             hit_chance: (freshA.hit_chance || 0) + (setBonusesA.hit_chance || 0) + (skillPassivesA.hit_chance || 0) + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
             crit_chance: (freshA.crit_chance || 0) + (setBonusesA.crit_chance || 0) + (skillPassivesA.crit_chance || 0) + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
@@ -7635,7 +7646,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             dmgMax: dmgMaxD + (skillPassivesD.dmg_max || 0),
             strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + (skillPassivesD.strength || 0),
             agility: (freshD.agility || 0) + (setBonusesD.agility || 0) + (skillPassivesD.agility || 0) + noShieldAgiBonusD,
-            magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + (skillPassivesD.magic || 0),
+            magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + (skillPassivesD.magic || 0) + getEquippedStatTotal(equippedD, 'magic'),
             defense: (freshD.defense || 0) + (setBonusesD.defense || 0) + (skillPassivesD.defense || 0),
             hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + (hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0),
             crit_chance: (freshD.crit_chance || 0) + (setBonusesD.crit_chance || 0) + (skillPassivesD.crit_chance || 0) + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
