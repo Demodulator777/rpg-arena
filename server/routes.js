@@ -3772,7 +3772,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         for (const elem of ELEMENTS) {
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
-            if (isCrit) {
+            if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
                 const critElemMult = magicToElemental ? 2.1 : 2.0;
                 ed = Math.floor(ed * critElemMult);
             }
