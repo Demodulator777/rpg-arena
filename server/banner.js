@@ -279,7 +279,6 @@ function generateBannerItemStats(itemType, playerLevel) {
         stats.armor = Math.floor(Math.min(120, level * 0.70 * scale));
         stats.agility = Math.floor(Math.min(70, level * 0.25 * scale));
         stats.hp_max = Math.floor(Math.min(280, level * 1.1 * scale));
-        stats.evasion = Math.floor(Math.min(12, level * 0.04 * scale));
         stats.electro_resist = Math.floor(Math.min(80, level * 1.0 * scale));
     }
 
