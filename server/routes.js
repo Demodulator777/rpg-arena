@@ -3789,10 +3789,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const mgR = Math.floor((defender.magic || 0) * 0.05);
                     gElem += Math.max(0, mRaw - avgR - mgR);
                 }
-                let gDmg = Math.floor(gPhys * atkHitChance) + Math.floor(gElem * atkHitChance);
+                const physPortion = Math.floor(gPhys * atkHitChance);
+                const elemPortion = Math.floor(gElem * atkHitChance);
+                let gDmg = physPortion + elemPortion;
                 if (gDmg > 0 && (defender.armor || 0) > 0) {
                     const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
-                    gDmg = Math.max(1, gDmg - Math.min(gDmg - 1, effArmor));
+                    const reducedPhys = Math.max(1, physPortion - Math.min(physPortion - 1, effArmor));
+                    gDmg = reducedPhys + elemPortion;
                 }
                 let absorbed = 0;
                 if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && gDmg > 0) {
@@ -3813,7 +3816,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 } else {
                     const bsTag = isBackstab ? ' BACKSTAB!' : '';
                     logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.floor(gDmg)} damage`;
-                    if (gElem > 0) logLine += ` including ${Math.floor(gElem * atkHitChance)} elemental damage`;
+                    if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
                 }
             }
         }
@@ -6490,7 +6493,17 @@ if (freshChar.class === 'rogue') {
                 npc.agility = 100; npc.magic = 250; npc.crit_chance = 125; npc.armor = 100;
             }
         }
-        
+
+        // Random elemental resists for hard missions — at least 2 types, up to all 4, scales with zone
+        if (mission.difficulty === 'hard') {
+            const allElem = ['pyro', 'water', 'wind', 'electro'];
+            const count = Math.min(4, 2 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0));
+            const chosen = [...allElem].sort(() => Math.random() - 0.5).slice(0, count);
+            const maxR = Math.min(100, Math.floor(20 + zoneLevel * 2.5));
+            npc.elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
+            for (const el of chosen) npc.elem_resist[el] = Math.floor(Math.random() * maxR * 0.7) + Math.floor(maxR * 0.3);
+        }
+
         // Force win for new characters (first 4 battles)
         let forceWinnerId = null;
         if (isTutorial) {
