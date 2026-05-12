@@ -8490,6 +8490,10 @@ function getAssetImagePath(name, basePath='/images/assets') {
     const slug = String(name || '')
         .trim()
         .toLowerCase()
+        // Prefer possessive names to map cleanly to asset slugs:
+        // "Shadewalker's Kiss" -> "shadewalkers-kiss" (not "shadewalker-s-kiss").
+        .replace(/'s\b/g, 's')
+        .replace(/'/g, '')
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
     return slug ? `${basePath}/${slug}.png` : null;
