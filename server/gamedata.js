@@ -540,7 +540,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:14, crit_chance:12
         name:"Shadewalker's Echo", emoji:'🔪', quality:'legendary',
         slot:'shield', rogueOffhand:true,
         desc:'Twin to the Kiss, this blade waits in silence for the perfect opening. Rogues wield it in their off-hand as naturally as breathing. Non-rogues cannot grasp its balance.',
-        stats:{ dmg_min:3, dmg_max:8, agility:10, crit_chance:5, hit_chance:4,
+        stats:{ dmg_min:7, dmg_max:15, agility:10, crit_chance:5, hit_chance:4,
                 electro_resist:10 },
         components:{ shadow_weave:2, void_crystal:2, demon_alloy:1 }, goldCost:16000,
     },
