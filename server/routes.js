@@ -3781,10 +3781,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 const m2e = attacker.class === 'mage';
                 gPhys = Math.max(0, gPhys + (m2e ? 0 : dB) - rB);
                 const eD = attacker.elem_dmg || {};
+                const magicElemMult = 1 + (attacker.magic || 0) / 4000;
                 let gElem = 0;
                 for (const elem of ELEMENTS) {
                     let ed = eD[elem] || 0;
                     if (ed <= 0) continue;
+                    ed = Math.floor(ed * magicElemMult);
                     if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
                     if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
                     ed = Math.floor(ed * atkBonusDmg);
@@ -3800,13 +3802,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const mgR = Math.floor((defender.magic || 0) * 0.05);
                     gElem += Math.max(0, mRaw - avgR - mgR);
                 }
-                const physPortion = Math.floor(gPhys * atkHitChance);
-                const elemPortion = Math.floor(gElem * atkHitChance);
-                let gDmg = physPortion + elemPortion;
+                let gDmg = gPhys + gElem;
                 if (gDmg > 0 && (defender.armor || 0) > 0) {
                     const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
-                    const reducedPhys = Math.max(1, physPortion - Math.min(physPortion - 1, effArmor));
-                    gDmg = reducedPhys + elemPortion;
+                    const reducedPhys = Math.max(1, gPhys - Math.min(gPhys - 1, effArmor));
+                    gDmg = reducedPhys + gElem;
                 }
                 gDmg = Math.max(1, gDmg);
                 let absorbed = 0;
@@ -3857,9 +3857,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const blockFails = rageActive || randomBlockPen;
 
         const elemDmgs = attacker.elem_dmg || {};
+        const magicElemMult = 1 + (attacker.magic || 0) / 4000;
         for (const elem of ELEMENTS) {
             let ed = elemDmgs[elem] || 0;
             if (ed <= 0) continue;
+            ed = Math.floor(ed * magicElemMult);
             if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
                 const critElemMult = magicToElemental ? 1.2 : 1.1;
                 ed = Math.floor(ed * critElemMult);
