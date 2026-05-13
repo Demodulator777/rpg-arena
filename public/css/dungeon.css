@@ -1686,8 +1686,8 @@
   color: var(--dungeon-muted);
 }
 .combat-log {
-  max-height: 140px;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
   padding: 10px 12px;
   background: rgba(0,0,0,0.3);
   border-radius: 8px;
