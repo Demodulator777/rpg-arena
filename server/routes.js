@@ -7010,6 +7010,10 @@ router.post('/forge/craft', auth, async (req, res) => {
             return res.status(400).json({ error: `Requires level ${recipe.minLevel} to craft this item.` });
         }
         
+        if (recipe.craftClass && char.class !== recipe.craftClass) {
+            return res.status(400).json({ error: `Only ${recipe.craftClass}s can craft this item.` });
+        }
+        
         if (char.gold < recipe.goldCost) return res.status(400).json({ error: `Need ${recipe.goldCost} gold` });
         
         const mats = await getInventoryMaterials(db, char.id);
