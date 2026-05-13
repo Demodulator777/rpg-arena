@@ -464,7 +464,7 @@ const EQUIPMENT_RECIPES = [
         slot:'weapon',
         desc:'Three bladed vows of hatred, quenched in black surf and driven to pierce pride, plate, and prayer alike.',
         stats:{ dmg_min:24, dmg_max:46, strength:14, crit_chance:12, hit_chance:8,
-                pyro_resist:12, water_resist:12, wind_resist:12, electro_resist:12 },
+                pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10 },
         components:{ void_crystal:3, demon_alloy:2, tanned_hide:2 }, goldCost:18000,
     },
     {
@@ -472,8 +472,8 @@ const EQUIPMENT_RECIPES = [
         name:'Carapace of Last Refrains', emoji:'🐢', quality:'legendary',
         slot:'armor',
         desc:'A war-shell plated with the echoes of final curses, hardening every grudge into stubborn, iron resolve.',
-        stats:{ defense:30, armor:18, hp_max:140, strength:10, vitality:6,
-                pyro_resist:10, electro_resist:10 },
+stats:{ dmg_min:2, dmg_max:5, defense:30, armor:18, hp_max:140, strength:10, vitality:6,
+                 electro_resist:10 },
         components:{ void_crystal:2, demon_alloy:4, tanned_hide:2 }, goldCost:22000,
     },
     {
@@ -481,8 +481,8 @@ const EQUIPMENT_RECIPES = [
         name:'Crown of Scornful Gaze', emoji:'👁️', quality:'legendary',
         slot:'helmet',
         desc:'Its sleepless eye judges every challenger first, weighing them only for the manner of their humiliation.',
-        stats:{ defense:20, armor:10, hp_max:90, crit_chance:15, hit_chance:10,
-                wind_resist:10, water_resist:10 },
+stats:{ dmg_min:2, dmg_max:4, defense:20, armor:10, hp_max:90, crit_chance:15, hit_chance:10,
+                 wind_resist:10},
         components:{ void_crystal:2, demon_alloy:2, frost_core:1 }, goldCost:16000,
     },
     {
@@ -490,8 +490,8 @@ const EQUIPMENT_RECIPES = [
         name:'Bulwark of Denied Mercy', emoji:'🛡️', quality:'legendary',
         slot:'shield',
         desc:'A spitebound wall raised by warriors who survived by refusing mercy, surrender, and clean endings.',
-        stats:{ defense:34, armor:22, hp_max:110, strength:8,
-                pyro_resist:14, water_resist:14, wind_resist:14, electro_resist:14 },
+stats:{ dmg_min:2, dmg_max:3, defense:34, armor:22, hp_max:110, strength:8,
+                 pyro_resist:10, },
         components:{ void_crystal:4, demon_alloy:3, hardwood_plank:2 }, goldCost:24000,
     },
     {
@@ -499,8 +499,8 @@ const EQUIPMENT_RECIPES = [
         name:'Treads of the Unforgiving', emoji:'👢', quality:'legendary',
         slot:'boots',
         desc:'Each step lands like a sentence passed, hounding the fleeing until regret is the only ground left beneath them.',
-        stats:{ defense:18, armor:10, agility:14, crit_chance:12, hit_chance:8,
-                water_resist:8, electro_resist:8 },
+stats:{ dmg_min:1, dmg_max:2, defense:18, armor:10, agility:14, crit_chance:12, hit_chance:8,
+                 water_resist:10 },
         components:{ void_crystal:2, demon_alloy:2, tanned_hide:3 }, goldCost:14000,
     },
 
@@ -513,8 +513,8 @@ const EQUIPMENT_RECIPES = [
         name:"Shadewalker's Kiss", emoji:'🗡️', quality:'legendary',
         slot:'weapon',
         desc:'A dagger that drinks the light from the air before it drinks blood. No blade is keener, no strike more silent.',
-        stats:{ dmg_min:14, dmg_max:28, agility:12, crit_chance:10, hit_chance:8,
-                pyro_resist:8, water_resist:8 },
+        stats:{ dmg_min:10, dmg_max:24, agility:12, crit_chance:10, hit_chance:8,
+                pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10 },
         components:{ shadow_weave:3, void_crystal:2, tanned_hide:1 }, goldCost:18000,
     },
     {
@@ -522,8 +522,8 @@ const EQUIPMENT_RECIPES = [
         name:"Shadewalker's Shroud", emoji:'🌫️', quality:'legendary',
         slot:'helmet',
         desc:'Woven from midnight silk and the last breath of a dying star. Those who wear it fade into the dark long before they strike.',
-        stats:{ defense:22, armor:8, hp_max:100, agility:18, crit_chance:8,
-                wind_resist:12, electro_resist:12 },
+        stats:{ dmg_min:1, dmg_max:2, defense:22, armor:8, hp_max:100, agility:18, crit_chance:8,
+                wind_resist:10, },
         components:{ shadow_weave:4, void_crystal:2, frost_core:1 }, goldCost:20000,
     },
     {
@@ -532,7 +532,7 @@ const EQUIPMENT_RECIPES = [
         slot:'armor',
         desc:'Light quilted armor that moves like water and hides like shadow. No leather creaks, no buckle shines — only the kill reveals you were there.',
         stats:{ defense:14, armor:6, hp_max:70, agility:16, hit_chance:12,
-                water_resist:10, pyro_resist:10 },
+                water_resist:10 },
         components:{ shadow_weave:2, tanned_hide:3, void_crystal:1 }, goldCost:15000,
     },
     {
@@ -540,8 +540,8 @@ const EQUIPMENT_RECIPES = [
         name:"Shadewalker's Echo", emoji:'🔪', quality:'legendary',
         slot:'shield', rogueOffhand:true,
         desc:'Twin to the Kiss, this blade waits in silence for the perfect opening. Rogues wield it in their off-hand as naturally as breathing. Non-rogues cannot grasp its balance.',
-        stats:{ dmg_min:5, dmg_max:12, agility:8, crit_chance:5, hit_chance:4,
-                electro_resist:8, wind_resist:8 },
+        stats:{ dmg_min:3, dmg_max:9, agility:8, crit_chance:5, hit_chance:4,
+                electro_resist:10 },
         components:{ shadow_weave:2, void_crystal:2, demon_alloy:1 }, goldCost:16000,
     },
     {
@@ -549,7 +549,7 @@ const EQUIPMENT_RECIPES = [
         name:"Shadewalker's Grace", emoji:'👟', quality:'legendary',
         slot:'boots',
         desc:'Soles that never scuff, never squeak, never leave a trail. Every step is a whisper, every landing is silence.',
-        stats:{ defense:12, armor:5, agility:12, hit_chance:6, crit_chance:6 },
+        stats:{ defense:12, armor:5, agility:12, hit_chance:6, crit_chance:6, pyro_resist:10 },
         components:{ shadow_weave:2, tanned_hide:2, frost_core:1 }, goldCost:13000,
     },
 ];
