@@ -202,6 +202,50 @@ function normalizeMiniBossRooms(rooms, floor) {
     });
 }
 
+function normalizeRoomMonsters(rooms, floor) {
+    if (!Array.isArray(rooms)) return [];
+    const now = Date.now();
+    const respawnMs = MONSTER_RESPAWN_H * 3600000;
+    return rooms.map(room => {
+        if (!room || !Array.isArray(room.monsters) || room.monsters.length === 0) return room;
+        const monsters = room.monsters.map(monster => {
+            if (!monster) return monster;
+
+            let lastKilled = monster.lastKilled ?? null;
+            if (typeof lastKilled === 'number' && lastKilled > 0 && lastKilled < 1000000000000) {
+                // seconds -> ms
+                lastKilled = lastKilled * 1000;
+            }
+
+            const maxHp = Number(monster.maxHp ?? monster.hp ?? 1);
+            const currentHp = Number(monster.currentHp ?? maxHp);
+
+            // If the respawn window elapsed, treat as alive again.
+            if (typeof lastKilled === 'number' && lastKilled > 0 && (now - lastKilled) >= respawnMs) {
+                return rebalanceMiniBossMonster({
+                    ...monster,
+                    lastKilled: null,
+                    maxHp,
+                    currentHp: Math.max(1, maxHp),
+                }, floor);
+            }
+
+            // Guard against older saved states: monsters with 0 HP but no lastKilled would appear "alive".
+            if (!lastKilled && currentHp <= 0) {
+                return rebalanceMiniBossMonster({
+                    ...monster,
+                    lastKilled: now,
+                    maxHp,
+                    currentHp: 0,
+                }, floor);
+            }
+
+            return rebalanceMiniBossMonster({ ...monster, lastKilled }, floor);
+        });
+        return { ...room, monsters };
+    });
+}
+
 function getCrawlerForFloor(floor) {
     const boss = getBossForFloor(floor);
     // The Crawler is meant to be an "oh no" encounter: stronger than the floor boss.
@@ -415,7 +459,9 @@ document.addEventListener('visibilitychange', () => {
         parsed.exploredRooms = new Set(parsed.exploredRooms || []);
         parsed.crawler = parsed.crawler || null;
         parsed.floorRunId = parsed.floorRunId || null;
-        parsed.rooms = normalizeMiniBossRooms(parsed.rooms || [], parsed.floor || 1);
+        const loadedRooms = parsed.rooms || [];
+        const loadedFloor = parsed.floor || 1;
+        parsed.rooms = normalizeRoomMonsters(normalizeMiniBossRooms(loadedRooms, loadedFloor), loadedFloor);
         D = { ...D, ...parsed };
       }
     } catch(e) {}
@@ -466,7 +512,11 @@ async function refreshCharacter() {
       if (response.progress) {
         // Edge case: if activeDungeon is null (death/exit path), we still want resume to work.
         const key = response.progress.activeDungeon || 'tower';
-        const rooms = normalizeMiniBossRooms(response.progress.rooms || [], response.progress.floor || 1);
+        const progressFloor = response.progress.floor || 1;
+        const rooms = normalizeRoomMonsters(
+          normalizeMiniBossRooms(response.progress.rooms || [], progressFloor),
+          progressFloor
+        );
         if (rooms && rooms.length) {
           D.savedProgress[key] = {
             floor: response.progress.floor,
@@ -1269,7 +1319,7 @@ function proceedStartDungeon(dungeonId) {
         D.activeDungeon = 'tower';
         global.__dungeonActive = true;
         D.floor = s.floor;
-        D.rooms = normalizeMiniBossRooms(s.rooms || [], s.floor || 1);
+        D.rooms = normalizeRoomMonsters(normalizeMiniBossRooms(s.rooms || [], s.floor || 1), s.floor || 1);
         D.playerPos = s.pos;
         D.exploredRooms = new Set(s.explored);
         D.crawler = s.crawler || null;
@@ -1321,7 +1371,7 @@ function proceedStartDungeon(dungeonId) {
     D.activeDungeon = 'tower';
     global.__dungeonActive = true;
     const startFloor = D.floor || 1;  // already set by loadDungeonDataFromDB
-    D.rooms = normalizeMiniBossRooms(generateFloor('tower', startFloor), startFloor);
+    D.rooms = normalizeRoomMonsters(normalizeMiniBossRooms(generateFloor('tower', startFloor), startFloor), startFloor);
     
     if (!D.rooms || D.rooms.length === 0) {
         log('Failed to generate dungeon. Please try again.', 'log-danger');
@@ -1454,6 +1504,7 @@ function startCombat(roomIdx) {
     }
 
     // Server-authoritative combat: don't show client-computed monster stats (they may differ).
+    const clientStartId = `combat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     D.combat = {
         roomIdx,
         monsters: [],
@@ -1465,8 +1516,22 @@ function startCombat(roomIdx) {
         resolving: true,
         combatId: null,
         turnNonce: 0,
+        clientStartId,
     };
     renderCombatPanel();
+    // If the player scrolled the page before entering combat, ensure the overlay is flush with the viewport top.
+    // (Even if something goes wrong with stacking, this avoids "uncovering" navigation).
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch(e) { try { window.scrollTo(0, 0); } catch(_) {} }
+
+    // Some users can have a stale character snapshot (e.g., hp_current from a previous tab/session).
+    // Refresh in the background so the HP bar stabilizes quickly without delaying combat start.
+    Promise.resolve(refreshCharacter?.())
+        .catch(() => {})
+        .finally(() => {
+            if (!D.combat || D.combat.clientStartId !== clientStartId) return;
+            D.combat.playerHpBefore = Number(getChar()?.hp_current ?? getChar()?.hp ?? D.combat.playerHpBefore ?? 100);
+            renderCombatPanel();
+        });
 
     // Speed: reuse a prefetched combat session when available.
     const preKey = `${D.floor}:${roomIdx}:${String(D.floorRunId || '')}`;
@@ -2840,7 +2905,10 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     if (overlay) overlay.innerHTML = '';
     // Ensure any combat UI lock is released when returning to normal dungeon view.
     // (Guild uses its own open/close handlers.)
-    if (!D.combat) document.body.classList.remove('modal-lock');
+    if (!D.combat) {
+      document.body.classList.remove('modal-lock');
+      document.body.classList.remove('combat-lock');
+    }
     
     if (!D.rooms || D.rooms.length === 0) {
       console.error('No rooms generated');
@@ -3289,6 +3357,7 @@ function renderRoomInfo(room) {
     if (!overlay || !D.combat) return;
     // Combat should fully take over the screen: prevent background scrolling.
     document.body.classList.add('modal-lock');
+    document.body.classList.add('combat-lock');
     const def = getDungeonDef(D.activeDungeon);
     const monsters = D.combat.monsters;
     const currentMonster = monsters[D.combat.currentMonsterIndex] || {};
@@ -3432,6 +3501,7 @@ function dungeonExit() {
     global.__dungeonActive = false;
     D.combat = null;
     document.body.classList.remove('modal-lock');
+    document.body.classList.remove('combat-lock');
     saveState();
     renderDungeonList();
 }
