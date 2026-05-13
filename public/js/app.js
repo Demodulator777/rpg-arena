@@ -1451,6 +1451,7 @@ async function confirmLeaveDungeonSession() {
     if (!window.__dungeonActive) return true;
     // Ensure any navigation dropdown is closed so the confirm modal sits on top visually.
     try { closeTopbarMenu(); } catch {}
+    try { closeCharacterHubInline(); } catch {}
     if (dungeonCombatIsActive()) {
         await openGameDialog({
             title: 'Cannot Leave During Battle',
