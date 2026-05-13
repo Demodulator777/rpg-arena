@@ -415,9 +415,11 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                 await dbRun(db, `UPDATE characters SET profile_pic = ? WHERE id = ?`, [`${picToUnlock}.png`, char.id]);
             }
             
-            if (char) {
+             if (char) {
+                const { EQUIPMENT_RECIPES } = require('./gamedata');
                 for (const item of banner.loot_table) {
-                    const itemStats = generateBannerItemStats(item.type, char.level);
+                    const recipe = EQUIPMENT_RECIPES.find(r => r.id === item.id);
+                    const itemStats = recipe ? { ...recipe.stats } : generateBannerItemStats(item.type, char.level);
                     const itemPrice = Math.floor(35000 * 1.35);
                     const fullItem = {
                         id: `${item.id}_${Date.now()}`,
