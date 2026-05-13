@@ -3489,19 +3489,27 @@ function dungeonExit() {
             floorRunId: D.floorRunId,
         };
     }
-    
-    // Save to database FIRST
-    saveProgressToDB();
-    
-    // Release lock
-    stopLockRefresh();
-    
-    // THEN clear the active dungeon
+
+    // We are leaving the dungeon: clear local state first so /dungeon/progress can also clear any
+    // server-side combat session (which otherwise can keep HP potions locked indefinitely).
+    const prevFloor = D.floor;
+    const prevRoomIdx = D.playerPos;
     D.activeDungeon = null;
     global.__dungeonActive = false;
     D.combat = null;
     document.body.classList.remove('modal-lock');
     document.body.classList.remove('combat-lock');
+
+    // Best-effort: release any room claim + end any active combat session for this room.
+    // (Older clients/versions may not have done this, leaving stale `dungeon_combat_sessions.status='active'`.)
+    apiFetch('POST', '/game/dungeon/room-exit', { floor: prevFloor, roomIndex: prevRoomIdx }).catch(() => {});
+
+    // Save to database (activeDungeon is now null, so server clears active combat sessions).
+    saveProgressToDB();
+
+    // Release lock
+    stopLockRefresh();
+
     saveState();
     renderDungeonList();
 }
