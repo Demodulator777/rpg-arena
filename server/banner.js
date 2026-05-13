@@ -416,10 +416,10 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
             }
             
              if (char) {
-                const { EQUIPMENT_RECIPES } = require('./gamedata');
+                const { EQUIPMENT_RECIPES, scaleItemToLevel } = require('./gamedata');
                 for (const item of banner.loot_table) {
                     const recipe = EQUIPMENT_RECIPES.find(r => r.id === item.id);
-                    const itemStats = recipe ? { ...recipe.stats } : generateBannerItemStats(item.type, char.level);
+                    const itemStats = recipe ? scaleItemToLevel(recipe, char.level).stats : generateBannerItemStats(item.type, char.level);
                     const itemPrice = Math.floor(35000 * 1.35);
                     const fullItem = {
                         id: `${item.id}_${Date.now()}`,
