@@ -2838,6 +2838,9 @@ const previewFloors = [0,1,2,3,4].map(offset => {
 
     const overlay = document.getElementById('dungeon-overlay');
     if (overlay) overlay.innerHTML = '';
+    // Ensure any combat UI lock is released when returning to normal dungeon view.
+    // (Guild uses its own open/close handlers.)
+    if (!D.combat) document.body.classList.remove('modal-lock');
     
     if (!D.rooms || D.rooms.length === 0) {
       console.error('No rooms generated');
@@ -3284,6 +3287,8 @@ function renderRoomInfo(room) {
   function renderCombatPanel() {
     const overlay = document.getElementById('dungeon-overlay');
     if (!overlay || !D.combat) return;
+    // Combat should fully take over the screen: prevent background scrolling.
+    document.body.classList.add('modal-lock');
     const def = getDungeonDef(D.activeDungeon);
     const monsters = D.combat.monsters;
     const currentMonster = monsters[D.combat.currentMonsterIndex] || {};
@@ -3426,6 +3431,7 @@ function dungeonExit() {
     D.activeDungeon = null;
     global.__dungeonActive = false;
     D.combat = null;
+    document.body.classList.remove('modal-lock');
     saveState();
     renderDungeonList();
 }
