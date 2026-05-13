@@ -2668,6 +2668,18 @@
   scroll-padding: 20px 0;
 }
 
+/* iOS/WebKit layering + scrolling:
+   Avoid nested scroll containers inside the fixed overlay (can cause z-index/compositing bugs). */
+.dungeon-overlay {
+  -webkit-overflow-scrolling: touch;
+}
+
+.dungeon-overlay .guild-container {
+  max-height: none;
+  overflow: visible;
+  margin-top: 0;
+}
+
 /* Add padding inside the scrollable area to ensure content isn't cut off */
 .guild-container > *:first-child {
   margin-top: 0;
