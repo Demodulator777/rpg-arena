@@ -518,15 +518,6 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:14, crit_chance:12
         components:{ shadow_weave:3, void_crystal:2, tanned_hide:1 }, goldCost:18000,
     },
     {
-        id:'shadewalker_helmet', setId:'shadewalker', setPiece:'helmet',
-        name:"Shadewalker's Shroud", emoji:'🌫️', quality:'legendary',
-        slot:'helmet',
-        desc:'Woven from midnight silk and the last breath of a dying star. Those who wear it fade into the dark long before they strike.',
-        stats:{ dmg_min:1, dmg_max:2, defense:22, armor:8, hp_max:100, agility:8, crit_chance:8,
-                wind_resist:10, },
-        components:{ shadow_weave:4, void_crystal:2, frost_core:1 }, goldCost:20000,
-    },
-    {
         id:'shadewalker_armor', setId:'shadewalker', setPiece:'armor',
         name:"Shadewalker's Gambeson", emoji:'🖤', quality:'legendary',
         slot:'armor',
@@ -534,6 +525,15 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:14, crit_chance:12
         stats:{ defense:14, armor:6, hp_max:70, agility:6, hit_chance:12,
                 water_resist:10 },
         components:{ shadow_weave:2, tanned_hide:3, void_crystal:1 }, goldCost:15000,
+    },
+    {
+        id:'shadewalker_helmet', setId:'shadewalker', setPiece:'helmet',
+        name:"Shadewalker's Shroud", emoji:'🌫️', quality:'legendary',
+        slot:'helmet',
+        desc:'Woven from midnight silk and the last breath of a dying star. Those who wear it fade into the dark long before they strike.',
+        stats:{ dmg_min:1, dmg_max:2, defense:22, armor:8, hp_max:100, agility:8, crit_chance:8,
+                wind_resist:10, },
+        components:{ shadow_weave:4, void_crystal:2, frost_core:1 }, goldCost:20000,
     },
     {
         id:'shadewalker_shield', setId:'shadewalker', setPiece:'shield',
