@@ -534,14 +534,14 @@
   right: 0;
   bottom: env(safe-area-inset-bottom, 0px);
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   /* Must sit above sidebar hubs (z-index: 9999), topbar (200), and chat widget (6000). */
   z-index: 20000;
   /* Single scroll surface for the whole overlay. */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 20px;
+  padding: 28px 20px 20px;
   box-sizing: border-box;
 }
 
@@ -550,9 +550,12 @@
 }
 
 .dungeon-overlay-backdrop {
-  /* Backdrop should only cover the dungeon layer, not the global topbar. */
-  position: absolute;
-  inset: 0;
+  /* Backdrop should stay fixed while the overlay content scrolls. */
+  position: fixed;
+  top: calc(var(--topbar-h, 64px) + env(safe-area-inset-top, 0px));
+  left: 0;
+  right: 0;
+  bottom: env(safe-area-inset-bottom, 0px);
   background: rgba(0,0,0,0.55);
   backdrop-filter: blur(4px);
   z-index: 19999;
