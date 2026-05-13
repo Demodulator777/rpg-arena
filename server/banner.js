@@ -1,6 +1,66 @@
 const express = require('express');
 const { getDb } = require('./db');
 
+function scaleItemToLevel(recipe, playerLevel) {
+    const level = Math.max(recipe.minLevel || 1, playerLevel);
+    const item = { ...recipe };
+    
+    const baseStats = { ...(recipe.baseStats || recipe.stats || {}) };
+    delete item.baseStats;
+    delete item.stats;
+    
+    item.level = level;
+    item.tier = Math.min(5, Math.ceil(level / 15) + 1);
+    
+    const qualityScale =
+        item.quality === 'legendary' ? 1.15 :
+        item.quality === 'epic' ? 1.0 :
+        item.quality === 'rare' ? 0.9 : 0.8;
+    
+    const scaledStats = {};
+    for (const [stat, value] of Object.entries(baseStats)) {
+        let scaledValue = value;
+        
+        if (stat === 'dmg_min') {
+            scaledValue = Math.floor(value + (level * 1.0 * qualityScale));
+            scaledValue = Math.min(220, scaledValue);
+        } else if (stat === 'dmg_max') {
+            scaledValue = Math.floor(value + (level * 2.3 * qualityScale));
+            scaledValue = Math.min(380, scaledValue);
+        } else if (stat === 'strength' || stat === 'agility' || stat === 'magic') {
+            scaledValue = Math.floor(value + (level * 0.20 * qualityScale));
+            scaledValue = Math.min(90, scaledValue);
+        } else if (stat === 'vitality') {
+            scaledValue = Math.floor(value + (level * 0.10 * qualityScale));
+            scaledValue = Math.min(45, scaledValue);
+        } else if (stat === 'defense') {
+            scaledValue = Math.floor(value + (level * 0.68 * qualityScale));
+            scaledValue = Math.min(140, scaledValue);
+        } else if (stat === 'armor') {
+            scaledValue = Math.floor(value + (level * 0.42 * qualityScale));
+            scaledValue = Math.min(70, scaledValue);
+        } else if (stat === 'hit_chance') {
+            scaledValue = Math.floor(value + (level * 0.06 * qualityScale));
+            scaledValue = Math.min(20, scaledValue);
+        } else if (stat === 'crit_chance') {
+            scaledValue = Math.floor(value + (level * 0.05 * qualityScale));
+            scaledValue = Math.min(15, scaledValue);
+        } else if (stat === 'hp_max') {
+            scaledValue = Math.floor(value + (level * 0.50 * qualityScale));
+            scaledValue = Math.min(300, scaledValue);
+        } else if (stat === 'block_chance') {
+            scaledValue = Math.floor(value + (level * 0.06 * qualityScale));
+            scaledValue = Math.min(20, scaledValue);
+        } else if (stat === 'pyro_resist' || stat === 'water_resist' || stat === 'wind_resist' || stat === 'electro_resist') {
+            scaledValue = Math.floor(value + (level * 0.10 * qualityScale));
+            scaledValue = Math.min(80, scaledValue);
+        }
+        scaledStats[stat] = scaledValue;
+    }
+    item.stats = scaledStats;
+    return item;
+}
+
 const router = express.Router();
 
 async function getCurrentCharacter(db, userId, fields = '*') {
