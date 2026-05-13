@@ -395,9 +395,13 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
         const gemsAfter = char.gems - BANNER_COST_GEMS;
         await dbRun(db, `UPDATE characters SET gems = ? WHERE id = ?`, [gemsAfter, char.id]);
         
-        // Update global pity
+// Update global pity
         const newPity = won ? 0 : globalPity + 1;
         await dbRun(db, `UPDATE characters SET banner_pity = ? WHERE id = ?`, [newPity, char.id]);
+        
+        // Track in history table for this banner
+        const newPullCount = (stats.pullCount || 0) + 1;
+        const newTotalPulls = (stats.totalPulls || 0) + 1;
         
         // Update or insert player banner stats (for history)
         const existing = await dbGet(db, `SELECT 1 FROM player_banner_pulls WHERE char_id = ? AND banner_id = ?`, [char.id, banner.id]);
