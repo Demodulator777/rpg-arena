@@ -536,7 +536,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:14, crit_chance:12
         components:{ shadow_weave:4, void_crystal:2, frost_core:1 }, goldCost:20000,
     },
     {
-        id:'shadewalker_shield', setId:'shadewalker', setPiece:'shield',
+        id:'shadewalker_shield', setId:'shadewalker', setPiece:'shield', craftClass:'rogue',
         name:"Shadewalker's Echo", emoji:'🔪', quality:'legendary',
         slot:'shield', rogueOffhand:true,
         desc:'Twin to the Kiss, this blade waits in silence for the perfect opening. Rogues wield it in their off-hand as naturally as breathing. Non-rogues cannot grasp its balance.',
