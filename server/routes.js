@@ -3787,6 +3787,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     if (ed <= 0) continue;
                     if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
                     if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+                    ed = Math.floor(ed * atkBonusDmg);
                     if (m2e) ed += dB;
                     const eRes = (defender.elem_resist || {})[elem] || 0;
                     const mRes = Math.floor((defender.magic || 0) * 0.05);
@@ -3865,6 +3866,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
             if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
             if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            ed = Math.floor(ed * atkBonusDmg);
             if (magicToElemental) ed += damageBonus;
             const elemResist = (defender.elem_resist || {})[elem] || 0;
             const magicResist = Math.floor((defender.magic || 0) * 0.05);
@@ -7815,8 +7817,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             defense: (freshA.defense || 0) + (setBonusesA.defense || 0) + (skillPassivesA.defense || 0) + getEquippedStatTotal(equippedA, 'defense'),
             hit_chance: (freshA.hit_chance || 0) + (setBonusesA.hit_chance || 0) + (skillPassivesA.hit_chance || 0) + getEquippedStatTotal(equippedA, 'hit_chance') + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
             crit_chance: (freshA.crit_chance || 0) + (setBonusesA.crit_chance || 0) + (skillPassivesA.crit_chance || 0) + getEquippedStatTotal(equippedA, 'crit_chance') + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
-            armor: armorA + (skillPassivesA.armor || 0) + (hasPremium(premA, 'iron_fortress') ? Math.max(1, Math.floor(armorA * 0.15)) : 0),
-            agility_bonus: hasPremium(premA, 'iron_fortress') ? 0.10 : 0,
+            armor: armorA + (skillPassivesA.armor || 0),
+            agility_bonus: 0,
             dmg_bonus: (hasPremium(premA, 'warlord') ? 0.15 : 0) + (skillPassivesA.dmg_bonus || 0),
             elem_dmg: {
                 pyro:    (calcElemDmg(equippedA).pyro    || 0) + (skillPassivesA.pyro_dmg    || 0),
@@ -7849,11 +7851,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             agility: (freshD.agility || 0) + (setBonusesD.agility || 0) + (skillPassivesD.agility || 0) + noShieldAgiBonusD + getEquippedStatTotal(equippedD, 'agility'),
             magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + (skillPassivesD.magic || 0) + getEquippedStatTotal(equippedD, 'magic'),
             defense: (freshD.defense || 0) + (setBonusesD.defense || 0) + (skillPassivesD.defense || 0) + getEquippedStatTotal(equippedD, 'defense'),
-            hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + getEquippedStatTotal(equippedD, 'hit_chance') + (hasPremium(premD, 'warlord') ? (freshD.hit_chance || 0) * 0.10 : 0),
+            hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + getEquippedStatTotal(equippedD, 'hit_chance'),
             crit_chance: (freshD.crit_chance || 0) + (setBonusesD.crit_chance || 0) + (skillPassivesD.crit_chance || 0) + getEquippedStatTotal(equippedD, 'crit_chance') + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
-            armor: armorD + (skillPassivesD.armor || 0) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.01)) : 0),
+            armor: armorD + (skillPassivesD.armor || 0) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.15)) : 0),
             agility_bonus: hasPremium(premD, 'iron_fortress') ? 0.10 : 0,
-            dmg_bonus: (hasPremium(premD, 'warlord') ? 0.15 : 0) + (skillPassivesD.dmg_bonus || 0),
+            dmg_bonus: (skillPassivesD.dmg_bonus || 0),
             elem_dmg: {
                 pyro:    (calcElemDmg(equippedD).pyro    || 0) + (skillPassivesD.pyro_dmg    || 0),
                 water:   (calcElemDmg(equippedD).water   || 0) + (skillPassivesD.water_dmg   || 0),
