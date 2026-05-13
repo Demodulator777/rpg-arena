@@ -1438,8 +1438,80 @@ const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','fo
 const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
 const INVENTORY_SUB_TABS = ['inventory','forge','shop'];
 const MISSIONS_SUB_TABS = ['missions','dungeon'];
+
+function dungeonCombatIsActive() {
+    try {
+        return !!(window.__dungeonActive && window.D && window.D.combat);
+    } catch {
+        return false;
+    }
+}
+
+async function confirmLeaveDungeonSession() {
+    if (!window.__dungeonActive) return true;
+    if (dungeonCombatIsActive()) {
+        await openGameDialog({
+            title: 'Cannot Leave During Battle',
+            message: 'You have an active dungeon battle. Run away or finish the fight before leaving the dungeon.',
+            confirmLabel: 'OK',
+            showCancel: false
+        });
+        return false;
+    }
+
+    const proceed = await openGameDialog({
+        title: 'Leave the Dungeon?',
+        message: 'You are trying to navigate away from the dungeon. Are you sure you want to close your current session?\n\nMake sure you don’t have an active battle before leaving.',
+        confirmLabel: 'Leave Dungeon',
+        cancelLabel: 'Stay',
+        showCancel: true,
+        danger: true
+    });
+    if (!proceed) return false;
+
+    if (typeof window.dungeonExit === 'function') {
+        window.dungeonExit();
+    } else {
+        window.__dungeonActive = false;
+    }
+    return true;
+}
+
+// While in the dungeon, lock top navigation/hubs and require explicit confirmation before leaving.
+document.addEventListener('click', async (event) => {
+    if (!window.__dungeonActive) return;
+
+    const target = event.target;
+    const navClick = target?.closest?.('.nav-btn, .nav-sub-btn');
+    const hubClick = target?.closest?.('#character-hub-trigger, #inventory-hub-trigger, #missions-hub-trigger');
+    if (!navClick && !hubClick) return;
+
+    // Allow navigation inside the dungeon tab UI.
+    const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || '';
+    const navArgs = navClick ? parseActionArgs(navClick) : [];
+    const intendedTab = String(navArgs?.[0] || '').trim();
+    if (currentTab === 'dungeon' && (!intendedTab || intendedTab === 'dungeon')) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const ok = await confirmLeaveDungeonSession();
+    if (!ok) return;
+
+    // If this was an actual tab navigation, replay it after confirming.
+    if (intendedTab && intendedTab !== 'dungeon') {
+        showTab(intendedTab);
+    } else if (currentTab === 'dungeon') {
+        showTab('character');
+    }
+}, true);
+
 function showTab(name) {
     if (window.__dungeonActive && name !== 'dungeon') {
+        // Require confirmation before leaving the dungeon session.
+        confirmLeaveDungeonSession().then((ok) => {
+            if (ok) showTab(name);
+        });
         return;
     }
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
