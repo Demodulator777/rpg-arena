@@ -335,8 +335,7 @@ router.get('/current', async (req, res) => {
         // Load global pity
         const charData = await dbGet(db, 'SELECT banner_pity FROM characters WHERE id = ?', [char.id]);
         const globalPity = charData?.banner_pity || 0;
-        const effectivePulls = globalPity + 1;
-        const currentOdds = getBannerOdds(effectivePulls);
+        const currentOdds = getBannerOdds(globalPity + 1);
         
         const allStats = await getAllPlayerBannerStats(db, char.id);
         
@@ -354,10 +353,10 @@ router.get('/current', async (req, res) => {
                 pullCount: stats.pullCount,
                 totalPulls: stats.totalPulls,
                 carryPulls: stats.carryPulls,
-                effectivePulls,
+                pityCount: globalPity,
                 currentOdds,
                 won: stats.won,
-                nextOddsUp: effectivePulls >= 5 ? getBannerOdds(effectivePulls + 1) : null,
+                nextOddsUp: globalPity >= 5 ? getBannerOdds(globalPity + 1) : null,
             },
             allStats,
             cost: BANNER_COST_GEMS,
@@ -492,8 +491,8 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                 pullCount: newStats.pullCount,
                 totalPulls: newStats.totalPulls,
                 carryPulls: newStats.carryPulls,
-                effectivePulls: (newStats.carryPulls || 0) + newStats.pullCount,
-                currentOdds: getBannerOdds((newStats.carryPulls || 0) + newStats.pullCount),
+                pityCount: newPity,
+                currentOdds: getBannerOdds(globalPity + 1),
                 won: newStats.won,
             },
         });
