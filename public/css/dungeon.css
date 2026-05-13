@@ -94,6 +94,9 @@
   border: 1px solid var(--dungeon-border);
   border-radius: 16px;
   overflow-x: hidden;
+  /* Never allow this element to become a scroll container (mobile/iOS shows a separate scrollbar). */
+  overflow-y: hidden;
+  overflow-y: clip;
   box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
 }
 
