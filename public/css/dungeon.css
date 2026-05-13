@@ -528,8 +528,11 @@
 
 .dungeon-overlay {
   position: fixed;
-  /* Full-screen overlay so the underlying page can't scroll independently (mobile/iOS). */
-  inset: 0;
+  /* Sit below the global topbar so it's not covered/cut off. */
+  top: calc(var(--topbar-h, 64px) + env(safe-area-inset-top, 0px));
+  left: 0;
+  right: 0;
+  bottom: env(safe-area-inset-bottom, 0px);
   display: none;
   align-items: center;
   justify-content: center;
@@ -538,7 +541,7 @@
   /* Single scroll surface for the whole overlay. */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  padding: 20px;
   box-sizing: border-box;
 }
 
