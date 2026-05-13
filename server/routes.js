@@ -3769,7 +3769,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         } else if (forceMiss && dodgeChance > 0.001) {
             logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
         } else {
-            const glanceChance = Math.min(0.85, 0.25 + (defAgi / 600));
+            const atkDeficit = Math.max(0, defAgi - totalHitStat);
+            const glanceChance = Math.min(0.85, Math.max(0.05, 0.20 + atkHitChance * atkHitChance - Math.max(0, atkDeficit - 100) / 6000));
             if (Math.random() >= glanceChance) {
                 logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
                 } else {
