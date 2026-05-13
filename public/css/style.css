@@ -1748,21 +1748,27 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         min-width: 18px;
     }
     
-    /* FIX: Ensure tab content area is visible and scrollable */
+    /* Mobile scrolling: avoid nested scroll containers (causes iOS/WebKit overlay + z-index glitches). */
+    #screen-game.active {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+    }
+
     .game-body {
         display: flex;
         flex-direction: column;
         flex: 1;
-        min-height: 0;
-        overflow: hidden;
+        min-height: unset;
+        overflow: visible;
     }
     
     .tab-content-area {
         flex: 1;
-        overflow-y: auto;
+        overflow: visible;
         padding: 16px;
         padding-bottom: 16px;
-        -webkit-overflow-scrolling: touch;
+        -webkit-overflow-scrolling: auto;
     }
     
     /* Ensure active tab content is visible */
