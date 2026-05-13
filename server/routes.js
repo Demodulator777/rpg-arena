@@ -9874,18 +9874,17 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
       [char.id, floor, roomIndex, kind]
     );
     if (existing?.id) {
-      const state = JSON.parse(existing.state_json || '{}');
-      return res.json({
-        success: true,
-        combatId: existing.id,
-        turnNonce: Number(existing.turn_nonce || 0),
-        kind,
-        player: { hp: state.playerHp, maxHp: state.playerMaxHp },
-        monsters: state.monsters || [],
-        currentMonsterIndex: Number(state.currentMonsterIndex || 0),
-        escapeReady: !!state.escapeReady,
-        log: [{ actor: 'monster', text: 'Combat resumes...' }],
-      });
+      // IMPORTANT: Do not resume stale combat snapshots.
+      // If the player fled and later regenerated HP, resuming `state_json.playerHp` would show outdated HP.
+      // Also, resuming monster HP makes "run away and heal" a trivial exploit. Treat re-entry as a fresh fight.
+      const now = Math.floor(Date.now() / 1000);
+      await dbRun(
+        db,
+        `UPDATE dungeon_combat_sessions
+         SET status = 'ended', updated_at = ?
+         WHERE id = ?`,
+        [now, existing.id]
+      );
     }
 
     const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
@@ -10049,14 +10048,15 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     const lootGranted = [];
 
     const aliveMonsters = () => monsters.filter(m => Number(m.currentHp || 0) > 0);
+    let escaped = false;
 
     if (action === 'run') {
       const r = mulberry32Next(rngState);
       rngState = r.state;
-      const escaped = r.value < DUNGEON_RUN_ESCAPE_CHANCE;
+      escaped = r.value < DUNGEON_RUN_ESCAPE_CHANCE;
       log.push({ actor: 'player', text: '💨 You attempt to flee...' });
       if (escaped) {
-        log.push({ actor: 'player', text: '✅ Escape successful. You can leave now, or keep fighting.' });
+        log.push({ actor: 'player', text: '✅ Escape successful.' });
         state.escapeReady = true;
       } else {
         log.push({ actor: 'monster', text: '⚠️ Escape failed! The enemies strike!' });
@@ -10121,6 +10121,9 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     if (playerHp <= 0) {
       ended = true;
       outcome = 'player_dead';
+    } else if (escaped) {
+      ended = true;
+      outcome = 'escaped';
     } else if (aliveMonsters().length === 0) {
       ended = true;
       if (kind === 'boss') {
