@@ -8836,11 +8836,22 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
   try {
     const db = await getDb();
     const { floor, roomIndex } = req.body;
+    const now = Math.floor(Date.now() / 1000);
     
     await db.execute({
       sql: `DELETE FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
       args: [req.user.userId, floor, roomIndex]
     });
+
+    // If the player exits a room (flee/death/leave), ensure any active combat session for that room
+    // is ended so potion locks don't get "stuck" outside the dungeon.
+    await dbRun(
+      db,
+      `UPDATE dungeon_combat_sessions
+       SET status = 'ended', updated_at = ?
+       WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
+      [now, req.user.userId, floor, roomIndex]
+    );
     
     res.json({ success: true });
   } catch (e) {
@@ -9024,6 +9035,19 @@ router.post('/dungeon/progress', auth, async (req, res) => {
     const { floor, highestFloor, progress, activeDungeon, combat } = req.body;
     const char = await getCurrentCharacter(db, req.user.userId, 'id');
     if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Leaving the dungeon should clear any active dungeon combat session so consumables aren't locked.
+    // The client typically sets `activeDungeon` to null/falsey when exiting.
+    if (!activeDungeon) {
+      const now = Math.floor(Date.now() / 1000);
+      await dbRun(
+        db,
+        `UPDATE dungeon_combat_sessions
+         SET status = 'ended', updated_at = ?
+         WHERE char_id = ? AND status = 'active'`,
+        [now, char.id]
+      );
+    }
     
     const progressData = {
       activeDungeon: activeDungeon || null,
