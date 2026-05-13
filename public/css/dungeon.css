@@ -982,8 +982,8 @@
   border-radius: 12px;
   background: rgba(4,7,12,0.72);
   border: 1px solid rgba(255,255,255,0.08);
-  max-height: 180px;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .raid-result-line {
@@ -1598,9 +1598,7 @@
   padding: 16px;
   box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
   width: 100%;
-  height: 100%;
   max-width: none;
-  max-height: none;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1609,7 +1607,7 @@
 .dungeon-combat-panel .combat-fighters {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
 }
 
 .dungeon-combat-panel .combat-log {
@@ -1728,8 +1726,8 @@
   margin-bottom: 10px;
 }
 .dungeon-log-entries {
-  max-height: 160px;
-  overflow-y: auto;
+  max-height: none;
+  overflow: visible;
 }
 .dungeon-log-entry {
   font-size: 0.78rem;
@@ -2612,8 +2610,8 @@
   }
 
   .dungeon-hud-room {
-    max-height: 140px;
-    overflow-y: auto;
+    max-height: none;
+    overflow: visible;
   }
 
   .dungeon-path-options {
