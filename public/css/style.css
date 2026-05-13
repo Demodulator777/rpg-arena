@@ -457,6 +457,15 @@ body.modal-lock {
     touch-action: none;
 }
 
+/* When a modal/overlay is open, keep the topbar visible (iOS/WebKit: otherwise it may have scrolled away). */
+body.modal-lock .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 300000;
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    AUTH SCREENS
    ════════════════════════════════════════════════════════════════════════ */
