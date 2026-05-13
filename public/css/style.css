@@ -457,6 +457,12 @@ body.modal-lock {
     touch-action: none;
 }
 
+/* Combat overlays should fully hide global navigation (topbar + sidebar). */
+body.combat-lock .topbar,
+body.combat-lock .sidebar {
+    display: none !important;
+}
+
 /* When a modal/overlay is open, keep the topbar visible.
    Default: don't change layout on most browsers (Android/desktop). */
 body.modal-lock .topbar {
