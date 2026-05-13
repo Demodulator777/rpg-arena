@@ -242,9 +242,8 @@
 }
 
 .dungeon-minimap {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
+  /* Avoid nested scrollbars inside the dungeon room; scale content instead. */
+  overflow: hidden;
 }
 
 .map-room-player {
