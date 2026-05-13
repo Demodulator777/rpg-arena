@@ -7060,10 +7060,10 @@ function scaleItemToLevel(recipe, playerLevel) {
         let scaledValue = value;
 
         if (stat === 'dmg_min') {
-            scaledValue = Math.floor(value + (level * 1.0 * qualityScale));
+            scaledValue = Math.floor(value * (1 + level * 0.03 * qualityScale));
             scaledValue = Math.min(220, scaledValue);
         } else if (stat === 'dmg_max') {
-            scaledValue = Math.floor(value + (level * 2.3 * qualityScale));
+            scaledValue = Math.floor(value * (1 + level * 0.05 * qualityScale));
             scaledValue = Math.min(380, scaledValue);
         } else if (stat === 'strength' || stat === 'agility' || stat === 'magic') {
             scaledValue = Math.floor(value + (level * 0.20 * qualityScale));
