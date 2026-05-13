@@ -1517,6 +1517,17 @@ function showTab(name) {
         });
         return;
     }
+
+    // Defensive: tooltips are global/fixed-position and can "stick" across tabs.
+    // Hide them on every tab switch so they can't appear over unrelated screens (e.g. leaderboard).
+    try {
+        if (typeof _hideTooltipTimer !== 'undefined' && _hideTooltipTimer) {
+            clearTimeout(_hideTooltipTimer);
+            _hideTooltipTimer = null;
+        }
+    } catch (_) {}
+    try { if (typeof hideItemTooltip === 'function') hideItemTooltip(); } catch (_) {}
+
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
@@ -4751,15 +4762,20 @@ function withCurrentTarget(event, el) {
 }
 
 function hoverItemTooltip(itemId, el, event) {
+    // Tooltips should not trigger on leaderboard rows (they can include nested elements that
+    // accidentally carry legacy data attributes from other UI components).
+    if (el?.closest?.('#leaderboard-list')) return;
     showItemTooltip(withCurrentTarget(event, el), itemId);
 }
 
 function openItemTooltip(itemId, el, event) {
+    if (el?.closest?.('#leaderboard-list')) return;
     showItemTooltip(withCurrentTarget(event, el), itemId);
 }
 
 function hoverEqTooltip(el, event) {
     if (!el?.dataset?.item) return;
+    if (el?.closest?.('#leaderboard-list')) return;
     showEqTooltip(withCurrentTarget(event, el), el.dataset.item);
 }
 
