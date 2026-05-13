@@ -3852,7 +3852,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
 
         const blockCovers = !ignoreDefenderZones && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
-        const blockFails = rageActive || Math.random() < 0.001;
+        const randomBlockPen = Math.random() < 0.001;
+        const blockFails = rageActive || randomBlockPen;
 
         const elemDmgs = attacker.elem_dmg || {};
         for (const elem of ELEMENTS) {
@@ -3919,7 +3920,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
             }
 
-            const bsTag = isBackstab ? ' BACKSTABS' : (rageActive ? (blockCovers ? ' BLOCK PENETRATION' : ' RAGING BLOW') : ' lands a hit');
+            const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' RAGING BLOW' : ' lands a hit'));
             logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
             if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
