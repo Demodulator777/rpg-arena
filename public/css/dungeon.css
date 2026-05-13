@@ -561,6 +561,21 @@
   z-index: 19999;
 }
 
+/* Combat overlay should be full-screen (no topbar offset). */
+.dungeon-overlay:has(.dungeon-combat-panel) {
+  top: 0;
+  bottom: 0;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  /* Must cover the global topbar when fighting. */
+  z-index: 400000;
+}
+
+.dungeon-overlay:has(.dungeon-combat-panel) .dungeon-overlay-backdrop {
+  top: 0;
+  bottom: 0;
+}
+
 .dungeon-overlay-card {
   position: relative;
   z-index: 20001;
