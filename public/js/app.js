@@ -5800,7 +5800,7 @@ async function loadBannerEvent() {
         }
         const oddsPct = (stats.currentOdds * 100).toFixed(1);
         const nextOddsPct = stats.nextOddsUp ? (stats.nextOddsUp * 100).toFixed(1) : null;
-        const pityProgress = stats.effectivePulls;
+        const pityProgress = stats.pityCount ?? stats.effectivePulls ?? 0;
         const pityToGuarantee = 10 - pityProgress;
         
         content.innerHTML = `
@@ -5895,7 +5895,7 @@ const bonusHtml = [];
             <div class="event-items-grid">${itemsHtml}</div>
             ${bonusHtml.length > 0 ? `<div class="event-bonus-rewards">${bonusHtml.join(' · ')}</div>` : ''}
             <div class="event-new-stats">
-                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: ${data.stats.effectivePulls}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()} · 💰 ${(character.gold || 0).toLocaleString()}
+                ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: ${data.stats.pityCount ?? data.stats.effectivePulls ?? 0}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()} · 💰 ${(character.gold || 0).toLocaleString()}
             </div>
         `;
         
@@ -5903,7 +5903,7 @@ const bonusHtml = [];
         if (data.gold) character.gold = data.gold;
         renderTopBar();
         
-        const pityProgress = data.stats.effectivePulls;
+        const pityProgress = data.stats.pityCount ?? data.stats.effectivePulls ?? 0;
         const pityEl = document.querySelector('.event-pity-header span:last-child');
         const pityBar = document.querySelector('.event-pity-fill');
         const pityOdds = document.querySelector('.event-pity-odds');
