@@ -3631,12 +3631,14 @@ function closeDungeonVictory() {
 }
 
 function openGuild() {
+  document.body.classList.add('modal-lock');
   renderGuild();
 }
 
 function closeGuild() {
   const overlay = document.getElementById('dungeon-overlay');
   if (overlay) overlay.innerHTML = '';
+  document.body.classList.remove('modal-lock');
   renderDungeonView();
 }
 
