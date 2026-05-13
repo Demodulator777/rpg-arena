@@ -338,6 +338,8 @@ router.get('/current', async (req, res) => {
         const effectivePulls = globalPity + 1;
         const currentOdds = getBannerOdds(effectivePulls);
         
+        const allStats = await getAllPlayerBannerStats(db, char.id);
+        
         res.json({
             active: true,
             banner: {
