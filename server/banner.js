@@ -15,8 +15,8 @@ function scaleItemToLevel(recipe, playerLevel) {
     const scaledStats = {};
     for (const [stat, value] of Object.entries(baseStats)) {
         let v = value;
-        if (stat === 'dmg_min') v = Math.min(220, Math.floor(value + level * 1.0 * qualityScale));
-        else if (stat === 'dmg_max') v = Math.min(380, Math.floor(value + level * 2.3 * qualityScale));
+        if (stat === 'dmg_min') v = Math.min(220, Math.floor(value * (1 + level * 0.03 * qualityScale)));
+        else if (stat === 'dmg_max') v = Math.min(380, Math.floor(value * (1 + level * 0.05 * qualityScale)));
         else if (stat === 'strength' || stat === 'agility' || stat === 'magic') v = Math.min(90, Math.floor(value + level * 0.20 * qualityScale));
         else if (stat === 'vitality') v = Math.min(45, Math.floor(value + level * 0.10 * qualityScale));
         else if (stat === 'defense') v = Math.min(140, Math.floor(value + level * 0.68 * qualityScale));
@@ -332,30 +332,10 @@ router.get('/current', async (req, res) => {
         
         let stats = await getPlayerBannerStats(db, char.id, banner.id);
         
-        // Carry highest pity from any previous banner if current has none
-        if (!stats || stats.pullCount === 0) {
-            const allPulls = await dbAll(db, 
-                `SELECT banner_id, pull_count FROM player_banner_pulls WHERE char_id = ? AND pull_count > 0`, 
-                [char.id]
-            );
-            if (allPulls.length > 0) {
-                const maxPulls = Math.max(...allPulls.map(r => r.pull_count));
-                const existingRow = await dbGet(db, `SELECT pull_count FROM player_banner_pulls WHERE char_id = ? AND banner_id = ?`, [char.id, banner.id]);
-                if (existingRow) {
-                    await dbRun(db, `UPDATE player_banner_pulls SET pull_count = ? WHERE char_id = ? AND banner_id = ? AND pull_count < ?`,
-                        [maxPulls, char.id, banner.id, maxPulls]
-                    );
-                } else {
-                    await dbRun(db, `INSERT INTO player_banner_pulls (char_id, banner_id, pull_count, total_pulls, carry_pulls, won) VALUES (?, ?, ?, ?, ?, ?)`,
-                        [char.id, banner.id, maxPulls, maxPulls, 0, 0]
-                    );
-                }
-                stats.pullCount = maxPulls;
-            }
-        }
-        
-        const allStats = await getAllPlayerBannerStats(db, char.id);
-        const effectivePulls = (stats.carryPulls || 0) + stats.pullCount;
+        // Load global pity
+        const charData = await dbGet(db, 'SELECT banner_pity FROM characters WHERE id = ?', [char.id]);
+        const globalPity = charData?.banner_pity || 0;
+        const effectivePulls = globalPity + 1;
         const currentOdds = getBannerOdds(effectivePulls);
         
         res.json({
@@ -402,16 +382,22 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
         }
         
         let stats = await getPlayerBannerStats(db, char.id, banner.id);
-        const newPullCount = stats.pullCount + 1;
-        const newTotalPulls = stats.totalPulls + 1;
-        const effectivePulls = (stats.carryPulls || 0) + newPullCount;
+        // Load global pity from character table
+        const charData = await dbGet(db, 'SELECT banner_pity FROM characters WHERE id = ?', [char.id]);
+        const globalPity = charData?.banner_pity || 0;
+        
+        const effectivePulls = globalPity + 1;
         const odds = getBannerOdds(effectivePulls);
         const won = Math.random() < odds;
         
         const gemsAfter = char.gems - BANNER_COST_GEMS;
         await dbRun(db, `UPDATE characters SET gems = ? WHERE id = ?`, [gemsAfter, char.id]);
         
-        // Update or insert player banner stats
+        // Update global pity
+        const newPity = won ? 0 : globalPity + 1;
+        await dbRun(db, `UPDATE characters SET banner_pity = ? WHERE id = ?`, [newPity, char.id]);
+        
+        // Update or insert player banner stats (for history)
         const existing = await dbGet(db, `SELECT 1 FROM player_banner_pulls WHERE char_id = ? AND banner_id = ?`, [char.id, banner.id]);
         
         if (existing) {
@@ -552,6 +538,8 @@ const BANNER_MIGRATIONS = [
         loot_table TEXT DEFAULT '[]',
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`,
+    // Add global banner pity to characters
+    `ALTER TABLE characters ADD COLUMN banner_pity INTEGER DEFAULT 0`,
     // Migration: recreate table with char_id instead of user_id
     `DROP TABLE IF EXISTS player_banner_pulls`,
     `CREATE TABLE IF NOT EXISTS player_banner_pulls (
