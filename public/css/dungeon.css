@@ -532,7 +532,8 @@
   justify-content: center;
   /* Must sit above sidebar hubs (z-index: 9999), topbar (200), and chat widget (6000). */
   z-index: 20000;
-  overflow-y: auto;
+  /* Avoid creating a full-screen scroll container; keep scrolling inside the overlay card instead. */
+  overflow-y: hidden;
   padding: 20px;
   box-sizing: border-box;
 }
@@ -2671,13 +2672,20 @@
 /* iOS/WebKit layering + scrolling:
    Avoid nested scroll containers inside the fixed overlay (can cause z-index/compositing bugs). */
 .dungeon-overlay {
-  -webkit-overflow-scrolling: touch;
+  -webkit-overflow-scrolling: auto;
 }
 
 .dungeon-overlay .guild-container {
   max-height: none;
   overflow: visible;
   margin-top: 0;
+}
+
+/* Scroll the modal card (not the full-screen overlay), so visuals like vignette/backdrop remain fixed. */
+.dungeon-overlay-card {
+  max-height: calc(100vh - var(--topbar-h, 64px) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Add padding inside the scrollable area to ensure content isn't cut off */
