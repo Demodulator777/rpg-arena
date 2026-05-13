@@ -64,6 +64,11 @@ getDb().then(async (db) => {
 // Static files - AFTER API routes
 app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, filePath) => {
+        // Prevent stale client bundles after deploys (especially iOS/WebKit).
+        // Keep long-lived caching for images/etc; only disable caching for HTML/CSS/JS.
+        if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
+            res.setHeader('Cache-Control', 'no-store');
+        }
         if (filePath.endsWith('.wasm')) {
             res.setHeader('Content-Type', 'application/wasm');
         }
