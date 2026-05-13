@@ -3772,65 +3772,67 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const glanceChance = Math.min(0.85, 0.25 + (defAgi / 600));
             if (Math.random() >= glanceChance) {
                 logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
-            } else {
-                const dMin = Number(attacker.dmgMin || 0);
-                let gPhys = Math.floor(dMin * rogueWeaponPenalty);
-                gPhys = Math.floor(gPhys * physicalDamagePenalty);
-                gPhys = Math.floor(gPhys * hit.dmgMult * atkBonusDmg);
-                const { damageBonus: dB, resistance: rB } = applyMagicDamageModifiers(attacker, defender);
-                const m2e = attacker.class === 'mage';
-                gPhys = Math.max(0, gPhys + (m2e ? 0 : dB) - rB);
-                const eD = attacker.elem_dmg || {};
-                const magicElemMult = 1 + (attacker.magic || 0) / 4000;
-                let gElem = 0;
-                for (const elem of ELEMENTS) {
-                    let ed = eD[elem] || 0;
-                    if (ed <= 0) continue;
-                    ed = Math.floor(ed * magicElemMult);
-                    if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
-                    if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-                    ed = Math.floor(ed * atkBonusDmg);
-                    if (m2e) ed += dB;
-                    const eRes = (defender.elem_resist || {})[elem] || 0;
-                    const mRes = Math.floor((defender.magic || 0) * 0.05);
-                    ed = Math.max(0, ed - eRes - mRes);
-                    gElem += Math.floor(ed);
-                }
-                if (m2e) {
-                    const mRaw = Math.max(1, Math.floor((dMin * rogueWeaponPenalty * physicalDamagePenalty * hit.dmgMult * atkBonusDmg) * 0.05));
-                    const avgR = Math.floor(ELEMENTS.reduce((s, el) => s + ((defender.elem_resist || {})[el] || 0), 0) / ELEMENTS.length);
-                    const mgR = Math.floor((defender.magic || 0) * 0.05);
-                    gElem += Math.max(0, mRaw - avgR - mgR);
-                }
-                let gDmg = gPhys + gElem;
-                if (gDmg > 0 && (defender.armor || 0) > 0) {
-                    const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
-                    const reducedPhys = Math.max(1, gPhys - Math.min(gPhys - 1, effArmor));
-                    gDmg = reducedPhys + gElem;
-                }
-                gDmg = Math.max(1, gDmg);
-                let absorbed = 0;
-                if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && gDmg > 0) {
-                    absorbed = Math.min(defenderShield.remaining, gDmg);
-                    gDmg -= absorbed;
-                    defenderShield.remaining -= absorbed;
-                    if (defenderShield.remaining <= 0) defenderShield.active = false;
-                }
-                if (defenderShield && defenderShield.active && defenderShield.remaining < defenderShield.value) {
-                    defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + Math.max(1, Math.floor(defenderShield.value * 0.05)));
-                }
-                finalDmg = gDmg;
-                totalElemDmg = Math.floor(gElem * atkHitChance);
-                if (absorbed > 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD absorbed ${absorbed} damage! ${Math.floor(gDmg)} gets through`;
-                    if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
-                    if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
                 } else {
-                    const bsTag = isBackstab ? ' BACKSTAB!' : '';
-                    logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.floor(gDmg)} damage`;
-                    if (totalElemDmg > 0) logLine += ` including ${totalElemDmg} elemental damage`;
+                    const dMin = Number(attacker.dmgMin || 0);
+                    const dMax = Number(attacker.dmgMax || 0);
+                    const glanceRaw = dMin + Math.floor(Math.random() * Math.max(1, dMax - dMin + 1));
+                    let gPhys = Math.floor(glanceRaw * rogueWeaponPenalty);
+                    gPhys = Math.floor(gPhys * physicalDamagePenalty);
+                    gPhys = Math.floor(gPhys * hit.dmgMult * atkBonusDmg);
+                    const { damageBonus: dB, resistance: rB } = applyMagicDamageModifiers(attacker, defender);
+                    const m2e = attacker.class === 'mage';
+                    gPhys = Math.max(0, gPhys + (m2e ? 0 : dB) - rB);
+                    const eD = attacker.elem_dmg || {};
+                    const magicElemMult = 1 + (attacker.magic || 0) / 4000;
+                    let gElem = 0;
+                    for (const elem of ELEMENTS) {
+                        let ed = eD[elem] || 0;
+                        if (ed <= 0) continue;
+                        ed = Math.floor(ed * magicElemMult);
+                        if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+                        if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+                        ed = Math.floor(ed * atkBonusDmg);
+                        if (m2e) ed += dB;
+                        const eRes = (defender.elem_resist || {})[elem] || 0;
+                        const mRes = Math.floor((defender.magic || 0) * 0.05);
+                        ed = Math.max(0, ed - eRes - mRes);
+                        gElem += Math.floor(ed);
+                    }
+                    if (m2e) {
+                        const mRaw = Math.max(1, Math.floor((glanceRaw * rogueWeaponPenalty * physicalDamagePenalty * hit.dmgMult * atkBonusDmg) * 0.05));
+                        const avgR = Math.floor(ELEMENTS.reduce((s, el) => s + ((defender.elem_resist || {})[el] || 0), 0) / ELEMENTS.length);
+                        const mgR = Math.floor((defender.magic || 0) * 0.05);
+                        gElem += Math.max(0, mRaw - avgR - mgR);
+                    }
+                    let gDmg = gPhys + gElem;
+                    if (gDmg > 0 && (defender.armor || 0) > 0) {
+                        const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                        const reducedPhys = Math.max(1, gPhys - Math.min(gPhys - 1, effArmor));
+                        gDmg = reducedPhys + gElem;
+                    }
+                    gDmg = Math.max(1, gDmg);
+                    let absorbed = 0;
+                    if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && gDmg > 0) {
+                        absorbed = Math.min(defenderShield.remaining, gDmg);
+                        gDmg -= absorbed;
+                        defenderShield.remaining -= absorbed;
+                        if (defenderShield.remaining <= 0) defenderShield.active = false;
+                    }
+                    if (defenderShield && defenderShield.active && defenderShield.remaining < defenderShield.value) {
+                        defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + Math.max(1, Math.floor(defenderShield.value * 0.05)));
+                    }
+                    finalDmg = gDmg;
+                    totalElemDmg = gElem;
+                    if (absorbed > 0) {
+                        logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD absorbed ${absorbed} damage! ${Math.floor(gDmg)} gets through`;
+                        if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
+                        if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
+                    } else {
+                        const bsTag = isBackstab ? ' BACKSTAB!' : '';
+                        const afterArmorPhys = Math.max(1, gDmg - gElem);
+                        logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.floor(gDmg)} damage (${Math.floor(afterArmorPhys)} physical + ${Math.floor(gElem)} elemental)`;
+                    }
                 }
-            }
         }
     } else {
         const rawCritChance = (attacker.crit_chance || 0) - (defender.crit_chance || 0);
@@ -6442,8 +6444,8 @@ if (freshChar.class === 'rogue') {
     const shieldIsOffhand = hasShield && equipped.shield.rogueOffhand === true;
     if (!hasShield || shieldIsOffhand) {
         noShieldAgiBonus = Math.floor((freshChar.agility || 0) * 0.05);
-    }
-}      
+                    }
+            }
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
