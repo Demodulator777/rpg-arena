@@ -5150,8 +5150,8 @@ function calculateBackendItemPrice(item, level) {
     
     let price = Math.floor(basePrice * statMultiplier * tierMultiplier * qualityMultiplier);
     
-    if (item.quality === 'legendary') price = Math.max(price, 35000);
-    else if (item.quality === 'rare') price = Math.max(price, 10000);
+    if (item.quality === 'legendary') price = Math.max(price, 5000);
+    else if (item.quality === 'rare') price = Math.max(price, 4000);
     else if (item.tier >= 3) price = Math.max(price, 3000);
     
     return price;
