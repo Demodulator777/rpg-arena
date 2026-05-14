@@ -4285,6 +4285,7 @@ function renderForge() {
                 ${locked
                     ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                     : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
+                ${r.craftClass ? `<div style="font-size:0.7rem;color:var(--text-dim);margin:2px 0">📋 Classes: ${r.craftClass}</div>` : ''}
                 <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
                 <button class="btn-forge" style="margin-top:auto" ${actionAttrs('craftItem', r.id)} ${r.canCraft?'':'disabled'}>
                     ${locked?'🔒 Locked':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
