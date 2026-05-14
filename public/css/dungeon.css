@@ -1551,6 +1551,7 @@
 /* ── Boss Room ── */
 .dungeon-boss-room {
   text-align: center;
+  padding: 4px 0;
 }
 .boss-icon-big {
   font-size: 3rem;
@@ -1560,16 +1561,18 @@
   font-family: 'Cinzel Decorative', serif;
   font-size: 1.2rem;
   color: #e74c3c;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 .boss-stats {
   font-size: 0.8rem;
   color: var(--dungeon-muted);
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 .boss-drop-preview {
   font-size: 0.75rem;
   color: var(--dungeon-gold);
+  margin-bottom: 14px;
+  line-height: 1.5;
 }
 
 /* ── Connections ── */
@@ -2478,7 +2481,7 @@
 
 @media (max-width: 640px) {
   .dungeon-game-screen {
-    height: clamp(520px, 84svh, 700px);
+    height: clamp(560px, 90svh, 760px);
   }
 
   .dungeon-hud-minimap {
@@ -2498,7 +2501,7 @@
   }
 
   .dungeon-hud-room {
-    padding: 10px;
+    padding: 16px;
     margin-top: 0;
     overflow: visible;
   }
@@ -2542,7 +2545,7 @@
 
 @media (max-width: 480px) {
   .dungeon-game-screen {
-    height: clamp(480px, 82svh, 640px);
+    height: clamp(520px, 88svh, 700px);
   }
 
   .dungeon-hud-top {
@@ -2591,7 +2594,7 @@
   }
 
   .dungeon-hud-room {
-    padding: 8px;
+    padding: 16px;
     margin-top: 0;
     overflow: visible;
   }
