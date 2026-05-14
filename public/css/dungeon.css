@@ -2483,14 +2483,14 @@
 
   .dungeon-hud-minimap {
     width: 110px;
-    bottom: 65px;
+    bottom: 10px;
   }
 
   .dungeon-hud-center {
     left: 8px;
     right: 8px;
-    top: 64px;
-    bottom: 182px;
+    top: 84px;
+    bottom: 200px;
     transform: none;
     width: auto;
   }
@@ -2561,7 +2561,7 @@
 
   .dungeon-hud-minimap {
     width: 95px;
-    bottom: 85px;
+    bottom: 10px;
     padding: 5px;
   }
 
@@ -2579,8 +2579,8 @@
   .dungeon-hud-center {
     left: 6px;
     right: 6px;
-    top: 56px;
-    bottom: 198px;
+    top: 76px;
+    bottom: 200px;
     transform: none;
     width: auto;
   }
