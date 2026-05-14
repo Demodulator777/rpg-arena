@@ -330,6 +330,7 @@
   /* Central card should never cover the top HUD actions. */
   z-index: 50;
   max-height: none;
+  overflow-x: clip;
 }
 
 .dungeon-hud-room {
@@ -339,6 +340,7 @@
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
   max-width: 100%;
+  overflow-x: clip;
   box-sizing: border-box;
 }
 
@@ -1549,7 +1551,6 @@
 /* ── Boss Room ── */
 .dungeon-boss-room {
   text-align: center;
-  padding: 4px 0;
 }
 .boss-icon-big {
   font-size: 3rem;
@@ -1559,18 +1560,16 @@
   font-family: 'Cinzel Decorative', serif;
   font-size: 1.2rem;
   color: #e74c3c;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .boss-stats {
   font-size: 0.8rem;
   color: var(--dungeon-muted);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .boss-drop-preview {
   font-size: 0.75rem;
   color: var(--dungeon-gold);
-  margin-bottom: 14px;
-  line-height: 1.5;
 }
 
 /* ── Connections ── */
