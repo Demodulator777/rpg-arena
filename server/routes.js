@@ -7552,10 +7552,14 @@ router.post('/shop/buy', auth, async (req, res) => {
         if (!character) return res.status(404).json({ error: 'No character' });
         if (!item) return res.status(400).json({ error: 'Invalid item data' });
 
-        const gemCost = item.gemCost || 0;
+        const baseGemCost = Number(item.gemCost || 0);
+        const isLegendary = String(item.tier || item.rarity || '').toLowerCase() === 'legendary';
+        const legendaryGemFee = isLegendary ? (5 + Math.floor(Math.random() * 6)) : 0; // 5-10
+        const gemCost = baseGemCost + legendaryGemFee;
 
         if (priceType === 'gems') {
-            if ((character.gems||0) < price) return res.status(400).json({ error: 'Not enough gems' });
+            const totalGemCost = Number(price || 0) + legendaryGemFee;
+            if ((character.gems || 0) < totalGemCost) return res.status(400).json({ error: 'Not enough gems' });
         } else {
             if (character.gold < price) return res.status(400).json({ error: 'Not enough gold' });
             if (gemCost > 0 && (character.gems||0) < gemCost)
@@ -7563,7 +7567,8 @@ router.post('/shop/buy', auth, async (req, res) => {
         }
 
         if (priceType === 'gems') {
-            await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [price, price, character.id]);
+            const totalGemCost = Number(price || 0) + legendaryGemFee;
+            await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [totalGemCost, totalGemCost, character.id]);
         } else {
             await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [price, character.id]);
             if (gemCost > 0) {
