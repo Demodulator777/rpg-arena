@@ -5043,6 +5043,13 @@ function generateBackendRandomItem(level, type) {
         item.desc    = `✨ ${item.desc}`;
     }
 
+    // Legendary items always require an extra 5-10 gems on top of any existing cost.
+    // This does NOT reduce the gold price.
+    if (String(item.quality || '').toLowerCase() === 'legendary') {
+        const legendaryGemFee = 5 + Math.floor(Math.random() * 6);
+        item.gemCost = Number(item.gemCost || 0) + legendaryGemFee;
+    }
+
     if (Math.random() < 0.06) {
         const classes = ['warrior','mage','rogue','paladin'];
         item.classes = [classes[Math.floor(Math.random() * classes.length)]];
