@@ -2494,6 +2494,7 @@
     transform: none;
     width: auto;
     overflow: visible;
+    isolation: isolate;
   }
 
   .dungeon-hud-room {
@@ -2586,6 +2587,7 @@
     transform: none;
     width: auto;
     overflow: visible;
+    isolation: isolate;
   }
 
   .dungeon-hud-room {
@@ -2638,6 +2640,7 @@
     transform: none;
     width: auto;
     overflow: visible;
+    isolation: isolate;
   }
 
   .dungeon-hud-room {
