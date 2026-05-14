@@ -7547,30 +7547,58 @@ router.post('/gems/monthly-claim', auth, async (req, res) => {
 router.post('/shop/buy', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const { item, price, priceType } = req.body;
+        const { item: clientItem } = req.body;
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'No character' });
-        if (!item) return res.status(400).json({ error: 'Invalid item data' });
+        if (!clientItem || !clientItem.id) return res.status(400).json({ error: 'Invalid item data' });
+
+        const clientItemId = String(clientItem.id || '').trim();
+        if (!clientItemId) return res.status(400).json({ error: 'Invalid item data' });
+
+        // Resolve item + price server-side (client cannot be trusted).
+        let item = null;
+        if (String(clientItem.category || '') === 'lootbox' || clientItemId.startsWith('lootbox_')) {
+            item = LOOT_BOXES.find(b => String(b.id) === clientItemId) || null;
+        } else {
+            const potions = getPotionsForLevel(character.level || 1);
+            item = potions.find(p => String(p.id) === clientItemId) || null;
+        }
+        if (!item) {
+            const row = await dbGet(
+                db,
+                `SELECT item_data FROM shop_items
+                 WHERE char_id=? AND sold=0 AND json_extract(item_data,'$.id')=?
+                 ORDER BY id DESC LIMIT 1`,
+                [character.id, clientItemId]
+            );
+            if (row?.item_data) {
+                try { item = JSON.parse(row.item_data); } catch { item = null; }
+            }
+        }
+        if (!item) return res.status(404).json({ error: 'Item not found in shop' });
+
+        const basePrice = Math.max(0, Number(item.price || 0));
+        const basePriceType = String(item.priceType || 'gold').toLowerCase() === 'gems' ? 'gems' : 'gold';
 
         const baseGemCost = Number(item.gemCost || 0);
-        const isLegendary = String(item.tier || item.rarity || '').toLowerCase() === 'legendary';
+        const isLegendary = String(item.quality || item.tier || item.rarity || '').toLowerCase() === 'legendary';
         const legendaryGemFee = isLegendary ? (5 + Math.floor(Math.random() * 6)) : 0; // 5-10
         const gemCost = baseGemCost + legendaryGemFee;
 
-        if (priceType === 'gems') {
-            const totalGemCost = Number(price || 0) + legendaryGemFee;
+        if (basePriceType === 'gems') {
+            const totalGemCost = basePrice + legendaryGemFee;
             if ((character.gems || 0) < totalGemCost) return res.status(400).json({ error: 'Not enough gems' });
         } else {
-            if (character.gold < price) return res.status(400).json({ error: 'Not enough gold' });
+            if (character.gold < basePrice) return res.status(400).json({ error: 'Not enough gold' });
             if (gemCost > 0 && (character.gems||0) < gemCost)
                 return res.status(400).json({ error: `Not enough gems — this item also costs ${gemCost} 💎` });
         }
 
-        if (priceType === 'gems') {
-            const totalGemCost = Number(price || 0) + legendaryGemFee;
+        if (basePriceType === 'gems') {
+            const totalGemCost = basePrice + legendaryGemFee;
             await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [totalGemCost, totalGemCost, character.id]);
         } else {
-            await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [price, character.id]);
+            await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [basePrice, character.id]);
             if (gemCost > 0) {
                 await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [gemCost, gemCost, character.id]);
             }
