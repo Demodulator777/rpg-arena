@@ -2496,14 +2496,13 @@
     bottom: 160px;
     transform: none;
     width: auto;
-    overflow: visible;
-    isolation: isolate;
+    overflow: hidden;
   }
 
   .dungeon-hud-room {
     padding: 16px;
     margin-top: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .dungeon-hud-room-title {
@@ -2539,7 +2538,7 @@
   }
   .dungeon-game.dungeon-has-encounter .dungeon-hud-room {
     max-height: none;
-    overflow: visible;
+    overflow: hidden;
   }
 }
 
@@ -2589,14 +2588,13 @@
     bottom: 170px;
     transform: none;
     width: auto;
-    overflow: visible;
-    isolation: isolate;
+    overflow: hidden;
   }
 
   .dungeon-hud-room {
     padding: 16px;
     margin-top: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .dungeon-hud-room-desc {
@@ -2642,13 +2640,12 @@
     bottom: 110px;
     transform: none;
     width: auto;
-    overflow: visible;
-    isolation: isolate;
+    overflow: hidden;
   }
 
   .dungeon-hud-room {
     max-height: none;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .dungeon-path-options {
