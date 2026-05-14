@@ -140,12 +140,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
+  min-height: 48px;
   border-radius: 12px;
   background: rgba(6, 10, 18, 0.85);
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
   /* Keep HUD actions above the central room card on Safari/WebKit. */
   z-index: 60;
+  box-sizing: border-box;
 }
 
 .dungeon-hud-title {
@@ -319,7 +321,7 @@
   /* More robust than top/% transforms on Safari/WebKit: center within a fixed inset box. */
   left: 12px;
   right: 12px;
-  top: 72px;
+  top: 64px;
   bottom: 96px;
   display: flex;
   align-items: center;
@@ -2415,6 +2417,7 @@
     right: 8px;
     padding: 6px 10px;
     gap: 8px;
+    min-height: 40px;
   }
 
   .dungeon-hud-title {
@@ -2489,7 +2492,7 @@
   .dungeon-hud-center {
     left: 8px;
     right: 8px;
-    top: 84px;
+    top: 52px;
     bottom: 200px;
     transform: none;
     width: auto;
@@ -2547,6 +2550,7 @@
     left: 6px;
     right: 6px;
     padding: 5px 8px;
+    min-height: 36px;
   }
 
   .dungeon-hud-title {
@@ -2579,7 +2583,7 @@
   .dungeon-hud-center {
     left: 6px;
     right: 6px;
-    top: 76px;
+    top: 46px;
     bottom: 200px;
     transform: none;
     width: auto;
@@ -2629,7 +2633,7 @@
   .dungeon-hud-center {
     left: 8px;
     right: 8px;
-    top: 56px;
+    top: 64px;
     bottom: 110px;
     transform: none;
     width: auto;
