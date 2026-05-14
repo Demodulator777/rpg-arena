@@ -2486,14 +2486,14 @@
 
   .dungeon-hud-minimap {
     width: 110px;
-    bottom: 65px;
+    bottom: 10px;
   }
 
   .dungeon-hud-center {
     left: 8px;
     right: 8px;
-    top: 64px;
-    bottom: 140px;
+    top: 84px;
+    bottom: 200px;
     width: auto;
     overflow: visible;
     transform: translateZ(0);
@@ -2567,8 +2567,19 @@
 
   .dungeon-hud-minimap {
     width: 95px;
-    bottom: 85px;
+    bottom: 10px;
     padding: 5px;
+  }
+
+  .dungeon-hud-center {
+    left: 6px;
+    right: 6px;
+    top: 76px;
+    bottom: 210px;
+    width: auto;
+    overflow: visible;
+    transform: translateZ(0);
+    z-index: 50;
   }
 
   .dungeon-minimap .map-room,
@@ -2580,17 +2591,6 @@
 
   .dungeon-minimap .dungeon-grid-inner {
     gap: 2px;
-  }
-
-  .dungeon-hud-center {
-    left: 6px;
-    right: 6px;
-    top: 56px;
-    bottom: 150px;
-    width: auto;
-    overflow: visible;
-    transform: translateZ(0);
-    z-index: 50;
   }
 
   .dungeon-hud-room {
