@@ -2493,11 +2493,13 @@
     bottom: 182px;
     transform: none;
     width: auto;
+    overflow: visible;
   }
 
   .dungeon-hud-room {
     padding: 10px;
     margin-top: 0;
+    overflow: visible;
   }
 
   .dungeon-hud-room-title {
@@ -2583,11 +2585,13 @@
     bottom: 198px;
     transform: none;
     width: auto;
+    overflow: visible;
   }
 
   .dungeon-hud-room {
     padding: 8px;
     margin-top: 0;
+    overflow: visible;
   }
 
   .dungeon-hud-room-desc {
@@ -2633,6 +2637,7 @@
     bottom: 110px;
     transform: none;
     width: auto;
+    overflow: visible;
   }
 
   .dungeon-hud-room {
