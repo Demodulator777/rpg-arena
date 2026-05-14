@@ -4919,15 +4919,15 @@ function generateBackendRandomItem(level, type) {
     }
 
     const quality = (() => {
-        const legendaryChance = 0.01;
+        const legendaryChance = 0.02;
         if (Math.random() < legendaryChance) return 'legendary';
         
         let rareChance = 0;
-        if (tier >= 5) rareChance = 0.30;
-        else if (tier >= 4) rareChance = 0.25;
-        else if (tier >= 3) rareChance = 0.20;
-        else if (tier >= 2) rareChance = 0.15;
-        else rareChance = 0.1;
+        if (tier >= 5) rareChance = 0.40;
+        else if (tier >= 4) rareChance = 0.35;
+        else if (tier >= 3) rareChance = 0.30;
+        else if (tier >= 2) rareChance = 0.25;
+        else rareChance = 0.2;
         
         return Math.random() < rareChance ? 'rare' : 'common';
     })();
