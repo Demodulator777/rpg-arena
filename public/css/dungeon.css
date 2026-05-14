@@ -330,7 +330,6 @@
   /* Central card should never cover the top HUD actions. */
   z-index: 50;
   max-height: none;
-  overflow-x: hidden;
 }
 
 .dungeon-hud-room {
@@ -340,7 +339,6 @@
   border: 1px solid rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
   max-width: 100%;
-  overflow-x: hidden;
   box-sizing: border-box;
 }
 
@@ -2481,29 +2479,26 @@
 
 @media (max-width: 640px) {
   .dungeon-game-screen {
-    height: clamp(560px, 90svh, 760px);
+    height: clamp(520px, 84svh, 700px);
   }
 
   .dungeon-hud-minimap {
     width: 110px;
-    bottom: 10px;
+    bottom: 65px;
   }
 
   .dungeon-hud-center {
     left: 8px;
     right: 8px;
-    top: 84px;
-    bottom: 200px;
+    top: 64px;
+    bottom: 182px;
+    transform: none;
     width: auto;
-    overflow: visible;
-    transform: translateZ(0);
-    z-index: 50;
   }
 
   .dungeon-hud-room {
-    padding: 16px;
+    padding: 10px;
     margin-top: 0;
-    overflow: visible;
   }
 
   .dungeon-hud-room-title {
@@ -2545,7 +2540,7 @@
 
 @media (max-width: 480px) {
   .dungeon-game-screen {
-    height: clamp(520px, 88svh, 700px);
+    height: clamp(480px, 82svh, 640px);
   }
 
   .dungeon-hud-top {
@@ -2567,19 +2562,8 @@
 
   .dungeon-hud-minimap {
     width: 95px;
-    bottom: 10px;
+    bottom: 85px;
     padding: 5px;
-  }
-
-  .dungeon-hud-center {
-    left: 6px;
-    right: 6px;
-    top: 76px;
-    bottom: 210px;
-    width: auto;
-    overflow: visible;
-    transform: translateZ(0);
-    z-index: 50;
   }
 
   .dungeon-minimap .map-room,
@@ -2593,10 +2577,18 @@
     gap: 2px;
   }
 
+  .dungeon-hud-center {
+    left: 6px;
+    right: 6px;
+    top: 56px;
+    bottom: 198px;
+    transform: none;
+    width: auto;
+  }
+
   .dungeon-hud-room {
-    padding: 16px;
+    padding: 8px;
     margin-top: 0;
-    overflow: visible;
   }
 
   .dungeon-hud-room-desc {
@@ -2639,16 +2631,13 @@
     left: 8px;
     right: 8px;
     top: 56px;
-    bottom: 100px;
+    bottom: 110px;
+    transform: none;
     width: auto;
-    overflow: visible;
-    transform: translateZ(0);
-    z-index: 50;
   }
 
   .dungeon-hud-room {
     max-height: none;
-    overflow: visible;
   }
 
   .dungeon-path-options {
