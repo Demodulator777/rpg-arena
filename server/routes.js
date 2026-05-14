@@ -4911,23 +4911,23 @@ function generateBackendRandomItem(level, type) {
     const stats = {};
 
     function rollStat(cfg, lvl) {
-        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.3);
-        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.6);
+        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.4);
+        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.7);
         let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
         v = Math.floor(v * (0.85 + Math.random() * 0.30));
         return Math.max(cfg.min, v);
     }
 
     const quality = (() => {
-        const legendaryChance = 0.001;
+        const legendaryChance = 0.01;
         if (Math.random() < legendaryChance) return 'legendary';
         
         let rareChance = 0;
-        if (tier >= 5) rareChance = 0.20;
-        else if (tier >= 4) rareChance = 0.12;
-        else if (tier >= 3) rareChance = 0.07;
-        else if (tier >= 2) rareChance = 0.03;
-        else rareChance = 0.01;
+        if (tier >= 5) rareChance = 0.30;
+        else if (tier >= 4) rareChance = 0.25;
+        else if (tier >= 3) rareChance = 0.20;
+        else if (tier >= 2) rareChance = 0.15;
+        else rareChance = 0.1;
         
         return Math.random() < rareChance ? 'rare' : 'common';
     })();
