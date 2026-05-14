@@ -4919,7 +4919,7 @@ function generateBackendRandomItem(level, type) {
     }
 
     const quality = (() => {
-        const legendaryChance = 0.02;
+        const legendaryChance = 0.22;
         if (Math.random() < legendaryChance) return 'legendary';
         
         let rareChance = 0;
