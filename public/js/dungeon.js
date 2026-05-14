@@ -1519,9 +1519,12 @@ function startCombat(roomIdx) {
         clientStartId,
     };
     renderCombatPanel();
-    // If the player scrolled the page before entering combat, ensure the overlay is flush with the viewport top.
-    // (Even if something goes wrong with stacking, this avoids "uncovering" navigation).
-    try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); } catch(e) { try { window.scrollTo(0, 0); } catch(_) {} }
+    // If the player scrolled the page before entering combat, scroll the tab content to the bottom
+    // so the combat overlay sits flush with the viewport bottom.
+    try {
+      const scrollContainer = document.querySelector('.tab-content-area') || document.documentElement;
+      scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, left: 0, behavior: 'instant' });
+    } catch(e) { try { (document.querySelector('.tab-content-area') || document.documentElement).scrollTop = 99999; } catch(_) {} }
 
     // Some users can have a stale character snapshot (e.g., hp_current from a previous tab/session).
     // Refresh in the background so the HP bar stabilizes quickly without delaying combat start.
