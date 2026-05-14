@@ -2565,7 +2565,7 @@
 
   .dungeon-hud-minimap {
     width: 95px;
-    bottom: 10px;
+    bottom: 100px;
     padding: 5px;
   }
 
