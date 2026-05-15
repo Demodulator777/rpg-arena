@@ -3718,13 +3718,18 @@ function closeDungeonVictory() {
 }
 
 function openGuild() {
+  const overlay = document.getElementById('dungeon-overlay');
+  if (overlay) overlay.classList.add('guild-active');
   document.body.classList.add('modal-lock');
   renderGuild();
 }
 
 function closeGuild() {
   const overlay = document.getElementById('dungeon-overlay');
-  if (overlay) overlay.innerHTML = '';
+  if (overlay) {
+    overlay.innerHTML = '';
+    overlay.classList.remove('guild-active');
+  }
   document.body.classList.remove('modal-lock');
   renderDungeonView();
 }
