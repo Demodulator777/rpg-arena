@@ -407,6 +407,10 @@
   100% { transform: translate(-100%, 0); }
 }
 
+.dungeon-hud-room-info {
+  position: relative;
+  z-index: 1;
+}
 .dungeon-hud-room-info .dungeon-room-monster,
 .dungeon-hud-room-info .dungeon-boss-room,
 .dungeon-hud-room-info .dungeon-room-clear {
