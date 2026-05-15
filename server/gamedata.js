@@ -449,7 +449,7 @@ const EQUIPMENT_RECIPES = [
         name:'Voidborn Striders', emoji:'🟤', quality:'legendary',
         slot:'boots',
         desc:'Boots that phase partially into the void, allowing impossible movement.',
-        stats:{ defense:16, armor:9, agility:16, crit_chance:10, hit_chance:8,
+        stats:{ defense:16, armor:9, agility:7, crit_chance:10, hit_chance:8,
                 wind_dmg:10, wind_resist:12 },
         components:{ void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:14000,
     },
