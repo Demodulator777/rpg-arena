@@ -344,6 +344,8 @@
   max-width: 100%;
   overflow-x: clip;
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .dungeon-hud-room-title {
