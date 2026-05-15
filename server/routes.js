@@ -3792,7 +3792,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                         ed = Math.floor(ed * magicElemMult);
                         if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
                         if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
-                        ed = Math.floor(ed * atkBonusDmg * hit.dmgMult);
+                        ed = Math.floor(ed * atkBonusDmg);
                         const glanceElemMin = Math.floor(ed / 2);
                         ed = glanceElemMin + Math.floor(Math.random() * (ed - glanceElemMin + 1));
                         if (m2e) ed += dB;
