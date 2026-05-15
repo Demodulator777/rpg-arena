@@ -564,7 +564,8 @@
 }
 
 /* Combat overlay should be full-screen (no topbar offset). */
-.dungeon-overlay:has(.dungeon-combat-panel) {
+.dungeon-overlay:has(.dungeon-combat-panel),
+.dungeon-overlay:has(.guild-overlay-card) {
   top: 0;
   bottom: 0;
   padding-top: max(12px, env(safe-area-inset-top, 0px));
@@ -573,7 +574,8 @@
   z-index: 400000;
 }
 
-.dungeon-overlay:has(.dungeon-combat-panel) .dungeon-overlay-backdrop {
+.dungeon-overlay:has(.dungeon-combat-panel) .dungeon-overlay-backdrop,
+.dungeon-overlay:has(.guild-overlay-card) .dungeon-overlay-backdrop {
   top: 0;
   bottom: 0;
 }
