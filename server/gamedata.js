@@ -412,7 +412,7 @@ const EQUIPMENT_RECIPES = [
         name:'Voidborn Scythe', emoji:'🪄', quality:'legendary',
         slot:'weapon',
         desc:'A scythe wreathed in void energy, harvesting souls with each swing.',
-        stats:{ dmg_min:22, dmg_max:42, magic:14, crit_chance:12, hit_chance:8,
+        stats:{ dmg_min:18, dmg_max:36, magic:14, crit_chance:12, hit_chance:8,
                 pyro_dmg:8, water_dmg:8, wind_dmg:8, electro_dmg:8,
                 pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15 },
         components:{ void_crystal:3, shadow_weave:2, demon_alloy:1 }, goldCost:18000,
