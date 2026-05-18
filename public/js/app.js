@@ -3354,20 +3354,75 @@ function onMapNodeClick(zoneId) {
 }
 
 async function enterAbyssGate() {
+    const shadowfenUnlocked = unlockedAbyssZones.has('shadowfen');
     try {
-        const result = await api('POST', '/game/travel/abyss/enter', {});
-        if (result.success) {
-            character.location = result.location;
-            character.current_map = 'abyss';
-            // Refresh the map view
+        const proceed = await openGameDialog({
+            title: shadowfenUnlocked ? 'Enter the Abyss?' : '⚠️ Gatekeeper Warning',
+            message: shadowfenUnlocked
+                ? `<p>You are about to enter the Abyss.</p>`
+                : `<p><strong>Abyss Gatekeeper</strong> guards Shadowfen Depths!</p>
+                   <p>This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.</p>
+                   <p>Are you sure you want to proceed?</p>`,
+            confirmLabel: shadowfenUnlocked ? 'Enter' : 'Challenge for Entry',
+            cancelLabel: 'Cancel',
+            showCancel: true,
+            danger: !shadowfenUnlocked
+        });
+        if (!proceed) return;
+
+        // Use a manual fetch so we can surface battle logs on non-200 responses.
+        const storedToken = localStorage.getItem('rpg_token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (storedToken) headers['Authorization'] = `Bearer ${storedToken}`;
+        if (window.tabSession) headers['X-Tab-Session'] = window.tabSession;
+
+        const res = await fetch('/api/game/travel/abyss/enter', { method: 'POST', headers, body: '{}' });
+        const text = await res.text();
+        const payload = text && text.trim() ? (() => { try { return JSON.parse(text); } catch { return { error: text.trim() }; } })() : {};
+
+        if (!res.ok) {
+            // If the server provided a battle log, show it as a battle report.
+            if (Array.isArray(payload?.battleLog) && payload?.guardianName) {
+                showBattleReportModal(
+                    payload.battleLog,
+                    false,
+                    `💀 Defeated · ${payload.guardianName}`,
+                    null,
+                    null,
+                    { enemyName: payload.guardianName, battleType: 'travel_guardian' }
+                );
+            } else {
+                showMsg('missions-msg', payload?.error || `HTTP ${res.status}`, true);
+            }
+            // Refresh to pick up HP changes (loss case).
             await checkTravelStatus();
             renderCurrentMap();
-            showMsg('missions-msg', 'You step through the Abyss Gate into darkness...');
+            return;
+        }
+
+        if (payload?.success) {
+            character.location = payload.location;
+            character.current_map = 'abyss';
+            await checkTravelStatus();
+            renderCurrentMap();
+            showMsg('missions-msg', payload.message || 'You step through the Abyss Gate into darkness...');
+
+            const enc = payload.encounterResult;
+            if (enc && Array.isArray(enc.log) && enc.guardianName) {
+                showBattleReportModal(
+                    enc.log,
+                    true,
+                    `🏆 Victory · Unlocked Shadowfen Depths`,
+                    enc.totalDmgDealt ?? null,
+                    enc.totalDmgTaken ?? null,
+                    { enemyName: enc.guardianName, battleType: 'travel_guardian' }
+                );
+            }
         }
     } catch (e) {
         showMsg('missions-msg', e.message, true);
     }
-}
+} 
 
 function openLocationModal(zoneId) {
     // Determine which map we're on
