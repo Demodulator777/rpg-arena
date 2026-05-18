@@ -3787,9 +3787,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (Math.random() >= glanceChance) {
                 logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
                 } else {
+                    // Design rule: glancing blows should be *reduced* damage, never higher than a normal hit.
+                    // Use the non-crit base (dmgMin) and then apply the glance reduction further down the pipeline.
                     const dMin = Number(attacker.dmgMin || 0);
-                    const dMax = Number(attacker.dmgMax || 0);
-                    const glanceRaw = dMin + Math.floor(Math.random() * Math.max(1, dMax - dMin + 1));
+                    const glanceRaw = dMin;
                     let gPhys = Math.floor(glanceRaw * rogueWeaponPenalty);
                     gPhys = Math.floor(gPhys * physicalDamagePenalty);
                     gPhys = Math.floor(gPhys * hit.dmgMult * atkBonusDmg);
