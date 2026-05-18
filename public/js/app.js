@@ -7174,6 +7174,7 @@ function renderInboxFilter(filter) {
         const parts = [];
         if (reward.gold) parts.push(`💰 ${Number(reward.gold).toLocaleString()} gold`);
         if (reward.gems) parts.push(`💎 ${Number(reward.gems).toLocaleString()} gems`);
+        if (reward.xp) parts.push(`⭐ ${Number(reward.xp).toLocaleString()} XP`);
         if (reward.lootbox?.id) parts.push(`📦 ${Number(reward.lootbox.qty || 1)}x ${reward.lootbox.id.replace(/_/g, ' ')}`);
         if (reward.material?.id && reward.material?.qty) parts.push(`🧱 ${Number(reward.material.qty).toLocaleString()}x ${reward.material.id.replace(/_/g, ' ')}`);
         return parts.join(' · ');
