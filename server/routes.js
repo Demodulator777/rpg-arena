@@ -3751,12 +3751,21 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
 
     let rageActive = false;
+    let holyStrikeBurst = false;
 
     if (attacker.class === 'warrior' && attacker.rageReady) {
         rageActive = true;
         attacker.rageReady = false;
         attacker.rageHits = 0;
         atkHitChance = Math.min(1.0, atkHitChance * 1.5);
+    }
+
+    // Paladin Holy Strike "burst": when your force field shatters, your next hit gains 2× hit chance
+    // and ignores blocks (but does not become a guaranteed hit).
+    if (attacker.class === 'paladin' && attacker.holyStrikeReady && hasSkill(atkSkills, 'holy_strike')) {
+        holyStrikeBurst = true;
+        attacker.holyStrikeReady = false;
+        atkHitChance = Math.min(1.0, atkHitChance * 2.0);
     }
 
     if (!ignoreDefenderZones && !rageActive && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
@@ -3847,7 +3856,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                         absorbed = Math.min(defenderShield.remaining, gDmg);
                         gDmg -= absorbed;
                         defenderShield.remaining -= absorbed;
-                        if (defenderShield.remaining <= 0) defenderShield.active = false;
+                        if (defenderShield.remaining <= 0) {
+                            defenderShield.active = false;
+                            if (defender.class === 'paladin' && hasSkill(defSkills, 'holy_strike')) {
+                                defender.holyStrikeReady = true;
+                            }
+                        }
                     }
                     chargeHolyStrikeFromAbsorb(absorbed);
                     // Force field regeneration handled once per turn at end of simulateRound.
@@ -3884,7 +3898,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const magicToElemental = attacker.class === 'mage';
         physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
 
-        const blockCovers = !ignoreDefenderZones && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
+        const blockCovers = !ignoreDefenderZones && !holyStrikeBurst && (blk.protects.includes(atkZone) || blk.protects.includes('any'));
         const randomBlockPen = Math.random() < 0.001;
         const blockFails = rageActive || randomBlockPen;
 
@@ -3951,6 +3965,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 defenderShield.remaining -= absorbedAmount;
                 if (defenderShield.remaining <= 0) {
                     defenderShield.active = false;
+                    if (defender.class === 'paladin' && hasSkill(defSkills, 'holy_strike')) {
+                        defender.holyStrikeReady = true;
+                    }
                 }
                 justAbsorbed = true;
             }
