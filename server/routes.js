@@ -3821,9 +3821,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                         defenderShield.remaining -= absorbed;
                         if (defenderShield.remaining <= 0) defenderShield.active = false;
                     }
-                    if (defenderShield && defenderShield.active && defenderShield.remaining < defenderShield.value) {
-                        defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + Math.max(1, Math.floor(defenderShield.value * 0.05)));
-                    }
+                    // Force field regeneration handled once per turn at end of simulateRound.
                     finalDmg = gDmg;
                     totalElemDmg = gElem;
                     if (absorbed > 0) {
@@ -3923,13 +3921,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 justAbsorbed = true;
             }
 
-            // Shield regenerates 5% of its max value per turn after absorbing
-            if (defenderShield && defenderShield.active && defenderShield.remaining < defenderShield.value) {
-                const regen = Math.max(1, Math.floor(defenderShield.value * 0.05));
-                defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
-            }
-
-            const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' RAGING BLOW' : ' lands a hit'));
+            const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
             logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.floor(finalDmg)} damage`;
             if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
             if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
@@ -3968,6 +3960,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (defender.class === 'warrior' && finalDmg > 0) {
         defender.rageHits = (defender.rageHits || 0) + 1;
         if (defender.rageHits >= 3) defender.rageReady = true;
+    }
+
+    // Force field regenerates each turn (independent of hit/miss/block).
+    if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && defenderShield.remaining < defenderShield.value) {
+        const regen = Math.max(1, Math.floor(defenderShield.value * 0.05));
+        defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
     }
     return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg };
 }
