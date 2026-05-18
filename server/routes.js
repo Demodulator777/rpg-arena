@@ -4206,15 +4206,24 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     
     // For Nightmare difficulty, scale based on player stats
     let powerScale = 1.0;
-    if (difficulty === 'nightmare' && playerStats) {
+    if (difficulty === 'nightmare' && playerStats) { 
         // Calculate player power score
-const playerPower = (playerStats.hp_max || 100) * 0.5 +
-                    (playerStats.strength || 0) * 2 +
-                    (playerStats.defense || 0) * 1.5 +
-                    (playerStats.agility || 0) * 1.2 +
-                    (playerStats.magic || 0) * 2.5 +
-                    (playerStats.hit_chance || 0) * 3 +
-                    (playerStats.crit_chance || 0) * 5;
+        // (playerStats may come from buildCombatFighter(), which uses hpMax not hp_max)
+        const hpMax = Number(playerStats.hp_max ?? playerStats.hpMax ?? 100);
+        const strength = Number(playerStats.strength || 0);
+        const defense = Number(playerStats.defense || 0);
+        const agility = Number(playerStats.agility || 0);
+        const magic = Number(playerStats.magic || 0);
+        const hitChance = Number(playerStats.hit_chance ?? playerStats.hitChance ?? 0);
+        const critChance = Number(playerStats.crit_chance ?? playerStats.critChance ?? 0);
+
+        const playerPower = hpMax * 0.5 +
+                    strength * 2 + 
+                    defense * 1.5 + 
+                    agility * 1.2 + 
+                    magic * 2.5 + 
+                    hitChance * 3 + 
+                    critChance * 5; 
         
         // Scale NPC to be 80-150% of player power
         powerScale = Math.max(0.8, Math.min(1.5, playerPower / 5000));
