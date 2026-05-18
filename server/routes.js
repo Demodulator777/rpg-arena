@@ -4538,41 +4538,41 @@ const TRAVEL_GUARDIAN_TEMPLATES = {
             elem_resist: { pyro: 18, water: 18, wind: 18, electro: 18 },
         },
         ruins: {
-            hp: 980, dmgMin: 120, dmgMax: 160, agility: 120, magic: 150, armor: 120, hit_chance: 82, crit_chance: 25,
+            hp: 980, dmgMin: 120, dmgMax: 160, agility: 120, magic: 150, armor: 120, hit_chance: 122, crit_chance: 25,
             elem_dmg: { pyro: 28, water: 28, wind: 28, electro: 28 },
             elem_resist: { pyro: 26, water: 26, wind: 26, electro: 26 },
         },
         dark_city: {
-            hp: 1400, dmgMin: 180, dmgMax: 240, agility: 200, magic: 500, armor: 200, hit_chance: 86, crit_chance: 30,
+            hp: 1400, dmgMin: 180, dmgMax: 240, agility: 200, magic: 500, armor: 200, hit_chance: 156, crit_chance: 50,
             elem_dmg: { pyro: 42, water: 42, wind: 42, electro: 42 },
             elem_resist: { pyro: 34, water: 34, wind: 34, electro: 34 },
         },
     },
     abyss: {
         shadowfen: {
-            hp: 1800, dmgMin: 210, dmgMax: 280, agility: 240, magic: 560, armor: 230, hit_chance: 88, crit_chance: 32,
+            hp: 1800, dmgMin: 210, dmgMax: 280, agility: 240, magic: 560, armor: 230, hit_chance: 208, crit_chance: 102,
             elem_dmg: { pyro: 55, water: 55, wind: 55, electro: 55 },
-            elem_resist: { pyro: 38, water: 38, wind: 38, electro: 38 },
+            elem_resist: { pyro: 68, water: 68, wind: 68, electro: 68 },
         },
         crimson: {
-            hp: 2400, dmgMin: 280, dmgMax: 360, agility: 280, magic: 720, armor: 280, hit_chance: 90, crit_chance: 35,
+            hp: 2400, dmgMin: 280, dmgMax: 360, agility: 280, magic: 720, armor: 280, hit_chance: 250, crit_chance: 205,
             elem_dmg: { pyro: 72, water: 64, wind: 64, electro: 64 },
-            elem_resist: { pyro: 45, water: 42, wind: 42, electro: 42 },
+            elem_resist: { pyro: 75, water: 75, wind: 75, electro: 75 },
         },
         void: {
-            hp: 3200, dmgMin: 360, dmgMax: 460, agility: 320, magic: 900, armor: 330, hit_chance: 92, crit_chance: 38,
+            hp: 3200, dmgMin: 360, dmgMax: 460, agility: 320, magic: 900, armor: 330, hit_chance: 292, crit_chance: 308,
             elem_dmg: { pyro: 74, water: 74, wind: 74, electro: 74 },
-            elem_resist: { pyro: 52, water: 52, wind: 50, electro: 50 },
+            elem_resist: { pyro: 100, water: 100, wind: 100, electro: 100 },
         },
         citadel: {
-            hp: 4200, dmgMin: 470, dmgMax: 600, agility: 380, magic: 1100, armor: 390, hit_chance: 94, crit_chance: 42,
+            hp: 4200, dmgMin: 470, dmgMax: 600, agility: 380, magic: 1100, armor: 390, hit_chance: 344, crit_chance: 402,
             elem_dmg: { pyro: 90, water: 90, wind: 88, electro: 88 },
-            elem_resist: { pyro: 62, water: 62, wind: 60, electro: 60 },
+            elem_resist: { pyro: 122, water: 122, wind: 122, electro: 122 },
         },
         eternal_dark: {
-            hp: 5600, dmgMin: 620, dmgMax: 780, agility: 440, magic: 1350, armor: 460, hit_chance: 95, crit_chance: 46,
+            hp: 5600, dmgMin: 620, dmgMax: 780, agility: 440, magic: 1350, armor: 460, hit_chance: 405, crit_chance: 500,
             elem_dmg: { pyro: 110, water: 110, wind: 110, electro: 110 },
-            elem_resist: { pyro: 74, water: 74, wind: 74, electro: 74 },
+            elem_resist: { pyro: 174, water: 174, wind: 174, electro: 174 },
         },
     },
 };
