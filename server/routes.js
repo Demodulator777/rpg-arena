@@ -132,12 +132,14 @@ function serializeChatMessage(row, currentCharId) {
 function buildAdminRewardPayload(input = {}) {
     const gold = Math.max(0, Number(input.gold || 0));
     const gems = Math.max(0, Number(input.gems || 0));
+    const xp = Math.max(0, Number(input.xp || 0));
     const materialType = String(input.materialType || '').trim().toLowerCase();
     const materialId = normalizeRewardMaterialId(input.materialId);
     const materialQty = Math.max(0, Number(input.materialQty || 0));
     const payload = {};
     if (gold > 0) payload.gold = gold;
     if (gems > 0) payload.gems = gems;
+    if (xp > 0) payload.xp = xp;
     if (materialId && materialQty > 0 && (materialType === 'raw_mat' || materialType === 'component')) {
         payload.material = { type: materialType, id: materialId, qty: materialQty };
     }
@@ -148,6 +150,7 @@ function adminRewardInputLooksFilled(input = {}) {
     const values = [
         input.gold,
         input.gems,
+        input.xp,
         input.materialType,
         input.materialId,
         input.materialQty
@@ -160,6 +163,7 @@ function describeAdminRewardPayload(payload) {
     const parts = [];
     if (payload.gold) parts.push(`${Number(payload.gold).toLocaleString()} gold`);
     if (payload.gems) parts.push(`${Number(payload.gems).toLocaleString()} gems`);
+    if (payload.xp) parts.push(`${Number(payload.xp).toLocaleString()} XP`);
     if (payload.material?.id && payload.material?.qty) parts.push(`${Number(payload.material.qty).toLocaleString()}x ${payload.material.id}`);
     return parts.length ? parts.join(' + ') : 'Message only';
 }
@@ -8461,6 +8465,19 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
                 await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, char.id]);
             }
         }
+        if (reward.xp) {
+            const xpGain = Math.max(0, Number(reward.xp || 0));
+            if (xpGain > 0) {
+                let newXp = (char.xp || 0) + xpGain;
+                let newLevel = char.level || 1;
+                while (newXp >= LEVEL_XP(newLevel)) {
+                    newXp -= LEVEL_XP(newLevel);
+                    newLevel += 1;
+                }
+                await dbRun(db, 'UPDATE characters SET xp=?, level=? WHERE id=?', [newXp, newLevel, char.id]);
+                await handleReferralLevelMilestone(db, char.user_id, char.level, newLevel);
+            }
+        }
         if (reward.lootbox?.id) {
             const lootBox = LOOT_BOXES.find(box => box.id === reward.lootbox.id);
             if (lootBox) {
@@ -8619,6 +8636,10 @@ router.get('/rewards/list', async (req, res) => {
                                 <div>
                                     <label>Gem Reward</label>
                                     <input type="number" name="gems" min="0" step="1" placeholder="0">
+                                </div>
+                                <div>
+                                    <label>XP Reward</label>
+                                    <input type="number" name="xp" min="0" step="1" placeholder="0">
                                 </div>
                                 <div>
                                     <label>Material Type</label>
