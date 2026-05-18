@@ -322,7 +322,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Warhammer', emoji:'🔨', quality:'epic',
         slot:'weapon',
         desc:'A heavy warhammer that shatters shields and bones alike.',
-        stats:{ dmg_min:8, dmg_max:18, strength:6, armor:2 },
+        stats:{ dmg_min:12, dmg_max:28, strength:6, armor:3, defense:17, crit_chance:8 },
         components:{ iron_ingot:4, tanned_hide:2 }, goldCost:800,
     },
     {
@@ -330,7 +330,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Plate', emoji:'🛡️', quality:'epic',
         slot:'armor',
         desc:'Heavy iron plate armour, nearly impenetrable by physical blows.',
-        stats:{ defense:14, armor:8, hp_max:60, vitality:3 },
+        stats:{ defense:28, armor:14, hp_max:60, vitality:3,  hit_chance:-2, crit_chance:3},
         components:{ iron_ingot:5, tanned_hide:2 }, goldCost:1000,
     },
     {
@@ -338,7 +338,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Greathelm', emoji:'⛑️', quality:'epic',
         slot:'helmet',
         desc:'Full-face iron helm with reinforced cheekguards.',
-        stats:{ defense:8, armor:5, hp_max:30, hit_chance:4 },
+        stats:{ defense:18, armor:8, hp_max:30, hit_chance:4, crit_chance:6 },
         components:{ iron_ingot:3, tanned_hide:2 }, goldCost:700,
     },
     {
@@ -346,7 +346,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Tower Shield', emoji:'🔰', quality:'epic',
         slot:'shield',
         desc:'A massive iron tower shield — almost nothing gets through.',
-        stats:{ defense:16, armor:10, hp_max:40 },
+        stats:{ defense:26, armor:15, hp_max:40, hit_chance:-4, crit_chance:3},
         components:{ iron_ingot:6, hardwood_plank:2 }, goldCost:900,
     },
     {
@@ -354,7 +354,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Sabatons', emoji:'👢', quality:'epic',
         slot:'boots',
         desc:'Heavy iron boots that anchor you in place during battle.',
-        stats:{ defense:6, armor:4, agility:3, hp_max:20 },
+        stats:{ defense:22, armor:13, agility:-2, hp_max:20, hit_chance:-2, crit_chance:6 },
         components:{ iron_ingot:2, tanned_hide:3 }, goldCost:600,
     },
 
@@ -367,7 +367,7 @@ const EQUIPMENT_RECIPES = [
         name:'Sentinel Spear', emoji:'⚔️', quality:'epic',
         slot:'weapon',
         desc:'A razor-sharp mithril spear etched with sentinel runes.',
-        stats:{ dmg_min:14, dmg_max:26, strength:8, hit_chance:8, crit_chance:5, wind_dmg:6, wind_resist:10 },
+        stats:{ dmg_min:16, dmg_max:30, strength:8, hit_chance:8, crit_chance:5, wind_dmg:6, wind_resist:10 },
         components:{ mithril_ingot:4, frost_core:1 }, goldCost:4000,
     },
     {
