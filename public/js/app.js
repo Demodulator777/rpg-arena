@@ -3356,29 +3356,48 @@ function onMapNodeClick(zoneId) {
 async function enterAbyssGate() {
     const shadowfenUnlocked = unlockedAbyssZones.has('shadowfen');
     try {
-        const proceed = await openGameDialog({
-            title: shadowfenUnlocked ? 'Enter the Abyss?' : '⚠️ Gatekeeper Warning',
-            message: shadowfenUnlocked
-                ? `<p>You are about to enter the Abyss.</p>`
-                : `<p><strong>Abyss Gatekeeper</strong> guards Shadowfen Depths!</p>
-                   <p>This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.</p>
-                   <p>Are you sure you want to proceed?</p>`,
-            confirmLabel: shadowfenUnlocked ? 'Enter' : 'Challenge for Entry',
-            cancelLabel: 'Cancel',
-            showCancel: true,
-            danger: !shadowfenUnlocked
-        });
-        if (!proceed) return;
-
         // Use a manual fetch so we can surface battle logs on non-200 responses.
         const storedToken = localStorage.getItem('rpg_token');
         const headers = { 'Content-Type': 'application/json' };
         if (storedToken) headers['Authorization'] = `Bearer ${storedToken}`;
         if (window.tabSession) headers['X-Tab-Session'] = window.tabSession;
 
-        const res = await fetch('/api/game/travel/abyss/enter', { method: 'POST', headers, body: '{}' });
-        const text = await res.text();
-        const payload = text && text.trim() ? (() => { try { return JSON.parse(text); } catch { return { error: text.trim() }; } })() : {};
+        const doEnter = async (confirmChallenge) => {
+            const body = confirmChallenge ? JSON.stringify({ confirmChallenge: true }) : '{}';
+            const res = await fetch('/api/game/travel/abyss/enter', { method: 'POST', headers, body });
+            const text = await res.text();
+            const payload = text && text.trim() ? (() => { try { return JSON.parse(text); } catch { return { error: text.trim() }; } })() : {};
+            return { res, payload };
+        };
+
+        // First attempt: enter (server may reply that a challenge is required).
+        let { res, payload } = await doEnter(false);
+
+        if (!res.ok && payload?.requiresChallenge) {
+            const proceed = await openGameDialog({
+                title: '⚠️ Gatekeeper Warning',
+                message: `<p><strong>${escHtml(payload.guardianName || 'Gatekeeper')}</strong> guards Shadowfen Depths!</p>
+                          <p>This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.</p>
+                          <p>Are you sure you want to proceed?</p>`,
+                confirmLabel: 'Challenge for Entry',
+                cancelLabel: 'Cancel',
+                showCancel: true,
+                danger: true
+            });
+            if (!proceed) return;
+            ({ res, payload } = await doEnter(true));
+        } else if (!res.ok && !payload?.requiresChallenge) {
+            // If not a challenge flow, still give a simple enter confirm for unlocked entry.
+            const proceed = await openGameDialog({
+                title: shadowfenUnlocked ? 'Enter the Abyss?' : 'Enter the Abyss?',
+                message: `<p>You are about to enter the Abyss.</p>`,
+                confirmLabel: 'Enter',
+                cancelLabel: 'Cancel',
+                showCancel: true
+            });
+            if (!proceed) return;
+            ({ res, payload } = await doEnter(false));
+        }
 
         if (!res.ok) {
             // If the server provided a battle log, show it as a battle report.
