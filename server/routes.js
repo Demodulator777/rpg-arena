@@ -12149,6 +12149,15 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
         const shadowfenUnlocked = abyssUnlocks.has('shadowfen');
 
         if (!shadowfenUnlocked) {
+            const confirmChallenge = !!req.body?.confirmChallenge;
+            if (!confirmChallenge) {
+                return res.status(400).json({
+                    error: 'A gatekeeper blocks entry to Shadowfen Depths.',
+                    requiresChallenge: true,
+                    guardianName: 'Abyss Gatekeeper',
+                    targetZone: 'shadowfen',
+                });
+            }
             await applyHpRegen(db, character.id);
             const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
             const playerFighter = await buildCombatFighter(db, freshChar);
