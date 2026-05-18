@@ -4521,6 +4521,62 @@ const TRAVEL_GUARDIANS = {
     } 
 }; 
 
+// Guardians are intended to be fixed progression checkpoints:
+// - no scaling to player stats/gear
+// - no RNG (attack zones / block zones / elemental rolls / resists)
+// Guardians below are fully hardcoded combat templates.
+const TRAVEL_GUARDIAN_TEMPLATES = {
+    overworld: {
+        swamp: {
+            hp: 260, dmgMin: 18, dmgMax: 26, agility: 28, magic: 18, armor: 18, hit_chance: 72, crit_chance: 10,
+            elem_dmg: { pyro: 8, water: 8, wind: 8, electro: 8 },
+            elem_resist: { pyro: 10, water: 10, wind: 10, electro: 10 },
+        },
+        mountains: {
+            hp: 520, dmgMin: 34, dmgMax: 46, agility: 60, magic: 80, armor: 46, hit_chance: 78, crit_chance: 18,
+            elem_dmg: { pyro: 16, water: 16, wind: 16, electro: 16 },
+            elem_resist: { pyro: 18, water: 18, wind: 18, electro: 18 },
+        },
+        ruins: {
+            hp: 980, dmgMin: 120, dmgMax: 160, agility: 120, magic: 150, armor: 120, hit_chance: 82, crit_chance: 25,
+            elem_dmg: { pyro: 28, water: 28, wind: 28, electro: 28 },
+            elem_resist: { pyro: 26, water: 26, wind: 26, electro: 26 },
+        },
+        dark_city: {
+            hp: 1400, dmgMin: 180, dmgMax: 240, agility: 200, magic: 500, armor: 200, hit_chance: 86, crit_chance: 30,
+            elem_dmg: { pyro: 42, water: 42, wind: 42, electro: 42 },
+            elem_resist: { pyro: 34, water: 34, wind: 34, electro: 34 },
+        },
+    },
+    abyss: {
+        shadowfen: {
+            hp: 1800, dmgMin: 210, dmgMax: 280, agility: 240, magic: 560, armor: 230, hit_chance: 88, crit_chance: 32,
+            elem_dmg: { pyro: 55, water: 55, wind: 55, electro: 55 },
+            elem_resist: { pyro: 38, water: 38, wind: 38, electro: 38 },
+        },
+        crimson: {
+            hp: 2400, dmgMin: 280, dmgMax: 360, agility: 280, magic: 720, armor: 280, hit_chance: 90, crit_chance: 35,
+            elem_dmg: { pyro: 72, water: 64, wind: 64, electro: 64 },
+            elem_resist: { pyro: 45, water: 42, wind: 42, electro: 42 },
+        },
+        void: {
+            hp: 3200, dmgMin: 360, dmgMax: 460, agility: 320, magic: 900, armor: 330, hit_chance: 92, crit_chance: 38,
+            elem_dmg: { pyro: 74, water: 74, wind: 74, electro: 74 },
+            elem_resist: { pyro: 52, water: 52, wind: 50, electro: 50 },
+        },
+        citadel: {
+            hp: 4200, dmgMin: 470, dmgMax: 600, agility: 380, magic: 1100, armor: 390, hit_chance: 94, crit_chance: 42,
+            elem_dmg: { pyro: 90, water: 90, wind: 88, electro: 88 },
+            elem_resist: { pyro: 62, water: 62, wind: 60, electro: 60 },
+        },
+        eternal_dark: {
+            hp: 5600, dmgMin: 620, dmgMax: 780, agility: 440, magic: 1350, armor: 460, hit_chance: 95, crit_chance: 46,
+            elem_dmg: { pyro: 110, water: 110, wind: 110, electro: 110 },
+            elem_resist: { pyro: 74, water: 74, wind: 74, electro: 74 },
+        },
+    },
+};
+
 const TRAVEL_GATEKEEPER_PREREQS = {
     overworld: {
         mountains: { unlockZone: 'swamp', guardianName: 'Bog Warden' },
@@ -4593,84 +4649,30 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
     if (!guardianDef) return null;
     const zone = zoneMap[targetZone];
     const zoneLevel = zone?.minLevel || 1;
-    const assumedPlayerLevel = zoneLevel;
-
-    // Gatekeepers should feel like a fixed, memorable skill check. We keep their stats deterministic
-    // (no random elemental rolls / random zones) and for Nightmare we pin them to the high end.
-    let guardianStatsForScaling = null;
-    if (guardianDef.difficulty === 'nightmare') {
-        // buildNpc('nightmare') scales between 0.8..1.5 based on playerPower/5000.
-        // Force the top end (1.5) by providing an intentionally high power score.
-        guardianStatsForScaling = {
-            hp_max: 999999,
-            strength: 999999,
-            defense: 999999,
-            agility: 999999,
-            magic: 999999,
-            hit_chance: 999999,
-            crit_chance: 999999
-        };
-    }
-
-    const npc = buildNpc(guardianDef.difficulty, assumedPlayerLevel, zoneLevel, guardianStatsForScaling);
-    npc.attackZones = DEFAULT_ATTACK_ZONES;
-    npc.blockZones = DEFAULT_BLOCK_ZONES;
-
-    // Ensure elemental damage/resists are fixed (no RNG) so the guardian doesn't "jump around" in power.
-    // We intentionally set all elements at the high end for the selected difficulty.
-    try {
-        const effectiveLevel = Number(assumedPlayerLevel || 1) + (Number(zoneLevel || 1) * 2);
-        const difficultyMultipliers = {
-            easy: { armorMult: 0.6, elemMult: 0.5 },
-            medium: { armorMult: 1.0, elemMult: 1.0 },
-            hard: { armorMult: 1.5, elemMult: 1.8 },
-            normal: { armorMult: 1.0, elemMult: 1.0 },
-            nightmare: { armorMult: 1.2 * 1.5, elemMult: 1.4 * 1.5 }, // pinned to the high end
-        };
-        const mult = difficultyMultipliers[guardianDef.difficulty] || difficultyMultipliers.hard;
-        const elemBase = 10 + (effectiveLevel * 0.5);
-        const resistBase = 10 + (effectiveLevel * 0.4);
-        const elemVal = Math.max(1, Math.floor(elemBase * mult.elemMult));
-        const resistVal = Math.max(1, Math.floor(resistBase * mult.armorMult));
-        npc.elem_dmg = { pyro: elemVal, water: elemVal, wind: elemVal, electro: elemVal };
-        npc.elem_resist = { pyro: resistVal, water: resistVal, wind: resistVal, electro: resistVal };
-    } catch {}
-
-    // Random elemental resists for hard+ gatekeepers — at least 2 types, up to all 4
-    if (guardianDef.difficulty === 'hard' || guardianDef.difficulty === 'nightmare') {
-        const allElem = ['pyro', 'water', 'wind', 'electro'];
-        const count = Math.min(4, 2 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0));
-        const chosen = [...allElem].sort(() => Math.random() - 0.5).slice(0, count);
-        const maxR = Math.min(100, Math.floor(20 + zoneLevel * 2.5));
-        const resists = { pyro: 0, water: 0, wind: 0, electro: 0 };
-        for (const el of chosen) resists[el] = Math.floor(Math.random() * maxR * 0.7) + Math.floor(maxR * 0.3);
-        npc.elem_resist = resists;
-    }
-
-    npc.name = guardianDef.name;
-    npc.class = 'npc';
-    npc.ignoreDefenderZones = true;
-
-    // Gatekeeper stat overrides — these are fixed, memorable skill checks
-    if (targetZone === 'mountains') {
-        npc.magic = 80;
-        npc.crit_chance = 70;
-        npc.armor = 46;
-    } else if (targetZone === 'ruins') {
-        npc.dmgMin = 120;
-        npc.dmgMax = 160;
-        npc.agility = 120;
-        npc.magic = 150;
-        npc.crit_chance = 120;
-        npc.armor = 120;
-    } else if (targetZone === 'dark_city') {
-        npc.agility = 200;
-        npc.magic = 500;
-        npc.crit_chance = 250;
-        npc.armor = 200;
-    }
-
-    return npc;
+    const template = (TRAVEL_GUARDIAN_TEMPLATES[currentMap] || {})[targetZone] || null;
+    if (!template) return null;
+    const hp = Math.max(1, Number(template.hp || 1));
+    return {
+        id: -1,
+        name: guardianDef.name,
+        class: 'npc',
+        hp,
+        hpMax: hp,
+        dmgMin: Math.max(1, Number(template.dmgMin || 1)),
+        dmgMax: Math.max(2, Number(template.dmgMax || (Number(template.dmgMin || 1) + 1))),
+        agility: Math.max(0, Number(template.agility || 0)),
+        magic: Math.max(0, Number(template.magic || 0)),
+        vitality: Math.max(0, Number(template.vitality || 0)),
+        hit_chance: Math.max(45, Math.min(95, Number(template.hit_chance || 75))),
+        crit_chance: Math.max(0, Math.min(60, Number(template.crit_chance || 0))),
+        armor: Math.max(0, Number(template.armor || 0)),
+        elem_dmg: template.elem_dmg ? { ...template.elem_dmg } : { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: template.elem_resist ? { ...template.elem_resist } : { pyro: 0, water: 0, wind: 0, electro: 0 },
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        activeSkills: {},
+        ignoreDefenderZones: true,
+    };
 }
 
 function getTravelGraph(currentMap) {
