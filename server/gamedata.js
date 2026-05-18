@@ -322,7 +322,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Warhammer', emoji:'🔨', quality:'epic',
         slot:'weapon',
         desc:'A heavy warhammer that shatters shields and bones alike.',
-        stats:{ dmg_min:12, dmg_max:28, strength:6, armor:3, defense:17, crit_chance:8 },
+        stats:{ dmg_min:12, dmg_max:28, strength:6, armor:3, defense:27, crit_chance:8 },
         components:{ iron_ingot:4, tanned_hide:2 }, goldCost:800,
     },
     {
@@ -330,7 +330,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Plate', emoji:'🛡️', quality:'epic',
         slot:'armor',
         desc:'Heavy iron plate armour, nearly impenetrable by physical blows.',
-        stats:{ defense:28, armor:14, hp_max:60, vitality:3,  hit_chance:-2, crit_chance:3},
+        stats:{ defense:38, armor:14, hp_max:60, vitality:3,  hit_chance:-2, crit_chance:3},
         components:{ iron_ingot:5, tanned_hide:2 }, goldCost:1000,
     },
     {
@@ -338,7 +338,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Greathelm', emoji:'⛑️', quality:'epic',
         slot:'helmet',
         desc:'Full-face iron helm with reinforced cheekguards.',
-        stats:{ defense:18, armor:8, hp_max:30, hit_chance:4, crit_chance:6 },
+        stats:{ defense:28, armor:8, hp_max:30, hit_chance:4, crit_chance:6 },
         components:{ iron_ingot:3, tanned_hide:2 }, goldCost:700,
     },
     {
@@ -346,7 +346,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Tower Shield', emoji:'🔰', quality:'epic',
         slot:'shield',
         desc:'A massive iron tower shield — almost nothing gets through.',
-        stats:{ defense:26, armor:15, hp_max:40, hit_chance:-4, crit_chance:3},
+        stats:{ defense:36, armor:15, hp_max:40, hit_chance:-4, crit_chance:3},
         components:{ iron_ingot:6, hardwood_plank:2 }, goldCost:900,
     },
     {
@@ -354,7 +354,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Sabatons', emoji:'👢', quality:'epic',
         slot:'boots',
         desc:'Heavy iron boots that anchor you in place during battle.',
-        stats:{ defense:22, armor:13, agility:-2, hp_max:20, hit_chance:-2, crit_chance:6 },
+        stats:{ defense:32, armor:13, agility:-2, hp_max:20, hit_chance:-2, crit_chance:6 },
         components:{ iron_ingot:2, tanned_hide:3 }, goldCost:600,
     },
 
