@@ -949,6 +949,19 @@ async function refreshCharacter() {
   ensureCrawlerState();
   if (!D.crawler || D.crawler.defeated || !D.crawler.monster) return false;
 
+    // Prevent crawler combat at 0 HP (otherwise player can get stuck and/or server rejects later).
+    const c0 = getChar();
+    const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
+    if (Number.isFinite(hp0) && hp0 <= 0) {
+      const msg = 'You are at 0 HP. Leave the dungeon to recover before fighting again.';
+      if (typeof openGameDialog === 'function') {
+        openGameDialog({ title: 'Out of HP', message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+      } else {
+        alert(msg);
+      }
+      return false;
+    }
+
     // Achievement tracking
     apiFetch('POST', '/game/dungeon/crawler-event', { event: 'encounter' }).catch(() => {});
     D.crawler.roomIdx = D.playerPos;
