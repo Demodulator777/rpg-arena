@@ -3672,29 +3672,20 @@ function calculateMagicShield(attacker, defender) {
     if (defender.class === 'warrior' || defender.class === 'rogue') {
         return { active: false, value: 0, remaining: 0 };
     }
-    
-    // Shield created from magic advantage over opponent's magic
-    if (defenderMagic > attackerMagic) {
-        const magicAdvantage = defenderMagic - attackerMagic;
-        let shieldValue = Math.floor(magicAdvantage / 4);
-        
-        // Paladins also gain shield from defense (1 HP per 4 defense)
-        if (defender.class === 'paladin') {
-            shieldValue += Math.floor((defender.defense || 0) / 4);
-        }
-        
-        return {
-            active: true,
-            value: shieldValue,
-            remaining: shieldValue
-        };
+
+    // Shield created from magic advantage over opponent's magic.
+    // Special rule: Paladins also generate a baseline force field from defense,
+    // so their shield can still activate vs high-magic opponents.
+    const magicAdvantage = Math.max(0, defenderMagic - attackerMagic);
+    const magicShield = Math.floor(magicAdvantage / 4);
+    const paladinShield = defender.class === 'paladin' ? Math.floor((defender.defense || 0) / 4) : 0;
+    const shieldValue = magicShield + paladinShield;
+
+    if (shieldValue > 0) {
+        return { active: true, value: shieldValue, remaining: shieldValue };
     }
-    
-    return {
-        active: false,
-        value: 0,
-        remaining: 0
-    };
+
+    return { active: false, value: 0, remaining: 0 };
 }
 
 function applyMagicDamageModifiers(attacker, defender) {
@@ -3776,6 +3767,29 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
     let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
 
+    const chargeHolyStrikeFromAbsorb = (absorbedAmount) => {
+        if (absorbedAmount <= 0) return;
+        if (defender.class !== 'paladin') return;
+        if (!hasSkill(defSkills, 'holy_strike')) return;
+        defender.holyAbsorbHits = (defender.holyAbsorbHits || 0) + 1;
+        defender.holyAbsorbedTotal = (defender.holyAbsorbedTotal || 0) + absorbedAmount;
+        if (defender.holyAbsorbHits >= 3) {
+            defender.holyEmpowerNext = true;
+            defender.holyAbsorbHits = 0;
+        }
+    };
+
+    const consumeHolyStrikeEmpowerment = () => {
+        if (attacker.class !== 'paladin') return 0;
+        if (!hasSkill(atkSkills, 'holy_strike')) return 0;
+        if (!attacker.holyEmpowerNext) return 0;
+        const absorbedTotal = Math.max(0, Number(attacker.holyAbsorbedTotal || 0));
+        const bonus = Math.max(0, Math.floor(absorbedTotal * 0.20));
+        attacker.holyEmpowerNext = false;
+        attacker.holyAbsorbedTotal = 0;
+        return bonus;
+    };
+
     if (!atkHit) {
         if (divineNegate) {
             logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
@@ -3835,6 +3849,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                         defenderShield.remaining -= absorbed;
                         if (defenderShield.remaining <= 0) defenderShield.active = false;
                     }
+                    chargeHolyStrikeFromAbsorb(absorbed);
                     // Force field regeneration handled once per turn at end of simulateRound.
                     finalDmg = gDmg;
                     totalElemDmg = gElem;
@@ -3916,6 +3931,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
 
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
+
+            const holyEmpowerBonus = consumeHolyStrikeEmpowerment();
+            if (holyEmpowerBonus > 0) {
+                finalDmg += holyEmpowerBonus;
+            }
             let venomfangBonus = 0;
             if (hasSkill(atkSkills, 'venomfang')) {
                 const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
@@ -3934,6 +3954,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 }
                 justAbsorbed = true;
             }
+            chargeHolyStrikeFromAbsorb(absorbedAmount);
 
             const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
             logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.floor(finalDmg)} damage`;
