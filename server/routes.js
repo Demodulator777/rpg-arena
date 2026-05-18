@@ -4444,21 +4444,22 @@ const OVERWORLD_TRAVEL_ROUTES = {
     dark_city: { ruins: 60 }
 };
 
-const TRAVEL_GUARDIANS = {
-    overworld: {
-        swamp: { difficulty: 'medium', name: 'Bog Warden' },
-        mountains: { difficulty: 'hard', name: 'Frost Sentinel' },
-        ruins: { difficulty: 'hard', name: 'Crypt Keeper' },
-        dark_city: { difficulty: 'nightmare', name: 'Shadow Gatekeeper' },
-    },
-
-    abyss: {
-        crimson: { difficulty: 'nightmare', name: 'Crimson Gatekeeper' },
-        void: { difficulty: 'nightmare', name: 'Void Gatekeeper' },
-        citadel: { difficulty: 'nightmare', name: 'Citadel Watcher' },
-        eternal_dark: { difficulty: 'nightmare', name: 'Eternal Warden' },
-    }
-};
+const TRAVEL_GUARDIANS = { 
+    overworld: { 
+        swamp: { difficulty: 'medium', name: 'Bog Warden' }, 
+        mountains: { difficulty: 'hard', name: 'Frost Sentinel' }, 
+        ruins: { difficulty: 'hard', name: 'Crypt Keeper' }, 
+        dark_city: { difficulty: 'nightmare', name: 'Shadow Gatekeeper' }, 
+    }, 
+ 
+    abyss: { 
+        shadowfen: { difficulty: 'nightmare', name: 'Abyss Gatekeeper' },
+        crimson: { difficulty: 'nightmare', name: 'Crimson Gatekeeper' }, 
+        void: { difficulty: 'nightmare', name: 'Void Gatekeeper' }, 
+        citadel: { difficulty: 'nightmare', name: 'Citadel Watcher' }, 
+        eternal_dark: { difficulty: 'nightmare', name: 'Eternal Warden' }, 
+    } 
+}; 
 
 const TRAVEL_GATEKEEPER_PREREQS = {
     overworld: {
@@ -4468,9 +4469,9 @@ const TRAVEL_GATEKEEPER_PREREQS = {
     }
 };
 
-function parseTravelUnlocks(raw) {
-    const defaults = { overworld: ['forest'], abyss: ['shadowfen'] };
-    if (!raw) return defaults;
+function parseTravelUnlocks(raw) { 
+    const defaults = { overworld: ['forest'], abyss: [] }; 
+    if (!raw) return defaults; 
     try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -4485,22 +4486,21 @@ function parseTravelUnlocks(raw) {
     }
 }
 
-function stringifyTravelUnlocks(unlocks) {
-    return JSON.stringify({
-        overworld: Array.from(new Set(unlocks.overworld || ['forest'])),
-        abyss: Array.from(new Set(unlocks.abyss || ['shadowfen'])),
-    });
-}
-
-function getTravelUnlockSet(char, currentMap = 'overworld') {
-    const unlocks = parseTravelUnlocks(char?.unlocked_zones);
-    const key = currentMap === 'abyss' ? 'abyss' : 'overworld';
-    const set = new Set(unlocks[key] || []);
-    if (currentMap === 'abyss') set.add('shadowfen');
-    else set.add('forest');
-    if (char?.location) set.add(char.location);
-    return set;
-}
+function stringifyTravelUnlocks(unlocks) { 
+    return JSON.stringify({ 
+        overworld: Array.from(new Set(unlocks.overworld || ['forest'])), 
+        abyss: Array.from(new Set(unlocks.abyss || [])), 
+    }); 
+} 
+ 
+function getTravelUnlockSet(char, currentMap = 'overworld') { 
+    const unlocks = parseTravelUnlocks(char?.unlocked_zones); 
+    const key = currentMap === 'abyss' ? 'abyss' : 'overworld'; 
+    const set = new Set(unlocks[key] || []); 
+    if (currentMap !== 'abyss') set.add('forest');
+    if (char?.location) set.add(char.location); 
+    return set; 
+} 
 
 function getTravelGatekeeperPrereq(currentMap, targetZone) {
     return (TRAVEL_GATEKEEPER_PREREQS[currentMap] || {})[targetZone] || null;
@@ -7333,8 +7333,8 @@ router.get('/travel/status', auth, async (req, res) => {
         }
         const responseCharacter = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
         const unlocks = parseTravelUnlocks(responseCharacter.unlocked_zones);
-        const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', responseCharacter.current_map === 'overworld' ? responseCharacter.location : null].filter(Boolean)));
-        const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), 'shadowfen', responseCharacter.current_map === 'abyss' ? responseCharacter.location : null].filter(Boolean)));
+        const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', responseCharacter.current_map === 'overworld' ? responseCharacter.location : null].filter(Boolean))); 
+        const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), responseCharacter.current_map === 'abyss' ? responseCharacter.location : null].filter(Boolean))); 
         
         res.json({
             location: responseCharacter.location || 'forest',
@@ -12122,36 +12122,103 @@ router.get('/exchange/fragments/list', auth, async (req, res) => {
     }
 });
 
-router.post('/travel/abyss/enter', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const character = await getCurrentCharacter(db, req.user.userId);
-        if (!character) return res.status(404).json({ error: 'Character not found' });
-        
-        // Check level requirement
-        if (character.level < 39) {
-            return res.status(400).json({ error: 'Requires level 39 to enter the Abyss' });
+router.post('/travel/abyss/enter', auth, async (req, res) => { 
+    try { 
+        const db = await getDb(); 
+        const character = await getCurrentCharacter(db, req.user.userId); 
+        if (!character) return res.status(404).json({ error: 'Character not found' }); 
+         
+        // Check level requirement 
+        if (character.level < 39) { 
+            return res.status(400).json({ error: 'Requires level 39 to enter the Abyss' }); 
+        } 
+
+        // Abyss Gate unlock requirement (must have Dark City unlocked)
+        const overworldUnlocks = getTravelUnlockSet(character, 'overworld');
+        if (!overworldUnlocks.has('dark_city')) {
+            return res.status(400).json({ error: 'Unlock Dark City to access the Abyss Gate' });
         }
-        
-        // Check if already in Abyss
-        if (character.current_map === 'abyss') {
-            return res.status(400).json({ error: 'Already in the Abyss' });
+         
+        // Check if already in Abyss 
+        if (character.current_map === 'abyss') { 
+            return res.status(400).json({ error: 'Already in the Abyss' }); 
+        } 
+
+        // Gatekeeper: Shadowfen must be unlocked before doing Abyss missions.
+        const abyssUnlocks = getTravelUnlockSet(character, 'abyss');
+        const shadowfenUnlocked = abyssUnlocks.has('shadowfen');
+
+        if (!shadowfenUnlocked) {
+            await applyHpRegen(db, character.id);
+            const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+            const playerFighter = await buildCombatFighter(db, freshChar);
+            const guardian = buildTravelGuardian('shadowfen', 'abyss', freshChar.level, playerFighter);
+
+            if (!guardian) {
+                return res.status(500).json({ error: 'Abyss gatekeeper missing' });
+            }
+
+            let forceWinnerId = null;
+            const isTutorial = isTutorialCharacter(freshChar);
+            if (isTutorial) forceWinnerId = freshChar.id;
+
+            const battle = runBattle(playerFighter, guardian, forceWinnerId);
+            const playerWon = battle.winnerId === freshChar.id;
+
+            if (forceWinnerId && isTutorial) {
+                if (!battle.log.some(line => line.includes('Tutorial victory'))) {
+                    battle.log.push('✨ Tutorial victory!');
+                }
+            }
+
+            const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+
+            if (!playerWon) {
+                await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, freshChar.id]);
+                return res.status(400).json({
+                    error: 'Defeated by the Abyss Gatekeeper',
+                    battleLog: battle.log,
+                    won: false,
+                    guardianName: guardian.name,
+                });
+            }
+
+            await unlockTravelZone(db, freshChar, 'shadowfen', 'abyss');
+            await recordGatekeeperDefeat(db, freshChar.id, `abyss:shadowfen`);
+            invalidateWeeklyClaimableCountCache(freshChar.id);
+            await dbRun(db, 'UPDATE characters SET current_map=?, location=?, hp_current=? WHERE id=?', ['abyss', 'shadowfen', newHp, freshChar.id]);
+
+            return res.json({
+                success: true,
+                location: 'shadowfen',
+                message: 'You enter the Abyss...',
+                encounterResult: {
+                    type: 'travel_guardian',
+                    won: true,
+                    guardianName: guardian.name,
+                    targetZone: 'shadowfen',
+                    unlocked: true,
+                    log: battle.log,
+                    totalDmgDealt: battle.totalDmgToB,
+                    totalDmgTaken: battle.totalDmgToA,
+                }
+            });
         }
-        
-        // Teleport to Shadowfen Depths
-        await dbRun(db, 'UPDATE characters SET current_map = ?, location = ? WHERE id = ?', 
+
+        // Teleport to Shadowfen Depths (already unlocked)
+        await dbRun(db, 'UPDATE characters SET current_map = ?, location = ? WHERE id = ?',
             ['abyss', 'shadowfen', character.id]);
-        
-        res.json({ 
-            success: true, 
+
+        res.json({
+            success: true,
             location: 'shadowfen',
             message: 'You enter the Abyss...'
         });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: e.message });
-    }
-});
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    } 
+}); 
 
 router.post('/travel/abyss/exit', auth, async (req, res) => {
     try {
