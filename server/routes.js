@@ -4381,8 +4381,9 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer));
 
         // Keep hit/crit tied to the player's current stats (so high-agi / high-hit builds still matter).
-        npc.hit_chance = Math.max(45, Math.min(95, Math.floor(pHit + 6)));
-        npc.crit_chance = Math.max(0, Math.min(60, Math.floor(pCrit + 4)));
+        // Do not hard-cap these: players can build well above "normal" ranges, and Nightmare should track it.
+        npc.hit_chance = Math.max(0, Math.floor(pHit + 6));
+        npc.crit_chance = Math.max(0, Math.floor(pCrit + 4));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
