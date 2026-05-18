@@ -204,6 +204,15 @@ async function handleReferralLevelMilestone(db, userId, previousLevel, newLevel)
     await dbRun(db, 'UPDATE users SET referral_level5_rewarded = 1 WHERE id = ?', [user.id]);
 }
 
+function getScaledForgeGoldCost(baseGoldCost, playerLevel, minLevel = 1) {
+    const base = Math.max(0, Number(baseGoldCost || 0));
+    const lvl = Math.max(1, Number(playerLevel || 1));
+    const minLvl = Math.max(1, Number(minLevel || 1));
+    const levelDiff = Math.max(0, lvl - minLvl);
+    const scale = 1 + (levelDiff * 0.20);
+    return Math.max(0, Math.floor(base * scale));
+}
+
 // Define ELEMENTS array (was missing!)
 const ELEMENTS = ['pyro', 'water', 'wind', 'electro'];
 
@@ -6958,12 +6967,13 @@ router.get('/forge/recipes', auth, async (req, res) => {
         });
         const equipment = EQUIPMENT_RECIPES.map(rec => {
             const zoneUnlocked = completedZones.has(rec.requiredZone) || char.level >= (ZONES[rec.requiredZone]?.minLevel || 1);
-            const canCraft = zoneUnlocked && char.gold >= rec.goldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
+            const scaledGoldCost = getScaledForgeGoldCost(rec.goldCost, char.level, rec.minLevel || 1);
+            const canCraft = zoneUnlocked && char.gold >= scaledGoldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
             const scaledPreview = scaleItemToLevel(rec, char.level);
             return {
                 ...rec,
                 ...scaledPreview,
-                goldCost: rec.goldCost,
+                goldCost: scaledGoldCost,
                 zoneUnlocked,
                 canCraft,
                 equipped: equippedRecipeIds.has(rec.id)
@@ -7022,8 +7032,9 @@ router.post('/forge/craft', auth, async (req, res) => {
         if (recipe.craftClass && char.class !== recipe.craftClass) {
             return res.status(400).json({ error: `Only ${recipe.craftClass}s can craft this item.` });
         }
-        
-        if (char.gold < recipe.goldCost) return res.status(400).json({ error: `Need ${recipe.goldCost} gold` });
+
+        const craftGoldCost = getScaledForgeGoldCost(recipe.goldCost, char.level, recipe.minLevel || 1);
+        if (char.gold < craftGoldCost) return res.status(400).json({ error: `Need ${craftGoldCost} gold` });
         
         const mats = await getInventoryMaterials(db, char.id);
         for (const [comp, qty] of Object.entries(recipe.components)) {
@@ -7040,10 +7051,11 @@ router.post('/forge/craft', auth, async (req, res) => {
             }
         }
         
-        await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [recipe.goldCost, char.id]);
+        await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [craftGoldCost, char.id]);
         
         const scaledItem = scaleItemToLevel(recipe, char.level);
         scaledItem.original_price = scaledItem.price;
+        scaledItem.crafting_cost = craftGoldCost;
         
         await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
             [char.id, 'equipment', JSON.stringify(scaledItem)]);
