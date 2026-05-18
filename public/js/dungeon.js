@@ -2166,6 +2166,10 @@ function onPlayerDeath() {
     }
     const c = getChar();
     if (c && c.hp_current !== undefined) c.hp = c.hp_current;
+
+    // Ensure we never keep the page scroll-locked after combat ends (death returns to dungeon UI).
+    document.body.classList.remove('modal-lock');
+    document.body.classList.remove('combat-lock');
     
     // Release room entry and lock
     if (D.combat && D.combat.roomIdx !== undefined) {
@@ -2802,6 +2806,10 @@ function renderDungeonList() {
     if (!area) return;
     D.activeDungeon = null;
     global.__dungeonActive = false;
+
+    // Safety: if combat ended unexpectedly (death/disconnect), ensure scrolling is restored.
+    document.body.classList.remove('modal-lock');
+    document.body.classList.remove('combat-lock');
 
     // Check BOTH saved progress AND database floor value
     const hasSave = !!D.savedProgress['tower'];
