@@ -4331,7 +4331,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     else if (zoneLevel >= 70 && zoneLevel < 80) zonePrefix = 'Citadel';
     else if (zoneLevel >= 80) zonePrefix = 'Eternal';
     
-    return {
+    const npc = {
         id: -1, 
         name: zonePrefix ? `${zonePrefix} ${cfg.name}` : cfg.name,
         hp: hp,
@@ -4350,6 +4350,57 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         blockZones: blockZones,
         activeSkills: {},
     };
+
+    // Nightmare missions should feel challenging at every level:
+    // scale directly off the current character's computed combat stats.
+    if (difficulty === 'nightmare' && playerStats) {
+        const pHp = Number(playerStats.hpMax ?? playerStats.hp_max ?? playerStats.hp ?? 100);
+        const pDmgMin = Number(playerStats.dmgMin ?? playerStats.dmg_min ?? 0);
+        const pDmgMax = Number(playerStats.dmgMax ?? playerStats.dmg_max ?? pDmgMin);
+        const pAgi = Number(playerStats.agility || 0);
+        const pMagic = Number(playerStats.magic || 0);
+        const pArmor = Number(playerStats.armor || 0);
+        const pHit = Number(playerStats.hit_chance ?? playerStats.hitChance ?? 0);
+        const pCrit = Number(playerStats.crit_chance ?? playerStats.critChance ?? 0);
+        const pElemDmg = playerStats.elem_dmg || {};
+        const pElemRes = playerStats.elem_resist || {};
+
+        // Use the same powerScale derived above, but map it to slightly above-player multipliers.
+        const hpMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);     // ~1.05..1.30
+        const dmgMultVsPlayer = 1.08 + (powerScale - 0.8) * (0.32 / 0.7);    // ~1.08..1.40
+        const agiMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);    // ~1.02..1.20
+        const armorMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);  // ~1.02..1.20
+        const elemMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);   // ~1.05..1.30
+
+        npc.hpMax = Math.max(1, Math.floor(pHp * hpMultVsPlayer));
+        npc.hp = npc.hpMax;
+        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * dmgMultVsPlayer));
+        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * dmgMultVsPlayer));
+        npc.agility = Math.max(1, Math.floor(pAgi * agiMultVsPlayer));
+        npc.magic = Math.max(0, Math.floor(pMagic * agiMultVsPlayer));
+        npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer));
+
+        // Keep hit/crit tied to the player's current stats (so high-agi / high-hit builds still matter).
+        npc.hit_chance = Math.max(45, Math.min(95, Math.floor(pHit + 6)));
+        npc.crit_chance = Math.max(0, Math.min(60, Math.floor(pCrit + 4)));
+
+        // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
+        npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        npc.elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        for (const el of ELEMENTS) {
+            const d = Math.max(0, Number(pElemDmg?.[el] || 0));
+            const r = Math.max(0, Number(pElemRes?.[el] || 0));
+            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * elemMultVsPlayer)) : 0;
+            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * armorMultVsPlayer)) : 0;
+        }
+        const elemTotal = ELEMENTS.reduce((sum, el) => sum + (npc.elem_dmg[el] || 0), 0);
+        if (elemTotal <= 0) {
+            const pick = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
+            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * mult.elemMult));
+        }
+    }
+
+    return npc;
 }
 
 async function buildCombatFighter(db, char) {
@@ -6516,7 +6567,7 @@ if (freshChar.class === 'rogue') {
         // Build NPC and override its name with the mission name
         // If a player is underleveled for a zone, missions should still scale to the zone's minimum level.
         const missionEffectiveLevel = Math.max(Number(freshChar.level || 1), Number(zoneLevel || 1));
-        const npc = buildNpc(mission.difficulty, missionEffectiveLevel, zoneLevel, playerStats);
+        const npc = buildNpc(mission.difficulty, missionEffectiveLevel, zoneLevel, playerFighter);
         const npcName = getNPCNameFromMission(mission.mission_name);
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
