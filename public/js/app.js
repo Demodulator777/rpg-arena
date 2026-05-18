@@ -29,7 +29,7 @@ let playerTravelTarget = null;
 let playerTravelEndTime = 0;
 let playerTravelStartTime = 0;
 let unlockedTravelZones = new Set(['forest']);
-let unlockedAbyssZones = new Set(['shadowfen']);
+let unlockedAbyssZones = new Set();
 const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
 let trainingInterval = null;
@@ -3313,20 +3313,21 @@ function renderWorldMap() {
         </div>`;
     }).join('');
     
-    // Add Abyss Gate (appears at level 39)
-    if (playerLevel >= 39) {
-        pinsHtml += `
-            <div style="position:absolute;left:90%;top:85%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;" 
-                 ${actionAttrs('onMapNodeClick', 'abyss_gate')} title="Abyss Gate">
-                <div style="position:relative;display:inline-block">
-                    <img style="width:72px;height:72px;border-radius:50%;border:3px solid #9b59b6;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 15px rgba(155,89,182,0.5);animation:pulse 2s infinite;" 
-                         src="/images/zones/abyss_gate.jpg" alt="Abyss Gate" data-error-background="#2c3e50">
-                </div>
-                <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">Abyss Gate</div>
-                <div style="font-size:10px;color:rgba(155,89,182,0.8);text-align:center">Lv.39+</div>
-            </div>
-        `;
-    }
+    // Add Abyss Gate (appears at level 39, after Dark City is unlocked)
+    const darkCityUnlocked = unlockedTravelZones.has('dark_city') || currentZone === 'dark_city';
+    if (playerLevel >= 39 && darkCityUnlocked) {
+        pinsHtml += ` 
+            <div style="position:absolute;left:90%;top:85%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;"  
+                 ${actionAttrs('onMapNodeClick', 'abyss_gate')} title="Abyss Gate"> 
+                <div style="position:relative;display:inline-block"> 
+                    <img style="width:72px;height:72px;border-radius:50%;border:3px solid #9b59b6;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 15px rgba(155,89,182,0.5);animation:pulse 2s infinite;"  
+                         src="/images/zones/abyss_gate.jpg" alt="Abyss Gate" data-error-background="#2c3e50"> 
+                </div> 
+                <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">Abyss Gate</div> 
+                <div style="font-size:10px;color:rgba(155,89,182,0.8);text-align:center">Lv.39+</div> 
+            </div> 
+        `; 
+    } 
     
     layer.innerHTML=svgLines+pinsHtml;
 }
@@ -4086,7 +4087,7 @@ async function checkTravelStatus() {
         playerTravelEndTime=status.travelEndTime||0;
         playerTravelStartTime=status.travelStartTime||0;
         unlockedTravelZones = new Set(status.unlockedZones || ['forest']);
-        unlockedAbyssZones = new Set(status.unlockedAbyssZones || ['shadowfen']);
+        unlockedAbyssZones = new Set(status.unlockedAbyssZones || []);
         
         if (playerTravelTarget) showTravelOverlay(); else hideTravelOverlay();
         
