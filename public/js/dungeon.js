@@ -1074,10 +1074,10 @@ function calcPlayerStats() {
   
   // Sum equipment + wp_stats bonuses
   const eq = c.equipped || {};
-  const eqBonuses = { strength:0, defense:0, agility:0, magic:0, dmg_min:0, dmg_max:0, armor:0 };
+  const eqBonuses = { strength:0, defense:0, agility:0, magic:0, dmg_min:0, dmg_max:0, armor:0, pyro_dmg:0, water_dmg:0, wind_dmg:0, electro_dmg:0, pyro_resist:0, water_resist:0, wind_resist:0, electro_resist:0 };
   Object.values(eq).forEach(item => {
     if (!item) return;
-    ['strength','defense','agility','magic','dmg_min','dmg_max','armor'].forEach(k => {
+    ['strength','defense','agility','magic','dmg_min','dmg_max','armor','pyro_dmg','water_dmg','wind_dmg','electro_dmg','pyro_resist','water_resist','wind_resist','electro_resist'].forEach(k => {
       if (item.stats?.[k]) eqBonuses[k] += Number(item.stats[k]);
       if (item.wp_stats?.[k]) eqBonuses[k] += Number(item.wp_stats[k]);
     });
