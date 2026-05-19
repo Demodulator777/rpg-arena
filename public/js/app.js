@@ -4350,8 +4350,8 @@ function renderForge() {
 
         const bonusHtml = `
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px">
-                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=3?'var(--green)':'var(--text-dim)'}">
-                    ✦ 3/5: ${setDef.bonus3?.desc||'Set bonus'}
+                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=2?'var(--green)':'var(--text-dim)'}">
+                    ✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}
                 </div>
                 <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=5?'var(--gold)':'var(--text-dim)'}">
                     ✦ 5/5: ${setDef.bonus5?.desc||'Full set bonus'}
@@ -4396,7 +4396,7 @@ function renderForge() {
                 <span style="font-size:1.4rem">${setDef.emoji}</span>
                 <div>
                     <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${setDef.name}</div>
-                    <div style="font-size:0.72rem;color:var(--text-dim)">Equip pieces to activate 3/5 and 5/5 set bonuses</div>
+                    <div style="font-size:0.72rem;color:var(--text-dim)">Equip pieces to activate 2/5 and 5/5 set bonuses</div>
                 </div>
             </div>
             ${progressBar}
