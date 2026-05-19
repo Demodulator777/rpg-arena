@@ -4525,27 +4525,27 @@ async function openWeaponFeedDialog(dialog, weap) {
     const entries = Object.entries(forgeData.mats).filter(([,m]) => m.qty > 0)
         .sort((a,b) => (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[a[1]?.rarity||'common']||0) - (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[b[1]?.rarity||'common']||0));
     if (!entries.length) { showMsg('forge-msg','No materials to feed.',true); return; }
-    const feedContent = document.createElement('div');
-    feedContent.style.cssText = 'display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto';
-    feedContent.innerHTML = entries.map(([id, mat]) =>
-        `<div class="feed-row" data-invid="${mat.invId || id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem;transition:background 0.15s">
-            <span style="font-size:1.1rem">${mat.emoji||'📦'}</span>
-            <span style="flex:1">${mat.name||id}</span>
-            <span style="color:var(--text-dim);font-size:0.7rem">×${mat.qty}</span>
-            <span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
-        </div>`
-    ).join('');
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500001;display:flex;align-items:center;justify-content:center';
-    overlay.innerHTML = `<div style="background:var(--bg2);border-radius:14px;padding:16px;max-width:400px;width:90%;max-height:70vh;display:flex;flex-direction:column">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
-            <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-close-btn">✕</button>
-        </div>
-        <div style="flex:1;overflow-y:auto">${feedContent.innerHTML}</div>
-    </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelectorAll('.feed-row').forEach(row => {
+
+    const savedHtml = dialog.innerHTML;
+    dialog.innerHTML = `
+        <div style="padding:16px;display:flex;flex-direction:column;gap:8px;max-height:70vh">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
+                <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-back-btn">← Back</button>
+            </div>
+            <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+                ${entries.map(([id, mat]) =>
+                    `<div class="feed-row" data-invid="${mat.invId || id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem">
+                        <span style="font-size:1.1rem">${mat.emoji||'📦'}</span>
+                        <span style="flex:1">${mat.name||id}</span>
+                        <span style="color:var(--text-dim);font-size:0.7rem">×${mat.qty}</span>
+                        <span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
+                    </div>`
+                ).join('')}
+            </div>
+        </div>`;
+
+    dialog.querySelectorAll('.feed-row').forEach(row => {
         row.addEventListener('click', async () => {
             const invId = row.dataset.invid;
             row.style.opacity = '0.5';
@@ -4554,12 +4554,11 @@ async function openWeaponFeedDialog(dialog, weap) {
                 forgeData = await api('GET','/game/forge/recipes');
                 showMsg('forge-msg', d.message);
                 buildWeaponDialog(dialog, forgeData.weapon);
-                overlay.remove();
             } catch(e) { showMsg('forge-msg', e.message, true); row.style.opacity = '1'; }
         });
     });
-    overlay.querySelector('#feed-close-btn').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    const backBtn = document.getElementById('feed-back-btn');
+    if (backBtn) backBtn.addEventListener('click', () => buildWeaponDialog(dialog, weap));
 }
 
 async function doWeaponLevelUp(dialog, weap) {
