@@ -3671,7 +3671,7 @@ function getEquippedSetBonuses(equippedItems) {
     for (const [setId, count] of Object.entries(counts)) {
         const def = CRAFTING_SETS[setId];
         if (!def) continue;
-        if (count >= 3 && def.bonus3) {
+        if (count >= 2 && def.bonus3) {
             for (const [key, value] of Object.entries(def.bonus3)) {
                 if (key === 'desc' || typeof value !== 'number') continue;
                 total[key] = (total[key] || 0) + value;
