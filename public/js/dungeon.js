@@ -1072,37 +1072,49 @@ function calcPlayerStats() {
   const c = getChar();
   if (!c) return { atk: 10, def: 5, hp: 100, maxHp: 100 };
   
-  let atk, def;
-  
-  // Calculate based on class
+  // Sum equipment + wp_stats bonuses
+  const eq = c.equipped || {};
+  const eqBonuses = { strength:0, defense:0, agility:0, magic:0, dmg_min:0, dmg_max:0, armor:0 };
+  Object.values(eq).forEach(item => {
+    if (!item) return;
+    ['strength','defense','agility','magic','dmg_min','dmg_max','armor'].forEach(k => {
+      if (item.stats?.[k]) eqBonuses[k] += Number(item.stats[k]);
+      if (item.wp_stats?.[k]) eqBonuses[k] += Number(item.wp_stats[k]);
+    });
+  });
+
+  const strength = (c.strength || 10) + eqBonuses.strength;
+  const defense  = (c.defense || 5)  + eqBonuses.defense;
+  const agility  = (c.agility || 10) + eqBonuses.agility;
+  const magic    = (c.magic || 10)   + eqBonuses.magic;
+  let atk = 0;
+  let def = 0;
+
   switch(c.class) {
     case 'mage':
-      // Mages use Magic for damage, Agility for dodge (defense)
-      atk = (c.magic || 10) * 2.5 + (c.intelligence || 0) * 0.5;
-      def = (c.defense || 5) + (c.agility || 10) * 0.2;
+      atk = magic * 2.2 + strength * 0.2;
+      def = defense * 0.4 + magic * 0.2;
       break;
-      
-    case 'rogue':
-      // Rogues use Agility for damage and dodge
-      atk = (c.agility || 10) * 2.2 + (c.strength || 10) * 0.8;
-      def = (c.defense || 5) + (c.agility || 10) * 0.4;
+    case 'rogue': {
+      const hasShield = eq.shield && eq.shield.rogueOffhand !== true;
+      const noShieldAgi = !hasShield ? Math.floor(agility * 0.05) : 0;
+      atk = agility * 1.7 + strength * 0.5;
+      def = defense * 0.5 + (agility + noShieldAgi) * 0.3;
       break;
-      
+    }
     case 'paladin':
-      // Paladins use Strength and Magic hybrid
-      atk = (c.strength || 10) * 1.5 + (c.magic || 10) * 1.0;
-      def = (c.defense || 5) + (c.strength || 10) * 0.3 + (c.magic || 10) * 0.2;
+      atk = strength * 1.2 + magic * 1.0;
+      def = defense * 1.2 + magic * 0.3;
       break;
-      
-    case 'warrior':
-    default:
-      // Warriors use Strength for damage, Agility for some dodge
-      atk = (c.strength || 10) * 2 + (c.agility || 10) * 0.5;
-      def = (c.defense || 5) + (c.strength || 10) * 0.3;
-      break;
+    default: // warrior
+      atk = strength * 2 + agility * 0.5;
+      def = defense + strength * 0.3;
   }
+
+  const weaponDmg = Math.floor((eqBonuses.dmg_min + eqBonuses.dmg_max) / 2);
+  atk += weaponDmg;
+  def += eqBonuses.armor + (c.armor_value || 0);
   
-  // Important: hp_current can be 0 (dead). Never use `||` here or we "auto-heal" to fallback values.
   const hp = Number(c.hp_current ?? c.hp ?? 100);
   const maxHp = Number(c.hp_max ?? 100);
   
@@ -1355,20 +1367,23 @@ function proceedStartDungeon(dungeonId) {
             return ms.length > expMax;
         });
         if (hasInvalidCounts) {
+            const savedCrawler = D.crawler;
             D.rooms = normalizeMiniBossRooms(generateFloor('tower', D.floor), D.floor);
             D.playerPos = D.rooms.findIndex(r => r.isStart);
             D.exploredRooms = new Set([D.playerPos]);
-            D.crawler = spawnCrawlerForCurrentFloor();
+            // Preserve saved crawler state so closing/reopening doesn't erase its position or chase progress
+            D.crawler = savedCrawler && savedCrawler.monster ? savedCrawler : spawnCrawlerForCurrentFloor();
             D.floorRunId = createFloorRunId();
             saveState();
             saveProgressToDB();
         }
         
         if (!D.rooms || D.rooms.length === 0) {
+            const savedCrawler = D.crawler;
             D.rooms = normalizeMiniBossRooms(generateFloor('tower', D.floor), D.floor);
             D.playerPos = D.rooms.findIndex(r => r.isStart);
             D.exploredRooms = new Set([D.playerPos]);
-            D.crawler = spawnCrawlerForCurrentFloor();
+            D.crawler = savedCrawler && savedCrawler.monster ? savedCrawler : spawnCrawlerForCurrentFloor();
             D.floorRunId = createFloorRunId();
             saveState();
             saveProgressToDB();
