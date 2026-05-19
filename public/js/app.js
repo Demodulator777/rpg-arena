@@ -4503,8 +4503,10 @@ function renderDialogStatGrid(weap) {
             <span style="min-width:55px">${labels[s]||s}</span>
             <span style="color:var(--text-dim)">${base}</span>
             ${add>0?`<span style="color:var(--green)">+${add}</span>`:''}
-            ${add>0?`<button class="btn-sm stat-minus" data-stat="${s}" style="font-size:0.6rem;padding:1px 4px">−</button>`:''}
-            <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''}>+</button>
+            <div style="display:flex;gap:2px;margin-left:auto">
+                <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
+                <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
+            </div>
         </div>`;
     }).join('');
     container.querySelectorAll('.stat-plus').forEach(btn => {
