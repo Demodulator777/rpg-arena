@@ -9633,12 +9633,28 @@ function buildCrawlerStatsForFloor(floor) {
   };
 }
 
-function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null) {
+async function calcDungeonEquipStats(db, charId) {
+  const equippedArray = await getEquippedItemsArray(db, charId);
+  const bonuses = { strength:0, defense:0, agility:0, magic:0, hit_chance:0, crit_chance:0, dmg_min:0, dmg_max:0, armor:0 };
+  for (const item of equippedArray) {
+    try {
+      const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+      const s = d?.stats || {};
+      for (const k of ['strength','defense','agility','magic','hit_chance','crit_chance','dmg_min','dmg_max','armor']) {
+        if (s[k]) bonuses[k] += Number(s[k]);
+        if (d?.wp_stats?.[k]) bonuses[k] += Number(d.wp_stats[k]);
+      }
+    } catch {}
+  }
+  return bonuses;
+}
+
+function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null, equipStats = null) {
   const cClass = String(char.class || '').toLowerCase();
-  const strength = Number(char.strength || 10);
-  const defense = Number(char.defense || 5);
-  const agility = Number(char.agility || 10);
-  const magic = Number(char.magic || 10);
+  const strength = Number(char.strength || 10) + (equipStats?.strength || 0);
+  const defense = Number(char.defense || 5) + (equipStats?.defense || 0);
+  const agility = Number(char.agility || 10) + (equipStats?.agility || 0);
+  const magic = Number(char.magic || 10) + (equipStats?.magic || 0);
   let atk = 0;
   let def = 0;
   if (cClass === 'mage') {
@@ -9657,7 +9673,8 @@ function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null) {
   }
   const maxHp = Math.max(1, Number(hpMaxOverride ?? char.hp_max ?? 100));
   const hp = Number(char.hp_current ?? maxHp);
-  return { atk: Math.floor(atk), def: Math.floor(def), hp, maxHp };
+  const weaponDmg = Math.floor(((equipStats?.dmg_min || 0) + (equipStats?.dmg_max || 0)) / 2);
+  return { atk: Math.floor(atk) + weaponDmg, def: Math.floor(def) + (equipStats?.armor || 0), hp, maxHp };
 }
 
 async function getTrueHpMaxForChar(db, char) {
@@ -10272,7 +10289,8 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
     const now = Math.floor(Date.now() / 1000);
     const combatId = `dng_${kind}_${char.id}_${floor}_${roomIndex}_${seed}_${now}`;
     const trueHpMax = await getTrueHpMaxForChar(db, char);
-    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
+    const equipStats = await calcDungeonEquipStats(db, char.id);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax, equipStats);
     // Don't "auto-heal" 0 HP characters. If you're dead, you must regen/heal outside the dungeon.
     const hpCurRaw = Number(char.hp_current);
     if (Number.isFinite(hpCurRaw) && hpCurRaw <= 0) {
@@ -10412,10 +10430,8 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     const state = JSON.parse(row.state_json || '{}');
     const kind = String(row.combat_type || state.kind || 'room').toLowerCase();
     const trueHpMax = await getTrueHpMaxForChar(db, char);
-    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
-
-    // If state is missing (or corrupted), fall back to the DB HP (not a computed default),
-    // otherwise HP can "jump" unexpectedly.
+    const equipStats = kind !== 'crawler' ? await calcDungeonEquipStats(db, char.id) : null;
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax, equipStats);
     const dbHpCur = Number(char.hp_current);
     const fallbackHp = (Number.isFinite(dbHpCur) && dbHpCur >= 0) ? dbHpCur : pStats.hp;
     const playerHpBefore = Math.max(0, Number(state.playerHp ?? fallbackHp));
