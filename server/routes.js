@@ -7148,6 +7148,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
         for (const [id, mat] of Object.entries(mats)) {
             const def = RAW_MATERIALS[id] || COMPONENTS[id];
             mat.rarity = def?.rarity || mat.rarity || 'common';
+            mat.type = RAW_MATERIALS[id] ? 'raw_mat' : (COMPONENTS[id] ? 'component' : 'unknown');
         }
         res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -7260,8 +7261,9 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
         if (!item) return res.status(400).json({ error: 'Item not found' });
         const itemData = JSON.parse(item.item_data);
         const itemId = itemData.id;
-        const rawRarity = itemData.rarity || RAW_MATERIALS[itemId]?.rarity || COMPONENTS[itemId]?.rarity || 'common';
-        const rarity = rawRarity;
+        if (!RAW_MATERIALS[itemId]) return res.status(400).json({ error: 'Only raw materials can be fed to weapons.' });
+        const defRarity = RAW_MATERIALS[itemId]?.rarity;
+        const rarity = defRarity || itemData.rarity || 'common';
         const weight = WEAPON_FEED_WEIGHTS[rarity] || 1;
         const qty = itemData.qty || 1;
 
