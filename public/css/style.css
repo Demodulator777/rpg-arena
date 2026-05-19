@@ -4135,6 +4135,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 #weapon-upgrade-dialog {
     max-width: 520px;
     width: 92%;
+    max-height: 80vh;
     border: none;
     border-radius: 16px;
     background: var(--bg2);
