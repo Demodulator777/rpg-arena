@@ -8101,20 +8101,16 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             const secs = (atkCooldown + effectivePvpCooldown) - now;
             return res.status(400).json({ error: `Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'} before next attack.` });
         }
-        const defGlobalCooldown = defender.attack_cooldown_until || 0;
-        if (defGlobalCooldown > now) {
-            const mins = Math.ceil((defGlobalCooldown - now) / 60);
-            return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
-        }
         const perTarget = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
         if (perTarget && perTarget.expires_at > now) {
             const secs = perTarget.expires_at - now;
             return res.status(400).json({ error: `Cannot attack ${defender.name} again for ${secs < 3600 ? Math.ceil(secs/60)+'m' : Math.ceil(secs/3600)+'h'}.` });
         }
-        await applyHpRegen(db, attacker.id);
-        await applyHpRegen(db, defender.id);
-        const freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
-        const freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
+        const defGlobalCooldown = defender.attack_cooldown_until || 0;
+        if (defGlobalCooldown > now) {
+            const mins = Math.ceil((defGlobalCooldown - now) / 60);
+            return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
+        }
         const hpA = freshA.hp_current ?? freshA.hp_max;
         if (hpA <= 0) return res.status(400).json({ error: 'You are out of HP. Wait for regen.' });
         const equippedD0 = await getEquippedItemsArray(db, freshD.id);
