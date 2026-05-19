@@ -10276,7 +10276,7 @@ function renderAbyssMap() {
     // Add exit to Dark City as a zone-style circle (only from Shadowfen)
     const showExit = currentZone === 'shadowfen';
     const exitButton = showExit ? `
-        <div style="position:absolute;left:85%;top:88%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center" ${actionAttrs('exitAbyss')} title="Return to Dark City">
+        <div style="position:absolute;left:10%;top:72%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center" ${actionAttrs('exitAbyss')} title="Return to Dark City">
             <div style="position:relative;display:inline-block">
                 <img style="width:72px;height:72px;border-radius:50%;border:3px solid #e74c3c;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 0 3px rgba(231,76,60,0.3)" src="/images/zones/dark-city.jpg" alt="Dark City" data-error-background="#2c3e50">
             </div>
