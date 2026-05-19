@@ -624,17 +624,17 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
 const CRAFTING_SETS = {
     ironclad: {
         name:'Ironclad Set', emoji:'⚙️',
-        bonus3:{ defense:10, armor:5,  hp_max:50,  desc:'3/5: +10 DEF · +5 Armor · +50 HP' },
+        bonus3:{ defense:10, armor:5,  hp_max:50,  desc:'2/5: +10 DEF · +5 Armor · +50 HP' },
         bonus5:{ defense:20, armor:12, hp_max:100, vitality:5, desc:'5/5: +20 DEF · +12 Armor · +100 HP · +5 VIT' },
     },
     sentinel: {
         name:'Sentinel Set', emoji:'🔷',
-        bonus3:{ hit_chance:8,  crit_chance:5,  defense:8,  desc:'3/5: +8 Hit · +5 Crit · +8 DEF' },
+        bonus3:{ hit_chance:8,  crit_chance:5,  defense:8,  desc:'2/5: +8 Hit · +5 Crit · +8 DEF' },
         bonus5:{ hit_chance:16, crit_chance:12, agility:10, defense:15, desc:'5/5: +16 Hit · +12 Crit · +10 AGI · +15 DEF' },
     },
     voidborn: {
         name:'Voidborn Set', emoji:'🌑',
-        bonus3:{ magic:12, crit_chance:8,  desc:'3/5: +12 MAG · +8 Crit' },
+        bonus3:{ magic:12, crit_chance:8,  desc:'2/5: +12 MAG · +8 Crit' },
         bonus5:{
             magic:25, crit_chance:18, hit_chance:12,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
@@ -645,7 +645,7 @@ const CRAFTING_SETS = {
         name:'Spiteforged Set', emoji:'🔱',
         bonus3:{ strength:12, crit_chance:10, hit_chance:6,
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'3/5: +12 STR · +10 Crit · +6 Hit · +10 all Elem Resist' },
+            desc:'2/5: +12 STR · +10 Crit · +6 Hit · +10 all Elem Resist' },
         bonus5:{
             strength:25, crit_chance:20, hit_chance:15,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
@@ -656,7 +656,7 @@ const CRAFTING_SETS = {
         name:'Shadewalker Set', emoji:'🗡️',
         bonus3:{ agility:15, crit_chance:10, hit_chance:8,
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'3/5: +15 AGI · +10 Crit · +8 Hit · +10 all Elem Resist' },
+            desc:'2/5: +15 AGI · +10 Crit · +8 Hit · +10 all Elem Resist' },
         bonus5:{
             agility:30, crit_chance:18, hit_chance:15,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
@@ -666,7 +666,7 @@ const CRAFTING_SETS = {
     abyssal: {
         name:'Abyssal Knight Set', emoji:'⚔️',
         bonus3:{ strength:10, agility:10, defense:15, hp_max:80,
-            desc:'3/5: +10 STR · +10 AGI · +15 DEF · +80 HP' },
+            desc:'2/5: +10 STR · +10 AGI · +15 DEF · +80 HP' },
         bonus5:{
             strength:22, agility:20, defense:30, hp_max:160, armor:10,
             pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15,
