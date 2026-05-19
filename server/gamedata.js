@@ -75,7 +75,7 @@ const ZONES = {
 const ABYSS_ZONES = {
     shadowfen: {
         name: 'Shadowfen Depths', emoji: '🌑', minLevel: 39,
-        mapImg: '/images/zones/abyss-map.jpg',
+        mapImg: '/images/zones/abyss/shadowfen.jpg',
         bgImg: '/images/zones/abyss/shadowfen-bg.jpg',
         pos: { x: 25, y: 72 },
         travelTime: 180,
@@ -110,7 +110,7 @@ const ABYSS_ZONES = {
     },
     crimson: {
         name: 'Crimson Wastes', emoji: '🌋', minLevel: 50,
-        mapImg: '/images/zones/abyss-map.jpg',
+        mapImg: '/images/zones/abyss/crimson.jpg',
         bgImg: '/images/zones/abyss/crimson-bg.jpg',
         pos: { x: 72, y: 70 },
         travelTime: 240,
@@ -145,7 +145,7 @@ const ABYSS_ZONES = {
     },
     void: {
         name: 'Abyssal Void', emoji: '🕳️', minLevel: 60,
-        mapImg: '/images/zones/abyss-map.jpg',
+        mapImg: '/images/zones/abyss/void.jpg',
         bgImg: '/images/zones/abyss/void-bg.jpg',
         pos: { x: 50, y: 45 },
         travelTime: 300,
@@ -180,7 +180,7 @@ const ABYSS_ZONES = {
     },
     citadel: {
         name: 'Void Citadel', emoji: '🏰', minLevel: 70,
-        mapImg: '/images/zones/abyss-map.jpg',
+        mapImg: '/images/zones/abyss/citadel.jpg',
         bgImg: '/images/zones/abyss/citadel-bg.jpg',
         pos: { x: 25, y: 28 },
         travelTime: 360,
@@ -215,7 +215,7 @@ const ABYSS_ZONES = {
     },
     eternal_dark: {
         name: 'The Eternal Dark', emoji: '🌌', minLevel: 80,
-        mapImg: '/images/zones/abyss-map.jpg',
+        mapImg: '/images/zones/abyss/eternal.jpg',
         bgImg: '/images/zones/abyss/eternal-bg.jpg',
         pos: { x: 78, y: 25 },
         travelTime: 420,
