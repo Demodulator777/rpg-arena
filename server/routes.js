@@ -10165,6 +10165,9 @@ router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
     let rngState = Number(row.rng_state || 0) >>> 0;
     const log = [];
 
+    // Clear stale escape state — only a successful flee in this action can set it.
+    state.escapeReady = false;
+
     if (action === 'run') {
       // Mirror client "75% flee" but server-authoritative.
       const r = mulberry32Next(rngState);
@@ -10438,6 +10441,9 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
     let playerHp = playerHpBefore;
     const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? trueHpMax));
     let rngState = Number(row.rng_state || 0) >>> 0;
+
+    // Clear stale escape state — only a successful flee in this action can set it.
+    state.escapeReady = false;
 
     const monsters = Array.isArray(state.monsters) ? state.monsters : [];
     let currentMonsterIndex = Math.max(0, Number(state.currentMonsterIndex || 0));
