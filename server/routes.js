@@ -3565,6 +3565,7 @@ function calcBaseDamage(char, equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.strength) itemStr += Number(data.stats.strength || 0);
+            if (data?.wp_stats?.strength) itemStr += Number(data.wp_stats.strength || 0);
         } catch {}
     }
     const totalStrength = (char.strength || 1) + (setBonuses.strength || 0) + itemStr;
@@ -3577,6 +3578,8 @@ function calcBaseDamage(char, equippedItems) {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.dmg_min) dmgMin += data.stats.dmg_min;
             if (data?.stats?.dmg_max) dmgMax += data.stats.dmg_max;
+            if (data?.wp_stats?.dmg_min) dmgMin += data.wp_stats.dmg_min;
+            if (data?.wp_stats?.dmg_max) dmgMax += data.wp_stats.dmg_max;
         } catch {}
     }
     return { dmgMin, dmgMax };
@@ -3604,21 +3607,19 @@ function calcArmorValue(char, equippedItems) {
 }
 
 function calcElemDmg(equippedItems) {
-    const dmg = { pyro:0, water:0, wind:0, electro:0 };
-    const setBonuses = getEquippedSetBonuses(equippedItems);
-    for (const elem of ELEMENTS) {
-        dmg[elem] += setBonuses[`${elem}_dmg`] || 0;
-    }
+    const totals = { pyro:0, water:0, wind:0, electro:0 };
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (!data?.stats) continue;
-            for (const elem of ELEMENTS) {
-                if (data.stats[`${elem}_dmg`]) dmg[elem] += data.stats[`${elem}_dmg`];
+            const s = data?.stats || {};
+            for (const elem of ['pyro','water','wind','electro']) {
+                const k = elem + '_dmg';
+                if (s[k]) totals[elem] += Number(s[k]);
+                if (data?.wp_stats?.[k]) totals[elem] += Number(data.wp_stats[k]);
             }
         } catch {}
     }
-    return dmg;
+    return totals;
 }
 
 function calcElemResist(char, equippedItems) {
@@ -3630,9 +3631,10 @@ function calcElemResist(char, equippedItems) {
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (!data?.stats) continue;
+            if (!data?.stats && !data?.wp_stats) continue;
             for (const elem of ELEMENTS) {
-                if (data.stats[`${elem}_resist`]) resist[elem] += data.stats[`${elem}_resist`];
+                if (data.stats?.[`${elem}_resist`]) resist[elem] += data.stats[`${elem}_resist`];
+                if (data.wp_stats?.[`${elem}_resist`]) resist[elem] += data.wp_stats[`${elem}_resist`];
             }
         } catch {}
     }
@@ -3645,6 +3647,7 @@ function getEquippedStatTotal(equippedItems, statName) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.[statName]) total += Number(data.stats[statName]);
+            if (data?.wp_stats?.[statName]) total += Number(data.wp_stats[statName]);
         } catch {}
     }
     return total;
