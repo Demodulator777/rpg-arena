@@ -4404,6 +4404,12 @@ function renderForge() {
             <div class="forge-grid">${pieceCards}</div>
         </div>`;
     }).join('');
+
+    const upgradeBtn = document.getElementById('weapon-upgrade-card');
+    if (upgradeBtn && !upgradeBtn.dataset._bound) {
+        upgradeBtn.dataset._bound = '1';
+        upgradeBtn.addEventListener('click', openWeaponUpgrade);
+    }
 }
 
 function openWeaponUpgrade() {
