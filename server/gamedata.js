@@ -298,22 +298,22 @@ const RAW_MATERIALS = {
 
 // ── Components (your originals) ───────────────────────────────────────────
 const COMPONENTS = {
-    iron_ingot:     { name:'Iron Ingot',     emoji:'🔩', recipe:{ iron_ore:3 },                              goldCost:20   },
-    hardwood_plank: { name:'Hardwood Plank', emoji:'🪚', recipe:{ wood:3 },                                  goldCost:15   },
-    mithril_ingot:  { name:'Mithril Ingot',  emoji:'⚙️', recipe:{ mithril_ore:3 },                          goldCost:80   },
-    tanned_hide:    { name:'Tanned Hide',    emoji:'🧶', recipe:{ wolf_pelt:2, herbs:1 },                    goldCost:25   },
-    poison_extract: { name:'Poison Extract', emoji:'⚗️', recipe:{ poison_gland:2 },                         goldCost:40   },
-    arcane_shard:   { name:'Arcane Shard',   emoji:'💠', recipe:{ swamp_crystal:2, arcane_dust:1 },          goldCost:120  },
-    frost_core:     { name:'Frost Core',     emoji:'🧊', recipe:{ frost_essence:2 },                        goldCost:150  },
-    dragon_plate:   { name:'Dragon Plate',   emoji:'🛡️', recipe:{ dragon_scale_shard:3, mithril_ore:2 },    goldCost:300  },
-    void_crystal:   { name:'Void Crystal',   emoji:'🔮', recipe:{ void_shard:2, rune_fragment:1 },           goldCost:500  },
-    shadow_weave:   { name:'Shadow Weave',   emoji:'🕸️', recipe:{ shadow_essence:2, arcane_dust:2 },         goldCost:800  },
-    demon_alloy:    { name:'Demon Alloy',    emoji:'⚡', recipe:{ demon_core:1, mithril_ore:3 },             goldCost:1200 },
-    abyss_weave:    { name:'Abyss Weave',    emoji:'🕸️', recipe:{ abyss_crystal:2, shadow_essence:1 },        goldCost:1000 },
-    void_plate:     { name:'Void Plate',     emoji:'🛡️', recipe:{ null_essence:2, abyss_fragment:1 },         goldCost:1100 },
-    crimson_alloy:  { name:'Crimson Alloy',  emoji:'⚡', recipe:{ crimson_crystal:2, infernal_core:1 },        goldCost:1200 },
-    shadowsteel_bar:{ name:'Shadowsteel Bar',emoji:'⚙️', recipe:{ shadowsteel:3, soul_essence:1 },            goldCost:900  },
-    eternal_essence:{ name:'Eternal Essence',emoji:'💠', recipe:{ dark_essence:2, primordial_shard:1, eternal_core:1 }, goldCost:1500 },
+    iron_ingot:     { name:'Iron Ingot',     emoji:'🔩', recipe:{ iron_ore:3 },                              goldCost:20,   rarity:'common'    },
+    hardwood_plank: { name:'Hardwood Plank', emoji:'🪚', recipe:{ wood:3 },                                  goldCost:15,   rarity:'common'    },
+    mithril_ingot:  { name:'Mithril Ingot',  emoji:'⚙️', recipe:{ mithril_ore:3 },                          goldCost:80,   rarity:'rare'      },
+    tanned_hide:    { name:'Tanned Hide',    emoji:'🧶', recipe:{ wolf_pelt:2, herbs:1 },                    goldCost:25,   rarity:'uncommon'  },
+    poison_extract: { name:'Poison Extract', emoji:'⚗️', recipe:{ poison_gland:2 },                         goldCost:40,   rarity:'uncommon'  },
+    arcane_shard:   { name:'Arcane Shard',   emoji:'💠', recipe:{ swamp_crystal:2, arcane_dust:1 },          goldCost:120,  rarity:'rare'      },
+    frost_core:     { name:'Frost Core',     emoji:'🧊', recipe:{ frost_essence:2 },                        goldCost:150,  rarity:'rare'      },
+    dragon_plate:   { name:'Dragon Plate',   emoji:'🛡️', recipe:{ dragon_scale_shard:3, mithril_ore:2 },    goldCost:300,  rarity:'epic'      },
+    void_crystal:   { name:'Void Crystal',   emoji:'🔮', recipe:{ void_shard:2, rune_fragment:1 },           goldCost:500,  rarity:'epic'      },
+    shadow_weave:   { name:'Shadow Weave',   emoji:'🕸️', recipe:{ shadow_essence:2, arcane_dust:2 },         goldCost:800,  rarity:'epic'      },
+    demon_alloy:    { name:'Demon Alloy',    emoji:'⚡', recipe:{ demon_core:1, mithril_ore:3 },             goldCost:1200, rarity:'legendary' },
+    abyss_weave:    { name:'Abyss Weave',    emoji:'🕸️', recipe:{ abyss_crystal:2, shadow_essence:1 },        goldCost:1000, rarity:'epic'      },
+    void_plate:     { name:'Void Plate',     emoji:'🛡️', recipe:{ null_essence:2, abyss_fragment:1 },         goldCost:1100, rarity:'epic'      },
+    crimson_alloy:  { name:'Crimson Alloy',  emoji:'⚡', recipe:{ crimson_crystal:2, infernal_core:1 },        goldCost:1200, rarity:'legendary' },
+    shadowsteel_bar:{ name:'Shadowsteel Bar',emoji:'⚙️', recipe:{ shadowsteel:3, soul_essence:1 },            goldCost:900,  rarity:'rare'      },
+    eternal_essence:{ name:'Eternal Essence',emoji:'💠', recipe:{ dark_essence:2, primordial_shard:1, eternal_core:1 }, goldCost:1500, rarity:'legendary' },
 };
 
 // ── Rarity colours ────────────────────────────────────────────────────────
