@@ -2125,7 +2125,7 @@ function renderCharacter() {
     const hpColor = hpPct>60?'#2ecc71':hpPct>30?'#f39c12':'#e74c3c';
     const maxStat = Math.max(c.strength,c.defense,c.agility,c.magic,c.vitality||10,c.hit_chance||0,c.crit_chance||0,30);
 
-    const STAT_KEYS = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance','hp_max','armor'];
+    const STAT_KEYS = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance','hp_max','armor','pyro_dmg','water_dmg','wind_dmg','electro_dmg','pyro_resist','water_resist','wind_resist','electro_resist'];
     const itemBonus = {};
     STAT_KEYS.forEach(k => { itemBonus[k] = 0; });
     Object.values(eq).forEach(item => {
@@ -4427,7 +4427,7 @@ function openWeaponUpgrade() {
 
 function buildWeaponDialog(dialog, weap) {
     window._pendingWeaponStats = {};
-    const validStatLabels = { dmg_min:'Min Dmg', dmg_max:'Max Dmg', strength:'STR', agility:'AGI', magic:'MAG', defense:'DEF', vitality:'VIT', hit_chance:'Hit', crit_chance:'Crit', armor:'Armor', hp_max:'HP' };
+    const validStatLabels = { dmg_min:'Min Dmg', dmg_max:'Max Dmg', strength:'STR', agility:'AGI', magic:'MAG', defense:'DEF', vitality:'VIT', hit_chance:'Hit', crit_chance:'Crit', armor:'Armor', hp_max:'HP', pyro_dmg:'Pyro Dmg', water_dmg:'Water Dmg', wind_dmg:'Wind Dmg', electro_dmg:'Electro Dmg', pyro_resist:'Pyro Res', water_resist:'Water Res', wind_resist:'Wind Res', electro_resist:'Electro Res' };
 
     dialog.innerHTML = `
         <div style="padding:20px;display:flex;flex-direction:column;gap:12px;max-height:80vh;overflow-y:auto">
@@ -4495,8 +4495,8 @@ function buildWeaponDialog(dialog, weap) {
 function renderDialogStatGrid(weap) {
     const container = document.getElementById('weapon-dialog-stats');
     if (!container) return;
-    const validStats = ['dmg_min','dmg_max','strength','agility','magic','defense','vitality','hit_chance','crit_chance','armor','hp_max'];
-    const labels = { dmg_min:'Min Dmg', dmg_max:'Max Dmg', strength:'STR', agility:'AGI', magic:'MAG', defense:'DEF', vitality:'VIT', hit_chance:'Hit', crit_chance:'Crit', armor:'Armor', hp_max:'HP' };
+    const validStats = ['dmg_min','dmg_max','strength','agility','magic','defense','vitality','hit_chance','crit_chance','armor','hp_max','pyro_dmg','water_dmg','wind_dmg','electro_dmg','pyro_resist','water_resist','wind_resist','electro_resist'];
+    const labels = { dmg_min:'Min Dmg', dmg_max:'Max Dmg', strength:'STR', agility:'AGI', magic:'MAG', defense:'DEF', vitality:'VIT', hit_chance:'Hit', crit_chance:'Crit', armor:'Armor', hp_max:'HP', pyro_dmg:'Pyro Dmg', water_dmg:'Water Dmg', wind_dmg:'Wind Dmg', electro_dmg:'Electro Dmg', pyro_resist:'Pyro Res', water_resist:'Water Res', wind_resist:'Wind Res', electro_resist:'Electro Res' };
     const pending = window._pendingWeaponStats || {};
     const totalUsed = Object.values(pending).reduce((s,v) => s+v, 0);
     container.innerHTML = validStats.map(s => {
