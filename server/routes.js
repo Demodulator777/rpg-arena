@@ -7259,7 +7259,8 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [inventoryId, char.id]);
         if (!item) return res.status(400).json({ error: 'Item not found' });
         const itemData = JSON.parse(item.item_data);
-        const rawRarity = itemData.rarity || RAW_MATERIALS[itemData.id]?.rarity || COMPONENTS[itemData.id]?.rarity || 'common';
+        const itemId = itemData.id;
+        const rawRarity = itemData.rarity || RAW_MATERIALS[itemId]?.rarity || COMPONENTS[itemId]?.rarity || 'common';
         const rarity = rawRarity;
         const weight = WEAPON_FEED_WEIGHTS[rarity] || 1;
         const qty = itemData.qty || 1;
