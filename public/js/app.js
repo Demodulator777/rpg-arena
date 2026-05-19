@@ -3334,6 +3334,9 @@ function renderWorldMap() {
     } 
     
     layer.innerHTML=svgLines+pinsHtml;
+    // Restore overworld map background
+    const bgImg = document.getElementById('world-map-bg');
+    if (bgImg) bgImg.src = '/images/world-map.jpg';
 }
 
 function onMapNodeClick(zoneId) {
@@ -10270,14 +10273,20 @@ function renderAbyssMap() {
         </div>`;
     }).join('');
     
-    // Add exit button
-    const exitButton = `
+    // Add exit button (only available from Shadowfen — the abyss entrance)
+    const firstZone = Object.values(zones)[0];
+    const showExit = currentZone === 'shadowfen';
+    const exitButton = showExit ? `
         <div style="position:absolute;bottom:20px;right:20px;z-index:20;">
             <button class="btn-primary" ${actionAttrs('exitAbyss')} style="background:rgba(231,76,60,0.8);border-color:#e74c3c;">
                 🚪 Return to Dark City
             </button>
         </div>
-    `;
+    ` : '';
+    
+    // Swap map background to abyss-map
+    const bgImg = document.getElementById('world-map-bg');
+    if (bgImg) bgImg.src = '/images/abyss-map.jpg';
     
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
