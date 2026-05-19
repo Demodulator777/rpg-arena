@@ -8503,7 +8503,7 @@ function replyChatMessage(messageId) {
     const recipientInput = document.getElementById('chat-recipient-input');
     if (!input) return;
     
-    recipientInput.value = '';
+    if (recipientInput) recipientInput.value = '';
     chatPmTarget = '';
     
     input.value = `@${message.sender_name} `;
