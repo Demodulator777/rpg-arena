@@ -7093,10 +7093,12 @@ router.get('/forge/recipes', auth, async (req, res) => {
 
         const equippedArray = await getEquippedItemsArray(db, char.id);
         const equippedRecipeIds = new Set();
+        const equippedSetIds = new Set();
         for (const row of equippedArray) {
             try {
                 const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data;
                 if (d.id) equippedRecipeIds.add(d.id);
+                if (d.setId) equippedSetIds.add(d.setId);
             } catch {}
         }
 
@@ -7115,7 +7117,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
                 goldCost: scaledGoldCost,
                 zoneUnlocked,
                 canCraft,
-                equipped: equippedRecipeIds.has(rec.id)
+                equipped: equippedRecipeIds.has(rec.id) || [...equippedRecipeIds].some(eid => eid.startsWith(rec.id + '_'))
             };
         });
         // Extract equipped weapon leveling data
