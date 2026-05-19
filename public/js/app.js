@@ -2223,7 +2223,86 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
             data-item="${itemData}">
             <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
         </div>`;
-    }).join('');
+}).join('');
+
+const eqGrid = `
+<div class="eq-stage"><div class="eq-grid">${mainEqGrid}</div>
+<div class="eq-accessory-row">
+    ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
+</div></div>`;
+
+    // FIX: Use c.mp_max from backend response (already includes premium bonus)
+    const mpCurrent = c.mission_points || 0;
+    const mpMax = c.mp_max || 120;  // This should already include Arcane Reservoir 2x bonus
+    const mpPct = Math.min(100, Math.round((mpCurrent / mpMax) * 100));
+
+    const charSheet = document.getElementById('char-sheet');
+    if (!charSheet) return;
+    const classTheme = normalizeClassTheme(c.class);
+    const classBackground = getClassThemeBackground(c.class);
+    charSheet.innerHTML = `
+    <div class="class-scene class-scene-${classTheme}" style="--class-bg:${classBackground}">
+      <div class="class-scene-backdrop"></div>
+      <div class="class-scene-glow"></div>
+      <div class="class-scene-content char-grid">
+        <div class="char-panel">
+          <h3>STATS</h3>
+          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str')}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def')}
+          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
+          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag')}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit')}
+          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
+          <div class="char-combat-summary">
+            <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
+              ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
+            </span>
+            <span class="char-combat-summary-item">🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
+            ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ +10% HP/hr</span>':''}
+          </div>
+          <div class="element-strip">
+            <div class="element-strip-heading">Damage</div>
+            <div class="element-badge-row">${elementDamageBadges.join('')}</div>
+            <div class="element-strip-heading">Resist</div>
+            <div class="element-badge-row">${elementResistBadges.join('')}</div>
+          </div>
+          <button class="achievement-launch-btn" ${actionAttrs('openAchievementsModal')}>
+            <span>🏆 Achievements</span>
+            <span id="achievements-summary-inline" class="achievement-launch-meta">Loading...</span>
+          </button>
+          <div class="profile-badges-inline">
+            ${(Array.isArray(c.profile_badges) ? c.profile_badges : []).slice(0,3).map(id => `<span class="profile-badge-chip" data-badge-id="${escHtml(id)}">🏅</span>`).join('')}
+            ${((Array.isArray(c.profile_badges) ? c.profile_badges : []).length ? '' : '<span class="profile-badges-empty">No profile badges set</span>')}
+          </div>
+          <button class="achievement-launch-btn" ${actionAttrs('openBadgePickerModal')}>
+            <span>🎖️ Profile Badges</span>
+            <span class="achievement-launch-meta">Pick up to 3</span>
+          </button>
+        </div>
+        <div class="char-panel char-panel-equipment">
+          <h3>EQUIPMENT</h3>
+          ${eqGrid}
+        </div>
+        <div class="char-panel char-panel-record">
+          <h3>RECORD</h3>
+          <div class="record-row">
+            <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
+            <div class="record-item"><div class="record-num">${c.wins+c.losses+c.draws}</div><div class="record-lbl">BATTLES</div></div>
+            <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
+          </div>
+          ${c.draws?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 14px;font-size:0.78rem;color:var(--text-dim)">Draws <strong style="color:var(--gold);float:right">${c.draws}</strong></div>`:''}
+          ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
+          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
+          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
+        </div>
+      </div>
+    </div>`;
+    ensureAchievementsModal();
+    ensureBadgePickerModal();
+    renderTopBar();
+    loadAchievements();
+    refreshInlineBadgeChips();
 }
 function statRow(icon,label,val,max,cls) {
     return `<div class="stat-row"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span>
@@ -4237,24 +4316,24 @@ function renderForge() {
     const rarityColor = { epic:'#e67e22', legendary:'#f1c40f', rare:'#9b59b6', common:'#aaa' };
     const slotIcon = { weapon:'⚔️', armor:'🛡️', helmet:'⛑️', shield:'🔰', boots:'👢' };
 
-    const weave = forgeData.weapon;
-    const weaponHtml = weave ? `
-        <button class="forge-card" id="weapon-upgrade-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;background:none;border-width:1px;border-style:solid;border-radius:12px" ${actionAttrs('openWeaponUpgrade')}>
-            <span style="font-size:1.5rem;flex-shrink:0">${itemIcon(weave,'2.2rem')}</span>
+    const weap = forgeData.weapon;
+    const weaponHtml = weap ? `
+        <div class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer" data-action="openWeaponUpgrade">
+            <span style="font-size:1.5rem;flex-shrink:0">${itemIcon(weap,'2.2rem')}</span>
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:8px">
-                    <span class="forge-card-name">${escHtml(weave.name)}</span>
-                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#f1c40f22;color:#f1c40f;border:1px solid #f1c40f44;font-weight:700">Lv.${weave.wp_level}/5</span>
-                    ${weave.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#2ecc7122;color:#2ecc71;border:1px solid #2ecc7144">MAXED</span>':''}
+                    <span class="forge-card-name">${escHtml(weap.name)}</span>
+                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#f1c40f22;color:#f1c40f;border:1px solid #f1c40f44;font-weight:700">Lv.${weap.wp_level}/5</span>
+                    ${weap.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#2ecc7122;color:#2ecc71;border:1px solid #2ecc7144">MAXED</span>':''}
                 </div>
                 <div style="display:flex;gap:12px;margin-top:4px;font-size:0.7rem;color:var(--text-dim)">
-                    <span>XP ${weave.wp_xp}/${weave.wp_xp_target}</span>
-                    <span>Feed ${weave.wp_feed}/${weave.wp_feed_target}</span>
-                    ${weave.wp_stat_points>0?`<span style="color:var(--gold)">✨ ${weave.wp_stat_points}pts</span>`:''}
+                    <span>XP ${weap.wp_xp}/${weap.wp_xp_target}</span>
+                    <span>Feed ${weap.wp_feed}/${weap.wp_feed_target}</span>
+                    ${weap.wp_stat_points>0?`<span style="color:var(--gold)">✨ ${weap.wp_stat_points}pts</span>`:''}
                 </div>
             </div>
-            <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weave.maxed?'MAXED':'Upgrade →'}</span>
-        </button>` : '';
+            <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weap.maxed?'MAXED':'Upgrade →'}</span>
+        </div>` : '';
 
     el.innerHTML = weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
         const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
