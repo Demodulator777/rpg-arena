@@ -75,9 +75,9 @@ const ZONES = {
 const ABYSS_ZONES = {
     shadowfen: {
         name: 'Shadowfen Depths', emoji: '🌑', minLevel: 39,
-        mapImg: '/images/zones/abyss/shadowfen.jpg',
+        mapImg: '/images/zones/abyss-map.jpg',
         bgImg: '/images/zones/abyss/shadowfen-bg.jpg',
-        pos: { x: 20, y: 80 },
+        pos: { x: 25, y: 72 },
         travelTime: 180,
         description: 'The corrupted entrance to the Abyss. Darkness seeps from every crack.',
         spots: [
@@ -110,9 +110,9 @@ const ABYSS_ZONES = {
     },
     crimson: {
         name: 'Crimson Wastes', emoji: '🌋', minLevel: 50,
-        mapImg: '/images/zones/abyss/crimson.jpg',
+        mapImg: '/images/zones/abyss-map.jpg',
         bgImg: '/images/zones/abyss/crimson-bg.jpg',
-        pos: { x: 40, y: 75 },
+        pos: { x: 72, y: 70 },
         travelTime: 240,
         description: 'A desolate landscape of blood-red sands and eternal fire.',
         spots: [
@@ -145,9 +145,9 @@ const ABYSS_ZONES = {
     },
     void: {
         name: 'Abyssal Void', emoji: '🕳️', minLevel: 60,
-        mapImg: '/images/zones/abyss/void.jpg',
+        mapImg: '/images/zones/abyss-map.jpg',
         bgImg: '/images/zones/abyss/void-bg.jpg',
-        pos: { x: 55, y: 65 },
+        pos: { x: 50, y: 45 },
         travelTime: 300,
         description: 'The space between worlds. Reality bends here.',
         spots: [
@@ -180,9 +180,9 @@ const ABYSS_ZONES = {
     },
     citadel: {
         name: 'Void Citadel', emoji: '🏰', minLevel: 70,
-        mapImg: '/images/zones/abyss/citadel.jpg',
+        mapImg: '/images/zones/abyss-map.jpg',
         bgImg: '/images/zones/abyss/citadel-bg.jpg',
-        pos: { x: 70, y: 55 },
+        pos: { x: 25, y: 28 },
         travelTime: 360,
         description: 'A fortress built from nightmares.',
         spots: [
@@ -215,9 +215,9 @@ const ABYSS_ZONES = {
     },
     eternal_dark: {
         name: 'The Eternal Dark', emoji: '🌌', minLevel: 80,
-        mapImg: '/images/zones/abyss/eternal.jpg',
+        mapImg: '/images/zones/abyss-map.jpg',
         bgImg: '/images/zones/abyss/eternal-bg.jpg',
-        pos: { x: 85, y: 40 },
+        pos: { x: 78, y: 25 },
         travelTime: 420,
         description: 'The source of all darkness. Few return.',
         spots: [
