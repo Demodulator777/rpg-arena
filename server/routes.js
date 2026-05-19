@@ -8051,9 +8051,9 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
         `, [me.id, req.user.userId, now]);
 
-        const myCooldownRows = await dbAll(db, 'SELECT defender_user_id FROM account_attack_cooldowns WHERE attacker_user_id=? AND expires_at>?', [req.user.userId, now]);
-        const myCooldowns = new Set(myCooldownRows.map(r => r.defender_user_id));
-        candidates = candidates.filter(c => !myCooldowns.has(c.user_id));
+        const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
+        const myCooldowns = new Set(myCooldownRows.map(r => r.defender_id));
+        candidates = candidates.filter(c => !myCooldowns.has(c.id));
 
         if (!candidates.length) return res.json({ active: false });
         let target;
@@ -8100,7 +8100,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             const mins = Math.ceil((defGlobalCooldown - now) / 60);
             return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
         }
-        const perTarget = await dbGet(db, 'SELECT expires_at FROM account_attack_cooldowns WHERE attacker_user_id=? AND defender_user_id=?', [req.user.userId, defender.user_id]);
+        const perTarget = await dbGet(db, 'SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
         if (perTarget && perTarget.expires_at > now) {
             const secs = perTarget.expires_at - now;
             return res.status(400).json({ error: `Cannot attack ${defender.name} again for ${secs < 3600 ? Math.ceil(secs/60)+'m' : Math.ceil(secs/3600)+'h'}.` });
@@ -8304,8 +8304,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         try {
             await dbRun(
                 db,
-                'INSERT OR REPLACE INTO account_attack_cooldowns (attacker_user_id,defender_user_id,expires_at) VALUES (?,?,?)',
-                [req.user.userId, freshD.user_id, now + 43200]
+                'INSERT OR REPLACE INTO attack_cooldowns (attacker_id,defender_id,expires_at) VALUES (?,?,?)',
+                [freshA.id, freshD.id, now + 43200]
             );
         } catch {}
         await dbRun(db, 'UPDATE characters SET attack_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
@@ -8405,7 +8405,7 @@ router.get('/player/:id', auth, async (req, res) => {
         let perTargetCooldown = 0;
         if (me) {
             try {
-                const cd = await dbGet(db, 'SELECT expires_at FROM account_attack_cooldowns WHERE attacker_user_id=? AND defender_user_id=?', [req.user.userId, player.user_id]);
+                const cd = await dbGet(db, 'SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?', [character.id, player.id]);
                 if (cd && cd.expires_at > now) perTargetCooldown = cd.expires_at - now;
             } catch {}
         }
