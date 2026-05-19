@@ -4316,7 +4316,7 @@ function renderForge() {
     const weaponHtml = weap ? `
         <div class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;flex-direction:column;min-height:220px">
             <div class="forge-card-header">
-                <span style="font-size:1.3rem">${weap.emoji||'⚔️'}</span>
+                <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(weap,'1.8rem')}</span>
                 <div>
                     <div style="display:flex;align-items:center;gap:8px">
                         <span class="forge-card-name">${escHtml(weap.name)}</span>
