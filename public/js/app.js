@@ -4940,6 +4940,8 @@ function renderInventory(data) {
         
         // Define exchange rates
         const exchangeRates = {
+            abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', fragmentCost: 20 },
+            abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', fragmentCost: 30 },
             wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
             iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
             wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
