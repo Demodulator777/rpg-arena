@@ -2131,6 +2131,10 @@ function renderCharacter() {
     Object.values(eq).forEach(item => {
         if (!item?.stats) return;
         STAT_KEYS.forEach(k => { if (item.stats[k]) itemBonus[k] += item.stats[k]; });
+        // Weapon leveling bonuses
+        if (item.wp_stats) {
+            STAT_KEYS.forEach(k => { if (item.wp_stats[k]) itemBonus[k] += item.wp_stats[k]; });
+        }
     });
     const setBonus = c.equipped_set_bonuses || {};
 
@@ -2153,8 +2157,8 @@ function renderCharacter() {
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0), 0);
-    const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0), 0);
+    const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
+    const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
     const finalDmgMin = baseDmgMin + gearDmgMin;
     const finalDmgMax = baseDmgMax + gearDmgMax;
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
@@ -5112,7 +5116,10 @@ function showEqTooltip(event, itemJson) {
         .filter(([,v]) => typeof v === 'number' && v !== 0)
         .map(([k,v]) => {
             const label = STAT_LABELS[k] || k.replace(/_/g,' ');
-            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${v>0?'#2ecc71':'#e74c3c'}">${v>0?'+':''}${v}</span></div>`;
+            const wpBonus = item.wp_stats?.[k] || 0;
+            const total = v + wpBonus;
+            const bonusTag = wpBonus > 0 ? `<span style="color:#2ecc71;font-size:0.65rem;margin-left:3px">+${wpBonus} wp</span>` : '';
+            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${total>0?'#2ecc71':'#e74c3c'}">${total>0?'+':''}${total}</span>${bonusTag}</div>`;
         }).join('');
 
     tooltip.innerHTML = `
