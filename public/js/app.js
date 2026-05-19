@@ -5116,10 +5116,8 @@ function showEqTooltip(event, itemJson) {
         .filter(([,v]) => typeof v === 'number' && v !== 0)
         .map(([k,v]) => {
             const label = STAT_LABELS[k] || k.replace(/_/g,' ');
-            const wpBonus = item.wp_stats?.[k] || 0;
-            const total = v + wpBonus;
-            const bonusTag = wpBonus > 0 ? `<span style="color:#2ecc71;font-size:0.65rem;margin-left:3px">+${wpBonus} wp</span>` : '';
-            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${total>0?'#2ecc71':'#e74c3c'}">${total>0?'+':''}${total}</span>${bonusTag}</div>`;
+            const total = v + (item.wp_stats?.[k] || 0);
+            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${total>0?'#2ecc71':'#e74c3c'}">${total>0?'+':''}${total}</span></div>`;
         }).join('');
 
     tooltip.innerHTML = `
