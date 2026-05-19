@@ -4473,15 +4473,14 @@ function buildWeaponDialog(dialog, weap) {
             </div>`}
 
             ${weap.wp_stat_points>0 ? `
-                <div style="background:rgba(241,196,15,0.06);border:1px solid rgba(241,196,15,0.2);border-radius:10px;padding:12px;width:100%">
-                    <div id="weapon-stats-header" style="font-size:0.8rem;font-weight:700;color:var(--gold);margin-bottom:8px">✨ ${weap.wp_stat_points} Stat Points Available</div>
-                    <div id="weapon-dialog-stats" style="display:flex;flex-wrap:wrap;gap:6px;width:100%"></div>
-                    <button class="btn-forge" id="btn-dialog-apply-stats" style="margin-top:12px;display:none;width:100%" data-action="applyWeaponStats">Apply Stats</button>
-                </div>` : ''}
+            <div style="background:rgba(241,196,15,0.06);border:1px solid rgba(241,196,15,0.2);border-radius:10px;padding:12px">
+                <div id="weapon-stats-header" style="font-size:0.8rem;font-weight:700;color:var(--gold);margin-bottom:8px">✨ ${weap.wp_stat_points} Stat Points Available</div>
+                <div id="weapon-dialog-stats" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+                <button class="btn-forge" id="btn-dialog-apply-stats" style="margin-top:10px;display:none;width:100%" data-action="applyWeaponStats">Apply Stats</button>
+            </div>` : ''}
         </div>`;
 
     if (weap.wp_stat_points > 0) renderDialogStatGrid(weap);
-    
     dialog.querySelectorAll('[data-action]').forEach(el => {
         el.addEventListener('click', async () => {
             const action = el.dataset.action;
@@ -4503,20 +4502,16 @@ function renderDialogStatGrid(weap) {
     container.innerHTML = validStats.map(s => {
         const base = weap.wp_stats[s] || 0;
         const add = pending[s] || 0;
-        const addDisplay = add > 0 ? '+' + add : '';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem;width:100%">
-            <span style="white-space:nowrap;text-overflow:ellipsis;overflow:hidden;flex:1">${labels[s]||s}</span>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                <span style="min-width:18px;text-align:right;color:var(--text-dim)">${base}</span>
-                <span style="min-width:28px;text-align:left;color:var(--green)">${addDisplay}</span>
-                <div style="display:flex;gap:2px">
-                    <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
-                    <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
-                </div>
+        return `<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
+            <span style="min-width:55px">${labels[s]||s}</span>
+            <span style="min-width:18px;text-align:right;color:var(--text-dim)">${base}</span>
+            <span style="min-width:28px;text-align:left;color:var(--green)">${add>0?`+${add}`:''}</span>
+            <div style="display:flex;gap:2px;margin-left:auto;flex-shrink:0">
+                <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
+                <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
             </div>
         </div>`;
     }).join('');
-    
     container.querySelectorAll('.stat-plus').forEach(btn => {
         btn.addEventListener('click', () => {
             const stat = btn.dataset.stat;
@@ -4527,7 +4522,6 @@ function renderDialogStatGrid(weap) {
             renderDialogStatGrid(weap);
         });
     });
-    
     container.querySelectorAll('.stat-minus').forEach(btn => {
         btn.addEventListener('click', () => {
             const stat = btn.dataset.stat;
@@ -4538,7 +4532,6 @@ function renderDialogStatGrid(weap) {
             renderDialogStatGrid(weap);
         });
     });
-    
     const applyBtn = document.getElementById('btn-dialog-apply-stats');
     if (applyBtn) applyBtn.style.display = totalUsed > 0 ? 'block' : 'none';
     const header = document.getElementById('weapon-stats-header');
@@ -4546,6 +4539,83 @@ function renderDialogStatGrid(weap) {
         const remaining = (weap?.wp_stat_points || 0) - totalUsed;
         header.textContent = `✨ ${remaining} / ${weap?.wp_stat_points || 0} Stat Points`;
     }
+}
+
+async function openWeaponFeedDialog(dialog, weap) {
+    if (!forgeData?.mats) return;
+    const entries = Object.entries(forgeData.mats)
+        .filter(([,m]) => m.qty > 0 && m.type === 'raw_mat')
+        .sort((a,b) => (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[a[1]?.rarity||'common']||0) - (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[b[1]?.rarity||'common']||0));
+    if (!entries.length) { showMsg('forge-msg','No materials to feed.',true); return; }
+
+    const savedHtml = dialog.innerHTML;
+    dialog.innerHTML = `
+        <div style="padding:16px;display:flex;flex-direction:column;gap:8px;max-height:70vh">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
+                <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-back-btn">← Back</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:0.65rem;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;justify-content:center">
+                <span style="color:var(--text-dim)">Common +1</span>
+                <span style="color:#2ecc71">Uncommon +3</span>
+                <span style="color:#3498db">Rare +8</span>
+                <span style="color:#9b59b6">Epic +20</span>
+                <span style="color:#f1c40f">Legendary +50</span>
+            </div>
+            <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
+                ${entries.map(([id, mat]) =>
+                    `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
+                        <span style="font-size:1.1rem;flex-shrink:0">${mat.emoji||'📦'}</span>
+                        <span style="flex:1;min-width:0">${mat.name||id}</span>
+                        <span style="color:var(--text-dim);font-size:0.7rem;flex-shrink:0">×${mat.qty}</span>
+                        <span style="font-size:0.6rem;padding:1px 4px;border-radius:4px;flex-shrink:0;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
+                        <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
+                            <button class="btn-sm qty-btn" data-dir="-1" style="font-size:0.7rem;padding:2px 5px;min-width:20px">−</button>
+                            <input class="qty-input" type="number" min="1" max="${mat.qty}" value="1" style="width:36px;text-align:center;font-size:0.75rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:inherit;padding:2px 0">
+                            <button class="btn-sm qty-btn" data-dir="1" style="font-size:0.7rem;padding:2px 5px;min-width:20px">+</button>
+                            <button class="btn-sm feed-go-btn" style="font-size:0.65rem;padding:2px 6px;background:var(--green-dim);border:1px solid rgba(46,204,113,0.3)">Feed</button>
+                        </div>
+                    </div>`
+                ).join('')}
+            </div>
+        </div>`;
+
+    dialog.querySelectorAll('.feed-row').forEach(row => {
+        const max = parseInt(row.dataset.max) || 1;
+        const input = row.querySelector('.qty-input');
+        const feedBtn = row.querySelector('.feed-go-btn');
+        const feedInvId = row.dataset.invid;
+
+        row.querySelectorAll('.qty-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                let v = parseInt(input.value) || 1;
+                v = Math.max(1, Math.min(max, v + parseInt(btn.dataset.dir)));
+                input.value = v;
+            });
+        });
+
+        input.addEventListener('change', () => {
+            let v = parseInt(input.value) || 1;
+            v = Math.max(1, Math.min(max, v));
+            input.value = v;
+        });
+
+        feedBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const qty = parseInt(input.value) || 1;
+            feedBtn.disabled = true;
+            feedBtn.textContent = '...';
+            try {
+                const d = await api('POST','/game/forge/weapon/feed',{inventoryId: feedInvId, qty});
+                forgeData = await api('GET','/game/forge/recipes');
+                showMsg('forge-msg', d.message);
+                buildWeaponDialog(dialog, forgeData.weapon);
+            } catch(e) { showMsg('forge-msg', e.message, true); feedBtn.disabled = false; feedBtn.textContent = 'Feed'; }
+        });
+    });
+    const backBtn = document.getElementById('feed-back-btn');
+    if (backBtn) backBtn.addEventListener('click', () => buildWeaponDialog(dialog, weap));
 }
 
 async function doWeaponLevelUp(dialog, weap) {
