@@ -4501,9 +4501,9 @@ function renderDialogStatGrid(weap) {
         const add = pending[s] || 0;
         return `<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
             <span style="min-width:55px">${labels[s]||s}</span>
-            <span style="color:var(--text-dim)">${base}</span>
-            ${add>0?`<span style="color:var(--green)">+${add}</span>`:''}
-            <div style="display:flex;gap:2px;margin-left:auto">
+            <span style="min-width:18px;text-align:right;color:var(--text-dim)">${base}</span>
+            <span style="min-width:28px;text-align:left;color:var(--green)">${add>0?`+${add}`:''}</span>
+            <div style="display:flex;gap:2px;margin-left:auto;flex-shrink:0">
                 <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
                 <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
             </div>
@@ -4556,7 +4556,7 @@ async function openWeaponFeedDialog(dialog, weap) {
                         <span style="font-size:0.6rem;padding:1px 4px;border-radius:4px;flex-shrink:0;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
                         <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
                             <button class="btn-sm qty-btn" data-dir="-1" style="font-size:0.7rem;padding:2px 5px;min-width:20px">−</button>
-                            <span class="qty-display" style="font-size:0.75rem;min-width:22px;text-align:center">1</span>
+                            <input class="qty-input" type="number" min="1" max="${mat.qty}" value="1" style="width:36px;text-align:center;font-size:0.75rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:inherit;padding:2px 0">
                             <button class="btn-sm qty-btn" data-dir="1" style="font-size:0.7rem;padding:2px 5px;min-width:20px">+</button>
                             <button class="btn-sm feed-go-btn" style="font-size:0.65rem;padding:2px 6px;background:var(--green-dim);border:1px solid rgba(46,204,113,0.3)">Feed</button>
                         </div>
@@ -4567,22 +4567,28 @@ async function openWeaponFeedDialog(dialog, weap) {
 
     dialog.querySelectorAll('.feed-row').forEach(row => {
         const max = parseInt(row.dataset.max) || 1;
-        const display = row.querySelector('.qty-display');
+        const input = row.querySelector('.qty-input');
         const feedBtn = row.querySelector('.feed-go-btn');
         const feedInvId = row.dataset.invid;
 
         row.querySelectorAll('.qty-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                let v = parseInt(display.textContent) || 1;
+                let v = parseInt(input.value) || 1;
                 v = Math.max(1, Math.min(max, v + parseInt(btn.dataset.dir)));
-                display.textContent = v;
+                input.value = v;
             });
+        });
+
+        input.addEventListener('change', () => {
+            let v = parseInt(input.value) || 1;
+            v = Math.max(1, Math.min(max, v));
+            input.value = v;
         });
 
         feedBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            const qty = parseInt(display.textContent) || 1;
+            const qty = parseInt(input.value) || 1;
             feedBtn.disabled = true;
             feedBtn.textContent = '...';
             try {
