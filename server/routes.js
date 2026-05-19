@@ -6878,12 +6878,14 @@ if (mission.map_type === 'abyss') {
 const mats = matsByZone[mission.zone] || (mission.map_type === 'abyss' ? matsByZone.shadowfen : matsByZone.forest);
         const addMaterialDrop = async (mat, qty) => {
             const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [freshChar.id, mat.id]);
+            const rarity = RAW_MATERIALS[mat.id]?.rarity || 'common';
             if (existing) {
                 const d = JSON.parse(existing.item_data);
                 d.qty = (d.qty || 1) + qty;
+                if (!d.rarity) d.rarity = rarity;
                 await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existing.id]);
             } else {
-                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)`, [freshChar.id, 'raw_mat', JSON.stringify({ ...mat, qty })]);
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)`, [freshChar.id, 'raw_mat', JSON.stringify({ ...mat, rarity, qty })]);
             }
             drops.push({ mat: mat.id, qty });
         };
@@ -7142,7 +7144,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
         // Enrich mats with rarity data from definitions
         for (const [id, mat] of Object.entries(mats)) {
             const def = RAW_MATERIALS[id] || COMPONENTS[id];
-            if (def && !mat.rarity) mat.rarity = def.rarity || 'common';
+            mat.rarity = def?.rarity || mat.rarity || 'common';
         }
         res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -7247,6 +7249,9 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
         const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
         initWeaponData(weaponData);
         if (weaponData.wp_level >= WEAPON_MAX_LEVEL) return res.status(400).json({ error: 'Weapon is already max level' });
+        const curFeed = weaponData.wp_feed || 0;
+        const feedNeeded = getWeaponFeedForLevel(weaponData.wp_level);
+        if (curFeed >= feedNeeded) return res.status(400).json({ error: 'Feed bar is already full! Level up to continue feeding.' });
 
         const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [inventoryId, char.id]);
         if (!item) return res.status(400).json({ error: 'Item not found' });
