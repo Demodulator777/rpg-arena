@@ -10285,9 +10285,9 @@ function renderAbyssMap() {
     const exitButton = showExit ? `
         <div style="position:absolute;left:40%;top:92%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center" ${actionAttrs('exitAbyss')} title="Return to Dark City">
             <div style="position:relative;display:inline-block">
-                <div style="width:72px;height:72px;border-radius:50%;border:3px solid #e74c3c;display:flex;align-items:center;justify-content:center;background:#2c3e50;box-shadow:0 0 0 3px rgba(231,76,60,0.3);font-size:13px;font-weight:700;color:#e74c3c;text-transform:uppercase;letter-spacing:2px">EXIT</div>
+                <img style="width:72px;height:72px;border-radius:50%;border:3px solid #e74c3c;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 0 3px rgba(231,76,60,0.3)" src="/images/zones/dark-city.jpg" alt="Dark City" data-error-background="#2c3e50">
+                <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.9);text-transform:uppercase;letter-spacing:2px">EXIT</span>
             </div>
-            <div style="text-align:center;margin-top:5px;font-size:10px;color:rgba(231,76,60,0.7)">Dark City</div>
         </div>
     ` : '';
     
