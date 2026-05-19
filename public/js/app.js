@@ -4318,7 +4318,7 @@ function renderForge() {
 
     const weap = forgeData.weapon;
     const weaponHtml = weap ? `
-        <div class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer" data-action="openWeaponUpgrade">
+        <button class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;background:none;border-width:1px;border-style:solid;border-radius:12px" ${actionAttrs('openWeaponUpgrade')}>
             <span style="font-size:1.5rem;flex-shrink:0">${itemIcon(weap,'2.2rem')}</span>
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:8px">
@@ -4333,7 +4333,7 @@ function renderForge() {
                 </div>
             </div>
             <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weap.maxed?'MAXED':'Upgrade →'}</span>
-        </div>` : '';
+        </button>` : '';
 
     el.innerHTML = weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
         const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
