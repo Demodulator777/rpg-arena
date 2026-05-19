@@ -5,6 +5,37 @@ const skillsModule = require('./skills');
 const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 const crypto = require('crypto');
 
+// ── Weapon leveling constants ──────────────────────────────────────────────
+const WEAPON_XP_PER_MISSION = 1;
+const WEAPON_XP_PER_PVP = 3;
+const WEAPON_MAX_LEVEL = 5;
+const WEAPON_FEED_WEIGHTS = { common:1, uncommon:3, rare:8, epic:20, legendary:50 };
+const WEAPON_STAT_POINTS_PER_LEVEL = 10;
+const getWeaponXPForLevel = (lvl) => lvl * 100;
+const getWeaponFeedForLevel = (lvl) => lvl * 50;
+
+function initWeaponData(itemData) {
+    if (!itemData.wp_level) itemData.wp_level = 1;
+    if (!itemData.wp_xp) itemData.wp_xp = 0;
+    if (!itemData.wp_feed) itemData.wp_feed = 0;
+    if (!itemData.wp_stats) itemData.wp_stats = {};
+    if (itemData.wp_stat_points == null) itemData.wp_stat_points = 0;
+    return itemData;
+}
+
+async function grantWeaponXP(db, charId, xpAmount) {
+    const eq = await getEquippedItemsArray(db, charId);
+    const weaponRow = eq.find(r => { try {
+        const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data;
+        return d.slot === 'weapon';
+    } catch { return false; }});
+    if (!weaponRow) return;
+    const data = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+    initWeaponData(data);
+    data.wp_xp = (data.wp_xp || 0) + xpAmount;
+    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), weaponRow.id]);
+}
+
 // Import skill tree functions
 const { 
     applyClassUpgradeCostModifier, 
@@ -6695,6 +6726,7 @@ if (freshChar.class === 'rogue') {
                 now
             });
             await recordShieldlessWin(db, freshChar, equippedArray);
+            await grantWeaponXP(db, freshChar.id, WEAPON_XP_PER_MISSION);
         }
         
         let goldEarned;
@@ -7081,7 +7113,38 @@ router.get('/forge/recipes', auth, async (req, res) => {
                 equipped: equippedRecipeIds.has(rec.id)
             };
         });
-        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS });
+        // Extract equipped weapon leveling data
+        let weaponData = null;
+        for (const row of equippedArray) {
+            try {
+                const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data;
+                if (d.slot === 'weapon') {
+                    initWeaponData(d);
+                    const nextXP = getWeaponXPForLevel(d.wp_level);
+                    const nextFeed = getWeaponFeedForLevel(d.wp_level);
+                    weaponData = {
+                        id: d.id,
+                        name: d.name,
+                        emoji: d.emoji,
+                        wp_level: d.wp_level,
+                        wp_xp: d.wp_xp,
+                        wp_xp_target: nextXP,
+                        wp_feed: d.wp_feed,
+                        wp_feed_target: nextFeed,
+                        wp_stat_points: d.wp_stat_points,
+                        wp_stats: d.wp_stats,
+                        maxed: d.wp_level >= WEAPON_MAX_LEVEL,
+                    };
+                    break;
+                }
+            } catch {}
+        }
+        // Enrich mats with rarity data from definitions
+        for (const [id, mat] of Object.entries(mats)) {
+            const def = RAW_MATERIALS[id] || COMPONENTS[id];
+            if (def && !mat.rarity) mat.rarity = def.rarity || 'common';
+        }
+        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -7163,6 +7226,117 @@ router.post('/forge/craft', auth, async (req, res) => {
             [char.id, 'equipment', JSON.stringify(scaledItem)]);
         
         res.json({ message: `⚒️ Crafted: ${recipe.name} (Level ${char.level})!` });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Weapon feed ────────────────────────────────────────────────────────────
+router.post('/forge/weapon/feed', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { inventoryId } = req.body;
+        if (!inventoryId) return res.status(400).json({ error: 'Missing material inventory ID' });
+
+        const eq = await getEquippedItemsArray(db, char.id);
+        const weaponRow = eq.find(r => {
+            try { const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data; return d.slot === 'weapon'; }
+            catch { return false; }
+        });
+        if (!weaponRow) return res.status(400).json({ error: 'No weapon equipped' });
+        const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+        initWeaponData(weaponData);
+        if (weaponData.wp_level >= WEAPON_MAX_LEVEL) return res.status(400).json({ error: 'Weapon is already max level' });
+
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [inventoryId, char.id]);
+        if (!item) return res.status(400).json({ error: 'Item not found' });
+        const itemData = JSON.parse(item.item_data);
+        const rawRarity = itemData.rarity || RAW_MATERIALS[itemData.id]?.rarity || COMPONENTS[itemData.id]?.rarity || 'common';
+        const rarity = rawRarity;
+        const weight = WEAPON_FEED_WEIGHTS[rarity] || 1;
+        const qty = itemData.qty || 1;
+
+        // Consume one unit of the material
+        if (qty > 1) {
+            itemData.qty = qty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), item.id]);
+        } else {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+        }
+
+        weaponData.wp_feed = (weaponData.wp_feed || 0) + weight;
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
+
+        const nextFeed = getWeaponFeedForLevel(weaponData.wp_level);
+        const canLevel = weaponData.wp_xp >= getWeaponXPForLevel(weaponData.wp_level) && weaponData.wp_feed >= nextFeed;
+        res.json({ message: `Fed ${rarity} material (+${weight} feed)`, wp_feed: weaponData.wp_feed, wp_feed_target: nextFeed, canLevel });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Weapon level up ────────────────────────────────────────────────────────
+router.post('/forge/weapon/levelup', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const eq = await getEquippedItemsArray(db, char.id);
+        const weaponRow = eq.find(r => {
+            try { const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data; return d.slot === 'weapon'; }
+            catch { return false; }
+        });
+        if (!weaponRow) return res.status(400).json({ error: 'No weapon equipped' });
+        const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+        initWeaponData(weaponData);
+        if (weaponData.wp_level >= WEAPON_MAX_LEVEL) return res.status(400).json({ error: 'Already max level' });
+
+        const xpNeeded = getWeaponXPForLevel(weaponData.wp_level);
+        const feedNeeded = getWeaponFeedForLevel(weaponData.wp_level);
+        if ((weaponData.wp_xp || 0) < xpNeeded) return res.status(400).json({ error: `Need ${xpNeeded} XP (have ${weaponData.wp_xp || 0})` });
+        if ((weaponData.wp_feed || 0) < feedNeeded) return res.status(400).json({ error: `Need ${feedNeeded} feed (have ${weaponData.wp_feed || 0})` });
+
+        weaponData.wp_xp -= xpNeeded;
+        weaponData.wp_feed -= feedNeeded;
+        weaponData.wp_level += 1;
+        weaponData.wp_stat_points = (weaponData.wp_stat_points || 0) + WEAPON_STAT_POINTS_PER_LEVEL;
+
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
+        res.json({ message: `⬆️ Weapon reached level ${weaponData.wp_level}!`, wp_level: weaponData.wp_level, wp_stat_points: weaponData.wp_stat_points });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Weapon stat distribution ───────────────────────────────────────────────
+router.post('/forge/weapon/stats', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const { stats } = req.body;
+        if (!stats || typeof stats !== 'object') return res.status(400).json({ error: 'Invalid stats object' });
+
+        const eq = await getEquippedItemsArray(db, char.id);
+        const weaponRow = eq.find(r => {
+            try { const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data; return d.slot === 'weapon'; }
+            catch { return false; }
+        });
+        if (!weaponRow) return res.status(400).json({ error: 'No weapon equipped' });
+        const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+        initWeaponData(weaponData);
+
+        const totalPoints = Object.values(stats).reduce((s, v) => s + Math.max(0, Number(v) || 0), 0);
+        if (totalPoints > (weaponData.wp_stat_points || 0)) return res.status(400).json({ error: 'Not enough stat points' });
+
+        const validStats = ['dmg_min', 'dmg_max', 'strength', 'agility', 'magic', 'defense', 'vitality', 'hit_chance', 'crit_chance', 'armor', 'hp_max'];
+        for (const [stat, val] of Object.entries(stats)) {
+            if (!validStats.includes(stat)) return res.status(400).json({ error: `Invalid stat: ${stat}` });
+            const v = Math.max(0, Number(val) || 0);
+            weaponData.wp_stats[stat] = (weaponData.wp_stats[stat] || 0) + v;
+        }
+        weaponData.wp_stat_points -= totalPoints;
+
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
+        res.json({ message: 'Stats distributed!', wp_stats: weaponData.wp_stats, wp_stat_points: weaponData.wp_stat_points });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -8055,9 +8229,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         } else if (attackerWon) {
             await recordShieldlessWin(db, freshA, equippedA);
             await recordDamageStyleWin(db, freshA.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
+            await grantWeaponXP(db, freshA.id, WEAPON_XP_PER_PVP);
         } else {
             await recordShieldlessWin(db, freshD, equippedD);
             await recordDamageStyleWin(db, freshD.id, battle.totalElemDmgDealtB || 0);
+            await grantWeaponXP(db, freshD.id, WEAPON_XP_PER_PVP);
         }
         
         function calculateBattleXP(winnerLevel, loserLevel) {
