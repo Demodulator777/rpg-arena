@@ -12227,6 +12227,8 @@ const MATERIAL_EXCHANGES = {
     void_crystal: { name: 'Void Crystal', emoji: '🔮', rarity: 5, fragmentCost: 25 },
     shadow_weave: { name: 'Shadow Weave', emoji: '🌙', rarity: 5, fragmentCost: 25 },
     demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', rarity: 5, fragmentCost: 25 },
+    abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', rarity: 4, fragmentCost: 20 },
+    abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', rarity: 5, fragmentCost: 30 },
 };
 
 router.post('/exchange/fragments', auth, async (req, res) => {
