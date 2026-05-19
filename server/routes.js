@@ -11,7 +11,7 @@ const WEAPON_XP_PER_PVP = 3;
 const WEAPON_MAX_LEVEL = 5;
 const WEAPON_FEED_WEIGHTS = { common:1, uncommon:3, rare:8, epic:20, legendary:50 };
 const WEAPON_STAT_POINTS_PER_LEVEL = 10;
-const getWeaponXPForLevel = (lvl) => lvl * 100;
+const getWeaponXPForLevel = (lvl) => 100;
 const getWeaponFeedForLevel = (lvl) => lvl * 50;
 
 function initWeaponData(itemData) {
