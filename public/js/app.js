@@ -4505,14 +4505,14 @@ function renderDialogStatGrid(weap) {
         const add = pending[s] || 0;
         const addDisplay = add > 0 ? '+' + add : '';
         return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem;width:100%">
-            <span style="white-space:nowrap;text-overflow:ellipsis;overflow:hidden;flex:1">${labels[s]||s}</span>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:8px;overflow:hidden">
+                <span style="white-space:nowrap;text-overflow:ellipsis;overflow:hidden">${labels[s]||s}</span>
                 <span style="min-width:18px;text-align:right;color:var(--text-dim)">${base}</span>
                 <span style="min-width:28px;text-align:left;color:var(--green)">${addDisplay}</span>
-                <div style="display:flex;gap:2px">
-                    <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
-                    <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
-                </div>
+            </div>
+            <div style="display:flex;gap:2px;flex-shrink:0">
+                <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
+                <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
             </div>
         </div>`;
     }).join('');
