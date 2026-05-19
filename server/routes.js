@@ -12551,9 +12551,12 @@ router.post('/travel/abyss/exit', auth, async (req, res) => {
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         
-        // Check if in Abyss
+        // Check if in Abyss at the entrance zone
         if (character.current_map !== 'abyss') {
             return res.status(400).json({ error: 'Not in the Abyss' });
+        }
+        if (character.location !== 'shadowfen') {
+            return res.status(400).json({ error: 'You can only return to Dark City from Shadowfen Depths — travel there first.' });
         }
         
         // Return to Dark City
