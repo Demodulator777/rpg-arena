@@ -7241,7 +7241,8 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
-        const { inventoryId } = req.body;
+        const { inventoryId, qty: requestedQty } = req.body;
+        const feedQty = Math.max(1, Math.floor(Number(requestedQty) || 1));
         if (!inventoryId) return res.status(400).json({ error: 'Missing material inventory ID' });
 
         const eq = await getEquippedItemsArray(db, char.id);
@@ -7266,21 +7267,23 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
         const rarity = defRarity || itemData.rarity || 'common';
         const weight = WEAPON_FEED_WEIGHTS[rarity] || 1;
         const qty = itemData.qty || 1;
+        const consumeQty = Math.min(feedQty, qty);
+        const totalWeight = weight * consumeQty;
 
-        // Consume one unit of the material
-        if (qty > 1) {
-            itemData.qty = qty - 1;
+        // Consume units
+        if (qty > consumeQty) {
+            itemData.qty = qty - consumeQty;
             await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), item.id]);
         } else {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
         }
 
-        weaponData.wp_feed = (weaponData.wp_feed || 0) + weight;
+        weaponData.wp_feed = (weaponData.wp_feed || 0) + totalWeight;
         await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
 
         const nextFeed = getWeaponFeedForLevel(weaponData.wp_level);
         const canLevel = weaponData.wp_xp >= getWeaponXPForLevel(weaponData.wp_level) && weaponData.wp_feed >= nextFeed;
-        res.json({ message: `Fed ${rarity} material (+${weight} feed)`, wp_feed: weaponData.wp_feed, wp_feed_target: nextFeed, canLevel });
+        res.json({ message: `Fed ${consumeQty}x ${rarity} (+${totalWeight} feed)`, wp_feed: weaponData.wp_feed, wp_feed_target: nextFeed, canLevel });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
