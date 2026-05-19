@@ -4522,7 +4522,8 @@ function renderDialogStatGrid(weap) {
 
 async function openWeaponFeedDialog(dialog, weap) {
     if (!forgeData?.mats) return;
-    const entries = Object.entries(forgeData.mats).filter(([,m]) => m.qty > 0)
+    const entries = Object.entries(forgeData.mats)
+        .filter(([,m]) => m.qty > 0 && m.type === 'raw_mat')
         .sort((a,b) => (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[a[1]?.rarity||'common']||0) - (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[b[1]?.rarity||'common']||0));
     if (!entries.length) { showMsg('forge-msg','No materials to feed.',true); return; }
 
