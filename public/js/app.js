@@ -4942,6 +4942,13 @@ function renderInventory(data) {
         const exchangeRates = {
             abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', fragmentCost: 20 },
             abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', fragmentCost: 30 },
+            abyss_weave: { name: 'Abyss Weave', emoji: '🕸️', fragmentCost: 35 },
+            eternal_essence: { name: 'Eternal Essence', emoji: '💠', fragmentCost: 40 },
+            shadowsteel_bar: { name: 'Shadowsteel Bar', emoji: '⚙️', fragmentCost: 45 },
+            crimson_alloy: { name: 'Crimson Alloy', emoji: '⚡', fragmentCost: 50 },
+            void_plate: { name: 'Void Plate', emoji: '🛡️', fragmentCost: 55 },
+            abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', fragmentCost: 20 },
+            abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', fragmentCost: 30 },
             wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
             iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
             wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
