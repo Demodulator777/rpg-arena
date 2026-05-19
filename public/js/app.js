@@ -4318,46 +4318,21 @@ function renderForge() {
 
     const weap = forgeData.weapon;
     const weaponHtml = weap ? `
-        <div class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;flex-direction:column;min-height:220px">
-            <div class="forge-card-header">
-                <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(weap,'1.8rem')}</span>
-                <div>
-                    <div style="display:flex;align-items:center;gap:8px">
-                        <span class="forge-card-name">${escHtml(weap.name)}</span>
-                        <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#f1c40f22;color:#f1c40f;border:1px solid #f1c40f44;text-transform:uppercase;font-weight:700">Lv.${weap.wp_level}/5</span>
-                        ${weap.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#2ecc7122;color:#2ecc71;border:1px solid #2ecc7144">MAXED</span>':''}
-                    </div>
-                    <div style="font-size:0.7rem;color:var(--text-dim)">Weapon Leveling — earn XP from missions and PvP, feed materials to progress</div>
+        <div class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer" data-action="openWeaponUpgrade">
+            <span style="font-size:1.5rem;flex-shrink:0">${itemIcon(weap,'2.2rem')}</span>
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="forge-card-name">${escHtml(weap.name)}</span>
+                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#f1c40f22;color:#f1c40f;border:1px solid #f1c40f44;font-weight:700">Lv.${weap.wp_level}/5</span>
+                    ${weap.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#2ecc7122;color:#2ecc71;border:1px solid #2ecc7144">MAXED</span>':''}
+                </div>
+                <div style="display:flex;gap:12px;margin-top:4px;font-size:0.7rem;color:var(--text-dim)">
+                    <span>XP ${weap.wp_xp}/${weap.wp_xp_target}</span>
+                    <span>Feed ${weap.wp_feed}/${weap.wp_feed_target}</span>
+                    ${weap.wp_stat_points>0?`<span style="color:var(--gold)">✨ ${weap.wp_stat_points}pts</span>`:''}
                 </div>
             </div>
-            ${weap.maxed?'':`
-            <div style="margin:8px 0">
-                <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:3px">
-                    <span>XP</span><span>${weap.wp_xp}/${weap.wp_xp_target}</span>
-                </div>
-                <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
-                    <div style="height:100%;width:${Math.min(100,(weap.wp_xp/weap.wp_xp_target)*100)}%;background:linear-gradient(90deg,#3498db,#9b59b6);border-radius:3px;transition:width 0.3s"></div>
-                </div>
-            </div>
-            <div style="margin:6px 0">
-                <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:3px">
-                    <span>Feed</span><span>${weap.wp_feed}/${weap.wp_feed_target}</span>
-                </div>
-                <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
-                    <div style="height:100%;width:${Math.min(100,(weap.wp_feed/weap.wp_feed_target)*100)}%;background:linear-gradient(90deg,#e67e22,#e74c3c);border-radius:3px;transition:width 0.3s"></div>
-                </div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-                <button class="btn-forge" data-action="openWeaponFeed">📦 Feed Materials</button>
-                ${(weap.wp_xp>=weap.wp_xp_target&&weap.wp_feed>=weap.wp_feed_target)?`<button class="btn-forge" data-action="weaponLevelUp" style="background:linear-gradient(135deg,#2ecc71,#27ae60)">⬆️ Level Up!</button>`:''}
-            </div>
-            `}
-            ${weap.wp_stat_points>0?`
-            <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)">
-                <div style="font-size:0.75rem;color:var(--gold);margin-bottom:6px">✨ ${weap.wp_stat_points} Stat Points Available</div>
-                <div id="weapon-stats-dist" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-                <button class="btn-forge" id="btn-apply-weapon-stats" style="margin-top:8px;display:none" data-action="applyWeaponStats">Apply Stats</button>
-            </div>`:''}
+            <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weap.maxed?'MAXED':'Upgrade →'}</span>
         </div>` : '';
 
     el.innerHTML = weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
@@ -4429,111 +4404,178 @@ function renderForge() {
             <div class="forge-grid">${pieceCards}</div>
         </div>`;
     }).join('');
-
-    // Populate stat distribution UI if points available
-    if (weap && weap.wp_stat_points > 0) {
-        renderWeaponStatDist(weap);
-    }
 }
 
-function renderWeaponStatDist(weap) {
-    const container = document.getElementById('weapon-stats-dist');
-    if (!container) return;
-    const validStats = ['dmg_min','dmg_max','strength','agility','magic','defense','vitality','hit_chance','crit_chance','armor','hp_max'];
-    const pending = window._pendingWeaponStats || {};
-    container.innerHTML = validStats.map(s => {
-        const baseVal = weap.wp_stats[s] || 0;
-        const pendingVal = pending[s] || 0;
-        return `<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
-            <span style="min-width:60px">${s.replace(/_/g,' ')}</span>
-            <span style="color:var(--text-dim)">${baseVal}</span>
-            ${pendingVal>0?`<span style="color:var(--green)">+${pendingVal}</span>`:''}
-            <button class="btn-sm" data-action="weaponStatAdd" data-args="${escHtml(JSON.stringify([s]))}" ${window._weaponStatTotal()>=weap.wp_stat_points?'disabled':''}>+</button>
-        </div>`;
-    }).join('');
-    const btnApply = document.getElementById('btn-apply-weapon-stats');
-    if (btnApply) {
-        const total = window._weaponStatTotal();
-        btnApply.style.display = total > 0 ? 'inline-block' : 'none';
-    }
-}
-
-window._weaponStatTotal = function() {
-    return Object.values(window._pendingWeaponStats || {}).reduce((s,v) => s + v, 0);
-};
-
-function weaponStatAdd(stat) {
-    if (!window._pendingWeaponStats) window._pendingWeaponStats = {};
+function openWeaponUpgrade() {
     const weap = forgeData?.weapon;
     if (!weap) return;
-    const total = window._weaponStatTotal();
-    if (total >= weap.wp_stat_points) return;
-    window._pendingWeaponStats[stat] = (window._pendingWeaponStats[stat] || 0) + 1;
-    renderWeaponStatDist(weap);
+    const dialog = document.getElementById('weapon-upgrade-dialog');
+    if (!dialog) return;
+    buildWeaponDialog(dialog, weap);
+    dialog.showModal();
+    dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
 }
 
-async function openWeaponFeed() {
-    if (!forgeData?.mats) return;
-    const entries = Object.entries(forgeData.mats)
-        .filter(([id, mat]) => mat.qty > 0)
-        .sort((a, b) => {
-            const rarityOrder = { legendary:0, epic:1, rare:2, uncommon:3, common:4 };
-            const ra = forgeData.mats[a[0]]?.rarity || 'common';
-            const rb = forgeData.mats[b[0]]?.rarity || 'common';
-            return (rarityOrder[ra] || 0) - (rarityOrder[rb] || 0);
+function buildWeaponDialog(dialog, weap) {
+    window._pendingWeaponStats = {};
+    const validStatLabels = { dmg_min:'Min Dmg', dmg_max:'Max Dmg', strength:'STR', agility:'AGI', magic:'MAG', defense:'DEF', vitality:'VIT', hit_chance:'Hit', crit_chance:'Crit', armor:'Armor', hp_max:'HP' };
+
+    dialog.innerHTML = `
+        <div style="padding:20px;display:flex;flex-direction:column;gap:12px;max-height:80vh;overflow-y:auto">
+            <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:1.5rem">${itemIcon(weap,'2.2rem')}</span>
+                    <div>
+                        <div style="font-size:1rem;font-weight:700">${escHtml(weap.name)}</div>
+                        <div style="font-size:0.7rem;color:var(--text-dim)">Weapon Leveling · earn XP from missions/PvP, feed materials to progress</div>
+                    </div>
+                </div>
+                <button class="btn-secondary" style="font-size:0.85rem;padding:4px 10px" data-action="closeWeaponDialog">✕</button>
+            </div>
+            ${weap.maxed ? `<div style="text-align:center;padding:12px;background:#2ecc7122;border:1px solid #2ecc7144;border-radius:10px;font-weight:700;color:#2ecc71">⬆️ WEAPON MAXED</div>`
+            : `
+            <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px">
+                <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:4px">
+                    <span>Level <strong>${weap.wp_level}/5</strong></span>
+                    <span>⬆️ Next at ${weap.wp_xp_target} XP + ${weap.wp_feed_target} Feed</span>
+                </div>
+                <div style="margin:8px 0">
+                    <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:3px">
+                        <span>⚡ XP</span><span>${weap.wp_xp}/${weap.wp_xp_target}</span>
+                    </div>
+                    <div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
+                        <div style="height:100%;width:${Math.min(100,(weap.wp_xp/weap.wp_xp_target)*100)}%;background:linear-gradient(90deg,#3498db,#9b59b6);border-radius:4px;transition:width 0.3s"></div>
+                    </div>
+                </div>
+                <div style="margin:8px 0">
+                    <div style="display:flex;justify-content:space-between;font-size:0.7rem;margin-bottom:3px">
+                        <span>📦 Feed</span><span>${weap.wp_feed}/${weap.wp_feed_target}</span>
+                    </div>
+                    <div style="height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden">
+                        <div style="height:100%;width:${Math.min(100,(weap.wp_feed/weap.wp_feed_target)*100)}%;background:linear-gradient(90deg,#e67e22,#e74c3c);border-radius:4px;transition:width 0.3s"></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                    <button class="btn-forge" style="flex:1" data-action="openWeaponFeedDialog">📦 Feed Materials</button>
+                    ${(weap.wp_xp>=weap.wp_xp_target&&weap.wp_feed>=weap.wp_feed_target)
+                        ? `<button class="btn-forge" style="flex:1;background:linear-gradient(135deg,#2ecc71,#27ae60)" data-action="weaponLevelUp">⬆️ Level Up!</button>`
+                        : ''}
+                </div>
+            </div>`}
+
+            ${weap.wp_stat_points>0 ? `
+            <div style="background:rgba(241,196,15,0.06);border:1px solid rgba(241,196,15,0.2);border-radius:10px;padding:12px">
+                <div style="font-size:0.8rem;font-weight:700;color:var(--gold);margin-bottom:8px">✨ ${weap.wp_stat_points} Stat Points Available</div>
+                <div id="weapon-dialog-stats" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+                <button class="btn-forge" id="btn-dialog-apply-stats" style="margin-top:10px;display:none;width:100%" data-action="applyWeaponStats">Apply Stats</button>
+            </div>` : ''}
+        </div>`;
+
+    if (weap.wp_stat_points > 0) renderDialogStatGrid(weap);
+    dialog.querySelectorAll('[data-action]').forEach(el => {
+        el.addEventListener('click', async () => {
+            const action = el.dataset.action;
+            if (action === 'closeWeaponDialog') { dialog.close(); return; }
+            if (action === 'openWeaponFeedDialog') { openWeaponFeedDialog(dialog, weap); return; }
+            if (action === 'weaponLevelUp') { await doWeaponLevelUp(dialog, weap); return; }
+            if (action === 'applyWeaponStats') { await doApplyWeaponStats(dialog, weap); return; }
         });
-    if (!entries.length) {
-        showMsg('forge-msg', 'No materials to feed. Complete missions to earn materials!', true);
-        return;
-    }
-    const html = entries.map(([id, mat]) =>
-        `        <div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer" data-action="feedMaterial" data-args="${escHtml(JSON.stringify([mat.invId || id]))}" data-hover-action="hoverFeedItem" data-leave-action="scheduleHideTooltip" data-feeditem="${escHtml(JSON.stringify(mat))}">
-            <span style="font-size:1.2rem">${mat.emoji||'📦'}</span>
-            <span style="flex:1;font-size:0.85rem">${mat.name||id}</span>
-            <span style="font-size:0.7rem;color:var(--text-dim)">×${mat.qty}</span>
-            <span style="font-size:0.65rem;color:var(--text-dim)">${mat.rarity||'common'}</span>
-        </div>`
-    ).join('');
-    openGameDialog({
-        title: '📦 Feed Materials',
-        message: `<div style="max-height:300px;overflow-y:auto">${html || '<p style="color:var(--text-dim)">No materials available.</p>'}</div>`,
-        confirmLabel: 'Close',
-        showCancel: false,
     });
 }
 
-async function feedMaterial(materialId) {
-    try {
-        const d = await api('POST','/game/forge/weapon/feed',{inventoryId: materialId});
-        await loadForge();
-        showMsg('forge-msg', d.message);
-    } catch(e) {
-        showMsg('forge-msg', e.message, true);
-    }
+function renderDialogStatGrid(weap) {
+    const container = document.getElementById('weapon-dialog-stats');
+    if (!container) return;
+    const validStats = ['dmg_min','dmg_max','strength','agility','magic','defense','vitality','hit_chance','crit_chance','armor','hp_max'];
+    const labels = { dmg_min:'Min Dmg', dmg_max:'Max Dmg', strength:'STR', agility:'AGI', magic:'MAG', defense:'DEF', vitality:'VIT', hit_chance:'Hit', crit_chance:'Crit', armor:'Armor', hp_max:'HP' };
+    const pending = window._pendingWeaponStats || {};
+    const totalUsed = Object.values(pending).reduce((s,v) => s+v, 0);
+    container.innerHTML = validStats.map(s => {
+        const base = weap.wp_stats[s] || 0;
+        const add = pending[s] || 0;
+        return `<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
+            <span style="min-width:55px">${labels[s]||s}</span>
+            <span style="color:var(--text-dim)">${base}</span>
+            ${add>0?`<span style="color:var(--green)">+${add}</span>`:''}
+            <button class="btn-sm" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''}>+</button>
+        </div>`;
+    }).join('');
+    container.querySelectorAll('button[data-stat]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const stat = btn.dataset.stat;
+            if (!window._pendingWeaponStats) window._pendingWeaponStats = {};
+            const used = Object.values(window._pendingWeaponStats).reduce((s,v) => s+v, 0);
+            if (used >= (weap?.wp_stat_points || 0)) return;
+            window._pendingWeaponStats[stat] = (window._pendingWeaponStats[stat] || 0) + 1;
+            renderDialogStatGrid(weap);
+        });
+    });
+    const applyBtn = document.getElementById('btn-dialog-apply-stats');
+    if (applyBtn) applyBtn.style.display = totalUsed > 0 ? 'block' : 'none';
 }
 
-async function weaponLevelUp() {
+async function openWeaponFeedDialog(dialog, weap) {
+    if (!forgeData?.mats) return;
+    const entries = Object.entries(forgeData.mats).filter(([,m]) => m.qty > 0)
+        .sort((a,b) => (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[a[1]?.rarity||'common']||0) - (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[b[1]?.rarity||'common']||0));
+    if (!entries.length) { showMsg('forge-msg','No materials to feed.',true); return; }
+    const feedContent = document.createElement('div');
+    feedContent.style.cssText = 'display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto';
+    feedContent.innerHTML = entries.map(([id, mat]) =>
+        `<div class="feed-row" data-invid="${mat.invId || id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem;transition:background 0.15s">
+            <span style="font-size:1.1rem">${mat.emoji||'📦'}</span>
+            <span style="flex:1">${mat.name||id}</span>
+            <span style="color:var(--text-dim);font-size:0.7rem">×${mat.qty}</span>
+            <span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
+        </div>`
+    ).join('');
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500001;display:flex;align-items:center;justify-content:center';
+    overlay.innerHTML = `<div style="background:var(--bg2);border-radius:14px;padding:16px;max-width:400px;width:90%;max-height:70vh;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
+            <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-close-btn">✕</button>
+        </div>
+        <div style="flex:1;overflow-y:auto">${feedContent.innerHTML}</div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelectorAll('.feed-row').forEach(row => {
+        row.addEventListener('click', async () => {
+            const invId = row.dataset.invid;
+            row.style.opacity = '0.5';
+            try {
+                const d = await api('POST','/game/forge/weapon/feed',{inventoryId: invId});
+                forgeData = await api('GET','/game/forge/recipes');
+                showMsg('forge-msg', d.message);
+                buildWeaponDialog(dialog, forgeData.weapon);
+                overlay.remove();
+            } catch(e) { showMsg('forge-msg', e.message, true); row.style.opacity = '1'; }
+        });
+    });
+    overlay.querySelector('#feed-close-btn').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function doWeaponLevelUp(dialog, weap) {
     try {
         const d = await api('POST','/game/forge/weapon/levelup');
         window._pendingWeaponStats = {};
-        await loadForge();
+        forgeData = await api('GET','/game/forge/recipes');
         showMsg('forge-msg', d.message);
-    } catch(e) {
-        showMsg('forge-msg', e.message, true);
-    }
+        buildWeaponDialog(dialog, forgeData.weapon);
+    } catch(e) { showMsg('forge-msg', e.message, true); }
 }
 
-async function applyWeaponStats() {
+async function doApplyWeaponStats(dialog, weap) {
     try {
         const stats = window._pendingWeaponStats || {};
         if (!Object.keys(stats).length) return;
-        const d = await api('POST','/game/forge/weapon/stats',{ stats });
+        await api('POST','/game/forge/weapon/stats',{ stats });
         window._pendingWeaponStats = {};
-        await loadForge();
-        showMsg('forge-msg', d.message);
-    } catch(e) {
-        showMsg('forge-msg', e.message, true);
-    }
+        forgeData = await api('GET','/game/forge/recipes');
+        buildWeaponDialog(dialog, forgeData.weapon);
+        showMsg('forge-msg','Stats applied!');
+    } catch(e) { showMsg('forge-msg', e.message, true); }
 }
 
 async function refine(componentId) {
