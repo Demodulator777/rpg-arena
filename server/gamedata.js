@@ -282,6 +282,18 @@ const RAW_MATERIALS = {
     demon_core:         { name:'Demon Core',         emoji:'💀', rarity:'legendary' },
     shadow_essence:     { name:'Shadow Essence',     emoji:'👁️', rarity:'legendary' },
     legendary_fragment: { name:'Legendary Fragment', emoji:'⭐', rarity:'legendary' },
+    abyss_crystal:      { name:'Abyss Crystal',      emoji:'💎', rarity:'epic'      },
+    crimson_crystal:    { name:'Crimson Crystal',    emoji:'🔴', rarity:'epic'      },
+    fire_essence:       { name:'Fire Essence',       emoji:'🔥', rarity:'rare'      },
+    infernal_core:      { name:'Infernal Core',      emoji:'💀', rarity:'legendary' },
+    null_essence:       { name:'Null Essence',       emoji:'🌑', rarity:'epic'      },
+    abyss_fragment:     { name:'Abyss Fragment',     emoji:'🧩', rarity:'epic'      },
+    shadowsteel:        { name:'Shadowsteel',        emoji:'⚙️', rarity:'rare'      },
+    soul_essence:       { name:'Soul Essence',       emoji:'👻', rarity:'epic'      },
+    obsidian_shard:     { name:'Obsidian Shard',     emoji:'🪨', rarity:'rare'      },
+    dark_essence:       { name:'Dark Essence',       emoji:'🌑', rarity:'epic'      },
+    primordial_shard:   { name:'Primordial Shard',   emoji:'✨', rarity:'legendary' },
+    eternal_core:       { name:'Eternal Core',       emoji:'💠', rarity:'legendary' },
 };
 
 // ── Components (your originals) ───────────────────────────────────────────
@@ -297,6 +309,11 @@ const COMPONENTS = {
     void_crystal:   { name:'Void Crystal',   emoji:'🔮', recipe:{ void_shard:2, rune_fragment:1 },           goldCost:500  },
     shadow_weave:   { name:'Shadow Weave',   emoji:'🕸️', recipe:{ shadow_essence:2, arcane_dust:2 },         goldCost:800  },
     demon_alloy:    { name:'Demon Alloy',    emoji:'⚡', recipe:{ demon_core:1, mithril_ore:3 },             goldCost:1200 },
+    abyss_weave:    { name:'Abyss Weave',    emoji:'🕸️', recipe:{ abyss_crystal:2, shadow_essence:1 },        goldCost:1000 },
+    void_plate:     { name:'Void Plate',     emoji:'🛡️', recipe:{ null_essence:2, abyss_fragment:1 },         goldCost:1100 },
+    crimson_alloy:  { name:'Crimson Alloy',  emoji:'⚡', recipe:{ crimson_crystal:2, infernal_core:1 },        goldCost:1200 },
+    shadowsteel_bar:{ name:'Shadowsteel Bar',emoji:'⚙️', recipe:{ shadowsteel:3, soul_essence:1 },            goldCost:900  },
+    eternal_essence:{ name:'Eternal Essence',emoji:'💠', recipe:{ dark_essence:2, primordial_shard:1, eternal_core:1 }, goldCost:1500 },
 };
 
 // ── Rarity colours ────────────────────────────────────────────────────────
@@ -552,6 +569,55 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         stats:{ defense:12, armor:5, agility:12, hit_chance:6, crit_chance:6, pyro_resist:10 },
         components:{ shadow_weave:2, tanned_hide:2, frost_core:1 }, goldCost:13000,
     },
+    // ══════════════════════════════════════════════
+    //  SET 6 — ABYSSAL KNIGHT  (Abyss-only mats)
+    //  Hybrid — all-round stats
+    // ══════════════════════════════════════════════
+    {
+        id:'abyssal_weapon', setId:'abyssal', setPiece:'weapon',
+        name:"Abyssal Blade", emoji:'⚔️', quality:'legendary',
+        slot:'weapon',
+        desc:'A blade forged in the void between worlds, hungry for essence.',
+        stats:{ dmg_min:18, dmg_max:38, strength:10, agility:8, hit_chance:8, crit_chance:10,
+                pyro_dmg:8, electro_dmg:8 },
+        components:{ abyss_weave:3, void_plate:2, crimson_alloy:1 }, goldCost:18000,
+    },
+    {
+        id:'abyssal_armor', setId:'abyssal', setPiece:'armor',
+        name:"Abyssal Carapace", emoji:'🛡️', quality:'legendary',
+        slot:'armor',
+        desc:'Living armor woven from crystallized abyss energy.',
+        stats:{ defense:45, armor:18, hp_max:80, vitality:5, strength:8,
+                pyro_resist:15, water_resist:15 },
+        components:{ void_plate:3, shadowsteel_bar:2, eternal_essence:1 }, goldCost:20000,
+    },
+    {
+        id:'abyssal_helmet', setId:'abyssal', setPiece:'helmet',
+        name:"Abyssal Crown", emoji:'👑', quality:'legendary',
+        slot:'helmet',
+        desc:'A crown that whispers secrets from the deep dark.',
+        stats:{ defense:20, armor:8, magic:15, hit_chance:10, crit_chance:8,
+                wind_resist:15, electro_resist:15 },
+        components:{ shadowsteel_bar:2, eternal_essence:2, abyss_weave:1 }, goldCost:18000,
+    },
+    {
+        id:'abyssal_shield', setId:'abyssal', setPiece:'shield',
+        name:"Abyssal Bulwark", emoji:'🔰', quality:'legendary',
+        slot:'shield',
+        desc:'A barrier that drinks the light and returns only silence.',
+        stats:{ defense:30, armor:22, hp_max:60, strength:6, vitality:4,
+                water_resist:20, wind_resist:20 },
+        components:{ void_plate:3, abyss_weave:2, crimson_alloy:1 }, goldCost:19000,
+    },
+    {
+        id:'abyssal_boots', setId:'abyssal', setPiece:'boots',
+        name:"Abyssal Greaves", emoji:'👟', quality:'legendary',
+        slot:'boots',
+        desc:'Step between shadows — these greaves know no distance.',
+        stats:{ defense:15, armor:6, agility:14, hit_chance:8, crit_chance:8,
+                pyro_resist:10, electro_resist:10 },
+        components:{ shadowsteel_bar:2, abyss_weave:2, eternal_essence:1 }, goldCost:16000,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -595,6 +661,16 @@ const CRAFTING_SETS = {
             agility:30, crit_chance:18, hit_chance:15,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
             desc:'5/5: +30 AGI · +18 Crit · +15 Hit · +20 all Elem Resist'
+        },
+    },
+    abyssal: {
+        name:'Abyssal Knight Set', emoji:'⚔️',
+        bonus3:{ strength:10, agility:10, defense:15, hp_max:80,
+            desc:'3/5: +10 STR · +10 AGI · +15 DEF · +80 HP' },
+        bonus5:{
+            strength:22, agility:20, defense:30, hp_max:160, armor:10,
+            pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15,
+            desc:'5/5: +22 STR · +20 AGI · +30 DEF · +160 HP · +10 Armor · +15 all Elem Resist'
         },
     },
 };
