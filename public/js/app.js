@@ -4503,16 +4503,27 @@ function renderDialogStatGrid(weap) {
             <span style="min-width:55px">${labels[s]||s}</span>
             <span style="color:var(--text-dim)">${base}</span>
             ${add>0?`<span style="color:var(--green)">+${add}</span>`:''}
-            <button class="btn-sm" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''}>+</button>
+            ${add>0?`<button class="btn-sm stat-minus" data-stat="${s}" style="font-size:0.6rem;padding:1px 4px">−</button>`:''}
+            <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''}>+</button>
         </div>`;
     }).join('');
-    container.querySelectorAll('button[data-stat]').forEach(btn => {
+    container.querySelectorAll('.stat-plus').forEach(btn => {
         btn.addEventListener('click', () => {
             const stat = btn.dataset.stat;
             if (!window._pendingWeaponStats) window._pendingWeaponStats = {};
             const used = Object.values(window._pendingWeaponStats).reduce((s,v) => s+v, 0);
             if (used >= (weap?.wp_stat_points || 0)) return;
             window._pendingWeaponStats[stat] = (window._pendingWeaponStats[stat] || 0) + 1;
+            renderDialogStatGrid(weap);
+        });
+    });
+    container.querySelectorAll('.stat-minus').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const stat = btn.dataset.stat;
+            if (!window._pendingWeaponStats) window._pendingWeaponStats = {};
+            if ((window._pendingWeaponStats[stat] || 0) <= 0) return;
+            window._pendingWeaponStats[stat] -= 1;
+            if (window._pendingWeaponStats[stat] <= 0) delete window._pendingWeaponStats[stat];
             renderDialogStatGrid(weap);
         });
     });
@@ -4534,28 +4545,50 @@ async function openWeaponFeedDialog(dialog, weap) {
                 <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
                 <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-back-btn">← Back</button>
             </div>
-            <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px">
+            <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
                 ${entries.map(([id, mat]) =>
-                    `<div class="feed-row" data-invid="${mat.invId || id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:0.85rem">
-                        <span style="font-size:1.1rem">${mat.emoji||'📦'}</span>
-                        <span style="flex:1">${mat.name||id}</span>
-                        <span style="color:var(--text-dim);font-size:0.7rem">×${mat.qty}</span>
-                        <span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
+                    `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
+                        <span style="font-size:1.1rem;flex-shrink:0">${mat.emoji||'📦'}</span>
+                        <span style="flex:1;min-width:0">${mat.name||id}</span>
+                        <span style="color:var(--text-dim);font-size:0.7rem;flex-shrink:0">×${mat.qty}</span>
+                        <span style="font-size:0.6rem;padding:1px 4px;border-radius:4px;flex-shrink:0;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
+                        <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
+                            <button class="btn-sm qty-btn" data-dir="-1" style="font-size:0.7rem;padding:2px 5px;min-width:20px">−</button>
+                            <span class="qty-display" style="font-size:0.75rem;min-width:22px;text-align:center">1</span>
+                            <button class="btn-sm qty-btn" data-dir="1" style="font-size:0.7rem;padding:2px 5px;min-width:20px">+</button>
+                            <button class="btn-sm feed-go-btn" style="font-size:0.65rem;padding:2px 6px;background:var(--green-dim);border:1px solid rgba(46,204,113,0.3)">Feed</button>
+                        </div>
                     </div>`
                 ).join('')}
             </div>
         </div>`;
 
     dialog.querySelectorAll('.feed-row').forEach(row => {
-        row.addEventListener('click', async () => {
-            const invId = row.dataset.invid;
-            row.style.opacity = '0.5';
+        const max = parseInt(row.dataset.max) || 1;
+        const display = row.querySelector('.qty-display');
+        const feedBtn = row.querySelector('.feed-go-btn');
+        const feedInvId = row.dataset.invid;
+
+        row.querySelectorAll('.qty-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                let v = parseInt(display.textContent) || 1;
+                v = Math.max(1, Math.min(max, v + parseInt(btn.dataset.dir)));
+                display.textContent = v;
+            });
+        });
+
+        feedBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const qty = parseInt(display.textContent) || 1;
+            feedBtn.disabled = true;
+            feedBtn.textContent = '...';
             try {
-                const d = await api('POST','/game/forge/weapon/feed',{inventoryId: invId});
+                const d = await api('POST','/game/forge/weapon/feed',{inventoryId: feedInvId, qty});
                 forgeData = await api('GET','/game/forge/recipes');
                 showMsg('forge-msg', d.message);
                 buildWeaponDialog(dialog, forgeData.weapon);
-            } catch(e) { showMsg('forge-msg', e.message, true); row.style.opacity = '1'; }
+            } catch(e) { showMsg('forge-msg', e.message, true); feedBtn.disabled = false; feedBtn.textContent = 'Feed'; }
         });
     });
     const backBtn = document.getElementById('feed-back-btn');
