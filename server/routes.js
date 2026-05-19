@@ -7343,7 +7343,7 @@ router.post('/forge/weapon/stats', auth, async (req, res) => {
         const totalPoints = Object.values(stats).reduce((s, v) => s + Math.max(0, Number(v) || 0), 0);
         if (totalPoints > (weaponData.wp_stat_points || 0)) return res.status(400).json({ error: 'Not enough stat points' });
 
-        const validStats = ['dmg_min', 'dmg_max', 'strength', 'agility', 'magic', 'defense', 'vitality', 'hit_chance', 'crit_chance', 'armor', 'hp_max'];
+        const validStats = ['dmg_min', 'dmg_max', 'strength', 'agility', 'magic', 'defense', 'vitality', 'hit_chance', 'crit_chance', 'armor', 'hp_max', 'pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg', 'pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'];
         for (const [stat, val] of Object.entries(stats)) {
             if (!validStats.includes(stat)) return res.status(400).json({ error: `Invalid stat: ${stat}` });
             const v = Math.max(0, Number(val) || 0);
