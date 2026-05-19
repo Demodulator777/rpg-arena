@@ -4555,6 +4555,13 @@ async function openWeaponFeedDialog(dialog, weap) {
                 <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
                 <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-back-btn">← Back</button>
             </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:0.65rem;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;justify-content:center">
+                <span style="color:var(--text-dim)">Common +1</span>
+                <span style="color:#2ecc71">Uncommon +3</span>
+                <span style="color:#3498db">Rare +8</span>
+                <span style="color:#9b59b6">Epic +20</span>
+                <span style="color:#f1c40f">Legendary +50</span>
+            </div>
             <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
                 ${entries.map(([id, mat]) =>
                     `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
