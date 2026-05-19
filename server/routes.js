@@ -12227,6 +12227,11 @@ const MATERIAL_EXCHANGES = {
     void_crystal: { name: 'Void Crystal', emoji: '🔮', rarity: 5, fragmentCost: 25 },
     shadow_weave: { name: 'Shadow Weave', emoji: '🌙', rarity: 5, fragmentCost: 25 },
     demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', rarity: 5, fragmentCost: 25 },
+    abyss_weave: { name: 'Abyss Weave', emoji: '🕸️', rarity: 5, fragmentCost: 35 },
+    eternal_essence: { name: 'Eternal Essence', emoji: '💠', rarity: 5, fragmentCost: 40 },
+    shadowsteel_bar: { name: 'Shadowsteel Bar', emoji: '⚙️', rarity: 5, fragmentCost: 45 },
+    crimson_alloy: { name: 'Crimson Alloy', emoji: '⚡', rarity: 5, fragmentCost: 50 },
+    void_plate: { name: 'Void Plate', emoji: '🛡️', rarity: 5, fragmentCost: 55 },
     abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', rarity: 4, fragmentCost: 20 },
     abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', rarity: 5, fragmentCost: 30 },
 };
