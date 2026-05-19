@@ -4471,7 +4471,7 @@ function buildWeaponDialog(dialog, weap) {
 
             ${weap.wp_stat_points>0 ? `
             <div style="background:rgba(241,196,15,0.06);border:1px solid rgba(241,196,15,0.2);border-radius:10px;padding:12px">
-                <div style="font-size:0.8rem;font-weight:700;color:var(--gold);margin-bottom:8px">✨ ${weap.wp_stat_points} Stat Points Available</div>
+                <div id="weapon-stats-header" style="font-size:0.8rem;font-weight:700;color:var(--gold);margin-bottom:8px">✨ ${weap.wp_stat_points} Stat Points Available</div>
                 <div id="weapon-dialog-stats" style="display:flex;flex-wrap:wrap;gap:4px"></div>
                 <button class="btn-forge" id="btn-dialog-apply-stats" style="margin-top:10px;display:none;width:100%" data-action="applyWeaponStats">Apply Stats</button>
             </div>` : ''}
@@ -4531,6 +4531,11 @@ function renderDialogStatGrid(weap) {
     });
     const applyBtn = document.getElementById('btn-dialog-apply-stats');
     if (applyBtn) applyBtn.style.display = totalUsed > 0 ? 'block' : 'none';
+    const header = document.getElementById('weapon-stats-header');
+    if (header) {
+        const remaining = (weap?.wp_stat_points || 0) - totalUsed;
+        header.textContent = `✨ ${remaining} / ${weap?.wp_stat_points || 0} Stat Points`;
+    }
 }
 
 async function openWeaponFeedDialog(dialog, weap) {
