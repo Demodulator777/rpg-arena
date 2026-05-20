@@ -430,7 +430,6 @@ const WEEKLY_TASKS = [
         const db = await getDb();
         const migrations = [
             'ALTER TABLE characters ADD COLUMN draws INTEGER DEFAULT 0',
-            'ALTER TABLE characters ADD COLUMN attack_cooldown_until INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN last_battle_at INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN vitality INTEGER DEFAULT 10',
             'ALTER TABLE characters ADD COLUMN attack_zones TEXT DEFAULT NULL',
@@ -554,18 +553,13 @@ const WEEKLY_TASKS = [
             started_at INTEGER NOT NULL,
             ends_at INTEGER NOT NULL
         )`, args: [] });
-        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS attack_cooldowns (
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_attack_cooldowns (
             attacker_id INTEGER,
             defender_id INTEGER,
             expires_at INTEGER,
             PRIMARY KEY (attacker_id, defender_id)
         )`, args: [] });
-        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS account_attack_cooldowns (
-            attacker_user_id INTEGER,
-            defender_user_id INTEGER,
-            expires_at INTEGER,
-            PRIMARY KEY (attacker_user_id, defender_user_id)
-        )`, args: [] });
+
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sender_id INTEGER,
@@ -8036,7 +8030,7 @@ router.get('/matchmaking', auth, async (req, res) => {
             FROM characters c JOIN users u ON c.user_id=u.id
             WHERE c.id != ?
               AND c.user_id != ?
-              AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
+              AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
         `, [me.id, req.user.userId, now]);
 
         await Promise.all(candidates.map(c => applyHpRegen(db, c.id)));
@@ -8047,11 +8041,11 @@ router.get('/matchmaking', auth, async (req, res) => {
             FROM characters c JOIN users u ON c.user_id=u.id
             WHERE c.id != ?
               AND c.user_id != ?
-              AND (c.attack_cooldown_until IS NULL OR c.attack_cooldown_until < ?)
+              AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
         `, [me.id, req.user.userId, now]);
 
-        const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
+        const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM character_attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
         const myCooldowns = new Set(myCooldownRows.map(r => r.defender_id));
         candidates = candidates.filter(c => !myCooldowns.has(c.id));
 
@@ -8095,12 +8089,12 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             const secs = (atkCooldown + effectivePvpCooldown) - now;
             return res.status(400).json({ error: `Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'} before next attack.` });
         }
-        const defGlobalCooldown = defender.attack_cooldown_until || 0;
+        const defGlobalCooldown = defender.global_cooldown_until || 0;
         if (defGlobalCooldown > now) {
             const mins = Math.ceil((defGlobalCooldown - now) / 60);
             return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
         }
-        const perTarget = await dbGet(db, 'SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
+        const perTarget = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
         if (perTarget && perTarget.expires_at > now) {
             const secs = perTarget.expires_at - now;
             return res.status(400).json({ error: `Cannot attack ${defender.name} again for ${secs < 3600 ? Math.ceil(secs/60)+'m' : Math.ceil(secs/3600)+'h'}.` });
@@ -8304,11 +8298,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         try {
             await dbRun(
                 db,
-                'INSERT OR REPLACE INTO attack_cooldowns (attacker_id,defender_id,expires_at) VALUES (?,?,?)',
+                'INSERT OR REPLACE INTO character_attack_cooldowns (attacker_id,defender_id,expires_at) VALUES (?,?,?)',
                 [freshA.id, freshD.id, now + 43200]
             );
         } catch {}
-        await dbRun(db, 'UPDATE characters SET attack_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
+        await dbRun(db, 'UPDATE characters SET global_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
         try {
             const defSubject = isDraw ? `⚔️ ${freshA.name} attacked you — it was a draw!` : (attackerWon ? `⚔️ ${freshA.name} attacked and defeated you! (-${defGoldStake} gold)` : `🛡️ You defended against ${freshA.name} and won! (+${atkGoldStake} gold)`);
             const defPayload = JSON.stringify({
@@ -8401,11 +8395,11 @@ router.get('/player/:id', auth, async (req, res) => {
         if (!player) return res.status(404).json({ error: 'Not found' });
 
         const now = Math.floor(Date.now() / 1000);
-        const globalCooldown = (player.attack_cooldown_until || 0) > now ? player.attack_cooldown_until - now : 0;
+        const globalCooldown = (player.global_cooldown_until || 0) > now ? player.global_cooldown_until - now : 0;
         let perTargetCooldown = 0;
         if (me) {
             try {
-                const cd = await dbGet(db, 'SELECT expires_at FROM attack_cooldowns WHERE attacker_id=? AND defender_id=?', [character.id, player.id]);
+                const cd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [character.id, player.id]);
                 if (cd && cd.expires_at > now) perTargetCooldown = cd.expires_at - now;
             } catch {}
         }
