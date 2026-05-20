@@ -6867,9 +6867,9 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
             <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
             <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
-                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">WON</div></div>
-                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">LOST</div></div>
-                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">EARNED</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div><div class="lb-stat-lbl">⚔️ WON</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div><div class="lb-stat-lbl">💀 LOST</div></div>
+                <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">${totalEarned.toLocaleString()}</div><div class="lb-stat-lbl">💰 EARNED</div></div>
             </div>
         </div>`;
 }
