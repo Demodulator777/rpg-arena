@@ -3863,6 +3863,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .lb-stat { text-align: center; }
 .lb-stat-val { font-weight: 700; font-size: 0.85rem; }
 .lb-stat-lbl { font-size: 0.6rem; color: var(--text-dim); }
+.lb-header-row { cursor:default; pointer-events:none; background:transparent; border-color:transparent; min-height:20px; padding:2px 14px; }
 
 @media (max-width: 768px) {
     .lb-row { grid-template-columns: 45px 36px 1fr; gap: 8px; }
