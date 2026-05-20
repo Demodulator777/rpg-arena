@@ -8399,7 +8399,7 @@ router.get('/player/:id', auth, async (req, res) => {
         let perTargetCooldown = 0;
         if (me) {
             try {
-                const cd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [character.id, player.id]);
+                const cd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [me.id, player.id]);
                 if (cd && cd.expires_at > now) perTargetCooldown = cd.expires_at - now;
             } catch {}
         }
