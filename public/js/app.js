@@ -7379,7 +7379,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
                 name: character.name,
                 className: character.class,
                 level: character.level,
-                splash: isPvp || isMission,
+                splash: true,
                 fallback: '⚔️',
                 side: 'left'
             })}
@@ -7388,7 +7388,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
                 name: options.battleType === 'mission' ? (options.missionName || enemyName) : enemyName,
                 className: enemyClass,
                 level: options.enemyLevel || null,
-                splash: !!(isPvp && enemyClass) || !!missionVisual?.img,
+                splash: true,
                 fallback: enemyClass ? '⚔️' : '👾',
                 side: 'right',
                 imageSrc: missionVisual?.img || null,
