@@ -3573,7 +3573,7 @@ function openSpotMissions(zoneId, spotId) {
     const sizes = [
         { key: 'small', label: 'Small', mpCost: 20, duration: isTutorial ? '10s' : '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
         { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8×', desc: 'Longer mission, better rewards' },
-        { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '3×', desc: 'Epic mission, best rewards' },
+        { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '2.5×', desc: 'Epic mission, best rewards' },
     ];
     
     activeEl.innerHTML = `
@@ -3600,7 +3600,6 @@ function openSpotMissions(zoneId, spotId) {
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
                     <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
-                    <div style="font-size:0.75rem;color:${dc[spot.difficulty]};margin-top:2px">💰 ${sz.mult} gold</div>
                     <div style="font-size:0.7rem;color:#f1c40f;margin-top:2px">⭐ ${sz.key === 'small' ? '0-6' : sz.key === 'medium' ? '0-9' : '0-12'} XP</div>
                     ${(!canAfford && !locked && !actionBlocked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
                     ${lockOverlay}
@@ -3674,7 +3673,7 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
     activeEl.dataset.selectedSize = sizeKey;
     
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
-    const mults = { small: 1.0, medium: 1.8, large: 3.0 };
+    const mults = { small: 1.0, medium: 1.8, large: 2.5 };
     const mult = mults[sizeKey] || 1;
     
     spot.missions.forEach((m, idx) => {
