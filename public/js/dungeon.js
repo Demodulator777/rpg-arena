@@ -2856,12 +2856,18 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const fl = curFloor + offset;
     const boss = getBossForFloor(fl);
     const t = getFloorTheme(fl);
-    return `<div class="dungeon-floor-preview-card" style="border-color:${t.theme}55">
-        <div style="font-size:0.62rem;color:var(--dungeon-muted)">Floor ${fl}</div>
-        <img src="${boss.image}" alt="${boss.name}" style="width:48px;height:48px;object-fit:cover;border-radius:50%;margin:5px 0;border:1px solid ${t.theme}" data-error-hide="true" data-error-next-display="block">
-        <div style="display:none;font-size:1.4rem">${boss.icon}</div>
-        <div style="font-size:0.62rem;color:#e2e8f0;text-align:center;line-height:1.3">${boss.name.split(' ').slice(0,2).join(' ')}</div>
-        <div style="font-size:0.6rem;color:var(--dungeon-muted)">❤️${boss.hp}</div>
+    return `<div class="dungeon-floor-preview-card" style="--card-accent:${t.theme}">
+        <div class="dfp-banner">
+            <img src="${boss.image}" alt="${boss.name}" data-error-hide="true" data-error-next-display="block">
+            <div class="dfp-floor-badge" style="display:none">${boss.icon}</div>
+            <div class="dfp-floor-badge">F${fl}</div>
+        </div>
+        <div class="dfp-name">${boss.name.split(' ').slice(0,2).join(' ')}</div>
+        <div class="dfp-stats">
+            <span>❤️${boss.hp}</span>
+            <span>⚔️${boss.atk}</span>
+            <span>🛡️${boss.def}</span>
+        </div>
     </div>`;
 }).join('');
 
