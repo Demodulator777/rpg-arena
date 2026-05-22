@@ -4362,7 +4362,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     const baseHp = 60 + (effectiveLevel * 20);
     const baseDmgMin = 8 + (effectiveLevel * 0.5);
     const baseDmgMax = 16 + (effectiveLevel * 0.8);
-    const baseAgi = 8 + (effectiveLevel * 0.3);
+    const baseAgi = 6 + (effectiveLevel * 0.3);
     const baseMagic = 6 + (effectiveLevel * 0.2);
     const baseVitality = 8 + (effectiveLevel * 0.3);
     const baseHitChance = 70 + (effectiveLevel * 0.2);
