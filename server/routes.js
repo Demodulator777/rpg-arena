@@ -4511,10 +4511,10 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         npc.armor = Math.max(0, Math.floor(pArmor * diffProfile.armor * r() * zoneMult * powerBump));
 
         // Keep hit/crit as a fraction of the player's stats so high-hit/crit builds aren't trivialized
-        npc.hit_chance = Math.max(0, Math.min(95, Math.floor(pHit * diffProfile.hitMult * r() * zoneMult * powerBump)));
+        npc.hit_chance = Math.max(0, Math.floor(pHit * diffProfile.hitMult * r() * zoneMult * powerBump));
         // Crit rolls independently within a difficulty range — hard caps at player's, nightmare can exceed
         const critRoll = diffProfile.critRange[0] + Math.random() * (diffProfile.critRange[1] - diffProfile.critRange[0]);
-        npc.crit_chance = Math.max(0, Math.min(95, Math.floor(pCrit * critRoll)));
+        npc.crit_chance = Math.max(0, Math.floor(pCrit * critRoll));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
