@@ -4299,7 +4299,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const playerPower = hpMax * 0.5 +
                     strength * 2 + 
                     defense * 1.5 + 
-                    agility * 0.7 + 
+                    agility * 0.4 + 
                     magic * 2.5 + 
                     hitChance * 3 + 
                     critChance * 5; 
