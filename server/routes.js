@@ -4474,11 +4474,11 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
 
         // Per-difficulty stat target (multiplier against player's stat)
         const diffProfile = ({
-            easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitOff:0, critOff:0 },
-            normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitOff:2, critOff:1 },
-            hard:       { hp:0.95, dmg:0.95, agi:0.85, armor:0.90, elem:0.80, hitOff:4, critOff:2 },
-            nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitOff:6, critOff:4 },
-        })[difficulty] || { hp:0.95, dmg:0.95, agi:0.85, armor:0.90, elem:0.80, hitOff:4, critOff:2 };
+            easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitMult:0.6,  critRange:[0.2,0.4] },
+            normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitMult:0.8,  critRange:[0.3,0.6] },
+            hard:       { hp:0.80, dmg:0.80, agi:0.70, armor:0.75, elem:0.70, hitMult:0.85, critRange:[0.3,1.0] },
+            nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitMult:1.0,  critRange:[0.5,1.3] },
+        })[difficulty] || { hp:0.80, dmg:0.80, agi:0.70, armor:0.75, elem:0.70, hitMult:0.85, critRange:[0.3,0.6] };
 
         // Random variance ±15% so no two missions feel identical
         const r = () => 0.85 + Math.random() * 0.30;
@@ -4510,9 +4510,11 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         npc.magic = Math.max(0, Math.floor(pMagic * diffProfile.agi * r() * zoneMult * powerBump));
         npc.armor = Math.max(0, Math.floor(pArmor * diffProfile.armor * r() * zoneMult * powerBump));
 
-        // Keep hit/crit tied to the player's current stats with difficulty offsets
-        npc.hit_chance = Math.max(0, Math.floor((pHit + diffProfile.hitOff) * r() * zoneMult * powerBump));
-        npc.crit_chance = Math.max(0, Math.floor((pCrit + diffProfile.critOff) * r() * zoneMult * powerBump));
+        // Keep hit/crit as a fraction of the player's stats so high-hit/crit builds aren't trivialized
+        npc.hit_chance = Math.max(0, Math.min(95, Math.floor(pHit * diffProfile.hitMult * r() * zoneMult * powerBump)));
+        // Crit rolls independently within a difficulty range — hard caps at player's, nightmare can exceed
+        const critRoll = diffProfile.critRange[0] + Math.random() * (diffProfile.critRange[1] - diffProfile.critRange[0]);
+        npc.crit_chance = Math.max(0, Math.min(95, Math.floor(pCrit * critRoll)));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
