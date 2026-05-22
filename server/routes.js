@@ -4455,9 +4455,9 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         activeSkills: {},
     };
 
-    // Nightmare missions should feel challenging at every level:
-    // scale directly off the current character's computed combat stats.
-    if (difficulty === 'nightmare' && playerStats) {
+    // Special Scaling for Nightmare or Abyss Missions
+    // Scale directly off the current character's computed combat stats.
+    if ((difficulty === 'nightmare' || isAbyss) && playerStats) {
         const pHp = Number(playerStats.hpMax ?? playerStats.hp_max ?? playerStats.hp ?? 100);
         const pDmgMin = Number(playerStats.dmgMin ?? playerStats.dmg_min ?? 0);
         const pDmgMax = Number(playerStats.dmgMax ?? playerStats.dmg_max ?? pDmgMin);
@@ -4470,24 +4470,31 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const pElemRes = playerStats.elem_resist || {};
 
         // Use the same powerScale derived above, but map it to slightly above-player multipliers.
-        const hpMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);     // ~1.05..1.30
-        const dmgMultVsPlayer = 1.08 + (powerScale - 0.8) * (0.32 / 0.7);    // ~1.08..1.40
-        const agiMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);    // ~1.02..1.20
-        const armorMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);  // ~1.02..1.20
-        const elemMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);   // ~1.05..1.30
+        let hpMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);     // ~1.05..1.30
+        let dmgMultVsPlayer = 1.08 + (powerScale - 0.8) * (0.32 / 0.7);    // ~1.08..1.40
+        let agiMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);    // ~1.02..1.20
+        let armorMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);  // ~1.02..1.20
+        let elemMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);   // ~1.05..1.30
 
-        npc.hpMax = Math.max(1, Math.floor(pHp * hpMultVsPlayer));
+        // Deductions for Abyss difficulties below Nightmare
+        let abyssDeduction = 1.0;
+        if (isAbyss && difficulty !== 'nightmare') {
+            if (difficulty === 'hard') abyssDeduction = 0.8;
+            else if (difficulty === 'normal' || difficulty === 'easy') abyssDeduction = 0.5;
+        }
+
+        npc.hpMax = Math.max(1, Math.floor(pHp * hpMultVsPlayer * abyssDeduction));
         npc.hp = npc.hpMax;
-        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * dmgMultVsPlayer));
-        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * dmgMultVsPlayer));
-        npc.agility = Math.max(1, Math.floor(pAgi * agiMultVsPlayer));
-        npc.magic = Math.max(0, Math.floor(pMagic * agiMultVsPlayer));
-        npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer));
+        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * dmgMultVsPlayer * abyssDeduction));
+        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * dmgMultVsPlayer * abyssDeduction));
+        npc.agility = Math.max(1, Math.floor(pAgi * agiMultVsPlayer * abyssDeduction));
+        npc.magic = Math.max(0, Math.floor(pMagic * agiMultVsPlayer * abyssDeduction));
+        npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer * abyssDeduction));
 
         // Keep hit/crit tied to the player's current stats (so high-agi / high-hit builds still matter).
-        // Do not hard-cap these: players can build well above "normal" ranges, and Nightmare should track it.
-        npc.hit_chance = Math.max(0, Math.floor(pHit + 6));
-        npc.crit_chance = Math.max(0, Math.floor(pCrit + 4));
+        // Apply the same abyss deduction to these offsets as well.
+        npc.hit_chance = Math.max(0, Math.floor((pHit + 6) * abyssDeduction));
+        npc.crit_chance = Math.max(0, Math.floor((pCrit + 4) * abyssDeduction));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
@@ -4495,13 +4502,13 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         for (const el of ELEMENTS) {
             const d = Math.max(0, Number(pElemDmg?.[el] || 0));
             const r = Math.max(0, Number(pElemRes?.[el] || 0));
-            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * elemMultVsPlayer)) : 0;
-            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * armorMultVsPlayer)) : 0;
+            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * elemMultVsPlayer * abyssDeduction)) : 0;
+            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * armorMultVsPlayer * abyssDeduction)) : 0;
         }
         const elemTotal = ELEMENTS.reduce((sum, el) => sum + (npc.elem_dmg[el] || 0), 0);
         if (elemTotal <= 0) {
             const pick = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
-            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * mult.elemMult));
+            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * mult.elemMult * abyssDeduction));
         }
     }
 
