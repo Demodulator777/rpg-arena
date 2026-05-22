@@ -4473,7 +4473,7 @@ function buildWeaponDialog(dialog, weap) {
             ${weap.wp_stat_points>0 ? `
             <div style="background:rgba(241,196,15,0.06);border:1px solid rgba(241,196,15,0.2);border-radius:10px;padding:12px">
                 <div id="weapon-stats-header" style="font-size:0.8rem;font-weight:700;color:var(--gold);margin-bottom:8px">✨ ${weap.wp_stat_points} Stat Points Available</div>
-                <div id="weapon-dialog-stats" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+                <div id="weapon-dialog-stats" style="display:flex;flex-direction:column;gap:4px"></div>
                 <button class="btn-forge" id="btn-dialog-apply-stats" style="margin-top:10px;display:none;width:100%" data-action="applyWeaponStats">Apply Stats</button>
             </div>` : ''}
         </div>`;
@@ -4500,11 +4500,11 @@ function renderDialogStatGrid(weap) {
     container.innerHTML = validStats.map(s => {
         const base = weap.wp_stats[s] || 0;
         const add = pending[s] || 0;
-        return `<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
-            <span style="min-width:55px">${labels[s]||s}</span>
-            <span style="min-width:18px;text-align:right;color:var(--text-dim)">${base}</span>
-            <span style="min-width:28px;text-align:left;color:var(--green)">${add>0?`+${add}`:''}</span>
-            <div style="display:flex;gap:2px;margin-left:auto;flex-shrink:0">
+        return `<div style="display:grid;grid-template-columns:1fr 35px 35px auto;align-items:center;gap:6px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
+            <span>${labels[s]||s}</span>
+            <span style="text-align:right;color:var(--text-dim)">${base}</span>
+            <span style="text-align:left;color:var(--green)">${add>0?`+${add}`:''}</span>
+            <div style="display:flex;gap:2px;justify-self:end">
                 <button class="btn-sm stat-minus" data-stat="${s}" ${add<=0?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">−</button>
                 <button class="btn-sm stat-plus" data-stat="${s}" ${totalUsed>=weap.wp_stat_points?'disabled':''} style="font-size:0.65rem;padding:1px 5px;min-width:22px">+</button>
             </div>
