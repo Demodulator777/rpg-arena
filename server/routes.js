@@ -4490,6 +4490,12 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         // so a very strong player still faces a tougher NPC
         const powerBump = 1.0 + (powerScale - 0.8) * 0.15;
 
+        // Rogue class: their high agility makes NPCs unhittable, which nerfs
+        // their gold earnings. Cap NPC agility copy for Rogues.
+        if (playerStats.class === 'rogue') {
+            diffProfile.agi = 0.5 + Math.random() * 0.2;
+        }
+
         npc.hpMax = Math.max(1, Math.floor(pHp * diffProfile.hp * variance * zoneMult * powerBump));
         npc.hp = npc.hpMax;
         npc.dmgMin = Math.max(1, Math.floor(pDmgMin * diffProfile.dmg * variance * zoneMult * powerBump));
