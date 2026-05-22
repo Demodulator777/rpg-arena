@@ -6400,10 +6400,6 @@ router.post('/missions/start', auth, async (req, res) => {
         if (activeTraining) {
             return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
         }
-        if (Number(character.global_cooldown_until || 0) > now) {
-            const remain = Number(character.global_cooldown_until || 0) - now;
-            return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
-        }
 
         // Backend-enforced PvP cooldown: prevents bypassing the client overlay.
         const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
@@ -7484,10 +7480,6 @@ router.post('/travel/start', auth, async (req, res) => {
             return res.status(400).json({ error: `Please challenge "${prereq.guardianName}" first.` });
         }
         const now = Math.floor(Date.now() / 1000);
-        if (Number(character.global_cooldown_until || 0) > now) {
-            const remain = Number(character.global_cooldown_until || 0) - now;
-            return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
-        }
         if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
         const allowedNodes = travelUnlockSet;
         allowedNodes.add(character.location);
@@ -8019,9 +8011,6 @@ router.get('/matchmaking', auth, async (req, res) => {
         if (!me) return res.status(404).json({ error: 'No character' });
         const direction = req.query.direction || 'similar';
         const now = Math.floor(Date.now() / 1000);
-        if (Number(me.global_cooldown_until || 0) > now) {
-            return res.json({ active: false, globalCooldown: Number(me.global_cooldown_until || 0) });
-        }
         const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
 
         let candidates = await dbAll(db, `
@@ -8073,10 +8062,6 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         if (!defender) return res.status(404).json({ error: 'Target not found' });
         if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'You cannot attack characters on your own account.' });
         const now = Math.floor(Date.now() / 1000);
-        if (Number(attacker.global_cooldown_until || 0) > now) {
-            const remain = Number(attacker.global_cooldown_until || 0) - now;
-            return res.status(400).json({ error: `Raid recovery active for ${remain < 3600 ? Math.ceil(remain / 60) + 'm' : Math.ceil(remain / 3600) + 'h'}.` });
-        }
         const atkMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [attacker.id]);
         if (atkMission) return res.status(400).json({ error: 'Cannot attack while on a mission.' });
         if (attacker.travel_target && attacker.travel_end_time > now)
