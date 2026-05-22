@@ -1477,7 +1477,7 @@ function travelToRoom(targetIdx) {
     updateTravelBtn(targetIdx, true);
     log(`🚶 Traveling to Room ${targetIdx + 1}...`, 'log-travel');
 
-    const travelMs = TRAVEL_BASE_MS + rand(0, 3000);
+    const travelMs = TRAVEL_BASE_MS;
     if (bar) {
         bar.style.transition = `width ${travelMs}ms linear`;
         bar.style.width = '100%';
