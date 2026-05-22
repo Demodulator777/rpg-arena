@@ -4481,7 +4481,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         })[difficulty] || { hp:0.95, dmg:0.95, agi:0.85, armor:0.90, elem:0.80, hitOff:4, critOff:2 };
 
         // Random variance ±15% so no two missions feel identical
-        const variance = 0.85 + Math.random() * 0.30;
+        const r = () => 0.85 + Math.random() * 0.30;
 
         // Deeper Abyss zones get tougher regardless of player power
         const zoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.015);
@@ -4502,31 +4502,31 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
             diffProfile.agi = rogueAgiRange.min + Math.random() * (rogueAgiRange.max - rogueAgiRange.min);
         }
 
-        npc.hpMax = Math.max(1, Math.floor(pHp * diffProfile.hp * variance * zoneMult * powerBump));
+        npc.hpMax = Math.max(1, Math.floor(pHp * diffProfile.hp * r() * zoneMult * powerBump));
         npc.hp = npc.hpMax;
-        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * diffProfile.dmg * variance * zoneMult * powerBump));
-        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * diffProfile.dmg * variance * zoneMult * powerBump));
-        npc.agility = Math.max(1, Math.floor(pAgi * diffProfile.agi * variance * zoneMult * powerBump));
-        npc.magic = Math.max(0, Math.floor(pMagic * diffProfile.agi * variance * zoneMult * powerBump));
-        npc.armor = Math.max(0, Math.floor(pArmor * diffProfile.armor * variance * zoneMult * powerBump));
+        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * diffProfile.dmg * r() * zoneMult * powerBump));
+        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * diffProfile.dmg * r() * zoneMult * powerBump));
+        npc.agility = Math.max(1, Math.floor(pAgi * diffProfile.agi * r() * zoneMult * powerBump));
+        npc.magic = Math.max(0, Math.floor(pMagic * diffProfile.agi * r() * zoneMult * powerBump));
+        npc.armor = Math.max(0, Math.floor(pArmor * diffProfile.armor * r() * zoneMult * powerBump));
 
         // Keep hit/crit tied to the player's current stats with difficulty offsets
-        npc.hit_chance = Math.max(0, Math.floor((pHit + diffProfile.hitOff) * variance * zoneMult * powerBump));
-        npc.crit_chance = Math.max(0, Math.floor((pCrit + diffProfile.critOff) * variance * zoneMult * powerBump));
+        npc.hit_chance = Math.max(0, Math.floor((pHit + diffProfile.hitOff) * r() * zoneMult * powerBump));
+        npc.crit_chance = Math.max(0, Math.floor((pCrit + diffProfile.critOff) * r() * zoneMult * powerBump));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
         npc.elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
         for (const el of ELEMENTS) {
             const d = Math.max(0, Number(pElemDmg?.[el] || 0));
-            const r = Math.max(0, Number(pElemRes?.[el] || 0));
-            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * diffProfile.elem * variance * zoneMult * powerBump)) : 0;
-            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * diffProfile.armor * variance * zoneMult * powerBump)) : 0;
+            const resVal = Math.max(0, Number(pElemRes?.[el] || 0));
+            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * diffProfile.elem * r() * zoneMult * powerBump)) : 0;
+            npc.elem_resist[el] = resVal > 0 ? Math.max(1, Math.floor(resVal * diffProfile.armor * r() * zoneMult * powerBump)) : 0;
         }
         const elemTotal = ELEMENTS.reduce((sum, el) => sum + (npc.elem_dmg[el] || 0), 0);
         if (elemTotal <= 0) {
             const pick = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
-            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * diffProfile.elem * variance));
+            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * diffProfile.elem * r()));
         }
     }
 
