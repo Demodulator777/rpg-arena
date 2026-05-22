@@ -3234,8 +3234,12 @@ async function finalizeGuildRaid(db, raid, members) {
     const boss = buildRaidBossFighter(raid);
     const battle = runBattle(party, boss, null, { guaranteedHit: true });
     const raidWon = String(battle.winnerId) === String(party.id);
-    const totalHpBefore = fighters.reduce((sum, fighter) => sum + Number(fighter.hp || 0), 0);
-    const hpRatio = totalHpBefore > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalHpBefore)) : 0;
+
+    // Calculate the total MAX HP of the party for a more accurate ratio.
+    // fighters[i].hp is CURRENT hp, fighters[i].hpMax is FULL hp.
+    const totalMaxHp = fighters.reduce((sum, f) => sum + Number(f.hpMax || 0), 0);
+    const hpRatio = totalMaxHp > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalMaxHp)) : 0;
+
     const raidCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
     const resultSummary = raidWon
         ? `${party.name} defeated ${raid.boss_name} on Floor ${raid.floor}.`
@@ -3254,9 +3258,13 @@ async function finalizeGuildRaid(db, raid, members) {
         const char = memberChars[i];
         const fighter = fighters[i];
         const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor, Math.random() < 0.5) : null;
+
+        // Apply ratio to their true max HP, but don't let them 'heal' if they entered with less.
+        const fullHpAtEnd = Math.floor(Number(fighter.hpMax || 1) * hpRatio);
         const nextHp = raidWon
-            ? Math.max(1, Math.floor(Number(fighter.hp || 1) * hpRatio))
-            : Math.max(0, Math.floor(Number(fighter.hp || 1) * hpRatio));
+            ? Math.max(1, Math.min(Number(fighter.hp || 0), fullHpAtEnd))
+            : Math.max(0, Math.min(Number(fighter.hp || 0), fullHpAtEnd));
+
         await dbRun(
             db,
             'UPDATE characters SET hp_current = ?, raid_cooldown_until = ? WHERE id = ?',
