@@ -4311,7 +4311,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         mult = {
             hpMult: 1.2 * powerScale,
             dmgMult: 1.3 * powerScale,
-            agiMult: 1.1 * powerScale,
+            agiMult: 0.7 * powerScale,
             armorMult: 1.2 * powerScale,
             elemMult: 1.4 * powerScale,
             magicMult: 1.3 * powerScale,
