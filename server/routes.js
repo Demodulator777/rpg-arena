@@ -4325,7 +4325,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
                 // -20% from nightmare base
                 mult.hpMult *= 0.8;
                 mult.dmgMult *= 0.8;
-                mult.agiMult *= 0.8;
+                mult.agiMult *= 0.6;
                 mult.armorMult *= 0.8;
                 mult.elemMult *= 0.8;
                 mult.magicMult *= 0.8;
@@ -4335,7 +4335,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
                 // -50% from nightmare base
                 mult.hpMult *= 0.5;
                 mult.dmgMult *= 0.5;
-                mult.agiMult *= 0.5;
+                mult.agiMult *= 0.4;
                 mult.armorMult *= 0.5;
                 mult.elemMult *= 0.5;
                 mult.magicMult *= 0.5;
