@@ -4472,42 +4472,35 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const pElemDmg = playerStats.elem_dmg || {};
         const pElemRes = playerStats.elem_resist || {};
 
-        // Use the same powerScale derived above, but map it to fairer multipliers.
-        // Old: ~1.05..1.30 (HP), ~1.08..1.40 (DMG) - often too high
-        // New: ~0.95..1.20 (HP), ~0.98..1.25 (DMG) - much more manageable
-        let hpMultVsPlayer = 0.95 + (powerScale - 0.8) * (0.25 / 0.7);     
-        let dmgMultVsPlayer = 0.98 + (powerScale - 0.8) * (0.27 / 0.7);    
-        let agiMultVsPlayer = 0.50 + (powerScale - 0.8) * (0.15 / 0.7);    
-        let armorMultVsPlayer = 1.00 + (powerScale - 0.8) * (0.15 / 0.7);  
-        let elemMultVsPlayer = 0.95 + (powerScale - 0.8) * (0.25 / 0.7);   
+        // Per-difficulty stat target (multiplier against player's stat)
+        const diffProfile = ({
+            easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitOff:0, critOff:0 },
+            normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitOff:2, critOff:1 },
+            hard:       { hp:0.95, dmg:0.95, agi:0.85, armor:0.90, elem:0.80, hitOff:4, critOff:2 },
+            nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitOff:6, critOff:4 },
+        })[difficulty] || { hp:0.95, dmg:0.95, agi:0.85, armor:0.90, elem:0.80, hitOff:4, critOff:2 };
 
-        // Zone Multiplier: makes deeper Abyss zones (Crimson, Void, etc) tougher regardless of player power.
-        // Shadowfen (level 40) is base 1.0. 
-        // Crimson (level 50) is ~1.2x. 
-        // Void (level 60) is ~1.4x.
-        const abyssZoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.02);
+        // Random variance ±15% so no two missions feel identical
+        const variance = 0.85 + Math.random() * 0.30;
 
-        // Deductions for Abyss difficulties below Nightmare
-        let abyssDeduction = 1.0;
-        if (isAbyss && difficulty !== 'nightmare') {
-            if (difficulty === 'hard') abyssDeduction = 0.8;
-            else if (difficulty === 'normal' || difficulty === 'easy') abyssDeduction = 0.5;
-        }
+        // Deeper Abyss zones get tougher regardless of player power
+        const zoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.015);
 
-        const finalAbyssMult = abyssZoneMult * abyssDeduction;
+        // Blend the difficulty profile with a small powerScale bump
+        // so a very strong player still faces a tougher NPC
+        const powerBump = 1.0 + (powerScale - 0.8) * 0.15;
 
-        npc.hpMax = Math.max(1, Math.floor(pHp * hpMultVsPlayer * finalAbyssMult));
+        npc.hpMax = Math.max(1, Math.floor(pHp * diffProfile.hp * variance * zoneMult * powerBump));
         npc.hp = npc.hpMax;
-        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * dmgMultVsPlayer * finalAbyssMult));
-        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * dmgMultVsPlayer * finalAbyssMult));
-        npc.agility = Math.max(1, Math.floor(pAgi * agiMultVsPlayer * finalAbyssMult));
-        npc.magic = Math.max(0, Math.floor(pMagic * agiMultVsPlayer * finalAbyssMult));
-        npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer * finalAbyssMult));
+        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * diffProfile.dmg * variance * zoneMult * powerBump));
+        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * diffProfile.dmg * variance * zoneMult * powerBump));
+        npc.agility = Math.max(1, Math.floor(pAgi * diffProfile.agi * variance * zoneMult * powerBump));
+        npc.magic = Math.max(0, Math.floor(pMagic * diffProfile.agi * variance * zoneMult * powerBump));
+        npc.armor = Math.max(0, Math.floor(pArmor * diffProfile.armor * variance * zoneMult * powerBump));
 
-        // Keep hit/crit tied to the player's current stats (so high-agi / high-hit builds still matter).
-        // Apply the same abyss final multiplier to these offsets as well.
-        npc.hit_chance = Math.max(0, Math.floor((pHit + 6) * finalAbyssMult));
-        npc.crit_chance = Math.max(0, Math.floor((pCrit + 4) * finalAbyssMult));
+        // Keep hit/crit tied to the player's current stats with difficulty offsets
+        npc.hit_chance = Math.max(0, Math.floor((pHit + diffProfile.hitOff) * variance * zoneMult * powerBump));
+        npc.crit_chance = Math.max(0, Math.floor((pCrit + diffProfile.critOff) * variance * zoneMult * powerBump));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
@@ -4515,13 +4508,13 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         for (const el of ELEMENTS) {
             const d = Math.max(0, Number(pElemDmg?.[el] || 0));
             const r = Math.max(0, Number(pElemRes?.[el] || 0));
-            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * elemMultVsPlayer * finalAbyssMult)) : 0;
-            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * armorMultVsPlayer * finalAbyssMult)) : 0;
+            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * diffProfile.elem * variance * zoneMult * powerBump)) : 0;
+            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * diffProfile.armor * variance * zoneMult * powerBump)) : 0;
         }
         const elemTotal = ELEMENTS.reduce((sum, el) => sum + (npc.elem_dmg[el] || 0), 0);
         if (elemTotal <= 0) {
             const pick = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
-            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * mult.elemMult * abyssDeduction));
+            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * diffProfile.elem * variance));
         }
     }
 
