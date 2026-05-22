@@ -4469,12 +4469,20 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const pElemDmg = playerStats.elem_dmg || {};
         const pElemRes = playerStats.elem_resist || {};
 
-        // Use the same powerScale derived above, but map it to slightly above-player multipliers.
-        let hpMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);     // ~1.05..1.30
-        let dmgMultVsPlayer = 1.08 + (powerScale - 0.8) * (0.32 / 0.7);    // ~1.08..1.40
-        let agiMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);    // ~1.02..1.20
-        let armorMultVsPlayer = 1.02 + (powerScale - 0.8) * (0.18 / 0.7);  // ~1.02..1.20
-        let elemMultVsPlayer = 1.05 + (powerScale - 0.8) * (0.25 / 0.7);   // ~1.05..1.30
+        // Use the same powerScale derived above, but map it to fairer multipliers.
+        // Old: ~1.05..1.30 (HP), ~1.08..1.40 (DMG) - often too high
+        // New: ~0.95..1.20 (HP), ~0.98..1.25 (DMG) - much more manageable
+        let hpMultVsPlayer = 0.95 + (powerScale - 0.8) * (0.25 / 0.7);     
+        let dmgMultVsPlayer = 0.98 + (powerScale - 0.8) * (0.27 / 0.7);    
+        let agiMultVsPlayer = 1.00 + (powerScale - 0.8) * (0.15 / 0.7);    
+        let armorMultVsPlayer = 1.00 + (powerScale - 0.8) * (0.15 / 0.7);  
+        let elemMultVsPlayer = 0.95 + (powerScale - 0.8) * (0.25 / 0.7);   
+
+        // Zone Multiplier: makes deeper Abyss zones (Crimson, Void, etc) tougher regardless of player power.
+        // Shadowfen (level 40) is base 1.0. 
+        // Crimson (level 50) is ~1.2x. 
+        // Void (level 60) is ~1.4x.
+        const abyssZoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.02);
 
         // Deductions for Abyss difficulties below Nightmare
         let abyssDeduction = 1.0;
@@ -4483,18 +4491,20 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
             else if (difficulty === 'normal' || difficulty === 'easy') abyssDeduction = 0.5;
         }
 
-        npc.hpMax = Math.max(1, Math.floor(pHp * hpMultVsPlayer * abyssDeduction));
+        const finalAbyssMult = abyssZoneMult * abyssDeduction;
+
+        npc.hpMax = Math.max(1, Math.floor(pHp * hpMultVsPlayer * finalAbyssMult));
         npc.hp = npc.hpMax;
-        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * dmgMultVsPlayer * abyssDeduction));
-        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * dmgMultVsPlayer * abyssDeduction));
-        npc.agility = Math.max(1, Math.floor(pAgi * agiMultVsPlayer * abyssDeduction));
-        npc.magic = Math.max(0, Math.floor(pMagic * agiMultVsPlayer * abyssDeduction));
-        npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer * abyssDeduction));
+        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * dmgMultVsPlayer * finalAbyssMult));
+        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * dmgMultVsPlayer * finalAbyssMult));
+        npc.agility = Math.max(1, Math.floor(pAgi * agiMultVsPlayer * finalAbyssMult));
+        npc.magic = Math.max(0, Math.floor(pMagic * agiMultVsPlayer * finalAbyssMult));
+        npc.armor = Math.max(0, Math.floor(pArmor * armorMultVsPlayer * finalAbyssMult));
 
         // Keep hit/crit tied to the player's current stats (so high-agi / high-hit builds still matter).
-        // Apply the same abyss deduction to these offsets as well.
-        npc.hit_chance = Math.max(0, Math.floor((pHit + 6) * abyssDeduction));
-        npc.crit_chance = Math.max(0, Math.floor((pCrit + 4) * abyssDeduction));
+        // Apply the same abyss final multiplier to these offsets as well.
+        npc.hit_chance = Math.max(0, Math.floor((pHit + 6) * finalAbyssMult));
+        npc.crit_chance = Math.max(0, Math.floor((pCrit + 4) * finalAbyssMult));
 
         // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
         npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
@@ -4502,8 +4512,8 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         for (const el of ELEMENTS) {
             const d = Math.max(0, Number(pElemDmg?.[el] || 0));
             const r = Math.max(0, Number(pElemRes?.[el] || 0));
-            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * elemMultVsPlayer * abyssDeduction)) : 0;
-            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * armorMultVsPlayer * abyssDeduction)) : 0;
+            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * elemMultVsPlayer * finalAbyssMult)) : 0;
+            npc.elem_resist[el] = r > 0 ? Math.max(1, Math.floor(r * armorMultVsPlayer * finalAbyssMult)) : 0;
         }
         const elemTotal = ELEMENTS.reduce((sum, el) => sum + (npc.elem_dmg[el] || 0), 0);
         if (elemTotal <= 0) {
