@@ -4299,19 +4299,19 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const playerPower = hpMax * 0.5 +
                     strength * 2 + 
                     defense * 1.5 + 
-                    agility * 1.2 + 
+                    agility * 0.7 + 
                     magic * 2.5 + 
                     hitChance * 3 + 
                     critChance * 5; 
         
-        // Scale NPC to be 80-150% of player power
-        powerScale = Math.max(0.8, Math.min(1.5, playerPower / 5000));
+        // Scale NPC to be 80-110% of player power
+        powerScale = Math.max(0.8, Math.min(1.1, playerPower / 5000));
         
         // Base Nightmare multipliers (used as base for all Abyss missions)
         mult = {
             hpMult: 1.2 * powerScale,
             dmgMult: 1.3 * powerScale,
-            agiMult: 0.7 * powerScale,
+            agiMult: 1.1 * powerScale,
             armorMult: 1.2 * powerScale,
             elemMult: 1.4 * powerScale,
             magicMult: 1.3 * powerScale,
