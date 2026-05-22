@@ -932,7 +932,7 @@ const MISSION_BASE_GOLD_MULT = 1 / 3;
 const MISSION_SIZES = {
     small:  { mpCost: 20, duration: 600,  label: 'Small',  rewardMult: 1.0 },
     medium: { mpCost: 40, duration: 1200, label: 'Medium', rewardMult: 1.8 },
-    large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 3.0 },
+    large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 2.5 },
 };
 const SKILL_DURATION = 5 * 3600;
 const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
