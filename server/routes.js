@@ -4272,7 +4272,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     const difficultyMultipliers = {
         easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
         medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
-        hard: { hpMult: 1.8, dmgMult: 2.5, agiMult: 0.5, armorMult: 1.5, elemMult: 1.8, magicMult: 2.5, critMult: 2.5 },
+        hard: { hpMult: 1.8, dmgMult: 2.5, agiMult: 1.4, armorMult: 1.5, elemMult: 1.8, magicMult: 2.5, critMult: 2.5 },
         normal: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
         nightmare: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 } // Base, will be overridden
     };
@@ -4299,7 +4299,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const playerPower = hpMax * 0.5 +
                     strength * 2 + 
                     defense * 1.5 + 
-                    agility * 1 + 
+                    agility * 1.1 + 
                     magic * 2.5 + 
                     hitChance * 3 + 
                     critChance * 5; 
@@ -4311,7 +4311,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         mult = {
             hpMult: 1.2 * powerScale,
             dmgMult: 1.3 * powerScale,
-            agiMult: 0.6 * powerScale,
+            agiMult: 1.1 * powerScale,
             armorMult: 1.2 * powerScale,
             elemMult: 1.4 * powerScale,
             magicMult: 1.3 * powerScale,
@@ -4362,7 +4362,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     const baseHp = 60 + (effectiveLevel * 20);
     const baseDmgMin = 8 + (effectiveLevel * 0.5);
     const baseDmgMax = 16 + (effectiveLevel * 0.8);
-    const baseAgi = 6 + (effectiveLevel * 0.15);
+    const baseAgi = 8 + (effectiveLevel * 0.30);
     const baseMagic = 6 + (effectiveLevel * 0.2);
     const baseVitality = 8 + (effectiveLevel * 0.3);
     const baseHitChance = 70 + (effectiveLevel * 0.2);
