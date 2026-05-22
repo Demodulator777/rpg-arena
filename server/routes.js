@@ -4278,10 +4278,11 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     };
     
     let mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
-    
-    // For Nightmare difficulty, scale based on player stats
+    const isAbyss = zoneLevel >= 39;
+
+    // For Nightmare difficulty (and all Abyss missions), scale based on player stats
     let powerScale = 1.0;
-    if (difficulty === 'nightmare' && playerStats) { 
+    if ((difficulty === 'nightmare' || isAbyss) && playerStats) {
         // Calculate player power score
         // (playerStats may come from buildCombatFighter(), which uses hpMax not hp_max)
         const hpMax = Number(playerStats.hp_max ?? playerStats.hpMax ?? 100);
@@ -4303,14 +4304,42 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         // Scale NPC to be 80-150% of player power
         powerScale = Math.max(0.8, Math.min(1.5, playerPower / 5000));
         
-        // Override multipliers for Nightmare
+        // Base Nightmare multipliers (used as base for all Abyss missions)
         mult = {
             hpMult: 1.2 * powerScale,
             dmgMult: 1.3 * powerScale,
             agiMult: 1.1 * powerScale,
             armorMult: 1.2 * powerScale,
-            elemMult: 1.4 * powerScale
+            elemMult: 1.4 * powerScale,
+            magicMult: 1.3 * powerScale,
+            critMult: 1.3 * powerScale,
+            hitMult: 1.0 // Base hit chance is usually sufficient
         };
+
+        // Deduct for Abyss difficulty levels
+        if (isAbyss) {
+            if (difficulty === 'hard') {
+                // -20% from nightmare base
+                mult.hpMult *= 0.8;
+                mult.dmgMult *= 0.8;
+                mult.agiMult *= 0.8;
+                mult.armorMult *= 0.8;
+                mult.elemMult *= 0.8;
+                mult.magicMult *= 0.8;
+                mult.critMult *= 0.8;
+                mult.hitMult = 0.8;
+            } else if (difficulty === 'normal') {
+                // -50% from nightmare base
+                mult.hpMult *= 0.5;
+                mult.dmgMult *= 0.5;
+                mult.agiMult *= 0.5;
+                mult.armorMult *= 0.5;
+                mult.elemMult *= 0.5;
+                mult.magicMult *= 0.5;
+                mult.critMult *= 0.5;
+                mult.hitMult = 0.5;
+            }
+        }
     }
     
     // NPC name configs
@@ -4344,7 +4373,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     const agility = Math.floor(baseAgi * mult.agiMult);
     const magic = Math.floor(baseMagic * (mult.magicMult || mult.dmgMult));
     const vitality = Math.floor(baseVitality * mult.hpMult);
-    const hit_chance = Math.min(85, Math.floor(baseHitChance));
+    const hit_chance = Math.min(85, Math.floor(baseHitChance * (mult.hitMult || 1.0)));
     const crit_chance = Math.min(30, Math.floor(baseCritChance * (mult.critMult || mult.dmgMult)));
     const armor = Math.floor(baseArmor * mult.armorMult);
     
@@ -6563,17 +6592,17 @@ router.post('/missions/collect', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         let playerStats = null;
-        if (mission.difficulty === 'nightmare') {
-    playerStats = {
-        hp_max: freshChar.hp_max,
-        strength: freshChar.strength,
-        defense: freshChar.defense,
-        agility: freshChar.agility,
-        magic: freshChar.magic,
-        hit_chance: freshChar.hit_chance,
-        crit_chance: freshChar.crit_chance
-    };
-}
+        if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
+            playerStats = {
+                hp_max: freshChar.hp_max,
+                strength: freshChar.strength,
+                defense: freshChar.defense,
+                agility: freshChar.agility,
+                magic: freshChar.magic,
+                hit_chance: freshChar.hit_chance,
+                crit_chance: freshChar.crit_chance
+            };
+        }
         const isEvent = eventHas('grand_festival');
         const activePremCollect = getActivePremium(freshChar);
         const hasUlt = hasUltimate(activePremCollect);
