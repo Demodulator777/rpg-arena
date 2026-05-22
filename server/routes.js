@@ -4477,7 +4477,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         // New: ~0.95..1.20 (HP), ~0.98..1.25 (DMG) - much more manageable
         let hpMultVsPlayer = 0.95 + (powerScale - 0.8) * (0.25 / 0.7);     
         let dmgMultVsPlayer = 0.98 + (powerScale - 0.8) * (0.27 / 0.7);    
-        let agiMultVsPlayer = 1.00 + (powerScale - 0.8) * (0.15 / 0.7);    
+        let agiMultVsPlayer = 0.50 + (powerScale - 0.8) * (0.15 / 0.7);    
         let armorMultVsPlayer = 1.00 + (powerScale - 0.8) * (0.15 / 0.7);  
         let elemMultVsPlayer = 0.95 + (powerScale - 0.8) * (0.25 / 0.7);   
 
