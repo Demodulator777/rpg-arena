@@ -17,7 +17,7 @@
   const MP_PER_TOKEN      = 20;
   const TOKENS_PER_RUN    = 50;
   const MONSTER_RESPAWN_H = 48;
-  const TRAVEL_BASE_MS    = 8000;
+  const TRAVEL_BASE_MS    = 1000;
   const TRAVEL_DISCOVERED_MS = 2200;
   const RUN_ESCAPE_CHANCE = 0.75;
   const STEAL_CHANCE      = 0.18;
