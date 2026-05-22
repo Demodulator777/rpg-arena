@@ -4272,7 +4272,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     const difficultyMultipliers = {
         easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
         medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
-        hard: { hpMult: 1.8, dmgMult: 2.0, agiMult: 1.4, armorMult: 1.5, elemMult: 1.8, magicMult: 2.5, critMult: 2.5 },
+        hard: { hpMult: 1.8, dmgMult: 2.5, agiMult: 1.4, armorMult: 1.5, elemMult: 1.8, magicMult: 2.5, critMult: 2.5 },
         normal: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
         nightmare: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 } // Base, will be overridden
     };
