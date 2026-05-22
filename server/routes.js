@@ -4280,6 +4280,9 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     let mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
     const isAbyss = zoneLevel >= 39;
 
+    // Add 10% downward variance (90% to 100% of calculated strength)
+    const varianceMult = 0.9 + (Math.random() * 0.1);
+
     // For Nightmare difficulty (and all Abyss missions), scale based on player stats
     let powerScale = 1.0;
     if ((difficulty === 'nightmare' || isAbyss) && playerStats) {
