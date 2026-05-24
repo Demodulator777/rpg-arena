@@ -3115,6 +3115,7 @@ function buildRaidBossFighter(raid) {
         name: raid.boss_name,
         class: 'raid_boss',
         hp: Number(raid.boss_hp || 1),
+        hpMax: Number(raid.boss_hp || 1),
         dmgMin: Math.max(1, Math.round((raid.boss_atk || 1) * 0.78)),
         dmgMax: Math.max(2, Math.round((raid.boss_atk || 1) * 1.18)),
         strength: Number(raid.boss_atk || 1),
@@ -3141,6 +3142,7 @@ function buildRaidPartyFighter(raidId, members, fighters) {
         name: 'Raid Party',
         class: 'raid_party',
         hp: 0,
+        hpMax: 0,
         dmgMin: 0,
         dmgMax: 0,
         strength: 0,
@@ -3161,6 +3163,7 @@ function buildRaidPartyFighter(raidId, members, fighters) {
     };
     for (const fighter of fighters) {
         base.hp += Number(fighter.hp || 0);
+        base.hpMax += Number(fighter.hpMax || 0);
         base.dmgMin += Number(fighter.dmgMin || 0);
         base.dmgMax += Number(fighter.dmgMax || 0);
         base.strength += Number(fighter.strength || 0);
@@ -3235,10 +3238,10 @@ async function finalizeGuildRaid(db, raid, members) {
     const battle = runBattle(party, boss, null, { guaranteedHit: true });
     const raidWon = String(battle.winnerId) === String(party.id);
 
-    // Calculate the total MAX HP of the party for a more accurate ratio.
-    // fighters[i].hp is CURRENT hp, fighters[i].hpMax is FULL hp.
-    const totalMaxHp = fighters.reduce((sum, f) => sum + Number(f.hpMax || 0), 0);
-    const hpRatio = totalMaxHp > 0 ? Math.max(0, Math.min(1, Number(battle.hpRemainingA || 0) / totalMaxHp)) : 0;
+    // Equal damage to every party member (not proportional to their max HP).
+    const totalEntryHp = fighters.reduce((sum, f) => sum + Number(f.hp || 0), 0);
+    const totalTaken = Math.max(0, totalEntryHp - Number(battle.hpRemainingA || 0));
+    const dmgShare = fighters.length ? Math.floor(totalTaken / fighters.length) : 0;
 
     const raidCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
     const resultSummary = raidWon
@@ -3259,11 +3262,11 @@ async function finalizeGuildRaid(db, raid, members) {
         const fighter = fighters[i];
         const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor, Math.random() < 0.5) : null;
 
-        // Apply ratio to their true max HP, but don't let them 'heal' if they entered with less.
-        const fullHpAtEnd = Math.floor(Number(fighter.hpMax || 1) * hpRatio);
+        // Every member takes the same flat damage share; survivors keep at least 1 HP on win.
+        const entryHp = Number(fighter.hp || 0);
         const nextHp = raidWon
-            ? Math.max(1, Math.min(Number(fighter.hp || 0), fullHpAtEnd))
-            : Math.max(0, Math.min(Number(fighter.hp || 0), fullHpAtEnd));
+            ? Math.max(1, entryHp - dmgShare)
+            : Math.max(0, entryHp - dmgShare);
 
         await dbRun(
             db,
