@@ -250,15 +250,15 @@ function getCrawlerForFloor(floor) {
     const boss = getBossForFloor(floor);
     // The Crawler is meant to be an "oh no" encounter: stronger than the floor boss.
     // Per balance: 2x HP and 2x DEF (relative to previous crawler tuning).
-    const hpMult = 1.45 * 2;
-    const defMult = 1.25 * 2;
+    const hpMult = 2.9 * 2;
+    const defMult = 2.5 * 2;
     return {
         id: CRAWLER_BASE.id,
         name: CRAWLER_BASE.name,
         icon: CRAWLER_BASE.icon,
         image: CRAWLER_BASE.image,
         hp: Math.round(boss.hp * hpMult),
-        atk: Math.round(boss.atk * 1.35),
+        atk: Math.round(boss.atk * 2.7),
         def: Math.round(boss.def * defMult),
         steal: false,
         isCrawler: true,
