@@ -7327,6 +7327,23 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
         const consumeQty = Math.min(feedQty, qty);
         const totalWeight = weight * consumeQty;
 
+        // Check for overfeeding — warn before consuming materials
+        const feedRemaining = Math.max(0, feedNeeded - curFeed);
+        const overflow = totalWeight - feedRemaining;
+        if (overflow > 0 && !req.body.confirmOverfeed) {
+            return res.json({
+                overfeed: true,
+                overflow,
+                totalWeight,
+                feedRemaining,
+                feedNeeded,
+                curFeed,
+                consumeQty,
+                rarity,
+                message: `Feeding ${consumeQty}x ${rarity} (+${totalWeight} feed) will exceed the ${feedNeeded} target by ${overflow}. Materials will be consumed. Continue?`
+            });
+        }
+
         // Consume units
         if (qty > consumeQty) {
             itemData.qty = qty - consumeQty;
