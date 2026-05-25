@@ -28,11 +28,13 @@ function renderLayout() {
             '<button class="tab-btn" data-tab="bugs">Bug Reports</button>' +
             '<button class="tab-btn" data-tab="banners">Banners</button>' +
             '<button class="tab-btn" data-tab="rewards">Rewards</button>' +
+            '<button class="tab-btn" data-tab="actions">Action Log</button>' +
         '</div>' +
         '<div id="tab-csp" class="tab-content active"><div class="loading">Loading CSP violations...</div></div>' +
         '<div id="tab-bugs" class="tab-content"><div class="loading">Loading bug reports...</div></div>' +
         '<div id="tab-banners" class="tab-content"><div class="loading">Loading banners...</div></div>' +
-        '<div id="tab-rewards" class="tab-content"><div class="loading">Loading rewards...</div></div>';
+        '<div id="tab-rewards" class="tab-content"><div class="loading">Loading rewards...</div></div>' +
+        '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -52,6 +54,7 @@ function loadTab(name) {
     else if (name === 'bugs') loadBugs();
     else if (name === 'banners') loadBanners();
     else if (name === 'rewards') loadRewards();
+    else if (name === 'actions') loadActions();
 }
 
 function loadCsp() {
@@ -152,6 +155,28 @@ function sortTable(tab, col) {
     if (tab === 'csp') renderCspTable(data);
     else if (tab === 'bugs') renderBugsTable(data);
 }
+
+function loadActions() {
+    var el = document.getElementById('tab-actions');
+    API('/admin/action-log?limit=500').then(function(data) {
+        if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No actions recorded</p>'; return; }
+        el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+            '<th>Time</th>' +
+            '<th>Type</th>' +
+            '<th>Action</th>' +
+            '<th>Detail</th>' +
+        '</tr></thead><tbody>' + data.map(function(a) {
+            var time = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
+            var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
+            var typeIcon = a.type === 'battle' ? '⚔️' : a.type === 'mission' ? '📋' : '📍';
+            return '<tr><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
+                '<td><span class="badge ' + typeClass + '">' + typeIcon + ' ' + a.type + '</span></td>' +
+                '<td>' + esc(a.label) + '</td>' +
+                '<td style="color:#8a8a90;font-size:11px">' + esc(a.detail) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
+}
+
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
