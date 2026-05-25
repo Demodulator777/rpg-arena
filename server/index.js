@@ -72,6 +72,23 @@ getDb().then(async (db) => {
     res.sendFile(path.join(__dirname, '../public/admin/banner.html'));
   });
   
+  // Admin panel (requires auth + isAdmin)
+  app.get('/admin-panel', auth, async (req, res) => {
+    if (!req.user.isAdmin) {
+      return res.status(403).send('<h1>403 Forbidden</h1><p>Admin access required.</p>');
+    }
+    res.sendFile(path.join(__dirname, '../public/admin/panel.html'));
+  });
+  
+  // API endpoint to get admin password for password-protected admin pages
+  app.get('/api/game/admin/password', auth, async (req, res) => {
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
+    res.json({ password: ADMIN_PANEL_PASSWORD });
+  });
+  
   // Mount banner router with auth middleware
   const { router: bannerRouter, admin: adminRouter, seedDefaultBanner } = require('./banner');
   app.use('/banner', auth, bannerRouter);
