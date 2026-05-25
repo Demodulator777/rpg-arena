@@ -9301,6 +9301,8 @@ function parseLegacyHandler(raw, attrName, el) {
     const match = expression.match(/^([A-Za-z_$][\w$]*)\((.*)\)$/);
     if (!match) return null;
     const [, actionName, argList] = match;
+    const allowed = ['showTabAndCloseMenu', 'skipTutorial', 'sortTable'];
+    if (!allowed.includes(actionName)) return null;
     const rawArgs = argList.trim() ? splitLegacyArgs(argList) : [];
     return { type: attrName.slice(2), actionName, rawArgs, stopPropagation, el };
 }
