@@ -2172,7 +2172,7 @@ function renderCharacter() {
         const bonusTag = bonus !== 0
             ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
             : '';
-        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+${cost}g</button>` : '';
+        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+</button>` : '';
         return `<div class="stat-row">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
