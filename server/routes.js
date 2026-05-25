@@ -5405,12 +5405,20 @@ function withUpgradeCosts(char) {
     const costs = {};
     const stats = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance'];
     
+    // Apply same premium/event discounts as the upgrade endpoint
+    const activePrem = getActivePremium(char);
+    const discountEvent = typeof eventHas === 'function' ? eventHas('discount_stats') : false;
+    
     for (const stat of stats) {
         // Get base cost from CLASS_DISCOUNTS
         let baseCost = upgradeCost(stat, char[stat] || 0, char.class);
         
-        // Apply skill tree penalties/discounts
+        // Apply skill tree modifiers
         let finalCost = applyClassUpgradeCostModifier(char.class, stat, baseCost);
+        
+        // Premium & event discounts (mirrors lines 6404-6406)
+        if (discountEvent) finalCost = Math.max(1, Math.floor(finalCost * 0.70));
+        if (hasPremium(activePrem, 'apprentice')) finalCost = Math.max(1, Math.floor(finalCost * 0.80));
         
         costs[stat] = finalCost;
     }
