@@ -7386,7 +7386,7 @@ router.post('/forge/weapon/feed', auth, async (req, res) => {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
         }
 
-        weaponData.wp_feed = (weaponData.wp_feed || 0) + totalWeight;
+        weaponData.wp_feed = Math.min(feedNeeded, (weaponData.wp_feed || 0) + totalWeight);
         await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
 
         const nextFeed = getWeaponFeedForLevel(weaponData.wp_level);
