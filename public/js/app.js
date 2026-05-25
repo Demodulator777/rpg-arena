@@ -4554,7 +4554,18 @@ async function openWeaponFeedDialog(dialog, weap) {
     const entries = Object.entries(forgeData.mats)
         .filter(([,m]) => m.qty > 0 && m.type === 'raw_mat')
         .sort((a,b) => (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[a[1]?.rarity||'common']||0) - (({legendary:0,epic:1,rare:2,uncommon:3,common:4})[b[1]?.rarity||'common']||0));
-    if (!entries.length) { showMsg('forge-msg','No materials to feed.',true); return; }
+    if (!entries.length) {
+        dialog.innerHTML = `
+            <div style="padding:16px;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-weight:700;font-size:0.95rem">📦 Feed Materials</span>
+                    <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-back-btn">← Back</button>
+                </div>
+                <div style="text-align:center;padding:24px;color:var(--text-dim);font-size:0.85rem">No raw materials to feed. Gather materials from missions and PvP.</div>
+            </div>`;
+        dialog.querySelector('#feed-back-btn').addEventListener('click', () => buildWeaponDialog(dialog, weap));
+        return;
+    }
 
     const savedHtml = dialog.innerHTML;
     dialog.innerHTML = `
