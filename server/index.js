@@ -72,11 +72,8 @@ getDb().then(async (db) => {
     res.sendFile(path.join(__dirname, '../public/admin/banner.html'));
   });
   
-  // Admin panel (requires auth + isAdmin)
-  app.get('/admin-panel', auth, async (req, res) => {
-    if (!req.user.isAdmin) {
-      return res.status(403).send('<h1>403 Forbidden</h1><p>Admin access required.</p>');
-    }
+  // Admin panel (HTML page — auth check happens client-side via JS)
+  app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin/panel.html'));
   });
   
