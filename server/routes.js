@@ -5843,6 +5843,27 @@ router.post('/character', auth, async (req, res) => {
             0
         ]);
         const created = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ? ORDER BY id DESC LIMIT 1', [userId, characterClass]);
+        
+        // Equip starter weapon
+        const starterWeapon = {
+            id: `starter_sword_${created?.id || Date.now()}`,
+            name: 'Starter Sword',
+            slot: 'weapon',
+            category: 'weapon',
+            stats: { dmg_min: 5, dmg_max: 10 },
+            quality: 'common',
+            tier: 1,
+            level: 1,
+            price: 0,
+        };
+        const invResult = await dbRun(db, `INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, 'equipment', ?)`, [created?.id, JSON.stringify(starterWeapon)]);
+        const invId = invResult.lastInsertRowid;
+        let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [created?.id]);
+        if (!eq) {
+            await dbRun(db, 'INSERT INTO equipment (char_id) VALUES (?)', [created?.id]);
+        }
+        await dbRun(db, `UPDATE equipment SET weapon_id=? WHERE char_id=?`, [invId, created?.id]);
+        
         await ensureActiveCharacter(db, userId, created?.id || null);
         const character = await getCurrentCharacter(db, userId);
         res.json(await buildCharacterResponse(character, db));
