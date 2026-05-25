@@ -161,7 +161,7 @@ function loadActions() {
     var el = document.getElementById('tab-actions');
     API('/admin/action-log?limit=500').then(function(data) {
         if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No actions recorded</p>'; return; }
-        var filterHtml = '<div style="margin-bottom:10px"><input id="actions-filter" type="text" placeholder="Filter by player name..." style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #2a2a35;background:#14141e;color:#e0dcd0;font-size:13px;outline:none" oninput="filterActionsTable()"></div>';
+        var filterHtml = '<div style="margin-bottom:10px"><input id="actions-filter" type="text" placeholder="Filter by player name..." style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #2a2a35;background:#14141e;color:#e0dcd0;font-size:13px;outline:none"></div>';
         el.innerHTML = filterHtml + '<div class="table-wrap"><table><thead><tr>' +
             '<th class="sortable" onclick="sortTable(\'actions\',\'ts\')">Time</th>' +
             '<th class="sortable" onclick="sortTable(\'actions\',\'type\')">Type</th>' +
@@ -171,6 +171,8 @@ function loadActions() {
         '</tr></thead><tbody id="actions-tbody"></tbody></table></div>';
         window._actionsData = data;
         renderActionsTable(data);
+        var filterInput = document.getElementById('actions-filter');
+        if (filterInput) filterInput.addEventListener('input', filterActionsTable);
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
 }
 
