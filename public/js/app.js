@@ -3137,10 +3137,14 @@ async function upgradestat(stat) {
     try {
         const d = await api('POST', '/game/upgrade', { stat });
         character = d.character;
+        _upgradingStats[stat] = false;
+        document.querySelectorAll('.btn-upgrade').forEach(b => b.disabled = false);
         renderUpgrade();
         renderCharacter();
         showMsg('upgrade-msg', d.message);
     } catch(e) {
+        _upgradingStats[stat] = false;
+        document.querySelectorAll('.btn-upgrade').forEach(b => b.disabled = false);
         showMsg('upgrade-msg', e.message, true);
         renderUpgrade();
     } finally {
