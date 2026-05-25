@@ -130,18 +130,26 @@ let cspData = [];
 let adminPassword = 'baisbetterthanbk';
 
 async function init() {
+    const token = localStorage.getItem('rpg_token');
+    if (!token) { showNoAccess(); return; }
     try {
-        const token = localStorage.getItem('rpg_token');
-        const res = await fetch('/api/game/admin/password', {
+        const checkRes = await fetch('/api/game/admin/check', {
             headers: { 'Authorization': 'Bearer ' + token }
         });
-        if (res.ok) {
-            const data = await res.json();
-            adminPassword = data.password;
-        }
+        if (!checkRes.ok || !(await checkRes.json()).isAdmin) { showNoAccess(); return; }
+    } catch { showNoAccess(); return; }
+    try {
+        const pwRes = await fetch('/api/game/admin/password', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (pwRes.ok) adminPassword = (await pwRes.json()).password;
     } catch {}
     renderCards();
-init();
+    loadCspViolations();
+}
+
+function showNoAccess() {
+    document.querySelector('.container').innerHTML = '<h2>Access Denied</h2><p style="color:#e06060">You must be logged in with an admin account to view this page.</p>';
 }
 
 function renderCards() {
@@ -229,7 +237,7 @@ function sortCsp(col) {
     renderCspTable();
 }
 
-loadCspViolations();
+init();
 </script>
 </body>
 </html>
