@@ -6554,7 +6554,7 @@ xpReward = Math.max(0, xpReward);
             effectiveMpCost = Math.max(0, effectiveMpCost - midasFlow.effect.mp_cost_reduction);
         }
         
-        if (currentMp < effectiveMpCost) {
+        if (!isTutorial && currentMp < effectiveMpCost) {
             return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${effectiveMpCost} MP, you have ${currentMp}.` });
         }
         
@@ -6567,9 +6567,11 @@ xpReward = Math.max(0, xpReward);
         const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
         if (!didInsert) return res.status(400).json({ error: 'You already have an active mission.' });
         
-        await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
-            [effectiveMpCost, effectiveMpCost, character.id]);
-        await recordTotalMpSpent(db, character.id, effectiveMpCost);
+        if (!isTutorial) {
+            await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
+                [effectiveMpCost, effectiveMpCost, character.id]);
+            await recordTotalMpSpent(db, character.id, effectiveMpCost);
+        }
         
         res.json({
             success: true,
@@ -9684,9 +9686,9 @@ function buildDungeonBossStatsForFloor(floor) {
 function buildCrawlerStatsForFloor(floor) {
   const boss = buildDungeonBossStatsForFloor(floor);
   // Must match client tuning in public/js/dungeon.js
-  const hpMult = 2.9;   // 1.45 * 2
-  const atkMult = 1.35;
-  const defMult = 2.5;  // 1.25 * 2
+  const hpMult = 5.8;   // 2.9 * 2
+  const atkMult = 2.7;  // 1.35 * 2
+  const defMult = 5.0;  // 2.5 * 2
   const maxHp = Math.round(boss.hp * hpMult);
   return {
     id: 'the_crawler',
