@@ -154,6 +154,7 @@ function sortTable(tab, col) {
     });
     if (tab === 'csp') renderCspTable(data);
     else if (tab === 'bugs') renderBugsTable(data);
+    else if (tab === 'actions') renderActionsTable(data);
 }
 
 function loadActions() {
@@ -161,20 +162,29 @@ function loadActions() {
     API('/admin/action-log?limit=500').then(function(data) {
         if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No actions recorded</p>'; return; }
         el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-            '<th>Time</th>' +
-            '<th>Type</th>' +
-            '<th>Action</th>' +
-            '<th>Detail</th>' +
-        '</tr></thead><tbody>' + data.map(function(a) {
-            var time = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
-            var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
-            var typeIcon = a.type === 'battle' ? '⚔️' : a.type === 'mission' ? '📋' : '📍';
-            return '<tr><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
-                '<td><span class="badge ' + typeClass + '">' + typeIcon + ' ' + a.type + '</span></td>' +
-                '<td>' + esc(a.label) + '</td>' +
-                '<td style="color:#8a8a90;font-size:11px">' + esc(a.detail) + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
+            '<th class="sortable" onclick="sortTable(\'actions\',\'ts\')">Time</th>' +
+            '<th class="sortable" onclick="sortTable(\'actions\',\'type\')">Type</th>' +
+            '<th class="sortable" onclick="sortTable(\'actions\',\'char_name\')">Player</th>' +
+            '<th class="sortable" onclick="sortTable(\'actions\',\'label\')">Action</th>' +
+            '<th class="sortable" onclick="sortTable(\'actions\',\'detail\')">Detail</th>' +
+        '</tr></thead><tbody id="actions-tbody"></tbody></table></div>';
+        window._actionsData = data;
+        renderActionsTable(data);
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
+}
+
+function renderActionsTable(data) {
+    var tbody = document.getElementById('actions-tbody');
+    tbody.innerHTML = data.map(function(a) {
+        var time = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
+        var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
+        var typeIcon = a.type === 'battle' ? '⚔️' : a.type === 'mission' ? '📋' : '📍';
+        return '<tr><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
+            '<td><span class="badge ' + typeClass + '">' + typeIcon + ' ' + a.type + '</span></td>' +
+            '<td>' + esc(a.char_name) + '</td>' +
+            '<td>' + esc(a.label) + '</td>' +
+            '<td style="color:#8a8a90;font-size:11px">' + esc(a.detail) + '</td></tr>';
+    }).join('');
 }
 
 
