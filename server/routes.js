@@ -8973,6 +8973,50 @@ router.get('/admin/rewards', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Skip attack cooldowns with gems (per-target cooldown and/or defender global cooldown)
+router.post('/attack/skip-cooldown', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const attacker = await getCurrentCharacter(db, req.user.userId);
+        if (!attacker) return res.status(404).json({ error: 'No character' });
+
+        const targetId = parseInt(req.body?.targetId);
+        if (!targetId) return res.status(400).json({ error: 'Missing target' });
+        const defender = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [targetId]);
+        if (!defender) return res.status(404).json({ error: 'Target not found' });
+
+        const now = Math.floor(Date.now() / 1000);
+        const crystals = attacker.crystals ?? attacker.gems ?? 0;
+        if (crystals < 1) return res.status(400).json({ error: 'Need 1 💎 to skip cooldown' });
+
+        let cleared = [];
+
+        // Per-target cooldown (12h per target)
+        const ptCd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
+        if (ptCd && ptCd.expires_at > now) {
+            await dbRun(db, 'DELETE FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
+            cleared.push('per-target cooldown');
+        }
+
+        // Defender global cooldown (1h defender recovery)
+        if ((defender.global_cooldown_until || 0) > now) {
+            await dbRun(db, 'UPDATE characters SET global_cooldown_until = 0 WHERE id = ?', [defender.id]);
+            cleared.push('defender recovery');
+        }
+
+        if (!cleared.length) {
+            return res.status(400).json({ error: 'No active cooldowns to skip for this target' });
+        }
+
+        // Charge 1 gem
+        const gemField = (attacker.crystals !== undefined) ? 'crystals' : 'gems';
+        await dbRun(db, `UPDATE characters SET ${gemField} = ${gemField} - 1 WHERE id = ?`, [attacker.id]);
+
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [attacker.id]);
+        res.json({ success: true, message: `⚡ Skipped ${cleared.join(' & ')} for 1 💎!`, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/admin/action-log', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
