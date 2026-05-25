@@ -2789,9 +2789,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     width: 100%;
     text-align: center;
     border-radius: 4px;
-    border: 1px solid rgba(155,89,182,0.3);
-    background: rgba(155,89,182,0.1);
-    color: #9b59b6;
+    border: 1px solid var(--class-scene-tint, rgba(155,89,182,0.3));
+    background: color-mix(in srgb, var(--class-scene-tint, rgba(155,89,182,0.12)) 60%, transparent);
+    color: var(--text-bright);
     cursor: pointer;
     white-space: nowrap;
     font-weight: 600;
@@ -2799,10 +2799,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     line-height: 1.4;
 }
 .stat-upgrade-btn:hover:not(:disabled) {
-    background: rgba(155,89,182,0.25);
+    background: var(--class-scene-tint, rgba(155,89,182,0.25));
 }
 .stat-upgrade-btn:disabled {
-    opacity: 0.35;
+    opacity: 0.3;
     cursor: default;
 }
 .stat-bonus.negative { color: #e74c3c; }
