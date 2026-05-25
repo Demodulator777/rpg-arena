@@ -61,6 +61,8 @@ function loadCsp() {
         el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
             '<th class="sortable" onclick="sortTable(\'csp\',\'id\')">#</th>' +
             '<th class="sortable" onclick="sortTable(\'csp\',\'reported_at\')">Reported</th>' +
+            '<th class="sortable" onclick="sortTable(\'csp\',\'character_name\')">Character</th>' +
+            '<th class="sortable" onclick="sortTable(\'csp\',\'user_id\')">User ID</th>' +
             '<th class="sortable" onclick="sortTable(\'csp\',\'blocked_uri\')">Blocked URI</th>' +
             '<th class="sortable" onclick="sortTable(\'csp\',\'violated_directive\')">Directive</th>' +
             '<th class="sortable" onclick="sortTable(\'csp\',\'document_uri\')">Document</th>' +
@@ -73,7 +75,7 @@ function loadCsp() {
 function renderCspTable(data) {
     var tbody = document.getElementById('csp-tbody');
     tbody.innerHTML = data.map(function(v) {
-        return '<tr><td style="color:#6a6a70">' + v.id + '</td><td style="white-space:nowrap">' + v.reported_at + '</td><td style="color:#e0c060;word-break:break-all">' + (v.blocked_uri || '') + '</td><td>' + (v.violated_directive || '') + '</td><td style="font-size:11px;word-break:break-all;max-width:200px">' + (v.document_uri || '') + '</td></tr>';
+        return '<tr><td style="color:#6a6a70">' + v.id + '</td><td style="white-space:nowrap">' + v.reported_at + '</td><td>' + (v.character_name || '<span style="color:#4a4a50">—</span>') + '</td><td style="color:#6a6a70">' + (v.user_id || '') + '</td><td style="color:#e0c060;word-break:break-all">' + (v.blocked_uri || '') + '</td><td>' + (v.violated_directive || '') + '</td><td style="font-size:11px;word-break:break-all;max-width:180px">' + (v.document_uri || '') + '</td></tr>';
     }).join('');
 }
 
