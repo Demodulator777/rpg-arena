@@ -6698,7 +6698,7 @@ const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wr
                     <button ${actionAttrs('activatePremium', f.id)}
                         style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
                         ${gems < f.cost && !isActive ? 'disabled' : ''}>
-                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `��� Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
+                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
                     </button>
                 </div>
             </div>`;
