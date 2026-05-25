@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
 const cspDirectives = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-eval'",
+    "script-src 'self'",
     "connect-src 'self'",
     "img-src 'self' data: blob:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
