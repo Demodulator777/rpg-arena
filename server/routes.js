@@ -5809,8 +5809,9 @@ router.post('/character', auth, async (req, res) => {
                 total_gold_earned, total_gold_lost,
                 gems, total_gems_earned, total_gems_spent,
                 location, travel_target, travel_end_time,
-                elem_resist_pyro, elem_resist_water, elem_resist_wind, elem_resist_electro
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                elem_resist_pyro, elem_resist_water, elem_resist_wind, elem_resist_electro,
+                hit_chance, crit_chance
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             userId,
             normalizedName,
@@ -5840,7 +5841,9 @@ router.post('/character', auth, async (req, res) => {
             0,
             0,
             0,
-            0
+            0,
+            3,
+            3
         ]);
         const created = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ? ORDER BY id DESC LIMIT 1', [userId, characterClass]);
         
