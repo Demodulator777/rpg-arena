@@ -21,7 +21,8 @@ const cspDirectives = [
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
-    "form-action 'self'"
+    "form-action 'self'",
+    "report-uri /api/csp-violation"
 ];
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -40,6 +41,21 @@ getDb().then(async (db) => {
   for (const sql of bannerModule.BANNER_MIGRATIONS) {
     try { await db.execute({ sql }); } catch {}
   }
+  
+  // CSP violations table
+  try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS csp_violations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reported_at TEXT NOT NULL DEFAULT (datetime('now')),
+    blocked_uri TEXT,
+    document_uri TEXT,
+    violated_directive TEXT,
+    effective_directive TEXT,
+    original_policy TEXT,
+    source_file TEXT,
+    line_number INTEGER,
+    column_number INTEGER,
+    raw_body TEXT
+  )` }); } catch {}
   
   // Seed default banner if none exists
   await bannerModule.seedDefaultBanner(db);
@@ -60,6 +76,44 @@ getDb().then(async (db) => {
   const { router: bannerRouter, admin: adminRouter, seedDefaultBanner } = require('./banner');
   app.use('/banner', auth, bannerRouter);
   app.use('/admin/banner', adminRouter);
+  
+  // CSP violation reporting endpoint (no auth — browsers send these directly)
+  app.post('/api/csp-violation', async (req, res) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        let parsed;
+        try { parsed = JSON.parse(body); } catch { parsed = {}; }
+        const report = parsed['csp-report'] || parsed.body || parsed;
+        await db.execute({
+          sql: `INSERT INTO csp_violations (blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number, raw_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            report['blocked-uri'] || '',
+            report['document-uri'] || '',
+            report['violated-directive'] || '',
+            report['effective-directive'] || '',
+            report['original-policy'] || '',
+            report['source-file'] || '',
+            report['line-number'] || null,
+            report['column-number'] || null,
+            JSON.stringify(parsed)
+          ]
+        });
+      } catch (e) { console.error('CSP save error:', e); }
+    });
+    res.status(204).end();
+  });
+  
+  // View CSP violations (auth required)
+  app.get('/api/csp-violations', auth, async (req, res) => {
+    try {
+      const result = await db.execute({
+        sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200',
+      });
+      res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
   
 // Static files - AFTER API routes
 app.use(express.static(path.join(__dirname, '../public'), {
