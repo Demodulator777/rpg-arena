@@ -522,10 +522,14 @@ const WEEKLY_TASKS = [
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE)',
             'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
             'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
+            'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
         }
+        try {
+            await db.execute({ sql: 'UPDATE users SET is_admin = 1 WHERE username = ?', args: ['Forsaken'] });
+        } catch {}
         try {
             const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
             const charSql = charTable?.sql || '';
@@ -8915,6 +8919,11 @@ router.delete('/messages/:id', auth, async (req, res) => {
         await dbRun(db, 'DELETE FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
         res.json({ ok:true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin check endpoint
+router.get('/admin/check', auth, async (req, res) => {
+    res.json({ isAdmin: !!req.user.isAdmin, username: req.user.username });
 });
 
 router.get('/rewards/list', async (req, res) => {
