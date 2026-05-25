@@ -4619,6 +4619,7 @@ async function openWeaponFeedDialog(dialog, weap) {
                 if (d.overfeed) {
                     feedBtn.disabled = false;
                     feedBtn.textContent = 'Feed';
+                    dialog.close();
                     const confirmed = await openGameDialog({
                         title: '⚠️ Overfeed Warning',
                         message: `Feeding ${d.consumeQty}x ${d.rarity} will add +${d.totalWeight} feed.<br><br>The feed bar needs ${d.feedNeeded} total, currently at ${d.curFeed} (${d.feedRemaining} remaining).<br><br><b>+${d.overflow} feed will be wasted.</b><br><br>Materials will still be consumed. Continue?`,
@@ -4633,6 +4634,7 @@ async function openWeaponFeedDialog(dialog, weap) {
                         showMsg('forge-msg', d2.message);
                         buildWeaponDialog(dialog, forgeData.weapon);
                     }
+                    dialog.showModal();
                     return;
                 }
                 forgeData = await api('GET','/game/forge/recipes');
