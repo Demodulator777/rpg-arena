@@ -2725,7 +2725,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .stat-row {
     display: grid;
-    grid-template-columns: 24px 108px minmax(56px, 1fr) 78px 52px 70px;
+    grid-template-columns: 24px 108px minmax(56px, 1fr) 78px 52px 32px;
     align-items: center;
     column-gap: 8px;
     padding: 8px 0;
@@ -2884,7 +2884,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 920px) {
     .stat-row {
-        grid-template-columns: 24px 88px minmax(40px, 1fr) 72px 48px 64px;
+        grid-template-columns: 24px 88px minmax(40px, 1fr) 72px 48px 28px;
         column-gap: 6px;
     }
 }
@@ -3026,7 +3026,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 680px) {
     .char-panel .stat-row {
-        grid-template-columns: 18px minmax(18px, 1fr) 68px 48px 56px;
+        grid-template-columns: 18px minmax(18px, 1fr) 68px 48px 24px;
         column-gap: 6px;
         padding: 6px 0;
     }
