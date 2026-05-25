@@ -8926,6 +8926,43 @@ router.get('/admin/check', auth, async (req, res) => {
     res.json({ isAdmin: !!req.user.isAdmin, username: req.user.username });
 });
 
+// JSON admin data endpoints
+router.get('/admin/csp-violations', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/bug-reports', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT id, report_timestamp, username, character_name, character_level, character_class, category, title, description, game_location, has_screenshot FROM bug_reports ORDER BY id DESC LIMIT 100', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/rewards', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM admin_reward_batches ORDER BY id DESC LIMIT 50', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/banners', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM banner_events ORDER BY id DESC LIMIT 50', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/rewards/list', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
