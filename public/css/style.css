@@ -2725,7 +2725,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .stat-row {
     display: grid;
-    grid-template-columns: 24px 108px minmax(56px, 1fr) 78px 52px;
+    grid-template-columns: 24px 108px minmax(56px, 1fr) 78px 52px auto;
     align-items: center;
     column-gap: 8px;
     padding: 8px 0;
@@ -2783,6 +2783,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin-left: 3px;
 }
 .stat-bonus.positive { color: #2ecc71; }
+.stat-upgrade-btn {
+    font-size: 0.62rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(155,89,182,0.3);
+    background: rgba(155,89,182,0.1);
+    color: #9b59b6;
+    cursor: pointer;
+    white-space: nowrap;
+    font-weight: 600;
+    transition: background 0.15s;
+    line-height: 1.4;
+}
+.stat-upgrade-btn:hover:not(:disabled) {
+    background: rgba(155,89,182,0.25);
+}
+.stat-upgrade-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
 .stat-bonus.negative { color: #e74c3c; }
 .stat-bar-wrap { width: 100%; }
 .stat-bar {
@@ -2862,7 +2882,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 920px) {
     .stat-row {
-        grid-template-columns: 24px 88px minmax(40px, 1fr) 72px 48px;
+        grid-template-columns: 24px 88px minmax(40px, 1fr) 72px 48px auto;
         column-gap: 6px;
     }
 }
@@ -3004,7 +3024,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 680px) {
     .char-panel .stat-row {
-        grid-template-columns: 18px minmax(18px, 1fr) 68px 48px;
+        grid-template-columns: 18px minmax(18px, 1fr) 68px 48px auto;
         column-gap: 6px;
         padding: 6px 0;
     }
