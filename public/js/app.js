@@ -7109,9 +7109,14 @@ async function openProfile(id) {
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
-            const atkBtn=blocked
-                ?`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`
-                :`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`;
+            const canSkipPtc = ptc > 0 && (character?.gems || 0) >= 1;
+            const canSkipGc = gc > 0 && (character?.gems || 0) >= 1;
+            const canSkip = (canSkipPtc || canSkipGc) && !hpLow && !myAttackBlockReason;
+            const atkBtn=!blocked
+                ?`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`
+                :(canSkip
+                    ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${reason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6" ${actionAttrs('skipCooldownAndAttack', id, name, p.class)}>⚡ Skip for 1 💎</button></div>`
+                    :`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`);
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
           })() : ''}
         </div>
@@ -7125,6 +7130,14 @@ function miniStat(icon,label,val,max,cls) {
 }
 function closeProfile() { hideItemTooltip(); document.getElementById('profile-modal').classList.add('hidden'); }
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
+async function skipCooldownAndAttack(id, name, targetClass) {
+    closeProfile();
+    if (!confirm('Skip cooldown for 1 💎?')) return;
+    try {
+        await api('POST', '/game/attack/skip-cooldown', { targetId: id });
+    } catch(e) { alert(e.message); return; }
+    await attack(id, name, targetClass);
+}
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
 
 function clearBattlePlaybackTimer() {
