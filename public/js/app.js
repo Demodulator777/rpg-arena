@@ -6665,7 +6665,7 @@ async function loadPremium() {
     } catch(e) { el.innerHTML = `<p class="loading">${e.message}</p>`; }
 }
 
-function renderPremium(data) {
+async function renderPremium(data) {
     const el = document.getElementById('premium-content');
     if (!el) return;
     const { features, synergies, ultimate, gems } = data;
@@ -6732,11 +6732,26 @@ const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wr
         }).join('')}
     </div>`;
 
+    let adminBtnHtml = '';
+    const storedToken = localStorage.getItem('rpg_token');
+    if (storedToken) {
+        try {
+            const adminRes = await fetch('/api/game/admin/check', {
+                headers: { 'Authorization': 'Bearer ' + storedToken }
+            });
+            const adminData = await adminRes.json();
+            if (adminData.isAdmin) {
+                adminBtnHtml = `<a href="/admin-panel" target="_blank" style="display:block;text-align:center;padding:10px;margin-top:16px;background:rgba(200,168,110,0.12);border:1px solid rgba(200,168,110,0.4);border-radius:var(--radius-sm);color:#c8a86e;font-weight:600;font-size:0.85rem;text-decoration:none;transition:background 0.15s" onmouseover="this.style.background='rgba(200,168,110,0.2)'" onmouseout="this.style.background='rgba(200,168,110,0.12)'">👑 Admin Panel</a>`;
+            }
+        } catch {}
+    }
+
     el.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:10px 14px;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.25);border-radius:var(--radius-sm)">
             <span style="font-size:0.82rem;color:var(--text-dim)">Your gems</span>
             <span style="font-size:1.1rem;font-weight:700;color:#9b59b6">💎 ${gems.toLocaleString()}</span>
         </div>
+        ${adminBtnHtml}
         ${ultimateBanner}
         ${synergyHtml}
         ${cardsHtml}`;
@@ -6954,18 +6969,7 @@ async function openProfile(id) {
         const profileArmor = Math.floor(def / 4) + (p.armor || 0);
         const profileElemDmg = p.elem_dmg || {};
         const profileElemRes = p.elem_resist || {};
-        const profileDetailSlots = [
-            renderDetailSlot('DMG', 'Damage', p.damage_range || '?', 'var(--text-bright)'),
-            renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2'),
-            renderDetailSlot('PY', 'Pyro Dmg', `+${profileElemDmg.pyro || 0}`, '#f1c40f'),
-            renderDetailSlot('WA', 'Water Dmg', `+${profileElemDmg.water || 0}`, '#f1c40f'),
-            renderDetailSlot('WI', 'Wind Dmg', `+${profileElemDmg.wind || 0}`, '#f1c40f'),
-            renderDetailSlot('EL', 'Electro Dmg', `+${profileElemDmg.electro || 0}`, '#f1c40f'),
-            renderDetailSlot('PY', 'Pyro Res', `+${profileElemRes.pyro || 0}`, '#5dade2'),
-            renderDetailSlot('WA', 'Water Res', `+${profileElemRes.water || 0}`, '#5dade2'),
-            renderDetailSlot('WI', 'Wind Res', `+${profileElemRes.wind || 0}`, '#5dade2'),
-            renderDetailSlot('EL', 'Electro Res', `+${profileElemRes.electro || 0}`, '#5dade2'),
-        ];
+
         const eq=p.equipped||{};
         const classTheme = normalizeClassTheme(p.class);
         const classBackground = getClassThemeBackground(p.class);
@@ -7045,6 +7049,25 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Achievements</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+              </div>
+            </div>
+            <div class="profile-card">
+              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Details</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${renderDetailSlot('DMG', 'Damage', p.damage_range || '?', 'var(--text-bright)')}
+                ${renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2')}
+                ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
+                  ${renderDetailSlot('🔥', 'Pyro Dmg', `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
+                  ${renderDetailSlot('🌊', 'Water Dmg', `+${p.elem_dmg.water||0}`, '#f1c40f')}
+                  ${renderDetailSlot('🌪️', 'Wind Dmg', `+${p.elem_dmg.wind||0}`, '#f1c40f')}
+                  ${renderDetailSlot('⚡', 'Electro Dmg', `+${p.elem_dmg.electro||0}`, '#f1c40f')}
+                ` : ''}
+                ${p.elem_resist && (p.elem_resist.pyro||p.elem_resist.water||p.elem_resist.wind||p.elem_resist.electro) ? `
+                  ${renderDetailSlot('🔥', 'Pyro Res', `+${p.elem_resist.pyro||0}`, '#5dade2')}
+                  ${renderDetailSlot('🌊', 'Water Res', `+${p.elem_resist.water||0}`, '#5dade2')}
+                  ${renderDetailSlot('🌪️', 'Wind Res', `+${p.elem_resist.wind||0}`, '#5dade2')}
+                  ${renderDetailSlot('⚡', 'Electro Res', `+${p.elem_resist.electro||0}`, '#5dade2')}
+                ` : ''}
               </div>
             </div>
           </div>
