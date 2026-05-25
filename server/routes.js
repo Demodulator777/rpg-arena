@@ -530,6 +530,8 @@ const WEEKLY_TASKS = [
         try {
             await db.execute({ sql: 'UPDATE users SET is_admin = 1 WHERE username = ?', args: ['Forsaken'] });
         } catch {}
+        try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN user_id INTEGER DEFAULT NULL", args: [] }); } catch {}
+        try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN character_name TEXT DEFAULT NULL", args: [] }); } catch {}
         try {
             const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
             const charSql = charTable?.sql || '';
@@ -8927,6 +8929,23 @@ router.get('/admin/check', auth, async (req, res) => {
 });
 
 // JSON admin data endpoints
+// CSP violation report from client-side JS (auth — includes character context)
+router.post('/admin/csp-violation', auth, async (req, res) => {
+    try {
+        const { blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number } = req.body || {};
+        const db = await getDb();
+        let charName = null;
+        try {
+            const char = await dbGet(db, 'SELECT name FROM characters WHERE user_id = ? ORDER BY id DESC LIMIT 1', [req.user.userId]);
+            if (char) charName = char.name;
+        } catch {}
+        await db.execute({ sql: `INSERT INTO csp_violations (blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number, raw_body, user_id, character_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args: [
+            blocked_uri || '', document_uri || '', violated_directive || '', effective_directive || '', original_policy || '', source_file || '', line_number || null, column_number || null, JSON.stringify(req.body), req.user.userId, charName || req.user.username
+        ]});
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/admin/csp-violations', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
