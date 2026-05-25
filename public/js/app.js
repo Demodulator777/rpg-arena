@@ -4586,6 +4586,7 @@ async function openWeaponFeedDialog(dialog, weap) {
                     </div>`
                 ).join('')}
             </div>
+            <div id="feed-error-msg" class="msg-bar hidden" style="font-size:0.75rem;padding:6px 10px;border-radius:6px;text-align:center"></div>
         </div>`;
 
     dialog.querySelectorAll('.feed-row').forEach(row => {
@@ -4640,7 +4641,11 @@ async function openWeaponFeedDialog(dialog, weap) {
                 forgeData = await api('GET','/game/forge/recipes');
                 showMsg('forge-msg', d.message);
                 buildWeaponDialog(dialog, forgeData.weapon);
-            } catch(e) { showMsg('forge-msg', e.message, true); feedBtn.disabled = false; feedBtn.textContent = 'Feed'; }
+            } catch(e) {
+                const feedErr = document.getElementById('feed-error-msg');
+                if (feedErr) { feedErr.textContent = e.message; feedErr.classList.remove('hidden'); feedErr.style.background = 'rgba(192,57,43,0.1)'; feedErr.style.borderColor = 'rgba(192,57,43,0.4)'; feedErr.style.color = 'var(--red-light)'; }
+                feedBtn.disabled = false; feedBtn.textContent = 'Feed';
+            }
         });
     });
     const backBtn = document.getElementById('feed-back-btn');
