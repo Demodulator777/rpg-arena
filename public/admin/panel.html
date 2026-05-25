@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel - RPG Arena</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a0f;
+    color: #e0dcd0;
+    min-height: 100vh;
+}
+a { color: #c8a86e; text-decoration: none; }
+a:hover { color: #e8c88e; }
+h1 { text-align: center; padding: 24px; font-size: 28px; color: #f0e8d0; border-bottom: 1px solid #2a2a35; margin-bottom: 24px; }
+h2 { font-size: 18px; margin-bottom: 12px; color: #d4c8a0; border-left: 3px solid #c8a86e; padding-left: 10px; }
+.container { max-width: 900px; margin: 0 auto; padding: 0 16px 40px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.card {
+    background: #14141e;
+    border: 1px solid #2a2a35;
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color .2s;
+}
+.card:hover { border-color: #c8a86e; }
+.card .name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.card .desc { font-size: 13px; color: #8a8a90; margin-bottom: 12px; line-height: 1.4; }
+.card .btn {
+    display: inline-block;
+    padding: 8px 18px;
+    background: #c8a86e;
+    color: #0a0a0f;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+    transition: background .2s;
+}
+.card .btn:hover { background: #e8c88e; }
+.card .btn-sm {
+    padding: 5px 12px;
+    font-size: 12px;
+}
+.pw-box {
+    background: #1a1a28;
+    border: 1px dashed #3a3a48;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: monospace;
+    font-size: 13px;
+    color: #8a8a90;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pw-box code { color: #c8a86e; }
+.section { margin-bottom: 32px; }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+th, td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid #2a2a35;
+}
+th { color: #8a8a90; font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+tr:hover td { background: #1a1a28; }
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-red { background: #4a1a1a; color: #e06060; }
+.badge-yellow { background: #4a3a1a; color: #e0c060; }
+.badge-green { background: #1a4a1a; color: #60e060; }
+.count-badge {
+    display: inline-block;
+    background: #2a2a35;
+    color: #c8a86e;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    margin-left: 6px;
+}
+.loading { text-align: center; padding: 24px; color: #6a6a70; font-size: 14px; }
+.error { color: #e06060; padding: 12px; text-align: center; }
+.csp-blocked { color: #e0c060; word-break: break-all; }
+th.sortable { cursor: pointer; }
+th.sortable:hover { color: #c8a86e; }
+</style>
+</head>
+<body>
+<h1>Admin Panel</h1>
+<div class="container">
+    <div class="grid" id="cards-grid">
+    </div>
+
+    <div class="section">
+        <h2>CSP Violations</h2>
+        <div id="csp-loading" class="loading">Loading CSP violations...</div>
+        <div id="csp-error" class="error" style="display:none"></div>
+        <div id="csp-content" style="display:none">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortCsp('id')">#</th>
+                        <th class="sortable" onclick="sortCsp('reported_at')">Reported</th>
+                        <th class="sortable" onclick="sortCsp('blocked_uri')">Blocked URI</th>
+                        <th class="sortable" onclick="sortCsp('violated_directive')">Directive</th>
+                        <th class="sortable" onclick="sortCsp('document_uri')">Document</th>
+                    </tr>
+                </thead>
+                <tbody id="csp-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script>
+let cspData = [];
+let adminPassword = 'baisbetterthanbk';
+
+async function init() {
+    try {
+        const token = localStorage.getItem('rpg_token');
+        const res = await fetch('/api/game/admin/password', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            adminPassword = data.password;
+        }
+    } catch {}
+    renderCards();
+init();
+}
+
+function renderCards() {
+    const grid = document.getElementById('cards-grid');
+    grid.innerHTML = `
+        <div class="card">
+            <div class="name">Bug Reports</div>
+            <div class="desc">View and manage submitted bug reports with screenshots.</div>
+            <a href="/api/game/bug-reports/list?password=${encodeURIComponent(adminPassword)}" class="btn" target="_blank">Open Bug Reports</a>
+            <div class="pw-box"><code>password: ${adminPassword}</code></div>
+        </div>
+        <div class="card">
+            <div class="name">Banners</div>
+            <div class="desc">Create and manage gacha banner events.</div>
+            <a href="/admin/banner" class="btn" target="_blank">Open Banner Admin</a>
+        </div>
+        <div class="card">
+            <div class="name">Rewards</div>
+            <div class="desc">Send global reward letters to all players.</div>
+            <a href="/api/game/rewards/list?password=${encodeURIComponent(adminPassword)}" class="btn" target="_blank">Open Rewards Panel</a>
+            <div class="pw-box"><code>password: ${adminPassword}</code></div>
+        </div>
+        <div class="card">
+            <div class="name">CSP Violations</div>
+            <div class="desc">Content Security Policy violation reports from browsers.</div>
+            <a href="#" class="btn" onclick="loadCspViolations();return false">Refresh CSP Data</a>
+        </div>
+    `;
+}
+
+async function loadCspViolations() {
+    const loading = document.getElementById('csp-loading');
+    const error = document.getElementById('csp-error');
+    const content = document.getElementById('csp-content');
+    const tbody = document.getElementById('csp-tbody');
+
+    loading.style.display = '';
+    error.style.display = 'none';
+    content.style.display = 'none';
+
+    try {
+        const token = localStorage.getItem('rpg_token');
+        const res = await fetch('/api/csp-violations', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error('Failed to load CSP violations');
+        cspData = await res.json();
+        renderCspTable();
+        content.style.display = '';
+        loading.style.display = 'none';
+    } catch (e) {
+        loading.style.display = 'none';
+        error.style.display = '';
+        error.textContent = 'Error loading CSP violations: ' + e.message;
+    }
+}
+
+function renderCspTable() {
+    const tbody = document.getElementById('csp-tbody');
+    tbody.innerHTML = '';
+    if (!cspData.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6a6a70;padding:24px;">No violations reported</td></tr>';
+        return;
+    }
+    for (const v of cspData) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td style="color:#6a6a70">' + v.id + '</td>'
+            + '<td style="white-space:nowrap">' + v.reported_at + '</td>'
+            + '<td class="csp-blocked">' + v.blocked_uri + '</td>'
+            + '<td>' + (v.violated_directive || '') + '</td>'
+            + '<td style="font-size:12px;word-break:break-all;max-width:240px">' + (v.document_uri || '') + '</td>';
+        tbody.appendChild(tr);
+    }
+}
+
+function sortCsp(col) {
+    const dir = cspData._sortCol === col ? (cspData._sortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+    cspData._sortCol = col;
+    cspData._sortDir = dir;
+    cspData.sort((a, b) => {
+        let va = a[col] || '', vb = b[col] || '';
+        if (col === 'id') va = Number(va), vb = Number(vb);
+        return dir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+    });
+    renderCspTable();
+}
+
+loadCspViolations();
+</script>
+</body>
+</html>
