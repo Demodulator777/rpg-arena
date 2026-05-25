@@ -2166,18 +2166,20 @@ function renderCharacter() {
     const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
-    function statRowBreakdown(icon, label, base, bonus, max, cls) {
+    function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey) {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
         const bonusTag = bonus !== 0
             ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
             : '';
+        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+${cost}g</button>` : '';
         return `<div class="stat-row">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
             <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${pct}%"></div></div></div>
             <span class="stat-val">${base}${bonusTag}</span>
             <span class="stat-total">${total}</span>
+            ${upBtn}
         </div>`;
     }
 
@@ -2248,13 +2250,13 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str')}
-          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def')}
-          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi')}
-          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag')}
-          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit')}
-          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit'):''}
-          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit'):''}
+          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength')}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense')}
+          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility')}
+          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic')}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality')}
+          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit', c.upgradeCosts?.hit_chance, 'hit_chance'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
             <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
               ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
@@ -2304,6 +2306,9 @@ const eqGrid = `
     renderTopBar();
     loadAchievements();
     refreshInlineBadgeChips();
+    charSheet.querySelectorAll('.stat-upgrade-btn').forEach(btn => {
+        btn.addEventListener('click', () => upgradestat(btn.dataset.stat));
+    });
 }
 function statRow(icon,label,val,max,cls) {
     return `<div class="stat-row"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span>
