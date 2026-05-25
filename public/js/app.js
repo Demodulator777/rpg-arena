@@ -1225,6 +1225,28 @@ const characterHubTrigger = document.getElementById('character-hub-trigger');
     } else showScreen('auth');
 });
 
+// Client-side CSP violation reporter (adds character context to reports)
+document.addEventListener('securitypolicyviolation', (e) => {
+    const body = {
+        blocked_uri: e.blockedURI,
+        document_uri: e.documentURI,
+        violated_directive: e.violatedDirective,
+        effective_directive: e.effectiveDirective,
+        original_policy: e.originalPolicy,
+        source_file: e.sourceFile,
+        line_number: e.lineNumber,
+        column_number: e.columnNumber
+    };
+    const token = localStorage.getItem('rpg_token');
+    if (token) {
+        fetch('/api/game/admin/csp-violation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(body)
+        }).catch(() => {});
+    }
+});
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(tab==='login'?0:1)));
