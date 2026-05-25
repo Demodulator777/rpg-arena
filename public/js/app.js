@@ -1424,6 +1424,7 @@ function showScreen(name) {
     document.getElementById(`screen-${name}`).classList.add('active');
     if (name === 'create') syncCreateClassAvailability();
     if (name==='game') {
+        window.scrollTo(0, 0);
         renderTopBar();
         startPolling();
         checkTravelStatus().then(() => {
