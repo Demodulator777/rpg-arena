@@ -24,6 +24,7 @@ let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = false;
 let assistantEnabled = true;
+let showUpgradeTab = localStorage.getItem('rpg_show_upgrade') !== 'false';
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -632,6 +633,10 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
+                <span>Upgrade tab in character menu</span>
+                <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
+            </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
                 <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
                 <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
@@ -736,6 +741,10 @@ function renderTopbarMenu() {
             <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
+                <span>Upgrade tab in character menu</span>
+                <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
             </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
                 <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
@@ -997,6 +1006,10 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
+                <span>Upgrade tab in character menu</span>
+                <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
+            </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
                 <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
                 <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
@@ -1015,6 +1028,22 @@ function syncClientPreferencesFromCharacter() {
     assistantEnabled = character.assistant_enabled !== false;
     chatEnabled = character.chat_enabled !== false;
     updateTopbarChatButton();
+}
+
+function updateHubUpgradeButtonVisibility() {
+    const btn = document.getElementById('hub-btn-upgrade');
+    if (btn) btn.style.display = showUpgradeTab ? '' : 'none';
+}
+
+async function toggleUpgradeTab() {
+    showUpgradeTab = !showUpgradeTab;
+    localStorage.setItem('rpg_show_upgrade', showUpgradeTab);
+    renderTopbarMenu();
+    updateHubUpgradeButtonVisibility();
+    if (!showUpgradeTab) {
+        const active = document.querySelector('.game-tab.active');
+        if (active && active.id === 'tab-upgrade') showTab('character');
+    }
 }
 
 async function toggleAlwaysSkipBattleAnimations() {
@@ -1208,6 +1237,7 @@ const characterHubTrigger = document.getElementById('character-hub-trigger');
         tt.addEventListener('mouseleave', scheduleHideTooltip);
         document.body.appendChild(tt);
     }
+    updateHubUpgradeButtonVisibility();
     initMissionTimer();
     if (token) {
         try {
