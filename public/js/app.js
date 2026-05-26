@@ -563,7 +563,7 @@ function renderTopbarMenu() {
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
                     💎✨ Convert MP
-                    <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
+                    <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
                     🐛 Report a Bug
@@ -688,7 +688,7 @@ function renderTopbarMenu() {
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
                     💎✨ Convert MP
-                    <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
+                    <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
                     🐛 Report a Bug
@@ -934,7 +934,7 @@ function renderTopbarMenu() {
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
                     💎✨ Convert MP
-                    <span class="topbar-menu-meta">${specialManaPotionCount} Special Mana Potions</span>
+                    <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
                     🐛 Report a Bug
@@ -9888,6 +9888,17 @@ let _convertingMp = false;
 
 async function convertMpToPotion() {
     if (_convertingMp) return;
+
+    if (specialManaPotionCount >= 5) {
+        openGameDialog({
+            title: '💎 Limit Reached',
+            message: `You already have ${specialManaPotionCount}/5 Special Mana Potions. Use some before creating more.`,
+            confirmLabel: 'OK',
+            showCancel: false
+        });
+        return;
+    }
+
     _convertingMp = true;
     
     const btn = document.getElementById('convert-mp-btn');
