@@ -2857,9 +2857,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const boss = getBossForFloor(fl);
     const t = getFloorTheme(fl);
     return `<div class="dungeon-floor-preview-card" style="--card-accent:${t.theme}">
-        <div class="dfp-banner">
+        <div class="dfp-banner" style="background-image:url(${boss.image})">
             <div class="dfp-icon">${boss.icon}</div>
-            <img src="${boss.image}" alt="${boss.name}" data-error-hide="true">
             <div class="dfp-floor-badge">F${fl}</div>
         </div>
         <div class="dfp-name">${boss.name.split(' ').slice(0,2).join(' ')}</div>
