@@ -3103,13 +3103,9 @@ function renderUpgrade() {
     ];
     
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
-        // Use the cost directly from backend (already includes all modifiers)
+        // Use the cost directly from backend (already includes all modifiers: skill tree, event, premium)
         let cost = costs[s.key];
         if (cost === undefined || cost === null) cost = '?';
-        
-        // Apply event and premium discounts on top (these are temporary and not in backend costs)
-        if (hasStatDiscount && typeof cost === 'number') cost = Math.max(1, Math.floor(cost * 0.70));
-        if (hasApprentice && typeof cost === 'number') cost = Math.max(1, Math.floor(cost * 0.80));
         
         const can = c.gold >= cost;
         const displayName = s.label || capitalize(s.key);
