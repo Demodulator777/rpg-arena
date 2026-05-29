@@ -27,6 +27,16 @@ async function migrate() {
   // Disable FK checks so tables can be created in any order
   await dest.execute('PRAGMA foreign_keys = OFF');
 
+  // Drop all existing objects for a clean slate
+  for (const type of ['table', 'index', 'trigger', 'view']) {
+    const objs = await dest.execute(
+      `SELECT name FROM sqlite_master WHERE type='${type}' AND name NOT LIKE 'sqlite_%'`
+    );
+    for (const row of objs.rows) {
+      await dest.execute(`DROP ${type.toUpperCase()} IF EXISTS "${row.name}"`);
+    }
+  }
+
   const tablesReq = await source.execute(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'knex_%'"
   );
