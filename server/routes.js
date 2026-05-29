@@ -53,6 +53,7 @@ BigInt.prototype.toJSON = function() { return Number(this); };
 
 const router = express.Router();
 const _missionStartLock = new Set();
+const _upgradeLock = new Set();
 const _weeklyClaimableCountCache = new Map();
 
 function invalidateWeeklyClaimableCountCache(charId) {
@@ -6397,6 +6398,10 @@ router.post('/weekly-tasks/:taskId/claim', auth, async (req, res) => {
 
 // ── Upgrade (UPDATED with skill tree cost modifier) ───────────────────────
 router.post('/upgrade', auth, async (req, res) => {
+    if (_upgradeLock.has(req.user.userId)) {
+        return res.status(429).json({ error: 'Upgrade already in progress.' });
+    }
+    _upgradeLock.add(req.user.userId);
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
@@ -6441,6 +6446,7 @@ router.post('/upgrade', auth, async (req, res) => {
         const updated = await getCurrentCharacter(db, req.user.userId);
         res.json({ message: `+1 ${stat}! Spent ${cost} gold.`, character: await buildCharacterResponse(updated, db) });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+    finally { _upgradeLock.delete(req.user.userId); }
 });
 
 // ── Training (old stat training, keep as is) ──────────────────────────────
