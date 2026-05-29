@@ -7120,25 +7120,6 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
               </div>
             </div>
-            <div class="profile-card">
-              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Details</div>
-              <div style="display:flex;flex-wrap:wrap;gap:6px">
-                ${renderDetailSlot('DMG', 'Damage', `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
-                ${renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2')}
-                ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
-                  ${renderDetailSlot('🔥', 'Pyro Dmg', `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
-                  ${renderDetailSlot('🌊', 'Water Dmg', `+${p.elem_dmg.water||0}`, '#f1c40f')}
-                  ${renderDetailSlot('🌪️', 'Wind Dmg', `+${p.elem_dmg.wind||0}`, '#f1c40f')}
-                  ${renderDetailSlot('⚡', 'Electro Dmg', `+${p.elem_dmg.electro||0}`, '#f1c40f')}
-                ` : ''}
-                ${p.elem_resist && (p.elem_resist.pyro||p.elem_resist.water||p.elem_resist.wind||p.elem_resist.electro) ? `
-                  ${renderDetailSlot('🔥', 'Pyro Res', `+${p.elem_resist.pyro||0}`, '#5dade2')}
-                  ${renderDetailSlot('🌊', 'Water Res', `+${p.elem_resist.water||0}`, '#5dade2')}
-                  ${renderDetailSlot('🌪️', 'Wind Res', `+${p.elem_resist.wind||0}`, '#5dade2')}
-                  ${renderDetailSlot('⚡', 'Electro Res', `+${p.elem_resist.electro||0}`, '#5dade2')}
-                ` : ''}
-              </div>
-            </div>
           </div>
           ${Object.keys(eq).length?`
           <div class="profile-card profile-equipment-card">
@@ -7166,7 +7147,22 @@ async function openProfile(id) {
                     :`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`);
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
           })() : ''}
-        </div>
+          <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:16px 0 0">
+            ${renderDetailSlot('DMG', 'Damage', `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
+            ${renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2')}
+            ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
+              ${renderDetailSlot('🔥', 'Pyro Dmg', `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
+              ${renderDetailSlot('🌊', 'Water Dmg', `+${p.elem_dmg.water||0}`, '#f1c40f')}
+              ${renderDetailSlot('🌪️', 'Wind Dmg', `+${p.elem_dmg.wind||0}`, '#f1c40f')}
+              ${renderDetailSlot('⚡', 'Electro Dmg', `+${p.elem_dmg.electro||0}`, '#f1c40f')}
+            ` : ''}
+            ${p.elem_resist && (p.elem_resist.pyro||p.elem_resist.water||p.elem_resist.wind||p.elem_resist.electro) ? `
+              ${renderDetailSlot('🔥', 'Pyro Res', `+${p.elem_resist.pyro||0}`, '#5dade2')}
+              ${renderDetailSlot('🌊', 'Water Res', `+${p.elem_resist.water||0}`, '#5dade2')}
+              ${renderDetailSlot('🌪️', 'Wind Res', `+${p.elem_resist.wind||0}`, '#5dade2')}
+              ${renderDetailSlot('⚡', 'Electro Res', `+${p.elem_resist.electro||0}`, '#5dade2')}
+            ` : ''}
+          </div>
       </div>`;
     } catch(e) { content.innerHTML=`<p class="error">Failed to load profile: ${e.message||'Unknown error'}</p>`; }
 }
@@ -9950,6 +9946,17 @@ async function convertMpToPotion() {
         return;
     }
 
+    const currentMp = character?.mission_points ?? 0;
+    if (currentMp < 60) {
+        openGameDialog({
+            title: '⚠️ Not Enough MP',
+            message: `You need 60 MP to create a potion. You have ${currentMp} MP.`,
+            confirmLabel: 'OK',
+            showCancel: false
+        });
+        return;
+    }
+
     _convertingMp = true;
     
     const btn = document.getElementById('convert-mp-btn');
@@ -9964,21 +9971,26 @@ async function convertMpToPotion() {
         const response = await api('POST', '/game/convert-mp-to-potion');
         
         if (response.success) {
-            // Update character data
             character = response.character;
-            
-            // Update displays
             renderTopBar();
             updatePotionBadge(true);
-            
-            // Show success message
             showMsg('convert-mp-status', response.message);
         } else {
-            showMsg('convert-mp-status', response.error || 'Failed to convert MP', true);
+            openGameDialog({
+                title: '⚠️ Conversion Failed',
+                message: response.error || 'Failed to convert MP',
+                confirmLabel: 'OK',
+                showCancel: false
+            });
         }
     } catch (error) {
         console.error('MP conversion error:', error);
-        showMsg('convert-mp-status', error.message || 'Failed to convert MP', true);
+        openGameDialog({
+            title: '⚠️ Conversion Failed',
+            message: error.message || 'Failed to convert MP',
+            confirmLabel: 'OK',
+            showCancel: false
+        });
     } finally {
         _convertingMp = false;
         if (btn) {
