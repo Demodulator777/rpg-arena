@@ -1,5 +1,6 @@
 const { createClient } = require('@libsql/client');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 async function migrate() {
@@ -16,7 +17,9 @@ async function migrate() {
   console.log('Connected to Turso');
 
   console.log('Connecting to local db...');
-  const localPath = 'file:' + path.join(__dirname, '..', 'data', 'game.db');
+  const localDir = path.join(__dirname, '..', 'data');
+  if (!fs.existsSync(localDir)) fs.mkdirSync(localDir, { recursive: true });
+  const localPath = 'file:' + path.join(localDir, 'game.db');
   const dest = createClient({ url: localPath });
   await dest.execute('SELECT 1');
   console.log('Connected to local db');
