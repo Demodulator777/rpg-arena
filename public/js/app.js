@@ -7011,14 +7011,35 @@ async function openProfile(id) {
         const wins=p.wins??0, losses=p.losses??0, draws=p.draws??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
         const achievementsCompleted = p.achievements_completed || 0;
         const dungeonHighestFloor = p.dungeon_highest_floor || 0;
+        const eq=p.equipped||{};
         const str=p.strength??0,def=p.defense??0,agi=p.agility??0,mag=p.magic??0,vit=p.vitality??10;
         const hc=p.hit_chance||0,cc=p.crit_chance||0;
         const maxStat=Math.max(str,def,agi,mag,vit,hc,cc,30);
-        const profileArmor = Math.floor(def / 4) + (p.armor || 0);
+
+        const STAT_KEYS = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance','hp_max','armor','pyro_dmg','water_dmg','wind_dmg','electro_dmg','pyro_resist','water_resist','wind_resist','electro_resist'];
+        const itemBonus = {};
+        STAT_KEYS.forEach(k => { itemBonus[k] = 0; });
+        Object.values(eq).forEach(item => {
+            if (!item?.stats) return;
+            STAT_KEYS.forEach(k => { if (item.stats[k]) itemBonus[k] += item.stats[k]; });
+            if (item.wp_stats) {
+                STAT_KEYS.forEach(k => { if (item.wp_stats[k]) itemBonus[k] += item.wp_stats[k]; });
+            }
+        });
+        const setBonus = p.equipped_set_bonuses || {};
+        const totalStr = str + (itemBonus.strength || 0) + (setBonus.strength || 0);
+        const totalDef = def + (itemBonus.defense || 0) + (setBonus.defense || 0);
+        const baseDmgMin = Math.floor(totalStr * 0.5);
+        const baseDmgMax = baseDmgMin + 4;
+        const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
+        const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
+        const finalDmgMin = baseDmgMin + gearDmgMin;
+        const finalDmgMax = baseDmgMax + gearDmgMax;
+        const profileArmor = Math.floor(totalDef / 4) + (itemBonus.armor || 0) + (setBonus.armor || 0);
         const profileElemDmg = p.elem_dmg || {};
         const profileElemRes = p.elem_resist || {};
 
-        const eq=p.equipped||{};
+
         const classTheme = normalizeClassTheme(p.class);
         const classBackground = getClassThemeBackground(p.class);
 
@@ -7102,7 +7123,7 @@ async function openProfile(id) {
             <div class="profile-card">
               <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Details</div>
               <div style="display:flex;flex-wrap:wrap;gap:6px">
-                ${renderDetailSlot('DMG', 'Damage', p.damage_range || '?', 'var(--text-bright)')}
+                ${renderDetailSlot('DMG', 'Damage', `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
                 ${renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2')}
                 ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
                   ${renderDetailSlot('🔥', 'Pyro Dmg', `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
