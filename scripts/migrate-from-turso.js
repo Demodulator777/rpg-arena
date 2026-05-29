@@ -24,8 +24,11 @@ async function migrate() {
   await dest.execute('SELECT 1');
   console.log('Connected to local db');
 
+  // Disable FK checks so tables can be created in any order
+  await dest.execute('PRAGMA foreign_keys = OFF');
+
   const tablesReq = await source.execute(
-    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'knex_%'"
   );
   const tables = tablesReq.rows.map(r => r.name);
 
@@ -56,6 +59,7 @@ async function migrate() {
     console.log(`    ${rows.length} rows`);
   }
 
+  await dest.execute('PRAGMA foreign_keys = ON');
   console.log('\nDone!');
   process.exit(0);
 }
