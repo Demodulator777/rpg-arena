@@ -1,26 +1,24 @@
 const { createClient } = require('@libsql/client');
+const path = require('path');
 
 let db = null;
 
 async function getDb() {
   if (db) return db;
   
-  // Check for required environment variables
-  if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-    throw new Error('Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN environment variables');
-  }
+  const isLocal = !process.env.TURSO_DATABASE_URL || process.env.TURSO_DATABASE_URL.startsWith('file:');
+  const url = process.env.TURSO_DATABASE_URL || 'file:' + path.join(__dirname, '..', 'data', 'game.db');
   
   db = createClient({
-    url: process.env.TURSO_DATABASE_URL,
-    authToken: process.env.TURSO_AUTH_TOKEN,
+    url: url,
+    authToken: isLocal ? undefined : process.env.TURSO_AUTH_TOKEN,
   });
   
-  // Test connection
   try {
     await db.execute('SELECT 1');
-    console.log('✅ Connected to Turso database');
+    console.log(`✅ Connected to database (${isLocal ? 'local' : 'Turso'})`);
   } catch (error) {
-    console.error('❌ Failed to connect to Turso:', error);
+    console.error('❌ Failed to connect to database:', error);
     throw error;
   }
   
