@@ -9921,9 +9921,9 @@ async function cancelTraining() {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
         hideTrainingOverlay();
-        await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
+        await renderSkillTreeTab();
         updateTrainingStatus();
     } catch(e) {
         showMsg('skill-tree-msg', e.message, true);
