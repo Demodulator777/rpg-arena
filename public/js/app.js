@@ -7139,7 +7139,10 @@ async function openProfile(id) {
             else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
             const canSkipPtc = ptc > 0 && (character?.gems || 0) >= 1;
             const canSkipGc = gc > 0 && (character?.gems || 0) >= 1;
-            const canSkip = (canSkipPtc || canSkipGc) && !hpLow && !myAttackBlockReason;
+            const isBattleCdBlock = myAttackBlockReason && myAttackBlockReason.startsWith('Wait ');
+            const hasOtherBlock = myAttackBlockReason && !isBattleCdBlock;
+            const canSkipPvpCd = isBattleCdBlock && (character?.gems || 0) >= 1;
+            const canSkip = (canSkipPtc || canSkipGc || canSkipPvpCd) && !hpLow && !hasOtherBlock;
             const atkBtn=!blocked
                 ?`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`
                 :(canSkip
@@ -7180,6 +7183,13 @@ async function skipCooldownAndAttack(id, name, targetClass) {
         await api('POST', '/game/attack/skip-cooldown', { targetId: id });
     } catch(e) { alert(e.message); return; }
     await attack(id, name, targetClass);
+}
+async function skipBattleCdAndAttack(id, name, targetClass, level) {
+    if (!confirm('Skip battle cooldown for 1 💎?')) return;
+    try {
+        await api('POST', '/game/battle/recover');
+    } catch(e) { alert(e.message); return; }
+    await attack(id, name, targetClass, level);
 }
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
 
@@ -7396,8 +7406,13 @@ async function findOpponent(direction='similar') {
         const myPower = character ? (character.strength+character.defense+character.agility+character.magic+character.level*5) : 0;
         const powerDiff = power - myPower;
         const myAttackBlockReason = getMyAttackBlockReason();
+        const isBattleCdBlock = myAttackBlockReason && myAttackBlockReason.startsWith('Wait ');
+        const hasOtherBlock = myAttackBlockReason && !isBattleCdBlock;
+        const canSkipPvpCd = isBattleCdBlock && (character?.gems || 0) >= 1;
         const attackBtn = myAttackBlockReason
-            ? `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">🛡️ ${myAttackBlockReason}</button>`
+            ? (canSkipPvpCd
+                ? `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${myAttackBlockReason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6;padding:4px 8px;font-size:0.7rem" ${actionAttrs('skipBattleCdAndAttack', p.id, p.name, p.class, p.level)}>⚡ Skip for 1 💎</button></div>`
+                : `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">🛡️ ${myAttackBlockReason}</button>`)
             : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name, p.class, p.level)}>⚔️ Attack</button>`;
         const diffLabel = powerDiff > 10 ? '⬆️ Stronger' : powerDiff < -10 ? '⬇️ Weaker' : '↔️ Similar';
         if (box) box.innerHTML = `
