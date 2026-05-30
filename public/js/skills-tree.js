@@ -461,9 +461,9 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
      try {
         const d = await api('POST', '/skills/train/start', { skillId, branchId, hours, doubleSpeed });
         showMsg('skill-tree-msg', d.message);
-        await renderSkillTreeTab();
         character = await api('GET', '/game/character');
         renderTopBar();
+        await renderSkillTreeTab();
         if (typeof startTrainingPolling === 'function') startTrainingPolling();
     } catch (e) {
         showMsg('skill-tree-msg', e.message, true);
@@ -507,6 +507,8 @@ async function cancelTraining() {
     try {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
+        character = await api('GET', '/game/character');
+        renderTopBar();
         await renderSkillTreeTab();
     } catch(e) {
         showMsg('skill-tree-msg', e.message, true);
@@ -531,6 +533,8 @@ async function stCancel() {
     try {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
+        character = await api('GET', '/game/character');
+        renderTopBar();
         await renderSkillTreeTab();
     } catch (e) {
         showMsg('skill-tree-msg', e.message, true);
