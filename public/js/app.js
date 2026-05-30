@@ -7181,7 +7181,8 @@ async function skipCooldownAndAttack(id, name, targetClass) {
     if (!id) { alert('Invalid target'); return; }
     if (!confirm('Skip cooldown for 1 💎?')) return;
     try {
-        await api('POST', '/game/attack/skip-cooldown', { targetId: id });
+        const r = await api('POST', '/game/attack/skip-cooldown', { targetId: id });
+        if (r.character) character = r.character;
     } catch(e) { alert(e.message); return; }
     await attack(id, name, targetClass);
 }
