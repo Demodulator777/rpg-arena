@@ -7146,7 +7146,7 @@ async function openProfile(id) {
             const atkBtn=!blocked
                 ?`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`
                 :(canSkip
-                    ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${reason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6" ${actionAttrs('skipCooldownAndAttack', id, name, p.class)}>⚡ Skip for 1 💎</button></div>`
+                    ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${reason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6" ${actionAttrs('skipCooldownAndAttack', id, name, p.class)}>⚡ Skip cooldown for 1 💎</button></div>`
                     :`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`);
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
           })() : ''}
@@ -7178,6 +7178,7 @@ function closeProfile() { hideItemTooltip(); document.getElementById('profile-mo
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
 async function skipCooldownAndAttack(id, name, targetClass) {
     closeProfile();
+    if (!id) { alert('Invalid target'); return; }
     if (!confirm('Skip cooldown for 1 💎?')) return;
     try {
         await api('POST', '/game/attack/skip-cooldown', { targetId: id });
@@ -7411,7 +7412,7 @@ async function findOpponent(direction='similar') {
         const canSkipPvpCd = isBattleCdBlock && (character?.gems || 0) >= 1;
         const attackBtn = myAttackBlockReason
             ? (canSkipPvpCd
-                ? `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${myAttackBlockReason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6;padding:4px 8px;font-size:0.7rem" ${actionAttrs('skipBattleCdAndAttack', p.id, p.name, p.class, p.level)}>⚡ Skip for 1 💎</button></div>`
+                ? `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${myAttackBlockReason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6;padding:4px 8px;font-size:0.7rem" ${actionAttrs('skipBattleCdAndAttack', p.id, p.name, p.class, p.level)}>⚡ Skip cooldown for 1 💎</button></div>`
                 : `<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${myAttackBlockReason}">🛡️ ${myAttackBlockReason}</button>`)
             : `<button class="btn-attack" ${actionAttrs('attack', p.id, p.name, p.class, p.level)}>⚔️ Attack</button>`;
         const diffLabel = powerDiff > 10 ? '⬆️ Stronger' : powerDiff < -10 ? '⬇️ Weaker' : '↔️ Similar';
