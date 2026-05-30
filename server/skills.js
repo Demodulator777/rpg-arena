@@ -946,11 +946,11 @@ const SKILL_TREES = {
     // ROGUE
     // ═══════════════════════════════════════════════════════════════════════════
     rogue: {
-        description: 'Masters of stealth and precision. High critical damage and evasion.',
+        description: 'Masters of stealth and precision. High critical damage.',
         upgrade_penalties: { defense: 0.30, magic: 0.20 },
         upgrade_discounts: { agility: 0.35, strength: 0.10 },
         passive_modifiers: [
-            { condition: 'no_shield', stat: 'agility', bonus: 5, desc: '+5 Agility when no shield is equipped' },
+            { condition: 'no_shield', stat: 'agility', bonus_pct: 0.05, desc: '+5% Agility when no shield is equipped' },
         ],
 
         branches: {
@@ -2593,6 +2593,17 @@ router.post('/train/cancel', async (req, res) => {
         if (!training)
             return res.status(400).json({ error: 'No training active' });
 
+        let refund = 0;
+        if (Number(training.double_speed)) {
+            const totalExtra = Number(training.hours_to_train || 0) * 500;
+            const totalDuration = Math.max(1, Number(training.ends_at) - Number(training.started_at));
+            const remainingRatio = Math.max(0, Number(training.ends_at) - now) / totalDuration;
+            refund = Math.floor(totalExtra * remainingRatio);
+            if (refund > 0) {
+                await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [refund, char.id]);
+            }
+        }
+
         await dbRun(
             db,
             'DELETE FROM skill_training WHERE id = ?',
@@ -2601,7 +2612,7 @@ router.post('/train/cancel', async (req, res) => {
 
         res.json({
             success: true,
-            message: 'Training cancelled'
+            message: `Training cancelled${refund > 0 ? `. Refunded ${refund} gold.` : ''}`
         });
 
     } catch (e) {
