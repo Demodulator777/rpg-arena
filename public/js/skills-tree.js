@@ -132,7 +132,7 @@ function renderSkillTreeUI(root) {
             </div>
             ${done
                 ? `<button class="btn-primary" style="padding:8px 18px;font-size:0.82rem" ${actionAttrs('stCollect')}>⚡ Collect Skill</button>`
-                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" ${actionAttrs('stCancel')}>Cancel (50% refund)</button>`
+                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" ${actionAttrs('stCancel')}>Cancel (partial refund)</button>`
             }
         </div>`;
     }
@@ -529,7 +529,7 @@ async function stCollect() {
 }
 
 async function stCancel() {
-    if (!confirm('Cancel training? You will receive a 50% gold refund. Materials are NOT returned.')) return;
+    if (!confirm('Cancel training? You will receive a partial gold refund (pro-rated by time remaining). Materials are NOT returned.')) return;
     try {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
