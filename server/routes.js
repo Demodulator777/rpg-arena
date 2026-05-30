@@ -8996,6 +8996,12 @@ router.post('/attack/skip-cooldown', auth, async (req, res) => {
         if (crystals < 1) return res.status(400).json({ error: 'Need 1 💎 to skip cooldown' });
 
         let cleared = [];
+        const pvpCd = hasPremium(getActivePremium(attacker), 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+        const battleCdEnds = (attacker.last_battle_at || 0) + pvpCd;
+        if (battleCdEnds > now) {
+            await dbRun(db, 'UPDATE characters SET last_battle_at = 0 WHERE id = ?', [attacker.id]);
+            cleared.push('battle cooldown');
+        }
 
         // Per-target cooldown (12h per target)
         const ptCd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
