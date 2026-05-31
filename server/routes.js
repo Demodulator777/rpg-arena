@@ -3867,10 +3867,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const m2e = attacker.class === 'mage';
                     gPhys = Math.max(0, gPhys + (m2e ? 0 : dB) - rB);
                     const eD = attacker.elem_dmg || {};
-                    const magicElemMult = 1 + (attacker.magic || 0) / 4000;
+                    const magicFlatBonus = Math.floor((attacker.magic || 0) * 0.025);
+                    const magicElemMult = 1 + (attacker.magic || 0) / 8000;
                     let gElem = 0;
                     for (const elem of ELEMENTS) {
-                        let ed = eD[elem] || 0;
+                        let ed = (eD[elem] || 0) + magicFlatBonus;
                         if (ed <= 0) continue;
                         ed = Math.floor(ed * magicElemMult);
                         if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
@@ -3949,9 +3950,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const blockFails = rageActive || randomBlockPen;
 
         const elemDmgs = attacker.elem_dmg || {};
-        const magicElemMult = 1 + (attacker.magic || 0) / 4000;
+        const magicFlatBonus = Math.floor((attacker.magic || 0) * 0.025);
+        const magicElemMult = 1 + (attacker.magic || 0) / 8000;
         for (const elem of ELEMENTS) {
-            let ed = elemDmgs[elem] || 0;
+            let ed = (elemDmgs[elem] || 0) + magicFlatBonus;
             if (ed <= 0) continue;
             ed = Math.floor(ed * magicElemMult);
             if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
