@@ -2664,19 +2664,11 @@ function calculateEffectiveEffects(skill, progress) {
     
     for (const effect of (skill.effects || [])) {
         const effectiveEffect = { ...effect };
-        
-        if (effect.dmg_bonus) effectiveEffect.dmg_bonus = effect.dmg_bonus * effectiveness;
-        if (effect.crit_bonus) effectiveEffect.crit_bonus = effect.crit_bonus * effectiveness;
-        if (effect.dodge_bonus) effectiveEffect.dodge_bonus = effect.dodge_bonus * effectiveness;
-        if (effect.block_bonus) effectiveEffect.block_bonus = effect.block_bonus * effectiveness;
-        if (effect.reflect_pct) effectiveEffect.reflect_pct = effect.reflect_pct * effectiveness;
-        if (effect.heal_pct) effectiveEffect.heal_pct = effect.heal_pct * effectiveness;
-        if (effect.dot_pct) effectiveEffect.dot_pct = effect.dot_pct * effectiveness;
-        if (effect.poison_pct) effectiveEffect.poison_pct = effect.poison_pct * effectiveness;
-        if (effect.counter_dmg_pct) effectiveEffect.counter_dmg_pct = effect.counter_dmg_pct * effectiveness;
-        if (effect.atk_dmg_bonus) effectiveEffect.atk_dmg_bonus = effect.atk_dmg_bonus * effectiveness;
-        if (effect.block_penalty) effectiveEffect.block_penalty = effect.block_penalty * effectiveness;
-        
+        for (const key of Object.keys(effect)) {
+            if (typeof effect[key] === 'number' && !['type', 'split_rounds'].includes(key)) {
+                effectiveEffect[key] = effect[key] * effectiveness;
+            }
+        }
         effectiveEffects.push(effectiveEffect);
     }
     
