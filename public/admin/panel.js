@@ -63,40 +63,91 @@ function loadTab(name) {
 function loadDbAdmin() {
     var el = document.getElementById('tab-db');
     el.innerHTML = '<div class="loading">Loading database...</div>';
-    API('/db/tables').then(function(tables) {
-        var tableList = tables.map(function(t) { 
-            var btn = document.createElement('button');
-            btn.textContent = t;
-            btn.addEventListener('click', function() { queryTable(t); });
-            return btn;
+    fetch('/api/db/tables', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
+        .then(function(r) { return r.json(); })
+        .then(function(tables) {
+            var tableList = tables.map(function(t) { 
+                var btn = document.createElement('button');
+                btn.textContent = t;
+                btn.addEventListener('click', function() { queryTable(t); });
+                return btn;
+            });
+            
+            el.innerHTML = '<div style="display:flex;gap:20px;padding:10px">' +
+                '<div id="db-table-list" style="width:200px;display:flex;flex-direction:column;gap:5px"></div>' +
+                '<div id="db-content" style="flex-grow:1;overflow-x:auto">Select a table</div>' +
+            '</div>';
+            
+            var listEl = document.getElementById('db-table-list');
+            tableList.forEach(function(b) { listEl.appendChild(b); });
         });
+}
+
+function queryTable(table, page = 1) {
+    var el = document.getElementById('db-content');
+    el.innerHTML = 'Loading...';
+    fetch('/api/db/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify({ table: table, page: page })
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        var data = res.rows;
+        if (!data.length) { el.innerHTML = 'No data'; return; }
         
-        el.innerHTML = '<div style="display:flex;gap:20px;padding:10px">' +
-            '<div id="db-table-list" style="width:200px;display:flex;flex-direction:column;gap:5px"></div>' +
-            '<div id="db-content" style="flex-grow:1;overflow-x:auto">Select a table</div>' +
-        '</div>';
+        var totalPages = Math.ceil(res.total / res.limit);
+        var cols = Object.keys(data[0]);
+        var html = '<table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
+            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + c + '</th>'; }).join('') + '</tr></thead>' +
+            '<tbody>';
         
-        var listEl = document.getElementById('db-table-list');
-        tableList.forEach(function(b) { listEl.appendChild(b); });
+        data.forEach(function(row) {
+            html += '<tr>';
+            cols.forEach(function(c) {
+                var val = String(row[c] ?? '');
+                var isLong = val.length > 50;
+                var displayVal = isLong ? val.substring(0, 47) + '...' : val;
+                html += '<td style="padding:0;border:1px solid #444;position:relative">' +
+                    '<input type="text" value="' + val + '" ' +
+                    'style="width:100%;padding:5px;border:none;background:transparent;color:inherit;' + (isLong ? 'display:none' : '') + '" ' +
+                    'data-table="' + table + '" data-field="' + c + '" data-id="' + row.id + '">' +
+                    (isLong ? '<div class="trunc" style="padding:5px;cursor:pointer" onclick="this.style.display=\'none\'; this.previousElementSibling.style.display=\'block\'; this.previousElementSibling.focus();"> ' + displayVal + '</div>' : '') +
+                    '</td>';
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+
+        // Pagination controls
+        var pagination = '<div style="margin-top:10px;display:flex;gap:5px">';
+        for (var i = 1; i <= totalPages; i++) {
+            pagination += '<button ' + (i === page ? 'disabled style="background:#555"' : '') + 
+                ' onclick="queryTable(\'' + table + '\', ' + i + ')">' + i + '</button>';
+        }
+        pagination += '</div>';
+        
+        el.innerHTML = html + pagination;
+        
+        el.querySelectorAll('input').forEach(function(input) {
+            input.addEventListener('blur', function() { saveCell(this); });
+        });
     });
 }
 
-function queryTable(table) {
-    var el = document.getElementById('db-content');
-    el.innerHTML = 'Loading...';
-    fetch('/api/game/db/query', {
+function saveCell(input) {
+    var val = input.value;
+    var table = input.dataset.table;
+    var field = input.dataset.field;
+    var id = input.dataset.id;
+    
+    fetch('/api/db/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
-        body: JSON.stringify({ table: table })
-    }).then(function(r) { return r.json(); }).then(function(data) {
-        if (!data.length) { el.innerHTML = 'No data'; return; }
-        var cols = Object.keys(data[0]);
-        el.innerHTML = '<table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
-            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + c + '</th>'; }).join('') + '</tr></thead>' +
-            '<tbody>' + data.map(function(row) { return '<tr>' + cols.map(function(c) { return '<td style="padding:5px;border:1px solid #444">' + (row[c] ?? '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>' +
-            '</table>';
+        body: JSON.stringify({ table: table, field: field, value: val, id: id })
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (!res.success) alert('Failed to update: ' + res.error);
+        else input.style.background = '#1e3a1e';
     });
-}
+};
 
 function loadCsp() {
     var el = document.getElementById('tab-csp');
