@@ -110,26 +110,41 @@ function queryTable(table, page = 1) {
                     '<input type="text" value="' + val + '" ' +
                     'style="width:100%;padding:5px;border:none;background:transparent;color:inherit;' + (isLong ? 'display:none' : '') + '" ' +
                     'data-table="' + table + '" data-field="' + c + '" data-id="' + row.id + '">' +
-                    (isLong ? '<div class="trunc" style="padding:5px;cursor:pointer" onclick="this.style.display=\'none\'; this.previousElementSibling.style.display=\'block\'; this.previousElementSibling.focus();"> ' + displayVal + '</div>' : '') +
+                    (isLong ? '<div class="trunc" style="padding:5px;cursor:pointer">' + displayVal + '</div>' : '') +
                     '</td>';
             });
             html += '</tr>';
         });
         html += '</tbody></table>';
 
-        // Pagination controls
-        var pagination = '<div style="margin-top:10px;display:flex;gap:5px">';
-        for (var i = 1; i <= totalPages; i++) {
-            pagination += '<button ' + (i === page ? 'disabled style="background:#555"' : '') + 
-                ' onclick="queryTable(\'' + table + '\', ' + i + ')">' + i + '</button>';
-        }
-        pagination += '</div>';
+        // Pagination container
+        html += '<div id="db-pagination" style="margin-top:10px;display:flex;gap:5px"></div>';
         
-        el.innerHTML = html + pagination;
+        el.innerHTML = html;
         
+        // Attach event listeners for inputs
         el.querySelectorAll('input').forEach(function(input) {
             input.addEventListener('blur', function() { saveCell(this); });
         });
+        
+        // Attach event listeners for truncation
+        el.querySelectorAll('.trunc').forEach(function(trunc) {
+            trunc.addEventListener('click', function() {
+                this.style.display = 'none';
+                this.previousElementSibling.style.display = 'block';
+                this.previousElementSibling.focus();
+            });
+        });
+        
+        // Attach event listeners for pagination
+        var pagEl = document.getElementById('db-pagination');
+        for (var i = 1; i <= totalPages; i++) {
+            var btn = document.createElement('button');
+            btn.textContent = i;
+            if (i === page) btn.style.background = '#555';
+            else btn.addEventListener('click', (function(p) { return function() { queryTable(table, p); }; })(i));
+            pagEl.appendChild(btn);
+        }
     });
 }
 
