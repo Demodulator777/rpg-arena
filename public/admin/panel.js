@@ -28,12 +28,14 @@ function renderLayout() {
             '<button class="tab-btn" data-tab="bugs">Bug Reports</button>' +
             '<button class="tab-btn" data-tab="banners">Banners</button>' +
             '<button class="tab-btn" data-tab="rewards">Rewards</button>' +
+            '<button class="tab-btn" data-tab="db">Database</button>' +
             '<button class="tab-btn" data-tab="actions">Action Log</button>' +
         '</div>' +
         '<div id="tab-csp" class="tab-content active"><div class="loading">Loading CSP violations...</div></div>' +
         '<div id="tab-bugs" class="tab-content"><div class="loading">Loading bug reports...</div></div>' +
         '<div id="tab-banners" class="tab-content"><div class="loading">Loading banners...</div></div>' +
         '<div id="tab-rewards" class="tab-content"><div class="loading">Loading rewards...</div></div>' +
+        '<div id="tab-db" class="tab-content"><div class="loading">Loading database...</div></div>' +
         '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
@@ -54,8 +56,37 @@ function loadTab(name) {
     else if (name === 'bugs') loadBugs();
     else if (name === 'banners') loadBanners();
     else if (name === 'rewards') loadRewards();
+    else if (name === 'db') loadDbAdmin();
     else if (name === 'actions') loadActions();
 }
+
+function loadDbAdmin() {
+    var el = document.getElementById('tab-db');
+    API('/db/tables').then(function(tables) {
+        var tableList = tables.map(function(t) { return '<button onclick="queryTable(\'' + t + '\')">' + t + '</button>'; }).join('');
+        el.innerHTML = '<div style="display:flex;gap:20px;padding:10px">' +
+            '<div style="width:200px;display:flex;flex-direction:column;gap:5px">' + tableList + '</div>' +
+            '<div id="db-content" style="flex-grow:1;overflow-x:auto">Select a table</div>' +
+        '</div>';
+    });
+}
+
+window.queryTable = function(table) {
+    var el = document.getElementById('db-content');
+    el.innerHTML = 'Loading...';
+    fetch('/api/game/db/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify({ table: table })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.length) { el.innerHTML = 'No data'; return; }
+        var cols = Object.keys(data[0]);
+        el.innerHTML = '<table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
+            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + c + '</th>'; }).join('') + '</tr></thead>' +
+            '<tbody>' + data.map(function(row) { return '<tr>' + cols.map(function(c) { return '<td style="padding:5px;border:1px solid #444">' + (row[c] ?? '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>' +
+            '</table>';
+    });
+};
 
 function loadCsp() {
     var el = document.getElementById('tab-csp');
