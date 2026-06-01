@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('./db');
 const { dbGet } = require('./routes');
+const auth = require('./middleware');
 
 // Admin check helper
 const requireAdmin = async (req, res, next) => {
