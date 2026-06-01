@@ -3530,8 +3530,8 @@ function getActiveSkills(char) {
     } catch { return {}; }
 }
 function hasSkill(activeSkills, skillId) { return !!activeSkills[skillId]; }
-function hasClassModifier(fighter, modifierId) { return (fighter.skillMods || []).find(m => m.id === modifierId) || null; }
-function getActiveCombatEffect(fighter, effectId) { return (fighter.skillEffects || []).find(e => e.id === effectId) || null; }
+function hasClassModifier(fighter, modifierId) { return (Array.isArray(fighter.skillMods) ? fighter.skillMods : []).find(m => m.id === modifierId) || null; }
+function getActiveCombatEffect(fighter, effectId) { return (Array.isArray(fighter.skillEffects) ? fighter.skillEffects : []).find(e => e.id === effectId) || null; }
 function mergeActiveSkills(baseSkills, skillEffects) {
     const result = { ...(baseSkills || {}) };
     for (const eff of (skillEffects || [])) { if (eff.id) result[eff.id] = true; }
@@ -4618,7 +4618,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                         // Apply burn_dot to the OTHER fighter
                         const rfBurnPct = rfEff.burn_dot || 0.10;
                         const other = fighter === fighterA ? fighterB : fighterA;
-                        const otherDmgThisRound = fighter === fighterA ? Math.max(0, damageToA) : Math.max(0, damageToB);
+                        const otherDmgThisRound = fighter === fighterA ? Math.max(0, dmgToA) : Math.max(0, dmgToB);
                         other._burnDotDmg = (other._burnDotDmg || 0) + Math.max(1, Math.floor((otherDmgThisRound || 9999) * rfBurnPct));
                         log.push(`🔥🕊️ ${fighter.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
                         resurrected = true;
