@@ -4099,9 +4099,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         }
     } else {
         const rawCritChance = (attacker.crit_chance || 0) - (defender.crit_chance || 0);
-        const baseCritChance = Math.max(0, Math.min(0.95, rawCritChance / 100));
+        const baseCritChance = Math.max(0, rawCritChance / 100);
         const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
-        let isCrit = Math.random() < Math.min(0.95, baseCritChance + critBonus);
+        let isCrit = Math.random() < Math.min(0.99, baseCritChance + critBonus);
         // negate_crit: 50% chance to negate crit
         if (isCrit && hasSkill(defSkills, 'negate_crit')) {
             const negEff = getActiveCombatEffect(defender, 'negate_crit');
