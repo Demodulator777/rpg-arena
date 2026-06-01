@@ -91,8 +91,9 @@ getDb().then(async (db) => {
   app.use('/banner', auth, bannerRouter);
   app.use('/admin/banner', adminRouter);
   
-  // Database Admin Panel API
-  app.use('/api/db', require('./db-admin'));
+// Database Admin Panel API
+  const dbAdminRouter = require('./db-admin');
+  app.use('/api/db', auth, dbAdminRouter);
 
   // CSP violation reporting endpoint (no auth — browsers send these directly)
   app.post('/api/csp-violation', async (req, res) => {    let body = '';
