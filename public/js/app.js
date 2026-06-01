@@ -7137,12 +7137,10 @@ async function openProfile(id) {
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
-            const canSkipPtc = ptc > 0 && (character?.gems || 0) >= 1;
-            const canSkipGc = gc > 0 && (character?.gems || 0) >= 1;
             const isBattleCdBlock = myAttackBlockReason && myAttackBlockReason.startsWith('Wait ');
             const hasOtherBlock = myAttackBlockReason && !isBattleCdBlock;
-            const canSkipPvpCd = isBattleCdBlock && (character?.gems || 0) >= 1;
-            const canSkip = (canSkipPtc || canSkipGc || canSkipPvpCd) && !hpLow && !hasOtherBlock;
+            // Only allow skipping if it's the personal battle cooldown AND there are no target-specific blocks (12h cd or 1h recovery)
+            const canSkip = isBattleCdBlock && ptc === 0 && gc === 0 && (character?.gems || 0) >= 1 && !hpLow && !hasOtherBlock;
             const atkBtn=!blocked
                 ?`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`
                 :(canSkip
