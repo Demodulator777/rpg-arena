@@ -62,7 +62,7 @@ getDb().then(async (db) => {
   
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
-  app.use('/api/game', require('./routes'));
+  app.use('/api/game', require('./routes').router);
   
   // Mount skills router with auth middleware
   app.use('/skills', auth, skillsModule.router);
