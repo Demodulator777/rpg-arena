@@ -13769,4 +13769,4 @@ async function isCharacterTraining(db, characterId) {
     return !!training;
 }
 
-module.exports = router;
+module.exports = { router, parseAdminPassword };
