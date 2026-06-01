@@ -9969,20 +9969,26 @@ router.post('/rewards/resend', async (req, res) => {
 });
 
 // ── Database Admin Tools ──────────────────────────────────────────────────
-router.get('/db/tables', async (req, res) => {
-    const password = parseAdminPassword(req);
-    if (password !== ADMIN_PANEL_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+router.get('/db/tables', auth, async (req, res) => {
+    // Only allow admins (e.g. check a specific field or role if you have one, 
+    // but here we just ensure they are authenticated as a game user first)
     const db = await getDb();
+    // Assuming you have an 'isAdmin' check in your 'auth' or similar global check
+    // If not, add a helper to verify admin status
+    const user = await dbGet(db, 'SELECT is_admin FROM users WHERE id = ?', [req.user.userId]);
+    if (!user || !user.is_admin) return res.status(403).json({ error: 'Forbidden' });
+
     const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
     res.json(result.rows.map(r => r.name));
 });
 
-router.post('/db/query', async (req, res) => {
-    const password = parseAdminPassword(req);
-    if (password !== ADMIN_PANEL_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+router.post('/db/query', auth, async (req, res) => {
+    const db = await getDb();
+    const user = await dbGet(db, 'SELECT is_admin FROM users WHERE id = ?', [req.user.userId]);
+    if (!user || !user.is_admin) return res.status(403).json({ error: 'Forbidden' });
+    
     const { table } = req.body;
     if (!table) return res.status(400).json({ error: 'Table required' });
-    const db = await getDb();
     try {
         const result = await db.execute(`SELECT * FROM "${table.replace(/"/g, '')}" LIMIT 100`);
         res.json(result.rows);
