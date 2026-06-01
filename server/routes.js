@@ -3543,6 +3543,11 @@ function mergeActiveSkills(baseSkills, skillEffects) {
     }
     return result;
 }
+function skillPassiveBonus(baseValue, passiveValue) {
+    if (!passiveValue) return 0;
+    if (passiveValue > -1 && passiveValue < 1) return Math.floor(baseValue * passiveValue);
+    return Math.floor(passiveValue);
+}
 
 // ── HP Regen ──────────────────────────────────────────────────────────────
 async function applyHpRegen(db, characterId) {
@@ -5111,15 +5116,15 @@ async function buildCombatFighter(db, char) {
         hp: hpCurrent,
         // For battle reports we want to show potential/full HP, not current HP after the fight.
         hpMax,
-        dmgMin: dmgMin + (skillPassives.dmg_min || 0),
-        dmgMax: dmgMax + (skillPassives.dmg_max || 0),
-        strength: (char.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0) + getEquippedStatTotal(equippedArray, 'strength'),
-        agility: (char.agility || 0) + (setBonuses.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
-        magic: (char.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0) + getEquippedStatTotal(equippedArray, 'magic'),
-        defense: (char.defense || 0) + (setBonuses.defense || 0) + (skillPassives.defense || 0) + getEquippedStatTotal(equippedArray, 'defense'),
-        hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + (skillPassives.hit_chance || 0) + getEquippedStatTotal(equippedArray, 'hit_chance'),
-        crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0) + getEquippedStatTotal(equippedArray, 'crit_chance'),
-        armor: calcArmorValue(char, equippedArray) + (skillPassives.armor || 0),
+        dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
+        dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
+        strength: (char.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(char.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
+        agility: (char.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(char.agility || 0, skillPassives.agility) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
+        magic: (char.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(char.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic'),
+        defense: (char.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(char.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense'),
+        hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
+        crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+        armor: calcArmorValue(char, equippedArray) + skillPassiveBonus(calcArmorValue(char, equippedArray), skillPassives.armor),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
             water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
@@ -7228,16 +7233,16 @@ if (freshChar.class === 'rogue') {
             name: freshChar.name,
             class: freshChar.class,
             hp: hpCurrent,
-            hpMax: hpMax + ((skillPassives.vitality || 0) * 25),
-            dmgMin: dmgMin + (skillPassives.dmg_min || 0),
-            dmgMax: dmgMax + (skillPassives.dmg_max || 0),
-            strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + (skillPassives.strength || 0) + getEquippedStatTotal(equippedArray, 'strength'),
-            agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + (skillPassives.agility || 0) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
-            magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + (skillPassives.magic || 0) + getEquippedStatTotal(equippedArray, 'magic'),
-            defense: (freshChar.defense || 0) + (setBonuses.defense || 0) + (skillPassives.defense || 0) + getEquippedStatTotal(equippedArray, 'defense'),
-            hit_chance: (freshChar.hit_chance || 0) + (setBonuses.hit_chance || 0) + (skillPassives.hit_chance || 0) + getEquippedStatTotal(equippedArray, 'hit_chance'),
-            crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + (skillPassives.crit_chance || 0) + getEquippedStatTotal(equippedArray, 'crit_chance'),
-            armor: calcArmorValue(freshChar, equippedArray) + (skillPassives.armor || 0),
+            hpMax: hpMax + (skillPassiveBonus(freshChar.vitality || 0, skillPassives.vitality) * 25),
+            dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
+            dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
+            strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(freshChar.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
+            agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(freshChar.agility || 0, skillPassives.agility) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
+            magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(freshChar.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic'),
+            defense: (freshChar.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(freshChar.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense'),
+            hit_chance: (freshChar.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(freshChar.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
+            crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(freshChar.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+            armor: calcArmorValue(freshChar, equippedArray) + skillPassiveBonus(calcArmorValue(freshChar, equippedArray), skillPassives.armor),
             elem_dmg: {
                 pyro:    (calcElemDmg(equippedArray).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
                 water:   (calcElemDmg(equippedArray).water   || 0) + (skillPassives.water_dmg   || 0),
@@ -8841,16 +8846,16 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const fighterA = {
             id: freshA.id, name: freshA.name, class: freshA.class,
             hp: hpA,
-            hpMax: hpMaxA + ((skillPassivesA.vitality || 0) * 25),
-            dmgMin: dmgMinA + (skillPassivesA.dmg_min || 0),
-            dmgMax: dmgMaxA + (skillPassivesA.dmg_max || 0),
-            strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + (skillPassivesA.strength || 0) + getEquippedStatTotal(equippedA, 'strength'),
-            agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + (skillPassivesA.agility || 0) + noShieldAgiBonusA + getEquippedStatTotal(equippedA, 'agility'),
-            magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + (skillPassivesA.magic || 0) + getEquippedStatTotal(equippedA, 'magic'),
-            defense: (freshA.defense || 0) + (setBonusesA.defense || 0) + (skillPassivesA.defense || 0) + getEquippedStatTotal(equippedA, 'defense'),
-            hit_chance: (freshA.hit_chance || 0) + (setBonusesA.hit_chance || 0) + (skillPassivesA.hit_chance || 0) + getEquippedStatTotal(equippedA, 'hit_chance') + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
-            crit_chance: (freshA.crit_chance || 0) + (setBonusesA.crit_chance || 0) + (skillPassivesA.crit_chance || 0) + getEquippedStatTotal(equippedA, 'crit_chance') + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
-            armor: armorA + (skillPassivesA.armor || 0),
+            hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
+            dmgMin: dmgMinA + skillPassiveBonus(dmgMinA, skillPassivesA.dmg_min),
+            dmgMax: dmgMaxA + skillPassiveBonus(dmgMaxA, skillPassivesA.dmg_max),
+            strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + skillPassiveBonus(freshA.strength || 0, skillPassivesA.strength) + getEquippedStatTotal(equippedA, 'strength'),
+            agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + skillPassiveBonus(freshA.agility || 0, skillPassivesA.agility) + noShieldAgiBonusA + getEquippedStatTotal(equippedA, 'agility'),
+            magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + skillPassiveBonus(freshA.magic || 0, skillPassivesA.magic) + getEquippedStatTotal(equippedA, 'magic'),
+            defense: (freshA.defense || 0) + (setBonusesA.defense || 0) + skillPassiveBonus(freshA.defense || 0, skillPassivesA.defense) + getEquippedStatTotal(equippedA, 'defense'),
+            hit_chance: (freshA.hit_chance || 0) + (setBonusesA.hit_chance || 0) + skillPassiveBonus(freshA.hit_chance || 0, skillPassivesA.hit_chance) + getEquippedStatTotal(equippedA, 'hit_chance') + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
+            crit_chance: (freshA.crit_chance || 0) + (setBonusesA.crit_chance || 0) + skillPassiveBonus(freshA.crit_chance || 0, skillPassivesA.crit_chance) + getEquippedStatTotal(equippedA, 'crit_chance') + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
+            armor: armorA + skillPassiveBonus(armorA, skillPassivesA.armor),
             agility_bonus: 0,
             dmg_bonus: (hasPremium(premA, 'warlord') ? 0.15 : 0) + (skillPassivesA.dmg_bonus || 0),
             elem_dmg: {
@@ -8877,16 +8882,16 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const fighterB = {
             id: freshD.id, name: freshD.name, class: freshD.class,
             hp: freshD.hp_current ?? hpMaxD,
-            hpMax: hpMaxD + ((skillPassivesD.vitality || 0) * 25),
-            dmgMin: dmgMinD + (skillPassivesD.dmg_min || 0),
-            dmgMax: dmgMaxD + (skillPassivesD.dmg_max || 0),
-            strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + (skillPassivesD.strength || 0) + getEquippedStatTotal(equippedD, 'strength'),
-            agility: ((freshD.agility || 0) + (setBonusesD.agility || 0) + (skillPassivesD.agility || 0) + noShieldAgiBonusD + getEquippedStatTotal(equippedD, 'agility')) * (hasPremium(premD, 'iron_fortress') ? 1.10 : 1.0),
-            magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + (skillPassivesD.magic || 0) + getEquippedStatTotal(equippedD, 'magic'),
-            defense: (freshD.defense || 0) + (setBonusesD.defense || 0) + (skillPassivesD.defense || 0) + getEquippedStatTotal(equippedD, 'defense'),
-            hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + (skillPassivesD.hit_chance || 0) + getEquippedStatTotal(equippedD, 'hit_chance'),
-            crit_chance: (freshD.crit_chance || 0) + (setBonusesD.crit_chance || 0) + (skillPassivesD.crit_chance || 0) + getEquippedStatTotal(equippedD, 'crit_chance') + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
-            armor: armorD + (skillPassivesD.armor || 0) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.15)) : 0),
+            hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
+            dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
+            dmgMax: dmgMaxD + skillPassiveBonus(dmgMaxD, skillPassivesD.dmg_max),
+            strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + skillPassiveBonus(freshD.strength || 0, skillPassivesD.strength) + getEquippedStatTotal(equippedD, 'strength'),
+            agility: ((freshD.agility || 0) + (setBonusesD.agility || 0) + skillPassiveBonus(freshD.agility || 0, skillPassivesD.agility) + noShieldAgiBonusD + getEquippedStatTotal(equippedD, 'agility')) * (hasPremium(premD, 'iron_fortress') ? 1.10 : 1.0),
+            magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + skillPassiveBonus(freshD.magic || 0, skillPassivesD.magic) + getEquippedStatTotal(equippedD, 'magic'),
+            defense: (freshD.defense || 0) + (setBonusesD.defense || 0) + skillPassiveBonus(freshD.defense || 0, skillPassivesD.defense) + getEquippedStatTotal(equippedD, 'defense'),
+            hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + skillPassiveBonus(freshD.hit_chance || 0, skillPassivesD.hit_chance) + getEquippedStatTotal(equippedD, 'hit_chance'),
+            crit_chance: (freshD.crit_chance || 0) + (setBonusesD.crit_chance || 0) + skillPassiveBonus(freshD.crit_chance || 0, skillPassivesD.crit_chance) + getEquippedStatTotal(equippedD, 'crit_chance') + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
+            armor: armorD + skillPassiveBonus(armorD, skillPassivesD.armor) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.15)) : 0),
             agility_bonus: 0,
             dmg_bonus: (skillPassivesD.dmg_bonus || 0),
             elem_dmg: {
