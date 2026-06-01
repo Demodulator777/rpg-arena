@@ -9968,6 +9968,29 @@ router.post('/rewards/resend', async (req, res) => {
     }
 });
 
+// ── Database Admin Tools ──────────────────────────────────────────────────
+router.get('/db/tables', async (req, res) => {
+    const password = parseAdminPassword(req);
+    if (password !== ADMIN_PANEL_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+    const db = await getDb();
+    const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
+    res.json(result.rows.map(r => r.name));
+});
+
+router.post('/db/query', async (req, res) => {
+    const password = parseAdminPassword(req);
+    if (password !== ADMIN_PANEL_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+    const { table } = req.body;
+    if (!table) return res.status(400).json({ error: 'Table required' });
+    const db = await getDb();
+    try {
+        const result = await db.execute(`SELECT * FROM "${table.replace(/"/g, '')}" LIMIT 100`);
+        res.json(result.rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ── Dungeon endpoints (unchanged, keep as is) ─────────────────────────────
 router.get('/dungeon/data', auth, async (req, res) => {
   try {
