@@ -97,7 +97,7 @@ function queryTable(table, page = 1) {
         var totalPages = Math.ceil(res.total / res.limit);
         var cols = Object.keys(data[0]);
         var html = '<table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
-            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + c + '</th>'; }).join('') + '</tr></thead>' +
+            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + c + '</th>'; }).join('') + '<th style="padding:5px;border:1px solid #444">Action</th></tr></thead>' +
             '<tbody>';
         
         data.forEach(function(row) {
@@ -113,6 +113,7 @@ function queryTable(table, page = 1) {
                     (isLong ? '<div class="trunc" style="padding:5px;cursor:pointer">' + displayVal + '</div>' : '') +
                     '</td>';
             });
+            html += '<td style="padding:5px;text-align:center"><button class="del-btn" data-table="' + table + '" data-id="' + row.id + '" style="background:#cc0000;color:white;border:none;padding:3px 8px;cursor:pointer">Delete</button></td>';
             html += '</tr>';
         });
         html += '</tbody></table>';
@@ -136,6 +137,15 @@ function queryTable(table, page = 1) {
             });
         });
         
+        // Attach event listeners for delete
+        el.querySelectorAll('.del-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (confirm('Delete this record?')) {
+                    deleteRecord(table, btn.dataset.id, page);
+                }
+            });
+        });
+
         // Attach event listeners for pagination
         var pagEl = document.getElementById('db-pagination');
         for (var i = 1; i <= totalPages; i++) {
@@ -145,6 +155,17 @@ function queryTable(table, page = 1) {
             else btn.addEventListener('click', (function(p) { return function() { queryTable(table, p); }; })(i));
             pagEl.appendChild(btn);
         }
+    });
+}
+
+function deleteRecord(table, id, page) {
+    fetch('/api/db/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify({ table: table, id: id })
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (!res.success) alert('Failed to delete: ' + res.error);
+        else queryTable(table, page);
     });
 }
 
