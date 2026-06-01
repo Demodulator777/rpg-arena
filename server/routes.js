@@ -9686,6 +9686,12 @@ router.get('/rewards/list', async (req, res) => {
                 <td>${escapeHtml(batch.subject || '')}</td>
                 <td>${escapeHtml(rewardText)}</td>
                 <td>${Number(batch.recipient_count || 0).toLocaleString()}</td>
+                <td>
+                    <form method="POST" action="/api/game/rewards/resend?password=${encodeURIComponent(password)}" style="margin:0" onsubmit="return confirm('Resend to all NEW characters in scope? Characters who already received this batch will be excluded.')">
+                        <input type="hidden" name="batchId" value="${batch.id}">
+                        <button type="submit" style="padding:5px 10px; font-size:0.72rem; background:#3498db; border:none; border-radius:6px; cursor:pointer; width:auto; font-weight:700;">Resend New</button>
+                    </form>
+                </td>
             </tr>`;
         }).join('');
 
@@ -9788,8 +9794,8 @@ router.get('/rewards/list', async (req, res) => {
                     <div class="panel">
                         <h2 style="margin-top:0">Recent Reward Batches</h2>
                         <table>
-                            <thead><tr><th>ID</th><th>Sent</th><th>Scope</th><th>Subject</th><th>Reward</th><th>Recipients</th></tr></thead>
-                            <tbody>${rowsHtml || '<tr><td colspan="6">No reward batches sent yet.</td></tr>'}</tbody>
+                            <thead><tr><th>ID</th><th>Sent</th><th>Scope</th><th>Subject</th><th>Reward</th><th>Recipients</th><th>Action</th></tr></thead>
+                            <tbody>${rowsHtml || '<tr><td colspan="7">No reward batches sent yet.</td></tr>'}</tbody>
                         </table>
                     </div>
                 </div>
@@ -9882,6 +9888,81 @@ router.post('/rewards/send', async (req, res) => {
         const wantsHtml = String(req.headers.accept || '').includes('text/html');
         if (wantsHtml) {
             return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(error.message || 'Failed to send rewards.')}`);
+        }
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/rewards/resend', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        const db = await getDb();
+        const batchId = Number(req.body?.batchId);
+        if (!batchId) return res.status(400).json({ error: 'Batch ID is required.' });
+
+        const batch = await dbGet(db, 'SELECT * FROM admin_reward_batches WHERE id = ?', [batchId]);
+        if (!batch) return res.status(404).json({ error: 'Batch not found.' });
+
+        const scope = batch.scope;
+        const subject = batch.subject;
+        const body = batch.body;
+        const rewardPayload = batch.reward_payload;
+
+        let recipients = [];
+        if (scope === 'all_characters') {
+            recipients = await dbAll(db, `
+                SELECT c.id
+                FROM characters c
+                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                WHERE m.id IS NULL
+                ORDER BY c.id ASC
+            `, [batchId]);
+        } else {
+            recipients = await dbAll(db, `
+                SELECT c.id
+                FROM users u
+                JOIN characters c ON c.id = u.active_character_id
+                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                WHERE u.active_character_id IS NOT NULL AND m.id IS NULL
+                ORDER BY c.id ASC
+            `, [batchId]);
+        }
+
+        if (!recipients.length) {
+            const msg = 'No new recipients found for this batch.';
+            const wantsHtml = String(req.headers.accept || '').includes('text/html');
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(msg)}`);
+            }
+            return res.status(400).json({ error: msg });
+        }
+
+        for (const row of recipients) {
+            await dbRun(
+                db,
+                `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message, admin_batch_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?)`,
+                [row.id, row.id, 'Arena Staff', subject, body, rewardPayload, batchId]
+            );
+        }
+
+        await dbRun(db, 'UPDATE admin_reward_batches SET recipient_count = recipient_count + ? WHERE id = ?', [recipients.length, batchId]);
+
+        const successMessage = `Resent reward to ${recipients.length.toLocaleString()} additional recipient${recipients.length === 1 ? '' : 's'}.`;
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&status=${encodeURIComponent(successMessage)}`);
+        }
+        res.json({ success: true, message: successMessage });
+    } catch (error) {
+        const password = parseAdminPassword(req);
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(error.message || 'Failed to resend rewards.')}`);
         }
         res.status(500).json({ error: error.message });
     }
