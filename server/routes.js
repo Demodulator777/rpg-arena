@@ -3617,6 +3617,7 @@ function calcArmorValue(char, equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.armor) armor += data.stats.armor;
+            if (data?.wp_stats?.armor) armor += Number(data.wp_stats.armor);
         } catch {}
     }
     return armor;
@@ -9080,6 +9081,8 @@ router.get('/player/:id', auth, async (req, res) => {
         }
         const equippedArray = await getEquippedItemsArray(db, player.id);
         const hpMax = calcHpMax(player, equippedArray);
+        const profileSetBonuses = getEquippedSetBonuses(equippedArray);
+        const profileArmor = calcArmorValue(player, equippedArray);
 
         const hpLow = (player.hp_current ?? hpMax) < 10;
 
@@ -9102,6 +9105,8 @@ router.get('/player/:id', auth, async (req, res) => {
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
             profile_pic: player.profile_pic || `${player.class}.png`,
             globalCooldown, perTargetCooldown, hpLow, equipped,
+            armor_value: profileArmor,
+            equipped_set_bonuses: profileSetBonuses,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
