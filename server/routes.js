@@ -8772,21 +8772,8 @@ router.post('/attack/skip-cooldown', auth, async (req, res) => {
             cleared.push('battle cooldown');
         }
 
-        // Per-target cooldown (12h per target)
-        const ptCd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
-        if (ptCd && ptCd.expires_at > now) {
-            await dbRun(db, 'DELETE FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
-            cleared.push('per-target cooldown');
-        }
-
-        // Defender global cooldown (1h defender recovery)
-        if ((defender.global_cooldown_until || 0) > now) {
-            await dbRun(db, 'UPDATE characters SET global_cooldown_until = 0 WHERE id = ?', [defender.id]);
-            cleared.push('defender recovery');
-        }
-
         if (!cleared.length) {
-            return res.status(400).json({ error: 'No active cooldowns to skip for this target' });
+            return res.status(400).json({ error: 'No active battle cooldown to skip.' });
         }
 
         // Charge 1 gem
