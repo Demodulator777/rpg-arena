@@ -62,6 +62,7 @@ function loadTab(name) {
 
 function loadDbAdmin() {
     var el = document.getElementById('tab-db');
+    el.innerHTML = '<div class="loading">Loading database...</div>';
     API('/db/tables').then(function(tables) {
         var tableList = tables.map(function(t) { return '<button onclick="queryTable(\'' + t + '\')">' + t + '</button>'; }).join('');
         el.innerHTML = '<div style="display:flex;gap:20px;padding:10px">' +
