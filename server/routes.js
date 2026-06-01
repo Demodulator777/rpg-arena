@@ -8811,9 +8811,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         // ── Skill tree passive bonuses for attacker ─────────────────────────
         const learnedRowsA = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshA.id]);
         const learnedIdsA = learnedRowsA.map(r => r.skill_id);
-        const skillPassivesA = computePassiveBonuses(freshA.class, learnedIdsA);
-        const skillActivesA  = computeActiveCombatEffects(freshA.class, learnedIdsA);
-        const skillModsA     = computeClassModifiers(freshA.class, learnedIdsA);
+        const skillPassivesA = await computePassiveBonusesWithProgress(db, freshA.class, learnedIdsA, freshA.id);
+        const skillActivesA  = await computeActiveCombatEffectsWithProgress(db, freshA.class, learnedIdsA, freshA.id);
+        const skillModsA     = await computeClassModifiersWithProgress(db, freshA.class, learnedIdsA, freshA.id);
         
         // Rogue no-shield agility bonus for attacker
         let noShieldAgiBonusA = 0;
@@ -8828,9 +8828,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         // ── Skill tree passive bonuses for defender ─────────────────────────
         const learnedRowsD = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshD.id]);
         const learnedIdsD = learnedRowsD.map(r => r.skill_id);
-        const skillPassivesD = computePassiveBonuses(freshD.class, learnedIdsD);
-        const skillActivesD  = computeActiveCombatEffects(freshD.class, learnedIdsD);
-        const skillModsD     = computeClassModifiers(freshD.class, learnedIdsD);
+        const skillPassivesD = await computePassiveBonusesWithProgress(db, freshD.class, learnedIdsD, freshD.id);
+        const skillActivesD  = await computeActiveCombatEffectsWithProgress(db, freshD.class, learnedIdsD, freshD.id);
+        const skillModsD     = await computeClassModifiersWithProgress(db, freshD.class, learnedIdsD, freshD.id);
         
         // Rogue no-shield agility bonus for defender
         let noShieldAgiBonusD = 0;
