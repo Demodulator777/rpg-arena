@@ -3756,10 +3756,7 @@ function applyMagicDamageModifiers(attacker, defender) {
     
     // Magic adds bonus damage. For mages, that bonus is applied to elemental damage later.
     if (attacker.magic) {
-        let magicBonusPct = 0.1;
-        const magicDmgScale = hasClassModifier(attacker, 'magic_dmg_scale');
-        if (magicDmgScale) magicBonusPct += magicDmgScale.value;
-        damageBonus = Math.floor(attacker.magic * magicBonusPct);
+        damageBonus = Math.floor(attacker.magic * 0.1);
     }
     
     // Magic reduces damage taken
@@ -3768,6 +3765,11 @@ function applyMagicDamageModifiers(attacker, defender) {
     }
     
     return { damageBonus, resistance };
+}
+function getEffectiveMagic(attacker) {
+    const base = attacker.magic || 0;
+    const scale = hasClassModifier(attacker, 'magic_dmg_scale');
+    return scale ? Math.floor(base * (1 + scale.value)) : base;
 }
 
 function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty, attackerShield, defenderShield) {
@@ -4028,8 +4030,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const m2e = attacker.class === 'mage';
                     gPhys = Math.max(0, gPhys + (m2e ? 0 : dB) - rB);
                     const eD = attacker.elem_dmg || {};
-                    const magicFlatBonus = Math.floor((attacker.magic || 0) * 0.025);
-                    const magicElemMult = 1 + (attacker.magic || 0) / 8000;
+                    const effMagic = getEffectiveMagic(attacker);
+                    const magicFlatBonus = Math.floor((effMagic || 0) * 0.0125);
+                    const magicElemMult = 1 + (effMagic || 0) / 8000;
                     let gElem = 0;
                     for (const elem of ELEMENTS) {
                         let ed = (eD[elem] || 0) + magicFlatBonus;
@@ -4105,8 +4108,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (Math.random() < (negEff?.chance || 0.50)) isCrit = false;
         }
         
-        const magicFlatBonus = Math.floor((attacker.magic || 0) * 0.025);
-        const magicElemMult = 1 + (attacker.magic || 0) / 8000;
+        const effMagic = getEffectiveMagic(attacker);
+        const magicFlatBonus = Math.floor((effMagic || 0) * 0.0125);
+        const magicElemMult = 1 + (effMagic || 0) / 8000;
         
         // ── Special use-limited attacks ──────────────────────────────────────
         let specialAttackDmg = 0;
