@@ -64,15 +64,24 @@ function loadDbAdmin() {
     var el = document.getElementById('tab-db');
     el.innerHTML = '<div class="loading">Loading database...</div>';
     API('/db/tables').then(function(tables) {
-        var tableList = tables.map(function(t) { return '<button onclick="queryTable(\'' + t + '\')">' + t + '</button>'; }).join('');
+        var tableList = tables.map(function(t) { 
+            var btn = document.createElement('button');
+            btn.textContent = t;
+            btn.addEventListener('click', function() { queryTable(t); });
+            return btn;
+        });
+        
         el.innerHTML = '<div style="display:flex;gap:20px;padding:10px">' +
-            '<div style="width:200px;display:flex;flex-direction:column;gap:5px">' + tableList + '</div>' +
+            '<div id="db-table-list" style="width:200px;display:flex;flex-direction:column;gap:5px"></div>' +
             '<div id="db-content" style="flex-grow:1;overflow-x:auto">Select a table</div>' +
         '</div>';
+        
+        var listEl = document.getElementById('db-table-list');
+        tableList.forEach(function(b) { listEl.appendChild(b); });
     });
 }
 
-window.queryTable = function(table) {
+function queryTable(table) {
     var el = document.getElementById('db-content');
     el.innerHTML = 'Loading...';
     fetch('/api/game/db/query', {
@@ -87,7 +96,7 @@ window.queryTable = function(table) {
             '<tbody>' + data.map(function(row) { return '<tr>' + cols.map(function(c) { return '<td style="padding:5px;border:1px solid #444">' + (row[c] ?? '') + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody>' +
             '</table>';
     });
-};
+}
 
 function loadCsp() {
     var el = document.getElementById('tab-csp');
