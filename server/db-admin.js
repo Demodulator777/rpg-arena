@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('./db');
-const { parseAdminPassword } = require('./routes'); // Reuse password parsing if possible, or define locally
+const { parseAdminPassword } = require('./routes');
 
 // Middleware to check admin password for the DB admin tools
 const adminAuth = (req, res, next) => {
