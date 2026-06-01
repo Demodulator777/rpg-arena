@@ -4105,6 +4105,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (Math.random() < (negEff?.chance || 0.50)) isCrit = false;
         }
         
+        const magicFlatBonus = Math.floor((attacker.magic || 0) * 0.025);
+        const magicElemMult = 1 + (attacker.magic || 0) / 8000;
+        
         // ── Special use-limited attacks ──────────────────────────────────────
         let specialAttackDmg = 0;
         if (!attacker._usedAbilities) attacker._usedAbilities = {};
@@ -4248,8 +4251,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const blockFails = rageActive || randomBlockPen;
 
         const elemDmgs = attacker.elem_dmg || {};
-        const magicFlatBonus = Math.floor((attacker.magic || 0) * 0.025);
-        const magicElemMult = 1 + (attacker.magic || 0) / 8000;
         for (const elem of ELEMENTS) {
             let ed = (elemDmgs[elem] || 0) + magicFlatBonus;
             if (ed <= 0) continue;
