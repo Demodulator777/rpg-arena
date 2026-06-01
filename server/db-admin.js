@@ -1,59 +1,66 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('./db');
+const { parseAdminPassword } = require('./routes'); // Reuse password parsing if possible, or define locally
 
-// Basic auth for the admin panel
+// Middleware to check admin password for the DB admin tools
 const adminAuth = (req, res, next) => {
-    const password = req.query.password || req.body.password;
-    if (password === process.env.ADMIN_PANEL_PASSWORD) {
+    // Assuming password-based auth for the admin panel as per existing admin routes
+    const password = parseAdminPassword(req);
+    const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
+    if (password === ADMIN_PANEL_PASSWORD) {
         next();
     } else {
-        res.status(403).send('Forbidden');
+        res.status(403).json({ error: 'Forbidden' });
     }
 };
 
-router.use(adminAuth);
-
-router.get('/', async (req, res) => {
+router.get('/tables', adminAuth, async (req, res) => {
     try {
         const db = await getDb();
-        const tablesResult = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
-        const tables = tablesResult.rows.map(r => r.name);
-        
-        let data = [];
-        let columns = [];
-        const selectedTable = req.query.table;
-
-        if (selectedTable && tables.includes(selectedTable)) {
-            const result = await db.execute(`SELECT * FROM "${selectedTable}" LIMIT 100`);
-            data = result.rows;
-            if (data.length > 0) columns = Object.keys(data[0]);
-        }
-
-        res.send(`
-            <html>
-                <body style="font-family:sans-serif; background:#f4f4f9; padding:20px;">
-                    <h1>DB Admin</h1>
-                    <div style="display:flex; gap:20px;">
-                        <nav style="width:200px; background:#fff; padding:15px; border-radius:8px;">
-                            <h3>Tables</h3>
-                            ${tables.map(t => `<a href="?table=${t}&password=${req.query.password}" style="display:block; padding:5px 0;">${t}</a>`).join('')}
-                        </nav>
-                        <div style="flex-grow:1; background:#fff; padding:20px; border-radius:8px;">
-                            ${selectedTable ? `<h2>Table: ${selectedTable}</h2>` : '<h3>Select a table</h3>'}
-                            <table border="1" style="width:100%; border-collapse:collapse;">
-                                <thead><tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
-                                <tbody>
-                                    ${data.map(row => `<tr>${columns.map(c => `<td>${row[c]}</td>`).join('')}</tr>`).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </body>
-            </html>
-        `);
+        const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
+        res.json(result.rows.map(r => r.name));
     } catch (e) {
-        res.status(500).send(e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/query', adminAuth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { table, page = 1 } = req.body;
+        if (!table) return res.status(400).json({ error: 'Table required' });
+        
+        const safeTable = table.replace(/[^a-zA-Z0-9_]/g, '');
+        const limit = 50;
+        const offset = (Number(page) - 1) * limit;
+        
+        const countRes = await db.execute(`SELECT COUNT(*) as total FROM "${safeTable}"`);
+        const total = countRes.rows[0].total;
+        const result = await db.execute(`SELECT * FROM "${safeTable}" LIMIT ${limit} OFFSET ${offset}`);
+        
+        res.json({ rows: result.rows, total, page: Number(page), limit });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/update', adminAuth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { table, field, value, id } = req.body;
+        if (!table || !field || id === undefined) return res.status(400).json({ error: 'Missing parameters' });
+        
+        const safeTable = table.replace(/[^a-zA-Z0-9_]/g, '');
+        const safeField = field.replace(/[^a-zA-Z0-9_]/g, '');
+        
+        await db.execute({
+            sql: `UPDATE "${safeTable}" SET "${safeField}" = ? WHERE id = ?`,
+            args: [value, id]
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
