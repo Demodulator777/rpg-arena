@@ -4087,13 +4087,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     finalDmg = gDmg;
                     totalElemDmg = gElem;
                     if (absorbed > 0) {
-                        logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD absorbed ${absorbed} damage! ${Math.floor(gDmg)} gets through`;
+                        logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD absorbed ${absorbed} damage! ${Math.round(gDmg)} gets through`;
                         if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
                         if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
                     } else {
                         const bsTag = isBackstab ? ' BACKSTAB!' : '';
                         const afterArmorPhys = Math.max(1, gDmg - gElem);
-                        logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.floor(gDmg)} damage (${Math.floor(afterArmorPhys)} physical + ${Math.floor(gElem)} elemental)`;
+                        logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.round(gDmg)} damage (${Math.round(afterArmorPhys)} physical + ${Math.round(gElem)} elemental)`;
                     }
                 }
         }
@@ -4432,8 +4432,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             chargeHolyStrikeFromAbsorb(absorbedAmount);
 
             const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
-            logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.floor(finalDmg)} damage`;
-            if (totalElemDmg > 0) logLine += ` including ${Math.floor(totalElemDmg)} elemental damage`;
+            logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
+            if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
             if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
             if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
             if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
@@ -4442,7 +4442,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 if (finalDmg <= 0) {
                     logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
                 } else {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.floor(finalDmg)} gets through`;
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
             }
@@ -4748,28 +4748,27 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
     log.push('---');
     if (winnerId === 0) {
-        log.push(`After ${roundsCompleted} rounds: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
+        log.push(`After ${roundsCompleted} rounds: ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage, ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage`);
         log.push(`Result: Draw — equal damage!`);
     } else if (winnerId === fighterA.id) {
-        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterA.name} dealt ${totalDmgToB} damage, ${fighterB.name} dealt ${totalDmgToA} damage`);
+        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage, ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage`);
         log.push(`Winner: ${roundEndedPrematurely ? fighterA.name + ' wins!' : fighterA.name + ' wins by dealing more damage!'}`);
     } else {
-        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterB.name} dealt ${totalDmgToA} damage, ${fighterA.name} dealt ${totalDmgToB} damage`);
+        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage, ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage`);
         log.push(`Winner: ${roundEndedPrematurely ? fighterB.name + ' wins!' : fighterB.name + ' wins by dealing more damage!'}`);
     }
-    
+
     return {
         log,
         winnerId,
-        hpRemainingA: hpA,
-        hpRemainingB: hpB,
-        totalDmgToA,
-        totalDmgToB,
-        totalElemDmgDealt: totalElemDmgDealtA,
-        totalElemDmgDealtA,
-        totalElemDmgDealtB
-    };
-}
+        hpRemainingA: Math.round(hpA),
+        hpRemainingB: Math.round(hpB),
+        totalDmgToA: Math.round(totalDmgToA),
+        totalDmgToB: Math.round(totalDmgToB),
+        totalElemDmgDealt: Math.round(totalElemDmgDealtA),
+        totalElemDmgDealtA: Math.round(totalElemDmgDealtA),
+        totalElemDmgDealtB: Math.round(totalElemDmgDealtB)
+    };}
 
 function createTutorialBattleResult(playerFighter, npc) {
     const playerStartHp = Math.max(1, playerFighter.hp || playerFighter.hpMax || 1);
@@ -4786,10 +4785,10 @@ function createTutorialBattleResult(playerFighter, npc) {
     const hpAfterCounter = Math.max(1, playerStartHp - counter);
         return {
             winnerId: playerFighter.id,
-            hpRemainingA: hpAfterCounter,
+            hpRemainingA: Math.round(hpAfterCounter),
             hpRemainingB: 0,
-            totalDmgToA: counter,
-            totalDmgToB: npcStartHp,
+            totalDmgToA: Math.round(counter),
+            totalDmgToB: Math.round(npcStartHp),
             totalElemDmgDealt: 0,
             totalElemDmgDealtA: 0,
             totalElemDmgDealtB: 0,
@@ -4815,15 +4814,15 @@ function summarizeBattleStats(fighter) {
         Number(elem.electro || 0);
     const hpMax = Number(fighter.hpMax ?? fighter.hp_max ?? fighter.hp ?? 0);
     return {
-        dmgMin: physMin,
-        dmgMax: physMax,
-        elemDmg: elemTotal,
-        armor: Number(fighter.armor ?? 0),
-        magic: Number(fighter.magic ?? 0),
-        hp: hpMax,
-        agility: Number(fighter.agility ?? 0),
-        hitChance: Number(fighter.hit_chance ?? 0),
-        critChance: Number(fighter.crit_chance ?? 0),
+        dmgMin: Math.round(physMin),
+        dmgMax: Math.round(physMax),
+        elemDmg: Math.round(elemTotal),
+        armor: Math.round(Number(fighter.armor ?? 0)),
+        magic: Math.round(Number(fighter.magic ?? 0)),
+        hp: Math.round(hpMax),
+        agility: Math.round(Number(fighter.agility ?? 0)),
+        hitChance: Math.round(Number(fighter.hit_chance ?? 0)),
+        critChance: Math.round(Number(fighter.crit_chance ?? 0)),
     };
 }
 
