@@ -3533,8 +3533,14 @@ function hasSkill(activeSkills, skillId) { return !!activeSkills[skillId]; }
 function hasClassModifier(fighter, modifierId) { if (!fighter) return null; return (Array.isArray(fighter.skillMods) ? fighter.skillMods : []).find(m => m.id === modifierId) || null; }
 function getActiveCombatEffect(fighter, effectId) { if (!fighter) return null; return (Array.isArray(fighter.skillEffects) ? fighter.skillEffects : []).find(e => e.id === effectId) || null; }
 function mergeActiveSkills(baseSkills, skillEffects) {
+    const legacySkillIds = new Set();
+    for (const skills of Object.values(CLASS_SKILLS)) {
+        for (const s of skills) legacySkillIds.add(s.id);
+    }
     const result = { ...(baseSkills || {}) };
-    for (const eff of (skillEffects || [])) { if (eff.id) result[eff.id] = true; }
+    for (const eff of (skillEffects || [])) {
+        if (eff.id && !legacySkillIds.has(eff.id)) result[eff.id] = true;
+    }
     return result;
 }
 
