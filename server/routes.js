@@ -3530,8 +3530,8 @@ function getActiveSkills(char) {
     } catch { return {}; }
 }
 function hasSkill(activeSkills, skillId) { return !!activeSkills[skillId]; }
-function hasClassModifier(fighter, modifierId) { return (Array.isArray(fighter.skillMods) ? fighter.skillMods : []).find(m => m.id === modifierId) || null; }
-function getActiveCombatEffect(fighter, effectId) { return (Array.isArray(fighter.skillEffects) ? fighter.skillEffects : []).find(e => e.id === effectId) || null; }
+function hasClassModifier(fighter, modifierId) { if (!fighter) return null; return (Array.isArray(fighter.skillMods) ? fighter.skillMods : []).find(m => m.id === modifierId) || null; }
+function getActiveCombatEffect(fighter, effectId) { if (!fighter) return null; return (Array.isArray(fighter.skillEffects) ? fighter.skillEffects : []).find(e => e.id === effectId) || null; }
 function mergeActiveSkills(baseSkills, skillEffects) {
     const result = { ...(baseSkills || {}) };
     for (const eff of (skillEffects || [])) { if (eff.id) result[eff.id] = true; }
