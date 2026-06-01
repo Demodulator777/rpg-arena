@@ -5029,12 +5029,28 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const pElemRes = playerStats.elem_resist || {};
 
         // Per-difficulty stat target (multiplier against player's stat)
+        // Base profile for shadowfen (zoneTier 0), scales up for deeper zones
+        const zoneTier = Math.floor(Math.max(0, zoneLevel - 39) / 10);
+        const zoneScale = 1 + zoneTier * 0.10;
         const diffProfile = ({
             easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitMult:0.6,  critRange:[0.2,0.4] },
             normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitMult:0.8,  critRange:[0.3,0.6] },
-            hard:       { hp:0.80, dmg:0.80, agi:0.70, armor:0.75, elem:0.70, hitMult:0.85, critRange:[0.7,1.0] },
+            hard:       { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] },
             nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitMult:1.0,  critRange:[0.5,1.3] },
-        })[difficulty] || { hp:0.80, dmg:0.80, agi:0.70, armor:0.75, elem:0.70, hitMult:0.85, critRange:[0.3,0.6] };
+        })[difficulty] || { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] };
+        // Scale profile up by zone tier so deeper zones are tougher
+        if (zoneTier > 0) {
+            diffProfile.hp  = Math.min(1.00, diffProfile.hp  * zoneScale);
+            diffProfile.dmg = Math.min(1.00, diffProfile.dmg * zoneScale);
+            diffProfile.agi = Math.min(0.85, diffProfile.agi * zoneScale);
+            diffProfile.armor = Math.min(0.95, diffProfile.armor * zoneScale);
+            diffProfile.elem = Math.min(0.90, diffProfile.elem * zoneScale);
+            diffProfile.hitMult = Math.min(0.95, diffProfile.hitMult * zoneScale);
+            diffProfile.critRange = [
+                Math.min(1.0, diffProfile.critRange[0] * zoneScale),
+                Math.min(1.3, diffProfile.critRange[1] * zoneScale),
+            ];
+        }
 
         // Random variance ±15% so no two missions feel identical
         const r = () => 0.85 + Math.random() * 0.30;
@@ -5054,6 +5070,10 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
             hard:       { min:0.5, max:0.7 },
             nightmare:  { min:0.7, max:1.0 },
         })[difficulty] || { min:0.5, max:0.7 };
+        if (zoneTier > 0) {
+            agiRange.min = Math.min(0.7, agiRange.min + zoneTier * 0.05);
+            agiRange.max = Math.min(0.9, agiRange.max + zoneTier * 0.05);
+        }
         diffProfile.agi = agiRange.min + Math.random() * (agiRange.max - agiRange.min);
 
         npc.hpMax = Math.max(1, Math.floor(pHp * diffProfile.hp * r() * zoneMult * powerBump));
