@@ -7353,7 +7353,8 @@ if (freshChar.class === 'rogue') {
         }
 
         // Random elemental resists for hard missions — at least 2 types, up to all 4, scales with zone
-        if (mission.difficulty === 'hard') {
+        // Skip for abyss missions — buildNpc() already scales from player's own gear resists
+        if (mission.difficulty === 'hard' && mission.map_type !== 'abyss') {
             const allElem = ['pyro', 'water', 'wind', 'electro'];
             const count = Math.min(4, 2 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0));
             const chosen = [...allElem].sort(() => Math.random() - 0.5).slice(0, count);
