@@ -1,21 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('./db');
-const { parseAdminPassword } = require('./routes');
+const { dbGet } = require('./routes');
 
-// Middleware to check admin password for the DB admin tools
-const adminAuth = (req, res, next) => {
-    // Assuming password-based auth for the admin panel as per existing admin routes
-    const password = parseAdminPassword(req);
-    const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
-    if (password === ADMIN_PANEL_PASSWORD) {
-        next();
-    } else {
-        res.status(403).json({ error: 'Forbidden' });
+// Admin check helper
+const requireAdmin = async (req, res, next) => {
+    try {
+        const db = await getDb();
+        const user = await db.execute({ sql: 'SELECT is_admin FROM users WHERE id = ?', args: [req.user.userId] });
+        if (user.rows[0]?.is_admin) {
+            next();
+        } else {
+            res.status(403).json({ error: 'Forbidden: Admin access required' });
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 };
 
-router.get('/tables', adminAuth, async (req, res) => {
+router.get('/tables', auth, requireAdmin, async (req, res) => {
     try {
         const db = await getDb();
         const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
@@ -25,7 +28,7 @@ router.get('/tables', adminAuth, async (req, res) => {
     }
 });
 
-router.post('/query', adminAuth, async (req, res) => {
+router.post('/query', auth, requireAdmin, async (req, res) => {
     try {
         const db = await getDb();
         const { table, page = 1 } = req.body;
@@ -45,7 +48,7 @@ router.post('/query', adminAuth, async (req, res) => {
     }
 });
 
-router.post('/update', adminAuth, async (req, res) => {
+router.post('/update', auth, requireAdmin, async (req, res) => {
     try {
         const db = await getDb();
         const { table, field, value, id } = req.body;
