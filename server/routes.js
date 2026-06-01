@@ -9997,6 +9997,25 @@ router.post('/db/query', auth, async (req, res) => {
     }
 });
 
+router.post('/db/update', auth, async (req, res) => {
+    const db = await getDb();
+    const user = await dbGet(db, 'SELECT is_admin FROM users WHERE id = ?', [req.user.userId]);
+    if (!user || !user.is_admin) return res.status(403).json({ error: 'Forbidden' });
+    
+    const { table, field, value, id } = req.body;
+    if (!table || !field || id === undefined) return res.status(400).json({ error: 'Missing parameters' });
+    
+    try {
+        await db.execute({
+            sql: `UPDATE "${table.replace(/"/g, '')}" SET "${field.replace(/"/g, '')}" = ? WHERE id = ?`,
+            args: [value, id]
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // ── Dungeon endpoints (unchanged, keep as is) ─────────────────────────────
 router.get('/dungeon/data', auth, async (req, res) => {
   try {
