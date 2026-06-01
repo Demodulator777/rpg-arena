@@ -90,10 +90,12 @@ getDb().then(async (db) => {
   const { router: bannerRouter, admin: adminRouter, seedDefaultBanner } = require('./banner');
   app.use('/banner', auth, bannerRouter);
   app.use('/admin/banner', adminRouter);
-  
+
+  // Database Admin Panel
+  app.use('/db-admin', require('./db-admin'));
+
   // CSP violation reporting endpoint (no auth — browsers send these directly)
-  app.post('/api/csp-violation', async (req, res) => {
-    let body = '';
+  app.post('/api/csp-violation', async (req, res) => {    let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
