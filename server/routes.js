@@ -4543,8 +4543,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let shieldB = calculateMagicShield(fighterA, fighterB);
 
     log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
-    const skA = Object.keys(fighterA.activeSkills || {});
-    const skB = Object.keys(fighterB.activeSkills || {});
+    const skA = Object.keys(fighterA.baseActiveSkills || {});
+    const skB = Object.keys(fighterB.baseActiveSkills || {});
     if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
     if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
     
@@ -5139,6 +5139,7 @@ async function buildCombatFighter(db, char) {
         },
         skillEffects: skillActives,
         skillMods,
+        baseActiveSkills: charActiveSkills,
         activeSkills: mergeActiveSkills(charActiveSkills, skillActives),
         attackZones: JSON.parse(char.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
         blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
@@ -7257,6 +7258,7 @@ if (freshChar.class === 'rogue') {
             },
             skillEffects: skillActives,
             skillMods: skillMods,
+            baseActiveSkills: charActiveSkills,
             activeSkills: mergeActiveSkills(charActiveSkills, skillActives),
             attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshChar.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
@@ -8872,6 +8874,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             },
             skillEffects: skillActivesA,
             skillMods: skillModsA,
+            baseActiveSkills: getActiveSkills(freshA),
             activeSkills: mergeActiveSkills(getActiveSkills(freshA), skillActivesA),
             attackZones: JSON.parse(freshA.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshA.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
@@ -8908,6 +8911,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             },
             skillEffects: skillActivesD,
             skillMods: skillModsD,
+            baseActiveSkills: getActiveSkills(freshD),
             activeSkills: mergeActiveSkills(getActiveSkills(freshD), skillActivesD),
             attackZones: JSON.parse(freshD.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshD.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
