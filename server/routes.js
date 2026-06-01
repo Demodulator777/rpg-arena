@@ -4327,6 +4327,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 const ldPct = ldEff?.pct || 0.10;
                 const drain = Math.max(1, Math.floor(finalDmg * ldPct));
                 attacker._lifeDrainHeal = (attacker._lifeDrainHeal || 0) + drain;
+                if (logLine) logLine += ` 💚+${drain} life drain`;
             }
 
             // sanctioned_strike: crit heal
@@ -4335,6 +4336,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 const ssPct = ssEff?.crit_heal_pct || 0.30;
                 const critHeal = Math.max(1, Math.floor(finalDmg * ssPct));
                 attacker._sanctionedHeal = (attacker._sanctionedHeal || 0) + critHeal;
+                if (logLine) logLine += ` 💚+${critHeal} sanctified`;
             }
 
             // bastion_heart: block heal
@@ -4513,7 +4515,14 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (attacker._holyRegenHeal) { attacker._holyRegenHeal = 0; }
     if (attacker._battleStartHeal) { attacker._battleStartHeal = 0; }
 
-    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal };
+    // Post-damage heals (life_drain, sanctioned_strike, bastion_heart)
+    const postDmgHeal = (attacker._lifeDrainHeal || 0) + (attacker._sanctionedHeal || 0);
+    const postDmgHealDefender = (defender._bastionHeal || 0);
+    if (attacker._lifeDrainHeal) { attacker._lifeDrainHeal = 0; }
+    if (attacker._sanctionedHeal) { attacker._sanctionedHeal = 0; }
+    if (defender._bastionHeal) { defender._bastionHeal = 0; }
+
+    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender };
 }
 function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     if (options?.guaranteedHit) {
@@ -4596,6 +4605,19 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         }
         if (resB.roundStartHeal > 0) {
             hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+        }
+        // Apply post-damage heals (life_drain, sanctioned_strike → attacker; bastion_heart → defender)
+        if (resA.postDmgHeal > 0) {
+            hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+        }
+        if (resA.postDmgHealDefender > 0) {
+            hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+        }
+        if (resB.postDmgHeal > 0) {
+            hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+        }
+        if (resB.postDmgHealDefender > 0) {
+            hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
         }
         
         fighterA.hp = hpA; fighterB.hp = hpB;
