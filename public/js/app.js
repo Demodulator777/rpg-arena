@@ -7035,7 +7035,7 @@ async function openProfile(id) {
         const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
         const finalDmgMin = baseDmgMin + gearDmgMin;
         const finalDmgMax = baseDmgMax + gearDmgMax;
-        const profileArmor = Math.floor(totalDef / 4) + (itemBonus.armor || 0) + (setBonus.armor || 0);
+        const profileArmor = p.armor_value ?? (Math.floor(totalDef / 4) + (itemBonus.armor || 0) + (setBonus.armor || 0));
         const profileElemDmg = p.elem_dmg || {};
         const profileElemRes = p.elem_resist || {};
 
