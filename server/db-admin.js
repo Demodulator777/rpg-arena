@@ -68,4 +68,22 @@ router.post('/update', auth, requireAdmin, async (req, res) => {
     }
 });
 
+router.post('/delete', auth, requireAdmin, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { table, id } = req.body;
+        if (!table || id === undefined) return res.status(400).json({ error: 'Missing parameters' });
+        
+        const safeTable = table.replace(/[^a-zA-Z0-9_]/g, '');
+        
+        await db.execute({
+            sql: `DELETE FROM "${safeTable}" WHERE id = ?`,
+            args: [id]
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
