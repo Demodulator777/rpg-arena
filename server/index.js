@@ -31,9 +31,10 @@ const cspDirectives = [
 });
 
 // Import middleware and modules
-const auth = require('./middleware');  // This is your middleware
+const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
+const tournamentModule = require('./tournaments');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -60,9 +61,17 @@ getDb().then(async (db) => {
   // Seed default banner if none exists
   await bannerModule.seedDefaultBanner(db);
   
+  // Init tournament tables and scheduler
+  await tournamentModule.initTournamentTables();
+  await tournamentModule.ensureCurrentTournament();
+  tournamentModule.startScheduler();
+  
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes').router);
+  
+  // Tournament routes
+  app.use('/api', auth, tournamentModule.router);
   
   // Mount skills router with auth middleware
   app.use('/skills', auth, skillsModule.router);
