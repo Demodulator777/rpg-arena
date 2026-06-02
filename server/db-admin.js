@@ -86,4 +86,25 @@ router.post('/delete', auth, requireAdmin, async (req, res) => {
     }
 });
 
+router.post('/execute', auth, requireAdmin, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { sql } = req.body;
+        if (!sql || typeof sql !== 'string') return res.status(400).json({ error: 'SQL required' });
+
+        const trimmed = sql.trim();
+        const isSelect = /^\s*(SELECT|PRAGMA|EXPLAIN)\b/i.test(trimmed);
+
+        if (isSelect) {
+            const result = await db.execute(trimmed);
+            res.json({ type: 'select', rows: result.rows, columns: result.columns });
+        } else {
+            const result = await db.execute(trimmed);
+            res.json({ type: 'exec', changes: result.changes ?? 0 });
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
