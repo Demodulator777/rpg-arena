@@ -10251,14 +10251,10 @@ function selectComponent(id, name, qty, el) {
                 const idx = _crimsonSelectedStats.indexOf(stat);
                 if (idx !== -1) {
                     _crimsonSelectedStats.splice(idx, 1);
-                    this.style.borderColor = '#3a3a4a';
-                    this.style.background = '#1a1a28';
-                    this.style.color = '#b0a8a0';
+                    this.classList.remove('selected');
                 } else if (_crimsonSelectedStats.length < 2) {
                     _crimsonSelectedStats.push(stat);
-                    this.style.borderColor = '#c8a86e';
-                    this.style.background = '#2a2a3a';
-                    this.style.color = '#e0dcd0';
+                    this.classList.add('selected');
                 }
                 const picks = document.getElementById('crimson-picks');
                 if (picks) {
@@ -10307,7 +10303,7 @@ async function confirmUpgrade() {
         };
         if (COMPONENT_UPGRADE_VALUES[selectedComponentId]?.statPick) {
             if (_crimsonSelectedStats.length !== 2) {
-                showMsg('inv-msg', 'Select exactly 2 stats to upgrade', true);
+                openGameDialog({ title: 'Select Stats', message: 'You need to select exactly 2 stats to upgrade' });
                 upgradeConfirmBusy = false;
                 if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = previousBtnText || 'Confirm Upgrade'; }
                 return;
@@ -10333,10 +10329,10 @@ async function confirmUpgrade() {
             await loadInventory();
             if (typeof renderCharacter === 'function') renderCharacter();
         } else {
-            showMsg('inv-msg', result.message, true);
+            openGameDialog({ title: 'Upgrade Failed', message: result.message || 'Something went wrong' });
         }
     } catch (error) {
-        showMsg('inv-msg', error.message, true);
+        openGameDialog({ title: 'Upgrade Error', message: error.message });
     } finally {
         if (!document.getElementById('upgrade-modal').classList.contains('hidden')) {
             upgradeConfirmBusy = false;
