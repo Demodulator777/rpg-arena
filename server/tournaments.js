@@ -326,6 +326,39 @@ async function finalizeTournament(db, tournamentId) {
   if (!winnerIsNpc && winner.char_id) {
     await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10 WHERE id = ?', [winner.char_id]);
   }
+  const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [tournamentId]);
+  for (let i = 0; i < standings.length; i++) {
+    const p = standings[i];
+    if (p.is_npc || !p.char_id) continue;
+    const rank = i + 1;
+    const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
+    const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${standings.length}!`;
+    const body = `You fought ${pMatches.length} match(es) with ${p.wins} wins, ${p.losses} losses, ${p.draws} draws.`;
+    await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
+      [p.char_id, p.char_id, subject, body]);
+    for (const mm of pMatches) {
+      const oppId = mm.participant1_id === p.id ? mm.participant2_id : mm.participant1_id;
+      const opponent = standings.find(s => s.id === oppId);
+      const won = mm.winner_id === p.id;
+      const isDraw = mm.is_draw;
+      let log;
+      try { log = typeof mm.battle_log === 'string' ? JSON.parse(mm.battle_log) : (mm.battle_log || []); } catch { log = []; }
+      const payload = JSON.stringify({
+        log, won, isDraw: !!isDraw, goldEarned: 0, goldLost: 0,
+        type: 'tournament',
+        opponentName: opponent?.name || 'Unknown',
+        opponentClass: opponent?.class || null,
+        opponentLevel: opponent?.level || null,
+        totalDmgDealt: 0, totalDmgTaken: 0,
+        tournamentMatch: true, roundIndex: mm.round_index
+      });
+      const matchSubject = isDraw ? `🤝 Tournament Draw vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
+        : won ? `🏆 Tournament Win vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
+        : `💀 Tournament Loss vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`;
+      await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?,?,?,?)',
+        [p.char_id, p.char_id, matchSubject, `BATTLE_REPORT:${payload}`]);
+    }
+  }
   console.log(`🏆 Tournament #${tournamentId} complete! Winner: ${winner.name}${winnerIsNpc ? ' (NPC)' : ''}`);
 }
 
@@ -367,10 +400,15 @@ router.get('/tournaments', auth, async (req, res) => {
 router.get('/tournaments/current', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
+    const t = await dbGet_t(db, "SELECT * FROM tournaments ORDER BY id DESC LIMIT 1");
     if (!t) return res.json(null);
     const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
     const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [t.id]);
+    for (const m of matches) {
+      if (m.battle_log && typeof m.battle_log === 'string') {
+        try { m.battle_log = JSON.parse(m.battle_log); } catch {}
+      }
+    }
     res.json({ tournament: t, participants, matches });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
