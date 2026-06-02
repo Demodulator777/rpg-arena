@@ -48,7 +48,6 @@ function render(char, data) {
     roundGroups[m.round_index].push(m);
   }
   const rounds = Object.keys(roundGroups).sort((a,b) => a-b);
-  const winners = awaitTournamentHistory();
 
   document.getElementById('main-content').innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
@@ -59,7 +58,7 @@ function render(char, data) {
       <div class="join-section">
         <div class="cost">Entry fee: <strong>500g</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold}g</strong>`}</div>
         ${myEntry ? '<div style="color:#2ecc71;font-size:0.9rem">✅ You have joined!</div>'
-                 : `<button class="btn-join" onclick="joinTournament()" ${char.gold < 500 ? 'disabled' : ''}>
+                 : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
                       ${char.gold < 500 ? 'Not enough gold' : '⚔️ Join Tournament'}
                     </button>`}
         ${participants.length > 0 ? `
@@ -78,9 +77,9 @@ function render(char, data) {
           : `<div style="color:#e040ff;font-size:1.1rem;font-weight:700">🏆 Winner: ${participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown'}</div>`}
       </div>` : ''}
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab(this,'standings')">Standings</button>
-      <button class="tab-btn" onclick="switchTab(this,'matches')">Matches (${matches.length})</button>
-      <button class="tab-btn" onclick="switchTab(this,'history')">History</button>
+      <button class="tab-btn active" data-action="tab" data-tab="standings">Standings</button>
+      <button class="tab-btn" data-action="tab" data-tab="matches">Matches (${matches.length})</button>
+      <button class="tab-btn" data-action="tab" data-tab="history">History</button>
     </div>
     <div id="tab-standings">
       <table class="standings-table">
@@ -108,7 +107,8 @@ function render(char, data) {
             const w = m.winner_id ? participants.find(p => p.id === m.winner_id) : null;
             const winnerName = w?.name || 'Unknown';
             const isDraw = m.is_draw;
-            return `<div class="match-card" onclick="showBattleLog(${JSON.stringify(m.battle_log).replace(/"/g,'&quot;')})">
+            const logStr = escJson(JSON.stringify(m.battle_log));
+            return `<div class="match-card" data-action="showLog" data-log='${logStr}'>
               <div class="match-result">
                 ${p1?.name || '?'}
                 ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner">▶</span>' : '<span class="match-loser">▶</span>'}
@@ -130,6 +130,10 @@ function render(char, data) {
   if (t.status === 'complete') loadHistory();
 }
 
+function escJson(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
+
 function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
 
 async function joinTournament() {
@@ -144,9 +148,8 @@ async function joinTournament() {
   }
 }
 
-function switchTab(btn, tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
   document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
@@ -177,17 +180,25 @@ async function loadHistory() {
   }
 }
 
-async function loadWinners() {
-  try {
-    const list = await api('GET', '/api/tournaments');
-    return list.filter(t => t.status === 'complete' && t.winner_char_id === myCharId && !t.winner_is_npc).length;
-  } catch { return 0; }
-}
-
-function showBattleLog(log) {
-  const lines = typeof log === 'string' ? JSON.parse(log) : (log || []);
-  document.getElementById('log-lines').innerHTML = lines.map(l => `<div class="log-line">${l}</div>`).join('');
+function showBattleLog(logStr) {
+  let log;
+  try { log = JSON.parse(logStr); } catch { log = []; }
+  document.getElementById('log-lines').innerHTML = (log||[]).map(l => `<div class="log-line">${l}</div>`).join('');
   document.getElementById('battle-log-modal').style.display = 'flex';
 }
+
+function closeLog() {
+  document.getElementById('battle-log-modal').style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.dataset.action;
+  if (action === 'joinTournament') { e.preventDefault(); joinTournament(); }
+  else if (action === 'tab') { switchTab(el.dataset.tab); }
+  else if (action === 'showLog') { showBattleLog(el.dataset.log); }
+  else if (action === 'closeLog') { closeLog(); }
+});
 
 load();
