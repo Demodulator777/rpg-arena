@@ -66,38 +66,45 @@ function loadDbAdmin() {
     fetch('/api/db/tables', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
         .then(function(r) { return r.json(); })
         .then(function(tables) {
-            var tableList = tables.map(function(t) { 
-                var btn = document.createElement('button');
-                btn.textContent = t;
-                btn.addEventListener('click', function() { queryTable(t); });
-                return btn;
-            });
-            
-            el.innerHTML = '<div style="display:flex;gap:20px;padding:10px">' +
-                '<div id="db-table-list" style="width:200px;display:flex;flex-direction:column;gap:5px"></div>' +
-                '<div id="db-content" style="flex-grow:1;overflow-x:auto">Select a table</div>' +
-            '</div>';
+            el.innerHTML = '<div class="db-admin-layout">' +
+                '<div class="db-table-list" id="db-table-list"></div>' +
+                '<div class="db-content" id="db-content">' +
+                    '<div class="no-data">Select a table to browse</div>' +
+                '</div></div>';
             
             var listEl = document.getElementById('db-table-list');
-            tableList.forEach(function(b) { listEl.appendChild(b); });
+            tables.forEach(function(t) {
+                var btn = document.createElement('button');
+                btn.textContent = t;
+                btn.addEventListener('click', function() {
+                    listEl.querySelectorAll('.active').forEach(function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    queryTable(t);
+                });
+                listEl.appendChild(btn);
+            });
+            if (tables.length) {
+                listEl.querySelector('button').classList.add('active');
+                queryTable(tables[0]);
+            }
         });
 }
 
 function queryTable(table, page = 1) {
     var el = document.getElementById('db-content');
-    el.innerHTML = 'Loading...';
+    el.innerHTML = '<div class="loading">Loading...</div>';
     fetch('/api/db/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
         body: JSON.stringify({ table: table, page: page })
     }).then(function(r) { return r.json(); }).then(function(res) {
         var data = res.rows;
-        if (!data.length) { el.innerHTML = 'No data'; return; }
+        if (!data.length) { el.innerHTML = '<div class="no-data">No rows found</div>'; return; }
         
         var totalPages = Math.ceil(res.total / res.limit);
         var cols = Object.keys(data[0]);
-        var html = '<div class="db-scroll"><table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
-            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + esc(c) + '</th>'; }).join('') + '<th style="padding:5px;border:1px solid #444;white-space:nowrap">Actions</th></tr></thead>' +
+        var html = '<div class="db-scroll"><table>' +
+            '<thead><tr>' + cols.map(function(c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th>Actions</th></tr></thead>' +
             '<tbody>';
         
         data.forEach(function(row, rowIdx) {
@@ -105,38 +112,44 @@ function queryTable(table, page = 1) {
             html += '<tr id="' + rid + '">';
             cols.forEach(function(c) {
                 var val = String(row[c] ?? '');
-                html += '<td style="padding:5px;border:1px solid #444;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(val) + '">' +
+                html += '<td title="' + esc(val) + '">' +
                     '<span class="dsp">' + esc(val) + '</span>' +
-                    '<input type="text" value="' + esc(val) + '" class="ed" style="display:none;width:100%;min-width:80px;padding:3px 5px;border:1px solid #555;background:#1a1a28;color:inherit;border-radius:3px;font:inherit;font-size:12px" ' +
+                    '<input type="text" value="' + esc(val) + '" class="ed" ' +
                     'data-table="' + table + '" data-field="' + c + '" data-id="' + row.id + '">' +
                     '</td>';
             });
-            html += '<td style="padding:5px;border:1px solid #444;text-align:center;white-space:nowrap">' +
-                '<button class="ed-btn" data-rid="' + rid + '" style="background:#2a5a2a;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Edit</button>' +
-                '<button class="ap-btn" data-rid="' + rid + '" style="display:none;background:#2a6a8a;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Apply</button>' +
-                '<button class="ca-btn" data-rid="' + rid + '" style="display:none;background:#6a2a2a;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Cancel</button>' +
-                '<button class="del-btn" data-table="' + table + '" data-id="' + row.id + '" data-page="' + page + '" style="background:#aa0000;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Delete</button>' +
+            html += '<td class="td-actions">' +
+                '<button class="db-btn db-btn-edit ed-btn" data-rid="' + rid + '">Edit</button>' +
+                '<button class="db-btn db-btn-apply ap-btn" data-rid="' + rid + '" style="display:none">Apply</button>' +
+                '<button class="db-btn db-btn-cancel ca-btn" data-rid="' + rid + '" style="display:none">Cancel</button>' +
+                '<button class="db-btn db-btn-del del-btn" data-table="' + table + '" data-id="' + row.id + '" data-page="' + page + '">Delete</button>' +
                 '</td>';
             html += '</tr>';
         });
         html += '</tbody></table></div>';
 
-        html += '<div id="db-pagination" style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"></div>';
+        html += '<div class="db-pagination" id="db-pagination"></div>';
         
         el.innerHTML = html;
         
+        function enterEditMode(row) {
+            if (!row) return;
+            row.querySelectorAll('.dsp').forEach(function(s) { s.style.display = 'none'; });
+            row.querySelectorAll('.ed').forEach(function(inp) { inp.style.display = 'block'; });
+            row.querySelector('.ed-btn').style.display = 'none';
+            row.querySelector('.del-btn').style.display = 'none';
+            row.querySelector('.ap-btn').style.display = 'inline-block';
+            row.querySelector('.ca-btn').style.display = 'inline-block';
+        }
+        
         // Edit buttons
         el.querySelectorAll('.ed-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var row = document.getElementById(btn.dataset.rid);
-                if (!row) return;
-                row.querySelectorAll('.dsp').forEach(function(s) { s.style.display = 'none'; });
-                row.querySelectorAll('.ed').forEach(function(inp) { inp.style.display = 'block'; });
-                btn.style.display = 'none';
-                row.querySelector('.del-btn').style.display = 'none';
-                row.querySelector('.ap-btn').style.display = 'inline-block';
-                row.querySelector('.ca-btn').style.display = 'inline-block';
-            });
+            btn.addEventListener('click', function() { enterEditMode(document.getElementById(btn.dataset.rid)); });
+        });
+        
+        // Click on display span also enters edit mode
+        el.querySelectorAll('.dsp').forEach(function(s) {
+            s.addEventListener('click', function() { enterEditMode(s.closest('tr')); });
         });
         
         // Apply buttons
@@ -186,7 +199,7 @@ function queryTable(table, page = 1) {
         for (var i = 1; i <= totalPages; i++) {
             var btn = document.createElement('button');
             btn.textContent = i;
-            if (i === page) btn.style.background = '#555';
+            if (i === page) btn.classList.add('active');
             else btn.addEventListener('click', (function(p) { return function() { queryTable(table, p); }; })(i));
             pagEl.appendChild(btn);
         }
