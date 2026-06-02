@@ -5930,7 +5930,7 @@ function calculateBackendItemPrice(item, level) {
         return sum;
     }, 0);
     
-    const statMultiplier = Math.max(1, 1 + (statSum * 0.6));
+    const statMultiplier = Math.max(1, 1 + (statSum * 0.4));
     
     const tierMultiplier = item.tier === 5 ? 2.0 : 
                            item.tier === 4 ? 1.6 : 
