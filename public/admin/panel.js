@@ -29,6 +29,7 @@ function renderLayout() {
             '<button class="tab-btn" data-tab="banners">Banners</button>' +
             '<button class="tab-btn" data-tab="rewards">Rewards</button>' +
             '<button class="tab-btn" data-tab="db">Database</button>' +
+            '<button class="tab-btn" data-tab="tournaments">Tournaments</button>' +
             '<button class="tab-btn" data-tab="actions">Action Log</button>' +
         '</div>' +
         '<div id="tab-csp" class="tab-content active"><div class="loading">Loading CSP violations...</div></div>' +
@@ -36,6 +37,7 @@ function renderLayout() {
         '<div id="tab-banners" class="tab-content"><div class="loading">Loading banners...</div></div>' +
         '<div id="tab-rewards" class="tab-content"><div class="loading">Loading rewards...</div></div>' +
         '<div id="tab-db" class="tab-content"><div class="loading">Loading database...</div></div>' +
+        '<div id="tab-tournaments" class="tab-content"><div class="loading">Loading tournaments...</div></div>' +
         '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
@@ -57,6 +59,7 @@ function loadTab(name) {
     else if (name === 'banners') loadBanners();
     else if (name === 'rewards') loadRewards();
     else if (name === 'db') loadDbAdmin();
+    else if (name === 'tournaments') loadTournaments();
     else if (name === 'actions') loadActions();
 }
 
@@ -443,5 +446,56 @@ function renderActionsTable(data) {
 
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function adminApi(method, path, body) {
+    var token = localStorage.getItem('rpg_token');
+    var opts = { method: method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch('/api' + path, opts).then(function(r) { return r.json(); });
+}
+
+function loadTournaments() {
+    var el = document.getElementById('tab-tournaments');
+    adminApi('GET', '/tournaments').then(function(list) {
+        var current = list.filter(function(t) { return t.status === 'pending' || t.status === 'active'; });
+        var html = '<div class="card-compact"><div class="row"><span class="lbl">Manual Start</span>' +
+            '<button class="db-btn db-btn-apply" id="btn-start-tournament">⚔️ Start Now (Test)</button></div>' +
+            '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Fills NPCs if <8 players. Runs instantly.</div></div>';
+        if (current.length) {
+            html += '<div class="card-compact" style="margin-top:8px">';
+            current.forEach(function(t) {
+                html += '<div class="row"><span class="lbl">Current</span><span class="val">#' + t.id + ' — ' + t.status + ' — started ' + (t.started_at || 'not yet') + '</span></div>';
+            });
+            html += '</div>';
+        }
+        html += '<h2>Past Tournaments</h2>';
+        var completedList = list.filter(function(t) { return t.status === 'complete'; });
+        if (completedList.length === 0) {
+            html += '<p style="color:#6a6a70;text-align:center;padding:20px">No completed tournaments yet</p>';
+        } else {
+            html += '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Participants</th><th>Winner</th><th>NPC Win</th></tr></thead><tbody>';
+            completedList.forEach(function(t) {
+                var date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
+                html += '<tr><td>' + t.id + '</td><td>' + date + '</td><td>' + (t.participant_count || '?') + '</td><td>' + (t.winner_is_npc ? '<span style="color:#6a6a70">NPC</span>' : '<span style="color:#60e060">Player #' + t.winner_char_id + '</span>') + '</td><td>' + (t.winner_is_npc ? '<span class="badge badge-yes">Yes</span>' : '<span class="badge badge-no">No</span>') + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+        el.innerHTML = html;
+        document.getElementById('btn-start-tournament').addEventListener('click', function() {
+            var btn = this;
+            btn.textContent = 'Starting...';
+            btn.disabled = true;
+            adminApi('POST', '/tournaments/start-test').then(function(r) {
+                btn.textContent = '✅ Started';
+                setTimeout(function() { loadTournaments(); }, 2000);
+            }).catch(function(e) {
+                btn.textContent = 'Error';
+                setTimeout(function() { loadTournaments(); }, 3000);
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<p class="error">' + e.message + '</p>';
+    });
+}
 
 init();
