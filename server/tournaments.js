@@ -2,6 +2,20 @@ const express = require('express');
 const router = express.Router();
 const auth = require('./middleware');
 const { getDb } = require('./db');
+const {
+  simulateRound, calculateMagicShield, calcHpMax,
+  calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
+  getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
+  hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
+  getEquippedSetBonuses, skillPassiveBonus,
+  DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
+} = require('./routes');
+const {
+  computePassiveBonusesWithProgress,
+  computeActiveCombatEffectsWithProgress,
+  computeClassModifiersWithProgress,
+  rogueHasDualWield
+} = require('./skills');
 
 const TOURNAMENT_COST = 500;
 const MIN_PLAYERS = 8;
@@ -10,115 +24,6 @@ const DAILY_HOUR = 20;
 
 function roll(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-const ELEM_EMOJIS = { pyro:'🔥', water:'💧', wind:'🌀', electro:'⚡' };
-
-function deathmatchBattle(p1, p2) {
-  const aEquip = getEquipStats(p1.equipped || {});
-  const dEquip = getEquipStats(p2.equipped || {});
-  const log = [];
-  let aHp = p1.hp_max, dHp = p2.hp_max;
-  log.push(`⚔️ ${p1.name} vs ${p2.name}!`);
-  log.push(`📊 ${p1.name}: STR ${p1.strength} | DEF ${p1.defense} | AGI ${p1.agility} | MAG ${p1.magic}`);
-  log.push(`📊 ${p2.name}: STR ${p2.strength} | DEF ${p2.defense} | AGI ${p2.agility} | MAG ${p2.magic}`);
-  log.push(`---`);
-  let round = 0;
-  while (aHp > 0 && dHp > 0) {
-    round++;
-    log.push(`🔔 Round ${round}`);
-    const aFirst = calcInit(p1, aEquip) >= calcInit(p2, dEquip);
-    const [first, fEquip, second, sEquip] = aFirst ? [p1, aEquip, p2, dEquip] : [p2, dEquip, p1, aEquip];
-    let fHp = aFirst ? aHp : dHp;
-    let sHp = aFirst ? dHp : aHp;
-    const h1 = calcHit(first, fEquip, second, sEquip);
-    sHp = Math.max(0, sHp - h1.totalDmg);
-    let msg1 = `  ${first.name} → ${second.name}: ${h1.physDmg} phys`;
-    if (h1.magicBurst) msg1 += ` + ${h1.burstDmg} MB`;
-    if ((h1.elemDmg||0)>0) msg1 += ` + ${h1.elemDmg} ${ELEM_EMOJIS[h1.elemType]||''}`;
-    if (h1.dodged) msg1 += ` (dodge)`;
-    msg1 += ` = ${h1.totalDmg} | ${second.name} ${sHp}HP`;
-    log.push(msg1);
-    if (aFirst) { aHp = fHp; dHp = sHp; } else { dHp = fHp; aHp = sHp; }
-    if (sHp <= 0) break;
-    const h2 = calcHit(second, sEquip, first, fEquip);
-    fHp = Math.max(0, fHp - h2.totalDmg);
-    let msg2 = `  ${second.name} → ${first.name}: ${h2.physDmg} phys`;
-    if (h2.magicBurst) msg2 += ` + ${h2.burstDmg} MB`;
-    if ((h2.elemDmg||0)>0) msg2 += ` + ${h2.elemDmg} ${ELEM_EMOJIS[h2.elemType]||''}`;
-    if (h2.dodged) msg2 += ` (dodge)`;
-    msg2 += ` = ${h2.totalDmg} | ${first.name} ${fHp}HP`;
-    log.push(msg2);
-    if (aFirst) { aHp = fHp; dHp = sHp; } else { dHp = fHp; aHp = sHp; }
-    if (fHp <= 0) break;
-  }
-  let winnerId = null, isDraw = 0;
-  if (aHp <= 0 && dHp <= 0) { isDraw = 1; log.push(`💥 Double KO! Draw.`); }
-  else if (dHp <= 0) { winnerId = p1.id; log.push(`🏆 ${p1.name} wins! (${aHp} HP left)`); }
-  else if (aHp <= 0) { winnerId = p2.id; log.push(`🏆 ${p2.name} wins! (${dHp} HP left)`); }
-  return { winnerId, isDraw, log, p1FinalHp: aHp, p2FinalHp: dHp };
-}
-
-function getEquipStats(equip) {
-  if (!equip) return {};
-  const stats = { dmg_min:0, dmg_max:0, def_bonus:0, agi_bonus:0, mag_bonus:0, str_bonus:0, elem_dmg:0, elem_dmg_type:null, elem_resist_pyro:0, elem_resist_water:0, elem_resist_wind:0, elem_resist_electro:0 };
-  const slots = ['weapon','armor','boots','amulet','ring'];
-  slots.forEach(slot => {
-    const item = equip[slot]; if (!item||!item.stats) return;
-    const s = item.stats;
-    if (s.dmg_min) stats.dmg_min += s.dmg_min;
-    if (s.dmg_max) stats.dmg_max += s.dmg_max;
-    if (s.def_bonus) stats.def_bonus += s.def_bonus;
-    if (s.agi_bonus) stats.agi_bonus += s.agi_bonus;
-    if (s.mag_bonus) stats.mag_bonus += s.mag_bonus;
-    if (s.str_bonus) stats.str_bonus += s.str_bonus;
-    if (s.elem_dmg && s.elem_dmg > stats.elem_dmg) { stats.elem_dmg = s.elem_dmg; stats.elem_dmg_type = s.elem_dmg_type; }
-    if (s.elem_resist_pyro) stats.elem_resist_pyro += s.elem_resist_pyro;
-    if (s.elem_resist_water) stats.elem_resist_water += s.elem_resist_water;
-    if (s.elem_resist_wind) stats.elem_resist_wind += s.elem_resist_wind;
-    if (s.elem_resist_electro) stats.elem_resist_electro += s.elem_resist_electro;
-  });
-  return stats;
-}
-
-function getResist(defender, dEquip, elemType) {
-  if (!elemType) return 0;
-  const baseResist = defender[`elem_resist_${elemType}`] || 0;
-  const equipResist = dEquip[`elem_resist_${elemType}`] || 0;
-  return Math.min(80, baseResist + equipResist);
-}
-
-function calcHit(attacker, aEquip, defender, dEquip) {
-  const totalStr = attacker.strength + (aEquip.str_bonus || 0);
-  const totalDef = defender.defense + (dEquip.def_bonus || 0);
-  const totalAgi = defender.agility + (dEquip.agi_bonus || 0);
-  const totalMag = attacker.magic + (aEquip.mag_bonus || 0);
-  const physBase = Math.floor(totalStr / 4);
-  const weaponRoll = aEquip.dmg_max > 0 ? roll(aEquip.dmg_min, aEquip.dmg_max) : 0;
-  const rawPhys = physBase + weaponRoll + roll(1, 6);
-  const mitigation = totalDef * 0.35;
-  const dodged = Math.random() < (totalAgi / 350);
-  let physDmg = Math.max(1, Math.round(rawPhys - mitigation));
-  if (dodged) physDmg = Math.floor(physDmg / 2);
-  const magicBurst = Math.random() < (totalMag / 200);
-  const burstDmg = magicBurst ? Math.floor(totalMag * 0.4) : 0;
-  let elemDmg = 0, elemType = aEquip.elem_dmg_type;
-  if (elemType && aEquip.elem_dmg > 0) {
-    const rawElem = roll(Math.floor(aEquip.elem_dmg * 0.7), aEquip.elem_dmg);
-    const elemMult = attacker.class === 'mage' ? 1.5 : 1.0;
-    const resist = getResist(defender, dEquip, elemType);
-    elemDmg = Math.max(0, Math.floor(rawElem * elemMult * (1 - resist / 100)));
-  }
-  return { physDmg, burstDmg, magicBurst: !!magicBurst, dodged, elemDmg, elemType, totalDmg: physDmg + burstDmg + elemDmg };
-}
-
-function calcInit(char, equip) {
-  return (char.agility + (equip.agi_bonus || 0)) + roll(1, 20);
-}
-
-function calcHpMaxFromStats(p) {
-  const base = 80 + (p.vitality || 10) * 8 + (p.level || 1) * 5;
-  return base;
 }
 
 function scheduleDailyTournamentStart() {
@@ -199,75 +104,223 @@ function generateNpc(seed) {
 
 async function buildFighter(db, participant, participants) {
   if (participant.is_npc) {
+    const nd = participant.npc_data ? (typeof participant.npc_data === 'string' ? JSON.parse(participant.npc_data) : participant.npc_data) : {};
+    const agi = participant.agility || 10;
+    const str = participant.strength || 10;
+    const def = participant.defense || 10;
     return {
       id: `npc_${participant.id}`,
       name: participant.name,
       class: participant.class,
       level: participant.level,
-      strength: participant.strength,
-      defense: participant.defense,
-      agility: participant.agility,
-      magic: participant.magic,
-      vitality: participant.vitality,
-      hp_max: participant.hp_max,
-      equipped: {}
+      hp: participant.hp_max,
+      hpMax: participant.hp_max,
+      dmgMin: nd.dmg_min || Math.max(1, Math.floor(str * 0.5)),
+      dmgMax: nd.dmg_max || Math.max(2, Math.floor(str * 0.5) + 4),
+      strength: str,
+      agility: agi,
+      magic: participant.magic || 10,
+      defense: def,
+      hit_chance: nd.hit_chance || Math.floor(agi / 2),
+      crit_chance: nd.crit_chance || Math.floor(agi / 4),
+      armor: nd.armor || Math.floor(def / 4),
+      agility_bonus: 0,
+      dmg_bonus: 0,
+      elem_dmg: { pyro:0, water:0, wind:0, electro:0 },
+      elem_resist: { pyro:0, water:0, wind:0, electro:0 },
+      skillEffects: nd.skillEffects || [],
+      skillMods: nd.skillMods || [],
+      baseActiveSkills: {},
+      activeSkills: {},
+      attackZones: DEFAULT_ATTACK_ZONES,
+      blockZones: DEFAULT_BLOCK_ZONES
     };
   }
   const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [participant.char_id]);
-  const equippedArray = await getEquippedItemsArray_t(db, participant.char_id);
-  let equipped = {};
-  if (equippedArray) {
-    for (const item of equippedArray) {
-      if (item.slot && item.slot !== 'consumable') {
-        const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : (item.item_data || {});
-        equipped[item.slot] = data;
-      }
-    }
-  }
+  const equippedArray = await getEquippedItemsArray(db, participant.char_id);
   const hpMax = calcHpMax(char, equippedArray);
+  const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
+  const armor = calcArmorValue(char, equippedArray);
+  const statsElemDmg = calcElemDmg(equippedArray);
+  const statsElemResist = calcElemResist(char, equippedArray);
+  const setBonuses = getEquippedSetBonuses(equippedArray);
+
+  const learnedRows = await dbAll_t(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+  const learnedIds = learnedRows.map(r => r.skill_id);
+  const skillPassives = await computePassiveBonusesWithProgress(db, char.class, learnedIds, char.id);
+  const skillActives  = await computeActiveCombatEffectsWithProgress(db, char.class, learnedIds, char.id);
+  const skillMods     = await computeClassModifiersWithProgress(db, char.class, learnedIds, char.id);
+
+  let noShieldAgi = 0;
+  if (char.class === 'rogue') {
+    const hasShield = equippedArray.some(i => {
+      try { const d = JSON.parse(i.item_data); return d.slot === 'shield' && d.rogueOffhand !== true; }
+      catch { return false; }
+    });
+    if (!hasShield) noShieldAgi = Math.floor((char.agility || 0) * 0.05);
+  }
+
   return {
     id: `char_${char.id}`,
     name: char.name,
     class: char.class,
     level: char.level,
-    strength: char.strength,
-    defense: char.defense,
-    agility: char.agility,
-    magic: char.magic,
-    vitality: char.vitality || 10,
-    hp_max: hpMax,
-    equipped
+    hp: char.hp_current ?? hpMax,
+    hpMax: hpMax + skillPassiveBonus(char.vitality || 0, skillPassives.vitality) * 25,
+    dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
+    dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
+    strength: (char.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(char.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
+    agility: (char.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(char.agility || 0, skillPassives.agility) + noShieldAgi + getEquippedStatTotal(equippedArray, 'agility'),
+    magic: (char.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(char.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic'),
+    defense: (char.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(char.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense'),
+    hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
+    crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+    armor: armor + skillPassiveBonus(armor, skillPassives.armor),
+    agility_bonus: 0,
+    dmg_bonus: skillPassives.dmg_bonus || 0,
+    elem_dmg: {
+      pyro:    (statsElemDmg.pyro    || 0) + (skillPassives.pyro_dmg    || 0),
+      water:   (statsElemDmg.water   || 0) + (skillPassives.water_dmg   || 0),
+      wind:    (statsElemDmg.wind    || 0) + (skillPassives.wind_dmg    || 0),
+      electro: (statsElemDmg.electro || 0) + (skillPassives.electro_dmg || 0)
+    },
+    elem_resist: {
+      pyro:    (statsElemResist.pyro    || 0) + (skillPassives.pyro_resist    || 0),
+      water:   (statsElemResist.water   || 0) + (skillPassives.water_resist   || 0),
+      wind:    (statsElemResist.wind    || 0) + (skillPassives.wind_resist    || 0),
+      electro: (statsElemResist.electro || 0) + (skillPassives.electro_resist || 0)
+    },
+    skillEffects: skillActives,
+    skillMods: skillMods,
+    baseActiveSkills: getActiveSkills(char),
+    activeSkills: mergeActiveSkills(getActiveSkills(char), skillActives),
+    attackZones: (() => { try { return JSON.parse(char.attack_zones); } catch { return null; } })() || DEFAULT_ATTACK_ZONES,
+    blockZones: (() => { try { return JSON.parse(char.block_zones); } catch { return null; } })() || DEFAULT_BLOCK_ZONES,
+    dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds)
   };
 }
 
-function calcHpMax(char, equippedArray) {
-  const vit = char.vitality || 10;
-  const lvl = char.level || 1;
-  let bonus = 0;
-  if (equippedArray) {
-    for (const item of equippedArray) {
-      const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : (item.item_data || {});
-      if (data.stats?.vitality) bonus += data.stats.vitality;
-    }
-  }
-  return 80 + vit * 8 + lvl * 5 + bonus;
-}
+function deathmatchBattle(fighterA, fighterB) {
+  const log = [];
+  let hpA = fighterA.hp, hpB = fighterB.hp;
+  let penaltyA = false, penaltyB = false;
+  let totalDmgToA = 0, totalDmgToB = 0;
 
-async function getEquippedItemsArray_t(db, charId) {
-  const row = await dbGet_t(db, 'SELECT * FROM equipment WHERE char_id = ?', [charId]);
-  if (!row) return [];
-  const items = [];
-  const slots = ['weapon', 'armor', 'boots', 'amulet', 'ring'];
-  for (const slot of slots) {
-    if (row[slot + '_id']) {
-      const inv = await dbGet_t(db, 'SELECT * FROM inventory WHERE id = ?', [row[slot + '_id']]);
-      if (inv) {
-        const data = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : inv.item_data;
-        items.push({ ...inv, slot, item_data: data });
+  let shieldA = calculateMagicShield(fighterB, fighterA);
+  let shieldB = calculateMagicShield(fighterA, fighterB);
+
+  log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
+  const skA = Object.keys(fighterA.baseActiveSkills || {});
+  const skB = Object.keys(fighterB.baseActiveSkills || {});
+  if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
+  if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+  if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
+  if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
+  log.push('---');
+
+  let winnerId = null, roundsCompleted = 0;
+
+  for (let round = 1; ; round++) {
+    const idx = (round - 1) % 10;
+    const atkZoneA = (fighterA.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
+    const blkZoneA = (fighterA.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
+    const atkZoneB = (fighterB.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
+    const blkZoneB = (fighterB.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
+
+    const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
+    const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+
+    const dmgToB = resA.damageDealt + resB.damageCounter;
+    const dmgToA = resB.damageDealt + resA.damageCounter;
+
+    totalDmgToA += dmgToA;
+    totalDmgToB += dmgToB;
+    roundsCompleted = round;
+
+    hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
+    hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
+
+    const burnToA = (resA.attackerBurnDmg || 0) + (resB.defenderBurnDmg || 0);
+    const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
+    if (burnToA > 0) { hpA = Math.max(0, hpA - burnToA); log.push(`🔥 ${fighterA.name} takes ${burnToA} burn damage`); }
+    if (burnToB > 0) { hpB = Math.max(0, hpB - burnToB); log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`); }
+
+    if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
+    if (resB.roundStartHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+    if (resA.postDmgHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+    if (resA.postDmgHealDefender > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+    if (resB.postDmgHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+    if (resB.postDmgHealDefender > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
+
+    fighterA.hp = hpA; fighterB.hp = hpB;
+
+    log.push(resA.logLine);
+    log.push(resB.logLine);
+    penaltyA = resB.nextAtkPenalty;
+    penaltyB = resA.nextAtkPenalty;
+
+    if (hpA <= 0 || hpB <= 0) {
+      let resurrected = false;
+      for (const item of [[fighterA, hpA], [fighterB, hpB]]) {
+        const f = item[0], hp = item[1];
+        if (hp > 0) continue;
+        const resMod = hasClassModifier(f, 'resurrection');
+        if (resMod && !f._resurrectionUsed) {
+          f._resurrectionUsed = true;
+          const restoreHp = Math.max(1, Math.floor((f.hpMax || 9999) * resMod.hp_pct));
+          if (f === fighterA) hpA = restoreHp; else hpB = restoreHp;
+          log.push(`✨ ${f.name} is resurrected with ${restoreHp} HP!`);
+          resurrected = true;
+        }
+        if (!resurrected) {
+          const rfEff = getActiveCombatEffect(f, 'rebirth_flame');
+          if (rfEff && !f._rebirthFlameUsed) {
+            f._rebirthFlameUsed = true;
+            const restoreHp = Math.max(1, Math.floor((f.hpMax || 9999) * (rfEff.revive_hp_pct || 0.20)));
+            if (f === fighterA) hpA = restoreHp; else hpB = restoreHp;
+            const other = f === fighterA ? fighterB : fighterA;
+            const otherDmg = f === fighterA ? Math.max(0, dmgToA) : Math.max(0, dmgToB);
+            other._burnDotDmg = (other._burnDotDmg || 0) + Math.max(1, Math.floor((otherDmg || 9999) * (rfEff.burn_dot || 0.10)));
+            log.push(`🔥🕊️ ${f.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
+            resurrected = true;
+          }
+        }
       }
+      if (resurrected) { log.push('---'); continue; }
+
+      if (hpA <= 0 && hpB <= 0) {
+        if (totalDmgToB === totalDmgToA) {
+          const tieA = hasClassModifier(fighterB, 'tie_breaker');
+          const tieB = hasClassModifier(fighterA, 'tie_breaker');
+          if (tieA) { log.push(`Round ${round}: Both fighters fall — but ${fighterA.name} breaks the tie!`); winnerId = fighterA.id; }
+          else if (tieB) { log.push(`Round ${round}: Both fighters fall — but ${fighterB.name} breaks the tie!`); winnerId = fighterB.id; }
+          else { log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0; }
+        } else {
+          log.push(`Round ${round}: Both fighters fall simultaneously!`);
+          winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        }
+      } else if (hpA <= 0) {
+        log.push(`Round ${round}: ${fighterA.name} has fallen!`);
+        winnerId = fighterB.id;
+      } else {
+        log.push(`Round ${round}: ${fighterB.name} has fallen!`);
+        winnerId = fighterA.id;
+      }
+      break;
     }
+    log.push('---');
   }
-  return items;
+
+  log.push('---');
+  if (winnerId === 0) log.push(`Draw! After ${roundsCompleted} rounds`);
+  else if (winnerId === fighterA.id) log.push(`After ${roundsCompleted} rounds — ${fighterA.name} wins!`);
+  else log.push(`After ${roundsCompleted} rounds — ${fighterB.name} wins!`);
+
+  return {
+    log, winnerId, isDraw: winnerId === 0,
+    hpRemainingA: Math.round(hpA), hpRemainingB: Math.round(hpB),
+    totalDmgToA: Math.round(totalDmgToA), totalDmgToB: Math.round(totalDmgToB)
+  };
 }
 
 function generateRoundRobin(playerIds) {
@@ -397,7 +450,7 @@ router.get('/tournaments/current', auth, async (req, res) => {
     const db = await getDb();
     const t = await dbGet_t(db, "SELECT * FROM tournaments ORDER BY id DESC LIMIT 1");
     if (!t) return res.json(null);
-    const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
+    const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY points DESC, wins DESC', [t.id]);
     const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [t.id]);
     for (const m of matches) {
       if (m.battle_log && typeof m.battle_log === 'string') {
