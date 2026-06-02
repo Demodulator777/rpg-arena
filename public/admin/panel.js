@@ -66,11 +66,25 @@ function loadDbAdmin() {
     fetch('/api/db/tables', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
         .then(function(r) { return r.json(); })
         .then(function(tables) {
-            el.innerHTML = '<div class="db-admin-layout">' +
-                '<div class="db-table-list" id="db-table-list"></div>' +
-                '<div class="db-content" id="db-content">' +
-                    '<div class="no-data">Select a table to browse</div>' +
-                '</div></div>';
+            el.innerHTML =
+                '<div class="db-admin-layout">' +
+                    '<div class="db-table-list" id="db-table-list"></div>' +
+                    '<div class="db-content" id="db-content">' +
+                        '<div class="no-data">Select a table to browse</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="db-sql-console">' +
+                    '<div class="db-sql-header" id="db-sql-header">' +
+                        '<span class="db-sql-arrow">▶</span> SQL Console' +
+                    '</div>' +
+                    '<div class="db-sql-body" id="db-sql-body">' +
+                        '<textarea class="db-sql-input" id="db-sql-input" placeholder="Enter SQL query...&#10;Ctrl+Enter to run"></textarea>' +
+                        '<div class="db-sql-toolbar">' +
+                            '<button class="db-btn db-btn-apply" id="db-sql-run">Run (Ctrl+Enter)</button>' +
+                        '</div>' +
+                        '<div class="db-sql-results" id="db-sql-results"></div>' +
+                    '</div>' +
+                '</div>';
             
             var listEl = document.getElementById('db-table-list');
             tables.forEach(function(t) {
@@ -87,7 +101,58 @@ function loadDbAdmin() {
                 listEl.querySelector('button').classList.add('active');
                 queryTable(tables[0]);
             }
+
+            // SQL Console toggle
+            document.getElementById('db-sql-header').addEventListener('click', function() {
+                var body = document.getElementById('db-sql-body');
+                var arrow = this.querySelector('.db-sql-arrow');
+                var isOpen = body.style.display !== 'none';
+                body.style.display = isOpen ? 'none' : 'block';
+                arrow.textContent = isOpen ? '▶' : '▼';
+            });
+
+            // SQL Run
+            document.getElementById('db-sql-run').addEventListener('click', runSql);
+            document.getElementById('db-sql-input').addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runSql(); }
+            });
         });
+}
+
+function runSql() {
+    var input = document.getElementById('db-sql-input');
+    var results = document.getElementById('db-sql-results');
+    var sql = input.value.trim();
+    if (!sql) return;
+    results.innerHTML = '<div class="loading">Running...</div>';
+    fetch('/api/db/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify({ sql: sql })
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        if (res.error) { results.innerHTML = '<div class="db-sql-error">' + esc(res.error) + '</div>'; return; }
+        if (res.type === 'select') {
+            if (!res.rows.length) { results.innerHTML = '<div class="no-data">0 rows returned</div>'; return; }
+            var cols = res.columns || Object.keys(res.rows[0]);
+            var html = '<div class="db-scroll"><table><thead><tr>' +
+                cols.map(function(c) { return '<th>' + esc(c) + '</th>'; }).join('') +
+                '</tr></thead><tbody>';
+            res.rows.forEach(function(row) {
+                html += '<tr>';
+                cols.forEach(function(c) {
+                    var v = String(row[c] ?? '');
+                    html += '<td title="' + esc(v) + '">' + esc(v) + '</td>';
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div><div style="margin-top:4px;color:#6a6a70;font-size:11px">' + res.rows.length + ' row(s) returned</div>';
+            results.innerHTML = html;
+        } else {
+            results.innerHTML = '<div style="color:#60e060;padding:8px">Query executed. Rows affected: ' + res.changes + '</div>';
+        }
+    }).catch(function(e) {
+        results.innerHTML = '<div class="db-sql-error">' + esc(e.message) + '</div>';
+    });
 }
 
 function queryTable(table, page = 1) {
