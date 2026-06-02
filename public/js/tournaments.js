@@ -30,10 +30,20 @@ async function load() {
   }
 }
 
+let countdownInterval = null;
+
 function render(char, data) {
   currentTournament = data;
+  if (countdownInterval) clearInterval(countdownInterval);
+
   if (!data || !data.tournament) {
-    document.getElementById('main-content').innerHTML = `<div class="no-tournament">No tournament active right now. Check back at 8PM!</div>`;
+    document.getElementById('main-content').innerHTML = `
+      <div class="no-tournament">
+        <p>No tournament active right now.</p>
+        <div id="tournament-countdown" style="font-size:1.4rem; font-weight:800; color:#f1c40f; margin:15px 0;">--:--:--</div>
+        <p style="font-size:0.85rem; color:#8890a0;">until next tournament registration opens</p>
+      </div>`;
+    startCountdown(data.nextTournamentTime);
     return;
   }
   const t = data.tournament;
@@ -42,6 +52,7 @@ function render(char, data) {
   const myEntry = participants.find(p => p.char_id === myCharId);
   const statusClass = `status-${t.status}`;
   const statusLabel = t.status === 'pending' ? '⏳ Open for Registration' : t.status === 'active' ? '⚔️ In Progress' : '🏆 Complete';
+  const modeLabel = t.mode === 'normal' ? '🏁 Normal (10 rounds)' : '💀 Deathmatch (unlimited)';
   const roundGroups = {};
   for (const m of matches) {
     if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
@@ -52,10 +63,12 @@ function render(char, data) {
   document.getElementById('main-content').innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
-      <span style="font-size:0.8rem;color:#8890a0;margin-left:12px">${participants.length} fighters</span>
+      <span style="font-size:0.8rem;color:#8890a0;margin-left:8px">${modeLabel}</span>
+      <span style="font-size:0.8rem;color:#8890a0;margin-left:8px">${participants.length} fighters</span>
     </div>
     ${t.status === 'pending' ? `
       <div class="join-section">
+        <div id="tournament-countdown" style="font-size:1.2rem; font-weight:800; color:#f1c40f; margin-bottom:10px;">--:--:--</div>
         <div class="cost">Entry fee: <strong>500g</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold}g</strong>`}</div>
         ${myEntry ? '<div style="color:#2ecc71;font-size:0.9rem">✅ You have joined!</div>'
                  : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
@@ -108,7 +121,8 @@ function render(char, data) {
             const w = m.winner_id ? participants.find(p => p.id === m.winner_id) : null;
             const winnerName = w?.name || 'Unknown';
             const isDraw = m.is_draw;
-            const logStr = escJson(JSON.stringify(m.battle_log));
+            var bl = m.battle_log; if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } } if (!Array.isArray(bl)) bl = [];
+            const logStr = escJson(JSON.stringify(bl));
             return `<div class="match-card" data-action="showLog" data-log='${logStr}'>
               <div class="match-result">
                 ${p1?.name || '?'}
@@ -129,6 +143,30 @@ function render(char, data) {
     </div>
   `;
   if (t.status === 'complete') loadHistory();
+  if (t.status === 'pending') startCountdown(data.nextTournamentTime);
+}
+
+function startCountdown(targetTime) {
+  if (!targetTime) return;
+  const el = document.getElementById('tournament-countdown');
+  if (!el) return;
+
+  function update() {
+    const now = Date.now();
+    const diff = targetTime - now;
+    if (diff <= 0) {
+      el.textContent = "00:00:00";
+      clearInterval(countdownInterval);
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+  }
+
+  update();
+  countdownInterval = setInterval(update, 1000);
 }
 
 function escJson(s) {
@@ -227,7 +265,8 @@ async function viewHistory(tournamentId) {
           if (m.winner_id) w = participants.find(function(p) { return p.id === m.winner_id; });
           var wn = esc((w||{}).name || 'Unknown');
           var isDraw = m.is_draw;
-          var logStr = escJson(JSON.stringify(m.battle_log));
+          var bl2 = m.battle_log; if (typeof bl2 === 'string') { try { bl2 = JSON.parse(bl2); } catch { bl2 = []; } } if (!Array.isArray(bl2)) bl2 = [];
+          var logStr = escJson(JSON.stringify(bl2));
           html += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
         });
         html += '</div>';
