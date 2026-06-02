@@ -21,6 +21,7 @@ const TOURNAMENT_COST = 500;
 const MIN_PLAYERS = 8;
 const ROUND_INTERVAL_MS = 60_000;
 const DAILY_HOUR = 20;
+const NORMAL_ROUNDS = 10;
 
 function roll(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -71,7 +72,7 @@ async function runTournament(db, t, fast) {
     const round = schedule[r];
     if (!fast && r > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
     for (const [p1Id, p2Id] of round) {
-      await fightMatch(db, t.id, r, p1Id, p2Id, participants);
+      await fightMatch(db, t.id, r, p1Id, p2Id, participants, t.mode);
     }
     participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
   }
@@ -165,7 +166,7 @@ async function buildFighter(db, participant, participants) {
     name: char.name,
     class: char.class,
     level: char.level,
-    hp: char.hp_current ?? hpMax,
+    hp: participant.hp_max ?? hpMax,
     hpMax: hpMax + skillPassiveBonus(char.vitality || 0, skillPassives.vitality) * 25,
     dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
     dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
@@ -323,6 +324,144 @@ function deathmatchBattle(fighterA, fighterB) {
   };
 }
 
+function normalBattle(fighterA, fighterB) {
+  const log = [];
+  let hpA = fighterA.hp, hpB = fighterB.hp;
+  let penaltyA = false, penaltyB = false;
+  let totalDmgToA = 0, totalDmgToB = 0;
+
+  let shieldA = calculateMagicShield(fighterB, fighterA);
+  let shieldB = calculateMagicShield(fighterA, fighterB);
+
+  log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
+  const skA = Object.keys(fighterA.baseActiveSkills || {});
+  const skB = Object.keys(fighterB.baseActiveSkills || {});
+  if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
+  if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+  if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
+  if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
+  log.push('🏁 NORMAL MODE — 10 rounds max');
+  log.push('---');
+
+  let winnerId = null, roundsCompleted = 0;
+
+  for (let round = 1; round <= NORMAL_ROUNDS; round++) {
+    const idx = (round - 1) % 10;
+    const atkZoneA = (fighterA.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
+    const blkZoneA = (fighterA.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
+    const atkZoneB = (fighterB.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
+    const blkZoneB = (fighterB.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
+
+    const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
+    const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+
+    const dmgToB = resA.damageDealt + resB.damageCounter;
+    const dmgToA = resB.damageDealt + resA.damageCounter;
+
+    totalDmgToA += dmgToA;
+    totalDmgToB += dmgToB;
+    roundsCompleted = round;
+
+    hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
+    hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
+
+    const burnToA = (resA.attackerBurnDmg || 0) + (resB.defenderBurnDmg || 0);
+    const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
+    if (burnToA > 0) { hpA = Math.max(0, hpA - burnToA); log.push(`🔥 ${fighterA.name} takes ${burnToA} burn damage`); }
+    if (burnToB > 0) { hpB = Math.max(0, hpB - burnToB); log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`); }
+
+    if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
+    if (resB.roundStartHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+    if (resA.postDmgHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+    if (resA.postDmgHealDefender > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+    if (resB.postDmgHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+    if (resB.postDmgHealDefender > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
+
+    fighterA.hp = hpA; fighterB.hp = hpB;
+
+    log.push(resA.logLine);
+    log.push(resB.logLine);
+    penaltyA = resB.nextAtkPenalty;
+    penaltyB = resA.nextAtkPenalty;
+
+    if (hpA <= 0 || hpB <= 0) {
+      let resurrected = false;
+      for (const item of [[fighterA, hpA], [fighterB, hpB]]) {
+        const f = item[0], hp = item[1];
+        if (hp > 0) continue;
+        const resMod = hasClassModifier(f, 'resurrection');
+        if (resMod && !f._resurrectionUsed) {
+          f._resurrectionUsed = true;
+          const restoreHp = Math.max(1, Math.floor((f.hpMax || 9999) * resMod.hp_pct));
+          if (f === fighterA) hpA = restoreHp; else hpB = restoreHp;
+          log.push(`✨ ${f.name} is resurrected with ${restoreHp} HP!`);
+          resurrected = true;
+        }
+        if (!resurrected) {
+          const rfEff = getActiveCombatEffect(f, 'rebirth_flame');
+          if (rfEff && !f._rebirthFlameUsed) {
+            f._rebirthFlameUsed = true;
+            const restoreHp = Math.max(1, Math.floor((f.hpMax || 9999) * (rfEff.revive_hp_pct || 0.20)));
+            if (f === fighterA) hpA = restoreHp; else hpB = restoreHp;
+            const other = f === fighterA ? fighterB : fighterA;
+            const otherDmg = f === fighterA ? Math.max(0, dmgToA) : Math.max(0, dmgToB);
+            other._burnDotDmg = (other._burnDotDmg || 0) + Math.max(1, Math.floor((otherDmg || 9999) * (rfEff.burn_dot || 0.10)));
+            log.push(`🔥🕊️ ${f.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
+            resurrected = true;
+          }
+        }
+      }
+      if (resurrected) { log.push('---'); continue; }
+
+      if (hpA <= 0 && hpB <= 0) {
+        if (totalDmgToB === totalDmgToA) {
+          const tieA = hasClassModifier(fighterB, 'tie_breaker');
+          const tieB = hasClassModifier(fighterA, 'tie_breaker');
+          if (tieA) { log.push(`Round ${round}: Both fighters fall — but ${fighterA.name} breaks the tie!`); winnerId = fighterA.id; }
+          else if (tieB) { log.push(`Round ${round}: Both fighters fall — but ${fighterB.name} breaks the tie!`); winnerId = fighterB.id; }
+          else { log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0; }
+        } else {
+          log.push(`Round ${round}: Both fighters fall simultaneously!`);
+          winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        }
+      } else if (hpA <= 0) {
+        log.push(`Round ${round}: ${fighterA.name} has fallen!`);
+        winnerId = fighterB.id;
+      } else {
+        log.push(`Round ${round}: ${fighterB.name} has fallen!`);
+        winnerId = fighterA.id;
+      }
+      break;
+    }
+    log.push('---');
+  }
+
+  log.push('---');
+  if (winnerId !== null) {
+    if (winnerId === 0) log.push(`Draw! After ${roundsCompleted} rounds`);
+    else if (winnerId === fighterA.id) log.push(`After ${roundsCompleted} rounds — ${fighterA.name} wins!`);
+    else log.push(`After ${roundsCompleted} rounds — ${fighterB.name} wins!`);
+  } else {
+    roundsCompleted = NORMAL_ROUNDS;
+    if (totalDmgToB > totalDmgToA) {
+      log.push(`After ${NORMAL_ROUNDS} rounds — ${fighterA.name} wins by damage (${totalDmgToB.toLocaleString()} vs ${totalDmgToA.toLocaleString()})`);
+      winnerId = fighterA.id;
+    } else if (totalDmgToA > totalDmgToB) {
+      log.push(`After ${NORMAL_ROUNDS} rounds — ${fighterB.name} wins by damage (${totalDmgToA.toLocaleString()} vs ${totalDmgToB.toLocaleString()})`);
+      winnerId = fighterB.id;
+    } else {
+      log.push(`After ${NORMAL_ROUNDS} rounds — Draw! Both dealt ${totalDmgToA.toLocaleString()} damage`);
+      winnerId = 0;
+    }
+  }
+
+  return {
+    log, winnerId, isDraw: winnerId === 0,
+    hpRemainingA: Math.round(hpA), hpRemainingB: Math.round(hpB),
+    totalDmgToA: Math.round(totalDmgToA), totalDmgToB: Math.round(totalDmgToB)
+  };
+}
+
 function generateRoundRobin(playerIds) {
   const ids = [...playerIds];
   if (ids.length % 2 !== 0) ids.push(null);
@@ -340,13 +479,13 @@ function generateRoundRobin(playerIds) {
   return rounds;
 }
 
-async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants) {
+async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants, mode) {
   const p1 = participants.find(p => p.id === p1Id);
   const p2 = participants.find(p => p.id === p2Id);
   if (!p1 || !p2) return;
   const f1 = await buildFighter(db, p1, participants);
   const f2 = await buildFighter(db, p2, participants);
-  const result = deathmatchBattle(f1, f2);
+  const result = mode === 'normal' ? normalBattle(f1, f2) : deathmatchBattle(f1, f2);
   const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
   const dmgToP1 = Math.round(result.totalDmgToA);
   const dmgToP2 = Math.round(result.totalDmgToB);
@@ -419,7 +558,9 @@ async function ensureCurrentTournament() {
   const db = await getDb();
   let current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   if (!current) {
-    await dbRun_t(db, "INSERT INTO tournaments (status, created_at) VALUES ('pending', datetime('now'))");
+    const last = await dbGet_t(db, "SELECT mode FROM tournaments ORDER BY id DESC LIMIT 1");
+    const mode = !last || last.mode === 'deathmatch' ? 'normal' : 'deathmatch';
+    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
     current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   }
   return current;
@@ -478,8 +619,8 @@ router.post('/tournaments/join', auth, async (req, res) => {
     if (char.gold < TOURNAMENT_COST) return res.status(400).json({ error: `Need ${TOURNAMENT_COST} gold to join` });
     await dbRun_t(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [TOURNAMENT_COST, char.id]);
     await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, calcHpMax(char, [])]);
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current]);
     res.json({ message: 'Joined tournament!', cost: TOURNAMENT_COST });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -488,7 +629,9 @@ router.post('/tournaments/create', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
     const db = await getDb();
-    await dbRun_t(db, "INSERT INTO tournaments (status, created_at) VALUES ('pending', datetime('now'))");
+    const last = await dbGet_t(db, "SELECT mode FROM tournaments ORDER BY id DESC LIMIT 1");
+    const mode = !last || last.mode === 'deathmatch' ? 'normal' : 'deathmatch';
+    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
     const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
     res.json({ message: 'Tournament created', tournament: t });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -554,6 +697,7 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE characters ADD COLUMN tournament_wins INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN dmg_to_p1 INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN dmg_to_p2 INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN mode TEXT NOT NULL DEFAULT 'deathmatch'"); } catch {}
 }
 
 function startScheduler() {
