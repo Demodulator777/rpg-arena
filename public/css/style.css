@@ -3580,12 +3580,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .tt-close {
   position:absolute; top:6px; right:6px; z-index:10;
   width:28px; height:28px; border:none; border-radius:50%;
-  background:none; color:#e040ff; font-size:20px; line-height:1;
+  background:rgba(224,64,255,0.10); color:#e040ff; font-size:20px; line-height:1;
   cursor:pointer; display:flex; align-items:center; justify-content:center;
-  padding:0; transition:color .15s, text-shadow .15s;
+  padding:0; transition:background .15s, color .15s, text-shadow .15s;
   text-shadow:0 0 8px rgba(224,64,255,0.5);
 }
-.tt-close:hover { color:#b030d0; text-shadow:0 0 14px rgba(180,48,208,0.7); }
+.tt-close:hover { background:rgba(180,48,208,0.20); color:#b030d0; text-shadow:0 0 14px rgba(180,48,208,0.7); }
 .item-tooltip {
     /* Must sit above modals (e.g. `.modal-overlay` uses `z-index: 200000`). */
     position: fixed; z-index: 250000; width: 220px;
