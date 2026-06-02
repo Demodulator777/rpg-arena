@@ -84,8 +84,8 @@ function render(char, data) {
     </div>
     <div id="tab-standings">
       <table class="standings-table">
-        <tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr>
-        ${participants.map((p,i) => `
+        <thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead>
+        <tbody>${participants.map((p,i) => `
           <tr class="rank-${i < 3 ? i+1 : ''}">
             <td>${i+1}</td>
             <td>${p.name} ${p.is_npc ? '<span class="npc-badge">NPC</span>' : ''} ${p.char_id === myCharId ? '<span class="me-badge">YOU</span>' : ''}</td>
@@ -95,7 +95,7 @@ function render(char, data) {
             <td style="color:#2ecc71">${p.wins}</td>
             <td style="color:#e74c3c">${p.losses}</td>
             <td style="color:#f1c40f">${p.draws}</td>
-          </tr>`).join('')}
+          </tr>`).join('')}</tbody>
       </table>
     </div>
     <div id="tab-matches" style="display:none">
@@ -181,6 +181,8 @@ async function loadHistory() {
   }
 }
 
+function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 async function viewHistory(tournamentId) {
   const el = document.getElementById('history-list');
   if (!el) return;
@@ -190,25 +192,26 @@ async function viewHistory(tournamentId) {
     const participants = data.participants || [];
     const matches = data.matches || [];
     const myEntry = participants.find(p => p.char_id === myCharId);
-    el.innerHTML = '<button class="btn-back" data-action="loadHistory">← Back to History</button>';
-    el.innerHTML += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
+    var html = '<button class="btn-back" data-action="loadHistory">← Back to History</button>';
+    html += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
     if (t.winner_is_npc) {
-      el.innerHTML += '<span style="color:#8890a0">🤖 NPC won</span>';
+      html += '<span style="color:#8890a0">🤖 NPC won</span>';
     } else {
-      const winnerName = participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown';
-      el.innerHTML += '<span style="color:#e040ff;font-weight:700">🏆 Winner: ' + winnerName + '</span>';
+      var winnerName2 = esc((participants.find(function(p) { return p.char_id === t.winner_char_id; })||{}).name || 'Unknown');
+      html += '<span style="color:#e040ff;font-weight:700">🏆 Winner: ' + winnerName2 + '</span>';
     }
     if (myEntry) {
-      el.innerHTML += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
+      html += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
     }
-    el.innerHTML += '</div>';
-    el.innerHTML += '<table class="standings-table"><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr>';
+    html += '</div>';
+    html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
     participants.forEach(function(p, i) {
-      el.innerHTML += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + p.name + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
+      var pName = esc(p.name);
+      html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
     });
-    el.innerHTML += '</table>';
+    html += '</tbody></table>';
     if (matches.length > 0) {
-      el.innerHTML += '<h3>Matches</h3>';
+      html += '<h3 style="margin-top:16px">Matches</h3>';
       const roundGroups = {};
       matches.forEach(function(m) {
         if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
@@ -216,19 +219,21 @@ async function viewHistory(tournamentId) {
       });
       var sortedRounds = Object.keys(roundGroups).sort(function(a,b) { return a - b; });
       sortedRounds.forEach(function(r) {
-        el.innerHTML += '<div class="matches-section"><div class="round-label">Round ' + (+r + 1) + '</div>';
+        html += '<div class="matches-section"><div class="round-label">Round ' + (+r + 1) + '</div>';
         roundGroups[r].forEach(function(m) {
-          const p1 = participants.find(function(p) { return p.id === m.participant1_id; });
-          const p2 = participants.find(function(p) { return p.id === m.participant2_id; });
-          const w = m.winner_id ? participants.find(function(p) { return p.id === m.winner_id; }) : null;
-          const winnerName = w?.name || 'Unknown';
-          const isDraw = m.is_draw;
-          const logStr = escJson(JSON.stringify(m.battle_log));
-          el.innerHTML += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + (p1?.name || '?') + (isDraw ? ' <span class="match-draw"> vs </span>' : (w?.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + (p2?.name || '?') + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + winnerName + ' wins</span>') + '</div></div>';
+          var p1n = esc((participants.find(function(p) { return p.id === m.participant1_id; })||{}).name || '?');
+          var p2n = esc((participants.find(function(p) { return p.id === m.participant2_id; })||{}).name || '?');
+          var w = null;
+          if (m.winner_id) w = participants.find(function(p) { return p.id === m.winner_id; });
+          var wn = esc((w||{}).name || 'Unknown');
+          var isDraw = m.is_draw;
+          var logStr = escJson(JSON.stringify(m.battle_log));
+          html += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
         });
-        el.innerHTML += '</div>';
+        html += '</div>';
       });
     }
+    el.innerHTML = html;
   } catch (e) {
     el.innerHTML = '<div style="color:#e74c3c;text-align:center">Error: ' + e.message + '</div>';
   }
