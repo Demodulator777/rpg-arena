@@ -75,6 +75,7 @@ function render(char, data) {
         ${t.winner_is_npc
           ? `<div style="color:#8890a0;font-size:0.9rem">🤖 NPC won — no player receives tournament win</div>`
           : `<div style="color:#e040ff;font-size:1.1rem;font-weight:700">🏆 Winner: ${participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown'}</div>`}
+        ${myEntry ? `<div style="margin-top:6px;font-size:0.95rem;color:#c8d0e0">Your rank: <strong>#${participants.indexOf(myEntry) + 1}</strong> of ${participants.length}</div>` : ''}
       </div>` : ''}
     <div class="tabs">
       <button class="tab-btn active" data-action="tab" data-tab="standings">Standings</button>
