@@ -593,11 +593,24 @@ router.get('/tournaments', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+function getNextTournamentTime() {
+  const now = new Date();
+  const next = new Date();
+  next.setHours(DAILY_HOUR, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next.getTime();
+}
+
 router.get('/tournaments/current', auth, async (req, res) => {
   try {
     const db = await getDb();
     const t = await dbGet_t(db, "SELECT * FROM tournaments ORDER BY id DESC LIMIT 1");
-    if (!t) return res.json(null);
+    
+    // Always provide the next scheduled time for the countdown
+    const nextTournamentTime = getNextTournamentTime();
+
+    if (!t) return res.json({ tournament: null, nextTournamentTime });
+
     const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY points DESC, wins DESC', [t.id]);
     const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [t.id]);
     for (const m of matches) {
@@ -605,7 +618,7 @@ router.get('/tournaments/current', auth, async (req, res) => {
         try { m.battle_log = JSON.parse(m.battle_log); } catch {}
       }
     }
-    res.json({ tournament: t, participants, matches });
+    res.json({ tournament: t, participants, matches, nextTournamentTime });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
