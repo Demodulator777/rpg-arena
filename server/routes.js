@@ -7902,8 +7902,7 @@ router.post('/forge/craft', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [craftGoldCost, char.id]);
         
         const scaledItem = scaleItemToLevel(recipe, char.level);
-        scaledItem.original_price = scaledItem.price;
-        scaledItem.crafting_cost = craftGoldCost;
+        scaledItem.original_price = craftGoldCost;
         
         await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
             [char.id, 'equipment', JSON.stringify(scaledItem)]);
