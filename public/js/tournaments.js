@@ -169,8 +169,8 @@ async function loadHistory() {
     }
     el.innerHTML = completed.map(t => {
       const date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
-      const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC (no winner)</span>';
-      return `<div class="history-item">
+      const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
+      return `<div class="history-item" data-action="viewHistory" data-id="${t.id}">
         <span class="h-date">${date}</span>
         <span>${t.participant_count || '?'} fighters</span>
         <span>${t.winner_is_npc ? '<span class="h-npc">NPC win</span>' : winner}</span>
@@ -178,6 +178,59 @@ async function loadHistory() {
     }).join('');
   } catch (e) {
     el.innerHTML = `<div style="color:#e74c3c;text-align:center">Error loading history</div>`;
+  }
+}
+
+async function viewHistory(tournamentId) {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  try {
+    const data = await api('GET', '/api/tournaments/' + tournamentId);
+    const t = data.tournament;
+    const participants = data.participants || [];
+    const matches = data.matches || [];
+    const myEntry = participants.find(p => p.char_id === myCharId);
+    el.innerHTML = '<button class="btn-back" data-action="loadHistory">← Back to History</button>';
+    el.innerHTML += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
+    if (t.winner_is_npc) {
+      el.innerHTML += '<span style="color:#8890a0">🤖 NPC won</span>';
+    } else {
+      const winnerName = participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown';
+      el.innerHTML += '<span style="color:#e040ff;font-weight:700">🏆 Winner: ' + winnerName + '</span>';
+    }
+    if (myEntry) {
+      el.innerHTML += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
+    }
+    el.innerHTML += '</div>';
+    el.innerHTML += '<table class="standings-table"><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr>';
+    participants.forEach(function(p, i) {
+      el.innerHTML += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + p.name + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
+    });
+    el.innerHTML += '</table>';
+    if (matches.length > 0) {
+      el.innerHTML += '<h3>Matches</h3>';
+      const roundGroups = {};
+      matches.forEach(function(m) {
+        if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
+        roundGroups[m.round_index].push(m);
+      });
+      var sortedRounds = Object.keys(roundGroups).sort(function(a,b) { return a - b; });
+      sortedRounds.forEach(function(r) {
+        el.innerHTML += '<div class="matches-section"><div class="round-label">Round ' + (+r + 1) + '</div>';
+        roundGroups[r].forEach(function(m) {
+          const p1 = participants.find(function(p) { return p.id === m.participant1_id; });
+          const p2 = participants.find(function(p) { return p.id === m.participant2_id; });
+          const w = m.winner_id ? participants.find(function(p) { return p.id === m.winner_id; }) : null;
+          const winnerName = w?.name || 'Unknown';
+          const isDraw = m.is_draw;
+          const logStr = escJson(JSON.stringify(m.battle_log));
+          el.innerHTML += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + (p1?.name || '?') + (isDraw ? ' <span class="match-draw"> vs </span>' : (w?.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + (p2?.name || '?') + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + winnerName + ' wins</span>') + '</div></div>';
+        });
+        el.innerHTML += '</div>';
+      });
+    }
+  } catch (e) {
+    el.innerHTML = '<div style="color:#e74c3c;text-align:center">Error: ' + e.message + '</div>';
   }
 }
 
@@ -200,6 +253,8 @@ document.addEventListener('click', function(e) {
   else if (action === 'tab') { switchTab(el.dataset.tab); }
   else if (action === 'showLog') { showBattleLog(el.dataset.log); }
   else if (action === 'closeLog') { closeLog(); }
+  else if (action === 'viewHistory') { viewHistory(Number(el.dataset.id)); }
+  else if (action === 'loadHistory') { loadHistory(); }
 });
 
 load();
