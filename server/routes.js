@@ -855,7 +855,8 @@ const COMPONENT_UPGRADE_VALUES = {
     legendary_fragment: { bonus: 5, name: 'Legendary Fragment' },
     demon_core: { bonus: 7, name: 'Demon Core' },
     shadow_weave: { bonus: 8, name: 'Shadow Weave' },
-    demon_alloy: { bonus: 10, name: 'Demon Alloy' }
+    demon_alloy: { bonus: 10, name: 'Demon Alloy' },
+    crimson_alloy: { bonus: 10, name: 'Crimson Alloy', statPick: true }
 };
 
 // Also define POSSIBLE_STATS if not already defined
@@ -13058,14 +13059,33 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         const bonusValue = upgradeValue.bonus;
         
         let upgradedStatsList = [];
-        let statPool = [...POSSIBLE_STATS];
         
-        for (let i = statPool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
+        if (upgradeValue.statPick) {
+            // Crimson Alloy: player picks 2 stats
+            const { selectedStats } = req.body;
+            if (!Array.isArray(selectedStats) || selectedStats.length !== 2) {
+                return res.status(400).json({ error: 'Select exactly 2 stats to upgrade' });
+            }
+            for (const s of selectedStats) {
+                if (!POSSIBLE_STATS.includes(s)) {
+                    return res.status(400).json({ error: `Invalid stat: ${s}` });
+                }
+            }
+            const alloyUsed = itemData.crimsonAlloyUsed || 0;
+            if (alloyUsed >= 2) {
+                return res.status(400).json({ error: 'Crimson Alloy can only be used twice on each item' });
+            }
+            upgradedStatsList = selectedStats;
         }
         
-        upgradedStatsList = statPool.slice(0, 2);
+        if (!upgradedStatsList.length) {
+            let statPool = [...POSSIBLE_STATS];
+            for (let i = statPool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
+            }
+            upgradedStatsList = statPool.slice(0, 2);
+        }
         
         for (const stat of upgradedStatsList) {
             const currentValue = upgradedStats[stat] || 0;
@@ -13073,7 +13093,6 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         }
         
         const nextUpgrade = currentUpgrade + 1;
-        
         const baseItemName = String(itemData.name || '').replace(/\s\+\d+$/, '').trim();
         const baseItemDesc = String(itemData.desc || '')
             .replace(/^undefined\s*/i, '')
@@ -13100,11 +13119,13 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             upgradeLevel: nextUpgrade,
             upgradeHistory: nextUpgradeHistory
         };
+        if (upgradeValue.statPick) {
+            upgradedItemData.crimsonAlloyUsed = (itemData.crimsonAlloyUsed || 0) + 1;
+        }
         if (baseItemDesc) upgradedItemData.desc = baseItemDesc;
         else delete upgradedItemData.desc;
         
-        const itemUpdateResult = await dbRun(
-            db,
+        const itemUpdateResult = await dbRun(db,
             'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=? AND char_id=? AND upgrade_level=?',
             [JSON.stringify(upgradedItemData), nextUpgrade, item.id, char.id, normalizedExpectedUpgrade]
         );
@@ -13120,9 +13141,15 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
         }
         
+        const statsLabel = upgradeValue.statPick
+            ? upgradedStatsList.map(s => s.replace(/_/g, ' ')).join(', ')
+            : `${upgradedStatsList.length} stats`;
+        const message = upgradeValue.statPick
+            ? `✨ ${itemData.name} reinforced with ${componentData.name}! (+${bonusValue} to ${statsLabel})`
+            : `✨ ${itemData.name} upgraded to +${nextUpgrade} using ${componentData.name}! (+${bonusValue} to ${statsLabel})`;
         res.json({
             success: true,
-            message: `✨ ${itemData.name} upgraded to +${nextUpgrade} using ${componentData.name}! (+${bonusValue} to ${upgradedStatsList.length} stats)`,
+            message,
             newUpgradeLevel: nextUpgrade,
             upgradedStats: upgradedStatsList.map(stat => ({
                 stat,
