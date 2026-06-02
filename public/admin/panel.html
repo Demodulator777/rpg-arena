@@ -50,8 +50,8 @@ th.sortable:hover { color:#c8a86e; }
 .scope-all { background:#1a3a5a; color:#60a0e0; }
 .scope-everyone { background:#3a1a5a; color:#b060e0; }
 /* ── Database Admin ───────────────────────────────────────────────── */
-.db-admin-layout { display:flex; gap:16px; padding:10px; }
-.db-table-list { width:200px; display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
+.db-admin-layout { display:flex; gap:16px; padding:10px; height:calc(100vh - 180px); }
+.db-table-list { width:200px; display:flex; flex-direction:column; gap:4px; flex-shrink:0; overflow-y:auto; }
 .db-table-list button {
   background:#14141e; border:1px solid #2a2a35; border-radius:6px; color:#b0a8a0;
   padding:8px 12px; cursor:pointer; font-size:12px; text-align:left; transition:all .15s;
@@ -60,10 +60,10 @@ th.sortable:hover { color:#c8a86e; }
 .db-table-list button:hover { background:#1e1e2e; border-color:#c8a86e; color:#e0dcd0; }
 .db-table-list button.active { background:#1a1a28; border-color:#c8a86e; color:#c8a86e; font-weight:600; }
 
-.db-content { flex-grow:1; overflow-x:auto; min-width:0; }
+.db-content { flex-grow:1; overflow:auto; min-width:0; }
 .db-content .no-data { text-align:center; padding:40px; color:#6a6a70; font-size:14px; }
 
-.db-scroll { overflow-x:auto; border:1px solid #2a2a35; border-radius:8px; }
+.db-scroll { border:1px solid #2a2a35; border-radius:8px; }
 .db-scroll table { border-collapse:collapse; width:100%; }
 .db-scroll th {
   padding:6px 10px; border:1px solid #2a2a35; background:#16161f; color:#8a8a90;
