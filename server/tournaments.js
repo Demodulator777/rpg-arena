@@ -426,6 +426,16 @@ router.post('/tournaments/join', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/tournaments/create', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const db = await getDb();
+    await dbRun_t(db, "INSERT INTO tournaments (status, created_at) VALUES ('pending', datetime('now'))");
+    const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+    res.json({ message: 'Tournament created', tournament: t });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/tournaments/start-test', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
