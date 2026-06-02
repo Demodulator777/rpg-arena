@@ -7821,7 +7821,7 @@ function viewBattleReport(msgId) {
         enemyClass: report.opponentClass || null,
         enemyLevel: report.opponentLevel ?? report.npcLevel ?? null,
         missionName: report.missionName || '',
-        battleType: report.type === 'pvp' ? 'pvp' : 'mission',
+        battleType: report.type === 'pvp' ? 'pvp' : report.type === 'tournament' ? 'tournament' : 'mission',
         battleStats: report.battleStats || null,
         isDraw: report.isDraw
     });
