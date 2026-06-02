@@ -161,13 +161,15 @@ async function buildFighter(db, participant, participants) {
     if (!hasShield) noShieldAgi = Math.floor((char.agility || 0) * 0.05);
   }
 
+  const fighterHpMax = hpMax + skillPassiveBonus(char.vitality || 0, skillPassives.vitality) * 25;
+
   return {
     id: `char_${char.id}`,
     name: char.name,
     class: char.class,
     level: char.level,
-    hp: participant.hp_max ?? hpMax,
-    hpMax: hpMax + skillPassiveBonus(char.vitality || 0, skillPassives.vitality) * 25,
+    hp: Math.min(fighterHpMax, char.hp_current ?? fighterHpMax),
+    hpMax: fighterHpMax,
     dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
     dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
     strength: (char.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(char.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
