@@ -13796,4 +13796,13 @@ async function isCharacterTraining(db, characterId) {
     return !!training;
 }
 
-module.exports = { router, parseAdminPassword, dbGet, getDb };
+// Export battle engine for use by tournament module
+module.exports = {
+  router, parseAdminPassword, dbGet, getDb,
+  simulateRound, runBattle, calculateMagicShield,
+  calcHpMax, calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
+  getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
+  hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
+  getEquippedSetBonuses, skillPassiveBonus,
+  DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
+};
