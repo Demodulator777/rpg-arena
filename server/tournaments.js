@@ -144,7 +144,7 @@ async function startTournament() {
   }
 }
 
-async function runTournament(db, t) {
+async function runTournament(db, t, fast) {
   let participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
   const realCount = participants.filter(p => !p.is_npc).length;
   console.log(`🏟️ Tournament #${t.id}: ${participants.length} participants (${realCount} real)`);
@@ -167,11 +167,9 @@ async function runTournament(db, t) {
   }
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, started_at = datetime(\'now\'), participant_count = ? WHERE id = ?', ['active', participants.length, t.id]);
   const schedule = generateRoundRobin(participants.map(p => p.id));
-  const startTime = Date.now();
   for (let r = 0; r < schedule.length; r++) {
     const round = schedule[r];
-    const delay = r === 0 ? 0 : ROUND_INTERVAL_MS;
-    await new Promise(resolve => setTimeout(resolve, delay));
+    if (!fast && r > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
     for (const [p1Id, p2Id] of round) {
       await fightMatch(db, t.id, r, p1Id, p2Id, participants);
     }
@@ -392,6 +390,17 @@ router.post('/tournaments/join', auth, async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, calcHpMax(char, [])]);
     res.json({ message: 'Joined tournament!', cost: TOURNAMENT_COST });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/tournaments/start-test', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const db = await getDb();
+    const pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+    if (!pending.length) return res.status(400).json({ error: 'No pending tournament' });
+    runTournament(db, pending[0], true).catch(e => console.error('test run error:', e));
+    res.json({ message: 'Tournament starting instantly with NPCs if needed' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
