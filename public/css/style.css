@@ -3580,7 +3580,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .tt-close {
   position:absolute; top:6px; right:6px; z-index:10;
   width:28px; height:28px; border:none; border-radius:50%;
-  background:none; color:#e040ff; font-size:20px; line-height:1;
+  background:rgba(224,64,255,0.10); color:#e040ff; font-size:20px; line-height:1;
   cursor:pointer; display:flex; align-items:center; justify-content:center;
   padding:0; transition:background .15s, color .15s, text-shadow .15s;
   text-shadow:0 0 8px rgba(224,64,255,0.5);
