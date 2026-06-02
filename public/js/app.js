@@ -275,7 +275,8 @@ const COMPONENT_UPGRADE_VALUES = {
     dragon_plate: { bonus: 6, goldCost: 300, name: 'Dragon Plate', emoji: '🛡️', recipe: { dragon_scale_shard: 3, mithril_ore: 2 }, source: 'Mountains' },
     void_crystal: { bonus: 6, goldCost: 500, name: 'Void Crystal', emoji: '🔮', recipe: { void_shard: 2, rune_fragment: 1 }, source: 'Ruins, Dark City' },
     shadow_weave: { bonus: 8, goldCost: 800, name: 'Shadow Weave', emoji: '🕸️', recipe: { shadow_essence: 2, arcane_dust: 2 }, source: 'Dark City' },
-    demon_alloy: { bonus: 10, goldCost: 1200, name: 'Demon Alloy', emoji: '⚡', recipe: { demon_core: 1, mithril_ore: 3 }, source: 'Dark City' }
+    demon_alloy: { bonus: 10, goldCost: 1200, name: 'Demon Alloy', emoji: '⚡', recipe: { demon_core: 1, mithril_ore: 3 }, source: 'Dark City' },
+    crimson_alloy: { bonus: 10, goldCost: 1200, name: 'Crimson Alloy', emoji: '⚡', recipe: { crimson_crystal: 2, infernal_core: 1 }, source: 'Crimson Zone, Abyss', statPick: true }
 };
 
 const RAW_MATERIAL_INFO = {
@@ -293,7 +294,9 @@ const RAW_MATERIAL_INFO = {
     rune_fragment: { name: 'Rune Fragment', source: 'Ruins' },
     shadow_essence: { name: 'Shadow Essence', source: 'Dark City' },
     demon_core: { name: 'Demon Core', source: 'Dark City' },
-    legendary_fragment: { name: 'Legendary Fragment', source: 'Dark City, Bosses' }
+    legendary_fragment: { name: 'Legendary Fragment', source: 'Dark City, Bosses' },
+    crimson_crystal: { name: 'Crimson Crystal', source: 'Crimson Zone, Abyss' },
+    infernal_core: { name: 'Infernal Core', source: 'Crimson Zone, Abyss' }
 };
 
 const POSSIBLE_STATS = [
@@ -10109,6 +10112,7 @@ async function openUpgradeModal(inventoryId) {
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
         currentUpgradeBaseLevel = currentUpgrade;
+        _currentUpgradeItemCrimsonUsed = itemData.crimsonAlloyUsed || 0;
         const quality = itemData.quality || 'common';
         const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
 
@@ -10207,6 +10211,8 @@ let selectedComponentId = null;
 let selectedComponentName = null;
 let currentUpgradeBaseLevel = null;
 let upgradeConfirmBusy = false;
+let _crimsonSelectedStats = [];
+let _currentUpgradeItemCrimsonUsed = 0;
 
 function selectComponent(id, name, qty, el) {
     if (qty < 1) {
@@ -10216,6 +10222,7 @@ function selectComponent(id, name, qty, el) {
 
     selectedComponentId = id;
     selectedComponentName = name;
+    _crimsonSelectedStats = [];
 
     // Highlight selected card
     document.querySelectorAll('.upgrade-component-card').forEach(card => card.classList.remove('selected'));
@@ -10225,11 +10232,49 @@ function selectComponent(id, name, qty, el) {
     const detailsDiv = document.getElementById('selected-component-details');
     const info = COMPONENT_UPGRADE_VALUES[id] || {};
 
-    detailsDiv.innerHTML = `
-        <div class="selected-comp-name">${info.emoji || '🔧'} ${name}</div>
-        <div class="selected-comp-bonus">Bonus: +${info.bonus} to random stat</div>
-        <div class="selected-comp-owned">You have ${qty} available</div>
-    `;
+    if (info.statPick) {
+        const remaining = 2 - _currentUpgradeItemCrimsonUsed;
+        const statGrid = POSSIBLE_STATS.map(function(s) {
+            return '<button class="crimson-stat-btn" data-stat="' + s + '">' + s.replace(/_/g, ' ') + '</button>';
+        }).join('');
+        detailsDiv.innerHTML = `
+            <div class="selected-comp-name">${info.emoji || '🔧'} ${name}</div>
+            <div class="selected-comp-bonus">Select 2 stats to upgrade (+${info.bonus} each)</div>
+            <div class="selected-comp-owned">You have ${qty} available · Remaining uses: ${remaining}/2</div>
+            <div class="crimson-stat-grid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${statGrid}</div>
+            <div id="crimson-picks" style="margin-top:6px;font-size:11px;color:#6a6a70">Selected: none</div>
+        `;
+        // Wire stat picker clicks
+        detailsDiv.querySelectorAll('.crimson-stat-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const stat = this.dataset.stat;
+                const idx = _crimsonSelectedStats.indexOf(stat);
+                if (idx !== -1) {
+                    _crimsonSelectedStats.splice(idx, 1);
+                    this.style.borderColor = '#3a3a4a';
+                    this.style.background = '#1a1a28';
+                    this.style.color = '#b0a8a0';
+                } else if (_crimsonSelectedStats.length < 2) {
+                    _crimsonSelectedStats.push(stat);
+                    this.style.borderColor = '#c8a86e';
+                    this.style.background = '#2a2a3a';
+                    this.style.color = '#e0dcd0';
+                }
+                const picks = document.getElementById('crimson-picks');
+                if (picks) {
+                    picks.textContent = _crimsonSelectedStats.length
+                        ? 'Selected: ' + _crimsonSelectedStats.map(s => s.replace(/_/g, ' ')).join(', ')
+                        : 'Selected: none';
+                }
+            });
+        });
+    } else {
+        detailsDiv.innerHTML = `
+            <div class="selected-comp-name">${info.emoji || '🔧'} ${name}</div>
+            <div class="selected-comp-bonus">Bonus: +${info.bonus} to random stats</div>
+            <div class="selected-comp-owned">You have ${qty} available</div>
+        `;
+    }
     
     selectedInfo.classList.remove('hidden');
     requestAnimationFrame(() => {
@@ -10256,10 +10301,20 @@ async function confirmUpgrade() {
     }
     
     try {
-        const result = await api('POST', `/game/equipment/upgrade/${currentUpgradeItemId}`, { 
+        const body = { 
             componentId: selectedComponentId,
             expectedUpgradeLevel: currentUpgradeBaseLevel
-        });
+        };
+        if (COMPONENT_UPGRADE_VALUES[selectedComponentId]?.statPick) {
+            if (_crimsonSelectedStats.length !== 2) {
+                showMsg('inv-msg', 'Select exactly 2 stats to upgrade', true);
+                upgradeConfirmBusy = false;
+                if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = previousBtnText || 'Confirm Upgrade'; }
+                return;
+            }
+            body.selectedStats = _crimsonSelectedStats;
+        }
+        const result = await api('POST', `/game/equipment/upgrade/${currentUpgradeItemId}`, body);
         
         if (result.success) {
             let message = result.message;
@@ -10273,6 +10328,7 @@ async function confirmUpgrade() {
             character = await api('GET', '/game/character');
             renderTopBar();
             showMsg('inv-msg', message);
+            _crimsonSelectedStats = [];
             closeUpgradeModal();
             await loadInventory();
             if (typeof renderCharacter === 'function') renderCharacter();
