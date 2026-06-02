@@ -5790,6 +5790,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .component-source { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 4px; }
 .upgrade-component-recipe { font-size: 0.7rem; color: var(--text-dim); opacity: 0.9; line-height: 1.4; }
 
+#selected-component-details .crimson-stat-btn {
+  padding:6px 14px; border:1px solid #3a3a4a; border-radius:6px;
+  background:#1a1a28; color:#b0a8a0; cursor:pointer;
+  font:inherit; font-size:12px; font-weight:500;
+  transition:all .15s; line-height:1.4;
+}
+#selected-component-details .crimson-stat-btn:hover {
+  border-color:#c8a86e; background:#222233; color:#e0dcd0;
+}
+#selected-component-details .crimson-stat-btn.selected {
+  border-color:#c8a86e; background:#2a2a3a; color:#e0dcd0;
+}
+
 .btn-craft-direct {
     background: rgba(46,204,113,0.15);
     border: 1px solid rgba(46,204,113,0.35);
