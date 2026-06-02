@@ -155,14 +155,9 @@ async function runTournament(db, t, fast) {
       await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, is_npc, npc_data, name, class, level, strength, defense, agility, magic, vitality, hp_max)
         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [t.id, JSON.stringify(npc), npc.name, npc.class, npc.level, npc.strength, npc.defense, npc.agility, npc.magic, npc.vitality, npc.hp_max]);
-      participants.push({
-        id: -Date.now() - i, tournament_id: t.id, char_id: null, is_npc: 1,
-        npc_data: JSON.stringify(npc), name: npc.name, class: npc.class,
-        level: npc.level, strength: npc.strength, defense: npc.defense,
-        agility: npc.agility, magic: npc.magic, vitality: npc.vitality,
-        hp_max: npc.hp_max, points: 0, wins: 0, losses: 0, draws: 0
-      });
     }
+    // Re-read from DB to get real auto-increment IDs for NPCs
+    participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
     console.log(`   Added ${npcsNeeded} NPCs, total: ${participants.length}`);
   }
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, started_at = datetime(\'now\'), participant_count = ? WHERE id = ?', ['active', participants.length, t.id]);
