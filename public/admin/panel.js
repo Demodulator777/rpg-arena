@@ -458,7 +458,9 @@ function loadTournaments() {
     var el = document.getElementById('tab-tournaments');
     adminApi('GET', '/tournaments').then(function(list) {
         var current = list.filter(function(t) { return t.status === 'pending' || t.status === 'active'; });
-        var html = '<div class="card-compact"><div class="row"><span class="lbl">Manual Start</span>' +
+        var html = '<div class="card-compact"><div class="row"><span class="lbl">Create Tournament</span>' +
+            '<button class="db-btn db-btn-apply" id="btn-create-tournament">➕ Create</button></div>' +
+            '<div class="row" style="margin-top:6px"><span class="lbl">Manual Start</span>' +
             '<button class="db-btn db-btn-apply" id="btn-start-tournament">⚔️ Start Now (Test)</button></div>' +
             '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Fills NPCs if <8 players. Runs instantly.</div></div>';
         if (current.length) {
@@ -481,6 +483,18 @@ function loadTournaments() {
             html += '</tbody></table></div>';
         }
         el.innerHTML = html;
+        document.getElementById('btn-create-tournament').addEventListener('click', function() {
+            var btn = this;
+            btn.textContent = 'Creating...';
+            btn.disabled = true;
+            adminApi('POST', '/tournaments/create').then(function(r) {
+                btn.textContent = '✅ Created';
+                setTimeout(function() { loadTournaments(); }, 1500);
+            }).catch(function(e) {
+                btn.textContent = 'Error';
+                setTimeout(function() { loadTournaments(); }, 3000);
+            });
+        });
         document.getElementById('btn-start-tournament').addEventListener('click', function() {
             var btn = this;
             btn.textContent = 'Starting...';
