@@ -3577,7 +3577,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .mat-name { font-size: 0.74rem; color: var(--text-bright); margin: 5px 0 2px; }
 .mat-qty { font-size: 1.05rem; color: var(--gold); font-weight: 700; }
 
-.tt-preview { position:relative; }
 .tt-close {
   position:absolute; top:6px; right:6px; z-index:10;
   width:28px; height:28px; border:none; border-radius:50%;
@@ -3607,7 +3606,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .tt-preview {
     width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px;
-    flex-shrink: 0;
+    flex-shrink: 0; position: relative;
 }
 .tt-preview img { width: 140px; height: 140px; object-fit: contain; }
 .tt-preview-emoji { font-size: 5rem; line-height: 1; }
