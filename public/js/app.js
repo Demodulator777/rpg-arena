@@ -5158,8 +5158,8 @@ function showItemTooltip(event, itemId) {
     const sn = (d.name||'').replace(/'/g,"\\'");
 
     tooltip.innerHTML = `
-        <button class="tt-close" id="tt-close-btn" ${actionAttrs('closeItemTooltip')}>×</button>
         <div class="tt-preview">
+            <button class="tt-close" id="tt-close-btn" ${actionAttrs('closeItemTooltip')}>✕</button>
             ${imgSrc
                 ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
                 :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
