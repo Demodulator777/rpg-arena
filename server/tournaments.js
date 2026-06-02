@@ -20,7 +20,8 @@ const {
 const TOURNAMENT_COST = 500;
 const MIN_PLAYERS = 8;
 const ROUND_INTERVAL_MS = 60_000;
-const DAILY_HOUR = 20;
+const DAILY_HOUR = 21;
+const DAILY_MINUTE = 30;
 const NORMAL_ROUNDS = 10;
 
 function roll(min, max) {
@@ -30,7 +31,7 @@ function roll(min, max) {
 function scheduleDailyTournamentStart() {
   const now = Date.now();
   const next = new Date();
-  next.setHours(DAILY_HOUR, 0, 0, 0);
+  next.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
   const msUntil = next - now;
   setTimeout(async () => {
@@ -596,7 +597,7 @@ router.get('/tournaments', auth, async (req, res) => {
 function getNextTournamentTime() {
   const now = new Date();
   const next = new Date();
-  next.setHours(DAILY_HOUR, 0, 0, 0);
+  next.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
   if (next <= now) next.setDate(next.getDate() + 1);
   return next.getTime();
 }
