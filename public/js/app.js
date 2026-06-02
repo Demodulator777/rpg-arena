@@ -4715,6 +4715,9 @@ async function doWeaponLevelUp(dialog, weap) {
     try {
         const d = await api('POST','/game/forge/weapon/levelup');
         window._pendingWeaponStats = {};
+        character = await api('GET','/game/character');
+        renderTopBar();
+        renderCharacter();
         forgeData = await api('GET','/game/forge/recipes');
         showMsg('forge-msg', d.message);
         buildWeaponDialog(dialog, forgeData.weapon);
@@ -4727,6 +4730,9 @@ async function doApplyWeaponStats(dialog, weap) {
         if (!Object.keys(stats).length) return;
         await api('POST','/game/forge/weapon/stats',{ stats });
         window._pendingWeaponStats = {};
+        character = await api('GET','/game/character');
+        renderTopBar();
+        renderCharacter();
         forgeData = await api('GET','/game/forge/recipes');
         buildWeaponDialog(dialog, forgeData.weapon);
         showMsg('forge-msg','Stats applied!');
