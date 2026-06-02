@@ -361,7 +361,7 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winnerPid]);
     await dbRun_t(db, 'UPDATE tournament_participants SET losses = losses + 1 WHERE id = ?', [loserPid]);
     if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
-      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1 WHERE id = ?', [winnerPart.char_id]);
+      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
     }
   }
 }
@@ -374,7 +374,7 @@ async function finalizeTournament(db, tournamentId) {
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, ended_at = datetime(\'now\'), winner_char_id = ?, winner_is_npc = ? WHERE id = ?',
     ['complete', winner.char_id, winnerIsNpc ? 1 : 0, tournamentId]);
   if (!winnerIsNpc && winner.char_id) {
-    await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10 WHERE id = ?', [winner.char_id]);
+    await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10, gold = COALESCE(gold, 0) + 5000 WHERE id = ?', [winner.char_id]);
   }
   const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [tournamentId]);
   for (let i = 0; i < standings.length; i++) {
@@ -395,8 +395,9 @@ async function finalizeTournament(db, tournamentId) {
       try { log = typeof mm.battle_log === 'string' ? JSON.parse(mm.battle_log) : (mm.battle_log || []); } catch { log = []; }
       const dmgDealt = p.id === mm.participant1_id ? (mm.dmg_to_p2 || 0) : (mm.dmg_to_p1 || 0);
       const dmgTaken = p.id === mm.participant1_id ? (mm.dmg_to_p1 || 0) : (mm.dmg_to_p2 || 0);
+      const goldEarned = won ? 500 : 0;
       const payload = JSON.stringify({
-        log, won, isDraw: !!isDraw, goldEarned: 0, goldLost: 0,
+        log, won, isDraw: !!isDraw, goldEarned, goldLost: 0,
         type: 'tournament',
         opponentName: opponent?.name || 'Unknown',
         opponentClass: opponent?.class || null,
