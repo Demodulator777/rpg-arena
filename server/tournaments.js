@@ -347,14 +347,14 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   const f1 = await buildFighter(db, p1, participants);
   const f2 = await buildFighter(db, p2, participants);
   const result = deathmatchBattle(f1, f2);
+  const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
   await dbRun_t(db, `INSERT INTO tournament_matches (tournament_id, round_index, participant1_id, participant2_id, winner_id, is_draw, battle_log, fought_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-    [tournamentId, roundIndex, p1.id, p2.id, result.winnerId, result.isDraw, JSON.stringify(result.log)]);
+    [tournamentId, roundIndex, p1.id, p2.id, winnerPid, result.isDraw ? 1 : 0, JSON.stringify(result.log)]);
   if (result.isDraw) {
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 1, draws = draws + 1 WHERE id IN (?, ?)', [p1.id, p2.id]);
-  } else if (result.winnerId) {
-    const winnerPid = result.winnerId === f1.id ? p1.id : p2.id;
-    const loserPid = result.winnerId === f1.id ? p2.id : p1.id;
+  } else if (winnerPid) {
+    const loserPid = winnerPid === p1.id ? p2.id : p1.id;
     const winnerPart = participants.find(p => p.id === winnerPid);
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winnerPid]);
     await dbRun_t(db, 'UPDATE tournament_participants SET losses = losses + 1 WHERE id = ?', [loserPid]);
