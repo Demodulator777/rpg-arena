@@ -5158,6 +5158,7 @@ function showItemTooltip(event, itemId) {
     const sn = (d.name||'').replace(/'/g,"\\'");
 
     tooltip.innerHTML = `
+        <button class="tt-close" id="tt-close-btn" ${actionAttrs('closeItemTooltip')}>×</button>
         <div class="tt-preview">
             ${imgSrc
                 ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
@@ -5197,6 +5198,7 @@ function showItemTooltip(event, itemId) {
 }
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
+function closeItemTooltip() { hideItemTooltip(); }
 
 function withCurrentTarget(event, el) {
     return {
