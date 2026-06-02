@@ -49,6 +49,22 @@ th.sortable:hover { color:#c8a86e; }
 .reward-scope { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; text-transform:uppercase; }
 .scope-all { background:#1a3a5a; color:#60a0e0; }
 .scope-everyone { background:#3a1a5a; color:#b060e0; }
+.db-scroll { overflow-x:auto; border:1px solid #444; border-radius:8px; }
+.db-scroll table { min-width:600px; }
+.db-scroll th, .db-scroll td { white-space:nowrap; }
+.db-scroll td .dsp { font-size:12px; line-height:1.4; }
+.db-scroll td .ed { white-space:nowrap; }
+@media (max-width:640px) {
+  .tabs { flex-wrap:wrap; gap:2px; }
+  .tab-btn { flex:1 1 auto; font-size:11px; padding:8px 6px; text-align:center; }
+  .container { padding:0 6px 20px; }
+  h1 { font-size:20px; padding:16px; }
+  .table-wrap { max-height:none; font-size:11px; }
+  .table-wrap th, .table-wrap td { padding:4px 5px; }
+  .card-grid { grid-template-columns:1fr; }
+  .db-scroll table { font-size:11px; }
+  .db-scroll th, .db-scroll td { padding:3px 4px; }
+}
 </style>
 </head>
 <body>
