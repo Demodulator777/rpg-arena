@@ -96,57 +96,92 @@ function queryTable(table, page = 1) {
         
         var totalPages = Math.ceil(res.total / res.limit);
         var cols = Object.keys(data[0]);
-        var html = '<table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
-            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + c + '</th>'; }).join('') + '<th style="padding:5px;border:1px solid #444">Action</th></tr></thead>' +
+        var html = '<div class="db-scroll"><table style="width:100%;border-collapse:collapse;border:1px solid #444">' +
+            '<thead><tr style="background:#222">' + cols.map(function(c) { return '<th style="padding:5px;border:1px solid #444">' + esc(c) + '</th>'; }).join('') + '<th style="padding:5px;border:1px solid #444;white-space:nowrap">Actions</th></tr></thead>' +
             '<tbody>';
         
-        data.forEach(function(row) {
-            html += '<tr>';
+        data.forEach(function(row, rowIdx) {
+            var rid = 'db-r' + page + '-' + rowIdx;
+            html += '<tr id="' + rid + '">';
             cols.forEach(function(c) {
                 var val = String(row[c] ?? '');
-                var isLong = val.length > 50;
-                var displayVal = isLong ? val.substring(0, 47) + '...' : val;
-                html += '<td style="padding:0;border:1px solid #444;position:relative">' +
-                    '<input type="text" value="' + val + '" ' +
-                    'style="width:100%;padding:5px;border:none;background:transparent;color:inherit;' + (isLong ? 'display:none' : '') + '" ' +
+                html += '<td style="padding:5px;border:1px solid #444;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(val) + '">' +
+                    '<span class="dsp">' + esc(val) + '</span>' +
+                    '<input type="text" value="' + esc(val) + '" class="ed" style="display:none;width:100%;min-width:80px;padding:3px 5px;border:1px solid #555;background:#1a1a28;color:inherit;border-radius:3px;font:inherit;font-size:12px" ' +
                     'data-table="' + table + '" data-field="' + c + '" data-id="' + row.id + '">' +
-                    (isLong ? '<div class="trunc" style="padding:5px;cursor:pointer">' + displayVal + '</div>' : '') +
                     '</td>';
             });
-            html += '<td style="padding:5px;text-align:center"><button class="del-btn" data-table="' + table + '" data-id="' + row.id + '" style="background:#cc0000;color:white;border:none;padding:3px 8px;cursor:pointer">Delete</button></td>';
+            html += '<td style="padding:5px;border:1px solid #444;text-align:center;white-space:nowrap">' +
+                '<button class="ed-btn" data-rid="' + rid + '" style="background:#2a5a2a;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Edit</button>' +
+                '<button class="ap-btn" data-rid="' + rid + '" style="display:none;background:#2a6a8a;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Apply</button>' +
+                '<button class="ca-btn" data-rid="' + rid + '" style="display:none;background:#6a2a2a;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Cancel</button>' +
+                '<button class="del-btn" data-table="' + table + '" data-id="' + row.id + '" data-page="' + page + '" style="background:#aa0000;color:white;border:none;padding:3px 8px;cursor:pointer;border-radius:3px;font-size:11px">Delete</button>' +
+                '</td>';
             html += '</tr>';
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
 
-        // Pagination container
-        html += '<div id="db-pagination" style="margin-top:10px;display:flex;gap:5px"></div>';
+        html += '<div id="db-pagination" style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap"></div>';
         
         el.innerHTML = html;
         
-        // Attach event listeners for inputs
-        el.querySelectorAll('input').forEach(function(input) {
-            input.addEventListener('blur', function() { saveCell(this); });
-        });
-        
-        // Attach event listeners for truncation
-        el.querySelectorAll('.trunc').forEach(function(trunc) {
-            trunc.addEventListener('click', function() {
-                this.style.display = 'none';
-                this.previousElementSibling.style.display = 'block';
-                this.previousElementSibling.focus();
+        // Edit buttons
+        el.querySelectorAll('.ed-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var row = document.getElementById(btn.dataset.rid);
+                if (!row) return;
+                row.querySelectorAll('.dsp').forEach(function(s) { s.style.display = 'none'; });
+                row.querySelectorAll('.ed').forEach(function(inp) { inp.style.display = 'block'; });
+                btn.style.display = 'none';
+                row.querySelector('.del-btn').style.display = 'none';
+                row.querySelector('.ap-btn').style.display = 'inline-block';
+                row.querySelector('.ca-btn').style.display = 'inline-block';
             });
         });
         
-        // Attach event listeners for delete
+        // Apply buttons
+        el.querySelectorAll('.ap-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var row = document.getElementById(btn.dataset.rid);
+                if (!row) return;
+                var inputs = row.querySelectorAll('.ed');
+                var promises = [];
+                inputs.forEach(function(inp) {
+                    if (inp.value !== inp.defaultValue) {
+                        promises.push(saveCell(inp));
+                    }
+                });
+                if (!promises.length) { switchRowView(row); return; }
+                Promise.all(promises).then(function() {
+                    inputs.forEach(function(inp) {
+                        inp.defaultValue = inp.value;
+                        var td = inp.closest('td');
+                        var dsp = td.querySelector('.dsp');
+                        if (dsp) dsp.textContent = inp.value;
+                    });
+                    switchRowView(row);
+                }).catch(function() { switchRowView(row); });
+            });
+        });
+        
+        // Cancel buttons
+        el.querySelectorAll('.ca-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var row = document.getElementById(btn.dataset.rid);
+                if (!row) return;
+                row.querySelectorAll('.ed').forEach(function(inp) { inp.value = inp.defaultValue; });
+                switchRowView(row);
+            });
+        });
+        
+        // Delete buttons
         el.querySelectorAll('.del-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                if (confirm('Delete this record?')) {
-                    deleteRecord(table, btn.dataset.id, page);
-                }
+                if (confirm('Delete this record?')) deleteRecord(table, btn.dataset.id, page);
             });
         });
 
-        // Attach event listeners for pagination
+        // Pagination
         var pagEl = document.getElementById('db-pagination');
         for (var i = 1; i <= totalPages; i++) {
             var btn = document.createElement('button');
@@ -156,6 +191,15 @@ function queryTable(table, page = 1) {
             pagEl.appendChild(btn);
         }
     });
+}
+
+function switchRowView(row) {
+    row.querySelectorAll('.dsp').forEach(function(s) { s.style.display = ''; });
+    row.querySelectorAll('.ed').forEach(function(inp) { inp.style.display = 'none'; });
+    row.querySelector('.ed-btn').style.display = 'inline-block';
+    row.querySelector('.ap-btn').style.display = 'none';
+    row.querySelector('.ca-btn').style.display = 'none';
+    row.querySelector('.del-btn').style.display = 'inline-block';
 }
 
 function deleteRecord(table, id, page) {
@@ -170,18 +214,12 @@ function deleteRecord(table, id, page) {
 }
 
 function saveCell(input) {
-    var val = input.value;
-    var table = input.dataset.table;
-    var field = input.dataset.field;
-    var id = input.dataset.id;
-    
-    fetch('/api/db/update', {
+    return fetch('/api/db/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
-        body: JSON.stringify({ table: table, field: field, value: val, id: id })
+        body: JSON.stringify({ table: input.dataset.table, field: input.dataset.field, value: input.value, id: input.dataset.id })
     }).then(function(r) { return r.json(); }).then(function(res) {
-        if (!res.success) alert('Failed to update: ' + res.error);
-        else input.style.background = '#1e3a1e';
+        if (!res.success) { alert('Failed to update: ' + res.error); throw new Error(res.error); }
     });
 };
 
