@@ -348,9 +348,11 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   const f2 = await buildFighter(db, p2, participants);
   const result = deathmatchBattle(f1, f2);
   const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
-  await dbRun_t(db, `INSERT INTO tournament_matches (tournament_id, round_index, participant1_id, participant2_id, winner_id, is_draw, battle_log, fought_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-    [tournamentId, roundIndex, p1.id, p2.id, winnerPid, result.isDraw ? 1 : 0, JSON.stringify(result.log)]);
+  const dmgToP1 = Math.round(result.totalDmgToA);
+  const dmgToP2 = Math.round(result.totalDmgToB);
+  await dbRun_t(db, `INSERT INTO tournament_matches (tournament_id, round_index, participant1_id, participant2_id, winner_id, is_draw, battle_log, dmg_to_p1, dmg_to_p2, fought_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    [tournamentId, roundIndex, p1.id, p2.id, winnerPid, result.isDraw ? 1 : 0, JSON.stringify(result.log), dmgToP1, dmgToP2]);
   if (result.isDraw) {
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 1, draws = draws + 1 WHERE id IN (?, ?)', [p1.id, p2.id]);
   } else if (winnerPid) {
@@ -391,13 +393,15 @@ async function finalizeTournament(db, tournamentId) {
       const isDraw = mm.is_draw;
       let log;
       try { log = typeof mm.battle_log === 'string' ? JSON.parse(mm.battle_log) : (mm.battle_log || []); } catch { log = []; }
+      const dmgDealt = p.id === mm.participant1_id ? (mm.dmg_to_p2 || 0) : (mm.dmg_to_p1 || 0);
+      const dmgTaken = p.id === mm.participant1_id ? (mm.dmg_to_p1 || 0) : (mm.dmg_to_p2 || 0);
       const payload = JSON.stringify({
         log, won, isDraw: !!isDraw, goldEarned: 0, goldLost: 0,
         type: 'tournament',
         opponentName: opponent?.name || 'Unknown',
         opponentClass: opponent?.class || null,
         opponentLevel: opponent?.level || null,
-        totalDmgDealt: 0, totalDmgTaken: 0,
+        totalDmgDealt: dmgDealt, totalDmgTaken: dmgTaken,
         tournamentMatch: true, roundIndex: mm.round_index
       });
       const matchSubject = isDraw ? `🤝 Tournament Draw vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
@@ -547,6 +551,8 @@ async function initTournamentTables() {
     battle_log TEXT, fought_at TEXT
   )`);
   try { await dbRun_t(db, "ALTER TABLE characters ADD COLUMN tournament_wins INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN dmg_to_p1 INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN dmg_to_p2 INTEGER DEFAULT 0"); } catch {}
 }
 
 function startScheduler() {
