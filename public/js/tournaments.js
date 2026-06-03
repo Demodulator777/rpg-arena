@@ -156,9 +156,9 @@ function render(char, data) {
         ${myEntry ? `<div style="margin-top:6px;font-size:0.95rem;color:#c8d0e0">Your rank: <strong>#${participants.indexOf(myEntry) + 1}</strong> of ${participants.length}</div>` : ''}
       </div>` : ''}
     <div class="tabs">
-      <button class="tab-btn active" data-action="tournamentTab" data-tab="standings">Standings</button>
-      <button class="tab-btn" data-action="tournamentTab" data-tab="matches">Matches (${matches.length})</button>
-      <button class="tab-btn" data-action="tournamentTab" data-tab="history">History</button>
+      <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
+      <button class="tab-btn" data-action="tournamentTab" data-args='["matches"]'>Matches (${matches.length})</button>
+      <button class="tab-btn" data-action="tournamentTab" data-args='["history"]'>History</button>
     </div>
     <div id="tab-standings">
       <table class="standings-table">
@@ -247,7 +247,11 @@ async function joinTournament() {
 }
 
 function tournamentTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    var a;
+    try { a = JSON.parse(b.dataset.args); } catch { a = []; }
+    b.classList.toggle('active', a[0] === tab);
+  });
   document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
   document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
