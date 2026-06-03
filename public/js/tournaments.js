@@ -397,7 +397,7 @@ async function tournamentViewHistory(tournamentId) {
   }
 }
 
-function showBattleLog(logStr) {
+function showLog(logStr) {
   let log;
   try { log = JSON.parse(logStr); } catch { log = []; }
   document.getElementById('log-lines').innerHTML = (log||[]).map(l => `<div class="log-line">${l}</div>`).join('');
@@ -411,7 +411,7 @@ function closeLog() {
 function showAllVsAllLog() {
   if (!currentTournament || !currentTournament.tournament) return;
   var bl = currentTournament.tournament.battle_log;
-  showBattleLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
+  showLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
 }
 
 function loadTournamentTab() {
