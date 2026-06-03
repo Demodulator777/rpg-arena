@@ -156,9 +156,9 @@ function render(char, data) {
         ${myEntry ? `<div style="margin-top:6px;font-size:0.95rem;color:#c8d0e0">Your rank: <strong>#${participants.indexOf(myEntry) + 1}</strong> of ${participants.length}</div>` : ''}
       </div>` : ''}
     <div class="tabs">
-      <button class="tab-btn active" data-action="tab" data-tab="standings">Standings</button>
-      <button class="tab-btn" data-action="tab" data-tab="matches">Matches (${matches.length})</button>
-      <button class="tab-btn" data-action="tab" data-tab="history">History</button>
+      <button class="tab-btn active" data-action="tournamentTab" data-tab="standings">Standings</button>
+      <button class="tab-btn" data-action="tournamentTab" data-tab="matches">Matches (${matches.length})</button>
+      <button class="tab-btn" data-action="tournamentTab" data-tab="history">History</button>
     </div>
     <div id="tab-standings">
       <table class="standings-table">
@@ -201,7 +201,7 @@ function render(char, data) {
       </div>
     </div>
   `;
-  if (t.status === 'complete') loadHistory();
+  if (t.status === 'complete') tournamentLoadHistory();
   if (t.status === 'pending') startCountdown(data.nextTournamentTime);
 }
 
@@ -246,15 +246,15 @@ async function joinTournament() {
   }
 }
 
-function switchTab(tab) {
+function tournamentTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
   document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
-  if (tab === 'history') loadHistory();
+  if (tab === 'history') tournamentLoadHistory();
 }
 
-async function loadHistory() {
+async function tournamentLoadHistory() {
   const el = document.getElementById('history-list');
   if (!el) return;
   try {
@@ -269,7 +269,7 @@ async function loadHistory() {
       const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
       const modeHints = { normal:'🏁', damage:'💥', least_damage:'🛡️', elimination:'🗡️', deathmatch:'💀', no_equip:'⚔️', all_vs_all:'👥' };
       const modeIcon = modeHints[t.mode] || '🏟️';
-      return `<div class="history-item" data-action="viewHistory" data-id="${t.id}">
+      return `<div class="history-item" data-action="tournamentViewHistory" data-id="${t.id}">
         <span class="h-date">${date}</span>
         <span>${modeIcon}</span>
         <span>${t.participant_count || '?'} fighters</span>
@@ -283,7 +283,7 @@ async function loadHistory() {
 
 function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-async function viewHistory(tournamentId) {
+async function tournamentViewHistory(tournamentId) {
   const el = document.getElementById('history-list');
   if (!el) return;
   try {
@@ -307,7 +307,7 @@ async function viewHistory(tournamentId) {
         : (a.total_damage_taken || 0) - (b.total_damage_taken || 0));
     }
 
-    var html = '<button class="btn-back" data-action="loadHistory">← Back to History</button>';
+    var html = '<button class="btn-back" data-action="tournamentLoadHistory">← Back to History</button>';
     html += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
     if (t.winner_is_npc) {
       html += '<span style="color:#8890a0">🤖 NPC won</span>';
