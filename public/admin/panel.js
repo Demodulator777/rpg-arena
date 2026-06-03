@@ -487,12 +487,20 @@ function loadTournaments() {
             html += '</tbody></table></div>';
         }
         el.innerHTML = html;
+        // Set dropdown to match existing pending tournament's mode
+        var pendingMode = current.length && current[0].mode;
+        if (pendingMode) {
+            var sel = document.getElementById('admin-tournament-mode');
+            for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === pendingMode) { sel.selectedIndex = i; break; }
+            }
+        }
         document.getElementById('btn-create-tournament').addEventListener('click', function() {
             var btn = this;
             var mode = document.getElementById('admin-tournament-mode').value;
             btn.textContent = 'Creating...';
             btn.disabled = true;
-            adminApi('POST', '/tournaments/create', { mode: mode }).then(function(r) {
+            adminApi('POST', '/tournaments/create?mode=' + encodeURIComponent(mode), { mode: mode }).then(function(r) {
                 btn.textContent = '✅ Created';
                 setTimeout(function() { loadTournaments(); }, 1500);
             }).catch(function(e) {
@@ -505,7 +513,7 @@ function loadTournaments() {
             var mode = document.getElementById('admin-tournament-mode').value;
             btn.textContent = 'Starting...';
             btn.disabled = true;
-            adminApi('POST', '/tournaments/start-test', { mode: mode }).then(function(r) {
+            adminApi('POST', '/tournaments/start-test?mode=' + encodeURIComponent(mode), { mode: mode }).then(function(r) {
                 btn.textContent = '✅ Started';
                 setTimeout(function() { loadTournaments(); }, 2000);
             }).catch(function(e) {
