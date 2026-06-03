@@ -158,7 +158,11 @@ async function runAllVsAll(db, t, participants, fast) {
   for (const p of participants) {
     const f = await buildFighter(db, p, participants);
     f._pid = p.id;
+    f._participant = participants.find(pp => pp.id === p.id);
     f._spawnIndex = fighters.length;
+    f._dmgDealt = 0;
+    f._dmgTaken = 0;
+    f._lastAttacker = null;
     fighters.push(f);
   }
   for (let i = fighters.length - 1; i > 0; i--) {
@@ -190,15 +194,35 @@ async function runAllVsAll(db, t, participants, fast) {
       const blkZone = (target.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
       const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
       target.hp = Math.max(0, target.hp - res.damageDealt);
+      attacker._dmgDealt += res.damageDealt;
+      target._dmgTaken += res.damageDealt;
+      target._lastAttacker = attacker;
       log.push(`  ${attacker.name} → ${target.name}: ${res.damageDealt} damage`);
     }
 
-    // Record eliminations in order
     const newlyDead = fighters.filter(f => f.hp <= 0 && !f._eliminated);
     for (const dead of newlyDead) {
       dead._eliminated = true;
       log.push(`💀 ${dead.name} is eliminated!`);
       await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1, eliminated_round = ?, losses = losses + 1 WHERE id = ?', [eliminationCount, dead._pid]);
+      const deadPart = dead._participant;
+      if (deadPart && !deadPart.is_npc && deadPart.char_id) {
+        const eliminator = dead._lastAttacker;
+        const payload = JSON.stringify({
+          log, won: false, isDraw: false,
+          goldEarned: 0, gemsEarned: 0, goldLost: 0,
+          type: 'tournament',
+          opponentName: eliminator ? eliminator.name : 'the arena',
+          opponentClass: eliminator && eliminator._participant ? eliminator._participant.class : null,
+          opponentLevel: eliminator ? eliminator.level : null,
+          totalDmgDealt: dead._dmgDealt, totalDmgTaken: dead._dmgTaken,
+          tournamentMatch: true, roundIndex: round - 1
+        });
+        await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?,?,?,?)',
+          [deadPart.char_id, deadPart.char_id,
+            `💀 Eliminated by ${eliminator ? eliminator.name : 'the arena'} (Round ${round})`,
+            `BATTLE_REPORT:${payload}`]);
+      }
       eliminationCount++;
     }
 
@@ -209,7 +233,22 @@ async function runAllVsAll(db, t, participants, fast) {
   const winner = fighters.find(f => f.hp > 0);
   if (winner) {
     log.push(`🏆 ${winner.name} is the last one standing!`);
+    const winnerPart = winner._participant;
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winner._pid]);
+    if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
+      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
+      const payload = JSON.stringify({
+        log, won: true, isDraw: false,
+        goldEarned: 500, gemsEarned: 1, goldLost: 0,
+        type: 'tournament',
+        opponentName: '', opponentClass: null, opponentLevel: null,
+        totalDmgDealt: winner._dmgDealt, totalDmgTaken: winner._dmgTaken,
+        tournamentMatch: true, roundIndex: round
+      });
+      await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?,?,?,?)',
+        [winnerPart.char_id, winnerPart.char_id, '🏆 Last Standing — All Vs All',
+          `BATTLE_REPORT:${payload}`]);
+    }
   }
 
   await dbRun_t(db, 'UPDATE tournaments SET battle_log = ? WHERE id = ?', [JSON.stringify(log), t.id]);
