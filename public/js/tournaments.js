@@ -65,6 +65,10 @@ function render(char, data) {
   const isDamageMode = t.mode === 'damage' || t.mode === 'least_damage';
   const isAllVsAll = t.mode === 'all_vs_all';
 
+  if (t.battle_log && typeof t.battle_log === 'string') {
+    try { t.battle_log = JSON.parse(t.battle_log); } catch {}
+  }
+
   if (isAllVsAll) {
     participants = [...participants].sort((a, b) => {
       if (a.eliminated_round === null) return -1;
@@ -156,7 +160,11 @@ function render(char, data) {
       </table>
     </div>
     <div id="tab-matches" style="display:none">
-      ${rounds.length === 0 ? '<div style="color:#8890a0;text-align:center;padding:20px">No matches yet</div>' : rounds.map(r => `
+      ${rounds.length === 0
+        ? (t.battle_log
+          ? '<div style="text-align:center;padding:20px"><button class="btn-join" data-action="showAllVsAllLog">👥 View Full Battle Log</button></div>'
+          : '<div style="color:#8890a0;text-align:center;padding:20px">No matches yet</div>')
+        : rounds.map(r => `
         <div class="matches-section">
           <div class="round-label">Round ${+r + 1}</div>
           ${roundGroups[r].map(m => {
@@ -346,6 +354,10 @@ async function viewHistory(tournamentId) {
     }
     if (matches.length > 0) {
       html += '<h3 style="margin-top:16px">Matches</h3>';
+      if (t.mode === 'all_vs_all' && t.battle_log) {
+        var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
+        html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-log=\'' + escJson(blStr) + '\'>👥 View Full Battle Log</button></div>';
+      } else {
       const roundGroups = {};
       matches.forEach(function(m) {
         if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
@@ -367,6 +379,7 @@ async function viewHistory(tournamentId) {
         });
         html += '</div>';
       });
+      }
     }
     el.innerHTML = html;
   } catch (e) {
@@ -392,6 +405,10 @@ document.addEventListener('click', function(e) {
   if (action === 'joinTournament') { e.preventDefault(); joinTournament(); }
   else if (action === 'tab') { switchTab(el.dataset.tab); }
   else if (action === 'showLog') { showBattleLog(el.dataset.log); }
+  else if (action === 'showAllVsAllLog') { 
+    var bl = currentTournament.tournament.battle_log;
+    showBattleLog(typeof bl === 'string' ? bl : JSON.stringify(bl)); 
+  }
   else if (action === 'closeLog') { closeLog(); }
   else if (action === 'viewHistory') { viewHistory(Number(el.dataset.id)); }
   else if (action === 'loadHistory') { loadHistory(); }
