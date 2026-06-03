@@ -76,6 +76,11 @@ async function runTournament(db, t, fast) {
       await fightMatch(db, t.id, r, p1Id, p2Id, participants, t.mode);
     }
     participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
+    const roundMatches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? AND round_index = ?', [t.id, r]);
+    for (const mm of roundMatches) {
+      await sendMatchReport(db, mm, participants, mm.participant1_id);
+      await sendMatchReport(db, mm, participants, mm.participant2_id);
+    }
   }
   await finalizeTournament(db, t.id);
 }
@@ -508,6 +513,34 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   }
 }
 
+async function sendMatchReport(db, mm, participants, pid) {
+  const p = participants.find(s => s.id === pid);
+  if (!p || p.is_npc || !p.char_id) return;
+  const oppId = mm.participant1_id === pid ? mm.participant2_id : mm.participant1_id;
+  const opponent = participants.find(s => s.id === oppId);
+  const won = mm.winner_id === pid;
+  const isDraw = mm.is_draw;
+  let log;
+  try { log = typeof mm.battle_log === 'string' ? JSON.parse(mm.battle_log) : (mm.battle_log || []); } catch { log = []; }
+  const dmgDealt = pid === mm.participant1_id ? (mm.dmg_to_p2 || 0) : (mm.dmg_to_p1 || 0);
+  const dmgTaken = pid === mm.participant1_id ? (mm.dmg_to_p1 || 0) : (mm.dmg_to_p2 || 0);
+  const goldEarned = won ? 500 : 0;
+  const payload = JSON.stringify({
+    log, won, isDraw: !!isDraw, goldEarned, goldLost: 0,
+    type: 'tournament',
+    opponentName: opponent?.name || 'Unknown',
+    opponentClass: opponent?.class || null,
+    opponentLevel: opponent?.level || null,
+    totalDmgDealt: dmgDealt, totalDmgTaken: dmgTaken,
+    tournamentMatch: true, roundIndex: mm.round_index
+  });
+  const matchSubject = isDraw ? `🤝 Tournament Draw vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
+    : won ? `🏆 Tournament Win vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
+    : `💀 Tournament Loss vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`;
+  await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?,?,?,?)',
+    [p.char_id, p.char_id, matchSubject, `BATTLE_REPORT:${payload}`]);
+}
+
 async function finalizeTournament(db, tournamentId) {
   const standings = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY points DESC, wins DESC', [tournamentId]);
   const winner = standings[0];
@@ -528,31 +561,6 @@ async function finalizeTournament(db, tournamentId) {
     const body = `You fought ${pMatches.length} match(es) with ${p.wins} wins, ${p.losses} losses, ${p.draws} draws.`;
     await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
       [p.char_id, p.char_id, subject, body]);
-    for (const mm of pMatches) {
-      const oppId = mm.participant1_id === p.id ? mm.participant2_id : mm.participant1_id;
-      const opponent = standings.find(s => s.id === oppId);
-      const won = mm.winner_id === p.id;
-      const isDraw = mm.is_draw;
-      let log;
-      try { log = typeof mm.battle_log === 'string' ? JSON.parse(mm.battle_log) : (mm.battle_log || []); } catch { log = []; }
-      const dmgDealt = p.id === mm.participant1_id ? (mm.dmg_to_p2 || 0) : (mm.dmg_to_p1 || 0);
-      const dmgTaken = p.id === mm.participant1_id ? (mm.dmg_to_p1 || 0) : (mm.dmg_to_p2 || 0);
-      const goldEarned = won ? 500 : 0;
-      const payload = JSON.stringify({
-        log, won, isDraw: !!isDraw, goldEarned, goldLost: 0,
-        type: 'tournament',
-        opponentName: opponent?.name || 'Unknown',
-        opponentClass: opponent?.class || null,
-        opponentLevel: opponent?.level || null,
-        totalDmgDealt: dmgDealt, totalDmgTaken: dmgTaken,
-        tournamentMatch: true, roundIndex: mm.round_index
-      });
-      const matchSubject = isDraw ? `🤝 Tournament Draw vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
-        : won ? `🏆 Tournament Win vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`
-        : `💀 Tournament Loss vs ${opponent?.name || '?'} (Round ${mm.round_index + 1})`;
-      await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?,?,?,?)',
-        [p.char_id, p.char_id, matchSubject, `BATTLE_REPORT:${payload}`]);
-    }
   }
   console.log(`🏆 Tournament #${tournamentId} complete! Winner: ${winner.name}${winnerIsNpc ? ' (NPC)' : ''}`);
 }
