@@ -728,7 +728,7 @@ async function finalizeTournament(db, tournamentId) {
     orderSQL = 'total_damage_taken ASC';
     pointsField = 'total_damage_taken';
   } else if (mode === 'all_vs_all') {
-    orderSQL = 'eliminated_round IS NULL DESC, eliminated_round ASC, points DESC';
+    orderSQL = 'eliminated_round IS NULL DESC, eliminated_round DESC, points DESC';
     pointsField = 'eliminated_round';
   } else if (mode === 'elimination') {
     orderSQL = 'eliminated ASC, wins DESC';
