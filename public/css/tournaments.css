@@ -1,0 +1,48 @@
+.tournament-status { display:inline-block; padding:4px 14px; border-radius:20px; font-size:0.78rem; font-weight:600; margin:8px 0; }
+.status-pending { background:rgba(241,196,15,0.12); color:#f1c40f; border:1px solid rgba(241,196,15,0.25); }
+.status-active { background:rgba(46,204,113,0.12); color:#2ecc71; border:1px solid rgba(46,204,113,0.25); }
+.status-complete { background:rgba(155,89,182,0.12); color:#9b59b6; border:1px solid rgba(155,89,182,0.25); }
+.join-section { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:20px; text-align:center; margin-bottom:20px; }
+.join-section .cost { font-size:0.85rem; color:#8890a0; margin-bottom:12px; }
+.join-section .cost strong { color:#f1c40f; }
+.btn-join { background:linear-gradient(135deg,#e040ff,#b030d0); color:#fff; border:none; padding:12px 36px; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer; transition:transform .15s,box-shadow .15s; }
+.btn-join:hover { transform:translateY(-2px); box-shadow:0 6px 24px rgba(224,64,255,0.35); }
+.btn-join:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+.standings-table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+.standings-table th { text-align:left; padding:10px 12px !important; font-size:0.72rem; color:#8890a0; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid rgba(255,255,255,0.06); }
+.standings-table td { padding:10px 12px !important; font-size:0.82rem; border-bottom:1px solid rgba(255,255,255,0.04); }
+.standings-table tr:hover td { background:rgba(255,255,255,0.02); }
+.rank-1 td:first-child { color:#f1c40f; font-weight:700; }
+.rank-2 td:first-child { color:#c0c0c0; font-weight:600; }
+.rank-3 td:first-child { color:#cd7f32; font-weight:600; }
+.npc-badge { font-size:0.65rem; padding:2px 8px; border-radius:8px; background:rgba(255,255,255,0.06); color:#8890a0; }
+.me-badge { font-size:0.65rem; padding:2px 8px; border-radius:8px; background:rgba(224,64,255,0.12); color:#e040ff; }
+.matches-section { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:16px; margin-bottom:20px; }
+.matches-section h3 { font-size:0.9rem; color:#c8d0e0; margin:0 0 12px; }
+.match-card { padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:0.82rem; display:flex; align-items:center; gap:10px; cursor:pointer; transition:background .1s; }
+.match-card:hover { background:rgba(255,255,255,0.02); }
+.match-card:last-child { border-bottom:none; }
+.match-result { flex:1; }
+.match-winner { color:#2ecc71; font-weight:600; }
+.match-draw { color:#f1c40f; font-weight:600; }
+.match-loser { color:#e74c3c; }
+.match-score { font-size:0.72rem; color:#8890a0; }
+.history-section { margin-top:24px; }
+.history-section h3 { font-size:0.9rem; color:#8890a0; margin:0 0 8px; }
+.history-item { display:flex; justify-content:space-between; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.03); font-size:0.8rem; }
+.history-item .h-date { color:#8890a0; }
+.history-item .h-winner { color:#2ecc71; }
+.history-item .h-npc { color:#8890a0; font-size:0.7rem; }
+.battle-log-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:300000; display:flex; align-items:center; justify-content:center; }
+.battle-log-content { background:rgba(8,12,22,0.97); border:1px solid rgba(255,255,255,0.1); border-radius:14px; padding:20px; max-width:550px; width:90%; max-height:80vh; overflow-y:auto; }
+.battle-log-content h3 { margin:0 0 12px; color:#e040ff; }
+.battle-log-content .log-line { font-size:0.78rem; line-height:1.5; padding:2px 0; font-family:'Courier New',monospace; }
+.battle-log-content .close-log { margin-top:12px; padding:8px 20px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); color:#c8d0e0; cursor:pointer; }
+.no-tournament { text-align:center; padding:40px; color:#8890a0; }
+.tabs { display:flex; gap:8px; margin-bottom:16px; }
+.tab-btn { padding:8px 18px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.02); color:#8890a0; cursor:pointer; font-size:0.82rem; transition:all .12s; }
+.tab-btn:hover { border-color:rgba(224,64,255,0.25); color:#c8d0e0; }
+.tab-btn.active { background:rgba(224,64,255,0.1); border-color:#e040ff; color:#e040ff; }
+.round-label { font-size:0.72rem; color:#8890a0; padding:6px 14px; background:rgba(255,255,255,0.02); border-radius:6px; margin-bottom:4px; }
+.btn-back { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); color:#8890a0; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:0.78rem; margin-bottom:12px; }
+.btn-back:hover { color:#c8d0e0; border-color:rgba(224,64,255,0.25); }
