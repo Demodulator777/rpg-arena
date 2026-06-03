@@ -1,14 +1,18 @@
 let currentTournament = null;
 let myCharId = null;
+let countdownInterval = null;
 
-function getToken() {
-  const t = localStorage.getItem('rpg_token') || sessionStorage.getItem('rpg_token');
-  if (!t) { document.getElementById('main-content').innerHTML = '<div class="no-tournament"><p>Please log in first.</p><a href="/" style="color:#e040ff">Go to game</a></div>'; return null; }
-  return t;
+function _tContainer() {
+  return document.getElementById('tab-tournament') || document.getElementById('main-content');
 }
 
-async function api(method, path, body) {
-  const token = getToken(); if (!token) throw new Error('No token');
+async function _tapi(method, path, body) {
+  if (typeof window.api === 'function') {
+    const p = path.replace(/^\/api\//, '/');
+    return window.api(method, p, body);
+  }
+  const token = localStorage.getItem('rpg_token') || sessionStorage.getItem('rpg_token');
+  if (!token) throw new Error('No token');
   const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
@@ -20,24 +24,25 @@ async function api(method, path, body) {
 async function load() {
   try {
     const [charData, tournamentData] = await Promise.all([
-      api('GET', '/api/game/character'),
-      api('GET', '/api/tournaments/current')
+      _tapi('GET', '/api/game/character'),
+      _tapi('GET', '/api/tournaments/current')
     ]);
     myCharId = charData.id;
     render(charData, tournamentData);
   } catch (e) {
-    document.getElementById('main-content').innerHTML = `<div class="no-tournament">Error loading: ${e.message}</div>`;
+    const c = _tContainer();
+    if (c) c.innerHTML = `<div class="no-tournament">Error loading: ${e.message}</div>`;
   }
 }
-
-let countdownInterval = null;
 
 function render(char, data) {
   currentTournament = data;
   if (countdownInterval) clearInterval(countdownInterval);
 
   if (!data || !data.tournament) {
-    document.getElementById('main-content').innerHTML = `
+    const c = _tContainer();
+    if (!c) return;
+    c.innerHTML = `
       <div class="no-tournament">
         <p>No tournament active right now.</p>
         <div id="tournament-countdown" style="font-size:1.4rem; font-weight:800; color:#f1c40f; margin:15px 0;">--:--:--</div>
@@ -118,7 +123,9 @@ function render(char, data) {
     return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0'}">${p.points}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td><td style="color:#f1c40f">${p.draws}</td></tr>`;
   }
 
-  document.getElementById('main-content').innerHTML = `
+  const c = _tContainer();
+  if (!c) return;
+  c.innerHTML = `
     <div style="text-align:center;margin-bottom:16px">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
       <span style="font-size:0.8rem;color:#8890a0;margin-left:8px">${modeLabel}</span>
@@ -231,7 +238,7 @@ async function joinTournament() {
   try {
     const btn = document.querySelector('.btn-join');
     if (btn) { btn.disabled = true; btn.textContent = 'Joining...'; }
-    await api('POST', '/api/tournaments/join');
+    await _tapi('POST', '/api/tournaments/join');
     await load();
   } catch (e) {
     alert(e.message);
@@ -251,7 +258,7 @@ async function loadHistory() {
   const el = document.getElementById('history-list');
   if (!el) return;
   try {
-    const list = await api('GET', '/api/tournaments');
+    const list = await _tapi('GET', '/api/tournaments');
     const completed = list.filter(t => t.status === 'complete');
     if (completed.length === 0) {
       el.innerHTML = '<div style="color:#8890a0;text-align:center;padding:20px">No tournaments completed yet</div>';
@@ -280,7 +287,7 @@ async function viewHistory(tournamentId) {
   const el = document.getElementById('history-list');
   if (!el) return;
   try {
-    const data = await api('GET', '/api/tournaments/' + tournamentId);
+    const data = await _tapi('GET', '/api/tournaments/' + tournamentId);
     const t = data.tournament;
     let participants = data.participants || [];
     const matches = data.matches || [];
@@ -397,20 +404,14 @@ function closeLog() {
   document.getElementById('battle-log-modal').style.display = 'none';
 }
 
-document.addEventListener('click', function(e) {
-  const el = e.target.closest('[data-action]');
-  if (!el) return;
-  const action = el.dataset.action;
-  if (action === 'joinTournament') { e.preventDefault(); joinTournament(); }
-  else if (action === 'tab') { switchTab(el.dataset.tab); }
-  else if (action === 'showLog') { showBattleLog(el.dataset.log); }
-  else if (action === 'showAllVsAllLog') { 
-    var bl = currentTournament.tournament.battle_log;
-    showBattleLog(typeof bl === 'string' ? bl : JSON.stringify(bl)); 
-  }
-  else if (action === 'closeLog') { closeLog(); }
-  else if (action === 'viewHistory') { viewHistory(Number(el.dataset.id)); }
-  else if (action === 'loadHistory') { loadHistory(); }
-});
+function loadTournamentTab() {
+  const c = _tContainer();
+  if (!c) return;
+  load();
+}
+window.loadTournamentTab = loadTournamentTab;
 
-load();
+// Auto-load for standalone page
+if (document.getElementById('tab-tournament') === null) {
+  load();
+}
