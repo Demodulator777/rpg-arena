@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css"/>
+    <link rel="stylesheet" href="/css/tournaments.css"/>
 </head>
 <body>
 <div id="app">
@@ -525,6 +526,9 @@
                     <button class="nav-btn nav-sub-btn" title="Squads" aria-label="Squads" data-action="navigateMissionsHub" data-args='["squads"]'>
                         <img src="/images/leaderboard.png" alt="Squads">
                     </button>
+                    <button class="nav-btn nav-sub-btn" title="Tournament" aria-label="Tournament" data-action="navigateMissionsHub" data-args='["tournament"]'>
+                        <img src="/images/leaderboard.png" alt="Tournament">
+                    </button>
                 </div>
             </div>
             <div class="nav-hub-group">
@@ -812,10 +816,22 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                 <div id="tab-dungeon" class="game-tab">
   <!-- renderDungeonTab() populates this entirely -->
 </div>
+<div id="tab-tournament" class="game-tab">
+  <!-- loadTournamentTab() populates this entirely -->
+</div>
 
             </main>
             <div id="chat-widget-root" class="hidden"></div>
         </div><!-- /.game-body -->
+
+        <!-- Battle log modal -->
+        <div id="battle-log-modal" class="battle-log-modal" style="display:none">
+            <div class="battle-log-content">
+                <h3>⚔️ Battle Log</h3>
+                <div id="log-lines"></div>
+                <button class="close-log" data-action="closeLog">Close</button>
+            </div>
+        </div>
 
         <!-- ── MODALS ─────────────────────────────────────────────────────────── -->
 
@@ -981,5 +997,6 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 <script src="/js/app.js?v=2026-05-04-email-reset"></script>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
 <script src="/js/dungeon.js?v=2026-05-08-dungeon-combat-fix"></script>
+<script src="/js/tournaments.js?v=2026-06-03"></script>
 </body>
 </html>
