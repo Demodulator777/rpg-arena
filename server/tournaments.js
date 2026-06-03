@@ -23,6 +23,11 @@ const ROUND_INTERVAL_MS = 60_000;
 const DAILY_HOUR = 21;
 const DAILY_MINUTE = 30;
 const NORMAL_ROUNDS = 10;
+const MODE_BY_DAY = ['all_vs_all', 'normal', 'damage', 'least_damage', 'elimination', 'deathmatch', 'no_equip'];
+
+function todayMode() {
+  return MODE_BY_DAY[new Date().getDay()] || 'deathmatch';
+}
 
 function roll(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -51,7 +56,7 @@ async function startTournament() {
   }
 }
 
-async function runTournament(db, t, fast) {
+async function ensureMinPlayers(db, t) {
   let participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
   const realCount = participants.filter(p => !p.is_npc).length;
   console.log(`🏟️ Tournament #${t.id}: ${participants.length} participants (${realCount} real)`);
@@ -63,17 +68,20 @@ async function runTournament(db, t, fast) {
         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [t.id, JSON.stringify(npc), npc.name, npc.class, npc.level, npc.strength, npc.defense, npc.agility, npc.magic, npc.vitality, npc.hp_max]);
     }
-    // Re-read from DB to get real auto-increment IDs for NPCs
     participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
     console.log(`   Added ${npcsNeeded} NPCs, total: ${participants.length}`);
   }
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, started_at = datetime(\'now\'), participant_count = ? WHERE id = ?', ['active', participants.length, t.id]);
+  return participants;
+}
+
+async function runRoundRobin(db, t, participants, mode, fast) {
   const schedule = generateRoundRobin(participants.map(p => p.id));
   for (let r = 0; r < schedule.length; r++) {
     const round = schedule[r];
     if (!fast && r > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
     for (const [p1Id, p2Id] of round) {
-      await fightMatch(db, t.id, r, p1Id, p2Id, participants, t.mode);
+      await fightMatch(db, t.id, r, p1Id, p2Id, participants, mode);
     }
     participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
     const roundMatches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? AND round_index = ?', [t.id, r]);
@@ -82,6 +90,122 @@ async function runTournament(db, t, fast) {
       await sendMatchReport(db, mm, participants, mm.participant2_id);
     }
   }
+}
+
+async function runElimination(db, t, participants, fast) {
+  const shuffled = [...participants];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  let bracket = shuffled.map(p => p.id);
+  const mode = t.mode;
+  let roundIndex = 0;
+
+  while (bracket.length > 1) {
+    const pairs = [];
+    const survivors = [];
+    const byes = bracket.length % 2;
+    if (byes) survivors.push(bracket.shift()); // highest seed gets bye
+    for (let i = 0; i < bracket.length; i += 2) {
+      if (i + 1 < bracket.length) pairs.push([bracket[i], bracket[i + 1]]);
+      else survivors.push(bracket[i]);
+    }
+    if (!fast && roundIndex > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
+    for (const [p1Id, p2Id] of pairs) {
+      await fightMatch(db, t.id, roundIndex, p1Id, p2Id, participants, mode);
+      const mm = await dbGet_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? AND round_index = ? AND ((participant1_id=? AND participant2_id=?) OR (participant1_id=? AND participant2_id=?))',
+        [t.id, roundIndex, p1Id, p2Id, p2Id, p1Id]);
+      if (mm && !mm.is_draw) {
+        const loserId = mm.winner_id === p1Id ? p2Id : p1Id;
+        await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1 WHERE id = ?', [loserId]);
+        await dbRun_t(db, 'UPDATE tournament_matches SET eliminated_id = ? WHERE id = ?', [loserId, mm.id]);
+        survivors.push(mm.winner_id);
+      } else if (mm && mm.is_draw) {
+        survivors.push(p1Id, p2Id);
+      }
+    }
+    // Send reports
+    const roundMatches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? AND round_index = ?', [t.id, roundIndex]);
+    for (const mm of roundMatches) {
+      await sendMatchReport(db, mm, participants, mm.participant1_id);
+      await sendMatchReport(db, mm, participants, mm.participant2_id);
+    }
+    bracket = survivors;
+    roundIndex++;
+  }
+
+  // Mark the champion
+  if (bracket.length === 1) {
+    const champId = bracket[0];
+    const champ = participants.find(p => p.id === champId);
+    if (champ) {
+      await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [champId]);
+    }
+  }
+}
+
+async function runAllVsAll(db, t, participants, fast) {
+  const fighters = [];
+  for (const p of participants) {
+    const f = await buildFighter(db, p, participants);
+    f._pid = p.id;
+    f._spawnIndex = fighters.length;
+    fighters.push(f);
+  }
+  for (let i = fighters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [fighters[i], fighters[j]] = [fighters[j], fighters[i]];
+    fighters[i]._spawnIndex = i;
+    fighters[j]._spawnIndex = j;
+  }
+
+  let round = 0;
+  let eliminationCount = 1;
+
+  while (fighters.filter(f => f.hp > 0).length > 1) {
+    round++;
+    const alive = fighters.filter(f => f.hp > 0);
+
+    for (const attacker of alive) {
+      const targets = alive.filter(t => t.id !== attacker.id);
+      if (targets.length === 0) continue;
+      const weights = targets.map(t => ({ fighter: t, weight: 1 / (Math.abs(t._spawnIndex - attacker._spawnIndex) + 1) }));
+      const totalW = weights.reduce((s, w) => s + w.weight, 0);
+      let r = Math.random() * totalW;
+      let target = weights[weights.length - 1].fighter;
+      for (const w of weights) { r -= w.weight; if (r <= 0) { target = w.fighter; break; } }
+
+      const idx = (round - 1) % 10;
+      const atkZone = (attacker.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
+      const blkZone = (target.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
+      const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
+      target.hp = Math.max(0, target.hp - res.damageDealt);
+    }
+
+    // Record eliminations in order
+    const newlyDead = fighters.filter(f => f.hp <= 0 && !f._eliminated);
+    for (const dead of newlyDead) {
+      dead._eliminated = true;
+      await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1, eliminated_round = ?, losses = losses + 1 WHERE id = ?', [eliminationCount, dead._pid]);
+      eliminationCount++;
+    }
+
+    if (!fast) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
+  }
+
+  const winner = fighters.find(f => f.hp > 0);
+  if (winner) {
+    await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winner._pid]);
+  }
+}
+
+async function runTournament(db, t, fast) {
+  const participants = await ensureMinPlayers(db, t);
+  const mode = t.mode || 'deathmatch';
+  if (mode === 'elimination') await runElimination(db, t, participants, fast);
+  else if (mode === 'all_vs_all') await runAllVsAll(db, t, participants, fast);
+  else await runRoundRobin(db, t, participants, mode, fast);
   await finalizeTournament(db, t.id);
 }
 
@@ -109,7 +233,7 @@ function generateNpc(seed) {
   }
 }
 
-async function buildFighter(db, participant, participants) {
+async function buildFighter(db, participant, participants, noEquip) {
   if (participant.is_npc) {
     const nd = participant.npc_data ? (typeof participant.npc_data === 'string' ? JSON.parse(participant.npc_data) : participant.npc_data) : {};
     const agi = participant.agility || 10;
@@ -144,6 +268,35 @@ async function buildFighter(db, participant, participants) {
     };
   }
   const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [participant.char_id]);
+
+  if (noEquip) {
+    const hpMax = calcHpMax(char, []);
+    const armor = calcArmorValue(char, []);
+    return {
+      id: `char_${char.id}`,
+      name: char.name,
+      class: char.class,
+      level: char.level,
+      hp: Math.min(hpMax, char.hp_current ?? hpMax),
+      hpMax,
+      dmgMin: Math.max(1, Math.floor((char.strength || 10) * 0.5)),
+      dmgMax: Math.max(2, Math.floor((char.strength || 10) * 0.5) + 4),
+      strength: char.strength || 0,
+      agility: char.agility || 0,
+      magic: char.magic || 0,
+      defense: char.defense || 0,
+      hit_chance: char.hit_chance || 0,
+      crit_chance: char.crit_chance || 0,
+      armor,
+      agility_bonus: 0, dmg_bonus: 0,
+      elem_dmg: { pyro:0, water:0, wind:0, electro:0 },
+      elem_resist: { pyro:0, water:0, wind:0, electro:0 },
+      skillEffects: [], skillMods: [],
+      baseActiveSkills: {}, activeSkills: {},
+      attackZones: DEFAULT_ATTACK_ZONES, blockZones: DEFAULT_BLOCK_ZONES
+    };
+  }
+
   const equippedArray = await getEquippedItemsArray(db, participant.char_id);
   const hpMax = calcHpMax(char, equippedArray);
   const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
@@ -491,9 +644,11 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   const p1 = participants.find(p => p.id === p1Id);
   const p2 = participants.find(p => p.id === p2Id);
   if (!p1 || !p2) return;
-  const f1 = await buildFighter(db, p1, participants);
-  const f2 = await buildFighter(db, p2, participants);
-  const result = mode === 'normal' ? normalBattle(f1, f2) : deathmatchBattle(f1, f2);
+  const noEquip = mode === 'no_equip';
+  const f1 = await buildFighter(db, p1, participants, noEquip);
+  const f2 = await buildFighter(db, p2, participants, noEquip);
+  const useNormal = mode === 'normal' || mode === 'damage' || mode === 'least_damage' || mode === 'no_equip';
+  const result = useNormal ? normalBattle(f1, f2) : deathmatchBattle(f1, f2);
   const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
   const dmgToP1 = Math.round(result.totalDmgToA);
   const dmgToP2 = Math.round(result.totalDmgToB);
@@ -510,6 +665,11 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
     if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
       await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
     }
+  }
+  // Track damage totals for damage-based modes
+  if (mode === 'damage' || mode === 'least_damage') {
+    await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP2, dmgToP1, p1.id]);
+    await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP1, dmgToP2, p2.id]);
   }
 }
 
@@ -542,7 +702,23 @@ async function sendMatchReport(db, mm, participants, pid) {
 }
 
 async function finalizeTournament(db, tournamentId) {
-  const standings = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY points DESC, wins DESC', [tournamentId]);
+  const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [tournamentId]);
+  const mode = t ? t.mode : 'deathmatch';
+  let orderSQL, pointsField;
+  if (mode === 'damage') {
+    orderSQL = 'total_damage_dealt DESC';
+    pointsField = 'total_damage_dealt';
+  } else if (mode === 'least_damage') {
+    orderSQL = 'total_damage_taken ASC';
+    pointsField = 'total_damage_taken';
+  } else if (mode === 'all_vs_all') {
+    orderSQL = 'eliminated_round IS NULL DESC, eliminated_round ASC, points DESC';
+    pointsField = 'eliminated_round';
+  } else {
+    orderSQL = 'points DESC, wins DESC';
+    pointsField = 'points';
+  }
+  const standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
   const winner = standings[0];
   if (!winner) return;
   const winnerIsNpc = !!winner.is_npc;
@@ -557,8 +733,12 @@ async function finalizeTournament(db, tournamentId) {
     if (p.is_npc || !p.char_id) continue;
     const rank = i + 1;
     const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
+    const statLine = mode === 'damage' ? `dealt ${p.total_damage_dealt || 0} total damage`
+      : mode === 'least_damage' ? `took ${p.total_damage_taken || 0} total damage`
+      : mode === 'all_vs_all' ? `eliminated #${p.eliminated_round || '—'} of ${standings.length}`
+      : `${p.wins} wins, ${p.losses} losses, ${p.draws} draws`;
     const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${standings.length}!`;
-    const body = `You fought ${pMatches.length} match(es) with ${p.wins} wins, ${p.losses} losses, ${p.draws} draws.`;
+    const body = `You fought ${pMatches.length} match(es) with ${statLine}.`;
     await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
       [p.char_id, p.char_id, subject, body]);
   }
@@ -569,8 +749,7 @@ async function ensureCurrentTournament() {
   const db = await getDb();
   let current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   if (!current) {
-    const last = await dbGet_t(db, "SELECT mode FROM tournaments ORDER BY id DESC LIMIT 1");
-    const mode = !last || last.mode === 'deathmatch' ? 'normal' : 'deathmatch';
+    const mode = todayMode();
     await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
     current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   }
@@ -653,8 +832,7 @@ router.post('/tournaments/create', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
     const db = await getDb();
-    const last = await dbGet_t(db, "SELECT mode FROM tournaments ORDER BY id DESC LIMIT 1");
-    const mode = !last || last.mode === 'deathmatch' ? 'normal' : 'deathmatch';
+    const mode = todayMode();
     await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
     const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
     res.json({ message: 'Tournament created', tournament: t });
@@ -722,6 +900,11 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN dmg_to_p1 INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN dmg_to_p2 INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN mode TEXT NOT NULL DEFAULT 'deathmatch'"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN total_damage_dealt INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN total_damage_taken INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN eliminated_id INTEGER"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated_round INTEGER"); } catch {}
 }
 
 function startScheduler() {
