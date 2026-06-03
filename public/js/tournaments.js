@@ -352,12 +352,12 @@ async function viewHistory(tournamentId) {
       });
       html += '</tbody></table>';
     }
-    if (matches.length > 0) {
+    if (t.mode === 'all_vs_all' && t.battle_log) {
+      html += '<h3 style="margin-top:16px">Battle Log</h3>';
+      var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
+      html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-log=\'' + escJson(blStr) + '\'>👥 View Full Battle Log</button></div>';
+    } else if (matches.length > 0) {
       html += '<h3 style="margin-top:16px">Matches</h3>';
-      if (t.mode === 'all_vs_all' && t.battle_log) {
-        var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
-        html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-log=\'' + escJson(blStr) + '\'>👥 View Full Battle Log</button></div>';
-      } else {
       const roundGroups = {};
       matches.forEach(function(m) {
         if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
@@ -379,7 +379,6 @@ async function viewHistory(tournamentId) {
         });
         html += '</div>';
       });
-      }
     }
     el.innerHTML = html;
   } catch (e) {
