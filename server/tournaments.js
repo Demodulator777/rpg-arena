@@ -106,25 +106,38 @@ async function runElimination(db, t, participants, fast) {
     const pairs = [];
     const survivors = [];
     const byes = bracket.length % 2;
-    if (byes) survivors.push(bracket.shift()); // highest seed gets bye
+    if (byes) survivors.push(bracket.shift());
     for (let i = 0; i < bracket.length; i += 2) {
       if (i + 1 < bracket.length) pairs.push([bracket[i], bracket[i + 1]]);
       else survivors.push(bracket[i]);
     }
     if (!fast && roundIndex > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
+
     for (const [p1Id, p2Id] of pairs) {
-      await fightMatch(db, t.id, roundIndex, p1Id, p2Id, participants, mode);
-      const mm = await dbGet_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? AND round_index = ? AND ((participant1_id=? AND participant2_id=?) OR (participant1_id=? AND participant2_id=?))',
-        [t.id, roundIndex, p1Id, p2Id, p2Id, p1Id]);
-      if (mm && !mm.is_draw) {
-        const loserId = mm.winner_id === p1Id ? p2Id : p1Id;
-        await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1 WHERE id = ?', [loserId]);
-        await dbRun_t(db, 'UPDATE tournament_matches SET eliminated_id = ? WHERE id = ?', [loserId, mm.id]);
-        survivors.push(mm.winner_id);
-      } else if (mm && mm.is_draw) {
+      const p1 = participants.find(p => p.id === p1Id);
+      const p2 = participants.find(p => p.id === p2Id);
+      if (!p1 || !p2) { survivors.push(p1Id, p2Id); continue; }
+      const f1 = await buildFighter(db, p1, participants);
+      const f2 = await buildFighter(db, p2, participants);
+      const result = normalBattle(f1, f2);
+      const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
+      await dbRun_t(db, `INSERT INTO tournament_matches (tournament_id, round_index, participant1_id, participant2_id, winner_id, is_draw, battle_log, dmg_to_p1, dmg_to_p2, fought_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+        [t.id, roundIndex, p1.id, p2.id, winnerPid, result.isDraw ? 1 : 0, JSON.stringify(result.log), Math.round(result.totalDmgToA), Math.round(result.totalDmgToB)]);
+      if (result.isDraw) {
         survivors.push(p1Id, p2Id);
+      } else if (winnerPid) {
+        const loserPid = winnerPid === p1.id ? p2.id : p1.id;
+        await dbRun_t(db, 'UPDATE tournament_participants SET wins = wins + 1 WHERE id = ?', [winnerPid]);
+        await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1, losses = losses + 1 WHERE id = ?', [loserPid]);
+        const winnerPart = participants.find(p => p.id === winnerPid);
+        if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
+          await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
+        }
+        survivors.push(winnerPid);
       }
     }
+
     // Send reports
     const roundMatches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? AND round_index = ?', [t.id, roundIndex]);
     for (const mm of roundMatches) {
@@ -133,15 +146,6 @@ async function runElimination(db, t, participants, fast) {
     }
     bracket = survivors;
     roundIndex++;
-  }
-
-  // Mark the champion
-  if (bracket.length === 1) {
-    const champId = bracket[0];
-    const champ = participants.find(p => p.id === champId);
-    if (champ) {
-      await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [champId]);
-    }
   }
 }
 
@@ -685,8 +689,9 @@ async function sendMatchReport(db, mm, participants, pid) {
   const dmgDealt = pid === mm.participant1_id ? (mm.dmg_to_p2 || 0) : (mm.dmg_to_p1 || 0);
   const dmgTaken = pid === mm.participant1_id ? (mm.dmg_to_p1 || 0) : (mm.dmg_to_p2 || 0);
   const goldEarned = won ? 500 : 0;
+  const gemsEarned = won ? 1 : 0;
   const payload = JSON.stringify({
-    log, won, isDraw: !!isDraw, goldEarned, goldLost: 0,
+    log, won, isDraw: !!isDraw, goldEarned, gemsEarned, goldLost: 0,
     type: 'tournament',
     opponentName: opponent?.name || 'Unknown',
     opponentClass: opponent?.class || null,
@@ -714,11 +719,51 @@ async function finalizeTournament(db, tournamentId) {
   } else if (mode === 'all_vs_all') {
     orderSQL = 'eliminated_round IS NULL DESC, eliminated_round ASC, points DESC';
     pointsField = 'eliminated_round';
+  } else if (mode === 'elimination') {
+    orderSQL = 'eliminated ASC, wins DESC';
+    pointsField = 'wins';
   } else {
     orderSQL = 'points DESC, wins DESC';
     pointsField = 'points';
   }
-  const standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
+  let standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
+
+  // Head-to-head tiebreaker for points-based modes
+  if (mode !== 'damage' && mode !== 'least_damage' && mode !== 'all_vs_all' && mode !== 'elimination') {
+    const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ?', [tournamentId]);
+    const headToHead = {};
+    for (const m of matches) {
+      if (m.is_draw) continue;
+      const key = `${Math.min(m.participant1_id, m.participant2_id)}_${Math.max(m.participant1_id, m.participant2_id)}`;
+      headToHead[key] = m.winner_id;
+    }
+    // Group by points and sort within each group
+    const groups = {};
+    for (const p of standings) {
+      const pts = p.points;
+      if (!groups[pts]) groups[pts] = [];
+      groups[pts].push(p);
+    }
+    const sorted = [];
+    const pointLevels = Object.keys(groups).sort((a,b) => b - a);
+    for (const pts of pointLevels) {
+      const group = groups[pts];
+      if (group.length <= 1) {
+        sorted.push(...group);
+      } else {
+        group.sort((a, b) => {
+          const key = `${Math.min(a.id, b.id)}_${Math.max(a.id, b.id)}`;
+          const winnerId = headToHead[key];
+          if (winnerId === a.id) return -1;
+          if (winnerId === b.id) return 1;
+          return (b.wins || 0) - (a.wins || 0);
+        });
+        sorted.push(...group);
+      }
+    }
+    standings = sorted;
+  }
+
   const winner = standings[0];
   if (!winner) return;
   const winnerIsNpc = !!winner.is_npc;
@@ -736,8 +781,13 @@ async function finalizeTournament(db, tournamentId) {
     const statLine = mode === 'damage' ? `dealt ${p.total_damage_dealt || 0} total damage`
       : mode === 'least_damage' ? `took ${p.total_damage_taken || 0} total damage`
       : mode === 'all_vs_all' ? `eliminated #${p.eliminated_round || '—'} of ${standings.length}`
+      : mode === 'elimination' ? `${p.wins || 0} wins, ${p.losses || 0} losses`
       : `${p.wins} wins, ${p.losses} losses, ${p.draws} draws`;
-    const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${standings.length}!`;
+    let rewardLine = '';
+    if (rank === 1 && !p.is_npc && !winnerIsNpc) {
+      rewardLine = ' 🏆 Prize: 5000g + 10💎';
+    }
+    const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${standings.length}!${rewardLine}`;
     const body = `You fought ${pMatches.length} match(es) with ${statLine}.`;
     await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
       [p.char_id, p.char_id, subject, body]);
