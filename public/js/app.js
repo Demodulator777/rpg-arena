@@ -7737,10 +7737,12 @@ function renderInboxFilter(filter) {
                 <div class="msg-from ${m.read?'':'unread-from'}">${icon} ${escHtml(m.subject)}</div>
             </div>
             ${report ? `<div class="msg-summary-line">
-                vs ${escHtml(report.opponentName||report.npcName||'?')}
+                ${report.opponentName ? `vs ${escHtml(report.opponentName)}` : ''}
                 ${report.goldEarned ? ` · <span class="gain">💰 +${report.goldEarned}</span>` : ''}
+                ${report.gemsEarned ? ` · <span class="gain">💎 +${report.gemsEarned}</span>` : ''}
                 ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
                 ${report.xpEarned ? ` · <span class="${report.xpEarned >= 0 ? 'gain' : 'loss'}">⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP</span>` : ''}
+                ${report.totalDmgDealt ? ` · <span style="color:#e74c3c">⚔️ ${report.totalDmgDealt} dealt</span>` : ''}
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
                 <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
@@ -7814,6 +7816,7 @@ function viewBattleReport(msgId) {
     const summary = [
         report.isDraw ? '🤝 Draw' : (report.won ? '✅ Victory' : '💀 Defeated'),
         report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
+        report.gemsEarned ? `💎 ${report.gemsEarned > 0 ? '+' : ''}${report.gemsEarned} gem${report.gemsEarned > 1 ? 's' : ''}` : null,
         report.xpEarned ? `⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP` : null
     ].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
