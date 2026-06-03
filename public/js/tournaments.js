@@ -73,7 +73,7 @@ function render(char, data) {
     participants = [...participants].sort((a, b) => {
       if (a.eliminated_round === null) return -1;
       if (b.eliminated_round === null) return 1;
-      return a.eliminated_round - b.eliminated_round;
+      return b.eliminated_round - a.eliminated_round;
     });
   } else if (t.mode === 'elimination') {
     participants = [...participants].sort((a, b) => (b.wins || 0) - (a.wins || 0));
@@ -292,7 +292,7 @@ async function viewHistory(tournamentId) {
       participants = [...participants].sort((a, b) => {
         if (a.eliminated_round === null) return -1;
         if (b.eliminated_round === null) return 1;
-        return a.eliminated_round - b.eliminated_round;
+        return b.eliminated_round - a.eliminated_round;
       });
     } else if (isDamageMode) {
       participants = [...participants].sort((a, b) => t.mode === 'damage'
