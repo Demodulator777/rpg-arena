@@ -882,7 +882,7 @@ router.post('/tournaments/create', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
     const db = await getDb();
-    const mode = req.body.mode || todayMode();
+    const mode = req.body?.mode || req.query?.mode || todayMode();
     await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
     const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
     res.json({ message: 'Tournament created', tournament: t });
@@ -893,11 +893,13 @@ router.post('/tournaments/start-test', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
     const db = await getDb();
-    const pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+    let pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
     if (!pending.length) return res.status(400).json({ error: 'No pending tournament' });
-    if (req.body.mode) {
-      await dbRun_t(db, 'UPDATE tournaments SET mode = ? WHERE id = ?', [req.body.mode, pending[0].id]);
-      pending[0].mode = req.body.mode;
+    const mode = req.body?.mode || req.query?.mode;
+    if (mode) {
+      await dbRun_t(db, 'UPDATE tournaments SET mode = ? WHERE id = ?', [mode, pending[0].id]);
+      // Re-fetch to get the updated row
+      pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
     }
     runTournament(db, pending[0], true).catch(e => console.error('test run error:', e));
     res.json({ message: 'Tournament starting instantly with NPCs if needed' });
