@@ -182,7 +182,7 @@ function render(char, data) {
             const isDraw = m.is_draw;
             var bl = m.battle_log; if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } } if (!Array.isArray(bl)) bl = [];
             const logStr = escJson(JSON.stringify(bl));
-            return `<div class="match-card" data-action="showLog" data-log='${logStr}'>
+            return `<div class="match-card" data-action="showLog" data-args='${JSON.stringify([logStr])}'>
               <div class="match-result">
                 ${p1?.name || '?'}
                 ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner">▶</span>' : '<span class="match-loser">▶</span>'}
@@ -273,7 +273,7 @@ async function tournamentLoadHistory() {
       const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
       const modeHints = { normal:'🏁', damage:'💥', least_damage:'🛡️', elimination:'🗡️', deathmatch:'💀', no_equip:'⚔️', all_vs_all:'👥' };
       const modeIcon = modeHints[t.mode] || '🏟️';
-      return `<div class="history-item" data-action="tournamentViewHistory" data-id="${t.id}">
+      return `<div class="history-item" data-action="tournamentViewHistory" data-args='[${t.id}]'>
         <span class="h-date">${date}</span>
         <span>${modeIcon}</span>
         <span>${t.participant_count || '?'} fighters</span>
@@ -366,7 +366,7 @@ async function tournamentViewHistory(tournamentId) {
     if (t.mode === 'all_vs_all' && t.battle_log) {
       html += '<h3 style="margin-top:16px">Battle Log</h3>';
       var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
-      html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-log=\'' + escJson(blStr) + '\'>👥 View Full Battle Log</button></div>';
+      html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-args=\'' + escJson(JSON.stringify([blStr])) + '\'>👥 View Full Battle Log</button></div>';
     } else if (matches.length > 0) {
       html += '<h3 style="margin-top:16px">Matches</h3>';
       const roundGroups = {};
@@ -386,7 +386,7 @@ async function tournamentViewHistory(tournamentId) {
           var isDraw = m.is_draw;
           var bl2 = m.battle_log; if (typeof bl2 === 'string') { try { bl2 = JSON.parse(bl2); } catch { bl2 = []; } } if (!Array.isArray(bl2)) bl2 = [];
           var logStr = escJson(JSON.stringify(bl2));
-          html += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
+          html += '<div class="match-card" data-action="showLog" data-args=\'' + JSON.stringify([logStr]) + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
         });
         html += '</div>';
       });
@@ -406,6 +406,12 @@ function showBattleLog(logStr) {
 
 function closeLog() {
   document.getElementById('battle-log-modal').style.display = 'none';
+}
+
+function showAllVsAllLog() {
+  if (!currentTournament || !currentTournament.tournament) return;
+  var bl = currentTournament.tournament.battle_log;
+  showBattleLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
 }
 
 function loadTournamentTab() {
