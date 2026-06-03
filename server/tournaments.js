@@ -150,6 +150,10 @@ async function runElimination(db, t, participants, fast) {
 }
 
 async function runAllVsAll(db, t, participants, fast) {
+  const log = [`👥 ALL VS ALL — ${participants.length} players enter the arena!`];
+  log.push(`🏟️ ${participants.map(p => p.name).join(', ')}`);
+  log.push('---');
+
   const fighters = [];
   for (const p of participants) {
     const f = await buildFighter(db, p, participants);
@@ -170,6 +174,7 @@ async function runAllVsAll(db, t, participants, fast) {
   while (fighters.filter(f => f.hp > 0).length > 1) {
     round++;
     const alive = fighters.filter(f => f.hp > 0);
+    log.push(`🌀 Round ${round} — ${alive.length} fighters remaining`);
 
     for (const attacker of alive) {
       const targets = alive.filter(t => t.id !== attacker.id);
@@ -185,23 +190,29 @@ async function runAllVsAll(db, t, participants, fast) {
       const blkZone = (target.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
       const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
       target.hp = Math.max(0, target.hp - res.damageDealt);
+      log.push(`  ${attacker.name} → ${target.name}: ${res.damageDealt} damage`);
     }
 
     // Record eliminations in order
     const newlyDead = fighters.filter(f => f.hp <= 0 && !f._eliminated);
     for (const dead of newlyDead) {
       dead._eliminated = true;
+      log.push(`💀 ${dead.name} is eliminated!`);
       await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1, eliminated_round = ?, losses = losses + 1 WHERE id = ?', [eliminationCount, dead._pid]);
       eliminationCount++;
     }
 
+    log.push('---');
     if (!fast) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
   }
 
   const winner = fighters.find(f => f.hp > 0);
   if (winner) {
+    log.push(`🏆 ${winner.name} is the last one standing!`);
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winner._pid]);
   }
+
+  await dbRun_t(db, 'UPDATE tournaments SET battle_log = ? WHERE id = ?', [JSON.stringify(log), t.id]);
 }
 
 async function runTournament(db, t, fast) {
@@ -961,6 +972,7 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN eliminated_id INTEGER"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated_round INTEGER"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
 }
 
 function startScheduler() {
