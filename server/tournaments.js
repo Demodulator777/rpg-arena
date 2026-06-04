@@ -25,8 +25,8 @@ const DAILY_MINUTE = 30;
 const NORMAL_ROUNDS = 10;
 const MODE_BY_DAY = ['all_vs_all', 'normal', 'damage', 'least_damage', 'elimination', 'deathmatch', 'no_equip'];
 
-function todayMode() {
-  return MODE_BY_DAY[new Date().getDay()] || 'deathmatch';
+function todayMode(date = new Date()) {
+  return MODE_BY_DAY[date.getDay()] || 'deathmatch';
 }
 
 function roll(min, max) {
@@ -60,8 +60,17 @@ async function ensureMinPlayers(db, t) {
   let participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
   const realCount = participants.filter(p => !p.is_npc).length;
   console.log(`🏟️ Tournament #${t.id}: ${participants.length} participants (${realCount} real)`);
-  if (participants.length < MIN_PLAYERS) {
-    const npcsNeeded = MIN_PLAYERS - participants.length;
+  const mode = t.mode || 'deathmatch';
+  let targetSize;
+  if (mode === 'elimination') {
+    targetSize = 8;
+    while (targetSize < participants.length && targetSize < 16) targetSize *= 2;
+    if (targetSize < participants.length) targetSize = 16;
+  } else {
+    targetSize = Math.max(participants.length, MIN_PLAYERS);
+  }
+  const npcsNeeded = targetSize - participants.length;
+  if (npcsNeeded > 0) {
     for (let i = 0; i < npcsNeeded; i++) {
       const npc = generateNpc(participants.length + i);
       await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, is_npc, npc_data, name, class, level, strength, defense, agility, magic, vitality, hp_max)
@@ -849,7 +858,16 @@ async function ensureCurrentTournament() {
   const db = await getDb();
   let current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   if (!current) {
-    const mode = todayMode();
+    const now = new Date();
+    const nextStart = new Date();
+    nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
+    
+    // If today's tournament time has already passed, the new registration is for tomorrow's mode
+    if (now >= nextStart) {
+      nextStart.setDate(nextStart.getDate() + 1);
+    }
+    
+    const mode = todayMode(nextStart);
     await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
     current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   }
