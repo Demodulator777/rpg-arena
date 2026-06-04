@@ -1638,7 +1638,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none;
 }
 .sub-btn-icon {
-    height: 28px;
+    height: 14px;
     width: auto;
     display: block;
 }
@@ -1792,7 +1792,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: 38px;
     }
     .sub-btn-icon {
-        height: 18px;
+        height: 9px;
     }
     .sub-btn-label {
         font-size: 0.42rem;
