@@ -43,10 +43,17 @@ function render(char, data) {
     const c = _tContainer();
     if (!c) return;
     c.innerHTML = `
+      <div class="t-banner">
+        <div class="t-banner-img"></div>
+        <div class="t-banner-overlay"></div>
+        <div class="t-banner-content">
+          <div class="t-banner-title">Tournament Arena</div>
+          <div class="t-banner-sub">The next battle for glory draws near…</div>
+        </div>
+      </div>
       <div class="no-tournament">
-        <p>No tournament active right now.</p>
-        <div id="tournament-countdown" style="font-size:1.4rem; font-weight:800; color:#f1c40f; margin:15px 0;">--:--:--</div>
-        <p style="font-size:0.85rem; color:#8890a0;">until next tournament registration opens</p>
+        <span id="tournament-countdown">--:--:--</span>
+        <p style="font-size:0.82rem; color:#8890a0; font-family:'IM Fell English',serif; font-style:italic;">until next tournament registration opens</p>
       </div>`;
     startCountdown(data.nextTournamentTime);
     return;
@@ -126,34 +133,43 @@ function render(char, data) {
   const c = _tContainer();
   if (!c) return;
   c.innerHTML = `
-    <div style="text-align:center;margin-bottom:16px">
-      <span class="tournament-status ${statusClass}">${statusLabel}</span>
-      <span style="font-size:0.8rem;color:#8890a0;margin-left:8px">${modeLabel}</span>
-      <span style="font-size:0.8rem;color:#8890a0;margin-left:8px">${participants.length} fighters</span>
+    <div class="t-banner">
+      <div class="t-banner-img"></div>
+      <div class="t-banner-overlay"></div>
+      <div class="t-banner-content">
+        <div class="t-banner-title">${esc(t.name || 'Tournament Arena')}</div>
+        <div class="t-banner-sub">${modeLabel}</div>
+      </div>
     </div>
+    <div class="t-header-row">
+      <span class="tournament-status ${statusClass}">${statusLabel}</span>
+      <span class="mode-label-epic">${participants.length} fighters</span>
+    </div>
+    <div class="t-divider">⟡</div>
     ${t.status === 'pending' ? `
       <div class="join-section">
-        <div id="tournament-countdown" style="font-size:1.2rem; font-weight:800; color:#f1c40f; margin-bottom:10px;">--:--:--</div>
+        <div class="join-banner-placeholder">⚔ Tournament Arena ⚔</div>
+        <div id="tournament-countdown">--:--:--</div>
         <div class="cost">Entry fee: <strong>500g</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold}g</strong>`}</div>
-        ${myEntry ? '<div style="color:#2ecc71;font-size:0.9rem">✅ You have joined!</div>'
-                 : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
-                      ${char.gold < 500 ? 'Not enough gold' : '⚔️ Join Tournament'}
-                    </button>`}
+        ${myEntry
+          ? '<div class="joined-badge">✅ Enlisted for Battle</div>'
+          : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
+               ${char.gold < 500 ? '⚠ Insufficient Gold' : '⚔️ Join Tournament'}
+             </button>`}
         ${participants.length > 0 ? `
-          <div style="margin-top:12px;font-size:0.78rem;color:#8890a0">
-            ${participants.length < 8 ? `⚠️ ${8 - participants.length} more fighters needed to start` : '✅ Minimum fighters met!'}
+          <div class="fighters-needed ${participants.length >= 8 ? 'ready' : ''}">
+            ${participants.length < 8 ? `⚠ ${8 - participants.length} more warriors needed to commence` : '✅ Minimum fighters assembled!'}
           </div>` : ''}
       </div>` : ''}
     ${t.status === 'active' ? `
-      <div style="text-align:center;font-size:0.82rem;color:#8890a0;margin-bottom:16px">
-        ⚔️ Battles are being fought every minute — refresh to see results
-      </div>` : ''}
+      <p class="t-active-notice">⚔ Battles are being fought every minute — refresh to see results</p>` : ''}
     ${t.status === 'complete' ? `
-      <div style="text-align:center;margin-bottom:16px">
+      <div class="t-winner-panel">
         ${t.winner_is_npc
-          ? `<div style="color:#8890a0;font-size:0.9rem">🤖 NPC won — no player receives tournament win</div>`
-          : `<div style="color:#e040ff;font-size:1.1rem;font-weight:700">🏆 Winner: ${participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown'}</div>`}
-        ${myEntry ? `<div style="margin-top:6px;font-size:0.95rem;color:#c8d0e0">Your rank: <strong>#${participants.indexOf(myEntry) + 1}</strong> of ${participants.length}</div>` : ''}
+          ? `<div style="color:#8890a0;font-family:'IM Fell English',serif;font-style:italic">🤖 An NPC claimed victory — no player receives the tournament prize</div>`
+          : `<div style="font-size:0.72rem;color:var(--t-gold-dim);font-family:'Cinzel',serif;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px">Champion</div>
+             <div class="t-winner-name">🏆 ${esc((participants.find(p => p.char_id === t.winner_char_id))?.name || 'Unknown')}</div>`}
+        ${myEntry ? `<div class="t-your-rank">Your rank: #${participants.indexOf(myEntry) + 1} of ${participants.length}</div>` : ''}
       </div>` : ''}
     <div class="tabs">
       <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
@@ -161,16 +177,18 @@ function render(char, data) {
       <button class="tab-btn" data-action="tournamentTab" data-args='["history"]'>History</button>
     </div>
     <div id="tab-standings">
-      <table class="standings-table">
-        <thead><tr>${standingsHeaders()}</tr></thead>
-        <tbody>${participants.map((p,i) => standingsRow(p,i)).join('')}</tbody>
-      </table>
+      <div class="standings-wrap">
+        <table class="standings-table">
+          <thead><tr>${standingsHeaders()}</tr></thead>
+          <tbody>${participants.map((p,i) => standingsRow(p,i)).join('')}</tbody>
+        </table>
+      </div>
     </div>
     <div id="tab-matches" style="display:none">
       ${rounds.length === 0
         ? (t.battle_log
           ? '<div style="text-align:center;padding:20px"><button class="btn-join" data-action="showAllVsAllLog">👥 View Full Battle Log</button></div>'
-          : '<div style="color:#8890a0;text-align:center;padding:20px">No matches yet</div>')
+          : '<div style="color:#8890a0;text-align:center;padding:20px;font-family:\'IM Fell English\',serif;font-style:italic">No matches yet</div>')
         : rounds.map(r => `
         <div class="matches-section">
           <div class="round-label">Round ${+r + 1}</div>
@@ -185,10 +203,10 @@ function render(char, data) {
             return `<div class="match-card" data-action="showLog" data-args='${JSON.stringify([logStr])}'>
               <div class="match-result">
                 ${p1?.name || '?'}
-                ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner">▶</span>' : '<span class="match-loser">▶</span>'}
+                ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner"> ▶ </span>' : '<span class="match-loser"> ▶ </span>'}
                 ${p2?.name || '?'}
               </div>
-              <div style="flex:1;text-align:right;font-size:0.75rem">
+              <div style="flex:1;text-align:right;font-size:0.75rem;padding-right:30px">
                 ${isDraw ? '<span class="match-draw">Draw</span>' : `<span class="match-winner">${winnerName} wins</span>`}
               </div>
             </div>`;
@@ -197,7 +215,7 @@ function render(char, data) {
     </div>
     <div id="tab-history" style="display:none">
       <div class="history-section" id="history-list">
-        <div style="color:#8890a0;text-align:center;padding:20px">Loading history...</div>
+        <div style="color:#8890a0;text-align:center;padding:20px;font-family:'IM Fell English',serif;font-style:italic">Loading history…</div>
       </div>
     </div>
   `;
@@ -400,12 +418,33 @@ async function tournamentViewHistory(tournamentId) {
 function showLog(logStr) {
   let log;
   try { log = JSON.parse(logStr); } catch { log = []; }
-  document.getElementById('log-lines').innerHTML = (log||[]).map(l => `<div class="log-line">${l}</div>`).join('');
+
+  // Inject modal into DOM if not already present
+  if (!document.getElementById('battle-log-modal')) {
+    const modal = document.createElement('div');
+    modal.id = 'battle-log-modal';
+    modal.className = 'battle-log-modal';
+    modal.innerHTML = `
+      <div class="battle-log-content">
+        <div class="battle-log-header">
+          <span class="battle-log-title">⚔ Battle Log</span>
+          <button class="btn-close-log" onclick="closeLog()">✕</button>
+        </div>
+        <div id="log-lines"></div>
+      </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) closeLog(); });
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('log-lines').innerHTML =
+    (log||[]).map(l => `<div class="log-line">${l}</div>`).join('') ||
+    '<div class="log-line" style="opacity:0.4;font-style:italic">No entries recorded.</div>';
   document.getElementById('battle-log-modal').style.display = 'flex';
 }
 
 function closeLog() {
-  document.getElementById('battle-log-modal').style.display = 'none';
+  const m = document.getElementById('battle-log-modal');
+  if (m) m.style.display = 'none';
 }
 
 function showAllVsAllLog() {
