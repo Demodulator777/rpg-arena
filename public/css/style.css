@@ -1637,7 +1637,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     gap: 1px;
     pointer-events: none;
 }
-.sub-btn-icon {
+.nav-sub-btn .sub-btn-icon {
     height: 14px;
     width: auto;
     display: block;
@@ -1669,7 +1669,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .nav-btn img {
     display: block;
-    height: 30px;
+    height: 63px;
     width: auto;
     object-fit: cover;
     pointer-events: none;
@@ -1791,7 +1791,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .nav-sub-btn {
         height: 38px;
     }
-    .sub-btn-icon {
+    .nav-sub-btn .sub-btn-icon {
         height: 9px;
     }
     .sub-btn-label {
