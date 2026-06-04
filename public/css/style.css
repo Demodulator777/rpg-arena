@@ -1638,7 +1638,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none;
 }
 .nav-sub-btn .sub-btn-icon {
-    height: 40px;
+    height: 28px;
     width: auto;
     display: block;
     opacity: 0.75;
