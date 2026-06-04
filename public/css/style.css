@@ -1669,7 +1669,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .nav-btn img {
     display: block;
-    height: 63px;
+    height: 30px;
     width: auto;
     object-fit: cover;
     pointer-events: none;
