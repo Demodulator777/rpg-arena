@@ -1606,7 +1606,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .character-inline-hub.hidden {
     display: none;
 }
-.nav-sub-btn {
+.nav-btn.nav-sub-btn {
     width: 100%;
     height: 63px;
     margin: 0;
@@ -1620,13 +1620,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding: 2px 4px;
     cursor: pointer;
 }
-.nav-sub-btn:first-child {
+.nav-btn.nav-sub-btn:first-child {
     border-radius: 18px 18px 0 0;
 }
-.nav-sub-btn:last-child {
+.nav-btn.nav-sub-btn:last-child {
     border-radius: 0 0 18px 18px;
 }
-.nav-sub-btn:only-child {
+.nav-btn.nav-sub-btn:only-child {
     border-radius: 18px;
 }
 .sub-btn-inner {
@@ -1790,7 +1790,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .nav-btn img {
         height: 40px;
     }
-    .nav-sub-btn {
+    .nav-btn.nav-sub-btn {
         height: 38px;
     }
     .nav-sub-btn .sub-btn-icon {
