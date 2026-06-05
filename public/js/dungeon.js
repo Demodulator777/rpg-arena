@@ -1879,6 +1879,7 @@ function fightRound() {
     log(`🏆 Against all odds, you bring down The Crawler!`, 'log-boss');
     apiFetch('POST', '/game/dungeon/crawler-event', { event: 'defeat' }).catch(() => {});
     D.combat = null;
+    D._combatPrefetch = null;
     saveState();
     saveProgressToDB();
     renderDungeonView();
@@ -1917,6 +1918,7 @@ function onRoomCleared(roomIdx) {
                 log(`⚠️ Room already cleared — no loot gained.${extra}`, 'log-warning');
                 room.monstersCleared = Date.now(); // sync local state
                 D.combat = null;
+                D._combatPrefetch = null;
                 saveState();
                 saveProgressToDB();
                 renderDungeonView();
@@ -1941,6 +1943,7 @@ function onRoomCleared(roomIdx) {
                 .catch(e => console.error('Failed to release room:', e));
 
             D.combat = null;
+            D._combatPrefetch = null;
             saveState();
             saveProgressToDB();
             renderDungeonView();
@@ -1950,6 +1953,7 @@ function onRoomCleared(roomIdx) {
             console.error('Failed to mark room cleared:', e);
             log(`⚠️ Server error confirming room clear. No loot granted. Try reconnecting.`, 'log-warning');
             D.combat = null;
+            D._combatPrefetch = null;
             saveState();
             saveProgressToDB();
             renderDungeonView();
@@ -2142,6 +2146,7 @@ function confirmEscape(roomIdx) {
     }
 
     D.combat = null;
+    D._combatPrefetch = null;
     saveState();
     saveProgressToDB();
     renderDungeonView();
@@ -2220,6 +2225,7 @@ function onPlayerDeath() {
       floorRunId: D.floorRunId,
     };
     D.combat = null;
+    D._combatPrefetch = null;
     D.activeDungeon = null;
     global.__dungeonActive = false;
     saveState();
@@ -2348,6 +2354,7 @@ function onBossDefeated() {
   D.crawler = spawnCrawlerForCurrentFloor();
   D.floorRunId = createFloorRunId();
   D.combat = null;
+  D._combatPrefetch = null;
   saveState();
   saveProgressToDB();
 
@@ -3546,6 +3553,7 @@ function dungeonExit() {
     D.activeDungeon = null;
     global.__dungeonActive = false;
     D.combat = null;
+    D._combatPrefetch = null;
     document.body.classList.remove('modal-lock');
     document.body.classList.remove('combat-lock');
 
