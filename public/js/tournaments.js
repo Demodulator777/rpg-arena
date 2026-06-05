@@ -1,901 +1,466 @@
-/* ═══════════════════════════════════════════════════════════════════
-   TOURNAMENT TAB — EPIC FANTASY RPG OVERHAUL
-   ═══════════════════════════════════════════════════════════════════ */
+let currentTournament = null;
+let myCharId = null;
+let countdownInterval = null;
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700;900&family=IM+Fell+English:ital@0;1&display=swap');
-
-:root {
-  /* Core Palette */
-  --t-gold:        #f4c542;
-  --t-gold-dim:    #b8922a;
-  --t-gold-glow:   rgba(244, 197, 66, 0.35);
-  --t-purple:      #c060f0;
-  --t-purple-dim:  rgba(192, 96, 240, 0.15);
-  --t-purple-glow: rgba(192, 96, 240, 0.4);
-  --t-crimson:     #e03a3a;
-  --t-green:       #2fcf7a;
-  --t-silver:      #c8d4e8;
-  --t-blue-ice:    #5bb8f0;
-
-  /* Backgrounds */
-  --t-bg-deep:     #05070f;
-  --t-bg-panel:    rgba(10, 12, 22, 0.96);
-  --t-bg-card:     rgba(18, 22, 38, 0.92);
-  --t-bg-row:      rgba(255, 255, 255, 0.03);
-  --t-bg-row-hover:rgba(255, 255, 255, 0.07);
-
-  /* Borders */
-  --t-border:      rgba(255, 255, 255, 0.07);
-  --t-border-gold: rgba(244, 197, 66, 0.3);
-  --t-border-purple: rgba(192, 96, 240, 0.25);
-
-  /* Shadows */
-  --t-shadow-deep: 0 20px 60px rgba(0, 0, 0, 0.8);
-  --t-shadow-gold: 0 0 30px rgba(244, 197, 66, 0.25);
-  --t-shadow-purple: 0 0 40px rgba(192, 96, 240, 0.2);
+function _tContainer() {
+  return document.getElementById('tab-tournament') || document.getElementById('main-content');
 }
 
-/* ── Container ─────────────────────────────────────────────────────── */
-#main-content, #tab-tournament {
-  min-height: 80dvh;
-  padding: 0 8px 24px;
-  max-width: 800px;
-  margin: 0 auto;
-  font-family: 'Cinzel', serif;
-  width: 100%;
-  box-sizing: border-box;
+async function _tapi(method, path, body) {
+  if (typeof window.api === 'function') {
+    const p = path.replace(/^\/api\//, '/');
+    return window.api(method, p, body);
+  }
+  const token = localStorage.getItem('rpg_token') || sessionStorage.getItem('rpg_token');
+  if (!token) throw new Error('No token');
+  const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'Request failed');
+  return data;
 }
 
-/* ── Tournament Banner ─────────────────────────────────────────────── */
-/* Wrap the top status area — if you add a <div class="t-banner"> in JS
-   this will be used; falls back gracefully if not */
-.t-banner {
-  position: relative;
-  width: 100%;
-  min-height: 180px;
-  border-radius: 18px;
-  overflow: hidden;
-  margin-bottom: 20px;
-  display: flex;
-  align-items: flex-end;
-  border: 1px solid var(--t-border-gold);
-  box-shadow: var(--t-shadow-deep), var(--t-shadow-gold);
+async function load() {
+  try {
+    const [charData, tournamentData] = await Promise.all([
+      _tapi('GET', '/api/game/character'),
+      _tapi('GET', '/api/tournaments/current')
+    ]);
+    myCharId = charData.id;
+    render(charData, tournamentData);
+  } catch (e) {
+    const c = _tContainer();
+    if (c) c.innerHTML = `<div class="no-tournament">Error loading: ${e.message}</div>`;
+  }
 }
 
-/* Image placeholder — swap src in JS or add a real bg-image */
-.t-banner-img {
-  position: absolute;
-  inset: 0;
-  background:
-    url('/images/tournament-banner.jpg') center / cover no-repeat,
-    linear-gradient(135deg, #0e0a1a 0%, #1a0e2e 50%, #0a1020 100%);
-  filter: brightness(0.55) saturate(1.2);
-  z-index: 0;
-}
-/* Rune overlay pattern */
-.t-banner-img::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 20% 50%, rgba(192,96,240,0.18) 0%, transparent 55%),
-    radial-gradient(circle at 80% 50%, rgba(244,197,66,0.15) 0%, transparent 55%);
-  mix-blend-mode: screen;
+function render(char, data) {
+  currentTournament = data;
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  if (!data || !data.tournament) {
+    const c = _tContainer();
+    if (!c) return;
+    c.innerHTML = `
+      <div class="t-banner">
+        <div class="t-banner-img"></div>
+        <div class="t-banner-overlay"></div>
+        <div class="t-banner-content">
+          <div class="t-banner-title">Tournament Arena</div>
+          <div class="t-banner-sub">The next battle for glory draws near…</div>
+        </div>
+      </div>
+      <div class="no-tournament">
+        <span id="tournament-countdown">--:--:--</span>
+        <p style="font-size:0.82rem; color:#8890a0; font-family:'IM Fell English',serif; font-style:italic;">until next tournament registration opens</p>
+      </div>`;
+    startCountdown(data.nextTournamentTime);
+    return;
+  }
+  const t = data.tournament;
+  let participants = data.participants || [];
+  const matches = data.matches || [];
+  const myEntry = participants.find(p => p.char_id === myCharId);
+  const statusClass = `status-${t.status}`;
+  const statusLabel = t.status === 'pending' ? '⏳ Open for Registration' : t.status === 'active' ? '⚔️ In Progress' : '🏆 Complete';
+  const modeLabels = {
+    normal: '🏁 Normal (10 rounds)',
+    damage: '💥 Damage (highest dealt wins)',
+    least_damage: '🛡️ Least Damage Taken wins',
+    elimination: '🗡️ Elimination (single-elimination)',
+    deathmatch: '💀 Deathmatch (unlimited)',
+    no_equip: '⚔️ No Equipment (stats only)',
+    all_vs_all: '👥 All vs All (last standing)'
+  };
+  const modeLabel = modeLabels[t.mode] || t.mode;
+  const isDamageMode = t.mode === 'damage' || t.mode === 'least_damage';
+  const isAllVsAll = t.mode === 'all_vs_all';
+
+  if (t.battle_log && typeof t.battle_log === 'string') {
+    try { t.battle_log = JSON.parse(t.battle_log); } catch {}
+  }
+
+  if (isAllVsAll) {
+    participants = [...participants].sort((a, b) => {
+      if (a.eliminated_round === null) return -1;
+      if (b.eliminated_round === null) return 1;
+      return b.eliminated_round - a.eliminated_round;
+    });
+  } else if (t.mode === 'elimination') {
+    participants = [...participants].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+  } else if (isDamageMode) {
+    participants = [...participants].sort((a, b) => t.mode === 'damage'
+      ? (b.total_damage_dealt || 0) - (a.total_damage_dealt || 0)
+      : (a.total_damage_taken || 0) - (b.total_damage_taken || 0));
+  }
+
+  const roundGroups = {};
+  for (const m of matches) {
+    if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
+    roundGroups[m.round_index].push(m);
+  }
+  const rounds = Object.keys(roundGroups).sort((a,b) => a-b);
+
+  function standingsHeaders() {
+    if (t.mode === 'damage') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Dealt</th><th>Taken</th>';
+    if (t.mode === 'least_damage') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Taken</th><th>Dealt</th>';
+    if (t.mode === 'all_vs_all') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th>';
+    if (t.mode === 'elimination') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th>';
+    return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th>';
+  }
+  function standingsRow(p, i) {
+    const rankCls = i < 3 ? ` rank-${i+1}` : '';
+    const pName = esc(p.name);
+    const badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
+    const cls = `style="font-size:0.72rem;color:#8890a0"`;
+    if (t.mode === 'damage') {
+      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#e74c3c">${p.total_damage_dealt||0}</td><td style="color:#f39c12">${p.total_damage_taken||0}</td></tr>`;
+    }
+    if (t.mode === 'least_damage') {
+      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#2ecc71">${p.total_damage_taken||0}</td><td style="color:#8890a0">${p.total_damage_dealt||0}</td></tr>`;
+    }
+    if (t.mode === 'all_vs_all') {
+      const elim = p.eliminated_round ? `#${p.eliminated_round}` : '🏆';
+      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.eliminated_round ? '#e74c3c' : '#f1c40f'}">${elim}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td></tr>`;
+    }
+    if (t.mode === 'elimination') {
+      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="color:#2ecc71">${p.wins||0}</td><td style="color:#e74c3c">${p.losses||0}</td></tr>`;
+    }
+    return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0'}">${p.points}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td><td style="color:#f1c40f">${p.draws}</td></tr>`;
+  }
+
+  const c = _tContainer();
+  if (!c) return;
+  c.innerHTML = `
+    <div class="t-banner">
+      <div class="t-banner-img"></div>
+      <div class="t-banner-overlay"></div>
+      <div class="t-banner-content">
+        <div class="t-banner-title">${esc(t.name || 'Tournament Arena')}</div>
+        <div class="t-banner-sub">${modeLabel}</div>
+      </div>
+    </div>
+    <div class="t-header-row">
+      <span class="tournament-status ${statusClass}">${statusLabel}</span>
+      <span class="mode-label-epic">${participants.length} fighters</span>
+    </div>
+    <div class="t-divider">⟡</div>
+    ${t.status === 'pending' ? `
+      <div class="join-section">
+        <div class="join-banner-placeholder">⚔ Tournament Arena ⚔</div>
+        <div id="tournament-countdown">--:--:--</div>
+        <div class="cost">Entry fee: <strong>500g</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold}g</strong>`}</div>
+        ${myEntry
+          ? '<div class="joined-badge">✅ Enlisted for Battle</div>'
+          : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
+               ${char.gold < 500 ? '⚠ Insufficient Gold' : '⚔️ Join Tournament'}
+             </button>`}
+        ${participants.length > 0 ? `
+          <div class="fighters-needed ${participants.length >= 8 ? 'ready' : ''}">
+            ${participants.length < 8 ? `⚠ ${8 - participants.length} more warriors needed to commence` : '✅ Minimum fighters assembled!'}
+          </div>` : ''}
+      </div>` : ''}
+    ${t.status === 'active' ? `
+      <p class="t-active-notice">⚔ Battles are being fought every minute — refresh to see results</p>` : ''}
+    ${t.status === 'complete' ? `
+      <div class="t-winner-panel">
+        ${t.winner_is_npc
+          ? `<div style="color:#8890a0;font-family:'IM Fell English',serif;font-style:italic">🤖 An NPC claimed victory — no player receives the tournament prize</div>`
+          : `<div style="font-size:0.72rem;color:var(--t-gold-dim);font-family:'Cinzel',serif;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px">Champion</div>
+             <div class="t-winner-name">🏆 ${esc((participants.find(p => p.char_id === t.winner_char_id))?.name || 'Unknown')}</div>`}
+        ${myEntry ? `<div class="t-your-rank">Your rank: #${participants.indexOf(myEntry) + 1} of ${participants.length}</div>` : ''}
+      </div>` : ''}
+    <div class="tabs">
+      <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
+      <button class="tab-btn" data-action="tournamentTab" data-args='["matches"]'>Matches (${matches.length})</button>
+      <button class="tab-btn" data-action="tournamentTab" data-args='["history"]'>History</button>
+    </div>
+    <div id="tab-standings">
+      <div class="standings-wrap">
+        <table class="standings-table">
+          <thead><tr>${standingsHeaders()}</tr></thead>
+          <tbody>${participants.map((p,i) => standingsRow(p,i)).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+    <div id="tab-matches" style="display:none">
+      ${rounds.length === 0
+        ? (t.battle_log
+          ? '<div style="text-align:center;padding:20px"><button class="btn-join" data-action="showAllVsAllLog">👥 View Full Battle Log</button></div>'
+          : '<div style="color:#8890a0;text-align:center;padding:20px;font-family:\'IM Fell English\',serif;font-style:italic">No matches yet</div>')
+        : rounds.map(r => `
+        <div class="matches-section">
+          <div class="round-label">Round ${+r + 1}</div>
+          ${roundGroups[r].map(m => {
+            const p1 = participants.find(p => p.id === m.participant1_id);
+            const p2 = participants.find(p => p.id === m.participant2_id);
+            const w = m.winner_id ? participants.find(p => p.id === m.winner_id) : null;
+            const winnerName = w?.name || 'Unknown';
+            const isDraw = m.is_draw;
+            var bl = m.battle_log; if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } } if (!Array.isArray(bl)) bl = [];
+            const logStr = escJson(JSON.stringify(bl));
+            return `<div class="match-card" data-action="showLog" data-args='${JSON.stringify([logStr])}'>
+              <div class="match-result">
+                ${p1?.name || '?'}
+                ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner"> ▶ </span>' : '<span class="match-loser"> ▶ </span>'}
+                ${p2?.name || '?'}
+              </div>
+              <div style="flex:1;text-align:right;font-size:0.75rem;padding-right:30px">
+                ${isDraw ? '<span class="match-draw">Draw</span>' : `<span class="match-winner">${winnerName} wins</span>`}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`).join('')}
+    </div>
+    <div id="tab-history" style="display:none">
+      <div class="history-section" id="history-list">
+        <div style="color:#8890a0;text-align:center;padding:20px;font-family:'IM Fell English',serif;font-style:italic">Loading history…</div>
+      </div>
+    </div>
+  `;
+  if (t.status === 'complete') tournamentLoadHistory();
+  if (t.status === 'pending') startCountdown(data.nextTournamentTime);
 }
 
-.t-banner-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to top,
-    rgba(5,7,15,0.95) 0%,
-    rgba(5,7,15,0.5) 40%,
-    transparent 100%
-  );
-  z-index: 1;
+function startCountdown(targetTime) {
+  if (!targetTime) return;
+  const el = document.getElementById('tournament-countdown');
+  if (!el) return;
+
+  function update() {
+    const now = Date.now();
+    const diff = targetTime - now;
+    if (diff <= 0) {
+      el.textContent = "00:00:00";
+      clearInterval(countdownInterval);
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
+  }
+
+  update();
+  countdownInterval = setInterval(update, 1000);
 }
 
-/* Corner decal glyphs */
-.t-banner::before,
-.t-banner::after {
-  content: '✦';
-  position: absolute;
-  font-size: 1.6rem;
-  color: var(--t-gold);
-  opacity: 0.4;
-  z-index: 2;
-}
-.t-banner::before { top: 14px; left: 18px; }
-.t-banner::after  { top: 14px; right: 18px; }
-
-.t-banner-content {
-  position: relative;
-  z-index: 2;
-  padding: 20px 24px;
-  width: 100%;
+function escJson(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
 }
 
-.t-banner-title {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: clamp(1.2rem, 4vw, 2rem);
-  font-weight: 900;
-  color: var(--t-gold);
-  text-shadow: 0 0 20px var(--t-gold-glow), 0 2px 4px rgba(0,0,0,0.9);
-  letter-spacing: 0.05em;
-  line-height: 1.1;
-  margin-bottom: 6px;
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+async function joinTournament() {
+  try {
+    const btn = document.querySelector('.btn-join');
+    if (btn) { btn.disabled = true; btn.textContent = 'Joining...'; }
+    await _tapi('POST', '/api/tournaments/join');
+    await load();
+  } catch (e) {
+    alert(e.message);
+    await load();
+  }
 }
 
-.t-banner-sub {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 0.9rem;
-  color: rgba(200,210,230,0.7);
-  letter-spacing: 0.04em;
+function tournamentTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    var a;
+    try { a = JSON.parse(b.dataset.args); } catch { a = []; }
+    b.classList.toggle('active', a[0] === tab);
+  });
+  document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
+  document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
+  document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'history') tournamentLoadHistory();
 }
 
-/* ── No Tournament / Empty State ───────────────────────────────────── */
-.no-tournament {
-  text-align: center;
-  padding: 50px 20px;
-  font-family: 'Cinzel', serif;
-  color: #8890a0;
-  position: relative;
+async function tournamentLoadHistory() {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  try {
+    const list = await _tapi('GET', '/api/tournaments');
+    const completed = list.filter(t => t.status === 'complete');
+    if (completed.length === 0) {
+      el.innerHTML = '<div style="color:#8890a0;text-align:center;padding:20px">No tournaments completed yet</div>';
+      return;
+    }
+    el.innerHTML = completed.map(t => {
+      const date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
+      const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
+      const modeHints = { normal:'🏁', damage:'💥', least_damage:'🛡️', elimination:'🗡️', deathmatch:'💀', no_equip:'⚔️', all_vs_all:'👥' };
+      const modeIcon = modeHints[t.mode] || '🏟️';
+      return `<div class="history-item" data-action="tournamentViewHistory" data-args='[${t.id}]'>
+        <span class="h-date">${date}</span>
+        <span>${modeIcon}</span>
+        <span>${t.participant_count || '?'} fighters</span>
+        <span>${t.winner_is_npc ? '<span class="h-npc">NPC win</span>' : winner}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = `<div style="color:#e74c3c;text-align:center">Error loading history</div>`;
+  }
 }
 
-.no-tournament::before {
-  content: '⚔';
-  display: block;
-  font-size: 3rem;
-  margin-bottom: 12px;
-  opacity: 0.3;
-  filter: drop-shadow(0 0 12px var(--t-gold));
+function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function tournamentViewHistory(tournamentId) {
+  const el = document.getElementById('history-list');
+  if (!el) return;
+  try {
+    const data = await _tapi('GET', '/api/tournaments/' + tournamentId);
+    const t = data.tournament;
+    let participants = data.participants || [];
+    const matches = data.matches || [];
+    const myEntry = participants.find(p => p.char_id === myCharId);
+    const isDamageMode = t.mode === 'damage' || t.mode === 'least_damage';
+    const isAllVsAll = t.mode === 'all_vs_all';
+
+    if (isAllVsAll) {
+      participants = [...participants].sort((a, b) => {
+        if (a.eliminated_round === null) return -1;
+        if (b.eliminated_round === null) return 1;
+        return b.eliminated_round - a.eliminated_round;
+      });
+    } else if (isDamageMode) {
+      participants = [...participants].sort((a, b) => t.mode === 'damage'
+        ? (b.total_damage_dealt || 0) - (a.total_damage_dealt || 0)
+        : (a.total_damage_taken || 0) - (b.total_damage_taken || 0));
+    }
+
+    var html = '<button class="btn-back" data-action="tournamentLoadHistory">← Back to History</button>';
+    html += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
+    if (t.winner_is_npc) {
+      html += '<span style="color:#8890a0">🤖 NPC won</span>';
+    } else {
+      var winnerName2 = esc((participants.find(function(p) { return p.char_id === t.winner_char_id; })||{}).name || 'Unknown');
+      html += '<span style="color:#e040ff;font-weight:700">🏆 Winner: ' + winnerName2 + '</span>';
+    }
+    if (myEntry) {
+      html += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
+    }
+    html += '</div>';
+    if (isDamageMode) {
+      var dmgHdr = t.mode === 'damage'
+        ? '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Dealt</th><th>Taken</th>'
+        : '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Taken</th><th>Dealt</th>';
+      html += '<table class="standings-table"><thead><tr>' + dmgHdr + '</tr></thead><tbody>';
+      participants.forEach(function(p, i) {
+        var pName = esc(p.name);
+        var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
+        if (t.mode === 'damage') {
+          html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#e74c3c">' + (p.total_damage_dealt || 0) + '</td><td style="color:#f39c12">' + (p.total_damage_taken || 0) + '</td></tr>';
+        } else {
+          html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#2ecc71">' + (p.total_damage_taken || 0) + '</td><td style="color:#8890a0">' + (p.total_damage_dealt || 0) + '</td></tr>';
+        }
+      });
+      html += '</tbody></table>';
+    } else if (isAllVsAll) {
+      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th></tr></thead><tbody>';
+      participants.forEach(function(p, i) {
+        var pName = esc(p.name);
+        var elim = p.eliminated_round ? '#' + p.eliminated_round : '🏆';
+        var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
+        html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.eliminated_round ? '#e74c3c' : '#f1c40f') + '">' + elim + '</td><td style="color:#2ecc71">' + (p.wins || 0) + '</td><td style="color:#e74c3c">' + (p.losses || 0) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    } else if (t.mode === 'elimination') {
+      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th></tr></thead><tbody>';
+      participants.forEach(function(p, i) {
+        var pName = esc(p.name);
+        var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
+        html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="color:#2ecc71">' + (p.wins || 0) + '</td><td style="color:#e74c3c">' + (p.losses || 0) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    } else {
+      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
+      participants.forEach(function(p, i) {
+        var pName = esc(p.name);
+        html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    if (t.mode === 'all_vs_all' && t.battle_log) {
+      html += '<h3 style="margin-top:16px">Battle Log</h3>';
+      var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
+      html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-args=\'' + escJson(JSON.stringify([blStr])) + '\'>👥 View Full Battle Log</button></div>';
+    } else if (matches.length > 0) {
+      html += '<h3 style="margin-top:16px">Matches</h3>';
+      const roundGroups = {};
+      matches.forEach(function(m) {
+        if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
+        roundGroups[m.round_index].push(m);
+      });
+      var sortedRounds = Object.keys(roundGroups).sort(function(a,b) { return a - b; });
+      sortedRounds.forEach(function(r) {
+        html += '<div class="matches-section"><div class="round-label">Round ' + (+r + 1) + '</div>';
+        roundGroups[r].forEach(function(m) {
+          var p1n = esc((participants.find(function(p) { return p.id === m.participant1_id; })||{}).name || '?');
+          var p2n = esc((participants.find(function(p) { return p.id === m.participant2_id; })||{}).name || '?');
+          var w = null;
+          if (m.winner_id) w = participants.find(function(p) { return p.id === m.winner_id; });
+          var wn = esc((w||{}).name || 'Unknown');
+          var isDraw = m.is_draw;
+          var bl2 = m.battle_log; if (typeof bl2 === 'string') { try { bl2 = JSON.parse(bl2); } catch { bl2 = []; } } if (!Array.isArray(bl2)) bl2 = [];
+          var logStr = escJson(JSON.stringify(bl2));
+          html += '<div class="match-card" data-action="showLog" data-args=\'' + JSON.stringify([logStr]) + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
+        });
+        html += '</div>';
+      });
+    }
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div style="color:#e74c3c;text-align:center">Error: ' + e.message + '</div>';
+  }
 }
 
-/* ── Status Badges ─────────────────────────────────────────────────── */
-.tournament-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 18px;
-  border-radius: 30px;
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.3);
-  vertical-align: middle;
-}
-.status-pending {
-  background: rgba(244, 197, 66, 0.1);
-  color: var(--t-gold);
-  border: 1px solid var(--t-border-gold);
-}
-.status-active {
-  background: rgba(47, 207, 122, 0.1);
-  color: var(--t-green);
-  border: 1px solid rgba(47, 207, 122, 0.5);
-  animation: pulse-green 2.5s ease-in-out infinite;
-}
-.status-complete {
-  background: var(--t-purple-dim);
-  color: var(--t-purple);
-  border: 1px solid var(--t-border-purple);
+function showLog(logStr) {
+  let log;
+  try { log = JSON.parse(logStr); } catch { log = []; }
+
+  // Inject modal into DOM if not already present
+  if (!document.getElementById('battle-log-modal')) {
+    const modal = document.createElement('div');
+    modal.id = 'battle-log-modal';
+    modal.className = 'battle-log-modal';
+    modal.innerHTML = `
+      <div class="battle-log-content">
+        <div class="battle-log-header">
+          <span class="battle-log-title">⚔ Battle Log</span>
+          <button class="btn-close-log" onclick="closeLog()">✕</button>
+        </div>
+        <div id="log-lines"></div>
+      </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) closeLog(); });
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('log-lines').innerHTML =
+    (log||[]).map(l => `<div class="log-line">${l}</div>`).join('') ||
+    '<div class="log-line" style="opacity:0.4;font-style:italic">No entries recorded.</div>';
+  document.getElementById('battle-log-modal').style.display = 'flex';
 }
 
-@keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(47, 207, 122, 0.4); }
-  60%       { box-shadow: 0 0 0 8px rgba(47, 207, 122, 0); }
+function closeLog() {
+  const m = document.getElementById('battle-log-modal');
+  if (m) m.style.display = 'none';
 }
 
-/* ── Mode Label ────────────────────────────────────────────────────── */
-.mode-label-epic {
-  font-family: 'Cinzel', serif;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.55);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+function showAllVsAllLog() {
+  if (!currentTournament || !currentTournament.tournament) return;
+  var bl = currentTournament.tournament.battle_log;
+  showLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
 }
 
-/* ── Header Row (status + mode + count) ────────────────────────────── */
-.t-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 16px 0 12px;
-  position: relative;
+function loadTournamentTab() {
+  const c = _tContainer();
+  if (!c) return;
+  load();
 }
+window.loadTournamentTab = loadTournamentTab;
 
-/* Decorative horizontal rule with central diamond */
-.t-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 4px 0 16px;
-  color: var(--t-gold-dim);
-  font-size: 0.7rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  font-family: 'Cinzel', serif;
-}
-.t-divider::before,
-.t-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--t-border-gold), transparent);
-}
-
-/* ── Join Section ──────────────────────────────────────────────────── */
-.join-section {
-  position: relative;
-  background: var(--t-bg-panel);
-  border: 1px solid var(--t-border-gold);
-  border-radius: 18px;
-  padding: 32px 28px;
-  text-align: center;
-  margin: 0 0 20px;
-  overflow: hidden;
-  box-shadow: var(--t-shadow-deep), inset 0 1px 0 rgba(255,255,255,0.05);
-}
-
-/* Radial glow behind content */
-.join-section::before {
-  content: '';
-  position: absolute;
-  top: -80px; left: 50%;
-  transform: translateX(-50%);
-  width: 500px; height: 300px;
-  background: radial-gradient(ellipse, rgba(192,96,240,0.12) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-/* Corner rune decals */
-.join-section::after {
-  content: '⟡';
-  position: absolute;
-  bottom: 16px; right: 20px;
-  font-size: 2.5rem;
-  color: var(--t-gold);
-  opacity: 0.08;
-  pointer-events: none;
-  line-height: 1;
-}
-
-/* Banner image inside join section */
-.join-banner {
-  width: 100%;
-  height: 90px;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 20px;
-  position: relative;
-}
-.join-banner-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: brightness(0.5) saturate(1.4);
-}
-.join-banner-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--t-gold);
-  text-shadow: 0 0 16px var(--t-gold-glow);
-  letter-spacing: 0.12em;
-}
-
-/* Image placeholder fallback (when no real image is available) */
-.join-banner-placeholder {
-  width: 100%;
-  height: 90px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-  background:
-    linear-gradient(135deg, rgba(192,96,240,0.12) 0%, rgba(244,197,66,0.08) 100%),
-    repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 18px,
-      rgba(255,255,255,0.015) 18px,
-      rgba(255,255,255,0.015) 36px
-    );
-  border: 1px solid var(--t-border-purple);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 1.1rem;
-  color: var(--t-gold);
-  text-shadow: 0 0 12px var(--t-gold-glow);
-  letter-spacing: 0.1em;
-}
-
-.cost {
-  font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
-  color: var(--t-silver);
-  margin-bottom: 18px;
-  letter-spacing: 0.04em;
-}
-.cost strong { color: var(--t-gold); }
-
-.fighters-needed {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 0.82rem;
-  color: rgba(200,210,230,0.5);
-  margin-top: 14px;
-}
-.fighters-needed.ready { color: var(--t-green); font-style: normal; }
-
-/* ── Join Button ───────────────────────────────────────────────────── */
-.btn-join {
-  position: relative;
-  background: linear-gradient(135deg, #9b30d0 0%, #5a00b8 100%);
-  color: #fff;
-  border: 1px solid rgba(192,96,240,0.5);
-  padding: 15px 52px;
-  border-radius: 50px;
-  font-family: 'Cinzel', serif;
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-              box-shadow 0.25s ease,
-              border-color 0.2s ease;
-  box-shadow: 0 6px 24px rgba(90, 0, 184, 0.45), inset 0 1px 0 rgba(255,255,255,0.15);
-  overflow: hidden;
-}
-.btn-join::before {
-  content: '';
-  position: absolute;
-  top: 0; left: -100%;
-  width: 60%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.5s ease;
-}
-.btn-join:hover {
-  transform: scale(1.04) translateY(-3px);
-  box-shadow: 0 12px 36px rgba(90, 0, 184, 0.65), 0 0 0 1px rgba(192,96,240,0.5);
-  border-color: var(--t-purple);
-}
-.btn-join:hover::before { left: 150%; }
-.btn-join:disabled {
-  background: rgba(255,255,255,0.06);
-  color: #4a5060;
-  border-color: rgba(255,255,255,0.06);
-  box-shadow: none;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Joined checkmark state */
-.joined-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 24px;
-  border-radius: 50px;
-  font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--t-green);
-  border: 1px solid rgba(47,207,122,0.35);
-  background: rgba(47,207,122,0.08);
-  letter-spacing: 0.08em;
-}
-
-/* ── Winner / Result Banner ────────────────────────────────────────── */
-.t-winner-panel {
-  background: linear-gradient(135deg, rgba(192,96,240,0.12) 0%, rgba(244,197,66,0.08) 100%);
-  border: 1px solid var(--t-border-purple);
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-  margin-bottom: 20px;
-  position: relative;
-  overflow: hidden;
-}
-.t-winner-panel::before {
-  content: '🏆';
-  position: absolute;
-  font-size: 5rem;
-  right: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0.06;
-  pointer-events: none;
-}
-.t-winner-name {
-  font-family: 'Cinzel Decorative', serif;
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: var(--t-purple);
-  text-shadow: 0 0 16px var(--t-purple-glow);
-}
-.t-your-rank {
-  font-family: 'Cinzel', serif;
-  font-size: 0.85rem;
-  color: var(--t-silver);
-  margin-top: 6px;
-  opacity: 0.75;
-}
-.t-active-notice {
-  font-family: 'IM Fell English', serif;
-  font-style: italic;
-  font-size: 0.82rem;
-  color: rgba(200,210,230,0.45);
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-/* ── Countdown ─────────────────────────────────────────────────────── */
-#tournament-countdown {
-  font-family: 'Cinzel', serif;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 4px;
-  font-weight: 800;
-  color: var(--t-gold);
-  text-shadow: 0 0 20px var(--t-gold-glow);
-  display: block;
-  font-size: 2rem;
-  margin: 6px 0 10px;
-}
-
-/* ── Tabs ──────────────────────────────────────────────────────────── */
-.tabs {
-  background: rgba(0,0,0,0.35);
-  padding: 5px;
-  border-radius: 14px;
-  display: flex;
-  gap: 4px;
-  border: 1px solid var(--t-border);
-  margin-bottom: 16px;
-}
-.tab-btn {
-  flex: 1;
-  padding: 11px 8px;
-  border: none;
-  background: transparent;
-  color: rgba(200,210,230,0.45);
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-.tab-btn:hover:not(.active) {
-  color: var(--t-silver);
-  background: rgba(255,255,255,0.04);
-}
-.tab-btn.active {
-  background: linear-gradient(135deg, rgba(192,96,240,0.3) 0%, rgba(120,40,200,0.4) 100%);
-  color: #fff;
-  border: 1px solid var(--t-border-purple);
-  box-shadow: 0 3px 14px rgba(192, 96, 240, 0.25), inset 0 1px 0 rgba(255,255,255,0.1);
-}
-
-/* ── Standings Table ───────────────────────────────────────────────── */
-.standings-wrap,
-.history-wrap {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  border-radius: 14px;
-  /* Subtle parchment-style overlay */
-  background:
-    linear-gradient(rgba(10,12,22,0.85), rgba(10,12,22,0.85)),
-    url('/images/rune-bg.png') center / 300px repeat;
-  border: 1px solid var(--t-border);
-  position: relative;
-}
-
-/* Top inner glow stripe */
-.standings-wrap::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--t-border-purple), var(--t-border-gold), var(--t-border-purple), transparent);
-  border-radius: 14px 14px 0 0;
-}
-
-.standings-table {
-  width: 100%;
-  min-width: 560px;
-  border-collapse: separate;
-  border-spacing: 0 3px;
-  padding: 8px 6px;
-}
-
-.standings-table thead tr {
-  position: sticky;
-  top: 0;
-}
-
-.standings-table th {
-  background: rgba(0,0,0,0.45);
-  padding: 12px 14px;
-  font-family: 'Cinzel', serif;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--t-gold-dim);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  border: none;
-}
-.standings-table th:first-child { border-radius: 6px 0 0 6px; }
-.standings-table th:last-child  { border-radius: 0 6px 6px 0; }
-
-.standings-table td {
-  padding: 12px 14px;
-  background: var(--t-bg-row);
-  border: none;
-  font-family: 'Cinzel', serif;
-  font-size: 0.82rem;
-  color: var(--t-silver);
-  transition: background 0.15s;
-  white-space: nowrap;
-}
-.standings-table td:first-child { border-radius: 6px 0 0 6px; padding-left: 16px; }
-.standings-table td:last-child  { border-radius: 0 6px 6px 0; padding-right: 16px; }
-
-.standings-table tr:hover td { background: var(--t-bg-row-hover); }
-
-/* Medal rows */
-.rank-1 td {
-  background: rgba(244, 197, 66, 0.07) !important;
-  border-left: 3px solid var(--t-gold) !important;
-}
-.rank-1 td:first-child::before {
-  content: '🥇 ';
-  font-size: 0.9rem;
-}
-.rank-2 td {
-  background: rgba(192, 192, 192, 0.06) !important;
-  border-left: 3px solid #a8b8c8 !important;
-}
-.rank-2 td:first-child::before {
-  content: '🥈 ';
-  font-size: 0.9rem;
-}
-.rank-3 td {
-  background: rgba(205, 127, 50, 0.06) !important;
-  border-left: 3px solid #cd7f32 !important;
-}
-.rank-3 td:first-child::before {
-  content: '🥉 ';
-  font-size: 0.9rem;
-}
-
-/* ── Badges ─────────────────────────────────────────────────────────── */
-.npc-badge,
-.me-badge {
-  display: inline-block;
-  padding: 1px 7px;
-  border-radius: 4px;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  vertical-align: middle;
-  margin-left: 5px;
-}
-.npc-badge {
-  background: rgba(255,255,255,0.08);
-  color: #8890a0;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.me-badge {
-  background: linear-gradient(135deg, rgba(91,184,240,0.25), rgba(91,184,240,0.1));
-  color: var(--t-blue-ice);
-  border: 1px solid rgba(91,184,240,0.35);
-}
-
-/* ── Matches Section ───────────────────────────────────────────────── */
-.matches-section {
-  margin-bottom: 20px;
-}
-
-.round-label {
-  font-family: 'Cinzel', serif;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--t-gold-dim);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  padding: 8px 4px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.round-label::before,
-.round-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--t-border-gold));
-}
-.round-label::after {
-  background: linear-gradient(90deg, var(--t-border-gold), transparent);
-}
-
-/* ── Match Cards ───────────────────────────────────────────────────── */
-.match-card {
-  background: var(--t-bg-card);
-  border: 1px solid var(--t-border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  margin-bottom: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Sword decal */
-.match-card::before {
-  content: '⚔';
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 2.2rem;
-  opacity: 0.04;
-  pointer-events: none;
-}
-
-.match-card:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: var(--t-border-purple);
-  transform: translateX(4px);
-  box-shadow: -3px 0 0 0 var(--t-purple), 0 4px 20px rgba(0,0,0,0.4);
-}
-
-.match-participant,
-.match-result {
-  font-family: 'Cinzel', serif;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--t-silver);
-}
-
-.match-winner {
-  color: var(--t-gold);
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-family: 'Cinzel', serif;
-}
-.match-loser  { color: rgba(200,210,230,0.3); font-size: 0.78rem; }
-.match-draw   { color: #8890a0; font-size: 0.78rem; }
-
-/* ── Battle Log Button ─────────────────────────────────────────────── */
-.btn-view-log {
-  background: transparent;
-  color: var(--t-purple);
-  border: 1px solid var(--t-border-purple);
-  padding: 8px 20px;
-  border-radius: 8px;
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-view-log:hover {
-  background: var(--t-purple-dim);
-  box-shadow: 0 0 14px var(--t-purple-glow);
-}
-
-/* ── Battle Log Modal ──────────────────────────────────────────────── */
-.battle-log-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(8px);
-  background: rgba(0,0,0,0.85);
-}
-.battle-log-content {
-  background: linear-gradient(145deg, #0a0c1a, #0e1022);
-  border: 2px solid var(--t-border-purple);
-  border-radius: 18px;
-  box-shadow: 0 0 60px rgba(192,96,240,0.2), var(--t-shadow-deep);
-  width: 95%;
-  max-width: 580px;
-  max-height: 80vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-/* Top chrome on modal */
-.battle-log-content::before {
-  content: '';
-  display: block;
-  height: 3px;
-  background: linear-gradient(90deg, var(--t-purple), var(--t-gold), var(--t-purple));
-}
-
-.battle-log-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid var(--t-border);
-}
-.battle-log-title {
-  font-family: 'Cinzel', serif;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--t-gold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.btn-close-log {
-  background: transparent;
-  border: none;
-  color: rgba(200,210,230,0.4);
-  font-size: 1.4rem;
-  cursor: pointer;
-  line-height: 1;
-  padding: 0 4px;
-  transition: color 0.2s;
-}
-.btn-close-log:hover { color: #fff; }
-
-#log-lines {
-  overflow-y: auto;
-  padding: 14px 20px;
-  flex: 1;
-}
-.log-line {
-  font-family: 'IM Fell English', serif;
-  font-size: 0.88rem;
-  color: rgba(200,210,230,0.75);
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  line-height: 1.55;
-}
-.log-line:last-child { border-bottom: none; }
-
-/* ── History Section ───────────────────────────────────────────────── */
-.history-section {
-  padding: 4px 0;
-}
-
-.history-item {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  background: var(--t-bg-card);
-  border: 1px solid var(--t-border);
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 7px;
-  cursor: pointer;
-  font-family: 'Cinzel', serif;
-  font-size: 0.8rem;
-  transition: all 0.2s;
-  color: var(--t-silver);
-}
-.history-item:hover {
-  border-color: var(--t-border-purple);
-  background: rgba(192,96,240,0.05);
-  transform: translateX(3px);
-}
-.h-date {
-  color: rgba(200,210,230,0.45);
-  font-size: 0.72rem;
-  letter-spacing: 0.05em;
-}
-.h-winner {
-  color: var(--t-purple);
-  font-weight: 700;
-}
-.h-npc {
-  color: #8890a0;
-  font-style: italic;
-}
-
-/* ── Back Button ───────────────────────────────────────────────────── */
-.btn-back {
-  background: transparent;
-  border: 1px solid var(--t-border);
-  color: rgba(200,210,230,0.5);
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-bottom: 14px;
-  display: inline-block;
-}
-.btn-back:hover {
-  color: var(--t-silver);
-  border-color: rgba(200,210,230,0.25);
-}
-
-/* ── Section headings inside tab content ───────────────────────────── */
-#tab-matches h3,
-#tab-history h3,
-.history-section h3 {
-  font-family: 'Cinzel', serif;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--t-gold-dim);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  margin: 20px 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-#tab-matches h3::after,
-#tab-history h3::after,
-.history-section h3::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--t-border-gold), transparent);
-}
-
-/* ── Scroll polish ─────────────────────────────────────────────────── */
-#log-lines::-webkit-scrollbar,
-.standings-wrap::-webkit-scrollbar,
-.history-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
-#log-lines::-webkit-scrollbar-track,
-.standings-wrap::-webkit-scrollbar-track,
-.history-wrap::-webkit-scrollbar-track { background: transparent; }
-#log-lines::-webkit-scrollbar-thumb,
-.standings-wrap::-webkit-scrollbar-thumb,
-.history-wrap::-webkit-scrollbar-thumb {
-  background: rgba(192,96,240,0.3);
-  border-radius: 3px;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   MOBILE  ≤ 600px
-   ═══════════════════════════════════════════════════════════════════ */
-@media (max-width: 600px) {
-  .t-banner         { min-height: 130px; }
-  .t-banner-title   { font-size: 1.1rem; }
-  .join-section     { padding: 20px 16px; }
-  .btn-join         { width: 100%; padding: 14px 20px; font-size: 0.9rem; }
-  .match-card       { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .match-card::before { display: none; }
-  .tabs             { flex-wrap: wrap; }
-  .tab-btn          { padding: 9px 5px; font-size: 0.68rem; }
-  .history-item     { grid-template-columns: auto 1fr auto; }
-  .history-item > span:nth-child(2) { display: none; }
-  #tournament-countdown { font-size: 1.5rem; }
+// Auto-load for standalone page
+if (document.getElementById('tab-tournament') === null) {
+  load();
 }
