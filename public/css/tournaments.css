@@ -1,366 +1,213 @@
-let currentTournament = null;
-let myCharId = null;
-
-function getToken() {
-  const t = localStorage.getItem('rpg_token') || sessionStorage.getItem('rpg_token');
-  if (!t) { document.getElementById('main-content').innerHTML = '<div class="no-tournament"><p>Please log in first.</p><a href="/" style="color:#e040ff">Go to game</a></div>'; return null; }
-  return t;
+/* High-Fidelity "Epic" Tournament Overhaul */
+:root {
+  --epic-gold: #f1c40f;
+  --epic-purple: #e040ff;
+  --epic-green: #2ecc71;
+  --epic-red: #e74c3c;
+  --panel-bg: rgba(16, 18, 27, 0.95);
+  --border-glow: rgba(224, 64, 255, 0.2);
 }
 
-async function api(method, path, body) {
-  const token = getToken(); if (!token) throw new Error('No token');
-  const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(path, opts);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || 'Request failed');
-  return data;
+/* Reset & Container */
+#main-content, #tab-tournament {
+  min-height: 80dvh;
+  padding: 10px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-function _tContainer() { return document.getElementById('main-content'); }
+/* Tournament Status Badges */
+.tournament-status {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+.status-pending { background: rgba(241, 196, 15, 0.15); color: var(--epic-gold); border: 1px solid var(--epic-gold); }
+.status-active { background: rgba(46, 204, 113, 0.15); color: var(--epic-green); border: 1px solid var(--epic-green); animation: pulse-green 2s infinite; }
+.status-complete { background: rgba(155, 89, 182, 0.15); color: var(--epic-purple); border: 1px solid var(--epic-purple); }
 
-async function load() {
-  try {
-    const [charData, tournamentData] = await Promise.all([
-      api('GET', '/api/game/character'),
-      api('GET', '/api/tournaments/current')
-    ]);
-    myCharId = charData.id;
-    render(charData, tournamentData);
-  } catch (e) {
-    const c = _tContainer();
-    if (c) c.innerHTML = `<div class="no-tournament">Error loading: ${e.message}</div>`;
-  }
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
 }
 
-let countdownInterval = null;
-
-function render(char, data) {
-  currentTournament = data;
-  if (countdownInterval) clearInterval(countdownInterval);
-
-  if (!data || !data.tournament) {
-    const c = _tContainer();
-    if (!c) return;
-    c.innerHTML = `
-      <div class="no-tournament">
-        <p style="font-size:1.2rem; font-weight:700; color:var(--epic-gold);">⚔️ The Arena awaits its next champion.</p>
-        <div id="tournament-countdown" style="font-size:2.5rem; font-weight:900; color:#fff; margin:20px 0;">--:--:--</div>
-        <p style="font-size:0.9rem; color:#8890a0; text-transform:uppercase; letter-spacing:2px;">until registration opens</p>
-      </div>`;
-    startCountdown(data.nextTournamentTime);
-    return;
-  }
-  const t = data.tournament;
-  let participants = data.participants || [];
-  const matches = data.matches || [];
-  const myEntry = participants.find(p => p.char_id === myCharId);
-  const statusClass = `status-${t.status}`;
-  const statusLabel = t.status === 'pending' ? '⏳ REGISTRATION OPEN' : t.status === 'active' ? '⚔️ BATTLE IN PROGRESS' : '🏆 TOURNAMENT COMPLETE';
-  
-  const modeLabels = {
-    normal: '🏁 Normal (10 rounds)',
-    damage: '💥 Damage (highest dealt wins)',
-    least_damage: '🛡️ Least Damage Taken wins',
-    elimination: '🗡️ Elimination (single-elimination)',
-    deathmatch: '💀 Deathmatch (unlimited)',
-    no_equip: '⚔️ No Equipment (stats only)',
-    all_vs_all: '👥 All vs All (last standing)'
-  };
-  const modeLabel = modeLabels[t.mode] || t.mode;
-  const isDamageMode = t.mode === 'damage' || t.mode === 'least_damage';
-  const isAllVsAll = t.mode === 'all_vs_all';
-
-  if (isAllVsAll) {
-    participants = [...participants].sort((a, b) => {
-      if (a.eliminated_round === null) return -1;
-      if (b.eliminated_round === null) return 1;
-      return b.eliminated_round - a.eliminated_round;
-    });
-  } else if (t.mode === 'elimination') {
-    participants = [...participants].sort((a, b) => (b.wins || 0) - (a.wins || 0));
-  } else if (isDamageMode) {
-    participants = [...participants].sort((a, b) => t.mode === 'damage'
-      ? (b.total_damage_dealt || 0) - (a.total_damage_dealt || 0)
-      : (a.total_damage_taken || 0) - (b.total_damage_taken || 0));
-  }
-
-  const roundGroups = {};
-  for (const m of matches) {
-    if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
-    roundGroups[m.round_index].push(m);
-  }
-  const rounds = Object.keys(roundGroups).sort((a,b) => a-b);
-
-  function standingsHeaders() {
-    if (t.mode === 'damage') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>DEALT</th><th>TAKEN</th>';
-    if (t.mode === 'least_damage') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>TAKEN</th><th>DEALT</th>';
-    if (t.mode === 'all_vs_all') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>ELIM.</th><th>W</th><th>L</th>';
-    if (t.mode === 'elimination') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>W</th><th>L</th>';
-    return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>PTS</th><th>W</th><th>L</th><th>D</th>';
-  }
-
-  function standingsRow(p, i) {
-    const rankCls = i < 3 ? ` rank-${i+1}` : '';
-    const pName = esc(p.name);
-    const badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
-    const cls = `style="font-size:0.72rem;color:#8890a0;text-transform:uppercase"`;
-    if (t.mode === 'damage') {
-      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:var(--epic-red)">${p.total_damage_dealt||0}</td><td style="color:var(--epic-gold)">${p.total_damage_taken||0}</td></tr>`;
-    }
-    if (t.mode === 'least_damage') {
-      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:var(--epic-green)">${p.total_damage_taken||0}</td><td style="color:#8890a0">${p.total_damage_dealt||0}</td></tr>`;
-    }
-    if (t.mode === 'all_vs_all') {
-      const elim = p.eliminated_round ? `#${p.eliminated_round}` : '🏆';
-      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:${p.eliminated_round ? 'var(--epic-red)' : 'var(--epic-gold)'}">${elim}</td><td style="color:var(--epic-green)">${p.wins}</td><td style="color:var(--epic-red)">${p.losses}</td></tr>`;
-    }
-    if (t.mode === 'elimination') {
-      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="color:var(--epic-green)">${p.wins||0}</td><td style="color:var(--epic-red)">${p.losses||0}</td></tr>`;
-    }
-    return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:${p.points >= 6 ? 'var(--epic-green)' : p.points >= 3 ? 'var(--epic-gold)' : '#fff'}">${p.points}</td><td style="color:var(--epic-green)">${p.wins}</td><td style="color:var(--epic-red)">${p.losses}</td><td style="color:var(--epic-gold)">${p.draws}</td></tr>`;
-  }
-
-  const c = _tContainer();
-  if (!c) return;
-  c.innerHTML = `
-    <div style="text-align:center;margin-bottom:24px">
-      <div class="tournament-status ${statusClass}">${statusLabel}</div>
-      <div class="mode-label-epic">${modeLabel}</div>
-      <div style="font-size:0.85rem;color:#8890a0;font-weight:600">${participants.length} ELITE FIGHTERS</div>
-    </div>
-    
-    ${t.status === 'pending' ? `
-      <div class="join-section">
-        <div id="tournament-countdown" style="font-size:1.8rem; font-weight:900; color:var(--epic-gold); margin-bottom:15px;">--:--:--</div>
-        <div class="cost" style="font-size:1rem; margin-bottom:20px;">ENTRY FEE: <strong style="color:var(--epic-gold)">500 GOLD</strong>${myEntry ? '' : `<br><span style="font-size:0.8rem">YOUR COINS: ${char.gold}G</span>`}</div>
-        ${myEntry ? '<div style="color:var(--epic-green);font-size:1.1rem;font-weight:800;letter-spacing:1px">✅ REGISTERED</div>'
-                 : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
-                      ${char.gold < 500 ? 'INSUFFICIENT GOLD' : 'ENTER THE ARENA'}
-                    </button>`}
-        ${participants.length > 0 ? `
-          <div style="margin-top:20px;font-size:0.8rem;color:#8890a0;font-style:italic">
-            ${participants.length < 8 ? `⚔️ ${8 - participants.length} more challengers required` : '🔥 The Arena is ready for blood!'}
-          </div>` : ''}
-      </div>` : ''}
-
-    ${t.status === 'active' ? `
-      <div style="text-align:center;font-size:0.9rem;color:var(--epic-gold);margin-bottom:24px;padding:15px;background:rgba(241,196,15,0.05);border-radius:10px;border:1px solid rgba(241,196,15,0.1)">
-        ⚔️ THE CLASH HAS BEGUN! REFRESH TO SEE NEW GLORY.
-      </div>` : ''}
-
-    ${t.status === 'complete' ? `
-      <div style="text-align:center;margin-bottom:24px;padding:20px;background:rgba(224,64,255,0.05);border-radius:15px;border:1px solid var(--border-glow)">
-        ${t.winner_is_npc
-          ? `<div style="color:#8890a0;font-size:1rem;font-weight:700">🤖 THE ARENA RECLAIMS ITS CROWN — NPC VICTORIOUS</div>`
-          : `<div style="color:var(--epic-purple);font-size:1.4rem;font-weight:900;text-shadow:0 0 10px rgba(224,64,255,0.4)">🏆 CHAMPION: ${participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown'}</div>`}
-        ${myEntry ? `<div style="margin-top:10px;font-size:0.95rem;color:#c8d0e0">YOUR RANK: <strong style="color:var(--epic-gold)">#${participants.indexOf(myEntry) + 1}</strong> OF ${participants.length}</div>` : ''}
-      </div>` : ''}
-
-    <div class="tabs">
-      <button class="tab-btn active" data-action="tab" data-tab="standings">STANDINGS</button>
-      <button class="tab-btn" data-action="tab" data-tab="matches">MATCHES (${matches.length})</button>
-      <button class="tab-btn" data-action="tab" data-tab="history">HISTORY</button>
-    </div>
-
-    <div id="tab-standings">
-      <div class="standings-wrap">
-        <table class="standings-table">
-          <thead><tr>${standingsHeaders()}</tr></thead>
-          <tbody>${participants.map((p,i) => standingsRow(p, i)).join('')}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="tab-matches" style="display:none">
-      ${rounds.length === 0 ? '<div style="color:#8890a0;text-align:center;padding:40px;font-style:italic">The blades have not yet met...</div>' : rounds.map(r => `
-        <div class="matches-section">
-          <div class="round-label">ROUND ${+r + 1}</div>
-          ${roundGroups[r].map(m => {
-            const p1 = participants.find(p => p.id === m.participant1_id);
-            const p2 = participants.find(p => p.id === m.participant2_id);
-            const w = m.winner_id ? participants.find(p => p.id === m.winner_id) : null;
-            const winnerName = w?.name || 'Unknown';
-            const isDraw = m.is_draw;
-            var bl = m.battle_log; if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } } if (!Array.isArray(bl)) bl = [];
-            const logStr = escJson(JSON.stringify(bl));
-            return `<div class="match-card" data-action="showLog" data-log='${logStr}'>
-              <div class="match-result">
-                <span class="match-participant">${p1?.name || '?'}</span>
-                ${isDraw ? '<span class="match-draw" style="margin:0 10px">VS</span>' : w?.id === m.participant1_id ? '<span class="match-winner" style="margin:0 10px">▶</span>' : '<span class="match-loser" style="margin:0 10px">◀</span>'}
-                <span class="match-participant">${p2?.name || '?'}</span>
-              </div>
-              <div style="text-align:right;font-size:0.75rem;font-weight:700">
-                ${isDraw ? '<span class="match-draw">DRAW</span>' : `<span class="match-winner">${winnerName.toUpperCase()} VICTORIOUS</span>`}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>`).join('')}
-    </div>
-
-    <div id="tab-history" style="display:none">
-      <div class="history-section" id="history-list">
-        <div style="color:#8890a0;text-align:center;padding:40px">Consulting the ancient scrolls...</div>
-      </div>
-    </div>
-  `;
-  if (t.status === 'complete') loadHistory();
-  if (t.status === 'pending' || !data.tournament) startCountdown(data.nextTournamentTime);
+/* Epic Mode Label */
+.mode-label-epic {
+  font-family: 'Cinzel', serif;
+  background: linear-gradient(90deg, transparent, rgba(224,64,255,0.1), transparent);
+  padding: 10px;
+  margin: 10px 0;
+  color: #fff;
+  text-shadow: 0 0 8px var(--epic-purple);
+  font-weight: 700;
 }
 
-function startCountdown(targetTime) {
-  if (!targetTime) return;
-  const el = document.getElementById('tournament-countdown');
-  if (!el) return;
-
-  function update() {
-    const now = Date.now();
-    const diff = targetTime - now;
-    if (diff <= 0) {
-      el.textContent = "00:00:00";
-      clearInterval(countdownInterval);
-      return;
-    }
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    el.textContent = [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
-  }
-
-  update();
-  countdownInterval = setInterval(update, 1000);
+/* Join Section Overhaul */
+.join-section {
+  background: var(--panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 30px;
+  text-align: center;
+  margin: 20px 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+}
+.join-section::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle, var(--border-glow) 0%, transparent 70%);
+  pointer-events: none;
 }
 
-function escJson(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+.btn-join {
+  background: linear-gradient(135deg, #e040ff, #7000ff);
+  color: #fff;
+  border: none;
+  padding: 16px 48px;
+  border-radius: 50px;
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 5px 15px rgba(112, 0, 255, 0.4);
+  text-transform: uppercase;
+}
+.btn-join:hover {
+  transform: scale(1.05) translateY(-3px);
+  box-shadow: 0 10px 30px rgba(112, 0, 255, 0.6);
 }
 
-function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
-
-async function joinTournament() {
-  try {
-    const btn = document.querySelector('.btn-join');
-    if (btn) { btn.disabled = true; btn.textContent = 'Joining...'; }
-    await api('POST', '/api/tournaments/join');
-    await load();
-  } catch (e) {
-    alert(e.message);
-    await load();
-  }
+/* Table Responsiveness & Layout */
+.standings-wrap, .history-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 15px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.2);
 }
 
-function switchTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
-  document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
-  document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
-  if (tab === 'history') loadHistory();
+.standings-table {
+  width: 100%;
+  min-width: 600px; /* Force minimum width to prevent squashing */
+  border-collapse: separate;
+  border-spacing: 0 4px;
 }
 
-async function loadHistory() {
-  const el = document.getElementById('history-list');
-  if (!el) return;
-  try {
-    const list = await api('GET', '/api/tournaments');
-    const completed = list.filter(t => t.status === 'complete');
-    if (completed.length === 0) {
-      el.innerHTML = '<div style="color:#8890a0;text-align:center;padding:20px">No tournaments completed yet</div>';
-      return;
-    }
-    el.innerHTML = completed.map(t => {
-      const date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
-      const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
-      return `<div class="history-item" data-action="viewHistory" data-id="${t.id}">
-        <span class="h-date">${date}</span>
-        <span>${t.participant_count || '?'} fighters</span>
-        <span>${t.winner_is_npc ? '<span class="h-npc">NPC win</span>' : winner}</span>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    el.innerHTML = `<div style="color:#e74c3c;text-align:center">Error loading history</div>`;
-  }
+.standings-table th {
+  background: rgba(0,0,0,0.4);
+  padding: 15px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 700;
+  border: none;
 }
 
-function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-async function viewHistory(tournamentId) {
-  const el = document.getElementById('history-list');
-  if (!el) return;
-  try {
-    const data = await api('GET', '/api/tournaments/' + tournamentId);
-    const t = data.tournament;
-    const participants = data.participants || [];
-    const matches = data.matches || [];
-    const myEntry = participants.find(p => p.char_id === myCharId);
-    var html = '<button class="btn-back" data-action="loadHistory">← Back to History</button>';
-    html += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
-    if (t.winner_is_npc) {
-      html += '<span style="color:#8890a0">🤖 NPC won</span>';
-    } else {
-      var winnerName2 = esc((participants.find(function(p) { return p.char_id === t.winner_char_id; })||{}).name || 'Unknown');
-      html += '<span style="color:#e040ff;font-weight:700">🏆 Winner: ' + winnerName2 + '</span>';
-    }
-    if (myEntry) {
-      html += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
-    }
-    html += '</div>';
-    html += '<div class="history-wrap"><table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
-    participants.forEach(function(p, i) {
-      var pName = esc(p.name);
-      html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
-    });
-    html += '</tbody></table></div>';
-    if (matches.length > 0) {
-      html += '<h3 style="margin-top:16px">Matches</h3>';
-      const roundGroups = {};
-      matches.forEach(function(m) {
-        if (!roundGroups[m.round_index]) roundGroups[m.round_index] = [];
-        roundGroups[m.round_index].push(m);
-      });
-      var sortedRounds = Object.keys(roundGroups).sort(function(a,b) { return a - b; });
-      sortedRounds.forEach(function(r) {
-        html += '<div class="matches-section"><div class="round-label">Round ' + (+r + 1) + '</div>';
-        roundGroups[r].forEach(function(m) {
-          var p1n = esc((participants.find(function(p) { return p.id === m.participant1_id; })||{}).name || '?');
-          var p2n = esc((participants.find(function(p) { return p.id === m.participant2_id; })||{}).name || '?');
-          var w = null;
-          if (m.winner_id) w = participants.find(function(p) { return p.id === m.winner_id; });
-          var wn = esc((w||{}).name || 'Unknown');
-          var isDraw = m.is_draw;
-          var bl2 = m.battle_log; if (typeof bl2 === 'string') { try { bl2 = JSON.parse(bl2); } catch { bl2 = []; } } if (!Array.isArray(bl2)) bl2 = [];
-          var logStr = escJson(JSON.stringify(bl2));
-          html += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
-        });
-        html += '</div>';
-      });
-    }
-    el.innerHTML = html;
-  } catch (e) {
-    el.innerHTML = '<div style="color:#e74c3c;text-align:center">Error: ' + e.message + '</div>';
-  }
+.standings-table td {
+  padding: 14px 15px;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
 }
 
-function showBattleLog(logStr) {
-  let log;
-  try { log = JSON.parse(logStr); } catch { log = []; }
-  document.getElementById('log-lines').innerHTML = (log||[]).map(l => `<div class="log-line">${l}</div>`).join('');
-  document.getElementById('battle-log-modal').style.display = 'flex';
+.standings-table tr:hover td {
+  background: rgba(255, 255, 255, 0.07);
 }
 
-function closeLog() {
-  document.getElementById('battle-log-modal').style.display = 'none';
+.rank-1 td { background: rgba(241, 196, 15, 0.08) !important; border-left: 3px solid var(--epic-gold); }
+.rank-2 td { background: rgba(192, 192, 192, 0.08) !important; border-left: 3px solid #c0c0c0; }
+.rank-3 td { background: rgba(205, 127, 50, 0.08) !important; border-left: 3px solid #cd7f32; }
+
+/* Match Cards */
+.match-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items:center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+.match-card:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--epic-purple);
+  transform: translateX(5px);
 }
 
-document.addEventListener('click', function(e) {
-  const el = e.target.closest('[data-action]');
-  if (!el) return;
-  const action = el.dataset.action;
-  if (action === 'joinTournament') { e.preventDefault(); joinTournament(); }
-  else if (action === 'tab') { switchTab(el.dataset.tab); }
-  else if (action === 'showLog') { showBattleLog(el.dataset.log); }
-  else if (action === 'closeLog') { closeLog(); }
-  else if (action === 'viewHistory') { viewHistory(Number(el.dataset.id)); }
-  else if (action === 'loadHistory') { loadHistory(); }
-});
+.match-participant {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
 
-load();
+/* Tabs */
+.tabs {
+  background: rgba(0,0,0,0.3);
+  padding: 5px;
+  border-radius: 12px;
+  display: flex;
+  gap: 5px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: var(--epic-purple);
+  color: white;
+  box-shadow: 0 4px 15px rgba(224, 64, 255, 0.3);
+}
+
+/* Battle Log Modal */
+.battle-log-modal {
+  backdrop-filter: blur(10px);
+  background: rgba(0,0,0,0.85);
+}
+.battle-log-content {
+  background: #0d0f1a;
+  border: 2px solid var(--epic-purple);
+  box-shadow: 0 0 50px rgba(224,64,255,0.2);
+  width: 95%;
+  max-width: 600px;
+}
+
+/* Countdown */
+#tournament-countdown {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+  text-shadow: 0 0 15px rgba(241, 196, 15, 0.5);
+}
+
+/* Mobile Tweaks */
+@media (max-width: 600px) {
+  #main-content, #tab-tournament { padding: 6px; }
+  .join-section { padding: 20px; }
+  .btn-join { width: 100%; padding: 14px 20px; font-size: 1rem; }
+  .match-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .match-result { width: 100%; }
+  .tabs { flex-wrap: wrap; }
+  .tab-btn { padding: 10px 5px; font-size: 0.75rem; }
+  .standings-table { min-width: 500px; }
+  .history-wrap { margin-top: 10px; }
+}
+@media (max-width: 400px) {
+  .standings-table { min-width: 400px; }
+}
