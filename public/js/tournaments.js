@@ -135,11 +135,10 @@ function render(char, data) {
   c.innerHTML = `
     <div class="t-banner" style="text-align:center;margin-bottom:20px;position:relative;display:inline-block;width:100%">
       <img src="/images/tournaments/banner.png" alt="" style="display:block;width:486px;max-width:100%;height:auto;margin:0 auto">
-      <div style="position:absolute;top:25px;left:0;right:0;text-align:center;pointer-events:none;font-family:'Cinzel Decorative',serif;font-size:clamp(1rem,3vw,1.6rem);font-weight:900;color:#f4c542;text-shadow:0 0 20px rgba(244,197,66,0.4),0 2px 6px rgba(0,0,0,0.9);letter-spacing:0.1em;text-transform:uppercase">${t.mode.replace(/_/g,' ')}</div>
+      <div style="position:absolute;top:25px;left:0;right:0;text-align:center;pointer-events:none;font-family:'Cinzel Decorative','Cinzel',serif;font-size:clamp(1.1rem,3.5vw,1.8rem);font-weight:900;color:#fff;text-shadow:0 0 30px rgba(244,197,66,0.5),0 0 15px rgba(0,0,0,0.8),0 2px 8px rgba(0,0,0,0.9);letter-spacing:0.15em;text-transform:uppercase;-webkit-text-stroke:1px rgba(0,0,0,0.6)">${t.mode.replace(/_/g,' ')}</div>
     </div>
     <div class="t-header-row">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
-      <span class="mode-label-epic">${modeLabel}</span>
       <span>${participants.length} fighters</span>
     </div>
     <div class="t-divider">⟡</div>
@@ -147,7 +146,7 @@ function render(char, data) {
       <div class="join-section">
         <div class="join-banner-placeholder">⚔ Tournament Arena ⚔</div>
         <div id="tournament-countdown">--:--:--</div>
-        <div class="cost">Entry fee: <strong>500g</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold}g</strong>`}</div>
+        <div class="cost">Entry fee: <strong>500 GOLD</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold} GOLD</strong>`}</div>
         ${myEntry
           ? '<div class="joined-badge">✅ Enlisted for Battle</div>'
           : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
