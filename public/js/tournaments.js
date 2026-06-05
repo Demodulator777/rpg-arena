@@ -133,17 +133,13 @@ function render(char, data) {
   const c = _tContainer();
   if (!c) return;
   c.innerHTML = `
-    <div class="t-banner">
-      <div class="t-banner-img"></div>
-      <div class="t-banner-overlay"></div>
-      <div class="t-banner-content">
-        <div class="t-banner-title">${esc(t.name || 'Tournament Arena')}</div>
-        <div class="t-banner-sub">${modeLabel}</div>
-      </div>
+    <div class="t-banner" style="text-align:center;margin-bottom:20px">
+      <img src="/images/tournaments/banner.png" alt="" style="display:block;width:486px;max-width:100%;height:auto;margin:0 auto">
     </div>
     <div class="t-header-row">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
-      <span class="mode-label-epic">${participants.length} fighters</span>
+      <span class="mode-label-epic">${modeLabel}</span>
+      <span>${participants.length} fighters</span>
     </div>
     <div class="t-divider">⟡</div>
     ${t.status === 'pending' ? `
