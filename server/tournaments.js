@@ -514,16 +514,7 @@ function deathmatchBattle(fighterA, fighterB) {
       if (resurrected) { log.push('---'); continue; }
 
       if (hpA <= 0 && hpB <= 0) {
-        if (totalDmgToB === totalDmgToA) {
-          const tieA = hasClassModifier(fighterB, 'tie_breaker');
-          const tieB = hasClassModifier(fighterA, 'tie_breaker');
-          if (tieA) { log.push(`Round ${round}: Both fighters fall — but ${fighterA.name} breaks the tie!`); winnerId = fighterA.id; }
-          else if (tieB) { log.push(`Round ${round}: Both fighters fall — but ${fighterB.name} breaks the tie!`); winnerId = fighterB.id; }
-          else { log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0; }
-        } else {
-          log.push(`Round ${round}: Both fighters fall simultaneously!`);
-          winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-        }
+        log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0;
       } else if (hpA <= 0) {
         log.push(`Round ${round}: ${fighterA.name} has fallen!`);
         winnerId = fighterB.id;
@@ -638,16 +629,7 @@ function normalBattle(fighterA, fighterB) {
       if (resurrected) { log.push('---'); continue; }
 
       if (hpA <= 0 && hpB <= 0) {
-        if (totalDmgToB === totalDmgToA) {
-          const tieA = hasClassModifier(fighterB, 'tie_breaker');
-          const tieB = hasClassModifier(fighterA, 'tie_breaker');
-          if (tieA) { log.push(`Round ${round}: Both fighters fall — but ${fighterA.name} breaks the tie!`); winnerId = fighterA.id; }
-          else if (tieB) { log.push(`Round ${round}: Both fighters fall — but ${fighterB.name} breaks the tie!`); winnerId = fighterB.id; }
-          else { log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0; }
-        } else {
-          log.push(`Round ${round}: Both fighters fall simultaneously!`);
-          winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-        }
+        log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0;
       } else if (hpA <= 0) {
         log.push(`Round ${round}: ${fighterA.name} has fallen!`);
         winnerId = fighterB.id;
