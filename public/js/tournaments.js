@@ -456,9 +456,24 @@ function spawnRain() {
   var rain = document.createElement('div');
   rain.id = 'tournament-rain';
   document.body.appendChild(rain);
+
+  // inject dynamic keyframes with per-drop endY
+  var kfStyle = document.createElement('style');
+  kfStyle.id = 'rain-keyframes';
+  var kfBuf = '';
   var rgbOptions = ['244,197,66', '192,96,240', '91,184,240'];
   var count = Math.floor(window.innerWidth / 14) + 35;
   for (var i = 0; i < count; i++) {
+    var endY = 200 + Math.random() * 150;
+    kfBuf += '@keyframes rainKF' + i + '{' +
+      '0%{transform:translateY(-130px) scaleY(0.3) scaleX(0.5);opacity:0}' +
+      '12%{transform:translateY(' + (endY * 0.08) + 'px) scaleY(0.6) scaleX(0.7);opacity:1}' +
+      '35%{transform:translateY(' + (endY * 0.3) + 'px) scaleY(1.1) scaleX(1);opacity:1}' +
+      '60%{transform:translateY(' + (endY * 0.55) + 'px) scaleY(1) scaleX(0.8);opacity:0.7}' +
+      '80%{transform:translateY(' + (endY * 0.75) + 'px) scaleY(0.7) scaleX(0.5);opacity:0.3}' +
+      '100%{transform:translateY(' + endY + 'px) scaleY(0.15) scaleX(0.2);opacity:0}' +
+    '}';
+
     var d = document.createElement('div');
     d.className = 'rain-drop';
     var h = 20 + Math.random() * 110;
@@ -466,16 +481,20 @@ function spawnRain() {
     var rgb = rgbOptions[Math.floor(Math.random() * rgbOptions.length)];
     var op = 0.06 + Math.random() * 0.22;
     var left = Math.random() * window.innerWidth;
-    var dur = 2 + Math.random() * 4.5;
+    var dur = 2.5 + Math.random() * 4;
     var delay = -(Math.random() * dur);
-    d.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + left + 'px;background:rgba(' + rgb + ',' + op + ');animation-duration:' + dur + 's;animation-delay:' + delay + 's';
+    d.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + left + 'px;background:rgba(' + rgb + ',' + op + ');animation-name:rainKF' + i + ';animation-duration:' + dur + 's;animation-delay:' + delay + 's';
     rain.appendChild(d);
   }
+  kfStyle.textContent = kfBuf;
+  document.head.appendChild(kfStyle);
 }
 
 function clearRain() {
   var e = document.getElementById('tournament-rain');
   if (e) e.remove();
+  var ks = document.getElementById('rain-keyframes');
+  if (ks) ks.remove();
 }
 
 // Auto-show/hide rain when tournament tab gains/loses .active
