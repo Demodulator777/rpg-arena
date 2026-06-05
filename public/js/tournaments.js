@@ -283,7 +283,7 @@ async function tournamentLoadHistory() {
     }
     el.innerHTML = completed.map(t => {
       const date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
-      const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
+      const winner = t.winner_name ? `<span class="h-winner">${esc(t.winner_name)}</span>` : '<span class="h-npc">NPC</span>';
       const modeHints = { normal:'🏁', damage:'💥', least_damage:'🛡️', elimination:'🗡️', deathmatch:'💀', no_equip:'⚔️', all_vs_all:'👥' };
       const modeIcon = modeHints[t.mode] || '🏟️';
       return `<div class="history-item" data-action="tournamentViewHistory" data-args='[${t.id}]'>
