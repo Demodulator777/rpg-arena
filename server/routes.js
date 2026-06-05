@@ -11547,7 +11547,6 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
       ended = true;
       outcome = 'player_dead';
     } else if (escaped) {
-      ended = true;
       outcome = 'escaped';
     } else if (aliveMonsters().length === 0) {
       ended = true;
