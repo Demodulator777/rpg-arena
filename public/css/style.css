@@ -1865,7 +1865,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 #screen-game.active::before {
   content: '';
   position: fixed;
-  top: 56px;
+  top: var(--topbar-h);
   left: 0;
   right: 0;
   bottom: 0;
