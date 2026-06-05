@@ -1861,8 +1861,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .game-tab { display: none; position: relative; z-index: 1; }
 .game-tab.active { display: block; }
 
-
-
 #chat-widget-root {
     position: fixed;
     right: 18px;
