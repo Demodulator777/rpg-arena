@@ -135,7 +135,7 @@ function render(char, data) {
   c.innerHTML = `
     <div class="t-banner" style="text-align:center;margin-bottom:20px;position:relative;display:inline-block;width:100%">
       <img src="/images/tournaments/banner.png" alt="" style="display:block;width:486px;max-width:100%;height:auto;margin:0 auto">
-      <div class="t-banner-mode" style="position:absolute;left:0;right:0;text-align:center;pointer-events:none;font-family:'Marcellus',serif;font-size:clamp(1.2rem,3.5vw,2rem);font-weight:900;color:#f5e6c8;text-shadow:0 0 40px rgba(244,197,66,0.6),0 0 20px rgba(0,0,0,0.9),0 4px 12px rgba(0,0,0,1);letter-spacing:0.2em;text-transform:uppercase;-webkit-text-stroke:2px rgba(0,0,0,0.8)">${t.mode.replace(/_/g,' ')}</div></div>
+      <div class="t-banner-mode" style="position:absolute;left:0;right:0;text-align:center;pointer-events:none;font-family:'Marcellus',serif;font-size:clamp(1.2rem,3.5vw,2rem);font-weight:900;color:#fff9ec;text-shadow:0 0 30px rgba(244,197,66,0.5),0 2px 4px rgba(0,0,0,0.6);letter-spacing:0.2em;text-transform:uppercase;-webkit-text-stroke:1px rgba(0,0,0,0.5)">${t.mode.replace(/_/g,' ')}</div>
     </div>
     <div class="t-header-row">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
