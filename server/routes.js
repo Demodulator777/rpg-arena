@@ -6997,11 +6997,11 @@ router.post('/upgrade', auth, async (req, res) => {
         if (hasPremium(activePrem, 'apprentice')) cost = Math.max(1, Math.floor(cost * 0.80));
         
         const result = await dbRun(db,
-            `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE user_id=? AND gold>=?`,
-            [cost, req.user.userId, cost]
+            `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE id=? AND gold>=?`,
+            [cost, char.id, cost]
         );
         if (!result.rowsAffected && result.rowsAffected !== undefined ? true : result.changes === 0) {
-            const fresh = await dbGet(db, 'SELECT gold FROM characters WHERE user_id=?', [req.user.userId]);
+            const fresh = await dbGet(db, 'SELECT gold FROM characters WHERE id=?', [char.id]);
             return res.status(400).json({ error: `Need ${cost} gold, have ${fresh?.gold ?? 0}.` });
         }
         
