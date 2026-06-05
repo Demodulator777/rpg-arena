@@ -135,7 +135,7 @@ function render(char, data) {
   c.innerHTML = `
     <div class="t-banner" style="text-align:center;margin-bottom:20px;position:relative;display:inline-block;width:100%">
       <img src="/images/tournaments/banner.png" alt="" style="display:block;width:486px;max-width:100%;height:auto;margin:0 auto">
-      <div style="position:absolute;top:25px;left:0;right:0;text-align:center;pointer-events:none;font-family:'Cinzel Decorative','Cinzel',serif;font-size:clamp(1.1rem,3.5vw,1.8rem);font-weight:900;color:#fff;text-shadow:0 0 30px rgba(244,197,66,0.5),0 0 15px rgba(0,0,0,0.8),0 2px 8px rgba(0,0,0,0.9);letter-spacing:0.15em;text-transform:uppercase;-webkit-text-stroke:1px rgba(0,0,0,0.6)">${t.mode.replace(/_/g,' ')}</div>
+      <div style="position:absolute;top:25px;left:0;right:0;text-align:center;pointer-events:none;font-family:'Marcellus',serif;font-size:clamp(1.2rem,3.5vw,2rem);font-weight:400;color:#fff;text-shadow:0 0 30px rgba(244,197,66,0.5),0 0 15px rgba(0,0,0,0.8),0 2px 8px rgba(0,0,0,0.9);letter-spacing:0.18em;text-transform:uppercase;-webkit-text-stroke:1px rgba(0,0,0,0.6)">${t.mode.replace(/_/g,' ')}</div>
     </div>
     <div class="t-header-row">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
@@ -340,7 +340,7 @@ async function tournamentViewHistory(tournamentId) {
       var dmgHdr = t.mode === 'damage'
         ? '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Dealt</th><th>Taken</th>'
         : '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Taken</th><th>Dealt</th>';
-      html += '<table class="standings-table"><thead><tr>' + dmgHdr + '</tr></thead><tbody>';
+      html += '<div class="standings-wrap"><table class="standings-table"><thead><tr>' + dmgHdr + '</tr></thead><tbody>';
       participants.forEach(function(p, i) {
         var pName = esc(p.name);
         var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
@@ -350,31 +350,31 @@ async function tournamentViewHistory(tournamentId) {
           html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#2ecc71">' + (p.total_damage_taken || 0) + '</td><td style="color:#8890a0">' + (p.total_damage_dealt || 0) + '</td></tr>';
         }
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     } else if (isAllVsAll) {
-      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th></tr></thead><tbody>';
+      html += '<div class="standings-wrap"><table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th></tr></thead><tbody>';
       participants.forEach(function(p, i) {
         var pName = esc(p.name);
         var elim = p.eliminated_round ? '#' + p.eliminated_round : '🏆';
         var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
         html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.eliminated_round ? '#e74c3c' : '#f1c40f') + '">' + elim + '</td><td style="color:#2ecc71">' + (p.wins || 0) + '</td><td style="color:#e74c3c">' + (p.losses || 0) + '</td></tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     } else if (t.mode === 'elimination') {
-      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th></tr></thead><tbody>';
+      html += '<div class="standings-wrap"><table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th></tr></thead><tbody>';
       participants.forEach(function(p, i) {
         var pName = esc(p.name);
         var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
         html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="color:#2ecc71">' + (p.wins || 0) + '</td><td style="color:#e74c3c">' + (p.losses || 0) + '</td></tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     } else {
-      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
+      html += '<div class="standings-wrap"><table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
       participants.forEach(function(p, i) {
         var pName = esc(p.name);
         html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     }
     if (t.mode === 'all_vs_all' && t.battle_log) {
       html += '<h3 style="margin-top:16px">Battle Log</h3>';
