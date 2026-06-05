@@ -894,7 +894,12 @@ async function dbRun_t(db, sql, args = []) { return db.execute({ sql, args }); }
 router.get('/tournaments', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const list = await dbAll_t(db, 'SELECT * FROM tournaments ORDER BY id DESC LIMIT 20');
+    const list = await dbAll_t(db, `
+      SELECT t.*, p.name AS winner_name
+      FROM tournaments t
+      LEFT JOIN tournament_participants p ON p.tournament_id = t.id AND p.char_id = t.winner_char_id AND t.winner_is_npc = 0
+      ORDER BY t.id DESC LIMIT 20
+    `);
     res.json(list);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
