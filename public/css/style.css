@@ -1861,6 +1861,37 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .game-tab { display: none; position: relative; z-index: 1; }
 .game-tab.active { display: block; }
 
+/* ── Page Decals: geometric background pattern ─────────────────────── */
+#screen-game.active::before {
+  content: '';
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    /* tall 45° gold lines (thin) */
+    repeating-linear-gradient(45deg, transparent, transparent 120px, rgba(244,197,66,0.04) 120px, rgba(244,197,66,0.04) 121px),
+    /* wide 45° purple lines (thick, offset) */
+    repeating-linear-gradient(45deg, transparent, transparent 200px, rgba(192,96,240,0.03) 200px, rgba(192,96,240,0.03) 205px),
+    /* short 45° gold dashes */
+    repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(244,197,66,0.025) 60px, rgba(244,197,66,0.025) 62px, transparent 62px, transparent 80px),
+    /* -45° ice-blue thin lines */
+    repeating-linear-gradient(-45deg, transparent, transparent 160px, rgba(91,184,240,0.025) 160px, rgba(91,184,240,0.025) 161px),
+    /* triangles using hard 135° stops */
+    linear-gradient(135deg, rgba(244,197,66,0.035) 33%, transparent 33%) 30px 60px / 120px 120px,
+    linear-gradient(135deg, transparent 67%, rgba(192,96,240,0.025) 67%) 90px 0 / 90px 90px,
+    /* small scattered triangles */
+    linear-gradient(135deg, rgba(91,184,240,0.02) 50%, transparent 50%) 200px 300px / 60px 60px,
+    linear-gradient(135deg, transparent 50%, rgba(244,197,66,0.02) 50%) 400px 150px / 80px 80px,
+    /* wide diagonal bands */
+    repeating-linear-gradient(65deg, transparent, transparent 300px, rgba(244,197,66,0.02) 300px, rgba(244,197,66,0.02) 315px),
+    repeating-linear-gradient(-65deg, transparent, transparent 500px, rgba(192,96,240,0.015) 500px, rgba(192,96,240,0.015) 510px);
+}
+/* Ensure tab content sits above decals */
+
 #chat-widget-root {
     position: fixed;
     right: 18px;
