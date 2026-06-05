@@ -845,7 +845,7 @@
   top: var(--topbar-h);
   left: 0;
   right: 0;
-  height: 200px;
+  height: 350px;
   pointer-events: none;
   z-index: 0;
   overflow: hidden;
@@ -856,17 +856,8 @@
   top: 0;
   border-radius: 1px;
   will-change: transform;
-  animation-name: rain-fall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-}
-
-@keyframes rain-fall {
-  0%   { transform: translateY(-140px) scaleY(0.3) scaleX(0.5); opacity: 0; }
-  15%  { transform: translateY(-50px) scaleY(0.6) scaleX(0.7); opacity: 1; }
-  45%  { transform: translateY(60px) scaleY(1.2) scaleX(1.1); opacity: 1; }
-  75%  { transform: translateY(170px) scaleY(0.8) scaleX(0.6); opacity: 0.5; }
-  100% { transform: translateY(300px) scaleY(0.2) scaleX(0.3); opacity: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
