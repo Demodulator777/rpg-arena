@@ -1484,7 +1484,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 /* ════════════════════════════════════════════════════════════════════════
    GAME LAYOUT
    ════════════════════════════════════════════════════════════════════════ */
-.game-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.game-body { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; z-index: 1; }
 
 /* ════════════════════════════════════════════════════════════════════════
    SIDEBAR / NAV
@@ -1869,8 +1869,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: -1;
   pointer-events: none;
+  z-index: 0;
   background:
     /* tall 45° gold lines (thin) */
     repeating-linear-gradient(45deg, transparent, transparent 120px, rgba(244,197,66,0.04) 120px, rgba(244,197,66,0.04) 121px),
