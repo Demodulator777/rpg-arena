@@ -63,6 +63,10 @@
   background: url('/images/tournaments/banner.png') center / contain no-repeat;
 }
 .t-banner-overlay { display: none; }
+.t-banner-mode { top: 35px; }
+@media (max-width: 600px) {
+  .t-banner-mode { top: 25px; }
+}
 .t-banner-content {
   margin-top: 12px;
 }
