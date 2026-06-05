@@ -1548,6 +1548,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 63px;
     display: flex;
     align-items: center;
+    position: relative;
+    z-index: 1;
 }
 .sidebar-left img,
 .sidebar-right img {
