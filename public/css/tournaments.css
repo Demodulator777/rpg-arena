@@ -839,6 +839,36 @@
   border-radius: 3px;
 }
 
+/* ── Tournament Decals: animated geometric overlay (top 200px only) ── */
+#tab-tournament.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 200px;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(45deg, transparent, transparent 120px, rgba(244,197,66,0.06) 120px, rgba(244,197,66,0.06) 121px),
+    repeating-linear-gradient(45deg, transparent, transparent 200px, rgba(192,96,240,0.04) 200px, rgba(192,96,240,0.04) 205px),
+    repeating-linear-gradient(45deg, transparent, transparent 60px, rgba(244,197,66,0.035) 60px, rgba(244,197,66,0.035) 62px, transparent 62px, transparent 80px),
+    repeating-linear-gradient(-45deg, transparent, transparent 160px, rgba(91,184,240,0.035) 160px, rgba(91,184,240,0.035) 161px),
+    linear-gradient(135deg, rgba(244,197,66,0.05) 33%, transparent 33%) 30px 60px / 120px 120px,
+    linear-gradient(135deg, transparent 67%, rgba(192,96,240,0.04) 67%) 90px 0 / 90px 90px,
+    linear-gradient(135deg, rgba(91,184,240,0.03) 50%, transparent 50%) 200px 300px / 60px 60px,
+    linear-gradient(135deg, transparent 50%, rgba(244,197,66,0.03) 50%) 400px 150px / 80px 80px,
+    repeating-linear-gradient(65deg, transparent, transparent 300px, rgba(244,197,66,0.03) 300px, rgba(244,197,66,0.03) 315px),
+    repeating-linear-gradient(-65deg, transparent, transparent 500px, rgba(192,96,240,0.02) 500px, rgba(192,96,240,0.02) 510px);
+  animation: t-decal-drift 10s ease-in-out infinite alternate;
+}
+
+@keyframes t-decal-drift {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.75; }
+  30%  { transform: translate(8px, -5px) scale(1.03); opacity: 1; }
+  60%  { transform: translate(-6px, 6px) scale(0.97); opacity: 0.8; }
+  100% { transform: translate(5px, -3px) scale(1.01); opacity: 0.75; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    MOBILE  ≤ 600px
    ═══════════════════════════════════════════════════════════════════ */
