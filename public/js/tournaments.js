@@ -448,12 +448,66 @@ function showAllVsAllLog() {
   showLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
 }
 
+// ── Tournament Rain ─────────────────────────────────────────────
+function spawnRain() {
+  clearRain();
+  var tab = document.getElementById('tab-tournament');
+  if (!tab || !tab.classList.contains('active')) return;
+  var rain = document.createElement('div');
+  rain.id = 'tournament-rain';
+  document.body.appendChild(rain);
+  var rgbOptions = ['244,197,66', '192,96,240', '91,184,240'];
+  var count = Math.floor(window.innerWidth / 14) + 35;
+  for (var i = 0; i < count; i++) {
+    var d = document.createElement('div');
+    d.className = 'rain-drop';
+    var h = 20 + Math.random() * 110;
+    var w = 1 + Math.random() * 2.5;
+    var rgb = rgbOptions[Math.floor(Math.random() * rgbOptions.length)];
+    var op = 0.06 + Math.random() * 0.22;
+    var left = Math.random() * window.innerWidth;
+    var dur = 2 + Math.random() * 4.5;
+    var delay = -(Math.random() * dur);
+    d.style.cssText = 'width:' + w + 'px;height:' + h + 'px;left:' + left + 'px;background:rgba(' + rgb + ',' + op + ');animation-duration:' + dur + 's;animation-delay:' + delay + 's';
+    rain.appendChild(d);
+  }
+}
+
+function clearRain() {
+  var e = document.getElementById('tournament-rain');
+  if (e) e.remove();
+}
+
+// Auto-show/hide rain when tournament tab gains/loses .active
+var _rainObserver = null;
+function initRainObserver() {
+  if (_rainObserver) return;
+  var tab = document.getElementById('tab-tournament');
+  if (!tab) return;
+  _rainObserver = new MutationObserver(function() {
+    if (tab.classList.contains('active')) {
+      spawnRain();
+    } else {
+      clearRain();
+    }
+  });
+  _rainObserver.observe(tab, { attributes: true, attributeFilter: ['class'] });
+}
+
 function loadTournamentTab() {
+  spawnRain();
   const c = _tContainer();
   if (!c) return;
   load();
 }
 window.loadTournamentTab = loadTournamentTab;
+
+// Wire up observer on DOMContentLoaded or immediately
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initRainObserver);
+} else {
+  initRainObserver();
+}
 
 // Auto-load for standalone page
 if (document.getElementById('tab-tournament') === null) {
