@@ -841,13 +841,13 @@
 
 /* ── Tournament Rain: animated vertical lines ── */
 #tournament-rain {
-  position: fixed;
+  position: absolute;
   top: var(--topbar-h);
   left: 0;
   right: 0;
   height: 200px;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
 }
 
