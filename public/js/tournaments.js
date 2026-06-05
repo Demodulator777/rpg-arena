@@ -144,7 +144,6 @@ function render(char, data) {
     <div class="t-divider">⟡</div>
     ${t.status === 'pending' ? `
       <div class="join-section">
-        <div class="join-banner-placeholder">⚔ Tournament Arena ⚔</div>
         <div id="tournament-countdown">--:--:--</div>
         <div class="cost">Entry fee: <strong>500 GOLD</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold} GOLD</strong>`}</div>
         ${myEntry
