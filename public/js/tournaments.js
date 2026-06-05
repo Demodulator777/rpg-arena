@@ -1,18 +1,14 @@
 let currentTournament = null;
 let myCharId = null;
-let countdownInterval = null;
 
-function _tContainer() {
-  return document.getElementById('tab-tournament') || document.getElementById('main-content');
+function getToken() {
+  const t = localStorage.getItem('rpg_token') || sessionStorage.getItem('rpg_token');
+  if (!t) { document.getElementById('main-content').innerHTML = '<div class="no-tournament"><p>Please log in first.</p><a href="/" style="color:#e040ff">Go to game</a></div>'; return null; }
+  return t;
 }
 
-async function _tapi(method, path, body) {
-  if (typeof window.api === 'function') {
-    const p = path.replace(/^\/api\//, '/');
-    return window.api(method, p, body);
-  }
-  const token = localStorage.getItem('rpg_token') || sessionStorage.getItem('rpg_token');
-  if (!token) throw new Error('No token');
+async function api(method, path, body) {
+  const token = getToken(); if (!token) throw new Error('No token');
   const opts = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
@@ -21,11 +17,13 @@ async function _tapi(method, path, body) {
   return data;
 }
 
+function _tContainer() { return document.getElementById('main-content'); }
+
 async function load() {
   try {
     const [charData, tournamentData] = await Promise.all([
-      _tapi('GET', '/api/game/character'),
-      _tapi('GET', '/api/tournaments/current')
+      api('GET', '/api/game/character'),
+      api('GET', '/api/tournaments/current')
     ]);
     myCharId = charData.id;
     render(charData, tournamentData);
@@ -35,6 +33,8 @@ async function load() {
   }
 }
 
+let countdownInterval = null;
+
 function render(char, data) {
   currentTournament = data;
   if (countdownInterval) clearInterval(countdownInterval);
@@ -43,17 +43,10 @@ function render(char, data) {
     const c = _tContainer();
     if (!c) return;
     c.innerHTML = `
-      <div class="t-banner">
-        <div class="t-banner-img"></div>
-        <div class="t-banner-overlay"></div>
-        <div class="t-banner-content">
-          <div class="t-banner-title">Tournament Arena</div>
-          <div class="t-banner-sub">The next battle for glory draws near…</div>
-        </div>
-      </div>
       <div class="no-tournament">
-        <span id="tournament-countdown">--:--:--</span>
-        <p style="font-size:0.82rem; color:#8890a0; font-family:'IM Fell English',serif; font-style:italic;">until next tournament registration opens</p>
+        <p style="font-size:1.2rem; font-weight:700; color:var(--epic-gold);">⚔️ The Arena awaits its next champion.</p>
+        <div id="tournament-countdown" style="font-size:2.5rem; font-weight:900; color:#fff; margin:20px 0;">--:--:--</div>
+        <p style="font-size:0.9rem; color:#8890a0; text-transform:uppercase; letter-spacing:2px;">until registration opens</p>
       </div>`;
     startCountdown(data.nextTournamentTime);
     return;
@@ -63,7 +56,8 @@ function render(char, data) {
   const matches = data.matches || [];
   const myEntry = participants.find(p => p.char_id === myCharId);
   const statusClass = `status-${t.status}`;
-  const statusLabel = t.status === 'pending' ? '⏳ Open for Registration' : t.status === 'active' ? '⚔️ In Progress' : '🏆 Complete';
+  const statusLabel = t.status === 'pending' ? '⏳ REGISTRATION OPEN' : t.status === 'active' ? '⚔️ BATTLE IN PROGRESS' : '🏆 TOURNAMENT COMPLETE';
+  
   const modeLabels = {
     normal: '🏁 Normal (10 rounds)',
     damage: '💥 Damage (highest dealt wins)',
@@ -76,10 +70,6 @@ function render(char, data) {
   const modeLabel = modeLabels[t.mode] || t.mode;
   const isDamageMode = t.mode === 'damage' || t.mode === 'least_damage';
   const isAllVsAll = t.mode === 'all_vs_all';
-
-  if (t.battle_log && typeof t.battle_log === 'string') {
-    try { t.battle_log = JSON.parse(t.battle_log); } catch {}
-  }
 
   if (isAllVsAll) {
     participants = [...participants].sort((a, b) => {
@@ -103,95 +93,89 @@ function render(char, data) {
   const rounds = Object.keys(roundGroups).sort((a,b) => a-b);
 
   function standingsHeaders() {
-    if (t.mode === 'damage') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Dealt</th><th>Taken</th>';
-    if (t.mode === 'least_damage') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Taken</th><th>Dealt</th>';
-    if (t.mode === 'all_vs_all') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th>';
-    if (t.mode === 'elimination') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th>';
-    return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th>';
+    if (t.mode === 'damage') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>DEALT</th><th>TAKEN</th>';
+    if (t.mode === 'least_damage') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>TAKEN</th><th>DEALT</th>';
+    if (t.mode === 'all_vs_all') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>ELIM.</th><th>W</th><th>L</th>';
+    if (t.mode === 'elimination') return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>W</th><th>L</th>';
+    return '<th>#</th><th>CHAMPION</th><th>CLASS</th><th>LVL</th><th>PTS</th><th>W</th><th>L</th><th>D</th>';
   }
+
   function standingsRow(p, i) {
     const rankCls = i < 3 ? ` rank-${i+1}` : '';
     const pName = esc(p.name);
     const badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
-    const cls = `style="font-size:0.72rem;color:#8890a0"`;
+    const cls = `style="font-size:0.72rem;color:#8890a0;text-transform:uppercase"`;
     if (t.mode === 'damage') {
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#e74c3c">${p.total_damage_dealt||0}</td><td style="color:#f39c12">${p.total_damage_taken||0}</td></tr>`;
+      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:var(--epic-red)">${p.total_damage_dealt||0}</td><td style="color:var(--epic-gold)">${p.total_damage_taken||0}</td></tr>`;
     }
     if (t.mode === 'least_damage') {
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#2ecc71">${p.total_damage_taken||0}</td><td style="color:#8890a0">${p.total_damage_dealt||0}</td></tr>`;
+      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:var(--epic-green)">${p.total_damage_taken||0}</td><td style="color:#8890a0">${p.total_damage_dealt||0}</td></tr>`;
     }
     if (t.mode === 'all_vs_all') {
       const elim = p.eliminated_round ? `#${p.eliminated_round}` : '🏆';
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.eliminated_round ? '#e74c3c' : '#f1c40f'}">${elim}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td></tr>`;
+      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:${p.eliminated_round ? 'var(--epic-red)' : 'var(--epic-gold)'}">${elim}</td><td style="color:var(--epic-green)">${p.wins}</td><td style="color:var(--epic-red)">${p.losses}</td></tr>`;
     }
     if (t.mode === 'elimination') {
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="color:#2ecc71">${p.wins||0}</td><td style="color:#e74c3c">${p.losses||0}</td></tr>`;
+      return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="color:var(--epic-green)">${p.wins||0}</td><td style="color:var(--epic-red)">${p.losses||0}</td></tr>`;
     }
-    return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0'}">${p.points}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td><td style="color:#f1c40f">${p.draws}</td></tr>`;
+    return `<tr class="${rankCls}"><td>#${i+1}</td><td>${pName}${badges}</td><td ${cls}>${p.class}</td><td>${p.level}</td><td style="font-weight:900;color:${p.points >= 6 ? 'var(--epic-green)' : p.points >= 3 ? 'var(--epic-gold)' : '#fff'}">${p.points}</td><td style="color:var(--epic-green)">${p.wins}</td><td style="color:var(--epic-red)">${p.losses}</td><td style="color:var(--epic-gold)">${p.draws}</td></tr>`;
   }
 
   const c = _tContainer();
   if (!c) return;
   c.innerHTML = `
-    <div class="t-banner">
-      <div class="t-banner-img"></div>
-      <div class="t-banner-overlay"></div>
-      <div class="t-banner-content">
-        <div class="t-banner-title">${esc(t.name || 'Tournament Arena')}</div>
-        <div class="t-banner-sub">${modeLabel}</div>
-      </div>
+    <div style="text-align:center;margin-bottom:24px">
+      <div class="tournament-status ${statusClass}">${statusLabel}</div>
+      <div class="mode-label-epic">${modeLabel}</div>
+      <div style="font-size:0.85rem;color:#8890a0;font-weight:600">${participants.length} ELITE FIGHTERS</div>
     </div>
-    <div class="t-header-row">
-      <span class="tournament-status ${statusClass}">${statusLabel}</span>
-      <span class="mode-label-epic">${participants.length} fighters</span>
-    </div>
-    <div class="t-divider">⟡</div>
+    
     ${t.status === 'pending' ? `
       <div class="join-section">
-        <div class="join-banner-placeholder">⚔ Tournament Arena ⚔</div>
-        <div id="tournament-countdown">--:--:--</div>
-        <div class="cost">Entry fee: <strong>500g</strong>${myEntry ? '' : ` · Your gold: <strong>${char.gold}g</strong>`}</div>
-        ${myEntry
-          ? '<div class="joined-badge">✅ Enlisted for Battle</div>'
-          : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
-               ${char.gold < 500 ? '⚠ Insufficient Gold' : '⚔️ Join Tournament'}
-             </button>`}
+        <div id="tournament-countdown" style="font-size:1.8rem; font-weight:900; color:var(--epic-gold); margin-bottom:15px;">--:--:--</div>
+        <div class="cost" style="font-size:1rem; margin-bottom:20px;">ENTRY FEE: <strong style="color:var(--epic-gold)">500 GOLD</strong>${myEntry ? '' : `<br><span style="font-size:0.8rem">YOUR COINS: ${char.gold}G</span>`}</div>
+        ${myEntry ? '<div style="color:var(--epic-green);font-size:1.1rem;font-weight:800;letter-spacing:1px">✅ REGISTERED</div>'
+                 : `<button class="btn-join" data-action="joinTournament" ${char.gold < 500 ? 'disabled' : ''}>
+                      ${char.gold < 500 ? 'INSUFFICIENT GOLD' : 'ENTER THE ARENA'}
+                    </button>`}
         ${participants.length > 0 ? `
-          <div class="fighters-needed ${participants.length >= 8 ? 'ready' : ''}">
-            ${participants.length < 8 ? `⚠ ${8 - participants.length} more warriors needed to commence` : '✅ Minimum fighters assembled!'}
+          <div style="margin-top:20px;font-size:0.8rem;color:#8890a0;font-style:italic">
+            ${participants.length < 8 ? `⚔️ ${8 - participants.length} more challengers required` : '🔥 The Arena is ready for blood!'}
           </div>` : ''}
       </div>` : ''}
+
     ${t.status === 'active' ? `
-      <p class="t-active-notice">⚔ Battles are being fought every minute — refresh to see results</p>` : ''}
-    ${t.status === 'complete' ? `
-      <div class="t-winner-panel">
-        ${t.winner_is_npc
-          ? `<div style="color:#8890a0;font-family:'IM Fell English',serif;font-style:italic">🤖 An NPC claimed victory — no player receives the tournament prize</div>`
-          : `<div style="font-size:0.72rem;color:var(--t-gold-dim);font-family:'Cinzel',serif;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px">Champion</div>
-             <div class="t-winner-name">🏆 ${esc((participants.find(p => p.char_id === t.winner_char_id))?.name || 'Unknown')}</div>`}
-        ${myEntry ? `<div class="t-your-rank">Your rank: #${participants.indexOf(myEntry) + 1} of ${participants.length}</div>` : ''}
+      <div style="text-align:center;font-size:0.9rem;color:var(--epic-gold);margin-bottom:24px;padding:15px;background:rgba(241,196,15,0.05);border-radius:10px;border:1px solid rgba(241,196,15,0.1)">
+        ⚔️ THE CLASH HAS BEGUN! REFRESH TO SEE NEW GLORY.
       </div>` : ''}
+
+    ${t.status === 'complete' ? `
+      <div style="text-align:center;margin-bottom:24px;padding:20px;background:rgba(224,64,255,0.05);border-radius:15px;border:1px solid var(--border-glow)">
+        ${t.winner_is_npc
+          ? `<div style="color:#8890a0;font-size:1rem;font-weight:700">🤖 THE ARENA RECLAIMS ITS CROWN — NPC VICTORIOUS</div>`
+          : `<div style="color:var(--epic-purple);font-size:1.4rem;font-weight:900;text-shadow:0 0 10px rgba(224,64,255,0.4)">🏆 CHAMPION: ${participants.find(p => p.char_id === t.winner_char_id)?.name || 'Unknown'}</div>`}
+        ${myEntry ? `<div style="margin-top:10px;font-size:0.95rem;color:#c8d0e0">YOUR RANK: <strong style="color:var(--epic-gold)">#${participants.indexOf(myEntry) + 1}</strong> OF ${participants.length}</div>` : ''}
+      </div>` : ''}
+
     <div class="tabs">
-      <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
-      <button class="tab-btn" data-action="tournamentTab" data-args='["matches"]'>Matches (${matches.length})</button>
-      <button class="tab-btn" data-action="tournamentTab" data-args='["history"]'>History</button>
+      <button class="tab-btn active" data-action="tab" data-tab="standings">STANDINGS</button>
+      <button class="tab-btn" data-action="tab" data-tab="matches">MATCHES (${matches.length})</button>
+      <button class="tab-btn" data-action="tab" data-tab="history">HISTORY</button>
     </div>
+
     <div id="tab-standings">
       <div class="standings-wrap">
         <table class="standings-table">
           <thead><tr>${standingsHeaders()}</tr></thead>
-          <tbody>${participants.map((p,i) => standingsRow(p,i)).join('')}</tbody>
+          <tbody>${participants.map((p,i) => standingsRow(p, i)).join('')}</tbody>
         </table>
       </div>
     </div>
+
     <div id="tab-matches" style="display:none">
-      ${rounds.length === 0
-        ? (t.battle_log
-          ? '<div style="text-align:center;padding:20px"><button class="btn-join" data-action="showAllVsAllLog">👥 View Full Battle Log</button></div>'
-          : '<div style="color:#8890a0;text-align:center;padding:20px;font-family:\'IM Fell English\',serif;font-style:italic">No matches yet</div>')
-        : rounds.map(r => `
+      ${rounds.length === 0 ? '<div style="color:#8890a0;text-align:center;padding:40px;font-style:italic">The blades have not yet met...</div>' : rounds.map(r => `
         <div class="matches-section">
-          <div class="round-label">Round ${+r + 1}</div>
+          <div class="round-label">ROUND ${+r + 1}</div>
           ${roundGroups[r].map(m => {
             const p1 = participants.find(p => p.id === m.participant1_id);
             const p2 = participants.find(p => p.id === m.participant2_id);
@@ -200,27 +184,28 @@ function render(char, data) {
             const isDraw = m.is_draw;
             var bl = m.battle_log; if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } } if (!Array.isArray(bl)) bl = [];
             const logStr = escJson(JSON.stringify(bl));
-            return `<div class="match-card" data-action="showLog" data-args='${JSON.stringify([logStr])}'>
+            return `<div class="match-card" data-action="showLog" data-log='${logStr}'>
               <div class="match-result">
-                ${p1?.name || '?'}
-                ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner"> ▶ </span>' : '<span class="match-loser"> ▶ </span>'}
-                ${p2?.name || '?'}
+                <span class="match-participant">${p1?.name || '?'}</span>
+                ${isDraw ? '<span class="match-draw" style="margin:0 10px">VS</span>' : w?.id === m.participant1_id ? '<span class="match-winner" style="margin:0 10px">▶</span>' : '<span class="match-loser" style="margin:0 10px">◀</span>'}
+                <span class="match-participant">${p2?.name || '?'}</span>
               </div>
-              <div style="flex:1;text-align:right;font-size:0.75rem;padding-right:30px">
-                ${isDraw ? '<span class="match-draw">Draw</span>' : `<span class="match-winner">${winnerName} wins</span>`}
+              <div style="text-align:right;font-size:0.75rem;font-weight:700">
+                ${isDraw ? '<span class="match-draw">DRAW</span>' : `<span class="match-winner">${winnerName.toUpperCase()} VICTORIOUS</span>`}
               </div>
             </div>`;
           }).join('')}
         </div>`).join('')}
     </div>
+
     <div id="tab-history" style="display:none">
       <div class="history-section" id="history-list">
-        <div style="color:#8890a0;text-align:center;padding:20px;font-family:'IM Fell English',serif;font-style:italic">Loading history…</div>
+        <div style="color:#8890a0;text-align:center;padding:40px">Consulting the ancient scrolls...</div>
       </div>
     </div>
   `;
-  if (t.status === 'complete') tournamentLoadHistory();
-  if (t.status === 'pending') startCountdown(data.nextTournamentTime);
+  if (t.status === 'complete') loadHistory();
+  if (t.status === 'pending' || !data.tournament) startCountdown(data.nextTournamentTime);
 }
 
 function startCountdown(targetTime) {
@@ -256,7 +241,7 @@ async function joinTournament() {
   try {
     const btn = document.querySelector('.btn-join');
     if (btn) { btn.disabled = true; btn.textContent = 'Joining...'; }
-    await _tapi('POST', '/api/tournaments/join');
+    await api('POST', '/api/tournaments/join');
     await load();
   } catch (e) {
     alert(e.message);
@@ -264,23 +249,19 @@ async function joinTournament() {
   }
 }
 
-function tournamentTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    var a;
-    try { a = JSON.parse(b.dataset.args); } catch { a = []; }
-    b.classList.toggle('active', a[0] === tab);
-  });
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
   document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
-  if (tab === 'history') tournamentLoadHistory();
+  if (tab === 'history') loadHistory();
 }
 
-async function tournamentLoadHistory() {
+async function loadHistory() {
   const el = document.getElementById('history-list');
   if (!el) return;
   try {
-    const list = await _tapi('GET', '/api/tournaments');
+    const list = await api('GET', '/api/tournaments');
     const completed = list.filter(t => t.status === 'complete');
     if (completed.length === 0) {
       el.innerHTML = '<div style="color:#8890a0;text-align:center;padding:20px">No tournaments completed yet</div>';
@@ -289,11 +270,8 @@ async function tournamentLoadHistory() {
     el.innerHTML = completed.map(t => {
       const date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
       const winner = t.winner_char_id && t.winner_char_id > 0 ? `<span class="h-winner">Player #${t.winner_char_id}</span>` : '<span class="h-npc">NPC</span>';
-      const modeHints = { normal:'🏁', damage:'💥', least_damage:'🛡️', elimination:'🗡️', deathmatch:'💀', no_equip:'⚔️', all_vs_all:'👥' };
-      const modeIcon = modeHints[t.mode] || '🏟️';
-      return `<div class="history-item" data-action="tournamentViewHistory" data-args='[${t.id}]'>
+      return `<div class="history-item" data-action="viewHistory" data-id="${t.id}">
         <span class="h-date">${date}</span>
-        <span>${modeIcon}</span>
         <span>${t.participant_count || '?'} fighters</span>
         <span>${t.winner_is_npc ? '<span class="h-npc">NPC win</span>' : winner}</span>
       </div>`;
@@ -305,31 +283,16 @@ async function tournamentLoadHistory() {
 
 function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-async function tournamentViewHistory(tournamentId) {
+async function viewHistory(tournamentId) {
   const el = document.getElementById('history-list');
   if (!el) return;
   try {
-    const data = await _tapi('GET', '/api/tournaments/' + tournamentId);
+    const data = await api('GET', '/api/tournaments/' + tournamentId);
     const t = data.tournament;
-    let participants = data.participants || [];
+    const participants = data.participants || [];
     const matches = data.matches || [];
     const myEntry = participants.find(p => p.char_id === myCharId);
-    const isDamageMode = t.mode === 'damage' || t.mode === 'least_damage';
-    const isAllVsAll = t.mode === 'all_vs_all';
-
-    if (isAllVsAll) {
-      participants = [...participants].sort((a, b) => {
-        if (a.eliminated_round === null) return -1;
-        if (b.eliminated_round === null) return 1;
-        return b.eliminated_round - a.eliminated_round;
-      });
-    } else if (isDamageMode) {
-      participants = [...participants].sort((a, b) => t.mode === 'damage'
-        ? (b.total_damage_dealt || 0) - (a.total_damage_dealt || 0)
-        : (a.total_damage_taken || 0) - (b.total_damage_taken || 0));
-    }
-
-    var html = '<button class="btn-back" data-action="tournamentLoadHistory">← Back to History</button>';
+    var html = '<button class="btn-back" data-action="loadHistory">← Back to History</button>';
     html += '<div style="margin-top:8px;font-size:0.95rem;text-align:center">';
     if (t.winner_is_npc) {
       html += '<span style="color:#8890a0">🤖 NPC won</span>';
@@ -341,51 +304,13 @@ async function tournamentViewHistory(tournamentId) {
       html += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
     }
     html += '</div>';
-    if (isDamageMode) {
-      var dmgHdr = t.mode === 'damage'
-        ? '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Dealt</th><th>Taken</th>'
-        : '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Taken</th><th>Dealt</th>';
-      html += '<table class="standings-table"><thead><tr>' + dmgHdr + '</tr></thead><tbody>';
-      participants.forEach(function(p, i) {
-        var pName = esc(p.name);
-        var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
-        if (t.mode === 'damage') {
-          html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#e74c3c">' + (p.total_damage_dealt || 0) + '</td><td style="color:#f39c12">' + (p.total_damage_taken || 0) + '</td></tr>';
-        } else {
-          html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#2ecc71">' + (p.total_damage_taken || 0) + '</td><td style="color:#8890a0">' + (p.total_damage_dealt || 0) + '</td></tr>';
-        }
-      });
-      html += '</tbody></table>';
-    } else if (isAllVsAll) {
-      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th></tr></thead><tbody>';
-      participants.forEach(function(p, i) {
-        var pName = esc(p.name);
-        var elim = p.eliminated_round ? '#' + p.eliminated_round : '🏆';
-        var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
-        html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.eliminated_round ? '#e74c3c' : '#f1c40f') + '">' + elim + '</td><td style="color:#2ecc71">' + (p.wins || 0) + '</td><td style="color:#e74c3c">' + (p.losses || 0) + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    } else if (t.mode === 'elimination') {
-      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th></tr></thead><tbody>';
-      participants.forEach(function(p, i) {
-        var pName = esc(p.name);
-        var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
-        html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="color:#2ecc71">' + (p.wins || 0) + '</td><td style="color:#e74c3c">' + (p.losses || 0) + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    } else {
-      html += '<table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
-      participants.forEach(function(p, i) {
-        var pName = esc(p.name);
-        html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
-      });
-      html += '</tbody></table>';
-    }
-    if (t.mode === 'all_vs_all' && t.battle_log) {
-      html += '<h3 style="margin-top:16px">Battle Log</h3>';
-      var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
-      html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-args=\'' + escJson(JSON.stringify([blStr])) + '\'>👥 View Full Battle Log</button></div>';
-    } else if (matches.length > 0) {
+    html += '<div class="history-wrap"><table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th></tr></thead><tbody>';
+    participants.forEach(function(p, i) {
+      var pName = esc(p.name);
+      html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '') + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:' + (p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0') + '">' + p.points + '</td><td style="color:#2ecc71">' + p.wins + '</td><td style="color:#e74c3c">' + p.losses + '</td><td style="color:#f1c40f">' + p.draws + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    if (matches.length > 0) {
       html += '<h3 style="margin-top:16px">Matches</h3>';
       const roundGroups = {};
       matches.forEach(function(m) {
@@ -404,7 +329,7 @@ async function tournamentViewHistory(tournamentId) {
           var isDraw = m.is_draw;
           var bl2 = m.battle_log; if (typeof bl2 === 'string') { try { bl2 = JSON.parse(bl2); } catch { bl2 = []; } } if (!Array.isArray(bl2)) bl2 = [];
           var logStr = escJson(JSON.stringify(bl2));
-          html += '<div class="match-card" data-action="showLog" data-args=\'' + JSON.stringify([logStr]) + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
+          html += '<div class="match-card" data-action="showLog" data-log=\'' + logStr + '\'><div class="match-result">' + p1n + (isDraw ? ' <span class="match-draw"> vs </span>' : (w && w.id === m.participant1_id ? ' <span class="match-winner">▶</span>' : ' <span class="match-loser">▶</span>')) + p2n + '</div><div style="flex:1;text-align:right;font-size:0.75rem">' + (isDraw ? '<span class="match-draw">Draw</span>' : '<span class="match-winner">' + wn + ' wins</span>') + '</div></div>';
         });
         html += '</div>';
       });
@@ -415,52 +340,27 @@ async function tournamentViewHistory(tournamentId) {
   }
 }
 
-function showLog(logStr) {
+function showBattleLog(logStr) {
   let log;
   try { log = JSON.parse(logStr); } catch { log = []; }
-
-  // Inject modal into DOM if not already present
-  if (!document.getElementById('battle-log-modal')) {
-    const modal = document.createElement('div');
-    modal.id = 'battle-log-modal';
-    modal.className = 'battle-log-modal';
-    modal.innerHTML = `
-      <div class="battle-log-content">
-        <div class="battle-log-header">
-          <span class="battle-log-title">⚔ Battle Log</span>
-          <button class="btn-close-log" onclick="closeLog()">✕</button>
-        </div>
-        <div id="log-lines"></div>
-      </div>`;
-    modal.addEventListener('click', e => { if (e.target === modal) closeLog(); });
-    document.body.appendChild(modal);
-  }
-
-  document.getElementById('log-lines').innerHTML =
-    (log||[]).map(l => `<div class="log-line">${l}</div>`).join('') ||
-    '<div class="log-line" style="opacity:0.4;font-style:italic">No entries recorded.</div>';
+  document.getElementById('log-lines').innerHTML = (log||[]).map(l => `<div class="log-line">${l}</div>`).join('');
   document.getElementById('battle-log-modal').style.display = 'flex';
 }
 
 function closeLog() {
-  const m = document.getElementById('battle-log-modal');
-  if (m) m.style.display = 'none';
+  document.getElementById('battle-log-modal').style.display = 'none';
 }
 
-function showAllVsAllLog() {
-  if (!currentTournament || !currentTournament.tournament) return;
-  var bl = currentTournament.tournament.battle_log;
-  showLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
-}
+document.addEventListener('click', function(e) {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.dataset.action;
+  if (action === 'joinTournament') { e.preventDefault(); joinTournament(); }
+  else if (action === 'tab') { switchTab(el.dataset.tab); }
+  else if (action === 'showLog') { showBattleLog(el.dataset.log); }
+  else if (action === 'closeLog') { closeLog(); }
+  else if (action === 'viewHistory') { viewHistory(Number(el.dataset.id)); }
+  else if (action === 'loadHistory') { loadHistory(); }
+});
 
-function loadTournamentTab() {
-  const c = _tContainer();
-  if (!c) return;
-  load();
-}
-window.loadTournamentTab = loadTournamentTab;
-
-// Auto-load for standalone page
-if (document.getElementById('tab-tournament') === null) {
-  load();
-}
+load();
