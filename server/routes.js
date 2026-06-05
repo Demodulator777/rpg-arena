@@ -9688,7 +9688,7 @@ router.get('/rewards/list', async (req, res) => {
                 <td>${escapeHtml(rewardText)}</td>
                 <td>${Number(batch.recipient_count || 0).toLocaleString()}</td>
                 <td>
-                    <button onclick="previewResend(${batch.id}, this)" style="padding:5px 10px; font-size:0.72rem; background:#3498db; border:none; border-radius:6px; cursor:pointer; width:auto; font-weight:700;">Preview</button>
+                    <button data-action="previewResend" data-batch-id="${batch.id}" style="padding:5px 10px; font-size:0.72rem; background:#3498db; border:none; border-radius:6px; cursor:pointer; width:auto; font-weight:700;">Preview</button>
                 </td>
             </tr>`;
         }).join('');
@@ -9798,110 +9798,25 @@ router.get('/rewards/list', async (req, res) => {
                     </div>
                 </div>
             </body>
+            <input type="hidden" id="rewards-password" value="${encodeURIComponent(password)}">
             <div id="resend-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
                 <div style="background:#16213e;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:24px;max-width:680px;width:96vw;max-height:85vh;display:flex;flex-direction:column;">
                     <h3 style="margin:0 0 4px;color:#f1c40f" id="modal-title">Resend Reward</h3>
                     <p style="margin:0 0 12px;color:#94a3b8;font-size:0.85rem" id="modal-subject"></p>
                     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-                        <button onclick="modalSelectAll(true)" style="padding:5px 12px;font-size:0.75rem;background:#2ecc71;border:none;border-radius:6px;cursor:pointer;font-weight:700;color:#fff">Select All</button>
-                        <button onclick="modalSelectAll(false)" style="padding:5px 12px;font-size:0.75rem;background:#e74c3c;border:none;border-radius:6px;cursor:pointer;font-weight:700;color:#fff">Deselect All</button>
+                        <button data-action="modalSelectAll" style="padding:5px 12px;font-size:0.75rem;background:#2ecc71;border:none;border-radius:6px;cursor:pointer;font-weight:700;color:#fff">Select All</button>
+                        <button data-action="modalDeselectAll" style="padding:5px 12px;font-size:0.75rem;background:#e74c3c;border:none;border-radius:6px;cursor:pointer;font-weight:700;color:#fff">Deselect All</button>
                         <span style="margin-left:auto;color:#94a3b8;font-size:0.8rem;align-self:center" id="modal-count">0 of 0 selected</span>
                     </div>
-                    <input id="modal-filter" type="text" placeholder="Filter by name..." oninput="modalFilter()" style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0f172a;color:#fff;margin-bottom:10px;font-size:0.85rem">
+                    <input id="modal-filter" type="text" placeholder="Filter by name..." style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0f172a;color:#fff;margin-bottom:10px;font-size:0.85rem">
                     <div id="modal-list" style="overflow-y:auto;flex:1;min-height:0"></div>
                     <div style="display:flex;gap:10px;margin-top:14px;justify-content:end">
-                        <button onclick="closeResendModal()" style="padding:10px 18px;background:#555;border:none;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">Cancel</button>
-                        <button id="modal-send-btn" onclick="submitResend()" style="padding:10px 18px;background:linear-gradient(180deg,#2ecc71,#1f8b4d);border:none;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">Send to Selected</button>
+                        <button data-action="closeResendModal" style="padding:10px 18px;background:#555;border:none;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">Cancel</button>
+                        <button id="modal-send-btn" data-action="submitResend" style="padding:10px 18px;background:linear-gradient(180deg,#2ecc71,#1f8b4d);border:none;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">Send to Selected</button>
                     </div>
                 </div>
             </div>
-            <script>
-            var _modalData = null;
-            var _modalBatchId = null;
-            function previewResend(batchId, btn) {
-                btn.disabled = true;
-                btn.textContent = 'Loading...';
-                fetch('/api/game/rewards/resend-preview?password=${encodeURIComponent(password)}&batchId=' + batchId)
-                    .then(function(r) { return r.json(); })
-                    .then(function(data) {
-                        btn.disabled = false;
-                        btn.textContent = 'Preview';
-                        if (data.error) { alert('Error: ' + data.error); return; }
-                        if (!data.recipients || !data.recipients.length) { alert('No eligible characters for this batch.'); return; }
-                        _modalBatchId = batchId;
-                        _modalData = data.recipients;
-                        document.getElementById('modal-title').textContent = 'Resend: ' + (data.subject || 'Untitled');
-                        document.getElementById('modal-subject').textContent = 'Scope: ' + data.scope + ' — ' + data.recipients.length + ' eligible';
-                        renderModalList();
-                        document.getElementById('resend-modal').style.display = 'flex';
-                    })
-                    .catch(function(e) { btn.disabled = false; btn.textContent = 'Preview'; alert('Error: ' + e.message); });
-            }
-            function renderModalList() {
-                var list = document.getElementById('modal-list');
-                var filter = (document.getElementById('modal-filter').value || '').toLowerCase();
-                var html = '';
-                var selected = 0;
-                for (var i = 0; i < _modalData.length; i++) {
-                    var r = _modalData[i];
-                    var match = !filter || (r.name && r.name.toLowerCase().indexOf(filter) !== -1) || (r.class && r.class.toLowerCase().indexOf(filter) !== -1);
-                    if (!match) continue;
-                    var checked = 'checked';
-                    selected++;
-                    html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;background:rgba(255,255,255,0.03);margin-bottom:4px">' +
-                        '<input type="checkbox" class="modal-char-cb" value="' + r.id + '" ' + checked + ' style="width:16px;height:16px;accent-color:#2ecc71;flex-shrink:0">' +
-                        '<span style="flex:1"><strong>' + escHtml(r.name || '?') + '</strong> <span style="color:#94a3b8;font-size:0.8rem">Lv.' + (r.level || '?') + ' ' + escHtml(r.class || '') + '</span></span>' +
-                        '<span style="color:#6a6a70;font-size:0.75rem">#' + r.id + '</span>' +
-                    '</label>';
-                }
-                list.innerHTML = html || '<p style="color:#6a6a70;text-align:center;padding:20px">No matches</p>';
-                updateModalCount();
-            }
-            function updateModalCount() {
-                var total = _modalData ? _modalData.length : 0;
-                var checked = document.querySelectorAll('.modal-char-cb:checked').length;
-                document.getElementById('modal-count').textContent = checked + ' of ' + total + ' selected';
-            }
-            function modalFilter() { renderModalList(); }
-            function modalSelectAll(select) {
-                var cbs = document.querySelectorAll('.modal-char-cb');
-                for (var i = 0; i < cbs.length; i++) cbs[i].checked = select;
-                updateModalCount();
-            }
-            function closeResendModal() {
-                document.getElementById('resend-modal').style.display = 'none';
-            }
-            function submitResend() {
-                var cbs = document.querySelectorAll('.modal-char-cb:checked');
-                if (!cbs.length) { alert('Select at least one character.'); return; }
-                var ids = [];
-                for (var i = 0; i < cbs.length; i++) ids.push(Number(cbs[i].value));
-                var btn = document.getElementById('modal-send-btn');
-                btn.disabled = true;
-                btn.textContent = 'Sending...';
-                fetch('/api/game/rewards/resend?password=${encodeURIComponent(password)}', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ batchId: _modalBatchId, charIds: ids })
-                })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    btn.disabled = false;
-                    btn.textContent = 'Send to Selected';
-                    if (data.error) { alert('Error: ' + data.error); return; }
-                    closeResendModal();
-                    location.reload();
-                })
-                .catch(function(e) { btn.disabled = false; btn.textContent = 'Send to Selected'; alert('Error: ' + e.message); });
-            }
-            function escHtml(s) {
-                if (!s) return '';
-                return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-            }
-            document.addEventListener('change', function(e) {
-                if (e.target.classList.contains('modal-char-cb')) updateModalCount();
-            });
-            </script>
+            <script src="/admin/rewards.js"></script>
             </html>
         `);
     } catch (error) {
