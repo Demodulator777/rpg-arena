@@ -1564,11 +1564,16 @@ function startCombat(roomIdx) {
             renderCombatPanel();
         });
 
-    // Speed: reuse a prefetched combat session when available.
+    // Wait for any pending room-exit to complete before starting new combat, otherwise
+    // the race can create a session that gets immediately ended by the in-flight exit query.
+    const exitGuard = Promise.resolve(D._exitingRoom).then(() => { D._exitingRoom = null; });
+
     const preKey = `${D.floor}:${roomIdx}:${String(D.floorRunId || '')}`;
-    const startPromise = (D._combatPrefetch && D._combatPrefetch.key === preKey)
-        ? (D._combatPrefetch.res ? Promise.resolve(D._combatPrefetch.res) : (D._combatPrefetch.promise || Promise.resolve(null)))
-        : apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId });
+    const startPromise = exitGuard.then(() => {
+        return (D._combatPrefetch && D._combatPrefetch.key === preKey)
+            ? (D._combatPrefetch.res ? Promise.resolve(D._combatPrefetch.res) : (D._combatPrefetch.promise || Promise.resolve(null)))
+            : apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId });
+    });
 
     startPromise
         .then(res => {
@@ -2132,7 +2137,7 @@ function confirmEscape(roomIdx) {
 
     // Release room entry (regular rooms only; crawler escape keeps chase logic intact).
     if (!(D.combat && D.combat.isCrawler)) {
-        apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
+        D._exitingRoom = apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
             .catch(e => console.error('Failed to exit room:', e));
     }
 
