@@ -133,8 +133,9 @@ function render(char, data) {
   const c = _tContainer();
   if (!c) return;
   c.innerHTML = `
-    <div class="t-banner" style="text-align:center;margin-bottom:20px">
+    <div class="t-banner" style="text-align:center;margin-bottom:20px;position:relative;display:inline-block;width:100%">
       <img src="/images/tournaments/banner.png" alt="" style="display:block;width:486px;max-width:100%;height:auto;margin:0 auto">
+      <div style="position:absolute;top:50px;left:0;right:0;text-align:center;pointer-events:none;font-family:'Cinzel Decorative',serif;font-size:clamp(1rem,3vw,1.6rem);font-weight:900;color:#f4c542;text-shadow:0 0 20px rgba(244,197,66,0.4),0 2px 6px rgba(0,0,0,0.9);letter-spacing:0.1em;text-transform:uppercase">${t.mode.replace(/_/g,' ')}</div>
     </div>
     <div class="t-header-row">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
