@@ -302,6 +302,7 @@ const RAW_MATERIAL_INFO = {
 const POSSIBLE_STATS = [
     'strength', 'defense', 'agility', 'magic', 'vitality',
     'hit_chance', 'crit_chance', 'armor', 'hp_max',
+    'dmg_min', 'dmg_max',
     'pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg',
     'pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'
 ];
