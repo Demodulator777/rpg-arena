@@ -6,6 +6,14 @@ const SPITEFORGED_LOOT = [
     { id: 'spiteforged_boots', name: 'Treads of the Unforgiving', type: 'boots', rarity: 'legendary' },
 ];
 
+const ECLIPSED_SERAPH_LOOT = [
+    { id: 'eclipsed_seraph_weapon', name: 'Fallen Grace', type: 'weapon', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_armor', name: 'Vestments of the Black Halo', type: 'armor', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_helmet', name: 'Halo of Ruination', type: 'helmet', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_shield', name: 'Wingguard of the Forsaken', type: 'shield', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_boots', name: 'Heavenfall Sabatons', type: 'boots', rarity: 'legendary' },
+];
+
 function getKey() {
     return new URLSearchParams(location.search).get('key') || '';
 }
@@ -158,7 +166,29 @@ async function activateSpiteforged() {
     }
 }
 
+async function activateEclipsedSeraph() {
+    try {
+        const data = await api('GET', '/list');
+        const existing = data.banners.find(b => b.name && b.name.toLowerCase().includes('eclipsed seraph'));
+        if (existing) {
+            const start = now();
+            const end = start + days(7);
+            await api('PUT', '/' + existing.id, { start_at: start, end_at: end });
+            showMsg('Eclipsed Seraph activated for 7 days', false);
+        } else {
+            const start = now();
+            const end = start + days(7);
+            await api('POST', '/create', { name: 'Eclipsed Seraph Banner', image: 'eclipsed_seraph', start_at: start, end_at: end, loot_table: ECLIPSED_SERAPH_LOOT });
+            showMsg('Eclipsed Seraph banner created', false);
+        }
+        loadBanners();
+    } catch (e) {
+        showMsg(e.message, true);
+    }
+}
+
 document.getElementById('btn-spiteforged').addEventListener('click', activateSpiteforged);
+document.getElementById('btn-eclipsed-seraph').addEventListener('click', activateEclipsedSeraph);
 document.getElementById('btn-deactivate-all').addEventListener('click', deactivateAll);
 document.getElementById('btn-refresh').addEventListener('click', loadBanners);
 document.getElementById('btn-create').addEventListener('click', createBanner);
