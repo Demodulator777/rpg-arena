@@ -8433,7 +8433,7 @@ function getSellPriceForInventoryItem(itemData, sellRate) {
     const originalPrice = Number(itemData?.original_price || itemData?.price || 0);
     const rawSellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
     const explicitCap = Number(itemData?.sell_price_cap || 0);
-    const fallbackCap = (itemData?.source === 'banner' || itemData?.setId === 'spiteforged') ? 1000 : 0;
+    const fallbackCap = itemData?.source === 'banner' ? 1000 : 0;
     const effectiveCap = explicitCap > 0 ? explicitCap : fallbackCap;
     return effectiveCap > 0 ? Math.min(rawSellPrice, effectiveCap) : rawSellPrice;
 }
