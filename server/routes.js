@@ -2648,6 +2648,75 @@ ACHIEVEMENTS.push(
 
     // Raids won
     { id: 'raids_won_5', category: 'guild', name: 'Raid Champion', desc: 'Win 5 guild raids.', icon: '🏆', metric: 'raids_won', target: 5, rewards: { gold: 25000 } },
+
+    // ── Stat upgrade achievements ─────────────────────────────────────────
+
+    // Strength
+    { id: 'stat_strength_100', chain: 'stat_strength', category: 'progression', name: 'Strong Arm', desc: 'Reach 100 strength.', icon: '💪', metric: 'stat_strength', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_strength_200', chain: 'stat_strength', category: 'progression', name: 'Mighty', desc: 'Reach 200 strength.', icon: '💪', metric: 'stat_strength', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_strength_300', chain: 'stat_strength', category: 'progression', name: 'Powerhouse', desc: 'Reach 300 strength.', icon: '💪', metric: 'stat_strength', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_strength_500', chain: 'stat_strength', category: 'progression', name: 'Brute Force', desc: 'Reach 500 strength.', icon: '💪', metric: 'stat_strength', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_strength_750', chain: 'stat_strength', category: 'progression', name: "Titan's Grip", desc: 'Reach 750 strength.', icon: '💪', metric: 'stat_strength', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_strength_1000', chain: 'stat_strength', category: 'progression', name: 'God of War', desc: 'Reach 1000 strength.', icon: '💪', metric: 'stat_strength', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // Defense
+    { id: 'stat_defense_100', chain: 'stat_defense', category: 'progression', name: 'Turtle', desc: 'Reach 100 defense.', icon: '🛡️', metric: 'stat_defense', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_defense_200', chain: 'stat_defense', category: 'progression', name: 'Fortress', desc: 'Reach 200 defense.', icon: '🛡️', metric: 'stat_defense', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_defense_300', chain: 'stat_defense', category: 'progression', name: 'Iron Wall', desc: 'Reach 300 defense.', icon: '🛡️', metric: 'stat_defense', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_defense_500', chain: 'stat_defense', category: 'progression', name: 'Bulwark', desc: 'Reach 500 defense.', icon: '🛡️', metric: 'stat_defense', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_defense_750', chain: 'stat_defense', category: 'progression', name: 'Impregnable', desc: 'Reach 750 defense.', icon: '🛡️', metric: 'stat_defense', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_defense_1000', chain: 'stat_defense', category: 'progression', name: 'The Unbreakable', desc: 'Reach 1000 defense.', icon: '🛡️', metric: 'stat_defense', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // Agility
+    { id: 'stat_agility_100', chain: 'stat_agility', category: 'progression', name: 'Quick Feet', desc: 'Reach 100 agility.', icon: '💨', metric: 'stat_agility', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_agility_200', chain: 'stat_agility', category: 'progression', name: 'Swift', desc: 'Reach 200 agility.', icon: '💨', metric: 'stat_agility', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_agility_300', chain: 'stat_agility', category: 'progression', name: 'Wind Walker', desc: 'Reach 300 agility.', icon: '💨', metric: 'stat_agility', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_agility_500', chain: 'stat_agility', category: 'progression', name: 'Blur', desc: 'Reach 500 agility.', icon: '💨', metric: 'stat_agility', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_agility_750', chain: 'stat_agility', category: 'progression', name: 'Phantom', desc: 'Reach 750 agility.', icon: '💨', metric: 'stat_agility', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_agility_1000', chain: 'stat_agility', category: 'progression', name: 'Flash', desc: 'Reach 1000 agility.', icon: '💨', metric: 'stat_agility', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // Magic
+    { id: 'stat_magic_100', chain: 'stat_magic', category: 'progression', name: 'Magic Touch', desc: 'Reach 100 magic.', icon: '🔮', metric: 'stat_magic', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_magic_200', chain: 'stat_magic', category: 'progression', name: 'Sorcerer', desc: 'Reach 200 magic.', icon: '🔮', metric: 'stat_magic', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_magic_300', chain: 'stat_magic', category: 'progression', name: 'Mage Lord', desc: 'Reach 300 magic.', icon: '🔮', metric: 'stat_magic', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_magic_500', chain: 'stat_magic', category: 'progression', name: 'Archmage', desc: 'Reach 500 magic.', icon: '🔮', metric: 'stat_magic', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_magic_750', chain: 'stat_magic', category: 'progression', name: 'Wizard King', desc: 'Reach 750 magic.', icon: '🔮', metric: 'stat_magic', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_magic_1000', chain: 'stat_magic', category: 'progression', name: 'God of Magic', desc: 'Reach 1000 magic.', icon: '🔮', metric: 'stat_magic', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // Vitality
+    { id: 'stat_vitality_100', chain: 'stat_vitality', category: 'progression', name: 'Healthy', desc: 'Reach 100 vitality.', icon: '❤️', metric: 'stat_vitality', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_vitality_200', chain: 'stat_vitality', category: 'progression', name: 'Sturdy', desc: 'Reach 200 vitality.', icon: '❤️', metric: 'stat_vitality', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_vitality_300', chain: 'stat_vitality', category: 'progression', name: 'Resilient', desc: 'Reach 300 vitality.', icon: '❤️', metric: 'stat_vitality', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_vitality_500', chain: 'stat_vitality', category: 'progression', name: 'Tank', desc: 'Reach 500 vitality.', icon: '❤️', metric: 'stat_vitality', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_vitality_750', chain: 'stat_vitality', category: 'progression', name: 'Juggernaut', desc: 'Reach 750 vitality.', icon: '❤️', metric: 'stat_vitality', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_vitality_1000', chain: 'stat_vitality', category: 'progression', name: 'Immortal', desc: 'Reach 1000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // Hit Chance
+    { id: 'stat_hit_chance_30', chain: 'stat_hit_chance', category: 'progression', name: 'Steady Hand', desc: 'Reach 30 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 30, rewards: { gold: 5000 } },
+    { id: 'stat_hit_chance_50', chain: 'stat_hit_chance', category: 'progression', name: 'Marksman', desc: 'Reach 50 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 50, rewards: { gold: 15000, gems: 5 } },
+    { id: 'stat_hit_chance_75', chain: 'stat_hit_chance', category: 'progression', name: 'Sniper', desc: 'Reach 75 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'stat_hit_chance_100', chain: 'stat_hit_chance', category: 'progression', name: 'Hawkeye', desc: 'Reach 100 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+
+    // Crit Chance
+    { id: 'stat_crit_chance_30', chain: 'stat_crit_chance', category: 'progression', name: 'Lucky', desc: 'Reach 30 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 30, rewards: { gold: 5000 } },
+    { id: 'stat_crit_chance_50', chain: 'stat_crit_chance', category: 'progression', name: 'Opportunist', desc: 'Reach 50 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 50, rewards: { gold: 15000, gems: 5 } },
+    { id: 'stat_crit_chance_75', chain: 'stat_crit_chance', category: 'progression', name: 'Assassin', desc: 'Reach 75 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'stat_crit_chance_100', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Mass', desc: 'Reach 100 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+
+    // ── Tournament win achievements ───────────────────────────────────────
+    { id: 'tournament_wins_1', chain: 'tournament_wins', category: 'victories', name: 'Tournament Rookie', desc: 'Win your first tournament.', icon: '🏆', metric: 'tournament_wins', target: 1, rewards: { gold: 2000 } },
+    { id: 'tournament_wins_5', chain: 'tournament_wins', category: 'victories', name: 'Tournament Fighter', desc: 'Win 5 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 5, rewards: { gold: 5000 } },
+    { id: 'tournament_wins_10', chain: 'tournament_wins', category: 'victories', name: 'Tournament Contender', desc: 'Win 10 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 10, rewards: { gold: 10000, gems: 5 } },
+    { id: 'tournament_wins_25', chain: 'tournament_wins', category: 'victories', name: 'Tournament Veteran', desc: 'Win 25 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 25, rewards: { gold: 25000, gems: 10 } },
+    { id: 'tournament_wins_50', chain: 'tournament_wins', category: 'victories', name: 'Tournament Champion', desc: 'Win 50 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 50, rewards: { gold: 50000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'tournament_wins_100', chain: 'tournament_wins', category: 'victories', name: 'Tournament Legend', desc: 'Win 100 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 100, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'tournament_wins_150', chain: 'tournament_wins', category: 'victories', name: 'Tournament Master', desc: 'Win 150 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 150, rewards: { gold: 150000, gems: 35, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'tournament_wins_200', chain: 'tournament_wins', category: 'victories', name: 'Tournament Grandmaster', desc: 'Win 200 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 200, rewards: { gold: 200000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_250', chain: 'tournament_wins', category: 'victories', name: 'Tournament Warlord', desc: 'Win 250 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 250, rewards: { gold: 250000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_300', chain: 'tournament_wins', category: 'victories', name: 'Tournament Conqueror', desc: 'Win 300 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 300, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_350', chain: 'tournament_wins', category: 'victories', name: 'Tournament Emperor', desc: 'Win 350 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 350, rewards: { gold: 350000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_400', chain: 'tournament_wins', category: 'victories', name: 'Tournament Immortal', desc: 'Win 400 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 400, rewards: { gold: 400000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_500', chain: 'tournament_wins', category: 'victories', name: 'Tournament God', desc: 'Win 500 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 500, rewards: { gold: 500000, gems: 125, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
 );
 
 console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
@@ -2765,6 +2834,16 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     
     if (metric === 'level') return char.level || 1;
     if (metric === 'total_missions_completed') return char.total_missions_completed || 0;
+
+    // Per-stat upgrade achievements
+    if (metric === 'stat_strength') return Number(char.strength) || 0;
+    if (metric === 'stat_defense') return Number(char.defense) || 0;
+    if (metric === 'stat_agility') return Number(char.agility) || 0;
+    if (metric === 'stat_magic') return Number(char.magic) || 0;
+    if (metric === 'stat_vitality') return Number(char.vitality) || 0;
+    if (metric === 'stat_hit_chance') return Number(char.hit_chance) || 0;
+    if (metric === 'stat_crit_chance') return Number(char.crit_chance) || 0;
+    if (metric === 'tournament_wins') return Number(char.tournament_wins) || 0;
 
     if (metric === 'mission_wins_total') return metrics.missionTotals.wins;
     if (metric === 'mission_fights_total') return metrics.missionTotals.fights;
