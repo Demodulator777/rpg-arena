@@ -8893,6 +8893,7 @@ router.post('/forge/craft', auth, async (req, res) => {
         const { recipeId } = req.body;
         const recipe = EQUIPMENT_RECIPES.find(r => r.id === recipeId);
         if (!recipe) return res.status(400).json({ error: 'Unknown recipe' });
+        if (recipe.bannerOnly) return res.status(400).json({ error: 'Cannot craft banner-only items' });
         
         if (char.level < (recipe.minLevel || 1)) {
             return res.status(400).json({ error: `Requires level ${recipe.minLevel} to craft this item.` });
