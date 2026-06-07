@@ -8802,7 +8802,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
             const canCraft = char.gold >= comp.goldCost && Object.entries(comp.recipe).every(([mat, qty]) => (mats[mat]?.qty || 0) >= qty);
             return { id, ...comp, canCraft, playerMats: mats };
         });
-        const equipment = EQUIPMENT_RECIPES.map(rec => {
+        const equipment = EQUIPMENT_RECIPES.filter(rec => !rec.bannerOnly).map(rec => {
             const zoneUnlocked = completedZones.has(rec.requiredZone) || char.level >= (ZONES[rec.requiredZone]?.minLevel || 1);
             const scaledGoldCost = getScaledForgeGoldCost(rec.goldCost, char.level, rec.minLevel || 1);
             const canCraft = zoneUnlocked && char.gold >= scaledGoldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
