@@ -618,6 +618,56 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
                 pyro_resist:10, electro_resist:10, dmg_min:2 },
         components:{ shadowsteel_bar:2, abyss_weave:2, eternal_essence:1 }, goldCost:16000,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 7 — ECLIPSED SERAPH  (Banner Set)
+    //  Paladin hybrid — defense/magic/strength + elemental resists, no agility
+    // ══════════════════════════════════════════════
+    {
+        id:'eclipsed_seraph_weapon', setId:'eclipsed_seraph', setPiece:'weapon',
+        name:'Fallen Grace', emoji:'⚔️', quality:'legendary',
+        slot:'weapon',
+        desc:'A divine relic stained by betrayal and ruin, its light twisted into a cold, judging flame.',
+        stats:{ dmg_min:18, dmg_max:42, strength:12, magic:16, defense:8, hit_chance:6,
+                pyro_resist:12, water_resist:12, wind_resist:12, electro_resist:12 },
+        components:{}, goldCost:0,
+    },
+    {
+        id:'eclipsed_seraph_armor', setId:'eclipsed_seraph', setPiece:'armor',
+        name:'Vestments of the Black Halo', emoji:'🥼', quality:'legendary',
+        slot:'armor',
+        desc:'Once radiant armor now shrouded in celestial darkness, humming with stifled hymns.',
+        stats:{ dmg_min:1, dmg_max:2, defense:32, armor:20, hp_max:150, strength:8, magic:10, vitality:6,
+                water_resist:15 },
+        components:{}, goldCost:0,
+    },
+    {
+        id:'eclipsed_seraph_helmet', setId:'eclipsed_seraph', setPiece:'helmet',
+        name:'Halo of Ruination', emoji:'👁️', quality:'legendary',
+        slot:'helmet',
+        desc:'A broken crown of fractured light that radiates forbidden divinity and silent wrath.',
+        stats:{ dmg_min:2, dmg_max:4, defense:22, armor:12, hp_max:100, strength:8, magic:12,
+                crit_chance:10, hit_chance:6, wind_resist:15 },
+        components:{}, goldCost:0,
+    },
+    {
+        id:'eclipsed_seraph_shield', setId:'eclipsed_seraph', setPiece:'shield',
+        name:'Wingguard of the Forsaken', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'Fashioned from the shattered wings of a fallen seraph, each feather cuts those it fails to shield.',
+        stats:{ dmg_min:1, dmg_max:2, defense:36, armor:24, hp_max:120, strength:10, magic:8,
+                electro_resist:15 },
+        components:{}, goldCost:0,
+    },
+    {
+        id:'eclipsed_seraph_boots', setId:'eclipsed_seraph', setPiece:'boots',
+        name:'Heavenfall Sabatons', emoji:'👢', quality:'legendary',
+        slot:'boots',
+        desc:'Leave burning traces of celestial ash in their wake — the earth remembers every step.',
+        stats:{ dmg_min:1, dmg_max:2, defense:20, armor:12, hp_max:60, strength:6, magic:8,
+                pyro_resist:15 },
+        components:{}, goldCost:0,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -671,6 +721,19 @@ const CRAFTING_SETS = {
             strength:22, agility:20, defense:30, hp_max:160, armor:10,
             pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15,
             desc:'5/5: +22 STR · +20 AGI · +30 DEF · +160 HP · +10 Armor · +15 all Elem Resist'
+        },
+    },
+    eclipsed_seraph: {
+        name:'Eclipsed Seraph Set', emoji:'👼',
+        bonus3:{
+            defense:12, magic:10, strength:8,
+            pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
+            desc:'2/5: +12 DEF · +10 MAG · +8 STR · +10 all Elem Resist'
+        },
+        bonus5:{
+            defense:25, magic:20, strength:16, hp_max:150, armor:8,
+            pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
+            desc:'5/5: +25 DEF · +20 MAG · +16 STR · +150 HP · +8 Armor · +20 all Elem Resist'
         },
     },
 };
