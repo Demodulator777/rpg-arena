@@ -2639,16 +2639,6 @@ ACHIEVEMENTS.push(
     { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
     { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
 
-    // Raids participated
-    { id: 'raids_1', category: 'guild', name: 'Raid Beginner', desc: 'Participate in 1 guild raid.', icon: '⚔️', metric: 'raids_participated', target: 1, rewards: { gold: 5000 } },
-    { id: 'raids_5', category: 'guild', name: 'Raid Apprentice', desc: 'Participate in 5 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 5, rewards: { gold: 15000 } },
-    { id: 'raids_10', category: 'guild', name: 'Raid Veteran', desc: 'Participate in 10 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 10, rewards: { gold: 30000, gems: 10 } },
-    { id: 'raids_25', category: 'guild', name: 'Raid Elite', desc: 'Participate in 25 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 25, rewards: { gold: 75000, gems: 20 } },
-    { id: 'raids_50', category: 'guild', name: 'Raid Legend', desc: 'Participate in 50 guild raids.', icon: '⚔️', metric: 'raids_participated', target: 50, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-
-    // Raids won
-    { id: 'raids_won_5', category: 'guild', name: 'Raid Champion', desc: 'Win 5 guild raids.', icon: '🏆', metric: 'raids_won', target: 5, rewards: { gold: 25000 } },
-
     // ── Stat upgrade achievements ─────────────────────────────────────────
 
     // Strength
