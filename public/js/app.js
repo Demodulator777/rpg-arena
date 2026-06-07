@@ -4802,7 +4802,7 @@ function getInventorySellRate() {
 function getInventorySellCap(itemData) {
     const explicitCap = Number(itemData?.sell_price_cap || 0);
     if (explicitCap > 0) return explicitCap;
-    if (itemData?.source === 'banner' || itemData?.setId === 'spiteforged') return 1000;
+    if (itemData?.source === 'banner') return 1000;
     return 0;
 }
 
