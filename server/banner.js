@@ -181,6 +181,14 @@ const SPITEFORGED_LOOT = [
     { id: 'spiteforged_boots', name: 'Treads of the Unforgiving', type: 'boots', rarity: 'legendary' },
 ];
 
+const ECLIPSED_SERAPH_LOOT = [
+    { id: 'eclipsed_seraph_weapon', name: 'Fallen Grace', type: 'weapon', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_armor', name: 'Vestments of the Black Halo', type: 'armor', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_helmet', name: 'Halo of Ruination', type: 'helmet', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_shield', name: 'Wingguard of the Forsaken', type: 'shield', rarity: 'legendary' },
+    { id: 'eclipsed_seraph_boots', name: 'Heavenfall Sabatons', type: 'boots', rarity: 'legendary' },
+];
+
 async function seedDefaultBanner(db) {
     const now = Math.floor(Date.now() / 1000);
     const existingAny = await dbGet(db, `SELECT id FROM banner_events ORDER BY id DESC LIMIT 1`);
@@ -193,12 +201,19 @@ async function seedDefaultBanner(db) {
     }
     
     const weekFromNow = now + 7 * 24 * 60 * 60;
+    const twoWeeksFromNow = now + 14 * 24 * 60 * 60;
     
     await db.execute({ 
         sql: `INSERT INTO banner_events (name, image, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?)`,
         args: ['Spiteforged Banner', 'spiteforged', now, weekFromNow, JSON.stringify(SPITEFORGED_LOOT)]
     });
-    console.log('🎴 Seeded default Spiteforged banner');
+    console.log('🎴 Seeded Spiteforged banner');
+    
+    await db.execute({ 
+        sql: `INSERT INTO banner_events (name, image, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?)`,
+        args: ['Eclipsed Seraph Banner', 'eclipsed_seraph', weekFromNow, twoWeeksFromNow, JSON.stringify(ECLIPSED_SERAPH_LOOT)]
+    });
+    console.log('🎴 Seeded Eclipsed Seraph banner');
 }
 
 async function getPlayerBannerStats(db, charId, bannerId) {
@@ -425,8 +440,8 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                 [char.id, banner.id]
             );
             
-            // Unlock profile pic for this set (get set ID from first loot item)
-            const setId = banner.loot_table[0]?.id?.split('_')[0] || 'spiteforged';
+            // Unlock profile pic for this set (extract set ID by removing slot suffix)
+            const setId = banner.loot_table[0]?.id?.replace(/_(weapon|armor|helmet|shield|boots)$/, '') || 'spiteforged';
             const unlockedPics = JSON.parse(char.unlocked_profile_pics || '[]');
             const picToUnlock = `${char.class}-${setId}`;
             if (!unlockedPics.includes(picToUnlock)) {
@@ -453,7 +468,7 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                         slot: item.type,
                         rarity: 'legendary',
                         quality: 'legendary',
-                        setId: 'spiteforged',
+                        setId: setId,
                         stackable: false,
                         qty: 1,
                         stats: itemStats,
