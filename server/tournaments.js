@@ -236,7 +236,8 @@ async function runAllVsAll(db, t, participants, fast) {
     }
 
     log.push('---');
-    if (!fast) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
+    await dbRun_t(db, 'UPDATE tournaments SET battle_log = ? WHERE id = ?', [JSON.stringify(log), t.id]);
+    if (!fast) await new Promise(resolve => setTimeout(resolve, 5000));
   }
 
   const winner = fighters.find(f => f.hp > 0);
