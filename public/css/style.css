@@ -3155,6 +3155,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border: 1px solid rgba(255,255,255,0.06);
     font-size: 0.72rem;
     color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.achievements-summary > div:hover { background: rgba(255,255,255,0.08); }
+.achievements-summary > div.active {
+    background: rgba(255,215,0,0.1);
+    border-color: rgba(255,215,0,0.3);
+    color: var(--text-bright);
 }
 
 .achievements-summary strong {
