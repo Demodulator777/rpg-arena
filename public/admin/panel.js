@@ -518,7 +518,7 @@ function loadTournaments() {
         document.querySelectorAll('[data-action="restart-tournament"]').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var id = this.dataset.id;
-                if (!confirm('Restart tournament #' + id + '? This will clear all participants and matches.')) return;
+                if (!confirm('Restart tournament #' + id + '? This will clear match results.')) return;
                 this.textContent = '...';
                 adminApi('POST', '/tournaments/restart/' + id).then(function(r) {
                     loadTournaments();
