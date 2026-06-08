@@ -9235,7 +9235,11 @@ function scaleItemToLevel(recipe, playerLevel) {
             scaledValue = Math.min(resistCap, scaledValue);
         }
         
-        if (scaledValue > 0) scaledStats[stat] = scaledValue;
+        if (value < 0) {
+            scaledStats[stat] = value;
+        } else if (scaledValue > 0) {
+            scaledStats[stat] = scaledValue;
+        }
     }
     
     item.stats = scaledStats;
