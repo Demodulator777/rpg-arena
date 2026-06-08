@@ -2437,21 +2437,39 @@ function renderAchievementsSummary(data) {
     el.textContent = totals.claimable > 0 ? `${totals.claimable} ready` : `${totals.claimed}/${totals.total} claimed`;
 }
 
+let achievementsFilter = 'total';
+
+function setAchievementsFilter(filter) {
+    achievementsFilter = filter;
+    renderAchievementsPanel(window._achievementsData);
+}
+
 function renderAchievementsPanel(data, targetId='achievements-modal-content') {
     const el = document.getElementById(targetId);
     if (!el) return;
-    const items = getVisibleAchievements(data?.items || []);
+    const allItems = getVisibleAchievements(data?.items || []);
     const totals = data?.totals || { claimed: 0, total: 0, claimable: 0 };
+    const items = allItems.filter(a => {
+        if (achievementsFilter === 'claimed') return a.claimed;
+        if (achievementsFilter === 'ready') return a.claimable;
+        return true;
+    });
     if (!items.length) {
-        el.innerHTML = '<div class="achievements-panel-loading">No achievements yet.</div>';
+        el.innerHTML = `
+        <div class="achievements-summary">
+            <div class="${achievementsFilter === 'claimed' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'claimed')}><strong>${totals.claimed}</strong> claimed</div>
+            <div class="${achievementsFilter === 'ready' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'ready')}><strong>${totals.claimable}</strong> ready</div>
+            <div class="${achievementsFilter === 'total' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'total')}><strong>${totals.total}</strong> total</div>
+        </div>
+        <div class="achievements-panel-loading" style="margin-top:12px">No achievements in this filter.</div>`;
         return;
     }
 
     el.innerHTML = `
         <div class="achievements-summary">
-            <div><strong>${totals.claimed}</strong> claimed</div>
-            <div><strong>${totals.claimable}</strong> ready</div>
-            <div><strong>${totals.total}</strong> total</div>
+            <div class="${achievementsFilter === 'claimed' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'claimed')}><strong>${totals.claimed}</strong> claimed</div>
+            <div class="${achievementsFilter === 'ready' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'ready')}><strong>${totals.claimable}</strong> ready</div>
+            <div class="${achievementsFilter === 'total' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'total')}><strong>${totals.total}</strong> total</div>
         </div>
         <div class="achievements-list">
             ${items.map(achievement => {
