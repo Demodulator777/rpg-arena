@@ -2754,6 +2754,17 @@ function buildExtendedAchievements() {
             rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
         },
         {
+            id: 'hard_missions_100',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Calamity Walker',
+            desc: 'Win 100 hard missions.',
+            icon: '🌋',
+            metric: 'hard_missions_completed',
+            target: 100,
+            rewards: { gold: 350000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
             id: 'elemental_kills_10',
             chain: 'elemental_kills',
             category: 'combat',
@@ -3404,7 +3415,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 1000000, gems: 150, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const hardMissionBase = ACHIEVEMENTS.find((a) => a.id === 'hard_missions_100');
+    const hardMissionBase = extras.find((a) => a.id === 'hard_missions_100');
     addFromBase(hardMissionBase, {
         id: 'hard_missions_150',
         name: 'Extreme Daredevil',
@@ -3539,7 +3550,6 @@ ACHIEVEMENTS.push(
     // Hard missions
     { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
     { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
-    { id: 'hard_missions_100', chain: 'hard_missions_completed', category: 'missions', name: 'Calamity Walker', desc: 'Complete 100 hard missions.', icon: '🌋', metric: 'hard_missions_completed', target: 100, rewards: { gold: 350000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 
     // ── Stat upgrade achievements ─────────────────────────────────────────
 
