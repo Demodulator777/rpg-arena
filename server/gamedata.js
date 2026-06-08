@@ -528,7 +528,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
     {
         id:'shadewalker_weapon', setId:'shadewalker', setPiece:'weapon',
         name:"Shadewalker's Kiss", emoji:'🗡️', quality:'legendary',
-        slot:'weapon',
+        slot:'weapon', weaponType:'dagger',
         desc:'A dagger that drinks the light from the air before it drinks blood. No blade is keener, no strike more silent.',
         stats:{ dmg_min:13, dmg_max:27, agility:12, crit_chance:10, hit_chance:8,
                 pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10 },
