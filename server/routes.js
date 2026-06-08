@@ -822,6 +822,42 @@ const WEEKLY_TASKS = [
             try { await db.execute({ sql, args: [] }); } catch {}
         }
         
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS elementals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER UNIQUE NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Elemental',
+            element TEXT NOT NULL DEFAULT 'pyro',
+            level INTEGER NOT NULL DEFAULT 1,
+            xp INTEGER NOT NULL DEFAULT 0,
+            hp INTEGER NOT NULL DEFAULT 30,
+            hp_max INTEGER NOT NULL DEFAULT 30,
+            strength INTEGER NOT NULL DEFAULT 5,
+            defense INTEGER NOT NULL DEFAULT 5,
+            agility INTEGER NOT NULL DEFAULT 5,
+            magic INTEGER NOT NULL DEFAULT 5,
+            vitality INTEGER NOT NULL DEFAULT 5,
+            hit_chance INTEGER NOT NULL DEFAULT 5,
+            crit_chance INTEGER NOT NULL DEFAULT 2,
+            dmg_min INTEGER NOT NULL DEFAULT 2,
+            dmg_max INTEGER NOT NULL DEFAULT 5,
+            stat_points INTEGER NOT NULL DEFAULT 0,
+            stat_str INTEGER NOT NULL DEFAULT 0,
+            stat_def INTEGER NOT NULL DEFAULT 0,
+            stat_agi INTEGER NOT NULL DEFAULT 0,
+            stat_mag INTEGER NOT NULL DEFAULT 0,
+            stat_vit INTEGER NOT NULL DEFAULT 0,
+            hp_current INTEGER NOT NULL DEFAULT 30,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`, args: [] });
+        
+        // Add elemental_xp column if missing (for existing DBs)
+        try {
+            await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN elemental_xp INTEGER NOT NULL DEFAULT 0`, args: [] });
+        } catch {}
+        try {
+            await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN element_level INTEGER NOT NULL DEFAULT 1`, args: [] });
+        } catch {}
+        
         console.log('✅ DB migrations applied');
     } catch (e) { console.error('Migration error:', e.message); }
 })();
@@ -5602,6 +5638,12 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let totalElemDmgDealtA = 0;
     let totalElemDmgDealtB = 0;
     
+    // Elemental companions
+    let elemA = fighterA._elementalFighter || null;
+    let elemB = fighterB._elementalFighter || null;
+    let elemAHp = elemA ? elemA.hp : 0;
+    let elemBHp = elemB ? elemB.hp : 0;
+
     let shieldA = calculateMagicShield(fighterB, fighterA);
     let shieldB = calculateMagicShield(fighterA, fighterB);
 
@@ -5610,6 +5652,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     const skB = Object.keys(fighterB.baseActiveSkills || {});
     if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
     if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+    if (elemA) log.push(`🐉 ${fighterA.name}'s elemental spirit joins the battle!`);
+    if (elemB) log.push(`🐉 ${fighterB.name}'s elemental spirit joins the battle!`);
     
     if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
     if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
@@ -5625,6 +5669,20 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         const atkZoneB = fighterB.attackZones[round-1] || 'chest';
         const blkZoneB = fighterB.blockZones[round-1]  || 'cross_guard';
         
+        // Elemental attacks (before main combat)
+        let elemDmgToB = 0, elemDmgToA = 0;
+        if (elemA && elemAHp > 0) {
+            elemDmgToB = calcElemDmgValue(elemA, calcElemStats(elemA));
+            hpB = Math.max(0, hpB - elemDmgToB);
+            log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemA.element.toUpperCase()} damage!`);
+        }
+        if (elemB && elemBHp > 0) {
+            elemDmgToA = calcElemDmgValue(elemB, calcElemStats(elemB));
+            hpA = Math.max(0, hpA - elemDmgToA);
+            log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemB.element.toUpperCase()} damage!`);
+        }
+        if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
+
         const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
         const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
         
@@ -5641,6 +5699,18 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
         hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
         
+        // Elemental split damage (20% of dmg dealt to player goes to elemental)
+        if (elemA && elemAHp > 0 && dmgToA > 0) {
+            const splitDmg = Math.max(1, Math.floor(dmgToA * 0.2));
+            elemAHp = Math.max(0, elemAHp - splitDmg);
+            if (elemAHp <= 0) log.push(`🐉 ${elemA.name} is knocked out!`);
+        }
+        if (elemB && elemBHp > 0 && dmgToB > 0) {
+            const splitDmg = Math.max(1, Math.floor(dmgToB * 0.2));
+            elemBHp = Math.max(0, elemBHp - splitDmg);
+            if (elemBHp <= 0) log.push(`🐉 ${elemB.name} is knocked out!`);
+        }
+
         // Apply burn_dot damage to both fighters
         const burnToA = (resA.attackerBurnDmg || 0) + (resB.defenderBurnDmg || 0);
         const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
@@ -5816,7 +5886,9 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         totalDmgToB: Math.round(totalDmgToB),
         totalElemDmgDealt: Math.round(totalElemDmgDealtA),
         totalElemDmgDealtA: Math.round(totalElemDmgDealtA),
-        totalElemDmgDealtB: Math.round(totalElemDmgDealtB)
+        totalElemDmgDealtB: Math.round(totalElemDmgDealtB),
+        elementalHpA: Math.round(Math.max(0, elemAHp)),
+        elementalHpB: Math.round(Math.max(0, elemBHp))
     };}
 
 function createTutorialBattleResult(playerFighter, npc) {
@@ -6239,6 +6311,17 @@ async function buildCombatFighter(db, char) {
         attackZones: JSON.parse(char.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
         blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
         dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
+        _elementalFighter: await (async () => {
+            const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+            if (!er) return null;
+            const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
+            const bd = (er.defense || 5) + (er.stat_def || 0) * 2;
+            const ba = (er.agility || 5) + (er.stat_agi || 0) * 2;
+            const bm = (er.magic || 5) + (er.stat_mag || 0) * 2;
+            const bv = (er.vitality || 5) + (er.stat_vit || 0) * 2;
+            const eHp = 30 + bv * 4 + er.level * 8;
+            return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current || eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8) };
+        })(),
     };
 }
 
@@ -7385,6 +7468,8 @@ const userSettings = char.user_id
 
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
+    const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+
     return {
         ...withTrain,
         tutorial_skipped: char.tutorial_skipped || 0,
@@ -7441,10 +7526,11 @@ const userSettings = char.user_id
         inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
         inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
         chat_enabled: Number(userSettings?.chat_enabled ?? 1) !== 0,
-inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
+        inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
+        elemental: elemental ? { name: elemental.name, element: elemental.element || 'pyro', level: elemental.level } : null,
         profile_badges: (() => {
             try {
                 const raw = char.profile_badges;
@@ -8484,6 +8570,17 @@ if (freshChar.class === 'rogue') {
             dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
         };
         
+        // Attach elemental companion for missions
+        const missionElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshChar.id]);
+        if (missionElemRow) {
+            const elemStats = calcElemStats(missionElemRow);
+            playerFighter._elementalFighter = {
+                ...missionElemRow,
+                ...elemStats,
+                hp: missionElemRow.hp_current || elemStats.hpMax
+            };
+        }
+
         const isTutorial = isTutorialCharacter(freshChar);
 
         // Build NPC and override its name with the mission name
@@ -8765,6 +8862,12 @@ const mats = matsByZone[mission.zone] || (mission.map_type === 'abyss' ? matsByZ
          battle.totalDmgToB, battle.totalDmgToA]);
 } catch {}
         
+        // Save elemental HP after mission
+        if (playerFighter._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]);
+        }
+
         try {
             const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`;
 const payload = JSON.stringify({ 
@@ -9461,6 +9564,11 @@ router.get('/travel/status', auth, async (req, res) => {
                             [newHp, freshChar.id]);
                     }
 
+                    if (playerFighter._elementalFighter) {
+                        await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                            [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
+                    }
+
                     encounterResult = {
                         type: 'travel_guardian',
                         won: playerWon,
@@ -10131,6 +10239,26 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             dualWield: freshD.class === 'rogue' && rogueHasDualWield(learnedIdsD),
         };
         
+        // Attach elemental companions
+        const elemRowA = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshA.id]);
+        if (elemRowA) {
+            const elemStats = calcElemStats(elemRowA);
+            fighterA._elementalFighter = {
+                ...elemRowA,
+                ...elemStats,
+                hp: elemRowA.hp_current || elemStats.hpMax
+            };
+        }
+        const elemRowB = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshD.id]);
+        if (elemRowB) {
+            const elemStats = calcElemStats(elemRowB);
+            fighterB._elementalFighter = {
+                ...elemRowB,
+                ...elemStats,
+                hp: elemRowB.hp_current || elemStats.hpMax
+            };
+        }
+
         const battle = runBattle(fighterA, fighterB);
         const attackerWon = battle.winnerId === freshA.id;
         const isDraw = battle.winnerId === 0;
@@ -10199,6 +10327,15 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             try { await dbRun(db, 'INSERT INTO battles (attacker_id,defender_id,winner_id,log) VALUES (?,?,?,?)', [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, JSON.stringify(battle.log)]); } catch {}
         }
         await dbRun(db, 'UPDATE characters SET last_battle_at=? WHERE id=?', [now, freshA.id]);
+        // Save elemental HP after battle
+        if (fighterA._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                [battle.elementalHpA, freshA.id, fighterA._elementalFighter.id]);
+        }
+        if (fighterB._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                [battle.elementalHpB, freshD.id, fighterB._elementalFighter.id]);
+        }
         try {
             await dbRun(
                 db,
@@ -10337,6 +10474,10 @@ router.get('/player/:id', auth, async (req, res) => {
             armor_value: profileArmor,
             equipped_set_bonuses: profileSetBonuses,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
+            elemental: await (async () => {
+                const er = await dbGet(db, 'SELECT name, element, level FROM elementals WHERE char_id = ?', [player.id]).catch(() => null);
+                return er || null;
+            })(),
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -14741,6 +14882,11 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
                 }
             }
 
+            if (playerFighter._elementalFighter) {
+                await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                    [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
+            }
+
             const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
             if (!playerWon) {
@@ -15047,6 +15193,252 @@ router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
     
     res.json({ message: help.message });
 });
+
+// ── Elemental Spirit Beast ───────────────────────────────────────────────
+const ELEM_XP_TABLE = [0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000];
+function elemXpForLevel(lvl) {
+    if (lvl <= 10) return ELEM_XP_TABLE[lvl - 1] || 5000;
+    return 5000 + (lvl - 10) * 1000;
+}
+
+function calcElemStats(elem) {
+    const lvl = elem.level || 1;
+    const str = (elem.strength || 5) + (elem.stat_str || 0) * 2;
+    const def = (elem.defense || 5) + (elem.stat_def || 0) * 2;
+    const agi = (elem.agility || 5) + (elem.stat_agi || 0) * 2;
+    const mag = (elem.magic || 5) + (elem.stat_mag || 0) * 2;
+    const vit = (elem.vitality || 5) + (elem.stat_vit || 0) * 2;
+    const hpMax = 30 + vit * 4 + lvl * 8;
+    const dmgMin = 2 + Math.floor(str * 0.4) + Math.floor(lvl * 0.5);
+    const dmgMax = 5 + Math.floor(str * 0.6) + Math.floor(lvl * 0.8);
+    const hit = 5 + Math.floor(agi * 0.4) + lvl;
+    const crit = 2 + Math.floor(agi * 0.15) + Math.floor(lvl * 0.3);
+    return { str, def, agi, mag, vit, hpMax, dmgMin, dmgMax, hit, crit };
+}
+
+function calcElemDmgValue(elem, computedStats) {
+    const elemLvl = elem.element_level || 1;
+    const mag = computedStats.mag;
+    const base = 2 + elemLvl * 3 + Math.floor(mag * 0.3);
+    const variance = Math.floor(base * 0.2);
+    return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
+}
+
+async function ensureElemental(db, charId) {
+    let elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [charId]);
+    if (!elem) return null;
+    const stats = calcElemStats(elem);
+    const newHpMax = stats.hpMax;
+    if (elem.hp_max !== newHpMax) {
+        await dbRun(db, 'UPDATE elementals SET hp_max = ? WHERE id = ?', [newHpMax, elem.id]);
+        elem.hp_max = newHpMax;
+    }
+    if (elem.hp_current > newHpMax) {
+        await dbRun(db, 'UPDATE elementals SET hp_current = ? WHERE id = ?', [newHpMax, elem.id]);
+        elem.hp_current = newHpMax;
+    }
+    return elem;
+}
+
+async function levelUpElemental(db, elem) {
+    let newLevel = elem.level;
+    let xp = elem.xp;
+    while (xp >= elemXpForLevel(newLevel)) {
+        xp -= elemXpForLevel(newLevel);
+        newLevel++;
+    }
+    if (newLevel !== elem.level) {
+        const gains = {
+            strength: (elem.strength || 5) + (newLevel - elem.level),
+            defense: (elem.defense || 5) + (newLevel - elem.level),
+            agility: (elem.agility || 5) + (newLevel - elem.level),
+            magic: (elem.magic || 5) + (newLevel - elem.level),
+            vitality: (elem.vitality || 5) + (newLevel - elem.level),
+            stat_points: (elem.stat_points || 0) + (newLevel - elem.level) * 3,
+            xp,
+        };
+        await dbRun(db, `UPDATE elementals SET level=?, strength=?, defense=?, agility=?, magic=?, vitality=?, stat_points=?, xp=? WHERE id=?`,
+            [newLevel, gains.strength, gains.defense, gains.agility, gains.magic, gains.vitality, gains.stat_points, gains.xp, elem.id]);
+        elem.level = newLevel;
+        elem.stat_points = gains.stat_points;
+        elem.xp = gains.xp;
+    } else {
+        await dbRun(db, 'UPDATE elementals SET xp=? WHERE id=?', [xp, elem.id]);
+        elem.xp = xp;
+    }
+    return elem;
+}
+
+// Material XP values for feeding
+const ELEM_FEED_VALUES = {
+    wood: 3, iron_ore: 4, wolf_pelt: 4, herbs: 3,
+    mithril_ore: 8, poison_gland: 6, swamp_crystal: 7, frost_essence: 8,
+    dragon_scale_shard: 12, arcane_dust: 10, void_shard: 12, shadow_essence: 11,
+    demon_core: 18, legendary_fragment: 25,
+    iron_ingot: 6, hardwood_plank: 5, tanned_hide: 5, poison_extract: 7,
+    frost_core: 14, mithril_ingot: 10, arcane_shard: 12, dragon_plate: 18,
+    void_crystal: 15, shadow_weave: 14, demon_alloy: 20, crimson_alloy: 22,
+    abyss_weave: 20, shadowsteel_bar: 16, eternal_essence: 25, void_plate: 18
+};
+
+router.get('/elemental', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.json({ elemental: null });
+        const stats = calcElemStats(elem);
+        const xpNext = elemXpForLevel(elem.level);
+        res.json({ elemental: { ...elem, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/discover', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT id FROM elementals WHERE char_id = ?', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You already have an elemental' });
+        const maxFloor = char.dungeon_floor || 0;
+        if (maxFloor < 5) return res.status(400).json({ error: 'Reach dungeon floor 5 to discover an elemental' });
+        await dbRun(db, `INSERT INTO elementals (char_id, name) VALUES (?, 'Elemental')`, [char.id]);
+        const elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]);
+        res.json({ message: '✨ You discovered an Elemental spirit beast!', elemental: elem });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/feed', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.status(400).json({ error: 'No elemental. Discover one first.' });
+        const { inventory_id, qty } = req.body;
+        if (!inventory_id) return res.status(400).json({ error: 'inventory_id required' });
+        const invItem = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [inventory_id, char.id]);
+        if (!invItem) return res.status(404).json({ error: 'Item not found' });
+        const data = typeof invItem.item_data === 'string' ? JSON.parse(invItem.item_data) : invItem.item_data;
+        if (data.type !== 'raw_mat' && data.category !== 'material') {
+            return res.status(400).json({ error: 'Can only feed raw materials' });
+        }
+        const feedQty = Math.min(qty || 1, data.qty || 1);
+        const xpPerUnit = ELEM_FEED_VALUES[data.id] || 2;
+        const totalXp = xpPerUnit * feedQty;
+        if (data.qty !== undefined) {
+            data.qty -= feedQty;
+            if (data.qty <= 0) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invItem.id]);
+            } else {
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), invItem.id]);
+            }
+        } else {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invItem.id]);
+        }
+        const elemXp = (elem.elemental_xp || 0) + totalXp;
+        const newElemLevel = 1 + Math.floor(elemXp / 100);
+        elem.xp = (elem.xp || 0) + totalXp;
+        await dbRun(db, 'UPDATE elementals SET xp=?, elemental_xp=?, element_level=? WHERE id=?',
+            [elem.xp, elemXp, newElemLevel, elem.id]);
+        const xpNext = elemXpForLevel(elem.level);
+        const stats = calcElemStats(elem);
+        const leveled = await levelUpElemental(db, elem);
+        res.json({ message: `🍽️ Fed ${feedQty}x ${data.name || 'material'} (+${totalXp} XP)`, elemental: { ...leveled, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/set-element', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.status(400).json({ error: 'No elemental' });
+        const { element } = req.body;
+        if (!['pyro', 'water', 'wind', 'electro'].includes(element)) {
+            return res.status(400).json({ error: 'Invalid element. Choose: pyro, water, wind, electro' });
+        }
+        const changeCost = 5000;
+        if ((char.gold || 0) < changeCost) return res.status(400).json({ error: `Need ${changeCost} gold to change element` });
+        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [changeCost, char.id]);
+        await dbRun(db, 'UPDATE elementals SET element = ?, element_level = 1, elemental_xp = 0 WHERE id = ?', [element, elem.id]);
+        res.json({ message: `⚡ Elemental's element changed to ${element}!`, gold: Math.max(0, (char.gold || 0) - changeCost) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/assign-stats', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.status(400).json({ error: 'No elemental' });
+        const { str, def, agi, mag, vit } = req.body;
+        const total = (str || 0) + (def || 0) + (agi || 0) + (mag || 0) + (vit || 0);
+        if (total > (elem.stat_points || 0)) {
+            return res.status(400).json({ error: 'Not enough stat points' });
+        }
+        await dbRun(db, `UPDATE elementals SET stat_str=stat_str+?, stat_def=stat_def+?, stat_agi=stat_agi+?, stat_mag=stat_mag+?, stat_vit=stat_vit+?, stat_points=stat_points-? WHERE id=?`,
+            [str||0, def||0, agi||0, mag||0, vit||0, total, elem.id]);
+        const updated = await ensureElemental(db, char.id);
+        const stats = calcElemStats(updated);
+        const xpNext = elemXpForLevel(updated.level);
+        res.json({ message: 'Stats assigned!', elemental: { ...updated, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Elemental combat helpers ────────────────────────────────────────────
+function buildElementalFighter(elem, playerLevel) {
+    if (!elem) return null;
+    const stats = calcElemStats(elem);
+    const elemLvl = elem.element_level || 1;
+    const elems = { pyro: 0, water: 0, wind: 0, electro: 0 };
+    elems[elem.element || 'pyro'] = 1;
+    const dmg = calcElemDmgValue(elem, stats);
+    return {
+        id: `elem_${elem.id}`,
+        name: elem.name || 'Elemental',
+        class: 'elemental',
+        level: elem.level,
+        hp: elem.hp_current || stats.hpMax,
+        hpMax: stats.hpMax,
+        dmgMin: stats.dmgMin,
+        dmgMax: stats.dmgMax,
+        strength: stats.str,
+        agility: stats.agi,
+        magic: stats.mag,
+        defense: stats.def,
+        hit_chance: stats.hit,
+        crit_chance: stats.crit,
+        armor: Math.floor(stats.def / 3),
+        agility_bonus: 0,
+        dmg_bonus: 0,
+        elem_dmg: elems,
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        skillEffects: [],
+        skillMods: [],
+        baseActiveSkills: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        isElemental: true,
+    };
+}
+
+function applyElementalCombat(elemFighter, defender, log, round) {
+    if (!elemFighter || elemFighter.hp <= 0) return { dmg: 0, logLine: '' };
+    const atkZone = (elemFighter.attackZones || DEFAULT_ATTACK_ZONES)[(round - 1) % 10] || 'chest';
+    const blkZone = (defender.blockZones || DEFAULT_BLOCK_ZONES)[(round - 1) % 10] || 'cross_guard';
+    const res = simulateRound(round, elemFighter, defender, atkZone, blkZone, false,
+        { active: false, value: 0, remaining: 0 }, { active: false, value: 0, remaining: 0 });
+    defender.hp = Math.max(0, defender.hp - res.damageDealt);
+    if (res.damageDealt > 0) {
+        log.push(`🔥 ${elemFighter.name} attacks ${defender.name} for ${res.damageDealt} damage!`);
+    }
+    return { dmg: res.damageDealt, logLine: res.logLine };
+}
 
 function escapeHtml(str) {
     if (!str) return '';
