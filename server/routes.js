@@ -14236,16 +14236,15 @@ function generateLootFromBox(boxType, playerLevel) {
         const recipe = craftable[Math.floor(Math.random() * craftable.length)];
         if (recipe) {
             const scaled = scaleItemToLevel(recipe, playerLevel);
-            const name = `${recipe.emoji || ''} ${scaled.name}`.trim();
             result.items.push({
                 ...scaled,
                 id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
-                name,
                 type: 'equipment',
                 source: 'crafted_drop',
                 sell_price_cap: 1000,
                 stackable: false,
                 qty: 1,
+                img: null,
                 desc: `🏭 ${scaled.desc || recipe.desc || ''}`
             });
         }
