@@ -2268,6 +2268,7 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
     const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
             <img src="/images/class/${c.profile_pic || c.class + '.png'}" alt="${c.class}" data-error-opacity-zero="true">
+            ${c.elemental ? `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit">` : ''}
         </div>` : '';
     const item = resolvedEq[slot];
     if (!item) return avatarDiv + `
@@ -7148,6 +7149,7 @@ async function openProfile(id) {
             const avatarDiv = idx === 3 ? `
                 <div class="eq-avatar-center profile-eq-avatar">
                     <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
+                    ${p.elemental ? `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit">` : ''}
                 </div>` : '';
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
