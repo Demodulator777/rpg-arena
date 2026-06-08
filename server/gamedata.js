@@ -669,6 +669,56 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
                 pyro_dmg:5, pyro_resist:15 },
         components:{}, goldCost:0,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 8 — WYRMMFLAME REGALIA  (Attack set)
+    //  High hit chance · high strength · high damage · pyro focus
+    // ══════════════════════════════════════════════
+    {
+        id:'wyrmflame_weapon', setId:'wyrmflame', setPiece:'weapon',
+        name:'Fang of the Worldpyre', emoji:'⚔️', quality:'legendary',
+        slot:'weapon',
+        desc:'Its edge was quenched in dragonfire and sharpened upon the bones of kings.',
+        stats:{ dmg_min:52, dmg_max:48, strength:22, hit_chance:42, crit_chance:4,
+                pyro_dmg:25, pyro_resist:10 },
+        components:{ abyss_weave:3, crimson_alloy:2, void_crystal:2 }, goldCost:22000,
+    },
+    {
+        id:'wyrmflame_helmet', setId:'wyrmflame', setPiece:'helmet',
+        name:'Crown of the Ember Wyrm', emoji:'👑', quality:'legendary',
+        slot:'helmet',
+        desc:'To wear the crown is to hear the whispers of sleeping dragons.',
+        stats:{ defense:24, armor:8, hp_max:80, hit_chance:14, crit_chance:2,
+                pyro_resist:15, water_resist:-5 },
+        components:{ shadowsteel_bar:2, frost_core:1, demon_alloy:2 }, goldCost:17000,
+    },
+    {
+        id:'wyrmflame_armor', setId:'wyrmflame', setPiece:'armor',
+        name:'Heartforge Carapace', emoji:'🥼', quality:'legendary',
+        slot:'armor',
+        desc:'Within its breast burns a flame that has never known extinction.',
+        stats:{ dmg_min:1, dmg_max:2, defense:40, armor:18, hp_max:130, strength:10,
+                pyro_dmg:5, pyro_resist:20, water_resist:-8, electro_resist:6 },
+        components:{ void_plate:3, shadowsteel_bar:2, eternal_essence:1 }, goldCost:24000,
+    },
+    {
+        id:'wyrmflame_shield', setId:'wyrmflame', setPiece:'shield',
+        name:'Aegis of the Eternal Brood', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'No fortress stood longer. No oath burned brighter.',
+        stats:{ defense:34, armor:28, strength:12, hit_chance:8, crit_chance:2,
+                pyro_resist:18, wind_resist:-8, electro_dmg:6 },
+        components:{ void_plate:3, demon_alloy:2, abyss_weave:2 }, goldCost:23000,
+    },
+    {
+        id:'wyrmflame_boots', setId:'wyrmflame', setPiece:'boots',
+        name:'Emberstride Greaves', emoji:'👟', quality:'legendary',
+        slot:'boots',
+        desc:'The earth smolders where the dragon\'s chosen walk.',
+        stats:{ defense:18, armor:6, agility:8, hit_chance:16, crit_chance:3,
+                pyro_resist:12, water_resist:-4, electro_dmg:4 },
+        components:{ demon_alloy:2, tanned_hide:3, frost_core:1 }, goldCost:16000,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -735,6 +785,18 @@ const CRAFTING_SETS = {
             defense:25, magic:20, strength:16, hp_max:150, armor:8,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
             desc:'5/5: +25 DEF · +20 MAG · +16 STR · +150 HP · +8 Armor · +20 all Elem Resist'
+        },
+    },
+    wyrmflame: {
+        name:'Wyrmflame Regalia', emoji:'🐉',
+        bonus3:{
+            hit_chance:14, strength:14, pyro_dmg:12, pyro_resist:12,
+            desc:'2/5: +14 Hit · +14 STR · +12 Pyro Dmg · +12 Pyro Resist'
+        },
+        bonus5:{
+            hit_chance:28, strength:26, dmg_min:8, dmg_max:12,
+            pyro_dmg:22, pyro_resist:22,
+            desc:'5/5: +28 Hit · +26 STR · +8-12 Dmg · +22 Pyro Dmg · +22 Pyro Resist'
         },
     },
 };
