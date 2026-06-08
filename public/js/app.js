@@ -6890,6 +6890,10 @@ async function loadSquads() {
             api('GET', '/game/squads/leaderboard')
         ]);
         squadsData = { me, lb };
+        if (me.squad && me.squad.owner_char_id === character?.id) {
+            const appsRes = await api('GET', '/game/squads/applications').catch(() => ({ applications: [] }));
+            squadsData.applications = appsRes.applications || [];
+        }
         renderSquads();
     } catch (e) {
         el.innerHTML = `<p class="loading">${escHtml(e.message)}</p>`;
@@ -6903,6 +6907,24 @@ function renderSquads() {
     const lb = squadsData?.lb || [];
     const squad = me.squad;
     const members = me.members || [];
+    const apps = squadsData?.applications || [];
+    const isLeader = squad && squad.owner_char_id === character?.id;
+
+    const appsHtml = isLeader && apps.length > 0 ? `
+        <div class="squads-card" style="margin-top:10px">
+            <div class="squads-title">📋 Pending Applications (${apps.length})</div>
+            <div class="squads-members">
+                ${apps.map(a => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
+                    <span><span class="squads-member-name">${escHtml(a.name)}</span>
+                    <span class="squads-member-sub">Lv.${a.level} ${escHtml(capitalize(a.class))}</span></span>
+                    <span style="display:flex;gap:4px">
+                        <button class="btn-primary btn-sm" ${actionAttrs('acceptApplication', a.id)}>✅ Accept</button>
+                        <button class="btn-secondary btn-sm" ${actionAttrs('rejectApplication', a.id)}>❌ Reject</button>
+                    </span>
+                </div>`).join('')}
+            </div>
+        </div>
+    ` : '';
 
     const myCard = squad ? `
         <div class="squads-card">
@@ -6920,6 +6942,7 @@ function renderSquads() {
                 </div>`).join('')}
             </div>
         </div>
+        ${appsHtml}
     ` : `
         <div class="squads-card">
             <div class="squads-title">🛡️ Squads</div>
@@ -6935,6 +6958,7 @@ function renderSquads() {
         </div>
     `;
 
+    const hasNoSquad = !squad;
     const lbHtml = `
         <div class="squads-card">
             <div class="squads-title">🏆 Top Squads</div>
@@ -6946,7 +6970,10 @@ function renderSquads() {
                             <div class="squad-name">${escHtml(s.name)}</div>
                             <div class="squad-sub">Members: ${s.member_count} · Avg Lv: ${s.avg_level} · Avg Earned: ${Number(s.avg_gold_earned||0).toLocaleString()}</div>
                         </div>
-                        <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
+                            ${hasNoSquad ? `<button class="btn-primary btn-sm" ${actionAttrs('applyToSquad', s.id)}>Apply</button>` : ''}
+                        </div>
                     </div>
                 `).join('')}
             </div>
@@ -6990,6 +7017,38 @@ async function leaveSquad() {
     }
 }
 window.leaveSquad = leaveSquad;
+
+async function applyToSquad(squadId) {
+    try {
+        await api('POST', '/game/squads/apply', { squad_id: squadId });
+        await openGameNoticeDialog({ title: '📋 Application Sent', message: 'Your application has been sent to the squad leader.' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: '📋 Squad Application', message: e.message || String(e) });
+    }
+}
+window.applyToSquad = applyToSquad;
+
+async function acceptApplication(appId) {
+    try {
+        await api('POST', `/game/squads/applications/${appId}/accept`);
+        await openGameNoticeDialog({ title: '✅ Application Accepted', message: 'The applicant has been added to your squad.' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '✅ Accept Application', message: e.message || String(e) });
+    }
+}
+window.acceptApplication = acceptApplication;
+
+async function rejectApplication(appId) {
+    try {
+        await api('POST', `/game/squads/applications/${appId}/reject`);
+        await openGameNoticeDialog({ title: '❌ Application Rejected', message: 'The application has been rejected.' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '❌ Reject Application', message: e.message || String(e) });
+    }
+}
+window.rejectApplication = rejectApplication;
 function filterLeaderboard() { renderLeaderboard(); }
 function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const rank = p.rank || fallbackRank;
