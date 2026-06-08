@@ -4837,7 +4837,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             offHandDmgPct = dualWieldDmg ? dualWieldDmg.off_hand_dmg_pct : dualWield.off_hand_dmg_pct;
         } else {
             const weapon = attacker.weapon || null;
-            const isDagger = weapon && (weapon.name?.toLowerCase().includes('dagger') || weapon.type === 'dagger');
+            const isDagger = weapon && (weapon.name?.toLowerCase().includes('dagger') || weapon.type === 'dagger' || weapon.weaponType === 'dagger');
             if (!isDagger && weapon) rogueWeaponPenalty = 0.60;
         }
     }
