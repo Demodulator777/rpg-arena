@@ -6507,14 +6507,16 @@ function maxElemStats(level) {
     return 1;
 }
 
-function rollElemStats(stats, level, tier, canDmg, canResist) {
+function rollElemStats(stats, level, tier, canDmg, canResist, quality) {
+    const qualBonus = quality === 'legendary' ? 0.25 : quality === 'rare' ? 0.15 : 0;
     const baseChance = tier >= 5 ? 0.75 : tier >= 3 ? 0.55 : tier >= 2 ? 0.35 : 0.15;
-    if (Math.random() > baseChance) return;
+    if (Math.random() > Math.min(0.95, baseChance + qualBonus)) return;
 
     const maxStats = maxElemStats(level);
     const minCount = level >= 45 ? 2 : level >= 30 ? 1 : 0;
+    const qualCount = quality === 'legendary' ? 1 : 0;
     const maxRoll  = Math.max(minCount, Math.min(maxStats, Math.ceil(level / 20)));
-    const count    = minCount + Math.floor(Math.random() * Math.max(1, maxRoll - minCount + 1));
+    const count    = minCount + qualCount + Math.floor(Math.random() * Math.max(1, maxRoll - minCount + 1));
 
     const shuffled = [...ELEMENTS].sort(() => Math.random() - 0.5);
     let rolled = 0;
@@ -6571,6 +6573,8 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:3, max:10, scale:0.5, chance:0.6 },
             strength:    { min:1, max:4, scale:0.35, chance:0.5 },
+            agility:     { min:1, max:4, scale:0.4, chance:0.45 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.45 },
         },
         elemDmg: true, elemResist: false,
     },
@@ -6587,6 +6591,8 @@ const ITEM_GENERATORS = {
             defense: { min:5,  max:10, scale:1.8 },
             armor:   { min:3,  max:7,  scale:1.3 },
             hp_max:  { min:15, max:35, scale:2.0 },
+            strength: { min:1, max:4, scale:0.5 },
+            vitality: { min:1, max:3, scale:0.4 },
         },
         tier2Stats: {
             vitality: { min:0, max:2, scale:0.25, chance:0.4 },
@@ -6599,6 +6605,7 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:2, max:6, scale:0.35, chance:0.55 },
             strength:    { min:0, max:3, scale:0.35, chance:0.5 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.45 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -6615,6 +6622,8 @@ const ITEM_GENERATORS = {
             defense: { min:3, max:7,  scale:1.4 },
             armor:   { min:2, max:5,  scale:1.0 },
             hp_max:  { min:10, max:25, scale:1.5 },
+            magic:   { min:1, max:4, scale:0.5 },
+            vitality: { min:1, max:3, scale:0.35 },
         },
         tier2Stats: {
             hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
@@ -6626,6 +6635,7 @@ const ITEM_GENERATORS = {
         },
         tier5Stats: {
             crit_chance: { min:2, max:8, scale:0.5, chance:0.55 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.45 },
         },
         elemDmg: true, elemResist: true,
     },
@@ -6642,6 +6652,8 @@ const ITEM_GENERATORS = {
             defense: { min:6,  max:12, scale:2.0 },
             armor:   { min:4,  max:8,  scale:1.4 },
             hp_max:  { min:12, max:28, scale:1.5 },
+            strength: { min:2, max:5, scale:0.6 },
+            vitality: { min:1, max:3, scale:0.4 },
         },
         tier2Stats: {
             vitality: { min:0, max:2, scale:0.25, chance:0.4 },
@@ -6653,6 +6665,7 @@ const ITEM_GENERATORS = {
         tier5Stats: {
             crit_chance: { min:2, max:6, scale:0.35, chance:0.55 },
             defense:     { min:1, max:4, scale:0.4, chance:0.5 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.45 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -6669,6 +6682,8 @@ const ITEM_GENERATORS = {
             agility: { min:2, max:6, scale:1.0 },
             defense: { min:1, max:4, scale:0.8 },
             armor:   { min:2, max:5, scale:0.9 },
+            strength: { min:0, max:3, scale:0.4 },
+            vitality: { min:0, max:2, scale:0.3 },
         },
         tier2Stats: {
             hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
@@ -6684,6 +6699,7 @@ const ITEM_GENERATORS = {
             crit_chance: { min:2, max:7, scale:0.45, chance:0.55 },
             agility:     { min:1, max:4, scale:0.4, chance:0.5 },
             armor:       { min:2, max:5, scale:0.4, chance:0.45 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.45 },
         },
         elemDmg: false, elemResist: true,
     },
@@ -6865,7 +6881,7 @@ function generateBackendRandomItem(level, type) {
         }
     }
 
-    rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist);
+    rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist, quality);
 
     const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
     const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
