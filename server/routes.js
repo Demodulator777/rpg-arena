@@ -15072,6 +15072,6 @@ module.exports = {
   calcHpMax, calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
   getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
-  getEquippedSetBonuses, skillPassiveBonus,
+   getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
   DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
 };
