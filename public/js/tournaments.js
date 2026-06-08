@@ -1,6 +1,7 @@
 let currentTournament = null;
 let myCharId = null;
 let countdownInterval = null;
+let liveLogPollTimeout = null;
 
 function _tContainer() {
   return document.getElementById('tab-tournament') || document.getElementById('main-content');
@@ -38,6 +39,7 @@ async function load() {
 function render(char, data) {
   currentTournament = data;
   if (countdownInterval) clearInterval(countdownInterval);
+  stopLiveLogPoll();
 
   if (!data || !data.tournament) {
     const c = _tContainer();
@@ -157,7 +159,7 @@ function render(char, data) {
           </div>` : ''}
       </div>` : ''}
     ${t.status === 'active' ? `
-      <p class="t-active-notice">⚔ Battles are being fought every minute — refresh to see results</p>` : ''}
+      <p class="t-active-notice">${t.mode === 'all_vs_all' ? '⚔ All vs All battlefield is live! <button class="btn-join" data-action="showLiveLog" style="padding:3px 10px;font-size:0.78rem;margin-left:6px">👥 View Live Log</button>' : '⚔ Battles are being fought every minute — refresh to see results'}</p>` : ''}
     ${t.status === 'complete' ? `
       <div class="t-winner-panel">
         ${t.winner_is_npc
@@ -378,8 +380,13 @@ async function tournamentViewHistory(tournamentId) {
     }
     if (t.mode === 'all_vs_all' && t.battle_log) {
       html += '<h3 style="margin-top:16px">Battle Log</h3>';
-      var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
-      html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-args=\'' + escJson(JSON.stringify([blStr])) + '\'>👥 View Full Battle Log</button></div>';
+      var isActive = t.status === 'active';
+      if (isActive) {
+        html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLiveLog">👥 View Live Battle Log</button></div>';
+      } else {
+        var blStr = typeof t.battle_log === 'string' ? t.battle_log : JSON.stringify(t.battle_log);
+        html += '<div style="text-align:center;padding:10px"><button class="btn-join" data-action="showLog" data-args=\'' + escJson(JSON.stringify([blStr])) + '\'>👥 View Full Battle Log</button></div>';
+      }
     } else if (matches.length > 0) {
       html += '<h3 style="margin-top:16px">Matches</h3>';
       const roundGroups = {};
@@ -438,6 +445,7 @@ function showLog(logStr) {
 }
 
 function closeLog() {
+  stopLiveLogPoll();
   const m = document.getElementById('battle-log-modal');
   if (m) m.style.display = 'none';
 }
@@ -446,6 +454,48 @@ function showAllVsAllLog() {
   if (!currentTournament || !currentTournament.tournament) return;
   var bl = currentTournament.tournament.battle_log;
   showLog(typeof bl === 'string' ? bl : JSON.stringify(bl));
+}
+
+function showLiveLog() {
+  // Ensure modal exists
+  if (!document.getElementById('battle-log-modal')) {
+    showLog('[]');
+  } else {
+    document.getElementById('battle-log-modal').style.display = 'flex';
+  }
+  document.getElementById('log-lines').innerHTML = '<div class="log-line" style="opacity:0.4;font-style:italic">Loading battle log...</div>';
+  pollLiveLog();
+}
+
+async function pollLiveLog() {
+  if (liveLogPollTimeout) { clearTimeout(liveLogPollTimeout); liveLogPollTimeout = null; }
+  try {
+    const data = await _tapi('GET', '/api/tournaments/current');
+    const t = data.tournament;
+    if (t && t.battle_log) {
+      var bl = t.battle_log;
+      if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } }
+      var modal = document.getElementById('battle-log-modal');
+      if (modal && modal.style.display !== 'none') {
+        var logLines = document.getElementById('log-lines');
+        if (logLines) {
+          logLines.innerHTML = (bl||[]).map(function(l) { return '<div class="log-line">' + esc(l) + '</div>'; }).join('');
+          logLines.scrollTop = logLines.scrollHeight;
+        }
+        var title = modal.querySelector('.battle-log-title');
+        if (title) title.textContent = t.status === 'complete' ? '🏆 Battle Log (Complete)' : '⚔ Live Battle Log';
+      }
+    }
+    if (t && t.status === 'active') {
+      liveLogPollTimeout = setTimeout(pollLiveLog, 3000);
+    }
+  } catch (e) {
+    liveLogPollTimeout = setTimeout(pollLiveLog, 5000);
+  }
+}
+
+function stopLiveLogPoll() {
+  if (liveLogPollTimeout) { clearTimeout(liveLogPollTimeout); liveLogPollTimeout = null; }
 }
 
 // ── Tournament Rain ─────────────────────────────────────────────
