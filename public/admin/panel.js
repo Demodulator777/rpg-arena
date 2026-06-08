@@ -480,6 +480,12 @@ function loadTournaments() {
                   '</span></div>';
             });
             html += '</div>';
+            html += '<div class="card-compact" style="margin-top:8px">' +
+              '<div class="row"><span class="lbl">Add Player</span>' +
+              '<input id="admin-player-search" type="text" placeholder="Search character name..." style="flex:1;background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px">' +
+              '<select id="admin-player-result" style="flex:1;background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px;display:none"></select>' +
+              '<button class="db-btn db-btn-apply" id="btn-add-player" disabled>Add</button></div>' +
+              '<div style="font-size:11px;color:#6a6a70;margin-top:4px">Adds player to the latest pending tournament</div></div>';
         }
         html += '<h2>Past Tournaments</h2>';
         var completedList = list.filter(function(t) { return t.status === 'complete'; });
@@ -528,6 +534,40 @@ function loadTournaments() {
                 });
             });
         });
+        var searchInput = document.getElementById('admin-player-search');
+        var resultSelect = document.getElementById('admin-player-result');
+        var addBtn = document.getElementById('btn-add-player');
+        if (searchInput) {
+            var searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                var q = this.value.trim();
+                if (q.length < 2) { resultSelect.style.display = 'none'; addBtn.disabled = true; return; }
+                searchTimeout = setTimeout(function() {
+                    adminApi('GET', '/characters/search?q=' + encodeURIComponent(q)).then(function(chars) {
+                        if (!chars.length) { resultSelect.style.display = 'none'; addBtn.disabled = true; return; }
+                        resultSelect.innerHTML = chars.map(function(c) { return '<option value="' + c.id + '">#' + c.id + ' ' + c.name + ' (' + c.class + ' Lv.' + c.level + ')</option>'; }).join('');
+                        resultSelect.style.display = 'block';
+                        addBtn.disabled = false;
+                    }).catch(function() { resultSelect.style.display = 'none'; addBtn.disabled = true; });
+                }, 300);
+            });
+            addBtn.addEventListener('click', function() {
+                var charId = resultSelect.value;
+                var pending = list.filter(function(t) { return t.status === 'pending'; });
+                if (!pending.length) { alert('No pending tournament'); return; }
+                var tid = pending[pending.length - 1].id;
+                addBtn.textContent = 'Adding...';
+                addBtn.disabled = true;
+                adminApi('POST', '/tournaments/add-player/' + tid, { char_id: Number(charId) }).then(function(r) {
+                    addBtn.textContent = '✅ Added';
+                    setTimeout(function() { loadTournaments(); }, 1500);
+                }).catch(function(e) {
+                    addBtn.textContent = 'Error';
+                    setTimeout(function() { loadTournaments(); }, 3000);
+                });
+            });
+        }
         document.getElementById('btn-create-tournament').addEventListener('click', function() {
             var btn = this;
             var mode = document.getElementById('admin-tournament-mode').value;
