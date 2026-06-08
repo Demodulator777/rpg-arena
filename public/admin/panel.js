@@ -470,7 +470,14 @@ function loadTournaments() {
         if (current.length) {
             html += '<div class="card-compact" style="margin-top:8px">';
             current.forEach(function(t) {
-                html += '<div class="row"><span class="lbl">Current</span><span class="val">#' + t.id + ' — ' + t.status + ' — ' + (t.mode || 'deathmatch') + ' — started ' + (t.started_at || 'not yet') + '</span></div>';
+                var isActive = t.status === 'active';
+                html += '<div class="row">' +
+                  '<span class="lbl">#' + t.id + '</span>' +
+                  '<span class="val">' + t.status + ' — ' + (t.mode || 'deathmatch') + ' — started ' + (t.started_at || 'not yet') + '</span>' +
+                  '<span>' +
+                    (isActive ? '<button class="db-btn db-btn-cancel" data-action="cancel-tournament" data-id="' + t.id + '" style="margin-right:4px">✕ Cancel</button>' : '') +
+                    '<button class="db-btn db-btn-edit" data-action="restart-tournament" data-id="' + t.id + '">⟳ Restart</button>' +
+                  '</span></div>';
             });
             html += '</div>';
         }
@@ -495,6 +502,32 @@ function loadTournaments() {
                 if (sel.options[i].value === pendingMode) { sel.selectedIndex = i; break; }
             }
         }
+        document.querySelectorAll('[data-action="cancel-tournament"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.dataset.id;
+                if (!confirm('Cancel tournament #' + id + '?')) return;
+                this.textContent = '...';
+                adminApi('POST', '/tournaments/cancel/' + id).then(function(r) {
+                    loadTournaments();
+                }).catch(function(e) {
+                    alert('Error: ' + e.message);
+                    loadTournaments();
+                });
+            });
+        });
+        document.querySelectorAll('[data-action="restart-tournament"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.dataset.id;
+                if (!confirm('Restart tournament #' + id + '? This will clear all participants and matches.')) return;
+                this.textContent = '...';
+                adminApi('POST', '/tournaments/restart/' + id).then(function(r) {
+                    loadTournaments();
+                }).catch(function(e) {
+                    alert('Error: ' + e.message);
+                    loadTournaments();
+                });
+            });
+        });
         document.getElementById('btn-create-tournament').addEventListener('click', function() {
             var btn = this;
             var mode = document.getElementById('admin-tournament-mode').value;
