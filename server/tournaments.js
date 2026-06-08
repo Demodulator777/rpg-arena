@@ -333,6 +333,19 @@ async function buildFighter(db, participant, participants, noEquip) {
   }
   const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [participant.char_id]);
 
+  // Shared elemental loader
+  const loadElem = async () => {
+    const er = await dbGet_t(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+    if (!er) return null;
+    const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
+    const bd = (er.defense || 5) + (er.stat_def || 0) * 2;
+    const ba = (er.agility || 5) + (er.stat_agi || 0) * 2;
+    const bm = (er.magic || 5) + (er.stat_mag || 0) * 2;
+    const bv = (er.vitality || 5) + (er.stat_vit || 0) * 2;
+    const eHp = 30 + bv * 4 + er.level * 8;
+    return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current || eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8), str: bs, def: bd, agi: ba, mag: bm, vit: bv };
+  };
+
   if (noEquip) {
     const hpMax = calcHpMax(char, []);
     const armor = calcArmorValue(char, []);
@@ -357,7 +370,8 @@ async function buildFighter(db, participant, participants, noEquip) {
       elem_resist: { pyro:0, water:0, wind:0, electro:0 },
       skillEffects: [], skillMods: [],
       baseActiveSkills: {}, activeSkills: {},
-      attackZones: DEFAULT_ATTACK_ZONES, blockZones: DEFAULT_BLOCK_ZONES
+      attackZones: DEFAULT_ATTACK_ZONES, blockZones: DEFAULT_BLOCK_ZONES,
+      _elementalFighter: await loadElem()
     };
   }
 
@@ -395,6 +409,7 @@ async function buildFighter(db, participant, participants, noEquip) {
     level: char.level,
     hp: Math.min(fighterHpMax, char.hp_current ?? fighterHpMax),
     hpMax: fighterHpMax,
+    _elementalFighter: await loadElem(),
     dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
     dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
     strength: (char.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(char.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
@@ -434,6 +449,11 @@ function deathmatchBattle(fighterA, fighterB) {
   let penaltyA = false, penaltyB = false;
   let totalDmgToA = 0, totalDmgToB = 0;
 
+  let elemA = fighterA._elementalFighter || null;
+  let elemB = fighterB._elementalFighter || null;
+  let elemAHp = elemA ? elemA.hp : 0;
+  let elemBHp = elemB ? elemB.hp : 0;
+
   let shieldA = calculateMagicShield(fighterB, fighterA);
   let shieldB = calculateMagicShield(fighterA, fighterB);
 
@@ -442,6 +462,8 @@ function deathmatchBattle(fighterA, fighterB) {
   const skB = Object.keys(fighterB.baseActiveSkills || {});
   if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
   if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+  if (elemA) log.push(`🐉 ${fighterA.name}'s elemental spirit joins the battle!`);
+  if (elemB) log.push(`🐉 ${fighterB.name}'s elemental spirit joins the battle!`);
   if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
   if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
   log.push('---');
@@ -455,6 +477,19 @@ function deathmatchBattle(fighterA, fighterB) {
     const atkZoneB = (fighterB.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
     const blkZoneB = (fighterB.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
 
+    let elemDmgToB = 0, elemDmgToA = 0;
+    if (elemA && elemAHp > 0) {
+      elemDmgToB = Math.max(1, Math.floor((elemA.dmgMin + elemA.dmgMax) / 2));
+      hpB = Math.max(0, hpB - elemDmgToB);
+      log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemA.element.toUpperCase()} damage!`);
+    }
+    if (elemB && elemBHp > 0) {
+      elemDmgToA = Math.max(1, Math.floor((elemB.dmgMin + elemB.dmgMax) / 2));
+      hpA = Math.max(0, hpA - elemDmgToA);
+      log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemB.element.toUpperCase()} damage!`);
+    }
+    if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
+
     const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
     const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
 
@@ -467,6 +502,15 @@ function deathmatchBattle(fighterA, fighterB) {
 
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
     hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
+
+    if (elemA && elemAHp > 0 && dmgToA > 0) {
+      elemAHp = Math.max(0, elemAHp - Math.max(1, Math.floor(dmgToA * 0.2)));
+      if (elemAHp <= 0) log.push(`🐉 ${elemA.name} is knocked out!`);
+    }
+    if (elemB && elemBHp > 0 && dmgToB > 0) {
+      elemBHp = Math.max(0, elemBHp - Math.max(1, Math.floor(dmgToB * 0.2)));
+      if (elemBHp <= 0) log.push(`🐉 ${elemB.name} is knocked out!`);
+    }
 
     const burnToA = (resA.attackerBurnDmg || 0) + (resB.defenderBurnDmg || 0);
     const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
@@ -538,7 +582,9 @@ function deathmatchBattle(fighterA, fighterB) {
   return {
     log, winnerId, isDraw: winnerId === 0,
     hpRemainingA: Math.round(hpA), hpRemainingB: Math.round(hpB),
-    totalDmgToA: Math.round(totalDmgToA), totalDmgToB: Math.round(totalDmgToB)
+    totalDmgToA: Math.round(totalDmgToA), totalDmgToB: Math.round(totalDmgToB),
+    elementalHpA: Math.round(Math.max(0, elemAHp)),
+    elementalHpB: Math.round(Math.max(0, elemBHp))
   };
 }
 
@@ -548,6 +594,11 @@ function normalBattle(fighterA, fighterB) {
   let penaltyA = false, penaltyB = false;
   let totalDmgToA = 0, totalDmgToB = 0;
 
+  let elemA = fighterA._elementalFighter || null;
+  let elemB = fighterB._elementalFighter || null;
+  let elemAHp = elemA ? elemA.hp : 0;
+  let elemBHp = elemB ? elemB.hp : 0;
+
   let shieldA = calculateMagicShield(fighterB, fighterA);
   let shieldB = calculateMagicShield(fighterA, fighterB);
 
@@ -556,6 +607,8 @@ function normalBattle(fighterA, fighterB) {
   const skB = Object.keys(fighterB.baseActiveSkills || {});
   if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
   if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+  if (elemA) log.push(`🐉 ${fighterA.name}'s elemental spirit joins the battle!`);
+  if (elemB) log.push(`🐉 ${fighterB.name}'s elemental spirit joins the battle!`);
   if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
   if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
   log.push('🏁 NORMAL MODE — 10 rounds max');
@@ -570,6 +623,19 @@ function normalBattle(fighterA, fighterB) {
     const atkZoneB = (fighterB.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
     const blkZoneB = (fighterB.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
 
+    let elemDmgToB = 0, elemDmgToA = 0;
+    if (elemA && elemAHp > 0) {
+      elemDmgToB = Math.max(1, Math.floor((elemA.dmgMin + elemA.dmgMax) / 2));
+      hpB = Math.max(0, hpB - elemDmgToB);
+      log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemA.element.toUpperCase()} damage!`);
+    }
+    if (elemB && elemBHp > 0) {
+      elemDmgToA = Math.max(1, Math.floor((elemB.dmgMin + elemB.dmgMax) / 2));
+      hpA = Math.max(0, hpA - elemDmgToA);
+      log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemB.element.toUpperCase()} damage!`);
+    }
+    if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
+
     const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
     const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
 
@@ -582,6 +648,15 @@ function normalBattle(fighterA, fighterB) {
 
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
     hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
+
+    if (elemA && elemAHp > 0 && dmgToA > 0) {
+      elemAHp = Math.max(0, elemAHp - Math.max(1, Math.floor(dmgToA * 0.2)));
+      if (elemAHp <= 0) log.push(`🐉 ${elemA.name} is knocked out!`);
+    }
+    if (elemB && elemBHp > 0 && dmgToB > 0) {
+      elemBHp = Math.max(0, elemBHp - Math.max(1, Math.floor(dmgToB * 0.2)));
+      if (elemBHp <= 0) log.push(`🐉 ${elemB.name} is knocked out!`);
+    }
 
     const burnToA = (resA.attackerBurnDmg || 0) + (resB.defenderBurnDmg || 0);
     const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
@@ -667,7 +742,9 @@ function normalBattle(fighterA, fighterB) {
   return {
     log, winnerId, isDraw: winnerId === 0,
     hpRemainingA: Math.round(hpA), hpRemainingB: Math.round(hpB),
-    totalDmgToA: Math.round(totalDmgToA), totalDmgToB: Math.round(totalDmgToB)
+    totalDmgToA: Math.round(totalDmgToA), totalDmgToB: Math.round(totalDmgToB),
+    elementalHpA: Math.round(Math.max(0, elemAHp)),
+    elementalHpB: Math.round(Math.max(0, elemBHp))
   };
 }
 
@@ -718,6 +795,15 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   if (mode === 'damage' || mode === 'least_damage') {
     await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP2, dmgToP1, p1.id]);
     await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP1, dmgToP2, p2.id]);
+  }
+  // Save elemental HP
+  if (result.elementalHpA !== undefined && f1._elementalFighter) {
+    await dbRun_t(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+      [result.elementalHpA, p1.char_id, f1._elementalFighter.id]).catch(() => {});
+  }
+  if (result.elementalHpB !== undefined && f2._elementalFighter) {
+    await dbRun_t(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+      [result.elementalHpB, p2.char_id, f2._elementalFighter.id]).catch(() => {});
   }
 }
 
