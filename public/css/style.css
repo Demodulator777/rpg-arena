@@ -6065,6 +6065,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: auto !important;
     pointer-events: none !important;
     z-index: 0 !important;
+    position: relative !important;
 }
 
 .eq-avatar-center img,
@@ -6073,6 +6074,24 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     max-width: 230px !important;
     height: 300px !important;
     object-fit: contain !important;
+}
+
+.eq-elemental-spirit {
+    position: absolute !important;
+    width: 80px !important;
+    height: 80px !important;
+    object-fit: contain !important;
+    bottom: 60px !important;
+    right: -20px !important;
+    z-index: 3 !important;
+    pointer-events: none !important;
+    filter: drop-shadow(0 0 12px rgba(100,200,255,0.5)) !important;
+    animation: elemFloat 3s ease-in-out infinite !important;
+}
+
+@keyframes elemFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
 }
 
 .eq-slot,
