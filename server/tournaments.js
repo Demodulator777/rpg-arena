@@ -1022,6 +1022,36 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
 }
 
+router.post('/tournaments/add-player/:id', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const db = await getDb();
+    const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
+    if (!t) return res.status(404).json({ error: 'Tournament not found' });
+    const charId = req.body?.char_id;
+    if (!charId) return res.status(400).json({ error: 'char_id required' });
+    const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [charId]);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const existing = await dbGet_t(db, 'SELECT id FROM tournament_participants WHERE tournament_id = ? AND char_id = ?', [t.id, char.id]);
+    if (existing) return res.status(400).json({ error: 'Already a participant' });
+    await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current]);
+    res.json({ message: `Added ${char.name} to tournament #${t.id}` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/characters/search', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const q = (req.query.q || '').trim();
+    if (q.length < 1) return res.json([]);
+    const db = await getDb();
+    const rows = await dbAll_t(db, "SELECT id, name, class, level FROM characters WHERE name LIKE ? LIMIT 50", [`%${q}%`]);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/tournaments/cancel/:id', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
