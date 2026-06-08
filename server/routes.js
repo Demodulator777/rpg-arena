@@ -1143,7 +1143,7 @@ const ACHIEVEMENTS = [
         icon: '👑',
         metric: 'wins',
         target: 500,
-        rewards: { gold: 200000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     },
     {
         id: 'wins_1000',
@@ -1154,7 +1154,7 @@ const ACHIEVEMENTS = [
         icon: '🌟',
         metric: 'wins',
         target: 1000,
-        rewards: { gold: 500000, gems: 80, premium: { id: 'apprentice', days: 7 } },
+        rewards: { gold: 500000, gems: 25, premium: { id: 'apprentice', days: 7 } },
     },
     {
         id: 'wins_2500',
@@ -1165,7 +1165,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'wins',
         target: 2500,
-        rewards: { gold: 1500000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
+        rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
     },
     {
         id: 'battles_25',
@@ -1231,7 +1231,7 @@ const ACHIEVEMENTS = [
         icon: '🏦',
         metric: 'gold_earned',
         target: 1000000,
-        rewards: { gold: 200000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     },
     {
         id: 'floor_5',
@@ -1275,7 +1275,7 @@ const ACHIEVEMENTS = [
         icon: '👹',
         metric: 'dungeon_floor',
         target: 50,
-        rewards: { gold: 250000, gems: 60, premium: { id: 'iron_fortress', days: 10 } },
+        rewards: { gold: 250000, gems: 25, premium: { id: 'iron_fortress', days: 10 } },
     },
     {
         id: 'crawler_encounters_1',
@@ -1341,7 +1341,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'crawler_defeats',
         target: 10,
-        rewards: { gold: 40000, gems: 30 },
+        rewards: { gold: 40000, gems: 25 },
     },
     {
         id: 'crawler_defeats_25',
@@ -1352,7 +1352,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'crawler_defeats',
         target: 25,
-        rewards: { gold: 100000, gems: 50 },
+        rewards: { gold: 100000, gems: 25 },
     },
     {
         id: 'crawler_defeats_50',
@@ -1363,7 +1363,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'crawler_defeats',
         target: 50,
-        rewards: { gold: 250000, gems: 100 },
+        rewards: { gold: 250000, gems: 25 },
     },
     {
         id: 'crawler_defeats_100',
@@ -1374,7 +1374,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'crawler_defeats',
         target: 100,
-        rewards: { gold: 500000, gems: 200 },
+        rewards: { gold: 500000, gems: 25 },
     },
     {
         id: 'crawler_deaths_1',
@@ -1429,7 +1429,7 @@ const ACHIEVEMENTS = [
         icon: '🌌',
         metric: 'mp_spent',
         target: 5000,
-        rewards: { gold: 175000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 175000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     },
     {
         id: 'mission_wins_10',
@@ -1866,49 +1866,49 @@ function buildExtendedAchievements() {
         name: 'Endless Combatant',
         desc: 'Fight 2,500 total battles.',
         target: 2500,
-        rewards: { gold: 700000, gems: 70, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 700000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(battlesBase, {
         id: 'battles_5000',
         name: 'Avatar of War',
         desc: 'Fight 5,000 total battles.',
         target: 5000,
-        rewards: { gold: 1800000, gems: 160, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(battlesBase, {
         id: 'battles_7500',
         name: 'Scarred Veteran',
         desc: 'Fight 7,500 total battles.',
         target: 7500,
-        rewards: { gold: 2500000, gems: 250, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(battlesBase, {
         id: 'battles_10000',
         name: 'War Machine',
         desc: 'Fight 10,000 total battles.',
         target: 10000,
-        rewards: { gold: 4000000, gems: 400, premium: { id: 'iron_fortress', days: 21 } },
+        rewards: { gold: 4000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
     });
     addFromBase(battlesBase, {
         id: 'battles_15000',
         name: 'One-Man Army',
         desc: 'Fight 15,000 total battles.',
         target: 15000,
-        rewards: { gold: 6000000, gems: 600, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 6000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(battlesBase, {
         id: 'battles_25000',
         name: 'Warlord',
         desc: 'Fight 25,000 total battles.',
         target: 25000,
-        rewards: { gold: 10000000, gems: 1000, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(battlesBase, {
         id: 'battles_50000',
         name: 'God of Battle',
         desc: 'Fight 50,000 total battles.',
         target: 50000,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'apprentice', days: 30 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
     });
 
     const goldBase = ACHIEVEMENTS.find((a) => a.id === 'gold_1000000');
@@ -1917,56 +1917,56 @@ function buildExtendedAchievements() {
         name: 'Imperial Vault',
         desc: 'Earn 2,500,000 total gold.',
         target: 2500000,
-        rewards: { gold: 500000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(goldBase, {
         id: 'gold_5000000',
         name: 'Kingmaker Treasury',
         desc: 'Earn 5,000,000 total gold.',
         target: 5000000,
-        rewards: { gold: 1000000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(goldBase, {
         id: 'gold_10000000',
         name: 'Golden Empire',
         desc: 'Earn 10,000,000 total gold.',
         target: 10000000,
-        rewards: { gold: 2500000, gems: 250, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
     addFromBase(goldBase, {
         id: 'gold_20000000',
         name: 'Gilded Throne',
         desc: 'Earn 20,000,000 total gold.',
         target: 20000000,
-        rewards: { gold: 4000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(goldBase, {
         id: 'gold_35000000',
         name: 'Platinum Paradise',
         desc: 'Earn 35,000,000 total gold.',
         target: 35000000,
-        rewards: { gold: 7000000, gems: 700, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 7000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(goldBase, {
         id: 'gold_50000000',
         name: 'Diamond Dynasty',
         desc: 'Earn 50,000,000 total gold.',
         target: 50000000,
-        rewards: { gold: 10000000, gems: 1000, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(goldBase, {
         id: 'gold_75000000',
         name: 'Obsidian Empire',
         desc: 'Earn 75,000,000 total gold.',
         target: 75000000,
-        rewards: { gold: 15000000, gems: 1500, premium: { id: 'apprentice', days: 30 } },
+        rewards: { gold: 15000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
     });
     addFromBase(goldBase, {
         id: 'gold_100000000',
         name: 'Cosmic Treasury',
         desc: 'Earn 100,000,000 total gold.',
         target: 100000000,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'fortune_hunter', days: 60 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
     });
 
     const floorBase = ACHIEVEMENTS.find((a) => a.id === 'floor_50');
@@ -1975,63 +1975,63 @@ function buildExtendedAchievements() {
         name: 'Nether Ascendant',
         desc: 'Reach dungeon floor 75.',
         target: 75,
-        rewards: { gold: 400000, gems: 90, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(floorBase, {
         id: 'floor_100',
         name: 'Hundred-Floor Horror',
         desc: 'Reach dungeon floor 100.',
         target: 100,
-        rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(floorBase, {
         id: 'floor_150',
         name: 'Master of the Abyss',
         desc: 'Reach dungeon floor 150.',
         target: 150,
-        rewards: { gold: 1500000, gems: 260, premium: { id: 'iron_fortress', days: 21 } },
+        rewards: { gold: 1500000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
     });
     addFromBase(floorBase, {
         id: 'floor_200',
         name: 'Dungeon Godslayer',
         desc: 'Reach dungeon floor 200.',
         target: 200,
-        rewards: { gold: 3000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 2 }, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 }, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(floorBase, {
         id: 'floor_250',
         name: 'Abyss Walker',
         desc: 'Reach dungeon floor 250.',
         target: 250,
-        rewards: { gold: 4000000, gems: 500, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(floorBase, {
         id: 'floor_300',
         name: 'Void Survivor',
         desc: 'Reach dungeon floor 300.',
         target: 300,
-        rewards: { gold: 5000000, gems: 600, premium: { id: 'iron_fortress', days: 30 } },
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 30 } },
     });
     addFromBase(floorBase, {
         id: 'floor_400',
         name: 'Endless Knight',
         desc: 'Reach dungeon floor 400.',
         target: 400,
-        rewards: { gold: 8000000, gems: 800, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(floorBase, {
         id: 'floor_500',
         name: 'Titan of the Tower',
         desc: 'Reach dungeon floor 500.',
         target: 500,
-        rewards: { gold: 12000000, gems: 1200, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(floorBase, {
         id: 'floor_750',
         name: 'Dungeon Demigod',
         desc: 'Reach dungeon floor 750.',
         target: 750,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'apprentice', days: 60 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
     });
 
     const mpBase = ACHIEVEMENTS.find((a) => a.id === 'mp_5000');
@@ -2040,56 +2040,56 @@ function buildExtendedAchievements() {
         name: 'Arcane Marathon',
         desc: 'Spend 10,000 total MP.',
         target: 10000,
-        rewards: { gold: 350000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(mpBase, {
         id: 'mp_25000',
         name: 'Mana Furnace',
         desc: 'Spend 25,000 total MP.',
         target: 25000,
-        rewards: { gold: 900000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(mpBase, {
         id: 'mp_50000',
         name: 'Engine of Progress',
         desc: 'Spend 50,000 total MP.',
         target: 50000,
-        rewards: { gold: 2000000, gems: 220, premium: { id: 'apprentice', days: 30 } },
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
     });
     addFromBase(mpBase, {
         id: 'mp_75000',
         name: 'Mana Ocean',
         desc: 'Spend 75,000 total MP.',
         target: 75000,
-        rewards: { gold: 3000000, gems: 350, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(mpBase, {
         id: 'mp_100000',
         name: 'Arcane Infinite',
         desc: 'Spend 100,000 total MP.',
         target: 100000,
-        rewards: { gold: 5000000, gems: 500, premium: { id: 'apprentice', days: 30 } },
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
     });
     addFromBase(mpBase, {
         id: 'mp_150000',
         name: 'Spellforge',
         desc: 'Spend 150,000 total MP.',
         target: 150000,
-        rewards: { gold: 7500000, gems: 750, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(mpBase, {
         id: 'mp_250000',
         name: 'Mana Singularity',
         desc: 'Spend 250,000 total MP.',
         target: 250000,
-        rewards: { gold: 12000000, gems: 1200, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(mpBase, {
         id: 'mp_500000',
         name: 'The Mana Source',
         desc: 'Spend 500,000 total MP.',
         target: 500000,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'apprentice', days: 60 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
     });
 
     const missionWinsBase = ACHIEVEMENTS.find((a) => a.id === 'mission_wins_250');
@@ -2098,56 +2098,56 @@ function buildExtendedAchievements() {
         name: 'Campaign Veteran',
         desc: 'Win 1,000 missions.',
         target: 1000,
-        rewards: { gold: 400000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_2500',
         name: 'Contract Emperor',
         desc: 'Win 2,500 missions.',
         target: 2500,
-        rewards: { gold: 1200000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_5000',
         name: 'Unstoppable Expedition',
         desc: 'Win 5,000 missions.',
         target: 5000,
-        rewards: { gold: 2500000, gems: 240, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_7500',
         name: 'Expedition Force',
         desc: 'Win 7,500 missions.',
         target: 7500,
-        rewards: { gold: 3500000, gems: 350, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 3500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_10000',
         name: 'Campaign Overlord',
         desc: 'Win 10,000 missions.',
         target: 10000,
-        rewards: { gold: 5000000, gems: 500, premium: { id: 'iron_fortress', days: 21 } },
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_15000',
         name: 'March of Legends',
         desc: 'Win 15,000 missions.',
         target: 15000,
-        rewards: { gold: 7500000, gems: 750, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_25000',
         name: 'Eternal Campaign',
         desc: 'Win 25,000 missions.',
         target: 25000,
-        rewards: { gold: 12000000, gems: 1200, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(missionWinsBase, {
         id: 'mission_wins_50000',
         name: 'The Unending War',
         desc: 'Win 50,000 missions.',
         target: 50000,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'apprentice', days: 60 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
     });
 
     const missionSpotsBase = ACHIEVEMENTS.find((a) => a.id === 'mission_spots_10');
@@ -2201,7 +2201,7 @@ function buildExtendedAchievements() {
             icon: '🚩',
             metric: 'mission_fights_total',
             target: 2000,
-            rewards: { gold: 900000, gems: 80, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'mission_fights_5000',
@@ -2212,7 +2212,7 @@ function buildExtendedAchievements() {
             icon: '⚔️',
             metric: 'mission_fights_total',
             target: 5000,
-            rewards: { gold: 2000000, gems: 180, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'mission_fights_7500',
@@ -2223,7 +2223,7 @@ function buildExtendedAchievements() {
             icon: '⚔️',
             metric: 'mission_fights_total',
             target: 7500,
-            rewards: { gold: 3500000, gems: 300, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 3500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'mission_fights_10000',
@@ -2234,7 +2234,7 @@ function buildExtendedAchievements() {
             icon: '⚔️',
             metric: 'mission_fights_total',
             target: 10000,
-            rewards: { gold: 5000000, gems: 450, premium: { id: 'iron_fortress', days: 21 } },
+            rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
         },
         {
             id: 'mission_fights_15000',
@@ -2245,7 +2245,7 @@ function buildExtendedAchievements() {
             icon: '⚔️',
             metric: 'mission_fights_total',
             target: 15000,
-            rewards: { gold: 7500000, gems: 700, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+            rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
         },
         {
             id: 'mission_fights_25000',
@@ -2256,7 +2256,7 @@ function buildExtendedAchievements() {
             icon: '⚔️',
             metric: 'mission_fights_total',
             target: 25000,
-            rewards: { gold: 12000000, gems: 1200, premium: { id: 'fortune_hunter', days: 30 } },
+            rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
         }
     );
 
@@ -2266,56 +2266,56 @@ function buildExtendedAchievements() {
         name: 'Nightmare Reaper',
         desc: 'Defeat 1,000 dungeon monsters.',
         target: 1000,
-        rewards: { gold: 400000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_2500',
         name: 'Catacomb Catastrophe',
         desc: 'Defeat 2,500 dungeon monsters.',
         target: 2500,
-        rewards: { gold: 1200000, gems: 125, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_5000',
         name: 'Lord of the Underdeep',
         desc: 'Defeat 5,000 dungeon monsters.',
         target: 5000,
-        rewards: { gold: 2500000, gems: 240, premium: { id: 'iron_fortress', days: 21 } },
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_7500',
         name: 'Abyss Butcher',
         desc: 'Defeat 7,500 dungeon monsters.',
         target: 7500,
-        rewards: { gold: 3500000, gems: 350, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 3500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_10000',
         name: 'Monster Holocaust',
         desc: 'Defeat 10,000 dungeon monsters.',
         target: 10000,
-        rewards: { gold: 5000000, gems: 500, premium: { id: 'iron_fortress', days: 21 } },
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_15000',
         name: 'Dungeon Purge',
         desc: 'Defeat 15,000 dungeon monsters.',
         target: 15000,
-        rewards: { gold: 7500000, gems: 750, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_25000',
         name: 'Extinction Event',
         desc: 'Defeat 25,000 dungeon monsters.',
         target: 25000,
-        rewards: { gold: 12000000, gems: 1200, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(dungeonKillsBase, {
         id: 'dungeon_kills_50000',
         name: 'The Reaper',
         desc: 'Defeat 50,000 dungeon monsters.',
         target: 50000,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'apprentice', days: 60 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
     });
 
     const skeletonBase = ACHIEVEMENTS.find((a) => a.id === 'skeleton_kills_15');
@@ -2338,42 +2338,42 @@ function buildExtendedAchievements() {
         name: 'Graveyard Extinction',
         desc: 'Defeat 500 Skeleton Warriors in the dungeon.',
         target: 500,
-        rewards: { gold: 500000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(skeletonBase, {
         id: 'skeleton_kills_1000',
         name: 'Bone Field',
         desc: 'Defeat 1,000 Skeleton Warriors in the dungeon.',
         target: 1000,
-        rewards: { gold: 1000000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(skeletonBase, {
         id: 'skeleton_kills_1500',
         name: 'Skeleton Crusher',
         desc: 'Defeat 1,500 Skeleton Warriors in the dungeon.',
         target: 1500,
-        rewards: { gold: 1500000, gems: 180, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(skeletonBase, {
         id: 'skeleton_kills_2000',
         name: 'Boneyard King',
         desc: 'Defeat 2,000 Skeleton Warriors in the dungeon.',
         target: 2000,
-        rewards: { gold: 2000000, gems: 240, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(skeletonBase, {
         id: 'skeleton_kills_3000',
         name: 'Lich Bane',
         desc: 'Defeat 3,000 Skeleton Warriors in the dungeon.',
         target: 3000,
-        rewards: { gold: 3000000, gems: 360, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(skeletonBase, {
         id: 'skeleton_kills_5000',
         name: 'Death\'s End',
         desc: 'Defeat 5,000 Skeleton Warriors in the dungeon.',
         target: 5000,
-        rewards: { gold: 5000000, gems: 600, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const wraithBase = ACHIEVEMENTS.find((a) => a.id === 'void_wraith_kills_10');
@@ -2389,49 +2389,49 @@ function buildExtendedAchievements() {
         name: 'Wraith Exorcist',
         desc: 'Defeat 100 Void Wraiths in the dungeon.',
         target: 100,
-        rewards: { gold: 300000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(wraithBase, {
         id: 'void_wraith_kills_250',
         name: 'Nether Exterminator',
         desc: 'Defeat 250 Void Wraiths in the dungeon.',
         target: 250,
-        rewards: { gold: 800000, gems: 110, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(wraithBase, {
         id: 'void_wraith_kills_500',
         name: 'Wraith Slayer',
         desc: 'Defeat 500 Void Wraiths in the dungeon.',
         target: 500,
-        rewards: { gold: 1500000, gems: 180, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(wraithBase, {
         id: 'void_wraith_kills_750',
         name: 'Spectral Annihilator',
         desc: 'Defeat 750 Void Wraiths in the dungeon.',
         target: 750,
-        rewards: { gold: 2500000, gems: 280, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(wraithBase, {
         id: 'void_wraith_kills_1000',
         name: 'Nether Lord',
         desc: 'Defeat 1,000 Void Wraiths in the dungeon.',
         target: 1000,
-        rewards: { gold: 3500000, gems: 380, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 3500000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(wraithBase, {
         id: 'void_wraith_kills_1500',
         name: 'Void Extinction',
         desc: 'Defeat 1,500 Void Wraiths in the dungeon.',
         target: 1500,
-        rewards: { gold: 5000000, gems: 550, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(wraithBase, {
         id: 'void_wraith_kills_2000',
         name: 'Abyss Purged',
         desc: 'Defeat 2,000 Void Wraiths in the dungeon.',
         target: 2000,
-        rewards: { gold: 7500000, gems: 750, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 7500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const winsBase = ACHIEVEMENTS.find((a) => a.id === 'wins_2500');
@@ -2440,60 +2440,60 @@ function buildExtendedAchievements() {
         name: 'Arena Tyrant',
         desc: 'Reach 5,000 victories.',
         target: 5000,
-        rewards: { gold: 3000000, gems: 320, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(winsBase, {
         id: 'wins_10000',
         name: 'Immortal Gladiator',
         desc: 'Reach 10,000 victories.',
         target: 10000,
-        rewards: { gold: 6000000, gems: 600, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(winsBase, {
         id: 'wins_15000',
         name: 'Arena Emperor',
         desc: 'Reach 15,000 victories.',
         target: 15000,
-        rewards: { gold: 8000000, gems: 800, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(winsBase, {
         id: 'wins_25000',
         name: 'Battle Deity',
         desc: 'Reach 25,000 victories.',
         target: 25000,
-        rewards: { gold: 12000000, gems: 1200, premium: { id: 'iron_fortress', days: 30 } },
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'iron_fortress', days: 30 } },
     });
     addFromBase(winsBase, {
         id: 'wins_50000',
         name: 'Unstoppable Force',
         desc: 'Reach 50,000 victories.',
         target: 50000,
-        rewards: { gold: 20000000, gems: 2000, premium: { id: 'fortune_hunter', days: 30 } },
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
     });
     addFromBase(winsBase, {
         id: 'wins_75000',
         name: 'Conqueror of Worlds',
         desc: 'Reach 75,000 victories.',
         target: 75000,
-        rewards: { gold: 30000000, gems: 3000, premium: { id: 'apprentice', days: 60 } },
+        rewards: { gold: 30000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
     });
     addFromBase(winsBase, {
         id: 'wins_100000',
         name: 'Victory Incarnate',
         desc: 'Reach 100,000 victories.',
         target: 100000,
-        rewards: { gold: 50000000, gems: 5000, premium: { id: 'fortune_hunter', days: 60 } },
+        rewards: { gold: 50000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
     });
 
     const spotMilestoneDefs = [
         { target: 25, suffix: 'Veteran', rewards: { gold: 35000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } } },
         { target: 100, suffix: 'Master', rewards: { gold: 125000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-        { target: 250, suffix: 'Legend', rewards: { gold: 400000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-        { target: 500, suffix: 'Mythic', rewards: { gold: 900000, gems: 60, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-        { target: 750, suffix: 'Immortal', rewards: { gold: 1500000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-        { target: 1000, suffix: 'Transcendent', rewards: { gold: 2500000, gems: 160, premium: { id: 'iron_fortress', days: 14 } } },
-        { target: 1500, suffix: 'Eternal', rewards: { gold: 4000000, gems: 250, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
-        { target: 2000, suffix: 'Divine', rewards: { gold: 6000000, gems: 400, premium: { id: 'fortune_hunter', days: 21 } } },
+        { target: 250, suffix: 'Legend', rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 500, suffix: 'Mythic', rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 750, suffix: 'Immortal', rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 1000, suffix: 'Transcendent', rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+        { target: 1500, suffix: 'Eternal', rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+        { target: 2000, suffix: 'Divine', rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
     ];
     ACHIEVEMENTS
         .filter((a) => a.metric === 'mission_spot_wins' && a.target === 10)
@@ -2553,7 +2553,7 @@ function buildExtendedAchievements() {
             icon: '🏹',
             metric: 'raids_participated',
             target: 40,
-            rewards: { gold: 325000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 325000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'raids_participated_100',
@@ -2564,7 +2564,7 @@ function buildExtendedAchievements() {
             icon: '👑',
             metric: 'raids_participated',
             target: 100,
-            rewards: { gold: 900000, gems: 110, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'raids_participated_150',
@@ -2575,7 +2575,7 @@ function buildExtendedAchievements() {
             icon: '🛡️',
             metric: 'raids_participated',
             target: 150,
-            rewards: { gold: 1300000, gems: 160, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 1300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'raids_participated_200',
@@ -2586,7 +2586,7 @@ function buildExtendedAchievements() {
             icon: '🏰',
             metric: 'raids_participated',
             target: 200,
-            rewards: { gold: 1800000, gems: 220, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'raids_participated_300',
@@ -2597,7 +2597,7 @@ function buildExtendedAchievements() {
             icon: '👑',
             metric: 'raids_participated',
             target: 300,
-            rewards: { gold: 2800000, gems: 320, premium: { id: 'iron_fortress', days: 14 } },
+            rewards: { gold: 2800000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
         },
         {
             id: 'raids_participated_500',
@@ -2608,7 +2608,7 @@ function buildExtendedAchievements() {
             icon: '⚔️',
             metric: 'raids_participated',
             target: 500,
-            rewards: { gold: 5000000, gems: 550, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+            rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
         },
         {
             id: 'raids_participated_750',
@@ -2619,7 +2619,7 @@ function buildExtendedAchievements() {
             icon: '🌟',
             metric: 'raids_participated',
             target: 750,
-            rewards: { gold: 8000000, gems: 800, premium: { id: 'fortune_hunter', days: 21 } },
+            rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
         },
         {
             id: 'raids_won_1',
@@ -2663,7 +2663,7 @@ function buildExtendedAchievements() {
             icon: '⚡',
             metric: 'raids_won',
             target: 25,
-            rewards: { gold: 360000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 360000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'raids_won_60',
@@ -2674,7 +2674,7 @@ function buildExtendedAchievements() {
             icon: '🌟',
             metric: 'raids_won',
             target: 60,
-            rewards: { gold: 1000000, gems: 130, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'raids_won_100',
@@ -2685,7 +2685,7 @@ function buildExtendedAchievements() {
             icon: '🏆',
             metric: 'raids_won',
             target: 100,
-            rewards: { gold: 1500000, gems: 180, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'raids_won_150',
@@ -2696,7 +2696,7 @@ function buildExtendedAchievements() {
             icon: '🔥',
             metric: 'raids_won',
             target: 150,
-            rewards: { gold: 2500000, gems: 280, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
         {
             id: 'raids_won_200',
@@ -2707,7 +2707,7 @@ function buildExtendedAchievements() {
             icon: '⚡',
             metric: 'raids_won',
             target: 200,
-            rewards: { gold: 3600000, gems: 400, premium: { id: 'iron_fortress', days: 14 } },
+            rewards: { gold: 3600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
         },
         {
             id: 'raids_won_300',
@@ -2718,7 +2718,7 @@ function buildExtendedAchievements() {
             icon: '🌟',
             metric: 'raids_won',
             target: 300,
-            rewards: { gold: 6000000, gems: 600, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+            rewards: { gold: 6000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
         },
         {
             id: 'raids_won_500',
@@ -2729,7 +2729,7 @@ function buildExtendedAchievements() {
             icon: '👑',
             metric: 'raids_won',
             target: 500,
-            rewards: { gold: 10000000, gems: 1000, premium: { id: 'fortune_hunter', days: 30 } },
+            rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
         },
         {
             id: 'hard_missions_5',
@@ -2762,7 +2762,7 @@ function buildExtendedAchievements() {
             icon: '🌋',
             metric: 'hard_missions_completed',
             target: 100,
-            rewards: { gold: 350000, gems: 45, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'elemental_kills_10',
@@ -2795,7 +2795,7 @@ function buildExtendedAchievements() {
             icon: '🌪️',
             metric: 'elemental_kills',
             target: 200,
-            rewards: { gold: 275000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 275000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'gems_earn_25',
@@ -2875,7 +2875,7 @@ function buildExtendedAchievements() {
             metric: 'monster_types_total',
             metric_source: 'dungeon',
             target: 20,
-            rewards: { gold: 250000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'shieldless_wins_10',
@@ -2908,7 +2908,7 @@ function buildExtendedAchievements() {
             icon: '🌒',
             metric: 'wins_without_shield',
             target: 200,
-            rewards: { gold: 300000, gems: 35, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'physical_only_wins_10',
@@ -2941,7 +2941,7 @@ function buildExtendedAchievements() {
             icon: '🏛️',
             metric: 'physical_only_wins',
             target: 200,
-            rewards: { gold: 275000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+            rewards: { gold: 275000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
             id: 'referrals_1',
@@ -3007,7 +3007,7 @@ function buildExtendedAchievements() {
             icon: '👑',
             metric: 'referrals_level5',
             target: 15,
-            rewards: { gold: 250000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+            rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
         },
     );
 
@@ -3019,14 +3019,14 @@ function buildExtendedAchievements() {
         name: 'Herald of the Arena',
         desc: 'Refer 25 players to Battle Arena.',
         target: 25,
-        rewards: { gold: 250000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(referralsBase, {
         id: 'referrals_50',
         name: 'Architect of the Crowd',
         desc: 'Refer 50 players to Battle Arena.',
         target: 50,
-        rewards: { gold: 900000, gems: 180, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
+        rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
     });
 
     const referralsLevelBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_15');
@@ -3035,14 +3035,14 @@ function buildExtendedAchievements() {
         name: 'Guild Builder',
         desc: 'Have 30 referred players reach level 5.',
         target: 30,
-        rewards: { gold: 600000, gems: 140, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(referralsLevelBase, {
         id: 'referrals_level5_60',
         name: 'Arena Founder',
         desc: 'Have 60 referred players reach level 5.',
         target: 60,
-        rewards: { gold: 1800000, gems: 320, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 1800000, gems: 25, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
 
     const elementalKillsBase = ACHIEVEMENTS.find((a) => a.id === 'elemental_kills_200');
@@ -3058,28 +3058,28 @@ function buildExtendedAchievements() {
         name: 'Elemental Cataclysm',
         desc: 'Defeat 500 enemies with elemental damage.',
         target: 500,
-        rewards: { gold: 250000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(elementalKillsBase, {
         id: 'elemental_kills_750',
         name: 'Primal Force',
         desc: 'Defeat 750 enemies with elemental damage.',
         target: 750,
-        rewards: { gold: 400000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(elementalKillsBase, {
         id: 'elemental_kills_1000',
         name: 'Elemental Overlord',
         desc: 'Defeat 1,000 enemies with elemental damage.',
         target: 1000,
-        rewards: { gold: 600000, gems: 120, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(elementalKillsBase, {
         id: 'elemental_kills_2000',
         name: 'Avatar of Elements',
         desc: 'Defeat 2,000 enemies with elemental damage.',
         target: 2000,
-        rewards: { gold: 1200000, gems: 240, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const noShieldBase = ACHIEVEMENTS.find((a) => a.id === 'wins_without_shield_200');
@@ -3095,28 +3095,28 @@ function buildExtendedAchievements() {
         name: 'Unarmored and Unafraid',
         desc: 'Win 500 battles without a shield.',
         target: 500,
-        rewards: { gold: 250000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(noShieldBase, {
         id: 'wins_without_shield_750',
         name: 'Bare-Chested Brawler',
         desc: 'Win 750 battles without a shield.',
         target: 750,
-        rewards: { gold: 400000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(noShieldBase, {
         id: 'wins_without_shield_1000',
         name: 'No Guard, All Glory',
         desc: 'Win 1,000 battles without a shield.',
         target: 1000,
-        rewards: { gold: 600000, gems: 120, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(noShieldBase, {
         id: 'wins_without_shield_2000',
         name: 'Unbreakable Offense',
         desc: 'Win 2,000 battles without a shield.',
         target: 2000,
-        rewards: { gold: 1200000, gems: 240, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const physicalBase = ACHIEVEMENTS.find((a) => a.id === 'physical_only_wins_200');
@@ -3132,28 +3132,28 @@ function buildExtendedAchievements() {
         name: 'Brute Force',
         desc: 'Win 500 battles with physical damage only.',
         target: 500,
-        rewards: { gold: 250000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(physicalBase, {
         id: 'physical_only_wins_750',
         name: 'Pure Muscle',
         desc: 'Win 750 battles with physical damage only.',
         target: 750,
-        rewards: { gold: 400000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(physicalBase, {
         id: 'physical_only_wins_1000',
         name: 'No Magic Needed',
         desc: 'Win 1,000 battles with physical damage only.',
         target: 1000,
-        rewards: { gold: 600000, gems: 120, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(physicalBase, {
         id: 'physical_only_wins_2000',
         name: 'Primordial Strength',
         desc: 'Win 2,000 battles with physical damage only.',
         target: 2000,
-        rewards: { gold: 1200000, gems: 240, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const gemsWealthBase = ACHIEVEMENTS.find((a) => a.id === 'gems_collected_1500');
@@ -3162,35 +3162,35 @@ function buildExtendedAchievements() {
         name: 'Gem Mountain',
         desc: 'Collect 2,000 gems from missions.',
         target: 2000,
-        rewards: { gold: 400000, gems: 80, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(gemsWealthBase, {
         id: 'gems_collected_3000',
         name: 'Gem River',
         desc: 'Collect 3,000 gems from missions.',
         target: 3000,
-        rewards: { gold: 700000, gems: 140, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 700000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(gemsWealthBase, {
         id: 'gems_collected_5000',
         name: 'Gem Ocean',
         desc: 'Collect 5,000 gems from missions.',
         target: 5000,
-        rewards: { gold: 1200000, gems: 240, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(gemsWealthBase, {
         id: 'gems_collected_7500',
         name: 'Gem Galaxy',
         desc: 'Collect 7,500 gems from missions.',
         target: 7500,
-        rewards: { gold: 2000000, gems: 400, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(gemsWealthBase, {
         id: 'gems_collected_10000',
         name: 'Gem Universe',
         desc: 'Collect 10,000 gems from missions.',
         target: 10000,
-        rewards: { gold: 3000000, gems: 600, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 3000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const referralBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_registered_25');
@@ -3199,35 +3199,35 @@ function buildExtendedAchievements() {
         name: 'Recruiter Extraordinaire',
         desc: 'Refer 50 new players.',
         target: 50,
-        rewards: { gold: 300000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(referralBase, {
         id: 'referrals_registered_75',
         name: 'Recruitment Drive',
         desc: 'Refer 75 new players.',
         target: 75,
-        rewards: { gold: 500000, gems: 60, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(referralBase, {
         id: 'referrals_registered_100',
         name: 'Army of One',
         desc: 'Refer 100 new players.',
         target: 100,
-        rewards: { gold: 750000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(referralBase, {
         id: 'referrals_registered_150',
         name: 'Guild Builder',
         desc: 'Refer 150 new players.',
         target: 150,
-        rewards: { gold: 1000000, gems: 150, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 1000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(referralBase, {
         id: 'referrals_registered_200',
         name: 'Community Legend',
         desc: 'Refer 200 new players.',
         target: 200,
-        rewards: { gold: 1500000, gems: 200, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 1500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const referralLvlBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_30');
@@ -3236,35 +3236,35 @@ function buildExtendedAchievements() {
         name: 'Mentor of Legends',
         desc: 'Have 60 referred players reach level 5.',
         target: 60,
-        rewards: { gold: 500000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_100',
         name: 'Teacher of Heroes',
         desc: 'Have 100 referred players reach level 5.',
         target: 100,
-        rewards: { gold: 800000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_150',
         name: 'Master Trainer',
         desc: 'Have 150 referred players reach level 5.',
         target: 150,
-        rewards: { gold: 1200000, gems: 160, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_200',
         name: 'Grand Mentor',
         desc: 'Have 200 referred players reach level 5.',
         target: 200,
-        rewards: { gold: 1800000, gems: 240, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 1800000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_300',
         name: 'Immortal Teacher',
         desc: 'Have 300 referred players reach level 5.',
         target: 300,
-        rewards: { gold: 2500000, gems: 350, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const crawlerEncBase = ACHIEVEMENTS.find((a) => a.id === 'crawler_encounters_20');
@@ -3280,28 +3280,28 @@ function buildExtendedAchievements() {
         name: 'Crawler\'s Bane',
         desc: 'Encounter the Crawler 50 times.',
         target: 50,
-        rewards: { gold: 300000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(crawlerEncBase, {
         id: 'crawler_encounters_75',
         name: 'Stalker Stalked',
         desc: 'Encounter the Crawler 75 times.',
         target: 75,
-        rewards: { gold: 500000, gems: 70, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(crawlerEncBase, {
         id: 'crawler_encounters_100',
         name: 'Crawler\'s Nemesis',
         desc: 'Encounter the Crawler 100 times.',
         target: 100,
-        rewards: { gold: 750000, gems: 100, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 750000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(crawlerEncBase, {
         id: 'crawler_encounters_150',
         name: 'The Hunter Becomes the Hunted',
         desc: 'Encounter the Crawler 150 times.',
         target: 150,
-        rewards: { gold: 1200000, gems: 160, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const crawlerDefBase = ACHIEVEMENTS.find((a) => a.id === 'crawler_defeats_100');
@@ -3310,35 +3310,35 @@ function buildExtendedAchievements() {
         name: 'Crawler Exterminator',
         desc: 'Defeat the Crawler 150 times.',
         target: 150,
-        rewards: { gold: 500000, gems: 70, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(crawlerDefBase, {
         id: 'crawler_defeats_200',
         name: 'Crawler Hunter',
         desc: 'Defeat the Crawler 200 times.',
         target: 200,
-        rewards: { gold: 800000, gems: 110, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(crawlerDefBase, {
         id: 'crawler_defeats_300',
         name: 'Crawler Slayer',
         desc: 'Defeat the Crawler 300 times.',
         target: 300,
-        rewards: { gold: 1200000, gems: 160, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(crawlerDefBase, {
         id: 'crawler_defeats_500',
         name: 'Crawler Apocalypse',
         desc: 'Defeat the Crawler 500 times.',
         target: 500,
-        rewards: { gold: 2000000, gems: 280, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
     addFromBase(crawlerDefBase, {
         id: 'crawler_defeats_750',
         name: 'The End of Crawlers',
         desc: 'Defeat the Crawler 750 times.',
         target: 750,
-        rewards: { gold: 3000000, gems: 400, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 3000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const crawlerDeathBase = ACHIEVEMENTS.find((a) => a.id === 'crawler_deaths_1');
@@ -3375,7 +3375,7 @@ function buildExtendedAchievements() {
         name: 'Crawler\'s Favorite Meal',
         desc: 'Die to the Crawler 50 times.',
         target: 50,
-        rewards: { gold: 500000, gems: 60, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
 
     const monsterTypesBase = ACHIEVEMENTS.find((a) => a.id === 'monster_types_20');
@@ -3384,35 +3384,35 @@ function buildExtendedAchievements() {
         name: 'Living Bestiary',
         desc: 'Encounter 25 different dungeon monster types.',
         target: 25,
-        rewards: { gold: 200000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(monsterTypesBase, {
         id: 'monster_types_30',
         name: 'Walking Encyclopedia',
         desc: 'Encounter 30 different dungeon monster types.',
         target: 30,
-        rewards: { gold: 350000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(monsterTypesBase, {
         id: 'monster_types_35',
         name: 'Codex Complete',
         desc: 'Encounter 35 different dungeon monster types.',
         target: 35,
-        rewards: { gold: 500000, gems: 75, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(monsterTypesBase, {
         id: 'monster_types_40',
         name: 'Monster Scholar',
         desc: 'Encounter 40 different dungeon monster types.',
         target: 40,
-        rewards: { gold: 750000, gems: 100, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 750000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(monsterTypesBase, {
         id: 'monster_types_50',
         name: 'Bestiary Legend',
         desc: 'Encounter 50 different dungeon monster types.',
         target: 50,
-        rewards: { gold: 1000000, gems: 150, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     const hardMissionBase = extras.find((a) => a.id === 'hard_missions_100');
@@ -3421,35 +3421,35 @@ function buildExtendedAchievements() {
         name: 'Extreme Daredevil',
         desc: 'Complete 150 hard missions.',
         target: 150,
-        rewards: { gold: 300000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(hardMissionBase, {
         id: 'hard_missions_200',
         name: 'Death Defier',
         desc: 'Complete 200 hard missions.',
         target: 200,
-        rewards: { gold: 500000, gems: 60, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(hardMissionBase, {
         id: 'hard_missions_300',
         name: 'Impossible Odds',
         desc: 'Complete 300 hard missions.',
         target: 300,
-        rewards: { gold: 800000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(hardMissionBase, {
         id: 'hard_missions_500',
         name: 'Extreme Legend',
         desc: 'Complete 500 hard missions.',
         target: 500,
-        rewards: { gold: 1500000, gems: 180, premium: { id: 'iron_fortress', days: 14 } },
+        rewards: { gold: 1500000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
     });
     addFromBase(hardMissionBase, {
         id: 'hard_missions_750',
         name: 'The Impossible Dream',
         desc: 'Complete 750 hard missions.',
         target: 750,
-        rewards: { gold: 2500000, gems: 300, premium: { id: 'fortune_hunter', days: 21 } },
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
     return extras;
@@ -3472,23 +3472,23 @@ ACHIEVEMENTS.push(
     { id: 'level_60', category: 'progression', name: 'Veteran', desc: 'Reach level 60.', icon: '⭐', metric: 'level', target: 60, rewards: { gold: 35000, gems: 15 } },
     { id: 'level_70', category: 'progression', name: 'Champion', desc: 'Reach level 70.', icon: '⭐', metric: 'level', target: 70, rewards: { gold: 50000, gems: 20 } },
     { id: 'level_80', category: 'progression', name: 'Hero', desc: 'Reach level 80.', icon: '⭐', metric: 'level', target: 80, rewards: { gold: 75000, gems: 25 } },
-    { id: 'level_90', category: 'progression', name: 'Master', desc: 'Reach level 90.', icon: '⭐', metric: 'level', target: 90, rewards: { gold: 100000, gems: 30 } },
-    { id: 'level_100', category: 'progression', name: 'Legend', desc: 'Reach level 100.', icon: '⭐', metric: 'level', target: 100, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'level_110', category: 'progression', name: 'Mythic', desc: 'Reach level 110.', icon: '⭐', metric: 'level', target: 110, rewards: { gold: 200000, gems: 50 } },
-    { id: 'level_120', category: 'progression', name: 'Ancient', desc: 'Reach level 120.', icon: '⭐', metric: 'level', target: 120, rewards: { gold: 250000, gems: 60 } },
-    { id: 'level_130', category: 'progression', name: 'Eternal', desc: 'Reach level 130.', icon: '⭐', metric: 'level', target: 130, rewards: { gold: 300000, gems: 75 } },
-    { id: 'level_140', category: 'progression', name: 'Divine', desc: 'Reach level 140.', icon: '⭐', metric: 'level', target: 140, rewards: { gold: 350000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'level_150', category: 'progression', name: 'Transcendent', desc: 'Reach level 150.', icon: '⭐', metric: 'level', target: 150, rewards: { gold: 400000, gems: 100 } },
-    { id: 'level_160', category: 'progression', name: 'Celestial', desc: 'Reach level 160.', icon: '⭐', metric: 'level', target: 160, rewards: { gold: 450000, gems: 110 } },
-    { id: 'level_170', category: 'progression', name: 'Immortal', desc: 'Reach level 170.', icon: '⭐', metric: 'level', target: 170, rewards: { gold: 500000, gems: 125 } },
-    { id: 'level_180', category: 'progression', name: 'Omnipotent', desc: 'Reach level 180.', icon: '⭐', metric: 'level', target: 180, rewards: { gold: 550000, gems: 150 } },
-    { id: 'level_190', category: 'progression', name: 'Supreme', desc: 'Reach level 190.', icon: '⭐', metric: 'level', target: 190, rewards: { gold: 600000, gems: 175 } },
-    { id: 'level_200', category: 'progression', name: 'Ultimate', desc: 'Reach level 200.', icon: '⭐', metric: 'level', target: 200, rewards: { gold: 750000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'level_210', category: 'progression', name: 'Paragon', desc: 'Reach level 210.', icon: '⭐', metric: 'level', target: 210, rewards: { gold: 800000, gems: 210 } },
-    { id: 'level_220', category: 'progression', name: 'Demigod', desc: 'Reach level 220.', icon: '⭐', metric: 'level', target: 220, rewards: { gold: 850000, gems: 220 } },
-    { id: 'level_230', category: 'progression', name: 'Ascended', desc: 'Reach level 230.', icon: '⭐', metric: 'level', target: 230, rewards: { gold: 900000, gems: 230 } },
-    { id: 'level_240', category: 'progression', name: 'Limitless', desc: 'Reach level 240.', icon: '⭐', metric: 'level', target: 240, rewards: { gold: 950000, gems: 240 } },
-    { id: 'level_250', category: 'progression', name: 'Alpha', desc: 'Reach level 250.', icon: '⭐', metric: 'level', target: 250, rewards: { gold: 1000000, gems: 250, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'level_90', category: 'progression', name: 'Master', desc: 'Reach level 90.', icon: '⭐', metric: 'level', target: 90, rewards: { gold: 100000, gems: 25 } },
+    { id: 'level_100', category: 'progression', name: 'Legend', desc: 'Reach level 100.', icon: '⭐', metric: 'level', target: 100, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'level_110', category: 'progression', name: 'Mythic', desc: 'Reach level 110.', icon: '⭐', metric: 'level', target: 110, rewards: { gold: 200000, gems: 25 } },
+    { id: 'level_120', category: 'progression', name: 'Ancient', desc: 'Reach level 120.', icon: '⭐', metric: 'level', target: 120, rewards: { gold: 250000, gems: 25 } },
+    { id: 'level_130', category: 'progression', name: 'Eternal', desc: 'Reach level 130.', icon: '⭐', metric: 'level', target: 130, rewards: { gold: 300000, gems: 25 } },
+    { id: 'level_140', category: 'progression', name: 'Divine', desc: 'Reach level 140.', icon: '⭐', metric: 'level', target: 140, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'level_150', category: 'progression', name: 'Transcendent', desc: 'Reach level 150.', icon: '⭐', metric: 'level', target: 150, rewards: { gold: 400000, gems: 25 } },
+    { id: 'level_160', category: 'progression', name: 'Celestial', desc: 'Reach level 160.', icon: '⭐', metric: 'level', target: 160, rewards: { gold: 450000, gems: 25 } },
+    { id: 'level_170', category: 'progression', name: 'Immortal', desc: 'Reach level 170.', icon: '⭐', metric: 'level', target: 170, rewards: { gold: 500000, gems: 25 } },
+    { id: 'level_180', category: 'progression', name: 'Omnipotent', desc: 'Reach level 180.', icon: '⭐', metric: 'level', target: 180, rewards: { gold: 550000, gems: 25 } },
+    { id: 'level_190', category: 'progression', name: 'Supreme', desc: 'Reach level 190.', icon: '⭐', metric: 'level', target: 190, rewards: { gold: 600000, gems: 25 } },
+    { id: 'level_200', category: 'progression', name: 'Ultimate', desc: 'Reach level 200.', icon: '⭐', metric: 'level', target: 200, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'level_210', category: 'progression', name: 'Paragon', desc: 'Reach level 210.', icon: '⭐', metric: 'level', target: 210, rewards: { gold: 800000, gems: 25 } },
+    { id: 'level_220', category: 'progression', name: 'Demigod', desc: 'Reach level 220.', icon: '⭐', metric: 'level', target: 220, rewards: { gold: 850000, gems: 25 } },
+    { id: 'level_230', category: 'progression', name: 'Ascended', desc: 'Reach level 230.', icon: '⭐', metric: 'level', target: 230, rewards: { gold: 900000, gems: 25 } },
+    { id: 'level_240', category: 'progression', name: 'Limitless', desc: 'Reach level 240.', icon: '⭐', metric: 'level', target: 240, rewards: { gold: 950000, gems: 25 } },
+    { id: 'level_250', category: 'progression', name: 'Alpha', desc: 'Reach level 250.', icon: '⭐', metric: 'level', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
 
     // Gold earned achievements
     { id: 'gold_earned_5k', category: 'economy', name: 'Penny Pincher', desc: 'Earn 5,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000, rewards: { gold: 1000 } },
@@ -3498,15 +3498,15 @@ ACHIEVEMENTS.push(
     { id: 'gold_earned_250k', category: 'economy', name: 'Fortune', desc: 'Earn 250,000 gold total.', icon: '💰', metric: 'gold_earned', target: 250000, rewards: { gold: 30000, gems: 10 } },
     { id: 'gold_earned_500k', category: 'economy', name: 'Tycoon', desc: 'Earn 500,000 gold total.', icon: '💰', metric: 'gold_earned', target: 500000, rewards: { gold: 50000, gems: 15 } },
     { id: 'gold_earned_750k', category: 'economy', name: 'Mogul', desc: 'Earn 750,000 gold total.', icon: '💰', metric: 'gold_earned', target: 750000, rewards: { gold: 75000, gems: 20 } },
-    { id: 'gold_earned_2m', category: 'economy', name: 'Empire', desc: 'Earn 2,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 2000000, rewards: { gold: 150000, gems: 40 } },
-    { id: 'gold_earned_3m', category: 'economy', name: 'Banking', desc: 'Earn 3,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 3000000, rewards: { gold: 200000, gems: 50 } },
-    { id: 'gold_earned_4m', category: 'economy', name: 'Tycoon Empire', desc: 'Earn 4,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 4000000, rewards: { gold: 250000, gems: 60 } },
-    { id: 'gold_earned_5m', category: 'economy', name: 'Trillionaire', desc: 'Earn 5,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000000, rewards: { gold: 350000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'gold_earned_6m', category: 'economy', name: 'Zillionaire', desc: 'Earn 6,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 6000000, rewards: { gold: 400000, gems: 120 } },
-    { id: 'gold_earned_8m', category: 'economy', name: 'Dragon\'s Hoard', desc: 'Earn 8,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 8000000, rewards: { gold: 500000, gems: 160 } },
-    { id: 'gold_earned_10m', category: 'economy', name: 'Midas Touch', desc: 'Earn 10,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 10000000, rewards: { gold: 600000, gems: 200, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'gold_earned_15m', category: 'economy', name: 'King\'s Ransom', desc: 'Earn 15,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 15000000, rewards: { gold: 800000, gems: 250, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'gold_earned_20m', category: 'economy', name: 'World Bank', desc: 'Earn 20,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 20000000, rewards: { gold: 1000000, gems: 300, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'gold_earned_2m', category: 'economy', name: 'Empire', desc: 'Earn 2,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 2000000, rewards: { gold: 150000, gems: 25 } },
+    { id: 'gold_earned_3m', category: 'economy', name: 'Banking', desc: 'Earn 3,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 3000000, rewards: { gold: 200000, gems: 25 } },
+    { id: 'gold_earned_4m', category: 'economy', name: 'Tycoon Empire', desc: 'Earn 4,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 4000000, rewards: { gold: 250000, gems: 25 } },
+    { id: 'gold_earned_5m', category: 'economy', name: 'Trillionaire', desc: 'Earn 5,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000000, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'gold_earned_6m', category: 'economy', name: 'Zillionaire', desc: 'Earn 6,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 6000000, rewards: { gold: 400000, gems: 25 } },
+    { id: 'gold_earned_8m', category: 'economy', name: 'Dragon\'s Hoard', desc: 'Earn 8,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 8000000, rewards: { gold: 500000, gems: 25 } },
+    { id: 'gold_earned_10m', category: 'economy', name: 'Midas Touch', desc: 'Earn 10,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 10000000, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'gold_earned_15m', category: 'economy', name: 'King\'s Ransom', desc: 'Earn 15,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 15000000, rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'gold_earned_20m', category: 'economy', name: 'World Bank', desc: 'Earn 20,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 20000000, rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
 
     // Total missions completed
     { id: 'missions_complete_10', category: 'missions', name: 'Missioner', desc: 'Complete 10 missions.', icon: '📜', metric: 'total_missions_completed', target: 10, rewards: { gold: 3000 } },
@@ -3514,23 +3514,23 @@ ACHIEVEMENTS.push(
     { id: 'missions_complete_100', category: 'missions', name: 'Questgiver', desc: 'Complete 100 missions.', icon: '📜', metric: 'total_missions_completed', target: 100, rewards: { gold: 25000, gems: 10 } },
     { id: 'missions_complete_250', category: 'missions', name: 'Adventurer', desc: 'Complete 250 missions.', icon: '📜', metric: 'total_missions_completed', target: 250, rewards: { gold: 50000, gems: 15 } },
     { id: 'missions_complete_500', category: 'missions', name: 'Explorer', desc: 'Complete 500 missions.', icon: '📜', metric: 'total_missions_completed', target: 500, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'missions_complete_750', category: 'missions', name: 'Seeker', desc: 'Complete 750 missions.', icon: '📜', metric: 'total_missions_completed', target: 750, rewards: { gold: 150000, gems: 30 } },
-    { id: 'missions_complete_1000', category: 'missions', name: 'Champion of Tasks', desc: 'Complete 1,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 1000, rewards: { gold: 250000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'missions_complete_1500', category: 'missions', name: 'Unstoppable', desc: 'Complete 1,500 missions.', icon: '📜', metric: 'total_missions_completed', target: 1500, rewards: { gold: 350000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'missions_complete_2000', category: 'missions', name: 'Relentless', desc: 'Complete 2,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 2000, rewards: { gold: 500000, gems: 80, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'missions_complete_3000', category: 'missions', name: 'Tireless', desc: 'Complete 3,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 3000, rewards: { gold: 750000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'missions_complete_5000', category: 'missions', name: 'Eternal Quest', desc: 'Complete 5,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 5000, rewards: { gold: 1250000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'missions_complete_7500', category: 'missions', name: 'Legend of Tasks', desc: 'Complete 7,500 missions.', icon: '📜', metric: 'total_missions_completed', target: 7500, rewards: { gold: 2000000, gems: 300, premium: { id: 'apprentice', days: 21 } } },
+    { id: 'missions_complete_750', category: 'missions', name: 'Seeker', desc: 'Complete 750 missions.', icon: '📜', metric: 'total_missions_completed', target: 750, rewards: { gold: 150000, gems: 25 } },
+    { id: 'missions_complete_1000', category: 'missions', name: 'Champion of Tasks', desc: 'Complete 1,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 1000, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'missions_complete_1500', category: 'missions', name: 'Unstoppable', desc: 'Complete 1,500 missions.', icon: '📜', metric: 'total_missions_completed', target: 1500, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'missions_complete_2000', category: 'missions', name: 'Relentless', desc: 'Complete 2,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 2000, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'missions_complete_3000', category: 'missions', name: 'Tireless', desc: 'Complete 3,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 3000, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'missions_complete_5000', category: 'missions', name: 'Eternal Quest', desc: 'Complete 5,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 5000, rewards: { gold: 1250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'missions_complete_7500', category: 'missions', name: 'Legend of Tasks', desc: 'Complete 7,500 missions.', icon: '📜', metric: 'total_missions_completed', target: 7500, rewards: { gold: 2000000, gems: 25, premium: { id: 'apprentice', days: 21 } } },
 
     // Dungeon floor achievements
     { id: 'dungeon_floor_20', category: 'dungeon', name: 'Floor 20', desc: 'Reach floor 20 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 20, rewards: { gold: 10000, gems: 5 } },
     { id: 'dungeon_floor_30', category: 'dungeon', name: 'Floor 30', desc: 'Reach floor 30 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 30, rewards: { gold: 20000, gems: 10 } },
     { id: 'dungeon_floor_40', category: 'dungeon', name: 'Floor 40', desc: 'Reach floor 40 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 40, rewards: { gold: 35000, gems: 15 } },
     { id: 'dungeon_floor_60', category: 'dungeon', name: 'Floor 60', desc: 'Reach floor 60 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 60, rewards: { gold: 75000, gems: 25 } },
-    { id: 'dungeon_floor_70', category: 'dungeon', name: 'Floor 70', desc: 'Reach floor 70 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 70, rewards: { gold: 100000, gems: 30 } },
-    { id: 'dungeon_floor_80', category: 'dungeon', name: 'Floor 80', desc: 'Reach floor 80 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 80, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'dungeon_floor_90', category: 'dungeon', name: 'Floor 90', desc: 'Reach floor 90 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 90, rewards: { gold: 200000, gems: 50 } },
-    { id: 'dungeon_floor_100', category: 'dungeon', name: 'Tower Legend', desc: 'Reach floor 100 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 100, rewards: { gold: 300000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'dungeon_floor_70', category: 'dungeon', name: 'Floor 70', desc: 'Reach floor 70 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 70, rewards: { gold: 100000, gems: 25 } },
+    { id: 'dungeon_floor_80', category: 'dungeon', name: 'Floor 80', desc: 'Reach floor 80 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 80, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'dungeon_floor_90', category: 'dungeon', name: 'Floor 90', desc: 'Reach floor 90 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 90, rewards: { gold: 200000, gems: 25 } },
+    { id: 'dungeon_floor_100', category: 'dungeon', name: 'Tower Legend', desc: 'Reach floor 100 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 100, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
 
     // Gems earned achievements
     { id: 'gems_earned_5', category: 'economy', name: 'Gem Finder', desc: 'Earn 5 gems total.', icon: '💎', metric: 'gems_earned', target: 5, rewards: { gold: 1000 } },
@@ -3541,11 +3541,11 @@ ACHIEVEMENTS.push(
     { id: 'gems_earned_100', category: 'economy', name: 'Gem Tycoon', desc: 'Earn 100 gems total.', icon: '💎', metric: 'gems_earned', target: 100, rewards: { gold: 20000, gems: 5 } },
     { id: 'gems_earned_250', category: 'economy', name: 'Gem Baron', desc: 'Earn 250 gems total.', icon: '💎', metric: 'gems_earned', target: 250, rewards: { gold: 40000, gems: 10 } },
     { id: 'gems_earned_500', category: 'economy', name: 'Gem Emperor', desc: 'Earn 500 gems total.', icon: '💎', metric: 'gems_earned', target: 500, rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'gems_earned_750', category: 'economy', name: 'Gem Magnate', desc: 'Earn 750 gems total.', icon: '💎', metric: 'gems_earned', target: 750, rewards: { gold: 100000, gems: 30 } },
-    { id: 'gems_earned_1000', category: 'economy', name: 'Gem Overlord', desc: 'Earn 1,000 gems total.', icon: '💎', metric: 'gems_earned', target: 1000, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'gems_earned_1500', category: 'economy', name: 'Gem Deity', desc: 'Earn 1,500 gems total.', icon: '💎', metric: 'gems_earned', target: 1500, rewards: { gold: 250000, gems: 60 } },
-    { id: 'gems_earned_2000', category: 'economy', name: 'Gem Celestial', desc: 'Earn 2,000 gems total.', icon: '💎', metric: 'gems_earned', target: 2000, rewards: { gold: 350000, gems: 80, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'gems_earned_3000', category: 'economy', name: 'Gem Infinity', desc: 'Earn 3,000 gems total.', icon: '💎', metric: 'gems_earned', target: 3000, rewards: { gold: 500000, gems: 100, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'gems_earned_750', category: 'economy', name: 'Gem Magnate', desc: 'Earn 750 gems total.', icon: '💎', metric: 'gems_earned', target: 750, rewards: { gold: 100000, gems: 25 } },
+    { id: 'gems_earned_1000', category: 'economy', name: 'Gem Overlord', desc: 'Earn 1,000 gems total.', icon: '💎', metric: 'gems_earned', target: 1000, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'gems_earned_1500', category: 'economy', name: 'Gem Deity', desc: 'Earn 1,500 gems total.', icon: '💎', metric: 'gems_earned', target: 1500, rewards: { gold: 250000, gems: 25 } },
+    { id: 'gems_earned_2000', category: 'economy', name: 'Gem Celestial', desc: 'Earn 2,000 gems total.', icon: '💎', metric: 'gems_earned', target: 2000, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'gems_earned_3000', category: 'economy', name: 'Gem Infinity', desc: 'Earn 3,000 gems total.', icon: '💎', metric: 'gems_earned', target: 3000, rewards: { gold: 500000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
 
     // Hard missions
     { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
@@ -3558,107 +3558,107 @@ ACHIEVEMENTS.push(
     { id: 'stat_strength_200', chain: 'stat_strength', category: 'progression', name: 'Mighty', desc: 'Reach 200 strength.', icon: '💪', metric: 'stat_strength', target: 200, rewards: { gold: 15000 } },
     { id: 'stat_strength_300', chain: 'stat_strength', category: 'progression', name: 'Powerhouse', desc: 'Reach 300 strength.', icon: '💪', metric: 'stat_strength', target: 300, rewards: { gold: 30000, gems: 10 } },
     { id: 'stat_strength_500', chain: 'stat_strength', category: 'progression', name: 'Brute Force', desc: 'Reach 500 strength.', icon: '💪', metric: 'stat_strength', target: 500, rewards: { gold: 75000, gems: 20 } },
-    { id: 'stat_strength_750', chain: 'stat_strength', category: 'progression', name: "Titan's Grip", desc: 'Reach 750 strength.', icon: '💪', metric: 'stat_strength', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_strength_1000', chain: 'stat_strength', category: 'progression', name: 'God of War', desc: 'Reach 1000 strength.', icon: '💪', metric: 'stat_strength', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_strength_1250', chain: 'stat_strength', category: 'progression', name: 'Colossus', desc: 'Reach 1250 strength.', icon: '💪', metric: 'stat_strength', target: 1250, rewards: { gold: 500000, gems: 100, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_strength_1500', chain: 'stat_strength', category: 'progression', name: 'Mountain', desc: 'Reach 1500 strength.', icon: '💪', metric: 'stat_strength', target: 1500, rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_strength_2000', chain: 'stat_strength', category: 'progression', name: 'Titan', desc: 'Reach 2000 strength.', icon: '💪', metric: 'stat_strength', target: 2000, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_strength_3000', chain: 'stat_strength', category: 'progression', name: 'Worldbreaker', desc: 'Reach 3000 strength.', icon: '💪', metric: 'stat_strength', target: 3000, rewards: { gold: 2000000, gems: 300, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_strength_5000', chain: 'stat_strength', category: 'progression', name: 'Strength Incarnate', desc: 'Reach 5000 strength.', icon: '💪', metric: 'stat_strength', target: 5000, rewards: { gold: 5000000, gems: 500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_strength_750', chain: 'stat_strength', category: 'progression', name: "Titan's Grip", desc: 'Reach 750 strength.', icon: '💪', metric: 'stat_strength', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_strength_1000', chain: 'stat_strength', category: 'progression', name: 'God of War', desc: 'Reach 1000 strength.', icon: '💪', metric: 'stat_strength', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_strength_1250', chain: 'stat_strength', category: 'progression', name: 'Colossus', desc: 'Reach 1250 strength.', icon: '💪', metric: 'stat_strength', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_strength_1500', chain: 'stat_strength', category: 'progression', name: 'Mountain', desc: 'Reach 1500 strength.', icon: '💪', metric: 'stat_strength', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_strength_2000', chain: 'stat_strength', category: 'progression', name: 'Titan', desc: 'Reach 2000 strength.', icon: '💪', metric: 'stat_strength', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_strength_3000', chain: 'stat_strength', category: 'progression', name: 'Worldbreaker', desc: 'Reach 3000 strength.', icon: '💪', metric: 'stat_strength', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_strength_5000', chain: 'stat_strength', category: 'progression', name: 'Strength Incarnate', desc: 'Reach 5000 strength.', icon: '💪', metric: 'stat_strength', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
 
     // Defense
     { id: 'stat_defense_100', chain: 'stat_defense', category: 'progression', name: 'Turtle', desc: 'Reach 100 defense.', icon: '🛡️', metric: 'stat_defense', target: 100, rewards: { gold: 5000 } },
     { id: 'stat_defense_200', chain: 'stat_defense', category: 'progression', name: 'Fortress', desc: 'Reach 200 defense.', icon: '🛡️', metric: 'stat_defense', target: 200, rewards: { gold: 15000 } },
     { id: 'stat_defense_300', chain: 'stat_defense', category: 'progression', name: 'Iron Wall', desc: 'Reach 300 defense.', icon: '🛡️', metric: 'stat_defense', target: 300, rewards: { gold: 30000, gems: 10 } },
     { id: 'stat_defense_500', chain: 'stat_defense', category: 'progression', name: 'Bulwark', desc: 'Reach 500 defense.', icon: '🛡️', metric: 'stat_defense', target: 500, rewards: { gold: 75000, gems: 20 } },
-    { id: 'stat_defense_750', chain: 'stat_defense', category: 'progression', name: 'Impregnable', desc: 'Reach 750 defense.', icon: '🛡️', metric: 'stat_defense', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_defense_1000', chain: 'stat_defense', category: 'progression', name: 'The Unbreakable', desc: 'Reach 1000 defense.', icon: '🛡️', metric: 'stat_defense', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_defense_1250', chain: 'stat_defense', category: 'progression', name: 'Bastion', desc: 'Reach 1250 defense.', icon: '🛡️', metric: 'stat_defense', target: 1250, rewards: { gold: 500000, gems: 100, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_defense_1500', chain: 'stat_defense', category: 'progression', name: 'Citadel', desc: 'Reach 1500 defense.', icon: '🛡️', metric: 'stat_defense', target: 1500, rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_defense_2000', chain: 'stat_defense', category: 'progression', name: 'Fortress of Solitude', desc: 'Reach 2000 defense.', icon: '🛡️', metric: 'stat_defense', target: 2000, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_defense_3000', chain: 'stat_defense', category: 'progression', name: 'Indestructible', desc: 'Reach 3000 defense.', icon: '🛡️', metric: 'stat_defense', target: 3000, rewards: { gold: 2000000, gems: 300, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_defense_5000', chain: 'stat_defense', category: 'progression', name: 'The Absolute', desc: 'Reach 5000 defense.', icon: '🛡️', metric: 'stat_defense', target: 5000, rewards: { gold: 5000000, gems: 500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_defense_750', chain: 'stat_defense', category: 'progression', name: 'Impregnable', desc: 'Reach 750 defense.', icon: '🛡️', metric: 'stat_defense', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_defense_1000', chain: 'stat_defense', category: 'progression', name: 'The Unbreakable', desc: 'Reach 1000 defense.', icon: '🛡️', metric: 'stat_defense', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_defense_1250', chain: 'stat_defense', category: 'progression', name: 'Bastion', desc: 'Reach 1250 defense.', icon: '🛡️', metric: 'stat_defense', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_defense_1500', chain: 'stat_defense', category: 'progression', name: 'Citadel', desc: 'Reach 1500 defense.', icon: '🛡️', metric: 'stat_defense', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_defense_2000', chain: 'stat_defense', category: 'progression', name: 'Fortress of Solitude', desc: 'Reach 2000 defense.', icon: '🛡️', metric: 'stat_defense', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_defense_3000', chain: 'stat_defense', category: 'progression', name: 'Indestructible', desc: 'Reach 3000 defense.', icon: '🛡️', metric: 'stat_defense', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_defense_5000', chain: 'stat_defense', category: 'progression', name: 'The Absolute', desc: 'Reach 5000 defense.', icon: '🛡️', metric: 'stat_defense', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
 
     // Agility
     { id: 'stat_agility_100', chain: 'stat_agility', category: 'progression', name: 'Quick Feet', desc: 'Reach 100 agility.', icon: '💨', metric: 'stat_agility', target: 100, rewards: { gold: 5000 } },
     { id: 'stat_agility_200', chain: 'stat_agility', category: 'progression', name: 'Swift', desc: 'Reach 200 agility.', icon: '💨', metric: 'stat_agility', target: 200, rewards: { gold: 15000 } },
     { id: 'stat_agility_300', chain: 'stat_agility', category: 'progression', name: 'Wind Walker', desc: 'Reach 300 agility.', icon: '💨', metric: 'stat_agility', target: 300, rewards: { gold: 30000, gems: 10 } },
     { id: 'stat_agility_500', chain: 'stat_agility', category: 'progression', name: 'Blur', desc: 'Reach 500 agility.', icon: '💨', metric: 'stat_agility', target: 500, rewards: { gold: 75000, gems: 20 } },
-    { id: 'stat_agility_750', chain: 'stat_agility', category: 'progression', name: 'Phantom', desc: 'Reach 750 agility.', icon: '💨', metric: 'stat_agility', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_agility_1000', chain: 'stat_agility', category: 'progression', name: 'Flash', desc: 'Reach 1000 agility.', icon: '💨', metric: 'stat_agility', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_agility_1250', chain: 'stat_agility', category: 'progression', name: 'Zephyr', desc: 'Reach 1250 agility.', icon: '💨', metric: 'stat_agility', target: 1250, rewards: { gold: 500000, gems: 100, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_agility_1500', chain: 'stat_agility', category: 'progression', name: 'Sonic', desc: 'Reach 1500 agility.', icon: '💨', metric: 'stat_agility', target: 1500, rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_agility_2000', chain: 'stat_agility', category: 'progression', name: 'Teleporter', desc: 'Reach 2000 agility.', icon: '💨', metric: 'stat_agility', target: 2000, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_agility_3000', chain: 'stat_agility', category: 'progression', name: 'Omnipresent', desc: 'Reach 3000 agility.', icon: '💨', metric: 'stat_agility', target: 3000, rewards: { gold: 2000000, gems: 300, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_agility_5000', chain: 'stat_agility', category: 'progression', name: 'Speed of Light', desc: 'Reach 5000 agility.', icon: '💨', metric: 'stat_agility', target: 5000, rewards: { gold: 5000000, gems: 500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_agility_750', chain: 'stat_agility', category: 'progression', name: 'Phantom', desc: 'Reach 750 agility.', icon: '💨', metric: 'stat_agility', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_agility_1000', chain: 'stat_agility', category: 'progression', name: 'Flash', desc: 'Reach 1000 agility.', icon: '💨', metric: 'stat_agility', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_agility_1250', chain: 'stat_agility', category: 'progression', name: 'Zephyr', desc: 'Reach 1250 agility.', icon: '💨', metric: 'stat_agility', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_agility_1500', chain: 'stat_agility', category: 'progression', name: 'Sonic', desc: 'Reach 1500 agility.', icon: '💨', metric: 'stat_agility', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_agility_2000', chain: 'stat_agility', category: 'progression', name: 'Teleporter', desc: 'Reach 2000 agility.', icon: '💨', metric: 'stat_agility', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_agility_3000', chain: 'stat_agility', category: 'progression', name: 'Omnipresent', desc: 'Reach 3000 agility.', icon: '💨', metric: 'stat_agility', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_agility_5000', chain: 'stat_agility', category: 'progression', name: 'Speed of Light', desc: 'Reach 5000 agility.', icon: '💨', metric: 'stat_agility', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
 
     // Magic
     { id: 'stat_magic_100', chain: 'stat_magic', category: 'progression', name: 'Magic Touch', desc: 'Reach 100 magic.', icon: '🔮', metric: 'stat_magic', target: 100, rewards: { gold: 5000 } },
     { id: 'stat_magic_200', chain: 'stat_magic', category: 'progression', name: 'Sorcerer', desc: 'Reach 200 magic.', icon: '🔮', metric: 'stat_magic', target: 200, rewards: { gold: 15000 } },
     { id: 'stat_magic_300', chain: 'stat_magic', category: 'progression', name: 'Mage Lord', desc: 'Reach 300 magic.', icon: '🔮', metric: 'stat_magic', target: 300, rewards: { gold: 30000, gems: 10 } },
     { id: 'stat_magic_500', chain: 'stat_magic', category: 'progression', name: 'Archmage', desc: 'Reach 500 magic.', icon: '🔮', metric: 'stat_magic', target: 500, rewards: { gold: 75000, gems: 20 } },
-    { id: 'stat_magic_750', chain: 'stat_magic', category: 'progression', name: 'Wizard King', desc: 'Reach 750 magic.', icon: '🔮', metric: 'stat_magic', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_magic_1000', chain: 'stat_magic', category: 'progression', name: 'God of Magic', desc: 'Reach 1000 magic.', icon: '🔮', metric: 'stat_magic', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_magic_1250', chain: 'stat_magic', category: 'progression', name: 'Arcane Overlord', desc: 'Reach 1250 magic.', icon: '🔮', metric: 'stat_magic', target: 1250, rewards: { gold: 500000, gems: 100, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_magic_1500', chain: 'stat_magic', category: 'progression', name: 'Mana Well', desc: 'Reach 1500 magic.', icon: '🔮', metric: 'stat_magic', target: 1500, rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_magic_2000', chain: 'stat_magic', category: 'progression', name: 'Spellweaver', desc: 'Reach 2000 magic.', icon: '🔮', metric: 'stat_magic', target: 2000, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_magic_3000', chain: 'stat_magic', category: 'progression', name: 'Elder God', desc: 'Reach 3000 magic.', icon: '🔮', metric: 'stat_magic', target: 3000, rewards: { gold: 2000000, gems: 300, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_magic_5000', chain: 'stat_magic', category: 'progression', name: 'Magic Incarnate', desc: 'Reach 5000 magic.', icon: '🔮', metric: 'stat_magic', target: 5000, rewards: { gold: 5000000, gems: 500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_magic_750', chain: 'stat_magic', category: 'progression', name: 'Wizard King', desc: 'Reach 750 magic.', icon: '🔮', metric: 'stat_magic', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_magic_1000', chain: 'stat_magic', category: 'progression', name: 'God of Magic', desc: 'Reach 1000 magic.', icon: '🔮', metric: 'stat_magic', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_magic_1250', chain: 'stat_magic', category: 'progression', name: 'Arcane Overlord', desc: 'Reach 1250 magic.', icon: '🔮', metric: 'stat_magic', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_magic_1500', chain: 'stat_magic', category: 'progression', name: 'Mana Well', desc: 'Reach 1500 magic.', icon: '🔮', metric: 'stat_magic', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_magic_2000', chain: 'stat_magic', category: 'progression', name: 'Spellweaver', desc: 'Reach 2000 magic.', icon: '🔮', metric: 'stat_magic', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_magic_3000', chain: 'stat_magic', category: 'progression', name: 'Elder God', desc: 'Reach 3000 magic.', icon: '🔮', metric: 'stat_magic', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_magic_5000', chain: 'stat_magic', category: 'progression', name: 'Magic Incarnate', desc: 'Reach 5000 magic.', icon: '🔮', metric: 'stat_magic', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
 
     // Vitality
     { id: 'stat_vitality_100', chain: 'stat_vitality', category: 'progression', name: 'Healthy', desc: 'Reach 100 vitality.', icon: '❤️', metric: 'stat_vitality', target: 100, rewards: { gold: 5000 } },
     { id: 'stat_vitality_200', chain: 'stat_vitality', category: 'progression', name: 'Sturdy', desc: 'Reach 200 vitality.', icon: '❤️', metric: 'stat_vitality', target: 200, rewards: { gold: 15000 } },
     { id: 'stat_vitality_300', chain: 'stat_vitality', category: 'progression', name: 'Resilient', desc: 'Reach 300 vitality.', icon: '❤️', metric: 'stat_vitality', target: 300, rewards: { gold: 30000, gems: 10 } },
     { id: 'stat_vitality_500', chain: 'stat_vitality', category: 'progression', name: 'Tank', desc: 'Reach 500 vitality.', icon: '❤️', metric: 'stat_vitality', target: 500, rewards: { gold: 75000, gems: 20 } },
-    { id: 'stat_vitality_750', chain: 'stat_vitality', category: 'progression', name: 'Juggernaut', desc: 'Reach 750 vitality.', icon: '❤️', metric: 'stat_vitality', target: 750, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_vitality_1000', chain: 'stat_vitality', category: 'progression', name: 'Immortal', desc: 'Reach 1000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1000, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_vitality_1250', chain: 'stat_vitality', category: 'progression', name: 'Everlasting', desc: 'Reach 1250 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1250, rewards: { gold: 500000, gems: 100, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_vitality_1500', chain: 'stat_vitality', category: 'progression', name: 'Unkillable', desc: 'Reach 1500 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1500, rewards: { gold: 750000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_vitality_2000', chain: 'stat_vitality', category: 'progression', name: 'Phoenix', desc: 'Reach 2000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 2000, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_vitality_3000', chain: 'stat_vitality', category: 'progression', name: 'Ancient Being', desc: 'Reach 3000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 3000, rewards: { gold: 2000000, gems: 300, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_vitality_5000', chain: 'stat_vitality', category: 'progression', name: 'The Eternal', desc: 'Reach 5000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 5000, rewards: { gold: 5000000, gems: 500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_vitality_750', chain: 'stat_vitality', category: 'progression', name: 'Juggernaut', desc: 'Reach 750 vitality.', icon: '❤️', metric: 'stat_vitality', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_vitality_1000', chain: 'stat_vitality', category: 'progression', name: 'Immortal', desc: 'Reach 1000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_vitality_1250', chain: 'stat_vitality', category: 'progression', name: 'Everlasting', desc: 'Reach 1250 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_vitality_1500', chain: 'stat_vitality', category: 'progression', name: 'Unkillable', desc: 'Reach 1500 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_vitality_2000', chain: 'stat_vitality', category: 'progression', name: 'Phoenix', desc: 'Reach 2000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_vitality_3000', chain: 'stat_vitality', category: 'progression', name: 'Ancient Being', desc: 'Reach 3000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_vitality_5000', chain: 'stat_vitality', category: 'progression', name: 'The Eternal', desc: 'Reach 5000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
 
     // Hit Chance
     { id: 'stat_hit_chance_30', chain: 'stat_hit_chance', category: 'progression', name: 'Steady Hand', desc: 'Reach 30 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 30, rewards: { gold: 5000 } },
     { id: 'stat_hit_chance_50', chain: 'stat_hit_chance', category: 'progression', name: 'Marksman', desc: 'Reach 50 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 50, rewards: { gold: 15000, gems: 5 } },
     { id: 'stat_hit_chance_75', chain: 'stat_hit_chance', category: 'progression', name: 'Sniper', desc: 'Reach 75 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
     { id: 'stat_hit_chance_100', chain: 'stat_hit_chance', category: 'progression', name: 'Hawkeye', desc: 'Reach 100 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_hit_chance_125', chain: 'stat_hit_chance', category: 'progression', name: 'Deadshot', desc: 'Reach 125 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 125, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_hit_chance_150', chain: 'stat_hit_chance', category: 'progression', name: 'Bullseye', desc: 'Reach 150 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 150, rewards: { gold: 250000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_hit_chance_175', chain: 'stat_hit_chance', category: 'progression', name: 'Piercing Gaze', desc: 'Reach 175 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 175, rewards: { gold: 400000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_hit_chance_200', chain: 'stat_hit_chance', category: 'progression', name: 'All-Seeing', desc: 'Reach 200 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 200, rewards: { gold: 600000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_hit_chance_250', chain: 'stat_hit_chance', category: 'progression', name: 'Omega Eye', desc: 'Reach 250 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 250, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_hit_chance_300', chain: 'stat_hit_chance', category: 'progression', name: 'Perfect Aim', desc: 'Reach 300 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 300, rewards: { gold: 1500000, gems: 300, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_hit_chance_350', chain: 'stat_hit_chance', category: 'progression', name: 'Unwavering', desc: 'Reach 350 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 350, rewards: { gold: 2000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
-    { id: 'stat_hit_chance_400', chain: 'stat_hit_chance', category: 'progression', name: 'Absolute Precision', desc: 'Reach 400 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 400, rewards: { gold: 2500000, gems: 500, premium: { id: 'iron_fortress', days: 7 } } },
-    { id: 'stat_hit_chance_450', chain: 'stat_hit_chance', category: 'progression', name: 'Omniscient', desc: 'Reach 450 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 450, rewards: { gold: 3000000, gems: 600, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_hit_chance_500', chain: 'stat_hit_chance', category: 'progression', name: "God's Eye", desc: 'Reach 500 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 500, rewards: { gold: 4000000, gems: 750, premium: { id: 'fortune_hunter', days: 7 } } },
-    { id: 'stat_hit_chance_600', chain: 'stat_hit_chance', category: 'progression', name: 'Cosmic Vision', desc: 'Reach 600 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 600, rewards: { gold: 5000000, gems: 900, premium: { id: 'fortune_hunter', days: 14 } } },
-    { id: 'stat_hit_chance_700', chain: 'stat_hit_chance', category: 'progression', name: 'Fate Weaver', desc: 'Reach 700 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 700, rewards: { gold: 6000000, gems: 1100, premium: { id: 'fortune_hunter', days: 21 } } },
-    { id: 'stat_hit_chance_800', chain: 'stat_hit_chance', category: 'progression', name: 'Universal Truth', desc: 'Reach 800 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 800, rewards: { gold: 8000000, gems: 1300, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
-    { id: 'stat_hit_chance_900', chain: 'stat_hit_chance', category: 'progression', name: 'All-Knowing', desc: 'Reach 900 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 900, rewards: { gold: 10000000, gems: 1500, premium: { id: 'fortune_hunter', days: 30 } } },
-    { id: 'stat_hit_chance_1000', chain: 'stat_hit_chance', category: 'progression', name: 'The Absolute Eye', desc: 'Reach 1000 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 1000, rewards: { gold: 15000000, gems: 2000, premium: { id: 'fortune_hunter', days: 60 } } },
+    { id: 'stat_hit_chance_125', chain: 'stat_hit_chance', category: 'progression', name: 'Deadshot', desc: 'Reach 125 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 125, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_hit_chance_150', chain: 'stat_hit_chance', category: 'progression', name: 'Bullseye', desc: 'Reach 150 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 150, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_hit_chance_175', chain: 'stat_hit_chance', category: 'progression', name: 'Piercing Gaze', desc: 'Reach 175 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 175, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_hit_chance_200', chain: 'stat_hit_chance', category: 'progression', name: 'All-Seeing', desc: 'Reach 200 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 200, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_250', chain: 'stat_hit_chance', category: 'progression', name: 'Omega Eye', desc: 'Reach 250 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_300', chain: 'stat_hit_chance', category: 'progression', name: 'Perfect Aim', desc: 'Reach 300 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 300, rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_350', chain: 'stat_hit_chance', category: 'progression', name: 'Unwavering', desc: 'Reach 350 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 350, rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'stat_hit_chance_400', chain: 'stat_hit_chance', category: 'progression', name: 'Absolute Precision', desc: 'Reach 400 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 400, rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 7 } } },
+    { id: 'stat_hit_chance_450', chain: 'stat_hit_chance', category: 'progression', name: 'Omniscient', desc: 'Reach 450 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 450, rewards: { gold: 3000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_hit_chance_500', chain: 'stat_hit_chance', category: 'progression', name: "God's Eye", desc: 'Reach 500 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 500, rewards: { gold: 4000000, gems: 25, premium: { id: 'fortune_hunter', days: 7 } } },
+    { id: 'stat_hit_chance_600', chain: 'stat_hit_chance', category: 'progression', name: 'Cosmic Vision', desc: 'Reach 600 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 600, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'stat_hit_chance_700', chain: 'stat_hit_chance', category: 'progression', name: 'Fate Weaver', desc: 'Reach 700 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 700, rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+    { id: 'stat_hit_chance_800', chain: 'stat_hit_chance', category: 'progression', name: 'Universal Truth', desc: 'Reach 800 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 800, rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
+    { id: 'stat_hit_chance_900', chain: 'stat_hit_chance', category: 'progression', name: 'All-Knowing', desc: 'Reach 900 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 900, rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_hit_chance_1000', chain: 'stat_hit_chance', category: 'progression', name: 'The Absolute Eye', desc: 'Reach 1000 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 1000, rewards: { gold: 15000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } } },
 
     // Crit Chance
     { id: 'stat_crit_chance_30', chain: 'stat_crit_chance', category: 'progression', name: 'Lucky', desc: 'Reach 30 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 30, rewards: { gold: 5000 } },
     { id: 'stat_crit_chance_50', chain: 'stat_crit_chance', category: 'progression', name: 'Opportunist', desc: 'Reach 50 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 50, rewards: { gold: 15000, gems: 5 } },
     { id: 'stat_crit_chance_75', chain: 'stat_crit_chance', category: 'progression', name: 'Assassin', desc: 'Reach 75 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
     { id: 'stat_crit_chance_100', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Mass', desc: 'Reach 100 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_crit_chance_125', chain: 'stat_crit_chance', category: 'progression', name: 'Fatal Strike', desc: 'Reach 125 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 125, rewards: { gold: 150000, gems: 40, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'stat_crit_chance_150', chain: 'stat_crit_chance', category: 'progression', name: 'Executioner', desc: 'Reach 150 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 150, rewards: { gold: 250000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_crit_chance_175', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilator', desc: 'Reach 175 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 175, rewards: { gold: 400000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'stat_crit_chance_200', chain: 'stat_crit_chance', category: 'progression', name: 'One-Shot', desc: 'Reach 200 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 200, rewards: { gold: 600000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_crit_chance_250', chain: 'stat_crit_chance', category: 'progression', name: 'Critical God', desc: 'Reach 250 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 250, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_crit_chance_300', chain: 'stat_crit_chance', category: 'progression', name: 'Devastating', desc: 'Reach 300 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 300, rewards: { gold: 1500000, gems: 300, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'stat_crit_chance_350', chain: 'stat_crit_chance', category: 'progression', name: 'Obliterator', desc: 'Reach 350 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 350, rewards: { gold: 2000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
-    { id: 'stat_crit_chance_400', chain: 'stat_crit_chance', category: 'progression', name: 'Eradicator', desc: 'Reach 400 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 400, rewards: { gold: 2500000, gems: 500, premium: { id: 'iron_fortress', days: 7 } } },
-    { id: 'stat_crit_chance_450', chain: 'stat_crit_chance', category: 'progression', name: 'Cataclysmic', desc: 'Reach 450 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 450, rewards: { gold: 3000000, gems: 600, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'stat_crit_chance_500', chain: 'stat_crit_chance', category: 'progression', name: 'One Punch', desc: 'Reach 500 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 500, rewards: { gold: 4000000, gems: 750, premium: { id: 'fortune_hunter', days: 7 } } },
-    { id: 'stat_crit_chance_600', chain: 'stat_crit_chance', category: 'progression', name: 'Omega Strike', desc: 'Reach 600 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 600, rewards: { gold: 5000000, gems: 900, premium: { id: 'fortune_hunter', days: 14 } } },
-    { id: 'stat_crit_chance_700', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilation', desc: 'Reach 700 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 700, rewards: { gold: 6000000, gems: 1100, premium: { id: 'fortune_hunter', days: 21 } } },
-    { id: 'stat_crit_chance_800', chain: 'stat_crit_chance', category: 'progression', name: 'Reality Tear', desc: 'Reach 800 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 800, rewards: { gold: 8000000, gems: 1300, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
-    { id: 'stat_crit_chance_900', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Singularity', desc: 'Reach 900 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 900, rewards: { gold: 10000000, gems: 1500, premium: { id: 'fortune_hunter', days: 30 } } },
-    { id: 'stat_crit_chance_1000', chain: 'stat_crit_chance', category: 'progression', name: 'The One', desc: 'Reach 1000 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 1000, rewards: { gold: 15000000, gems: 2000, premium: { id: 'fortune_hunter', days: 60 } } },
+    { id: 'stat_crit_chance_125', chain: 'stat_crit_chance', category: 'progression', name: 'Fatal Strike', desc: 'Reach 125 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 125, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_crit_chance_150', chain: 'stat_crit_chance', category: 'progression', name: 'Executioner', desc: 'Reach 150 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 150, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_crit_chance_175', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilator', desc: 'Reach 175 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 175, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_crit_chance_200', chain: 'stat_crit_chance', category: 'progression', name: 'One-Shot', desc: 'Reach 200 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 200, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_250', chain: 'stat_crit_chance', category: 'progression', name: 'Critical God', desc: 'Reach 250 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_300', chain: 'stat_crit_chance', category: 'progression', name: 'Devastating', desc: 'Reach 300 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 300, rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_350', chain: 'stat_crit_chance', category: 'progression', name: 'Obliterator', desc: 'Reach 350 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 350, rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'stat_crit_chance_400', chain: 'stat_crit_chance', category: 'progression', name: 'Eradicator', desc: 'Reach 400 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 400, rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 7 } } },
+    { id: 'stat_crit_chance_450', chain: 'stat_crit_chance', category: 'progression', name: 'Cataclysmic', desc: 'Reach 450 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 450, rewards: { gold: 3000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_crit_chance_500', chain: 'stat_crit_chance', category: 'progression', name: 'One Punch', desc: 'Reach 500 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 500, rewards: { gold: 4000000, gems: 25, premium: { id: 'fortune_hunter', days: 7 } } },
+    { id: 'stat_crit_chance_600', chain: 'stat_crit_chance', category: 'progression', name: 'Omega Strike', desc: 'Reach 600 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 600, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'stat_crit_chance_700', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilation', desc: 'Reach 700 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 700, rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+    { id: 'stat_crit_chance_800', chain: 'stat_crit_chance', category: 'progression', name: 'Reality Tear', desc: 'Reach 800 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 800, rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
+    { id: 'stat_crit_chance_900', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Singularity', desc: 'Reach 900 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 900, rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_crit_chance_1000', chain: 'stat_crit_chance', category: 'progression', name: 'The One', desc: 'Reach 1000 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 1000, rewards: { gold: 15000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } } },
 
     // ── Tournament win achievements ───────────────────────────────────────
     { id: 'tournament_wins_1', chain: 'tournament_wins', category: 'victories', name: 'Tournament Rookie', desc: 'Win your first tournament.', icon: '🏆', metric: 'tournament_wins', target: 1, rewards: { gold: 2000 } },
@@ -3667,18 +3667,18 @@ ACHIEVEMENTS.push(
     { id: 'tournament_wins_25', chain: 'tournament_wins', category: 'victories', name: 'Tournament Veteran', desc: 'Win 25 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 25, rewards: { gold: 25000, gems: 10 } },
     { id: 'tournament_wins_50', chain: 'tournament_wins', category: 'victories', name: 'Tournament Champion', desc: 'Win 50 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 50, rewards: { gold: 50000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
     { id: 'tournament_wins_100', chain: 'tournament_wins', category: 'victories', name: 'Tournament Legend', desc: 'Win 100 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 100, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'tournament_wins_150', chain: 'tournament_wins', category: 'victories', name: 'Tournament Master', desc: 'Win 150 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 150, rewards: { gold: 150000, gems: 35, lootbox: { id: 'lootbox_rare', qty: 1 } } },
-    { id: 'tournament_wins_200', chain: 'tournament_wins', category: 'victories', name: 'Tournament Grandmaster', desc: 'Win 200 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 200, rewards: { gold: 200000, gems: 50, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'tournament_wins_250', chain: 'tournament_wins', category: 'victories', name: 'Tournament Warlord', desc: 'Win 250 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 250, rewards: { gold: 250000, gems: 60, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'tournament_wins_300', chain: 'tournament_wins', category: 'victories', name: 'Tournament Conqueror', desc: 'Win 300 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 300, rewards: { gold: 300000, gems: 75, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'tournament_wins_350', chain: 'tournament_wins', category: 'victories', name: 'Tournament Emperor', desc: 'Win 350 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 350, rewards: { gold: 350000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
-    { id: 'tournament_wins_400', chain: 'tournament_wins', category: 'victories', name: 'Tournament Immortal', desc: 'Win 400 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 400, rewards: { gold: 400000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'tournament_wins_500', chain: 'tournament_wins', category: 'victories', name: 'Tournament God', desc: 'Win 500 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 500, rewards: { gold: 500000, gems: 125, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'tournament_wins_600', chain: 'tournament_wins', category: 'victories', name: 'Tournament Transcendent', desc: 'Win 600 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 600, rewards: { gold: 600000, gems: 150, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'tournament_wins_700', chain: 'tournament_wins', category: 'victories', name: 'Tournament Eternal', desc: 'Win 700 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 700, rewards: { gold: 700000, gems: 175, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'tournament_wins_800', chain: 'tournament_wins', category: 'victories', name: 'Tournament Unchained', desc: 'Win 800 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 800, rewards: { gold: 800000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
-    { id: 'tournament_wins_900', chain: 'tournament_wins', category: 'victories', name: 'Tournament Absolute', desc: 'Win 900 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 900, rewards: { gold: 900000, gems: 225, premium: { id: 'iron_fortress', days: 14 } } },
-    { id: 'tournament_wins_1000', chain: 'tournament_wins', category: 'victories', name: 'Tournament Messiah', desc: 'Win 1000 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 1000, rewards: { gold: 1000000, gems: 250, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'tournament_wins_150', chain: 'tournament_wins', category: 'victories', name: 'Tournament Master', desc: 'Win 150 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 150, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'tournament_wins_200', chain: 'tournament_wins', category: 'victories', name: 'Tournament Grandmaster', desc: 'Win 200 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 200, rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_250', chain: 'tournament_wins', category: 'victories', name: 'Tournament Warlord', desc: 'Win 250 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 250, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_300', chain: 'tournament_wins', category: 'victories', name: 'Tournament Conqueror', desc: 'Win 300 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 300, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_350', chain: 'tournament_wins', category: 'victories', name: 'Tournament Emperor', desc: 'Win 350 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 350, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_400', chain: 'tournament_wins', category: 'victories', name: 'Tournament Immortal', desc: 'Win 400 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 400, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_500', chain: 'tournament_wins', category: 'victories', name: 'Tournament God', desc: 'Win 500 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 500, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_600', chain: 'tournament_wins', category: 'victories', name: 'Tournament Transcendent', desc: 'Win 600 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 600, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_700', chain: 'tournament_wins', category: 'victories', name: 'Tournament Eternal', desc: 'Win 700 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 700, rewards: { gold: 700000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_800', chain: 'tournament_wins', category: 'victories', name: 'Tournament Unchained', desc: 'Win 800 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 800, rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'tournament_wins_900', chain: 'tournament_wins', category: 'victories', name: 'Tournament Absolute', desc: 'Win 900 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 900, rewards: { gold: 900000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'tournament_wins_1000', chain: 'tournament_wins', category: 'victories', name: 'Tournament Messiah', desc: 'Win 1000 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 1000, rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
 );
 
 console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
