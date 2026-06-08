@@ -14230,7 +14230,7 @@ function generateLootFromBox(boxType, playerLevel) {
         }
     }
     
-    const craftChance = boxType === 'legendary' ? 0.05 : boxType === 'epic' ? 0.01 : 0;
+    const craftChance = boxType === 'legendary' ? 0.20 : boxType === 'epic' ? 0.10 : boxType === 'rare' ? 0.05 : boxType === 'novice' ? 0.01 : 0;
     if (Math.random() < craftChance) {
         const craftable = EQUIPMENT_RECIPES.filter(r => !r.bannerOnly);
         const recipe = craftable[Math.floor(Math.random() * craftable.length)];
