@@ -7,7 +7,7 @@ const {
   calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
   getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
-  getEquippedSetBonuses, skillPassiveBonus,
+  getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
   DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
 } = require('./routes');
 const {
@@ -385,11 +385,13 @@ async function buildFighter(db, participant, participants, noEquip) {
   }
 
   const fighterHpMax = hpMax + skillPassiveBonus(char.vitality || 0, skillPassives.vitality) * 25;
+  const weapon = getEquippedWeaponData(equippedArray);
 
   return {
     id: `char_${char.id}`,
     name: char.name,
     class: char.class,
+    weapon: weapon,
     level: char.level,
     hp: Math.min(fighterHpMax, char.hp_current ?? fighterHpMax),
     hpMax: fighterHpMax,
