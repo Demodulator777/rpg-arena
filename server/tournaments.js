@@ -1039,7 +1039,6 @@ router.post('/tournaments/restart/:id', auth, async (req, res) => {
     const db = await getDb();
     const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
     if (!t) return res.status(404).json({ error: 'Tournament not found' });
-    await dbRun_t(db, 'DELETE FROM tournament_participants WHERE tournament_id = ?', [t.id]);
     await dbRun_t(db, 'DELETE FROM tournament_matches WHERE tournament_id = ?', [t.id]);
     await dbRun_t(db, "UPDATE tournaments SET status = 'pending', started_at = NULL WHERE id = ?", [t.id]);
     res.json({ message: `Tournament #${t.id} reset to pending — ready to re-start` });
