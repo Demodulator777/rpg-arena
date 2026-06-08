@@ -3628,6 +3628,16 @@ ACHIEVEMENTS.push(
     { id: 'stat_hit_chance_175', chain: 'stat_hit_chance', category: 'progression', name: 'Piercing Gaze', desc: 'Reach 175 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 175, rewards: { gold: 400000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     { id: 'stat_hit_chance_200', chain: 'stat_hit_chance', category: 'progression', name: 'All-Seeing', desc: 'Reach 200 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 200, rewards: { gold: 600000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
     { id: 'stat_hit_chance_250', chain: 'stat_hit_chance', category: 'progression', name: 'Omega Eye', desc: 'Reach 250 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 250, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_300', chain: 'stat_hit_chance', category: 'progression', name: 'Perfect Aim', desc: 'Reach 300 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 300, rewards: { gold: 1500000, gems: 300, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_350', chain: 'stat_hit_chance', category: 'progression', name: 'Unwavering', desc: 'Reach 350 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 350, rewards: { gold: 2000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'stat_hit_chance_400', chain: 'stat_hit_chance', category: 'progression', name: 'Absolute Precision', desc: 'Reach 400 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 400, rewards: { gold: 2500000, gems: 500, premium: { id: 'iron_fortress', days: 7 } } },
+    { id: 'stat_hit_chance_450', chain: 'stat_hit_chance', category: 'progression', name: 'Omniscient', desc: 'Reach 450 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 450, rewards: { gold: 3000000, gems: 600, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_hit_chance_500', chain: 'stat_hit_chance', category: 'progression', name: "God's Eye", desc: 'Reach 500 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 500, rewards: { gold: 4000000, gems: 750, premium: { id: 'fortune_hunter', days: 7 } } },
+    { id: 'stat_hit_chance_600', chain: 'stat_hit_chance', category: 'progression', name: 'Cosmic Vision', desc: 'Reach 600 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 600, rewards: { gold: 5000000, gems: 900, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'stat_hit_chance_700', chain: 'stat_hit_chance', category: 'progression', name: 'Fate Weaver', desc: 'Reach 700 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 700, rewards: { gold: 6000000, gems: 1100, premium: { id: 'fortune_hunter', days: 21 } } },
+    { id: 'stat_hit_chance_800', chain: 'stat_hit_chance', category: 'progression', name: 'Universal Truth', desc: 'Reach 800 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 800, rewards: { gold: 8000000, gems: 1300, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
+    { id: 'stat_hit_chance_900', chain: 'stat_hit_chance', category: 'progression', name: 'All-Knowing', desc: 'Reach 900 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 900, rewards: { gold: 10000000, gems: 1500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_hit_chance_1000', chain: 'stat_hit_chance', category: 'progression', name: 'The Absolute Eye', desc: 'Reach 1000 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 1000, rewards: { gold: 15000000, gems: 2000, premium: { id: 'fortune_hunter', days: 60 } } },
 
     // Crit Chance
     { id: 'stat_crit_chance_30', chain: 'stat_crit_chance', category: 'progression', name: 'Lucky', desc: 'Reach 30 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 30, rewards: { gold: 5000 } },
@@ -3639,6 +3649,16 @@ ACHIEVEMENTS.push(
     { id: 'stat_crit_chance_175', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilator', desc: 'Reach 175 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 175, rewards: { gold: 400000, gems: 85, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     { id: 'stat_crit_chance_200', chain: 'stat_crit_chance', category: 'progression', name: 'One-Shot', desc: 'Reach 200 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 200, rewards: { gold: 600000, gems: 120, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
     { id: 'stat_crit_chance_250', chain: 'stat_crit_chance', category: 'progression', name: 'Critical God', desc: 'Reach 250 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 250, rewards: { gold: 1000000, gems: 200, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_300', chain: 'stat_crit_chance', category: 'progression', name: 'Devastating', desc: 'Reach 300 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 300, rewards: { gold: 1500000, gems: 300, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_350', chain: 'stat_crit_chance', category: 'progression', name: 'Obliterator', desc: 'Reach 350 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 350, rewards: { gold: 2000000, gems: 400, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'stat_crit_chance_400', chain: 'stat_crit_chance', category: 'progression', name: 'Eradicator', desc: 'Reach 400 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 400, rewards: { gold: 2500000, gems: 500, premium: { id: 'iron_fortress', days: 7 } } },
+    { id: 'stat_crit_chance_450', chain: 'stat_crit_chance', category: 'progression', name: 'Cataclysmic', desc: 'Reach 450 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 450, rewards: { gold: 3000000, gems: 600, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_crit_chance_500', chain: 'stat_crit_chance', category: 'progression', name: 'One Punch', desc: 'Reach 500 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 500, rewards: { gold: 4000000, gems: 750, premium: { id: 'fortune_hunter', days: 7 } } },
+    { id: 'stat_crit_chance_600', chain: 'stat_crit_chance', category: 'progression', name: 'Omega Strike', desc: 'Reach 600 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 600, rewards: { gold: 5000000, gems: 900, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'stat_crit_chance_700', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilation', desc: 'Reach 700 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 700, rewards: { gold: 6000000, gems: 1100, premium: { id: 'fortune_hunter', days: 21 } } },
+    { id: 'stat_crit_chance_800', chain: 'stat_crit_chance', category: 'progression', name: 'Reality Tear', desc: 'Reach 800 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 800, rewards: { gold: 8000000, gems: 1300, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
+    { id: 'stat_crit_chance_900', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Singularity', desc: 'Reach 900 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 900, rewards: { gold: 10000000, gems: 1500, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_crit_chance_1000', chain: 'stat_crit_chance', category: 'progression', name: 'The One', desc: 'Reach 1000 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 1000, rewards: { gold: 15000000, gems: 2000, premium: { id: 'fortune_hunter', days: 60 } } },
 
     // ── Tournament win achievements ───────────────────────────────────────
     { id: 'tournament_wins_1', chain: 'tournament_wins', category: 'victories', name: 'Tournament Rookie', desc: 'Win your first tournament.', icon: '🏆', metric: 'tournament_wins', target: 1, rewards: { gold: 2000 } },
@@ -8297,10 +8317,12 @@ if (freshChar.class === 'rogue') {
         noShieldAgiBonus = Math.floor((freshChar.agility || 0) * 0.05);
                     }
             }
+        const playerWeapon = getEquippedWeaponData(equippedArray);
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
             class: freshChar.class,
+            weapon: playerWeapon,
             hp: hpCurrent,
             hpMax: hpMax + (skillPassiveBonus(freshChar.vitality || 0, skillPassives.vitality) * 25),
             dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
@@ -9901,8 +9923,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         }
 
         const setBonusesA = getEquippedSetBonuses(equippedA);
+        const weaponA = getEquippedWeaponData(equippedA);
         const fighterA = {
-            id: freshA.id, name: freshA.name, class: freshA.class,
+            id: freshA.id, name: freshA.name, class: freshA.class, weapon: weaponA,
             hp: hpA,
             hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
             dmgMin: dmgMinA + skillPassiveBonus(dmgMinA, skillPassivesA.dmg_min),
@@ -9938,8 +9961,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         };
         
         const setBonusesD = getEquippedSetBonuses(equippedD);
+        const weaponD = getEquippedWeaponData(equippedD);
         const fighterB = {
-            id: freshD.id, name: freshD.name, class: freshD.class,
+            id: freshD.id, name: freshD.name, class: freshD.class, weapon: weaponD,
             hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
             dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
