@@ -6851,7 +6851,8 @@ async function activatePremium(featureId) {
 async function rerollShop() {
     if (!character) return;
     if ((character.gems || 0) < 1) { showMsg('shop-msg', 'Need 1 💎 gem to reroll the shop!', true); return; }
-    if (!confirm('Reroll the entire shop for 1 💎?')) return;
+    const ok = await openGameConfirmDialog({ title: '💎 Reroll Shop', message: 'Reroll the entire shop for 1 💎?' });
+    if (!ok) return;
     try {
         const d = await api('POST', '/game/shop/reroll');
         shopInventory = d.items;
