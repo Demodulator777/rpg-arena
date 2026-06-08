@@ -14230,6 +14230,27 @@ function generateLootFromBox(boxType, playerLevel) {
         }
     }
     
+    const craftChance = boxType === 'legendary' ? 0.05 : boxType === 'epic' ? 0.01 : 0;
+    if (Math.random() < craftChance) {
+        const craftable = EQUIPMENT_RECIPES.filter(r => !r.bannerOnly);
+        const recipe = craftable[Math.floor(Math.random() * craftable.length)];
+        if (recipe) {
+            const scaled = scaleItemToLevel(recipe, playerLevel);
+            const name = `${recipe.emoji || ''} ${scaled.name}`.trim();
+            result.items.push({
+                ...scaled,
+                id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+                name,
+                type: 'equipment',
+                source: 'crafted_drop',
+                sell_price_cap: 1000,
+                stackable: false,
+                qty: 1,
+                desc: `🏭 ${scaled.desc || recipe.desc || ''}`
+            });
+        }
+    }
+    
     return result;
 }
 
