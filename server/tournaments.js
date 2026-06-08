@@ -1022,6 +1022,30 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
 }
 
+router.post('/tournaments/cancel/:id', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const db = await getDb();
+    const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
+    if (!t) return res.status(404).json({ error: 'Tournament not found' });
+    await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
+    res.json({ message: `Tournament #${t.id} cancelled` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/tournaments/restart/:id', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const db = await getDb();
+    const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
+    if (!t) return res.status(404).json({ error: 'Tournament not found' });
+    await dbRun_t(db, 'DELETE FROM tournament_participants WHERE tournament_id = ?', [t.id]);
+    await dbRun_t(db, 'DELETE FROM tournament_matches WHERE tournament_id = ?', [t.id]);
+    await dbRun_t(db, "UPDATE tournaments SET status = 'pending', started_at = NULL WHERE id = ?", [t.id]);
+    res.json({ message: `Tournament #${t.id} reset to pending — ready to re-start` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 function startScheduler() {
   scheduleDailyTournamentStart();
   setInterval(async () => {
