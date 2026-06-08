@@ -6579,8 +6579,8 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
         emojis: ['🛡️','🧥','🥼','👕','🦺'],
         baseStats: {
-            defense: { min:2,  max:6,  scale:1.2 },
-            armor:   { min:1,  max:4,  scale:0.8 },
+            defense: { min:4,  max:10, scale:1.6 },
+            armor:   { min:3,  max:8,  scale:1.4 },
             hp_max:  { min:10, max:25, scale:1.5 },
         },
         tier2Stats: {
@@ -6602,8 +6602,8 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Helm','Helmet','Visor','Cap','Hood','Cowl','Crown','Circlet','Headguard'],
         emojis: ['⛑️','🪖','👑','🎭'],
         baseStats: {
-            defense: { min:1, max:4,  scale:0.9 },
-            armor:   { min:1, max:3,  scale:0.5 },
+            defense: { min:3, max:7,  scale:1.3 },
+            armor:   { min:2, max:5,  scale:0.9 },
             hp_max:  { min:5, max:18, scale:1.2 },
         },
         tier2Stats: {
@@ -6624,8 +6624,8 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
         emojis: ['🛡️','🔰'],
         baseStats: {
-            defense: { min:3,  max:7,  scale:1.5 },
-            armor:   { min:2,  max:5,  scale:1.0 },
+            defense: { min:5,  max:12, scale:1.9 },
+            armor:   { min:4,  max:9,  scale:1.5 },
             hp_max:  { min:8,  max:22, scale:1.2 },
         },
         tier2Stats: {
@@ -6647,8 +6647,8 @@ const ITEM_GENERATORS = {
         emojis: ['👢','🥾','👟'],
         baseStats: {
             agility: { min:1, max:5, scale:1.0 },
-            defense: { min:0, max:2, scale:0.4 },
-            armor:   { min:0, max:3, scale:0.5 },
+            defense: { min:1, max:3, scale:0.6 },
+            armor:   { min:1, max:4, scale:0.8 },
         },
         tier2Stats: {
             hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
@@ -6748,6 +6748,7 @@ function generateBackendRandomItem(level, type) {
         const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.7);
         let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
         v = Math.floor(v * (0.85 + Math.random() * 0.30));
+        if (quality === 'legendary') v = Math.floor(v * 1.05);
         return Math.max(cfg.min, v);
     }
 
