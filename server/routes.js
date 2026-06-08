@@ -633,6 +633,13 @@ const WEEKLY_TASKS = [
             PRIMARY KEY (squad_id, char_id)
         )`, args: [] });
         await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_squad_members_char_id ON squad_members(char_id)`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            squad_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at INTEGER NOT NULL
+        )`, args: [] });
 
         // Backfill: older characters may already have zones unlocked (beaten gatekeepers) before we tracked it.
         try {
@@ -7886,6 +7893,90 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
             avg_gold_earned: Number(r.avg_gold_earned || 0),
             total_gold_earned: Number(r.total_gold_earned || 0),
         })));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Squad Applications ──────────────────────────────────────────
+
+router.post('/squads/apply', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
+        const squadId = Number(req.body?.squad_id);
+        if (!squadId) return res.status(400).json({ error: 'Squad ID required.' });
+        const squad = await dbGet(db, 'SELECT id, name FROM squads WHERE id=?', [squadId]);
+        if (!squad) return res.status(404).json({ error: 'Squad not found.' });
+        const existingApp = await dbGet(db, "SELECT 1 FROM squad_applications WHERE squad_id=? AND char_id=? AND status='pending' LIMIT 1", [squadId, char.id]);
+        if (existingApp) return res.status(400).json({ error: 'You already have a pending application to this squad.' });
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'INSERT INTO squad_applications (squad_id, char_id, status, created_at) VALUES (?,?,?,?)', [squadId, char.id, 'pending', now]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, char.id, '📋 Squad Application Sent', `Your application to "${squad.name}" has been sent. The squad leader will review it.`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/applications', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.json({ applications: [] });
+        const apps = await dbAll(db, `SELECT sa.id, sa.char_id, sa.status, sa.created_at, c.name, c.class, c.level
+            FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
+            WHERE sa.squad_id=? AND sa.status='pending' ORDER BY sa.created_at DESC`,
+            [membership.squad_id]);
+        res.json({ applications: apps.map(a => ({
+            id: Number(a.id),
+            char_id: Number(a.char_id),
+            status: a.status,
+            created_at: Number(a.created_at),
+            name: a.name,
+            class: a.class,
+            level: Number(a.level)
+        })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders can accept applications.' });
+        const appId = Number(req.params.appId);
+        const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
+        if (!app) return res.status(404).json({ error: 'Application not found.' });
+        const alreadyMember = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [app.char_id]);
+        if (alreadyMember) {
+            await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
+            return res.status(400).json({ error: 'Applicant is already in a squad.' });
+        }
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [membership.squad_id, app.char_id, 'member', now]);
+        await dbRun(db, "UPDATE squad_applications SET status='accepted' WHERE id=?", [appId]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '✅ Squad Application Accepted', `You have been accepted into the squad!`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders can reject applications.' });
+        const appId = Number(req.params.appId);
+        const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
+        if (!app) return res.status(404).json({ error: 'Application not found.' });
+        await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '❌ Squad Application Rejected', `Your squad application was not accepted.`]);
+        res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
