@@ -6579,9 +6579,14 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
         emojis: ['🛡️','🧥','🥼','👕','🦺'],
         baseStats: {
-            defense: { min:4,  max:10, scale:1.6 },
-            armor:   { min:3,  max:8,  scale:1.4 },
+            defense: { min:2,  max:6,  scale:1.2 },
+            armor:   { min:1,  max:4,  scale:0.8 },
             hp_max:  { min:10, max:25, scale:1.5 },
+        },
+        rareStats: {
+            defense: { min:5,  max:10, scale:1.8 },
+            armor:   { min:3,  max:7,  scale:1.3 },
+            hp_max:  { min:15, max:35, scale:2.0 },
         },
         tier2Stats: {
             vitality: { min:0, max:2, scale:0.25, chance:0.4 },
@@ -6602,9 +6607,14 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Helm','Helmet','Visor','Cap','Hood','Cowl','Crown','Circlet','Headguard'],
         emojis: ['⛑️','🪖','👑','🎭'],
         baseStats: {
-            defense: { min:3, max:7,  scale:1.3 },
-            armor:   { min:2, max:5,  scale:0.9 },
+            defense: { min:1, max:4,  scale:0.9 },
+            armor:   { min:1, max:3,  scale:0.5 },
             hp_max:  { min:5, max:18, scale:1.2 },
+        },
+        rareStats: {
+            defense: { min:3, max:7,  scale:1.4 },
+            armor:   { min:2, max:5,  scale:1.0 },
+            hp_max:  { min:10, max:25, scale:1.5 },
         },
         tier2Stats: {
             hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
@@ -6624,9 +6634,14 @@ const ITEM_GENERATORS = {
         nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
         emojis: ['🛡️','🔰'],
         baseStats: {
-            defense: { min:5,  max:12, scale:1.9 },
-            armor:   { min:4,  max:9,  scale:1.5 },
+            defense: { min:3,  max:7,  scale:1.5 },
+            armor:   { min:2,  max:5,  scale:1.0 },
             hp_max:  { min:8,  max:22, scale:1.2 },
+        },
+        rareStats: {
+            defense: { min:6,  max:12, scale:2.0 },
+            armor:   { min:4,  max:8,  scale:1.4 },
+            hp_max:  { min:12, max:28, scale:1.5 },
         },
         tier2Stats: {
             vitality: { min:0, max:2, scale:0.25, chance:0.4 },
@@ -6647,8 +6662,13 @@ const ITEM_GENERATORS = {
         emojis: ['👢','🥾','👟'],
         baseStats: {
             agility: { min:1, max:5, scale:1.0 },
-            defense: { min:1, max:3, scale:0.6 },
-            armor:   { min:1, max:4, scale:0.8 },
+            defense: { min:0, max:2, scale:0.4 },
+            armor:   { min:0, max:3, scale:0.5 },
+        },
+        rareStats: {
+            agility: { min:2, max:6, scale:1.0 },
+            defense: { min:1, max:4, scale:0.8 },
+            armor:   { min:2, max:5, scale:0.9 },
         },
         tier2Stats: {
             hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
@@ -6772,8 +6792,9 @@ function generateBackendRandomItem(level, type) {
         return baseChance;
     }
 
-    if (generator.baseStats) {
-        for (const [k, cfg] of Object.entries(generator.baseStats)) {
+    const primaryStats = quality !== 'common' && generator.rareStats ? generator.rareStats : generator.baseStats;
+    if (primaryStats) {
+        for (const [k, cfg] of Object.entries(primaryStats)) {
             let shouldRoll = true;
             if (k === 'hit_chance' || k === 'agility') {
                 shouldRoll = Math.random() < getStatChance(0.5);
