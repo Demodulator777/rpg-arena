@@ -2961,11 +2961,16 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     document.body.classList.add('modal-lock');
 
     const overlay = document.getElementById('dungeon-overlay');
-    if (overlay) overlay.innerHTML = '';
+    if (overlay) { overlay.innerHTML = ''; overlay.scrollTop = 0; }
     // Keep body scroll locked while dungeon is active to prevent viewport jump on PC.
     // Remove combat-lock (hides topbar/sidebar during combat), but keep modal-lock.
     if (!D.combat) {
       document.body.classList.remove('combat-lock');
+      // Reset tab-content-area scroll that was set to bottom during combat start
+      try {
+        const tc = document.querySelector('.tab-content-area');
+        if (tc) tc.scrollTop = 0;
+      } catch(_) {}
     }
     
     if (!D.rooms || D.rooms.length === 0) {
