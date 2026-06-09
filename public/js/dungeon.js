@@ -1549,11 +1549,12 @@ function startCombat(roomIdx) {
         turnNonce: 0,
         clientStartId,
     };
-    renderCombatPanel();
-    // Save scroll position before scrolling to bottom for combat, so it can be restored after combat.
+    // Save overlay scroll before combat overwrites it.
     try {
-      D._savedScrollPos = (document.querySelector('.tab-content-area') || document.documentElement || document.body).scrollTop;
+      const ov = document.getElementById('dungeon-overlay');
+      if (ov) D._savedScrollPos = ov.scrollTop;
     } catch(_) { D._savedScrollPos = null; }
+    renderCombatPanel();
     // If the player scrolled the page before entering combat, scroll the tab content to the bottom
     // so the combat overlay sits flush with the viewport bottom.
     try {
@@ -2968,9 +2969,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     if (!_cachedElemental && getChar()?.elemental) fetchElemental();
     document.body.classList.add('modal-lock');
 
-    // Save overlay scroll before area.innerHTML destroys/recreates it.
     const _oldOverlay = document.getElementById('dungeon-overlay');
-    const _savedScroll = _oldOverlay ? _oldOverlay.scrollTop : 0;
     if (_oldOverlay) _oldOverlay.innerHTML = '';
     // Remove combat-lock FIRST so the topbar reappears before we restore scroll.
     if (!D.combat) {
@@ -3112,10 +3111,13 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     // Restore overlay scroll after area.innerHTML created a fresh overlay.
     if (D._combatActive && !D.combat) {
       D._combatActive = false;
-      try {
-        const newOverlay = document.getElementById('dungeon-overlay');
-        if (newOverlay) newOverlay.scrollTop = _savedScroll;
-      } catch(_) {}
+      if (D._savedScrollPos != null) {
+        try {
+          const newOverlay = document.getElementById('dungeon-overlay');
+          if (newOverlay) newOverlay.scrollTop = D._savedScrollPos;
+        } catch(_) {}
+        D._savedScrollPos = null;
+      }
     }
 
     if (roomHasAliveMonsters && !currentRoom.isBoss && !currentRoom.monstersEvaded) {
