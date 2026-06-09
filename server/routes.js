@@ -8997,9 +8997,7 @@ router.get('/elementals', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
 
-        console.log(`[DEBUG] Fetching elementals for char_id: ${char.id}`);
         const elementals = await dbAll(db, `SELECT * FROM elementals WHERE char_id = ? ORDER BY created_at DESC`, [char.id]);
-        console.log(`[DEBUG] Found ${elementals.length} elementals`);
 
         const responseElementals = elementals.map(e => ({
             ...e,
