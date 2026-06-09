@@ -7502,7 +7502,12 @@ const userSettings = char.user_id
 
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
-    const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+    const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
+    if (elemental) {
+        console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, is_equipped: ${elemental.is_equipped}`);
+    } else {
+        console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
+    }
 
     return {
         ...withTrain,
@@ -8605,7 +8610,7 @@ if (freshChar.class === 'rogue') {
         };
         
         // Attach elemental companion for missions
-        const missionElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshChar.id]);
+        const missionElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [freshChar.id]);
         if (missionElemRow) {
             const elemStats = calcElemStats(missionElemRow);
             playerFighter._elementalFighter = {
