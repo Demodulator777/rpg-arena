@@ -2461,21 +2461,42 @@ async function loadElemFeedItems(elemId) {
         listEl.innerHTML = '';
         mats.forEach(inv => {
             const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : (inv.item_data || {});
-            const qty = d.qty || 1;
-            const label = `${d.emoji || '📦'} ${escHtml(d.name)} (${qty})`;
-            const btn = document.createElement('div');
-            btn.className = 'elem-feed-btn';
-            btn.dataset.invId = inv.id;
-            btn.textContent = label;
-            btn.style.cssText = 'cursor:pointer;position:relative;z-index:1';
-            btn.onclick = async () => {
-                if (btn.disabled) return;
-                const invId = btn.dataset.invId;
-                const originalText = btn.textContent;
-                btn.disabled = true;
-                btn.textContent = '⏳ Feeding...';
+            const stack = d.qty || 1;
+            const name = escHtml(d.name);
+            const emoji = d.emoji || '📦';
+            const row = document.createElement('div');
+            row.className = 'elem-feed-row';
+            row.innerHTML = `
+              <span class="elem-feed-name">${emoji} ${name}</span>
+              <span class="elem-feed-stack">×${stack}</span>
+              <div class="elem-feed-ctrls">
+                <button class="elem-qty-btn" data-dir="-1">−</button>
+                <input class="elem-qty-input" type="number" min="1" max="${stack}" value="1">
+                <button class="elem-qty-btn" data-dir="1">+</button>
+                <button class="elem-feed-go">Feed</button>
+              </div>
+            `;
+            const input = row.querySelector('.elem-qty-input');
+            const feedBtn = row.querySelector('.elem-feed-go');
+            row.querySelectorAll('.elem-qty-btn').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    let v = parseInt(input.value) || 1;
+                    v = Math.max(1, Math.min(stack, v + parseInt(btn.dataset.dir)));
+                    input.value = v;
+                });
+            });
+            input.addEventListener('change', () => {
+                let v = parseInt(input.value) || 1;
+                input.value = Math.max(1, Math.min(stack, v));
+            });
+            feedBtn.addEventListener('click', async () => {
+                if (feedBtn.disabled) return;
+                const qty = parseInt(input.value) || 1;
+                feedBtn.disabled = true;
+                feedBtn.textContent = '...';
                 try {
-                    const r = await api('POST', '/game/elemental/feed', { inventory_id: invId });
+                    const r = await api('POST', '/game/elemental/feed', { inventory_id: inv.id, qty });
                     if (r.elemental) {
                         const charR = await api('GET', '/game/character');
                         if (charR) Object.assign(character, charR);
@@ -2483,17 +2504,17 @@ async function loadElemFeedItems(elemId) {
                         gameLog(r.message || '🍽️ Fed elemental!', 'info');
                     } else {
                         gameLog('⚠️ ' + (r.error || 'Failed to feed'), 'error');
-                        btn.disabled = false;
-                        btn.textContent = originalText;
+                        feedBtn.disabled = false;
+                        feedBtn.textContent = 'Feed';
                     }
                 } catch (e) {
                     console.error('[Feed] Error:', e);
                     gameLog('⚠️ ' + (e.message || 'Error feeding elemental'), 'error');
-                    btn.disabled = false;
-                    btn.textContent = originalText;
+                    feedBtn.disabled = false;
+                    feedBtn.textContent = 'Feed';
                 }
-            };
-            listEl.appendChild(btn);
+            });
+            listEl.appendChild(row);
         });
     } catch (e) {
         const section = document.getElementById(`elem-feed-section-${elemId}`);
