@@ -7423,7 +7423,11 @@ async function openProfile(id) {
             const avatarDiv = idx === 3 ? `
                 <div class="eq-avatar-center profile-eq-avatar">
                     <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
-                    ${p.elemental ? `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit">` : ''}
+                    ${p.elemental ? (() => {
+                        const el = p.elemental;
+                        const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, agi: el.agi, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
+                        return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
+                    })() : ''}
                 </div>` : '';
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
