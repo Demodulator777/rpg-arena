@@ -2413,6 +2413,35 @@ const ELEM_FEED_IDS = new Set([
     'dark_essence','abyss_fragment','dragon_scale','eternal_essence',
     'abyssal_core','titan_heart','void_crystal',
 ]);
+async function elemFeedItem(elemId, invId, el) {
+    if (el.disabled) return;
+    el.disabled = true;
+    const originalLabel = el.textContent;
+    el.textContent = '⏳ Feeding...';
+
+    try {
+        const r = await api('POST', '/game/elemental/feed', { elemental_id: elemId, inventory_id: invId });
+        if (r.elemental) {
+            const charR = await api('GET', '/game/character');
+            if (charR) Object.assign(character, charR);
+            renderCharacter(); // Re-render the character tab to update everything
+            log(r.message || '🍽️ Fed elemental!', 'log-arrive');
+        } else {
+            log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
+            el.disabled = false;
+            el.textContent = originalLabel;
+        }
+    } catch (e) {
+        console.error('[Feed] Error:', e);
+        log('⚠️ ' + (e.message || 'Error feeding elemental'), 'log-danger');
+        el.disabled = false;
+        el.textContent = originalLabel;
+    }
+}
+
+// Ensure the function is globally accessible
+window.elemFeedItem = elemFeedItem;
+
 async function loadElemFeedItems(elemId) {
     try {
         const inv = await api('GET', '/game/inventory');
@@ -2433,7 +2462,7 @@ async function loadElemFeedItems(elemId) {
             const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : (inv.item_data || {});
             const qty = d.qty || 1;
             const label = `${d.emoji || '📦'} ${escHtml(d.name)} (${qty})`;
-            return `<button class="elem-feed-btn" data-inv-id="${inv.id}" data-label="${escHtml(label)}">${label}</button>`;
+            return `<button class="elem-feed-btn" data-inv-id="${inv.id}" data-action="elemFeedItem" data-args="${encodeActionArgs([elemId, inv.id])}">${label}</button>`;
         }).join('');
         section.addEventListener('click', async function feedClick(e) {
             const btn = e.target.closest('.elem-feed-btn');
