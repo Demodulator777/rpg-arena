@@ -2268,7 +2268,12 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
     const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
             <img src="/images/class/${c.profile_pic || c.class + '.png'}" alt="${c.class}" data-error-opacity-zero="true">
-            ${c.elemental ? `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit">` : ''}
+            ${c.elemental ? (() => {
+              const el = c.elemental;
+              const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
+              const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, agi: el.agi, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax, hit: el.hit, crit: el.crit }));
+              return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
+            })() : ''}
         </div>` : '';
     const item = resolvedEq[slot];
     if (!item) return avatarDiv + `
@@ -2410,7 +2415,7 @@ async function loadElemFeedItems(elemId) {
         const inv = await api('GET', '/game/inventory');
         const mats = (inv?.items || []).filter(i => {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : (i.item_data || {});
-            return (d.type === 'raw_mat' || d.category === 'material') && (d.qty || 1) > 0;
+            return (d.type === 'raw_mat') && (d.qty || 1) > 0;
         });
         if (!mats.length) {
             listEl.textContent = '📭 No materials. Clear dungeon rooms for drops!';
@@ -5329,6 +5334,42 @@ function hoverEqTooltip(el, event) {
     if (!el?.dataset?.item) return;
     if (el?.closest?.('#leaderboard-list')) return;
     showEqTooltip(withCurrentTarget(event, el), el.dataset.item);
+}
+function hoverElemTooltip(el, event) {
+    if (!el?.dataset?.elem) return;
+    let d;
+    try { d = JSON.parse(el.dataset.elem); } catch { return; }
+    cancelHideTooltip();
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    const elEmoji = d.element === 'pyro' ? '🔥' : d.element === 'water' ? '💧' : d.element === 'wind' ? '🌪️' : '⚡';
+    tooltip.innerHTML = `
+        <div class="tt-preview"><span class="tt-preview-emoji">🐉</span></div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:#a855f7">${escHtml(d.name)}</div>
+            <div class="tt-meta">${elEmoji} ${d.element} · Lv.${d.level}</div>
+            <div class="tt-stats">
+                <div class="tt-stat"><span class="tt-stat-name">❤️ HP</span><span class="tt-stat-val" style="color:#22c55e">${d.hp}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">XP</span><span class="tt-stat-val" style="color:#a855f7">${d.xp}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">💪 Str</span><span class="tt-stat-val">${d.str}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">🛡️ Def</span><span class="tt-stat-val">${d.def}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">⚡ Agi</span><span class="tt-stat-val">${d.agi}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">✨ Mag</span><span class="tt-stat-val">${d.mag}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">❤️ Vit</span><span class="tt-stat-val">${d.vit}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">⚔️ Dmg</span><span class="tt-stat-val">${d.dmgMin}-${d.dmgMax}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">🎯 Hit</span><span class="tt-stat-val">${d.hit}%</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">💥 Crit</span><span class="tt-stat-val">${d.crit}%</span></div>
+            </div>
+        </div>`;
+    tooltip.classList.remove('hidden');
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth || 220;
+    let left = r.left - tw - 12, top = r.top;
+    if (left < 8) left = r.right + 12;
+    if (top + tooltip.offsetHeight > window.innerHeight - 8) top = window.innerHeight - tooltip.offsetHeight - 8;
+    tooltip.style.left = Math.max(8, left) + 'px';
+    tooltip.style.top = Math.max(8, top) + 'px';
 }
 
 function hoverShopItemTooltip(el, event) {
