@@ -2462,13 +2462,13 @@ async function loadElemFeedItems(elemId) {
             const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : (inv.item_data || {});
             const qty = d.qty || 1;
             const label = `${d.emoji || '📦'} ${escHtml(d.name)} (${qty})`;
-            return `<button class="elem-feed-btn" data-inv-id="${inv.id}" data-action="elemFeedItem" data-args="${encodeActionArgs([elemId, inv.id])}">${label}</button>`;
+            return `<button class="elem-feed-btn" data-inv-id="${inv.id}">${label}</button>`;
         }).join('');
         section.addEventListener('click', async function feedClick(e) {
             const btn = e.target.closest('.elem-feed-btn');
             if (!btn || btn.disabled) return;
             const invId = btn.dataset.invId;
-            const label = btn.dataset.label;
+            const originalText = btn.textContent;
             btn.disabled = true;
             btn.textContent = '⏳ Feeding...';
             try {
@@ -2482,13 +2482,13 @@ async function loadElemFeedItems(elemId) {
                 } else {
                     log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
                     btn.disabled = false;
-                    btn.textContent = label;
+                    btn.textContent = originalText;
                 }
             } catch (e) {
                 console.error('[Feed] Error:', e);
                 log('⚠️ ' + (e.message || 'Error feeding elemental'), 'log-danger');
                 btn.disabled = false;
-                btn.textContent = label;
+                btn.textContent = originalText;
             }
         });
     } catch (e) {
