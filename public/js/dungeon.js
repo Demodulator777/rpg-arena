@@ -3889,7 +3889,7 @@ global.debugDungeonDetails = function() {
 
   async function fetchElemental() {
     try {
-      const r = await apiFetch('GET', '/elemental');
+      const r = await apiFetch('GET', '/game/elemental');
       _cachedElemental = r?.elemental || null;
       return _cachedElemental;
     } catch { return _cachedElemental; }
@@ -3989,11 +3989,11 @@ global.debugDungeonDetails = function() {
     document.body.appendChild(loadingEl);
 
     try {
-      const r = await apiFetch('POST', '/elemental/discover', { name });
+      const r = await apiFetch('POST', '/game/elemental/discover', { name });
       loadingEl.remove();
       if (r.elemental) {
         _cachedElemental = r.elemental;
-        const charR = await apiFetch('GET', '/character');
+        const charR = await apiFetch('GET', '/game/character');
         if (charR) Object.assign(getChar(), charR);
         renderDungeonView();
         log(`🐉 ${r.message || 'Spirit beast bonded!'}`, 'log-arrive');
@@ -4011,7 +4011,7 @@ global.debugDungeonDetails = function() {
     if (!elem) return;
 
     // Fetch inventory for raw materials
-    const invR = await apiFetch('GET', '/inventory');
+    const invR = await apiFetch('GET', '/game/inventory');
     const mats = (invR?.items || []).filter(i => {
       const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
       return (d.type === 'raw_mat' || d.category === 'material') && d.qty > 0;
@@ -4054,12 +4054,12 @@ global.debugDungeonDetails = function() {
     if (overlay) overlay.innerHTML = '';
 
     try {
-      const r = await apiFetch('POST', '/elemental/feed', { inventory_id: invId });
+      const r = await apiFetch('POST', '/game/elemental/feed', { inventory_id: invId });
       if (r.elemental) {
         _cachedElemental = r.elemental;
         log(r.message || '🍽️ Fed elemental!', 'log-arrive');
         // Refresh character data
-        const charR = await apiFetch('GET', '/character');
+        const charR = await apiFetch('GET', '/game/character');
         if (charR) Object.assign(getChar(), charR);
         renderDungeonView();
       } else {
