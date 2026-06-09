@@ -1339,6 +1339,7 @@ function startDungeonEnter(dungeonId) {
 }
 
 function proceedStartDungeon(dungeonId) {
+    fetchElemental();
     if (D.savedProgress['tower']) {
         const s = D.savedProgress[dungeonId];
         D.activeDungeon = 'tower';
@@ -2956,6 +2957,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
   function renderDungeonView() {
     const area = document.getElementById('dungeon-main-area');
     if (!area) return;
+    if (!_cachedElemental && getChar()?.elemental) fetchElemental();
 
     const overlay = document.getElementById('dungeon-overlay');
     if (overlay) overlay.innerHTML = '';
@@ -3030,6 +3032,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
             <div class="dungeon-hud-minimap-title">Map</div>
             <div id="dungeon-minimap" class="dungeon-minimap">${renderMapGrid()}</div>
           </div>
+
+          ${renderElementalPanel()}
 
           <div class="dungeon-hud-center">
             <div class="dungeon-hud-room ${roomHasAliveMonsters ? 'has-monster' : ''}">
@@ -3880,6 +3884,182 @@ global.debugDungeonDetails = function() {
     }
     console.log('chance(0.7) test:', trueCount, 'out of 100');
 };
+  // ── Elemental Spirit System ──────────────────────────────────
+  let _cachedElemental = null;
+
+  async function fetchElemental() {
+    try {
+      const r = await apiFetch('GET', '/elemental');
+      _cachedElemental = r?.elemental || null;
+      return _cachedElemental;
+    } catch { return _cachedElemental; }
+  }
+
+  function renderElementalPanel() {
+    const char = getChar();
+    if (!char) return '';
+    const hasElem = !!char.elemental;
+    const floor = D.floor || 1;
+
+    if (!hasElem && floor >= 5) {
+      return `<div class="dungeon-elem-panel">
+        <div class="dungeon-elem-header">🐉 Elemental Spirit</div>
+        <div class="dungeon-elem-body">
+          <p style="font-size:0.7rem;color:var(--text-dim);margin:0 0 6px">An ancient altar glows faintly. You sense a connection to a spirit beast on this floor.</p>
+          <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonDiscoverElemental')}>✨ Discover Elemental</button>
+        </div>
+      </div>`;
+    }
+
+    if (!hasElem) return '';
+
+    const e = _cachedElemental;
+    if (!e) return '';
+
+    const hpPct = e.hpMax > 0 ? Math.round((e.hp_current / e.hpMax) * 100) : 0;
+    const xpPct = e.xpNext > 0 ? Math.round(((e.xp || 0) / e.xpNext) * 100) : 0;
+    const elemEmoji = e.element === 'pyro' ? '🔥' : e.element === 'water' ? '💧' : e.element === 'wind' ? '🌪️' : '⚡';
+
+    return `<div class="dungeon-elem-panel">
+      <div class="dungeon-elem-header">🐉 ${e.name} ${elemEmoji}</div>
+      <div class="dungeon-elem-body">
+        <div style="font-size:0.7rem;color:var(--text-dim)">Lv.${e.level} ${e.element}</div>
+        <div style="font-size:0.65rem;margin:4px 0"><span class="stat-hp">❤️</span> ${e.hp_current}/${e.hpMax}</div>
+        <div class="dungeon-elem-bar"><div class="dungeon-elem-bar-fill hp-fill" style="width:${hpPct}%"></div></div>
+        <div style="font-size:0.65rem;margin:4px 0">XP ${e.xp || 0}/${e.xpNext}</div>
+        <div class="dungeon-elem-bar"><div class="dungeon-elem-bar-fill xp-fill" style="width:${xpPct}%"></div></div>
+        <button class="dungeon-btn dungeon-btn-hud" style="margin-top:6px" ${actionAttrs('dungeonShowFeedModal')}>🍽️ Feed Materials</button>
+      </div>
+    </div>`;
+  }
+
+  global.dungeonDiscoverElemental = async function() {
+    // Show naming modal first
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay) return;
+
+    const spiritTypes = ['Phoenix', 'Wyrm', 'Wolf', 'Drake', 'Serpent', 'Fox', 'Tiger', 'Griffin', 'Kitsune', 'Leviathan'];
+    const spiritType = spiritTypes[Math.floor(Math.random() * spiritTypes.length)];
+
+    overlay.innerHTML = `
+      <div class="dungeon-overlay-backdrop" ${actionAttrs('closeDungeonOverlay')}></div>
+      <div class="dungeon-modal">
+        <div class="dungeon-modal-title">🐉 Spirit Beast Found!</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin:8px 0;line-height:1.5">
+          Deep within the tower, you discover a mystical ${spiritType} spirit. 
+          Its essence pulses with ancient power, waiting to bond with a worthy champion. 
+          The spirit will fight alongside you in battle.
+        </div>
+        <label style="font-size:0.75rem;color:#cbd5e1;display:block;margin-top:10px">Name your Spirit Beast:</label>
+        <input id="elem-name-input" class="dungeon-elem-name-input" type="text" maxlength="24" placeholder="Enter a name..." value="${spiritType}" autofocus>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="dungeon-btn" style="flex:1" ${actionAttrs('closeDungeonOverlay')}>Skip</button>
+          <button class="dungeon-btn dungeon-btn-hud" style="flex:2" ${actionAttrs('dungeonConfirmDiscover')}>✨ Bond</button>
+        </div>
+      </div>
+    `;
+    setTimeout(() => document.getElementById('elem-name-input')?.focus(), 100);
+  };
+
+  global.dungeonConfirmDiscover = async function() {
+    const input = document.getElementById('elem-name-input');
+    const name = input ? input.value.trim().slice(0, 24) : 'Elemental';
+
+    const overlay = document.getElementById('dungeon-overlay');
+    if (overlay) overlay.innerHTML = '<div class="dungeon-overlay-backdrop"></div><div class="dungeon-modal"><div style="text-align:center;padding:20px">✨ Bonding spirit...</div></div>';
+
+    try {
+      const r = await apiFetch('POST', '/elemental/discover', { name });
+      if (r.elemental) {
+        _cachedElemental = r.elemental;
+        const charR = await apiFetch('GET', '/character');
+        if (charR) Object.assign(getChar(), charR);
+        renderDungeonView();
+        log(`🐉 ${r.message || 'Spirit beast bonded!'}`, 'log-arrive');
+      } else {
+        if (overlay) overlay.innerHTML = '';
+        log('⚠️ ' + (r.error || 'Failed to bond'), 'log-danger');
+      }
+    } catch (e) {
+      if (overlay) overlay.innerHTML = '';
+      log('⚠️ Error bonding spirit', 'log-danger');
+    }
+  };
+
+  global.dungeonShowFeedModal = async function() {
+    const elem = _cachedElemental;
+    if (!elem) return;
+
+    // Fetch inventory for raw materials
+    const invR = await apiFetch('GET', '/inventory');
+    const mats = (invR?.items || []).filter(i => {
+      const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+      return (d.type === 'raw_mat' || d.category === 'material') && d.qty > 0;
+    });
+
+    if (mats.length === 0) {
+      log('📭 No materials to feed. Clear dungeon rooms for drops!', 'log-info');
+      return;
+    }
+
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay) return;
+
+    const xpPct = elem.xpNext > 0 ? Math.round(((elem.xp || 0) / elem.xpNext) * 100) : 0;
+    let html = `<div class="dungeon-overlay-backdrop" ${actionAttrs('closeDungeonOverlay')}></div>
+      <div class="dungeon-modal">
+        <div class="dungeon-modal-title">🍽️ Feed ${elem.name}</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px">
+          Lv.${elem.level}  XP ${elem.xp || 0}/${elem.xpNext} (${xpPct}%)
+        </div>
+        <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:4px">`;
+
+    for (const inv of mats) {
+      const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : inv.item_data;
+      const qty = d.qty || 1;
+      html += `<div class="dungeon-elem-feed-row" ${actionAttrs('dungeonFeedElemental', inv.id)} style="cursor:pointer">
+        <span>${d.emoji || '📦'} ${d.name} (${qty})</span>
+      </div>`;
+    }
+
+    html += `</div>
+      <button class="dungeon-btn" style="margin-top:10px;width:100%" ${actionAttrs('closeDungeonOverlay')}>Cancel</button>
+    </div>`;
+
+    overlay.innerHTML = html;
+  };
+
+  global.dungeonFeedElemental = async function(invId, triggerEl, event) {
+    const overlay = document.getElementById('dungeon-overlay');
+    if (overlay) overlay.innerHTML = '';
+
+    try {
+      const r = await apiFetch('POST', '/elemental/feed', { inventory_id: invId });
+      if (r.elemental) {
+        _cachedElemental = r.elemental;
+        log(r.message || '🍽️ Fed elemental!', 'log-arrive');
+        // Refresh character data
+        const charR = await apiFetch('GET', '/character');
+        if (charR) Object.assign(getChar(), charR);
+        renderDungeonView();
+      } else {
+        log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
+      }
+    } catch (e) {
+      log('⚠️ Error feeding elemental', 'log-danger');
+    }
+  };
+
+  global.dungeonElementalInfo = async function() {
+    await fetchElemental();
+    renderDungeonView();
+  };
+
+  global.closeDungeonOverlay = function() {
+    const overlay = document.getElementById('dungeon-overlay');
+    if (overlay) overlay.innerHTML = '';
+  };
+
   global.debugDungeonMonsters = function() {
     console.log('=== MONSTER CREATION DEBUG ===');
     
@@ -3981,6 +4161,12 @@ global.dungeonRun = (roomIdx) => {
   global.dungeonFightBoss    = fightBoss;
   global.dungeonExit         = dungeonExit;
   global.closeDungeonVictory = closeDungeonVictory;
+  global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
+  global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
+  global.dungeonConfirmDiscover = globalThis.dungeonConfirmDiscover;
+  global.dungeonShowFeedModal = globalThis.dungeonShowFeedModal;
+  global.dungeonFeedElemental = globalThis.dungeonFeedElemental;
+  global.closeDungeonOverlay = globalThis.closeDungeonOverlay;
   global.renderDungeonTab    = function() {
     renderDungeonTab();
     if (character) {
