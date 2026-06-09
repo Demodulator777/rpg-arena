@@ -416,6 +416,8 @@ let D = {
   blacksmithUnlocked: false,
   guildReputation: 0,    // Add this
   lockRefreshInterval: null,
+  _combatActive: false,
+  _savedScrollPos: null,
 };
 
 // Release lock when leaving tab
@@ -1548,6 +1550,10 @@ function startCombat(roomIdx) {
         clientStartId,
     };
     renderCombatPanel();
+    // Save scroll position before scrolling to bottom for combat, so it can be restored after combat.
+    try {
+      D._savedScrollPos = (document.querySelector('.tab-content-area') || document.documentElement || document.body).scrollTop;
+    } catch(_) { D._savedScrollPos = null; }
     // If the player scrolled the page before entering combat, scroll the tab content to the bottom
     // so the combat overlay sits flush with the viewport bottom.
     try {
@@ -2848,6 +2854,7 @@ function renderDungeonList() {
     D.activeDungeon = null;
     global.__dungeonActive = false;
     D._combatActive = false;
+    D._savedScrollPos = null;
 
     // Safety: if combat ended unexpectedly (death/disconnect), ensure scrolling is restored.
     document.body.classList.remove('modal-lock');
@@ -2963,15 +2970,16 @@ const previewFloors = [0,1,2,3,4].map(offset => {
 
     const overlay = document.getElementById('dungeon-overlay');
     if (overlay) overlay.innerHTML = '';
-    // If combat just ended, the tab-content-area was scrolled to bottom during combat start.
-    // Reset it to top so the dungeon view doesn't appear "jumped" upward.
+    // Restore pre-combat scroll position so the view doesn't jump.
     if (D._combatActive && !D.combat) {
       D._combatActive = false;
-      try {
-        const tc = document.querySelector('.tab-content-area') || document.documentElement || document.body;
-        tc.scrollTop = 0;
-      } catch(_) {}
-      if (overlay) overlay.scrollTop = 0;
+      if (D._savedScrollPos != null) {
+        try {
+          const tc = document.querySelector('.tab-content-area') || document.documentElement || document.body;
+          tc.scrollTop = D._savedScrollPos;
+        } catch(_) {}
+        D._savedScrollPos = null;
+      }
     }
     // Keep body scroll locked while dungeon is active to prevent viewport jump on PC.
     // Remove combat-lock (hides topbar/sidebar during combat), but keep modal-lock.
@@ -3570,6 +3578,7 @@ function dungeonExit() {
     D.combat = null;
     D._combatPrefetch = null;
     D._combatActive = false;
+    D._savedScrollPos = null;
     document.body.classList.remove('modal-lock');
     document.body.classList.remove('combat-lock');
 
