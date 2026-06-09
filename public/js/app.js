@@ -2466,35 +2466,49 @@ async function loadElemFeedItems(elemId) {
             const emoji = d.emoji || '📦';
             const row = document.createElement('div');
             row.className = 'elem-feed-row';
-            row.innerHTML = `
-              <span class="elem-feed-name">${emoji} ${name}</span>
-              <span class="elem-feed-stack">×${stack}</span>
-              <div class="elem-feed-ctrls">
-                <button class="elem-qty-btn" data-dir="-1">−</button>
-                <input class="elem-qty-input" type="number" min="1" max="${stack}" value="1">
-                <button class="elem-qty-btn" data-dir="1">+</button>
-                <button class="elem-feed-go">Feed</button>
-              </div>
-            `;
-            const input = row.querySelector('.elem-qty-input');
-            const feedBtn = row.querySelector('.elem-feed-go');
-            row.querySelectorAll('.elem-qty-btn').forEach(btn => {
-                btn.addEventListener('click', e => {
-                    e.stopPropagation();
-                    let v = parseInt(input.value) || 1;
-                    v = Math.max(1, Math.min(stack, v + parseInt(btn.dataset.dir)));
-                    input.value = v;
-                });
-            });
-            input.addEventListener('change', () => {
+            row.style.cssText = 'position:relative;z-index:1';
+            const dec = document.createElement('div');
+            dec.className = 'elem-qty-btn';
+            dec.textContent = '−';
+            const input = document.createElement('input');
+            input.className = 'elem-qty-input';
+            input.type = 'number';
+            input.min = '1';
+            input.max = String(stack);
+            input.value = '1';
+            const inc = document.createElement('div');
+            inc.className = 'elem-qty-btn';
+            inc.textContent = '+';
+            const go = document.createElement('div');
+            go.className = 'elem-feed-go';
+            go.textContent = 'Feed';
+            const ctrls = document.createElement('div');
+            ctrls.className = 'elem-feed-ctrls';
+            ctrls.append(dec, input, inc, go);
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'elem-feed-name';
+            nameSpan.textContent = `${emoji} ${name}`;
+            const stackSpan = document.createElement('span');
+            stackSpan.className = 'elem-feed-stack';
+            stackSpan.textContent = `×${stack}`;
+            row.append(nameSpan, stackSpan, ctrls);
+            dec.onclick = () => {
+                let v = parseInt(input.value) || 1;
+                input.value = Math.max(1, Math.min(stack, v - 1));
+            };
+            inc.onclick = () => {
+                let v = parseInt(input.value) || 1;
+                input.value = Math.max(1, Math.min(stack, v + 1));
+            };
+            input.onchange = () => {
                 let v = parseInt(input.value) || 1;
                 input.value = Math.max(1, Math.min(stack, v));
-            });
-            feedBtn.addEventListener('click', async () => {
-                if (feedBtn.disabled) return;
+            };
+            go.onclick = async () => {
+                if (go._feeding) return;
                 const qty = parseInt(input.value) || 1;
-                feedBtn.disabled = true;
-                feedBtn.textContent = '...';
+                go._feeding = true;
+                go.textContent = '...';
                 try {
                     const r = await api('POST', '/game/elemental/feed', { inventory_id: inv.id, qty });
                     if (r.elemental) {
@@ -2504,16 +2518,16 @@ async function loadElemFeedItems(elemId) {
                         gameLog(r.message || '🍽️ Fed elemental!', 'info');
                     } else {
                         gameLog('⚠️ ' + (r.error || 'Failed to feed'), 'error');
-                        feedBtn.disabled = false;
-                        feedBtn.textContent = 'Feed';
+                        go._feeding = false;
+                        go.textContent = 'Feed';
                     }
                 } catch (e) {
                     console.error('[Feed] Error:', e);
                     gameLog('⚠️ ' + (e.message || 'Error feeding elemental'), 'error');
-                    feedBtn.disabled = false;
-                    feedBtn.textContent = 'Feed';
+                    go._feeding = false;
+                    go.textContent = 'Feed';
                 }
-            });
+            };
             listEl.appendChild(row);
         });
     } catch (e) {
