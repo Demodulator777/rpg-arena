@@ -3941,17 +3941,6 @@ global.debugDungeonDetails = function() {
     _spiritResolve = null;
   }
 
-  global.spiritModalCancel = function() {
-    removeSpiritModal();
-  };
-
-  global.spiritModalConfirm = function() {
-    const input = document.getElementById('spirit-name-input');
-    const name = input ? input.value.trim().slice(0, 24) : 'Elemental';
-    removeSpiritModal();
-    if (_spiritResolve) _spiritResolve(name);
-  };
-
   global.dungeonDiscoverElemental = async function() {
     const spiritTypes = ['Phoenix', 'Wyrm', 'Wolf', 'Drake', 'Serpent', 'Fox', 'Tiger', 'Griffin', 'Kitsune', 'Leviathan'];
     const spiritType = spiritTypes[Math.floor(Math.random() * spiritTypes.length)];
@@ -3961,7 +3950,7 @@ global.debugDungeonDetails = function() {
       const div = document.createElement('div');
       div.id = 'spirit-discover-modal';
       div.innerHTML = `
-        <div class="spirit-overlay" onclick="spiritModalCancel()"></div>
+        <div class="spirit-overlay"></div>
         <div class="spirit-dialog">
           <div class="spirit-dialog-title">🐉 Spirit Beast Found!</div>
           <div class="spirit-dialog-body">
@@ -3972,11 +3961,21 @@ global.debugDungeonDetails = function() {
           <label class="spirit-dialog-label">Name your Spirit Beast:</label>
           <input id="spirit-name-input" class="spirit-dialog-input" type="text" maxlength="24" placeholder="Enter a name..." value="${spiritType}">
           <div class="spirit-dialog-actions">
-            <button class="btn-secondary" onclick="spiritModalCancel()">Skip</button>
-            <button class="btn-primary" onclick="spiritModalConfirm()">✨ Bond</button>
+            <button class="btn-secondary">Skip</button>
+            <button class="btn-primary">✨ Bond</button>
           </div>
         </div>
       `;
+      function cancel() { removeSpiritModal(); if (_spiritResolve) _spiritResolve(null); }
+      function confirm() {
+        const input = document.getElementById('spirit-name-input');
+        const n = input ? input.value.trim().slice(0, 24) : 'Elemental';
+        removeSpiritModal();
+        if (_spiritResolve) _spiritResolve(n);
+      }
+      div.querySelector('.spirit-overlay').addEventListener('click', cancel);
+      div.querySelector('.btn-secondary').addEventListener('click', cancel);
+      div.querySelector('.btn-primary').addEventListener('click', confirm);
       document.body.appendChild(div);
       setTimeout(() => document.getElementById('spirit-name-input')?.focus(), 100);
     });
