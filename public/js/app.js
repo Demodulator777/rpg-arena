@@ -2411,7 +2411,7 @@ const ELEM_FEED_IDS = new Set([
     'void_shard','shadow_essence','arcane_dust','crypt_dust',
     'dragon_scale_shard','frost_essence','soul_essence','demon_core',
     'dark_essence','abyss_fragment','dragon_scale','eternal_essence',
-    'abyssal_core','titan_heart','void_crystal',
+    'abyssal_core','titan_heart',
 ]);
 async function loadElemFeedItems(elemId) {
     const section = document.getElementById(`elem-feed-section-${elemId}`);
@@ -2434,31 +2434,32 @@ async function loadElemFeedItems(elemId) {
             const label = `${d.emoji || '📦'} ${escHtml(d.name)} (${qty})`;
             return `<button class="elem-feed-btn" data-inv-id="${inv.id}" data-label="${escHtml(label)}">${label}</button>`;
         }).join('');
-        listEl.querySelectorAll('.elem-feed-btn').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const invId = btn.dataset.invId;
-                const label = btn.dataset.label;
-                btn.disabled = true;
-                btn.textContent = '⏳ Feeding...';
-                try {
-                    const r = await api('POST', '/game/elemental/feed', { inventory_id: invId });
-                    if (r.elemental) {
-                        const charR = await api('GET', '/game/character');
-                        if (charR) Object.assign(character, charR);
-                        renderCharacter();
-                        log(r.message || '🍽️ Fed elemental!', 'log-arrive');
-                    } else {
-                        log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
-                        btn.disabled = false;
-                        btn.textContent = label;
-                    }
-                } catch (e) {
-                    console.error('[Feed] Error:', e);
-                    log('⚠️ ' + (e.message || 'Error feeding elemental'), 'log-danger');
+        section.addEventListener('click', async function feedClick(e) {
+            const btn = e.target.closest('.elem-feed-btn');
+            if (!btn || btn.disabled) return;
+            const invId = btn.dataset.invId;
+            const label = btn.dataset.label;
+            btn.disabled = true;
+            btn.textContent = '⏳ Feeding...';
+            try {
+                const r = await api('POST', '/game/elemental/feed', { inventory_id: invId });
+                if (r.elemental) {
+                    const charR = await api('GET', '/game/character');
+                    if (charR) Object.assign(character, charR);
+                    section.removeEventListener('click', feedClick);
+                    renderCharacter();
+                    log(r.message || '🍽️ Fed elemental!', 'log-arrive');
+                } else {
+                    log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
                     btn.disabled = false;
                     btn.textContent = label;
                 }
-            });
+            } catch (e) {
+                console.error('[Feed] Error:', e);
+                log('⚠️ ' + (e.message || 'Error feeding elemental'), 'log-danger');
+                btn.disabled = false;
+                btn.textContent = label;
+            }
         });
     } catch (e) {
         listEl.textContent = '⚠️ Failed to load materials';
