@@ -1804,7 +1804,7 @@ async function equipElemental(invId) {
 
 async function unequipElemental(invId) {
     try {
-        const r = await api('POST', '/game/elemental/unequip');
+        const r = await api('POST', `/game/elemental/unequip/${invId}`);
         if (r.error) throw new Error(r.error);
         gameLog(r.message, 'success');
         loadElementals();
