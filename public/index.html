@@ -548,6 +548,9 @@
                     <button class="nav-btn nav-sub-btn" title="Shop" data-action="navigateInventoryHub" data-args='["shop"]'>
                         <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/shopicon.png" alt=""><span class="sub-btn-label">SHOP</span></div>
                     </button>
+                    <button class="nav-btn nav-sub-btn" title="Elementals" data-action="navigateInventoryHub" data-args='["elementals"]'>
+                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/elementalicon.png" alt=""><span class="sub-btn-label">ELEMENTALS</span></div>
+                    </button>
                 </div>
             </div>
             <button class="nav-btn" data-action="showTab" data-args='["leaderboard"]'>
@@ -696,6 +699,15 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                     <div id="forge-content"></div>
                     <div id="forge-msg" class="msg-bar hidden"></div>
                     <dialog id="weapon-upgrade-dialog" class="modal-box" style="max-width:520px;border:none;border-radius:16px;background:var(--bg2);color:var(--text);padding:0"></dialog>
+                </div>
+
+                <!-- ELEMENTALS -->
+                <div id="tab-elementals" class="game-tab">
+                    <div class="tab-header"><h2>✨ Your Elementals</h2></div>
+                    <div id="elementals-content">
+                        <!-- Elementals will be rendered here -->
+                    </div>
+                    <div id="elementals-msg" class="msg-bar hidden"></div>
                 </div>
 
                 <!-- INVENTORY -->
