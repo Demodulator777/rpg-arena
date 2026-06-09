@@ -1798,6 +1798,11 @@ async function equipElemental(invId) {
         const r = await api('POST', `/game/elemental/equip/${invId}`);
         if (r.error) throw new Error(r.error);
         gameLog(r.message, 'success');
+        
+        // Force refresh of character state and UI
+        await syncActiveCharacterState();
+        renderCharacter();
+        
         loadElementals();
     } catch (e) { gameLog(e.message, 'error'); }
 }
