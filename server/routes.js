@@ -15368,15 +15368,30 @@ router.post('/elemental/discover', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         const existing = await dbGet(db, 'SELECT id FROM elementals WHERE char_id = ?', [char.id]);
-        if (existing) return res.status(400).json({ error: 'You already have an elemental' });
+        if (existing) {
+            console.log('[ElemDiscover] Already has elemental, char_id:', char.id);
+            return res.status(400).json({ error: 'You already have an elemental' });
+        }
         const maxFloor = char.dungeon_floor || 0;
-        if (maxFloor < 5) return res.status(400).json({ error: 'Reach dungeon floor 5 to discover an elemental' });
+        if (maxFloor < 5) {
+            console.log('[ElemDiscover] Floor too low:', maxFloor, 'for char:', char.id);
+            return res.status(400).json({ error: 'Reach dungeon floor 5 to discover an elemental' });
+        }
         const name = (req.body?.name || '').trim().slice(0, 24) || 'Elemental';
-        await dbRun(db, `INSERT INTO elementals (char_id, name) VALUES (?, ?)`, [char.id, name]);
+        const ins = await dbRun(db, `INSERT INTO elementals (char_id, name) VALUES (?, ?)`, [char.id, name]);
+        console.log('[ElemDiscover] INSERT result:', JSON.stringify(ins), 'char_id:', char.id, 'name:', name);
         const elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]);
+        if (!elem) {
+            console.error('[ElemDiscover] Elemental not found after INSERT for char_id:', char.id);
+            return res.status(500).json({ error: 'Elemental not found after creation' });
+        }
         const stats = calcElemStats(elem);
+        console.log('[ElemDiscover] Success, elemental id:', elem.id, 'name:', name);
         res.json({ message: `✨ You discovered ${name} the Spirit Beast!`, elemental: { ...elem, ...stats } });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('[ElemDiscover] Error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.post('/elemental/feed', auth, async (req, res) => {
