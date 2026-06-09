@@ -6140,7 +6140,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 60px !important;
     object-fit: contain !important;
     top: 10px !important;
-    right: -20px !important;
+    right: 0px !important;
     z-index: 3 !important;
     pointer-events: none !important;
     filter: drop-shadow(0 0 12px rgba(100,200,255,0.5)) !important;
