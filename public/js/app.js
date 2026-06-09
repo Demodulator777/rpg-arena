@@ -2467,6 +2467,7 @@ async function loadElemFeedItems(elemId) {
             btn.className = 'elem-feed-btn';
             btn.dataset.invId = inv.id;
             btn.textContent = label;
+            btn.style.cssText = 'cursor:pointer;position:relative;z-index:1';
             btn.onclick = async () => {
                 if (btn.disabled) return;
                 const invId = btn.dataset.invId;
