@@ -8983,29 +8983,31 @@ router.get('/inventory', auth, async (req, res) => {
 });
 
 // ── Elementals ────────────────────────────────────────────────────────────
+// Ensure is_equipped column exists in elementals table
+(async () => {
+    const db = await getDb();
+    try {
+        await dbRun(db, "ALTER TABLE elementals ADD COLUMN is_equipped INTEGER DEFAULT 0;");
+    } catch (e) { /* Column likely already exists */ }
+})();
+
 router.get('/elementals', auth, async (req, res) => {
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
 
-        const elementals = await dbAll(db, `SELECT * FROM inventory WHERE char_id = ? AND item_type = 'elemental' ORDER BY acquired_at DESC`, [char.id]);
+        console.log(`[DEBUG] Fetching elementals for char_id: ${char.id}`);
+        const elementals = await dbAll(db, `SELECT * FROM elementals WHERE char_id = ? ORDER BY created_at DESC`, [char.id]);
+        console.log(`[DEBUG] Found ${elementals.length} elementals`);
 
-        const parsedElementals = elementals.map(e => ({
+        const responseElementals = elementals.map(e => ({
             ...e,
-            item_data: JSON.parse(e.item_data)
+            item_data: { name: e.name, element: e.element, level: e.level },
+            equipped: !!e.is_equipped
         }));
 
-        // Find the equipped elemental by checking item_data for an 'equipped' flag
-        const equippedElemental = parsedElementals.find(e => e.item_data.equipped === true);
-
-        // Add an 'equipped' flag to elementals in the list
-        const responseElementals = parsedElementals.map(e => ({
-            ...e,
-            equipped: e.equipped || (equippedElemental && e.id === equippedElemental.id)
-        }));
-
-        res.json({ elementals: responseElementals, equippedElemental });
+        res.json({ elementals: responseElementals });
 
     } catch (e) {
         console.error(e);
