@@ -417,7 +417,6 @@ let D = {
   guildReputation: 0,    // Add this
   lockRefreshInterval: null,
   _combatActive: false,
-  _savedScrollPos: null,
 };
 
 // Release lock when leaving tab
@@ -1549,11 +1548,6 @@ function startCombat(roomIdx) {
         turnNonce: 0,
         clientStartId,
     };
-    // Save overlay scroll before combat overwrites it.
-    try {
-      const ov = document.getElementById('dungeon-overlay');
-      if (ov) D._savedScrollPos = ov.scrollTop;
-    } catch(_) { D._savedScrollPos = null; }
     renderCombatPanel();
     // If the player scrolled the page before entering combat, scroll the tab content to the bottom
     // so the combat overlay sits flush with the viewport bottom.
@@ -2855,7 +2849,6 @@ function renderDungeonList() {
     D.activeDungeon = null;
     global.__dungeonActive = false;
     D._combatActive = false;
-    D._savedScrollPos = null;
 
     // Safety: if combat ended unexpectedly (death/disconnect), ensure scrolling is restored.
     document.body.classList.remove('modal-lock');
@@ -3108,16 +3101,14 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       </div>
     `;
 
-    // Restore overlay scroll after area.innerHTML created a fresh overlay.
+    // After combat, scroll the overlay to bottom so HUD/action buttons are in view.
     if (D._combatActive && !D.combat) {
       D._combatActive = false;
-      if (D._savedScrollPos != null) {
-        try {
-          const newOverlay = document.getElementById('dungeon-overlay');
-          if (newOverlay) newOverlay.scrollTop = D._savedScrollPos;
-        } catch(_) {}
-        D._savedScrollPos = null;
-      }
+      D._savedScrollPos = null;
+      try {
+        const newOverlay = document.getElementById('dungeon-overlay');
+        if (newOverlay) newOverlay.scrollTop = newOverlay.scrollHeight;
+      } catch(_) {}
     }
 
     if (roomHasAliveMonsters && !currentRoom.isBoss && !currentRoom.monstersEvaded) {
@@ -3579,7 +3570,6 @@ function dungeonExit() {
     D.combat = null;
     D._combatPrefetch = null;
     D._combatActive = false;
-    D._savedScrollPos = null;
     document.body.classList.remove('modal-lock');
     document.body.classList.remove('combat-lock');
 
