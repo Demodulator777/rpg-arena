@@ -2964,10 +2964,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
 
     const _oldOverlay = document.getElementById('dungeon-overlay');
     if (_oldOverlay) _oldOverlay.innerHTML = '';
-    // Remove combat-lock FIRST so the topbar reappears before we restore scroll.
-    if (!D.combat) {
-      document.body.classList.remove('combat-lock');
-    }
+    // Keep combat-lock on to prevent topbar/sidebar reappearance from shifting layout.
+    // Only remove when leaving dungeon entirely.
     
     if (!D.rooms || D.rooms.length === 0) {
       console.error('No rooms generated');
@@ -3101,15 +3099,13 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       </div>
     `;
 
-    // After combat, scroll the overlay to bottom so HUD/action buttons are in view.
-    if (D._combatActive && !D.combat) {
-      D._combatActive = false;
-      D._savedScrollPos = null;
+    // Always scroll overlay to bottom so HUD/action buttons are in view.
+    setTimeout(() => {
       try {
-        const newOverlay = document.getElementById('dungeon-overlay');
-        if (newOverlay) newOverlay.scrollTop = newOverlay.scrollHeight;
+        const o = document.getElementById('dungeon-overlay');
+        if (o) o.scrollTop = o.scrollHeight;
       } catch(_) {}
-    }
+    }, 50);
 
     if (roomHasAliveMonsters && !currentRoom.isBoss && !currentRoom.monstersEvaded) {
       prefetchCombatForRoom(D.playerPos);
