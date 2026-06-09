@@ -2495,8 +2495,9 @@
     padding: 5px 8px;
     font-size: 0.7rem;
   }
+}
 
-  /* Hide inline log on mobile to save space */
+/* ── Elemental Panel & Modal ──────────────────────────────────── */
 .dungeon-elem-panel {
   position: absolute;
   top: 60px;
@@ -2580,13 +2581,14 @@
   border-color: rgba(168,85,247,0.5);
   box-shadow: 0 0 12px rgba(168,85,247,0.2);
 }
-
 .dungeon-modal-title {
   font-size: 0.9rem;
   font-weight: 700;
   color: #e2e8f0;
   margin-bottom: 8px;
 }
+
+@media (max-width: 768px) {
 
 .dungeon-hud-log-inline {
     display: none;
