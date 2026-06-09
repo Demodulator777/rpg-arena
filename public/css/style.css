@@ -6134,7 +6134,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     object-fit: contain !important;
 }
 
-.eq-elemental-spirit {
+.eq-avatar-center img.eq-elemental-spirit {
     position: absolute !important;
     width: 80px !important;
     height: 80px !important;
