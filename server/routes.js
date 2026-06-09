@@ -7530,7 +7530,7 @@ const userSettings = char.user_id
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
-        elemental: elemental ? { name: elemental.name, element: elemental.element || 'pyro', level: elemental.level } : null,
+        elemental: elemental ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
         profile_badges: (() => {
             try {
                 const raw = char.profile_badges;
