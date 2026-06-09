@@ -2411,7 +2411,7 @@ const ELEM_FEED_IDS = new Set([
     'void_shard','shadow_essence','arcane_dust','crypt_dust',
     'dragon_scale_shard','frost_essence','soul_essence','demon_core',
     'dark_essence','abyss_fragment','dragon_scale','eternal_essence',
-    'abyssal_core','titan_heart',
+    'abyssal_core','titan_heart','void_crystal',
 ]);
 async function loadElemFeedItems(elemId) {
     try {
@@ -2422,7 +2422,8 @@ async function loadElemFeedItems(elemId) {
         if (!listEl) return;
         const mats = (inv?.items || []).filter(i => {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : (i.item_data || {});
-            return d.type === 'raw_mat' && (d.qty || 1) > 0 && ELEM_FEED_IDS.has(d.id);
+            const isRawMat = (i.item_type === 'raw_mat' || d.type === 'raw_mat');
+            return isRawMat && (d.qty || 1) > 0 && ELEM_FEED_IDS.has(d.id);
         });
         if (!mats.length) {
             listEl.textContent = '📭 No materials. Clear dungeon rooms for drops!';
