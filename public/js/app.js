@@ -2463,11 +2463,14 @@ async function loadElemFeedItems(elemId) {
             const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : (inv.item_data || {});
             const qty = d.qty || 1;
             const label = `${d.emoji || '📦'} ${escHtml(d.name)} (${qty})`;
-            const btn = document.createElement('button');
+            const btn = document.createElement('div');
             btn.className = 'elem-feed-btn';
             btn.dataset.invId = inv.id;
             btn.textContent = label;
-            btn.addEventListener('click', async () => {
+            btn.style.cssText = 'cursor:pointer !important;pointer-events:auto !important;position:relative;z-index:999';
+            btn.onmouseenter = () => { btn.style.background = 'rgba(255,0,0,0.3)'; };
+            btn.onmouseleave = () => { btn.style.background = ''; };
+            btn.onclick = async () => {
                 if (btn.disabled) return;
                 const invId = btn.dataset.invId;
                 const originalText = btn.textContent;
@@ -2491,7 +2494,7 @@ async function loadElemFeedItems(elemId) {
                     btn.disabled = false;
                     btn.textContent = originalText;
                 }
-            });
+            };
             listEl.appendChild(btn);
         });
     } catch (e) {
