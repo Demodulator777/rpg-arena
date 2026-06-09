@@ -2968,21 +2968,11 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     if (!_cachedElemental && getChar()?.elemental) fetchElemental();
     document.body.classList.add('modal-lock');
 
-    const overlay = document.getElementById('dungeon-overlay');
-    if (overlay) overlay.innerHTML = '';
-    // Restore pre-combat scroll position so the view doesn't jump.
-    if (D._combatActive && !D.combat) {
-      D._combatActive = false;
-      if (D._savedScrollPos != null) {
-        try {
-          const tc = document.querySelector('.tab-content-area') || document.documentElement || document.body;
-          tc.scrollTop = D._savedScrollPos;
-        } catch(_) {}
-        D._savedScrollPos = null;
-      }
-    }
-    // Keep body scroll locked while dungeon is active to prevent viewport jump on PC.
-    // Remove combat-lock (hides topbar/sidebar during combat), but keep modal-lock.
+    // Save overlay scroll before area.innerHTML destroys/recreates it.
+    const _oldOverlay = document.getElementById('dungeon-overlay');
+    const _savedScroll = _oldOverlay ? _oldOverlay.scrollTop : 0;
+    if (_oldOverlay) _oldOverlay.innerHTML = '';
+    // Remove combat-lock FIRST so the topbar reappears before we restore scroll.
     if (!D.combat) {
       document.body.classList.remove('combat-lock');
     }
@@ -3118,6 +3108,15 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         </div>
       </div>
     `;
+
+    // Restore overlay scroll after area.innerHTML created a fresh overlay.
+    if (D._combatActive && !D.combat) {
+      D._combatActive = false;
+      try {
+        const newOverlay = document.getElementById('dungeon-overlay');
+        if (newOverlay) newOverlay.scrollTop = _savedScroll;
+      } catch(_) {}
+    }
 
     if (roomHasAliveMonsters && !currentRoom.isBoss && !currentRoom.monstersEvaded) {
       prefetchCombatForRoom(D.playerPos);
