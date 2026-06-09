@@ -6346,7 +6346,7 @@ async function buildCombatFighter(db, char) {
         blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
         dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
         _elementalFighter: await (async () => {
-            const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+            const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
             if (!er) return null;
             const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
             const bd = (er.defense || 5) + (er.stat_def || 0) * 2;
