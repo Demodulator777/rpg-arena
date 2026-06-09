@@ -1756,7 +1756,62 @@ function toggleInventoryHubInline() {
 function navigateInventoryHub(tabName) {
     closeCharacterHubInline();
     showTab(tabName);
+    if (tabName === 'elementals') loadElementals();
 }
+
+async function loadElementals() {
+    const content = document.getElementById('elementals-content');
+    if (!content) return;
+    content.innerHTML = '<div class="loading">Loading elementals...</div>';
+
+    try {
+        const r = await api('GET', '/game/elementals');
+        if (r.error) throw new Error(r.error);
+        
+        if (r.elementals.length === 0) {
+            content.innerHTML = '<div class="empty-msg">No elementals found.</div>';
+            return;
+        }
+
+        content.innerHTML = r.elementals.map(e => `
+            <div class="elemental-item ${e.equipped ? 'equipped' : ''}">
+                <div class="elemental-info">
+                    <strong>${escHtml(e.item_data.name)}</strong>
+                    ${e.equipped ? '<span class="equipped-badge">Equipped</span>' : ''}
+                </div>
+                <div class="elemental-actions">
+                    ${e.equipped 
+                        ? `<button class="btn-secondary" data-action="unequipElemental">Unequip</button>`
+                        : `<button class="btn-primary" data-action="equipElemental" data-args='[${e.id}]'>Equip</button>`
+                    }
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        content.innerHTML = `<div class="error">Failed to load elementals: ${e.message}</div>`;
+    }
+}
+
+async function equipElemental(invId) {
+    try {
+        const r = await api('POST', `/game/elemental/equip/${invId}`);
+        if (r.error) throw new Error(r.error);
+        gameLog(r.message, 'success');
+        loadElementals();
+    } catch (e) { gameLog(e.message, 'error'); }
+}
+
+async function unequipElemental() {
+    try {
+        const r = await api('POST', '/game/elemental/unequip');
+        if (r.error) throw new Error(r.error);
+        gameLog(r.message, 'success');
+        loadElementals();
+    } catch (e) { gameLog(e.message, 'error'); }
+}
+
+window.equipElemental = equipElemental;
+window.unequipElemental = unequipElemental;
 function toggleMissionsHubInline() {
     const trigger = document.getElementById('missions-hub-trigger');
     if (!trigger) return;
