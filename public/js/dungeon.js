@@ -3979,10 +3979,10 @@ global.debugDungeonDetails = function() {
       setTimeout(() => document.getElementById('spirit-name-input')?.focus(), 100);
     });
 
-    if (!name) return; // cancelled
+    if (!name) { log('❌ Discovery cancelled', 'log-info'); return; }
 
     // Show loading
-    let loadingEl = document.createElement('div');
+    const loadingEl = document.createElement('div');
     loadingEl.id = 'spirit-discover-modal';
     loadingEl.innerHTML = `<div class="spirit-overlay"></div><div class="spirit-dialog" style="text-align:center;padding:30px">✨ Bonding spirit...</div>`;
     document.body.appendChild(loadingEl);
@@ -4001,7 +4001,8 @@ global.debugDungeonDetails = function() {
       }
     } catch (e) {
       loadingEl.remove();
-      log('⚠️ Error bonding spirit', 'log-danger');
+      console.error('[Discover] Error:', e);
+      log('⚠️ Error bonding spirit: ' + e.message, 'log-danger');
     }
   };
 
