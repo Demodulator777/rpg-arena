@@ -2847,6 +2847,7 @@ function renderDungeonList() {
     if (!area) return;
     D.activeDungeon = null;
     global.__dungeonActive = false;
+    D._combatActive = false;
 
     // Safety: if combat ended unexpectedly (death/disconnect), ensure scrolling is restored.
     document.body.classList.remove('modal-lock');
@@ -2961,16 +2962,21 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     document.body.classList.add('modal-lock');
 
     const overlay = document.getElementById('dungeon-overlay');
-    if (overlay) { overlay.innerHTML = ''; overlay.scrollTop = 0; }
+    if (overlay) overlay.innerHTML = '';
+    // If combat just ended, the tab-content-area was scrolled to bottom during combat start.
+    // Reset it to top so the dungeon view doesn't appear "jumped" upward.
+    if (D._combatActive && !D.combat) {
+      D._combatActive = false;
+      try {
+        const tc = document.querySelector('.tab-content-area') || document.documentElement || document.body;
+        tc.scrollTop = 0;
+      } catch(_) {}
+      if (overlay) overlay.scrollTop = 0;
+    }
     // Keep body scroll locked while dungeon is active to prevent viewport jump on PC.
     // Remove combat-lock (hides topbar/sidebar during combat), but keep modal-lock.
     if (!D.combat) {
       document.body.classList.remove('combat-lock');
-      // Reset tab-content-area scroll that was set to bottom during combat start
-      try {
-        const tc = document.querySelector('.tab-content-area');
-        if (tc) tc.scrollTop = 0;
-      } catch(_) {}
     }
     
     if (!D.rooms || D.rooms.length === 0) {
@@ -3419,6 +3425,7 @@ function renderRoomInfo(room) {
   function renderCombatPanel() {
     const overlay = document.getElementById('dungeon-overlay');
     if (!overlay || !D.combat) return;
+    D._combatActive = true;
     // Combat should fully take over the screen: prevent background scrolling.
     document.body.classList.add('modal-lock');
     document.body.classList.add('combat-lock');
@@ -3562,6 +3569,7 @@ function dungeonExit() {
     global.__dungeonActive = false;
     D.combat = null;
     D._combatPrefetch = null;
+    D._combatActive = false;
     document.body.classList.remove('modal-lock');
     document.body.classList.remove('combat-lock');
 
