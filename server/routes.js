@@ -8982,6 +8982,70 @@ router.get('/inventory', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Elementals ────────────────────────────────────────────────────────────
+router.get('/elementals', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const elementals = await dbAll(db, `SELECT * FROM inventory WHERE char_id = ? AND item_type = 'elemental' ORDER BY acquired_at DESC`, [char.id]);
+
+        // Find the equipped elemental from the character's equipped_elemental_id
+        let equippedElemental = null;
+        if (char.equipped_elemental_id) {
+            const equippedInvItem = await dbGet(db, `SELECT * FROM inventory WHERE id = ? AND char_id = ?`, [char.equipped_elemental_id, char.id]);
+            if (equippedInvItem) {
+                equippedElemental = {
+                    ...equippedInvItem,
+                    item_data: JSON.parse(equippedInvItem.item_data)
+                };
+            } else {
+                // If equipped_elemental_id points to a non-existent item, clear it
+                await dbRun(db, `UPDATE characters SET equipped_elemental_id = NULL WHERE id = ?`, [char.id]);
+            }
+        }
+
+        // Add an 'equipped' flag to elementals in the list
+        const responseElementals = elementals.map(e => ({
+            ...e,
+            item_data: JSON.parse(e.item_data),
+            equipped: equippedElemental && e.id === equippedElemental.id
+        }));
+
+        res.json({ elementals: responseElementals, equippedElemental });
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/elemental/equip/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        const elemental = await dbGet(db, 'SELECT * FROM inventory WHERE id = ? AND char_id = ? AND item_type = "elemental"', [req.params.inventoryId, char.id]);
+        if (!elemental) return res.status(404).json({ error: 'Elemental not found' });
+        
+        await dbRun(db, 'UPDATE characters SET equipped_elemental_id = ? WHERE id = ?', [elemental.id, char.id]);
+        res.json({ success: true, message: 'Elemental equipped!' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/unequip', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        await dbRun(db, 'UPDATE characters SET equipped_elemental_id = NULL WHERE id = ?', [char.id]);
+        res.json({ success: true, message: 'Elemental unequipped!' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Add item (used by dungeon loot) ──────────────────────────────────
 router.post('/inventory/add', auth, async (req, res) => {
     try {
