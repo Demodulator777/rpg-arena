@@ -2345,6 +2345,38 @@ const eqGrid = `
           <h3>EQUIPMENT</h3>
           ${eqGrid}
         </div>
+        ${c.elemental ? (() => {
+          const el = c.elemental;
+          const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
+          const elHpPct = Math.min(100, el.hpMax > 0 ? Math.round((el.hp_current / el.hpMax) * 100) : 0);
+          const elXpPct = Math.min(100, el.xpNext > 0 ? Math.round(((el.xp || 0) / el.xpNext) * 100) : 0);
+          return `<div class="char-panel char-panel-elemental">
+            <h3>🐉 ELEMENTAL SPIRIT</h3>
+            <div class="elem-overview">
+              <span class="elem-name">${elEmoji} ${escHtml(el.name)}</span>
+              <span class="elem-lvl-badge">Lv.${el.level}</span>
+              <span class="elem-element-tag">${el.element}</span>
+            </div>
+            <div class="elem-stat-grid">
+              <div><span class="stat-hp">❤️</span> ${el.hp_current}/${el.hpMax}</div>
+              <div class="elem-bar"><div class="elem-bar-fill hp-fill" style="width:${elHpPct}%"></div></div>
+              <div>XP ${el.xp || 0}/${el.xpNext}</div>
+              <div class="elem-bar"><div class="elem-bar-fill xp-fill" style="width:${elXpPct}%"></div></div>
+              <div>💪 ${el.str}</div>
+              <div>🛡️ ${el.def}</div>
+              <div>⚡ ${el.agi}</div>
+              <div>✨ ${el.mag}</div>
+              <div>❤️ ${el.vit}</div>
+              <div>⚔️ ${el.dmgMin}-${el.dmgMax}</div>
+              <div>🎯 ${el.hit}%</div>
+              <div>💥 ${el.crit}%</div>
+            </div>
+            <div id="elem-feed-section-${el.id}">
+              <div style="font-size:0.75rem;margin:10px 0 6px;color:var(--text-dim);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">🍽️ Feed Materials</div>
+              <div class="elem-feed-loading" style="font-size:0.7rem;color:var(--text-dim)">Loading...</div>
+            </div>
+          </div>`;
+        })() : ''}
         <div class="char-panel char-panel-record">
           <h3>RECORD</h3>
           <div class="record-row">
@@ -2367,6 +2399,58 @@ const eqGrid = `
     charSheet.querySelectorAll('.stat-upgrade-btn').forEach(btn => {
         btn.addEventListener('click', () => upgradestat(btn.dataset.stat));
     });
+    if (c.elemental) loadElemFeedItems(c.elemental.id);
+}
+async function loadElemFeedItems(elemId) {
+    const section = document.getElementById(`elem-feed-section-${elemId}`);
+    if (!section) return;
+    const listEl = section.querySelector('.elem-feed-loading');
+    if (!listEl) return;
+    try {
+        const inv = await api('GET', '/game/inventory');
+        const mats = (inv?.items || []).filter(i => {
+            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : (i.item_data || {});
+            return (d.type === 'raw_mat' || d.category === 'material') && (d.qty || 1) > 0;
+        });
+        if (!mats.length) {
+            listEl.textContent = '📭 No materials. Clear dungeon rooms for drops!';
+            return;
+        }
+        listEl.innerHTML = mats.map(inv => {
+            const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : (inv.item_data || {});
+            const qty = d.qty || 1;
+            return `<div class="elem-feed-row" data-inv-id="${inv.id}" style="cursor:pointer">
+                <span>${d.emoji || '📦'} ${escHtml(d.name)} (${qty})</span>
+            </div>`;
+        }).join('');
+        listEl.querySelectorAll('.elem-feed-row').forEach(row => {
+            row.addEventListener('click', async () => {
+                const invId = row.dataset.invId;
+                row.style.opacity = '0.5';
+                row.style.pointerEvents = 'none';
+                try {
+                    const r = await api('POST', '/game/elemental/feed', { inventory_id: invId });
+                    if (r.elemental) {
+                        // Update global character + re-render
+                        const charR = await api('GET', '/game/character');
+                        if (charR) Object.assign(character, charR);
+                        renderCharacter();
+                        log(r.message || '🍽️ Fed elemental!', 'log-arrive');
+                    } else {
+                        log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
+                        row.style.opacity = '';
+                        row.style.pointerEvents = '';
+                    }
+                } catch (e) {
+                    log('⚠️ Error feeding elemental', 'log-danger');
+                    row.style.opacity = '';
+                    row.style.pointerEvents = '';
+                }
+            });
+        });
+    } catch (e) {
+        listEl.textContent = '⚠️ Failed to load materials';
+    }
 }
 function statRow(icon,label,val,max,cls) {
     return `<div class="stat-row"><span class="stat-icon">${icon}</span><span class="stat-label">${label}</span>
