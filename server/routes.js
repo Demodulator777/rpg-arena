@@ -850,13 +850,47 @@ const WEEKLY_TASKS = [
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )`, args: [] });
         
-        // Add elemental_xp column if missing (for existing DBs)
+        // Migrate elementals table — verify schema, recreate if broken
         try {
-            await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN elemental_xp INTEGER NOT NULL DEFAULT 0`, args: [] });
+            const elemSchema = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='elementals'");
+            if (elemSchema && elemSchema.sql && !elemSchema.sql.includes('char_id')) {
+                // Table exists but has wrong schema (no char_id column) — drop and recreate
+                await db.execute({ sql: 'DROP TABLE IF EXISTS elementals', args: [] });
+                console.log('♻️ Recreated elementals table with correct schema');
+            }
         } catch {}
-        try {
-            await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN element_level INTEGER NOT NULL DEFAULT 1`, args: [] });
-        } catch {}
+        // Re-run CREATE TABLE for fresh or just-dropped table
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS elementals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER UNIQUE NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Elemental',
+            element TEXT NOT NULL DEFAULT 'pyro',
+            level INTEGER NOT NULL DEFAULT 1,
+            xp INTEGER NOT NULL DEFAULT 0,
+            hp INTEGER NOT NULL DEFAULT 30,
+            hp_max INTEGER NOT NULL DEFAULT 30,
+            strength INTEGER NOT NULL DEFAULT 5,
+            defense INTEGER NOT NULL DEFAULT 5,
+            agility INTEGER NOT NULL DEFAULT 5,
+            magic INTEGER NOT NULL DEFAULT 5,
+            vitality INTEGER NOT NULL DEFAULT 5,
+            hit_chance INTEGER NOT NULL DEFAULT 5,
+            crit_chance INTEGER NOT NULL DEFAULT 2,
+            dmg_min INTEGER NOT NULL DEFAULT 2,
+            dmg_max INTEGER NOT NULL DEFAULT 5,
+            stat_points INTEGER NOT NULL DEFAULT 0,
+            stat_str INTEGER NOT NULL DEFAULT 0,
+            stat_def INTEGER NOT NULL DEFAULT 0,
+            stat_agi INTEGER NOT NULL DEFAULT 0,
+            stat_mag INTEGER NOT NULL DEFAULT 0,
+            stat_vit INTEGER NOT NULL DEFAULT 0,
+            hp_current INTEGER NOT NULL DEFAULT 30,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`, args: [] });
+        // Add more recent columns for DBs created by earlier schema
+        for (const colDef of ['elemental_xp INTEGER NOT NULL DEFAULT 0', 'element_level INTEGER NOT NULL DEFAULT 1']) {
+            try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
+        }
         
         console.log('✅ DB migrations applied');
     } catch (e) { console.error('Migration error:', e.message); }
