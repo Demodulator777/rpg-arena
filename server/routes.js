@@ -9013,38 +9013,30 @@ router.get('/elementals', auth, async (req, res) => {
     }
 });
 
-router.post('/elemental/equip/:inventoryId', auth, async (req, res) => {
+router.post('/elemental/equip/:elementalId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         
-        const elemental = await dbGet(db, 'SELECT * FROM inventory WHERE id = ? AND char_id = ? AND item_type = "elemental"', [req.params.inventoryId, char.id]);
+        const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE id = ? AND char_id = ?', [req.params.elementalId, char.id]);
         if (!elemental) return res.status(404).json({ error: 'Elemental not found' });
         
-        // Update item_data to mark as equipped
-        const data = JSON.parse(elemental.item_data);
-        data.equipped = true;
-        
-        await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(data), elemental.id]);
+        // Unequip all other elementals first
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 0 WHERE char_id = ?', [char.id]);
+        // Equip the selected one
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 1 WHERE id = ?', [elemental.id]);
         res.json({ success: true, message: 'Elemental equipped!' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/elemental/unequip', auth, async (req, res) => {
+router.post('/elemental/unequip/:elementalId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         
-        const elemental = await dbGet(db, 'SELECT * FROM inventory WHERE char_id = ? AND item_type = "elemental"', [char.id]);
-        if (!elemental) return res.status(404).json({ error: 'No equipped elemental found' });
-
-        // Update item_data to remove equipped flag
-        const data = JSON.parse(elemental.item_data);
-        delete data.equipped;
-        
-        await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(data), elemental.id]);
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 0 WHERE id = ? AND char_id = ?', [req.params.elementalId, char.id]);
         res.json({ success: true, message: 'Elemental unequipped!' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
