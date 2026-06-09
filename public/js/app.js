@@ -2414,12 +2414,12 @@ const ELEM_FEED_IDS = new Set([
     'abyssal_core','titan_heart',
 ]);
 async function loadElemFeedItems(elemId) {
-    const section = document.getElementById(`elem-feed-section-${elemId}`);
-    if (!section) return;
-    const listEl = section.querySelector('.elem-feed-loading');
-    if (!listEl) return;
     try {
         const inv = await api('GET', '/game/inventory');
+        const section = document.getElementById(`elem-feed-section-${elemId}`);
+        if (!section) return;
+        const listEl = section.querySelector('.elem-feed-loading');
+        if (!listEl) return;
         const mats = (inv?.items || []).filter(i => {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : (i.item_data || {});
             return d.type === 'raw_mat' && (d.qty || 1) > 0 && ELEM_FEED_IDS.has(d.id);
