@@ -2425,15 +2425,15 @@ async function elemFeedItem(elemId, invId, el) {
             const charR = await api('GET', '/game/character');
             if (charR) Object.assign(character, charR);
             renderCharacter(); // Re-render the character tab to update everything
-            log(r.message || '🍽️ Fed elemental!', 'log-arrive');
+            gameLog(r.message || '🍽️ Fed elemental!', 'info');
         } else {
-            log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
+            gameLog('⚠️ ' + (r.error || 'Failed to feed'), 'error');
             el.disabled = false;
             el.textContent = originalLabel;
         }
     } catch (e) {
         console.error('[Feed] Error:', e);
-        log('⚠️ ' + (e.message || 'Error feeding elemental'), 'log-danger');
+        gameLog('⚠️ ' + (e.message || 'Error feeding elemental'), 'error');
         el.disabled = false;
         el.textContent = originalLabel;
     }
@@ -9381,6 +9381,34 @@ function formatDate(ts) {
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
 }
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+
+// Global game message logging function
+function gameLog(msg, type = 'info', duration = 3000) {
+    const container = document.getElementById('game-messages');
+    if (!container) {
+        console.log(`Game Log (${type}): ${msg}`);
+        return;
+    }
+
+    const messageEl = document.createElement('div');
+    messageEl.className = `game-message game-message--${type}`;
+    messageEl.innerHTML = escHtml(msg); // Use escHtml to prevent XSS
+    
+    // Prepend to show newest messages at top
+    container.prepend(messageEl);
+
+    // Limit number of messages
+    while (container.children.length > 5) {
+        container.lastChild.remove();
+    }
+
+    // Fade out and remove
+    setTimeout(() => {
+        messageEl.classList.add('game-message--fading');
+        messageEl.addEventListener('transitionend', () => messageEl.remove());
+    }, duration);
+}
+window.gameLog = gameLog; // Make it globally accessible
 
 function encodeActionArgs(args = []) {
     return escHtml(JSON.stringify(args));
