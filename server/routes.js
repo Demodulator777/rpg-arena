@@ -11523,7 +11523,10 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
 
     // Room entry itself should never block combat; the actual one-reward guarantee
     // is enforced in /dungeon/room-clear.
-    res.json({ success: true });
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const hasElemental = await dbGet(db, 'SELECT id FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+    const elementalAltar = safeFloor >= 5 && !hasElemental;
+    res.json({ success: true, elementalAltar });
   } catch (e) {
     console.error('room-enter error:', e);
     res.status(500).json({ error: e.message });
@@ -12089,6 +12092,23 @@ const DUNGEON_COMMON_ITEMS = [
   { id:'tarnished_coin',  name:'Tarnished Coin', emoji:'🪙', rarity:'common' },
 ];
 
+const DUNGEON_RARE_ITEMS = [
+  { id:'void_shard',       name:'Void Shard',      emoji:'🔮', rarity:'uncommon',  minFloor: 10 },
+  { id:'shadow_essence',   name:'Shadow Essence',  emoji:'🌑', rarity:'uncommon',  minFloor: 10 },
+  { id:'arcane_dust',      name:'Arcane Dust',     emoji:'✨', rarity:'uncommon',  minFloor: 15 },
+  { id:'crypt_dust',       name:'Crypt Dust',      emoji:'💀', rarity:'uncommon',  minFloor: 15 },
+  { id:'dragon_scale_shard',name:'Dragon Scale Shard', emoji:'🐉', rarity:'rare',  minFloor: 20 },
+  { id:'frost_essence',    name:'Frost Essence',   emoji:'❄️', rarity:'rare',     minFloor: 20 },
+  { id:'soul_essence',     name:'Soul Essence',    emoji:'👻', rarity:'rare',     minFloor: 25 },
+  { id:'demon_core',       name:'Demon Core',      emoji:'👹', rarity:'rare',     minFloor: 30 },
+  { id:'dark_essence',     name:'Dark Essence',    emoji:'🖤', rarity:'epic',     minFloor: 35 },
+  { id:'abyss_fragment',   name:'Abyss Fragment',  emoji:'🧩', rarity:'epic',     minFloor: 40 },
+  { id:'dragon_scale',     name:'Dragon Scale',    emoji:'🐲', rarity:'epic',     minFloor: 45 },
+  { id:'eternal_essence',  name:'Eternal Essence', emoji:'💠', rarity:'legendary',minFloor: 50 },
+  { id:'abyssal_core',     name:'Abyssal Core',    emoji:'🔴', rarity:'legendary',minFloor: 60 },
+  { id:'titan_heart',      name:'Titan Heart',     emoji:'❤️‍🔥', rarity:'legendary',minFloor: 75 },
+];
+
 function buildRegularMonsterForFloor(monsterId, floor) {
   const safeFloor = Math.max(1, Number(floor) || 1);
   const base = DUNGEON_MONSTER_POOL.find(m => m.id === monsterId);
@@ -12152,12 +12172,15 @@ function getHealthPotionDropForFloorServer(floor) {
 }
 
 function rollMinorLootServer(rngState, floor) {
-  // weights align with client MINION_LOOT
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  // Add rare material weight on higher floors
+  const rareWeight = Math.min(12, 3 + Math.floor(safeFloor / 5));
   const table = [
-    { type:'gold', weight:84 },
+    { type:'gold', weight: Math.max(70, 84 - rareWeight) },
     { type:'potion_hp', weight:7 },
     { type:'potion_mp', weight:3 },
-    { type:'item_common', weight:6 },
+    { type:'item_common', weight:5 },
+    { type:'item_rare', weight: rareWeight },
   ];
   const total = table.reduce((s, e) => s + e.weight, 0);
   const r1 = rngIntInclusive(rngState, 0, total - 1);
@@ -12169,7 +12192,7 @@ function rollMinorLootServer(rngState, floor) {
     if (r < 0) { chosen = entry; break; }
   }
   if (chosen.type === 'gold') {
-    const g = rngIntInclusive(rngState, 12, 70);
+    const g = rngIntInclusive(rngState, 12 + safeFloor, 70 + safeFloor * 2);
     return { rngState: g.rngState, loot: { type:'gold', amount: g.n } };
   }
   if (chosen.type === 'potion_hp') {
@@ -12177,6 +12200,18 @@ function rollMinorLootServer(rngState, floor) {
   }
   if (chosen.type === 'potion_mp') {
     return { rngState, loot: { type:'potion_mp', id:'mp_potion_small', name:'Mana Potion', mp:30, emoji:'💧' } };
+  }
+  if (chosen.type === 'item_rare') {
+    const available = DUNGEON_RARE_ITEMS.filter(i => safeFloor >= i.minFloor);
+    if (available.length > 0) {
+      const pick = rngIntInclusive(rngState, 0, available.length - 1);
+      const item = available[pick.n] || available[0];
+      return { rngState: pick.rngState, loot: { type:'item_rare', item } };
+    }
+    // fallback to common
+    const pick = rngIntInclusive(rngState, 0, DUNGEON_COMMON_ITEMS.length - 1);
+    const item = DUNGEON_COMMON_ITEMS[pick.n] || DUNGEON_COMMON_ITEMS[0];
+    return { rngState: pick.rngState, loot: { type:'item_common', item } };
   }
   const pick = rngIntInclusive(rngState, 0, DUNGEON_COMMON_ITEMS.length - 1);
   const item = DUNGEON_COMMON_ITEMS[pick.n] || DUNGEON_COMMON_ITEMS[0];
@@ -12222,7 +12257,7 @@ async function grantDungeonMinorLoot(db, charId, floor, monsterCount, rngState) 
       granted.push({ type:'consumable', id: itemData.id, name: itemData.name, qty: 1 });
       continue;
     }
-    if (loot.type === 'item_common') {
+    if (loot.type === 'item_common' || loot.type === 'item_rare') {
       const mat = loot.item;
       await addStackableInventoryItem(db, charId, 'raw_mat', { id: mat.id, name: mat.name, emoji: mat.emoji, rarity: mat.rarity }, 1);
       granted.push({ type:'material', id: mat.id, name: mat.name, qty: 1 });
@@ -15269,16 +15304,15 @@ async function levelUpElemental(db, elem) {
     return elem;
 }
 
-// Material XP values for feeding
+// Material XP values for feeding (dungeon-drop materials only)
 const ELEM_FEED_VALUES = {
-    wood: 3, iron_ore: 4, wolf_pelt: 4, herbs: 3,
-    mithril_ore: 8, poison_gland: 6, swamp_crystal: 7, frost_essence: 8,
-    dragon_scale_shard: 12, arcane_dust: 10, void_shard: 12, shadow_essence: 11,
-    demon_core: 18, legendary_fragment: 25,
-    iron_ingot: 6, hardwood_plank: 5, tanned_hide: 5, poison_extract: 7,
-    frost_core: 14, mithril_ingot: 10, arcane_shard: 12, dragon_plate: 18,
-    void_crystal: 15, shadow_weave: 14, demon_alloy: 20, crimson_alloy: 22,
-    abyss_weave: 20, shadowsteel_bar: 16, eternal_essence: 25, void_plate: 18
+    iron_shard: 3, bone_fragment: 3, dim_crystal: 4, frayed_cloth: 2, tarnished_coin: 3,
+    void_shard: 10, shadow_essence: 10, arcane_dust: 8,
+    dragon_scale_shard: 14, frost_essence: 10,
+    demon_core: 20, abyss_fragment: 12, dark_essence: 15,
+    soul_essence: 12, eternal_essence: 25,
+    dragon_scale: 18, abyssal_core: 30, titan_heart: 40,
+    crypt_dust: 5, void_crystal: 15,
 };
 
 router.get('/elemental', auth, async (req, res) => {
@@ -15303,9 +15337,11 @@ router.post('/elemental/discover', auth, async (req, res) => {
         if (existing) return res.status(400).json({ error: 'You already have an elemental' });
         const maxFloor = char.dungeon_floor || 0;
         if (maxFloor < 5) return res.status(400).json({ error: 'Reach dungeon floor 5 to discover an elemental' });
-        await dbRun(db, `INSERT INTO elementals (char_id, name) VALUES (?, 'Elemental')`, [char.id]);
+        const name = (req.body?.name || '').trim().slice(0, 24) || 'Elemental';
+        await dbRun(db, `INSERT INTO elementals (char_id, name) VALUES (?, ?)`, [char.id, name]);
         const elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]);
-        res.json({ message: '✨ You discovered an Elemental spirit beast!', elemental: elem });
+        const stats = calcElemStats(elem);
+        res.json({ message: `✨ You discovered ${name} the Spirit Beast!`, elemental: { ...elem, ...stats } });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
