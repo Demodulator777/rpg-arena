@@ -3933,43 +3933,65 @@ global.debugDungeonDetails = function() {
     </div>`;
   }
 
-  global.dungeonDiscoverElemental = async function() {
-    // Show naming modal first
-    const overlay = document.getElementById('dungeon-overlay');
-    if (!overlay) return;
+  let _spiritResolve = null;
 
+  function removeSpiritModal() {
+    const el = document.getElementById('spirit-discover-modal');
+    if (el) el.remove();
+    _spiritResolve = null;
+  }
+
+  global.spiritModalCancel = function() {
+    removeSpiritModal();
+  };
+
+  global.spiritModalConfirm = function() {
+    const input = document.getElementById('spirit-name-input');
+    const name = input ? input.value.trim().slice(0, 24) : 'Elemental';
+    removeSpiritModal();
+    if (_spiritResolve) _spiritResolve(name);
+  };
+
+  global.dungeonDiscoverElemental = async function() {
     const spiritTypes = ['Phoenix', 'Wyrm', 'Wolf', 'Drake', 'Serpent', 'Fox', 'Tiger', 'Griffin', 'Kitsune', 'Leviathan'];
     const spiritType = spiritTypes[Math.floor(Math.random() * spiritTypes.length)];
 
-    overlay.innerHTML = `
-      <div class="dungeon-overlay-backdrop" ${actionAttrs('closeDungeonOverlay')}></div>
-      <div class="dungeon-modal">
-        <div class="dungeon-modal-title">🐉 Spirit Beast Found!</div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin:8px 0;line-height:1.5">
-          Deep within the tower, you discover a mystical ${spiritType} spirit. 
-          Its essence pulses with ancient power, waiting to bond with a worthy champion. 
-          The spirit will fight alongside you in battle.
+    const name = await new Promise(resolve => {
+      _spiritResolve = resolve;
+      const div = document.createElement('div');
+      div.id = 'spirit-discover-modal';
+      div.innerHTML = `
+        <div class="spirit-overlay" onclick="spiritModalCancel()"></div>
+        <div class="spirit-dialog">
+          <div class="spirit-dialog-title">🐉 Spirit Beast Found!</div>
+          <div class="spirit-dialog-body">
+            Deep within the tower, you discover a mystical ${spiritType} spirit.
+            Its essence pulses with ancient power, waiting to bond with a worthy champion.
+            The spirit will fight alongside you in battle.
+          </div>
+          <label class="spirit-dialog-label">Name your Spirit Beast:</label>
+          <input id="spirit-name-input" class="spirit-dialog-input" type="text" maxlength="24" placeholder="Enter a name..." value="${spiritType}">
+          <div class="spirit-dialog-actions">
+            <button class="btn-secondary" onclick="spiritModalCancel()">Skip</button>
+            <button class="btn-primary" onclick="spiritModalConfirm()">✨ Bond</button>
+          </div>
         </div>
-        <label style="font-size:0.75rem;color:#cbd5e1;display:block;margin-top:10px">Name your Spirit Beast:</label>
-        <input id="elem-name-input" class="dungeon-elem-name-input" type="text" maxlength="24" placeholder="Enter a name..." value="${spiritType}" autofocus>
-        <div style="display:flex;gap:8px;margin-top:12px">
-          <button class="dungeon-btn" style="flex:1" ${actionAttrs('closeDungeonOverlay')}>Skip</button>
-          <button class="dungeon-btn dungeon-btn-hud" style="flex:2" ${actionAttrs('dungeonConfirmDiscover')}>✨ Bond</button>
-        </div>
-      </div>
-    `;
-    setTimeout(() => document.getElementById('elem-name-input')?.focus(), 100);
-  };
+      `;
+      document.body.appendChild(div);
+      setTimeout(() => document.getElementById('spirit-name-input')?.focus(), 100);
+    });
 
-  global.dungeonConfirmDiscover = async function() {
-    const input = document.getElementById('elem-name-input');
-    const name = input ? input.value.trim().slice(0, 24) : 'Elemental';
+    if (!name) return; // cancelled
 
-    const overlay = document.getElementById('dungeon-overlay');
-    if (overlay) overlay.innerHTML = '<div class="dungeon-overlay-backdrop"></div><div class="dungeon-modal"><div style="text-align:center;padding:20px">✨ Bonding spirit...</div></div>';
+    // Show loading
+    let loadingEl = document.createElement('div');
+    loadingEl.id = 'spirit-discover-modal';
+    loadingEl.innerHTML = `<div class="spirit-overlay"></div><div class="spirit-dialog" style="text-align:center;padding:30px">✨ Bonding spirit...</div>`;
+    document.body.appendChild(loadingEl);
 
     try {
       const r = await apiFetch('POST', '/elemental/discover', { name });
+      loadingEl.remove();
       if (r.elemental) {
         _cachedElemental = r.elemental;
         const charR = await apiFetch('GET', '/character');
@@ -3977,11 +3999,10 @@ global.debugDungeonDetails = function() {
         renderDungeonView();
         log(`🐉 ${r.message || 'Spirit beast bonded!'}`, 'log-arrive');
       } else {
-        if (overlay) overlay.innerHTML = '';
         log('⚠️ ' + (r.error || 'Failed to bond'), 'log-danger');
       }
     } catch (e) {
-      if (overlay) overlay.innerHTML = '';
+      loadingEl.remove();
       log('⚠️ Error bonding spirit', 'log-danger');
     }
   };
@@ -4163,7 +4184,6 @@ global.dungeonRun = (roomIdx) => {
   global.closeDungeonVictory = closeDungeonVictory;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
-  global.dungeonConfirmDiscover = globalThis.dungeonConfirmDiscover;
   global.dungeonShowFeedModal = globalThis.dungeonShowFeedModal;
   global.dungeonFeedElemental = globalThis.dungeonFeedElemental;
   global.closeDungeonOverlay = globalThis.closeDungeonOverlay;
