@@ -1766,9 +1766,10 @@ async function loadElementals() {
 
     try {
         const r = await api('GET', '/game/elementals');
+        console.log('[DEBUG] LoadElementals response:', r);
         if (r.error) throw new Error(r.error);
         
-        if (r.elementals.length === 0) {
+        if (!r.elementals || r.elementals.length === 0) {
             content.innerHTML = '<div class="empty-msg">No elementals found.</div>';
             return;
         }
