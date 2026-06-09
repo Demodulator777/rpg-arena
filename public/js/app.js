@@ -1493,7 +1493,7 @@ function showScreen(name) {
 }
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
 const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
-const INVENTORY_SUB_TABS = ['inventory','forge','shop'];
+const INVENTORY_SUB_TABS = ['inventory','forge','shop','elementals'];
 const MISSIONS_SUB_TABS = ['missions','dungeon','tournament'];
 
 function dungeonCombatIsActive() {
