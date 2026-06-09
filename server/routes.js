@@ -9030,13 +9030,13 @@ router.post('/elemental/equip/:elementalId', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/elemental/unequip/:elementalId', auth, async (req, res) => {
+router.post('/elemental/unequip', auth, async (req, res) => {
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         
-        await dbRun(db, 'UPDATE elementals SET is_equipped = 0 WHERE id = ? AND char_id = ?', [req.params.elementalId, char.id]);
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 0 WHERE char_id = ?', [char.id]);
         res.json({ success: true, message: 'Elemental unequipped!' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
