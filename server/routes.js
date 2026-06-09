@@ -12119,28 +12119,28 @@ const DUNGEON_MINI_BOSS_POOL = [
 ];
 
 const DUNGEON_COMMON_ITEMS = [
-  { id:'iron_shard',      name:'Iron Shard',     emoji:'🔩', rarity:'common' },
-  { id:'bone_fragment',   name:'Bone Fragment',  emoji:'🦴', rarity:'common' },
-  { id:'dim_crystal',     name:'Dim Crystal',    emoji:'💎', rarity:'common' },
-  { id:'frayed_cloth',    name:'Frayed Cloth',   emoji:'🧵', rarity:'common' },
-  { id:'tarnished_coin',  name:'Tarnished Coin', emoji:'🪙', rarity:'common' },
+  { id:'iron_shard',      name:'Iron Shard',     emoji:'🔩', rarity:'common',    type: 'raw_mat' },
+  { id:'bone_fragment',   name:'Bone Fragment',  emoji:'🦴', rarity:'common',    type: 'raw_mat' },
+  { id:'dim_crystal',     name:'Dim Crystal',    emoji:'💎', rarity:'common',    type: 'raw_mat' },
+  { id:'frayed_cloth',    name:'Frayed Cloth',   emoji:'🧵', rarity:'common',    type: 'raw_mat' },
+  { id:'tarnished_coin',  name:'Tarnished Coin', emoji:'🪙', rarity:'common',    type: 'raw_mat' },
 ];
 
 const DUNGEON_RARE_ITEMS = [
-  { id:'void_shard',       name:'Void Shard',      emoji:'🔮', rarity:'uncommon',  minFloor: 10 },
-  { id:'shadow_essence',   name:'Shadow Essence',  emoji:'🌑', rarity:'uncommon',  minFloor: 10 },
-  { id:'arcane_dust',      name:'Arcane Dust',     emoji:'✨', rarity:'uncommon',  minFloor: 15 },
-  { id:'crypt_dust',       name:'Crypt Dust',      emoji:'💀', rarity:'uncommon',  minFloor: 15 },
-  { id:'dragon_scale_shard',name:'Dragon Scale Shard', emoji:'🐉', rarity:'rare',  minFloor: 20 },
-  { id:'frost_essence',    name:'Frost Essence',   emoji:'❄️', rarity:'rare',     minFloor: 20 },
-  { id:'soul_essence',     name:'Soul Essence',    emoji:'👻', rarity:'rare',     minFloor: 25 },
-  { id:'demon_core',       name:'Demon Core',      emoji:'👹', rarity:'rare',     minFloor: 30 },
-  { id:'dark_essence',     name:'Dark Essence',    emoji:'🖤', rarity:'epic',     minFloor: 35 },
-  { id:'abyss_fragment',   name:'Abyss Fragment',  emoji:'🧩', rarity:'epic',     minFloor: 40 },
-  { id:'dragon_scale',     name:'Dragon Scale',    emoji:'🐲', rarity:'epic',     minFloor: 45 },
-  { id:'eternal_essence',  name:'Eternal Essence', emoji:'💠', rarity:'legendary',minFloor: 50 },
-  { id:'abyssal_core',     name:'Abyssal Core',    emoji:'🔴', rarity:'legendary',minFloor: 60 },
-  { id:'titan_heart',      name:'Titan Heart',     emoji:'❤️‍🔥', rarity:'legendary',minFloor: 75 },
+  { id:'void_shard',       name:'Void Shard',      emoji:'🔮', rarity:'uncommon',  minFloor: 10, type: 'raw_mat' },
+  { id:'shadow_essence',   name:'Shadow Essence',  emoji:'🌑', rarity:'uncommon',  minFloor: 10, type: 'raw_mat' },
+  { id:'arcane_dust',      name:'Arcane Dust',     emoji:'✨', rarity:'uncommon',  minFloor: 15, type: 'raw_mat' },
+  { id:'crypt_dust',       name:'Crypt Dust',      emoji:'💀', rarity:'uncommon',  minFloor: 15, type: 'raw_mat' },
+  { id:'dragon_scale_shard',name:'Dragon Scale Shard', emoji:'🐉', rarity:'rare',  minFloor: 20, type: 'raw_mat' },
+  { id:'frost_essence',    name:'Frost Essence',   emoji:'❄️', rarity:'rare',     minFloor: 20, type: 'raw_mat' },
+  { id:'soul_essence',     name:'Soul Essence',    emoji:'👻', rarity:'rare',     minFloor: 25, type: 'raw_mat' },
+  { id:'demon_core',       name:'Demon Core',      emoji:'👹', rarity:'rare',     minFloor: 30, type: 'raw_mat' },
+  { id:'dark_essence',     name:'Dark Essence',    emoji:'🖤', rarity:'epic',     minFloor: 35, type: 'raw_mat' },
+  { id:'abyss_fragment',   name:'Abyss Fragment',  emoji:'🧩', rarity:'epic',     minFloor: 40, type: 'raw_mat' },
+  { id:'dragon_scale',     name:'Dragon Scale',    emoji:'🐲', rarity:'epic',     minFloor: 45, type: 'raw_mat' },
+  { id:'eternal_essence',  name:'Eternal Essence', emoji:'💠', rarity:'legendary',minFloor: 50, type: 'raw_mat' },
+  { id:'abyssal_core',     name:'Abyssal Core',    emoji:'🔴', rarity:'legendary',minFloor: 60, type: 'raw_mat' },
+  { id:'titan_heart',      name:'Titan Heart',     emoji:'❤️‍🔥', rarity:'legendary',minFloor: 75, type: 'raw_mat' },
 ];
 
 function buildRegularMonsterForFloor(monsterId, floor) {
@@ -12293,7 +12293,7 @@ async function grantDungeonMinorLoot(db, charId, floor, monsterCount, rngState) 
     }
     if (loot.type === 'item_common' || loot.type === 'item_rare') {
       const mat = loot.item;
-      await addStackableInventoryItem(db, charId, 'raw_mat', { id: mat.id, name: mat.name, emoji: mat.emoji, rarity: mat.rarity }, 1);
+      await addStackableInventoryItem(db, charId, 'raw_mat', { id: mat.id, name: mat.name, emoji: mat.emoji, rarity: mat.rarity, type: 'raw_mat' }, 1);
       granted.push({ type:'material', id: mat.id, name: mat.name, qty: 1 });
       continue;
     }
