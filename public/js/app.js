@@ -2451,7 +2451,7 @@ async function loadElemFeedItems(elemId) {
         if (!listEl) return;
         const mats = (inv?.items || []).filter(i => {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : (i.item_data || {});
-            const isRawMat = (i.item_type === 'raw_mat' || d.type === 'raw_mat');
+            const isRawMat = d.type === 'raw_mat' || d.category === 'material';
             return isRawMat && (d.qty || 1) > 0 && ELEM_FEED_IDS.has(d.id);
         });
         if (!mats.length) {
@@ -2467,9 +2467,6 @@ async function loadElemFeedItems(elemId) {
             btn.className = 'elem-feed-btn';
             btn.dataset.invId = inv.id;
             btn.textContent = label;
-            btn.style.cssText = 'cursor:pointer !important;pointer-events:auto !important;position:relative;z-index:999';
-            btn.onmouseenter = () => { btn.style.background = 'rgba(255,0,0,0.3)'; };
-            btn.onmouseleave = () => { btn.style.background = ''; };
             btn.onclick = async () => {
                 if (btn.disabled) return;
                 const invId = btn.dataset.invId;
