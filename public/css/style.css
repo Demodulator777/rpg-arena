@@ -4286,6 +4286,52 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s, transform 0.15s;
 }
+.spirit-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+}
+.spirit-dialog {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  z-index: 10000;
+  width: 380px; max-width: 90vw;
+  padding: 24px;
+  border-radius: 16px;
+  background: rgba(10,14,26,0.98);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 12px 60px rgba(0,0,0,0.6);
+}
+.spirit-dialog-title {
+  font-size: 1.1rem; font-weight: 700;
+  color: #e2e8f0; margin-bottom: 12px;
+}
+.spirit-dialog-body {
+  font-size: 0.8rem; color: var(--text-dim);
+  line-height: 1.6; margin-bottom: 14px;
+}
+.spirit-dialog-label {
+  font-size: 0.75rem; color: #cbd5e1;
+  display: block; margin-bottom: 6px;
+}
+.spirit-dialog-input {
+  width: 100%; padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.45);
+  color: #e2e8f0; font-size: 0.9rem;
+  outline: none; box-sizing: border-box;
+}
+.spirit-dialog-input:focus {
+  border-color: rgba(168,85,247,0.5);
+  box-shadow: 0 0 14px rgba(168,85,247,0.25);
+}
+.spirit-dialog-actions {
+  display: flex; gap: 10px; margin-top: 16px;
+}
+.spirit-dialog-actions button {
+  flex: 1; padding: 10px; font-size: 0.85rem;
+}
+
 .topbar-menu-action:hover,
 .topbar-menu-toggle:hover {
     border-color: rgba(201,146,42,0.28);
