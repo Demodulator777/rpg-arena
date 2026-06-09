@@ -2497,7 +2497,98 @@
   }
 
   /* Hide inline log on mobile to save space */
-  .dungeon-hud-log-inline {
+.dungeon-elem-panel {
+  position: absolute;
+  top: 60px;
+  right: 12px;
+  width: 180px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(6, 10, 18, 0.88);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  z-index: 31;
+  font-size: 0.7rem;
+  pointer-events: auto;
+}
+.dungeon-elem-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+}
+.dungeon-elem-body {
+  color: #cbd5e1;
+}
+.dungeon-elem-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.dungeon-elem-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.dungeon-elem-bar-fill.hp-fill { background: linear-gradient(90deg, #22c55e, #16a34a); }
+.dungeon-elem-bar-fill.xp-fill { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+.dungeon-elem-feed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+.dungeon-elem-feed-row:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.15);
+}
+.dungeon-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  max-width: 90vw;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(8, 12, 22, 0.96);
+  border: 1px solid rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.dungeon-elem-name-input {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.4);
+  color: #e2e8f0;
+  font-size: 0.85rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.dungeon-elem-name-input:focus {
+  border-color: rgba(168,85,247,0.5);
+  box-shadow: 0 0 12px rgba(168,85,247,0.2);
+}
+
+.dungeon-modal-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.dungeon-hud-log-inline {
     display: none;
   }
 
