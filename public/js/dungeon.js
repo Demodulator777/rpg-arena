@@ -3937,7 +3937,6 @@ global.debugDungeonDetails = function() {
   function removeSpiritModal() {
     const el = document.getElementById('spirit-discover-modal');
     if (el) el.remove();
-    _spiritResolve = null;
   }
 
   global.dungeonDiscoverElemental = async function() {
@@ -3965,12 +3964,12 @@ global.debugDungeonDetails = function() {
           </div>
         </div>
       `;
-      function cancel() { removeSpiritModal(); if (_spiritResolve) _spiritResolve(null); }
+      function cancel() { removeSpiritModal(); _spiritResolve(null); }
       function confirm() {
         const input = document.getElementById('spirit-name-input');
         const n = input ? input.value.trim().slice(0, 24) : 'Elemental';
         removeSpiritModal();
-        if (_spiritResolve) _spiritResolve(n);
+        _spiritResolve(n);
       }
       div.querySelector('.spirit-overlay').addEventListener('click', cancel);
       div.querySelector('.btn-secondary').addEventListener('click', cancel);
