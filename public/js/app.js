@@ -2412,7 +2412,9 @@ const eqGrid = `
           ${eqGrid}
         </div>
         ${c.elemental ? (() => {
+          console.log('[DEBUG] Character elemental:', c.elemental);
           const el = c.elemental;
+          if (!el.is_equipped) return ''; // Conditional render
           const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
           const elHpPct = Math.min(100, el.hpMax > 0 ? Math.round((el.hp_current / el.hpMax) * 100) : 0);
           const elXpPct = Math.min(100, el.xpNext > 0 ? Math.round(((el.xp || 0) / el.xpNext) * 100) : 0);
