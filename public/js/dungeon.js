@@ -3023,6 +3023,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
   <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
   <div class="dungeon-hud-floor">Floor ${D.floor}</div>
   <div class="dungeon-hud-actions">
+    ${!getChar()?.elemental && (D.floor||1) >= 5 ? `<button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonDiscoverElemental')}>✨ Spirit</button>` : ''}
     <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>Guild</button>
     <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" ${actionAttrs('dungeonExit')}>Exit</button>
   </div>
@@ -3032,8 +3033,6 @@ const previewFloors = [0,1,2,3,4].map(offset => {
             <div class="dungeon-hud-minimap-title">Map</div>
             <div id="dungeon-minimap" class="dungeon-minimap">${renderMapGrid()}</div>
           </div>
-
-          ${renderElementalPanel()}
 
           <div class="dungeon-hud-center">
             <div class="dungeon-hud-room ${roomHasAliveMonsters ? 'has-monster' : ''}">
