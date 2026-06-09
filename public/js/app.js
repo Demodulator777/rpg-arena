@@ -2406,6 +2406,13 @@ const eqGrid = `
     });
     if (c.elemental) loadElemFeedItems(c.elemental.id);
 }
+const ELEM_FEED_IDS = new Set([
+    'iron_shard','bone_fragment','dim_crystal','frayed_cloth','tarnished_coin',
+    'void_shard','shadow_essence','arcane_dust','crypt_dust',
+    'dragon_scale_shard','frost_essence','soul_essence','demon_core',
+    'dark_essence','abyss_fragment','dragon_scale','eternal_essence',
+    'abyssal_core','titan_heart','void_crystal',
+]);
 async function loadElemFeedItems(elemId) {
     const section = document.getElementById(`elem-feed-section-${elemId}`);
     if (!section) return;
@@ -2415,7 +2422,7 @@ async function loadElemFeedItems(elemId) {
         const inv = await api('GET', '/game/inventory');
         const mats = (inv?.items || []).filter(i => {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : (i.item_data || {});
-            return (d.type === 'raw_mat') && (d.qty || 1) > 0;
+            return d.type === 'raw_mat' && (d.qty || 1) > 0 && ELEM_FEED_IDS.has(d.id);
         });
         if (!mats.length) {
             listEl.textContent = '📭 No materials. Clear dungeon rooms for drops!';
@@ -2424,32 +2431,32 @@ async function loadElemFeedItems(elemId) {
         listEl.innerHTML = mats.map(inv => {
             const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : (inv.item_data || {});
             const qty = d.qty || 1;
-            return `<div class="elem-feed-row" data-inv-id="${inv.id}" style="cursor:pointer">
-                <span>${d.emoji || '📦'} ${escHtml(d.name)} (${qty})</span>
-            </div>`;
+            const label = `${d.emoji || '📦'} ${escHtml(d.name)} (${qty})`;
+            return `<button class="elem-feed-btn" data-inv-id="${inv.id}" data-label="${escHtml(label)}">${label}</button>`;
         }).join('');
-        listEl.querySelectorAll('.elem-feed-row').forEach(row => {
-            row.addEventListener('click', async () => {
-                const invId = row.dataset.invId;
-                row.style.opacity = '0.5';
-                row.style.pointerEvents = 'none';
+        listEl.querySelectorAll('.elem-feed-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const invId = btn.dataset.invId;
+                const label = btn.dataset.label;
+                btn.disabled = true;
+                btn.textContent = '⏳ Feeding...';
                 try {
                     const r = await api('POST', '/game/elemental/feed', { inventory_id: invId });
                     if (r.elemental) {
-                        // Update global character + re-render
                         const charR = await api('GET', '/game/character');
                         if (charR) Object.assign(character, charR);
                         renderCharacter();
                         log(r.message || '🍽️ Fed elemental!', 'log-arrive');
                     } else {
                         log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
-                        row.style.opacity = '';
-                        row.style.pointerEvents = '';
+                        btn.disabled = false;
+                        btn.textContent = label;
                     }
                 } catch (e) {
-                    log('⚠️ Error feeding elemental', 'log-danger');
-                    row.style.opacity = '';
-                    row.style.pointerEvents = '';
+                    console.error('[Feed] Error:', e);
+                    log('⚠️ ' + (e.message || 'Error feeding elemental'), 'log-danger');
+                    btn.disabled = false;
+                    btn.textContent = label;
                 }
             });
         });
@@ -5362,7 +5369,7 @@ function hoverElemTooltip(el, event) {
             </div>
         </div>`;
     tooltip.classList.remove('hidden');
-    const r = event.currentTarget.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth || 220;
     let left = r.left - tw - 12, top = r.top;
