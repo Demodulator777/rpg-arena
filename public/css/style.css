@@ -6383,17 +6383,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: 25px !important;
     }
 }
-/* P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%
+
+/* ════════════════════════════════════════════════════════════════════════
    GAME MESSAGES
-   P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P%P% */
+   ════════════════════════════════════════════════════════════════════════ */
 .game-messages {
     position: absolute;
-    top: calc(var(--topbar-h) + 10px); /* Position below topbar */
+    top: calc(var(--topbar-h) + 10px);
     left: 50%;
     transform: translateX(-50%);
-    width: clamp(300px, 90%, 500px); /* Responsive width */
-    z-index: 1000; /* Ensure it's above most content but below modals */
-    pointer-events: none; /* Allow clicks to pass through to elements behind it */
+    width: clamp(300px, 90%, 500px);
+    z-index: 1000;
+    pointer-events: none;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -6411,7 +6412,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(10,15,26,0.92);
     border: 1px solid rgba(255,255,255,0.1);
     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    pointer-events: auto; /* Allow interaction with the message itself (e.g., selecting text) */
+    pointer-events: auto;
     opacity: 1;
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
 }
@@ -6441,3 +6442,37 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: #ffe0a3;
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   ELEMENTALS TAB
+   ════════════════════════════════════════════════════════════════════════ */
+#elementals-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+}
+
+.elemental-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.elemental-item.equipped {
+    border-color: rgba(241, 196, 15, 0.5);
+    background: rgba(241, 196, 15, 0.05);
+}
+
+.equipped-badge {
+    background: rgba(241, 196, 15, 0.2);
+    color: #f1c40f;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-left: 8px;
+    text-transform: uppercase;
+}
