@@ -1781,7 +1781,7 @@ async function loadElementals() {
                 </div>
                 <div class="elemental-actions">
                     ${e.equipped 
-                        ? `<button class="btn-secondary" data-action="unequipElemental">Unequip</button>`
+                        ? `<button class="btn-secondary" data-action="unequipElemental" data-args='[${e.id}]'>Unequip</button>`
                         : `<button class="btn-primary" data-action="equipElemental" data-args='[${e.id}]'>Equip</button>`
                     }
                 </div>
@@ -1801,7 +1801,7 @@ async function equipElemental(invId) {
     } catch (e) { gameLog(e.message, 'error'); }
 }
 
-async function unequipElemental() {
+async function unequipElemental(invId) {
     try {
         const r = await api('POST', '/game/elemental/unequip');
         if (r.error) throw new Error(r.error);
