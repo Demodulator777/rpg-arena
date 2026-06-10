@@ -9,25 +9,53 @@
             dots.textContent = frames[i];
         }, 400);
     }
-    // Dynamic ring colors & transparency
-    var ringLayers = document.querySelectorAll('.ring-layer');
-    var palettes = [
-        ['#ff6b35','#ff2d55','#ff9500','#ffcc02','#ff453a'],
-        ['#00d4ff','#5e5ce6','#32d74b','#64d2ff','#bf5af2'],
-        ['#a855f7','#ff375f','#ff9f0a','#30d158','#5e5ce6']
+
+    // Curated elegant palette — rich jewel tones that blend beautifully
+    var palette = [
+        '#c084fc', // violet
+        '#818cf8', // indigo
+        '#38bdf8', // sky
+        '#34d399', // emerald
+        '#fbbf24', // amber
+        '#f472b6', // pink
+        '#fb923c', // orange
+        '#a78bfa', // purple
+        '#2dd4bf', // teal
+        '#e879f9', // fuchsia
     ];
-    if (ringLayers.length === 3) {
-        setInterval(function() {
-            ringLayers.forEach(function(layer, idx) {
-                var palette = palettes[idx];
-                var color = palette[Math.floor(Math.random() * palette.length)];
-                var opacity = 0.3 + Math.random() * 0.5; // 0.3 - 0.8
-                layer.style.setProperty('--ring-color', color);
-                var overlay = layer.querySelector('.ring-color-overlay');
-                if (overlay) overlay.style.opacity = opacity;
-            });
-        }, 2500);
+
+    var ringLayers = document.querySelectorAll('.ring-layer');
+
+    function animateLayer(layer, minDelay, maxDelay) {
+        var color = palette[Math.floor(Math.random() * palette.length)];
+        // Opacity 0-50%: ambient gets 0-0.5, overlay gets 0-0.22
+        var ambientOpacity = (Math.random() * 0.5).toFixed(3);
+        var overlayOpacity = (Math.random() * 0.22).toFixed(3);
+
+        layer.style.setProperty('--ring-color', color);
+        var ambient = layer.querySelector('.ring-ambient-glow');
+        var overlay = layer.querySelector('.ring-color-overlay');
+        if (ambient) ambient.style.opacity = ambientOpacity;
+        if (overlay) overlay.style.opacity = overlayOpacity;
+
+        var delay = minDelay + Math.random() * (maxDelay - minDelay);
+        setTimeout(function() { animateLayer(layer, minDelay, maxDelay); }, delay);
     }
+
+    if (ringLayers.length >= 1) {
+        // Each layer gets its own random timing window so they drift independently
+        var configs = [
+            { min: 2800, max: 4200 },  // outer — slower, majestic
+            { min: 2000, max: 3400 },  // middle
+            { min: 1600, max: 2800 },  // inner — quickest
+        ];
+        ringLayers.forEach(function(layer, idx) {
+            var cfg = configs[idx] || configs[0];
+            var initialDelay = idx * 600 + Math.random() * 400;
+            setTimeout(function() { animateLayer(layer, cfg.min, cfg.max); }, initialDelay);
+        });
+    }
+
     window.addEventListener('load', function() {
         var ov = document.getElementById('loading-overlay');
         if (ov) {
