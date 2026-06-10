@@ -5,6 +5,7 @@ const { getDb } = require('./db');
 const {
   simulateRound, calculateMagicShield, calcHpMax,
   calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
+  calcElemAttackValue, calcElemHealValue,
   getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
   getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
@@ -343,7 +344,7 @@ async function buildFighter(db, participant, participants, noEquip) {
     const bm = (er.magic || 5) + (er.stat_mag || 0) * 2;
     const bv = (er.vitality || 5) + (er.stat_vit || 0) * 2;
     const eHp = 30 + bv * 4 + er.level * 8;
-    return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current || eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8), str: bs, def: bd, agi: ba, mag: bm, vit: bv };
+    return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, element_level: er.element_level || 1, hp: er.hp_current || eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8), str: bs, def: bd, agi: ba, mag: bm, vit: bv };
   };
 
   if (noEquip) {
@@ -479,14 +480,36 @@ function deathmatchBattle(fighterA, fighterB) {
 
     let elemDmgToB = 0, elemDmgToA = 0;
     if (elemA && elemAHp > 0) {
-      elemDmgToB = Math.max(1, Math.floor((elemA.dmgMin + elemA.dmgMax) / 2));
-      hpB = Math.max(0, hpB - elemDmgToB);
-      log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemA.element.toUpperCase()} damage!`);
+      const elemEl = elemA.element || 'pyro';
+      if ((elemA.defense || 0) >= (elemA.strength || 0)) {
+        const healAmt = calcElemHealValue(elemA, elemA);
+        hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
+        log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
+      } else {
+        const playerDmg = fighterA.elem_dmg?.[elemEl] || 0;
+        const raw = calcElemAttackValue(elemA, elemA, playerDmg);
+        const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
+        const mResB = Math.floor((fighterB.magic || 0) * 0.05);
+        elemDmgToB = Math.max(1, raw - eResB - mResB);
+        hpB = Math.max(0, hpB - elemDmgToB);
+        log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
+      }
     }
     if (elemB && elemBHp > 0) {
-      elemDmgToA = Math.max(1, Math.floor((elemB.dmgMin + elemB.dmgMax) / 2));
-      hpA = Math.max(0, hpA - elemDmgToA);
-      log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemB.element.toUpperCase()} damage!`);
+      const elemEl = elemB.element || 'pyro';
+      if ((elemB.defense || 0) >= (elemB.strength || 0)) {
+        const healAmt = calcElemHealValue(elemB, elemB);
+        hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
+        log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
+      } else {
+        const playerDmg = fighterB.elem_dmg?.[elemEl] || 0;
+        const raw = calcElemAttackValue(elemB, elemB, playerDmg);
+        const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
+        const mResA = Math.floor((fighterA.magic || 0) * 0.05);
+        elemDmgToA = Math.max(1, raw - eResA - mResA);
+        hpA = Math.max(0, hpA - elemDmgToA);
+        log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
+      }
     }
     if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
 
@@ -625,14 +648,36 @@ function normalBattle(fighterA, fighterB) {
 
     let elemDmgToB = 0, elemDmgToA = 0;
     if (elemA && elemAHp > 0) {
-      elemDmgToB = Math.max(1, Math.floor((elemA.dmgMin + elemA.dmgMax) / 2));
-      hpB = Math.max(0, hpB - elemDmgToB);
-      log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemA.element.toUpperCase()} damage!`);
+      const elemEl = elemA.element || 'pyro';
+      if ((elemA.defense || 0) >= (elemA.strength || 0)) {
+        const healAmt = calcElemHealValue(elemA, elemA);
+        hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
+        log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
+      } else {
+        const playerDmg = fighterA.elem_dmg?.[elemEl] || 0;
+        const raw = calcElemAttackValue(elemA, elemA, playerDmg);
+        const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
+        const mResB = Math.floor((fighterB.magic || 0) * 0.05);
+        elemDmgToB = Math.max(1, raw - eResB - mResB);
+        hpB = Math.max(0, hpB - elemDmgToB);
+        log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
+      }
     }
     if (elemB && elemBHp > 0) {
-      elemDmgToA = Math.max(1, Math.floor((elemB.dmgMin + elemB.dmgMax) / 2));
-      hpA = Math.max(0, hpA - elemDmgToA);
-      log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemB.element.toUpperCase()} damage!`);
+      const elemEl = elemB.element || 'pyro';
+      if ((elemB.defense || 0) >= (elemB.strength || 0)) {
+        const healAmt = calcElemHealValue(elemB, elemB);
+        hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
+        log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
+      } else {
+        const playerDmg = fighterB.elem_dmg?.[elemEl] || 0;
+        const raw = calcElemAttackValue(elemB, elemB, playerDmg);
+        const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
+        const mResA = Math.floor((fighterA.magic || 0) * 0.05);
+        elemDmgToA = Math.max(1, raw - eResA - mResA);
+        hpA = Math.max(0, hpA - elemDmgToA);
+        log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
+      }
     }
     if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
 
