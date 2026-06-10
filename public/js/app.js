@@ -2291,18 +2291,23 @@ function renderCharacter() {
     });
     const setBonus = c.equipped_set_bonuses || {};
 
-    const baseStr  = c.strength    || 0;
-    const baseDef  = c.defense     || 0;
+    const beastBonus = c.beast_stat_bonus || {};
+    const beastStr = beastBonus.str || 0;
+    const beastDef = beastBonus.def || 0;
+    const beastMag = beastBonus.mag || 0;
+    const beastVit = beastBonus.vit || 0;
+    const baseStr  = (c.strength    || 0) - beastStr;
+    const baseDef  = (c.defense     || 0) - beastDef;
     const baseAgi  = c.agility     || 0;
-    const baseMag  = c.magic       || 0;
-    const baseVit  = c.vitality    || 10;
+    const baseMag  = (c.magic       || 0) - beastMag;
+    const baseVit  = (c.vitality    || 10) - beastVit;
     const baseHit  = c.hit_chance  || 0;
     const baseCrit = c.crit_chance || 0;
-    const bonusStr  = (itemBonus.strength || 0) + (setBonus.strength || 0);
-    const bonusDef  = (itemBonus.defense || 0) + (setBonus.defense || 0);
+    const bonusStr  = (itemBonus.strength || 0) + (setBonus.strength || 0) + beastStr;
+    const bonusDef  = (itemBonus.defense || 0) + (setBonus.defense || 0) + beastDef;
     const bonusAgi  = (itemBonus.agility || 0) + (setBonus.agility || 0) + (c.no_shield_agi_bonus || 0);
-    const bonusMag  = (itemBonus.magic || 0) + (setBonus.magic || 0);
-    const bonusVit  = (itemBonus.vitality || 0) + (setBonus.vitality || 0);
+    const bonusMag  = (itemBonus.magic || 0) + (setBonus.magic || 0) + beastMag;
+    const bonusVit  = (itemBonus.vitality || 0) + (setBonus.vitality || 0) + beastVit;
     const bonusHit  = (itemBonus.hit_chance || 0) + (setBonus.hit_chance || 0);
     const bonusCrit = (itemBonus.crit_chance || 0) + (setBonus.crit_chance || 0);
     const totalStr = baseStr + bonusStr;
@@ -2318,18 +2323,24 @@ function renderCharacter() {
     const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
-    function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey) {
+    function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey, beastBonus) {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
-        const bonusTag = bonus !== 0
-            ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
-            : '';
+        let bonusHtml = '';
+        if (bonus !== 0) {
+            const beastPart = beastBonus || 0;
+            const gearPart = bonus - beastPart;
+            const parts = [];
+            if (gearPart !== 0) parts.push(`<span class="stat-bonus ${gearPart > 0 ? 'positive' : 'negative'}">${gearPart>0?'+':''}${gearPart}</span>`);
+            if (beastPart !== 0) parts.push(`<span class="stat-bonus beast-bonus" title="Spirit Beast">${beastPart>0?'+':''}${beastPart}🐾</span>`);
+            bonusHtml = ' ' + parts.join(' ');
+        }
         const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+</button>` : '';
         return `<div class="stat-row">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
             <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${pct}%"></div></div></div>
-            <span class="stat-val">${base}${bonusTag}</span>
+            <span class="stat-val">${base}${bonusHtml}</span>
             <span class="stat-total">${total}</span>
             ${upBtn}
         </div>`;
@@ -2408,11 +2419,11 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength')}
-          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense')}
-          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility')}
-          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic')}
-          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality')}
+          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr)}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef)}
+          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility', 0)}
+          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic', beastMag)}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality', beastVit)}
           ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit', c.upgradeCosts?.hit_chance, 'hit_chance'):''}
           ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
