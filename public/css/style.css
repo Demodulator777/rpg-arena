@@ -2561,7 +2561,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .elem-feed-name { flex:1;min-width:0 }
 .elem-feed-stack { color:rgba(255,255,255,0.3);font-size:0.65rem;flex-shrink:0 }
 .elem-feed-ctrls { display:flex;align-items:center;gap:2px;flex-shrink:0 }
-.elem-qty-btn { display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;padding:1px 5px;min-width:18px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(255,255,255,0.06);color:var(--text-dim);cursor:pointer !important;font-family:inherit;line-height:1.4;user-select:none }
+.elem-qty-btn { display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;padding:1px 5px;min-width:18px;border:1px solid rgba(255,255,255,0.1);border-radius:4px;background:rgba(255,255,255,0.06);color:var(--text-dim);cursor:pointer;font-family:inherit;line-height:1.4;user-select:none }
 .elem-qty-btn:hover { background:rgba(255,255,255,0.12) }
 .elem-qty-input { width:32px;text-align:center;font-size:0.7rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:inherit;padding:1px 0;font-family:inherit }
 .elem-feed-go { display:inline-flex;align-items:center;justify-content:center;font-size:0.65rem;padding:1px 6px;border:1px solid rgba(46,204,113,0.3);border-radius:4px;background:rgba(46,204,113,0.12);color:#2ecc71;cursor:pointer !important;font-family:inherit;line-height:1.4;user-select:none }
@@ -2575,7 +2575,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .elem-assign-val { min-width:16px;text-align:center;color:var(--text-bright);font-weight:600 }
 .elem-assign-go { display:block;text-align:center;font-size:0.72rem;padding:5px;margin-top:6px;border:1px solid rgba(168,85,247,0.3);border-radius:6px;background:rgba(168,85,247,0.1);color:#a855f7;cursor:pointer;user-select:none }
 .elem-assign-go:hover { background:rgba(168,85,247,0.2) }
-.elem-assign-dec, .elem-assign-inc { cursor:pointer !important }
+.elem-assign-dec, .elem-assign-inc { cursor:pointer }
 
 .profile-card::before,
 .shop-card::after,
