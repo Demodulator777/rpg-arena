@@ -496,8 +496,8 @@ function deathmatchBattle(fighterA, fighterB) {
     const dmgToB = resA.damageDealt + resB.damageCounter;
     const dmgToA = resB.damageDealt + resA.damageCounter;
 
-    totalDmgToA += dmgToA;
-    totalDmgToB += dmgToB;
+    totalDmgToA += dmgToA + elemDmgToA;
+    totalDmgToB += dmgToB + elemDmgToB;
     roundsCompleted = round;
 
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
@@ -642,8 +642,8 @@ function normalBattle(fighterA, fighterB) {
     const dmgToB = resA.damageDealt + resB.damageCounter;
     const dmgToA = resB.damageDealt + resA.damageCounter;
 
-    totalDmgToA += dmgToA;
-    totalDmgToB += dmgToB;
+    totalDmgToA += dmgToA + elemDmgToA;
+    totalDmgToB += dmgToB + elemDmgToB;
     roundsCompleted = round;
 
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
