@@ -9,6 +9,25 @@
             dots.textContent = frames[i];
         }, 400);
     }
+    // Dynamic ring colors & transparency
+    var ringLayers = document.querySelectorAll('.ring-layer');
+    var palettes = [
+        ['#ff6b35','#ff2d55','#ff9500','#ffcc02','#ff453a'],
+        ['#00d4ff','#5e5ce6','#32d74b','#64d2ff','#bf5af2'],
+        ['#a855f7','#ff375f','#ff9f0a','#30d158','#5e5ce6']
+    ];
+    if (ringLayers.length === 3) {
+        setInterval(function() {
+            ringLayers.forEach(function(layer, idx) {
+                var palette = palettes[idx];
+                var color = palette[Math.floor(Math.random() * palette.length)];
+                var opacity = 0.3 + Math.random() * 0.5; // 0.3 - 0.8
+                layer.style.setProperty('--ring-color', color);
+                var overlay = layer.querySelector('.ring-color-overlay');
+                if (overlay) overlay.style.opacity = opacity;
+            });
+        }, 2500);
+    }
     window.addEventListener('load', function() {
         var ov = document.getElementById('loading-overlay');
         if (ov) {
