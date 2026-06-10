@@ -5353,19 +5353,21 @@ function renderInventory(data) {
                     const elEmoji = e.element === 'pyro' ? '🔥' : e.element === 'water' ? '💧' : e.element === 'wind' ? '🌪️' : '⚡';
                     const hpPct = e.hpMax > 0 ? Math.round((e.hp_current / e.hpMax) * 100) : 0;
                     const xpPct = e.xpNext > 0 ? Math.round(((e.xp || 0) / e.xpNext) * 100) : 0;
+                    const elemData = escHtml(JSON.stringify({ name: e.name, element: e.element, level: e.level, hp: e.hp_current + '/' + e.hpMax, xp: (e.xp || 0) + '/' + e.xpNext, str: e.str, def: e.def, mag: e.mag, vit: e.vit, dmgMin: e.dmgMin, dmgMax: e.dmgMax }));
                     return `<div class="elem-inv-card ${e.equipped ? 'equipped' : ''}">
                         <div class="elem-inv-top">
-                            <div class="elem-inv-icon"><img src="/images/assets/elemental.png" alt="Elemental"></div>
+                            <div class="elem-inv-icon"><img src="/images/assets/elemental.png" alt="Elemental" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}"></div>
                             <div class="elem-inv-copy">
                                 <div class="elem-inv-name">${escHtml(e.name)}</div>
                                 <div class="elem-inv-meta">${elEmoji} ${e.element} · Lv.${e.level}</div>
                             </div>
                             ${e.equipped ? '<span class="equipped-badge">Equipped</span>' : ''}
                         </div>
-                        <div class="elem-inv-stats">
-                            <span>💪 ${e.str}</span><span>🛡️ ${e.def}</span><span>✨ ${e.mag}</span><span>❤️ ${e.vit}</span>
-                            <span>⚔️ ${e.dmgMin}-${e.dmgMax}</span>
-                        </div>
+                        <div class="elem-inv-stat">💪 Str ${e.str}</div>
+                        <div class="elem-inv-stat">🛡️ Def ${e.def}</div>
+                        <div class="elem-inv-stat">✨ Mag ${e.mag}</div>
+                        <div class="elem-inv-stat">❤️ Vit ${e.vit}</div>
+                        <div class="elem-inv-stat">⚔️ Dmg ${e.dmgMin}-${e.dmgMax}</div>
                         <div class="elem-inv-bars">
                             <div class="elem-bar-label">HP ${e.hp_current}/${e.hpMax}</div>
                             <div class="elem-bar"><div class="elem-bar-fill hp-fill" style="width:${hpPct}%"></div></div>
