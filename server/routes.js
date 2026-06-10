@@ -5719,7 +5719,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             const statsA = calcElemStats(elemA);
             const elemEl = elemA.element || 'pyro';
             if ((statsA.def || 0) >= (statsA.str || 0)) {
-                const healAmt = calcElemHealValue(elemA, statsA);
+                const healAmt = Math.round(calcElemHealValue(elemA, statsA));
                 hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
                 log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
             } else {
@@ -5727,7 +5727,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                 const raw = calcElemAttackValue(elemA, statsA, playerDmg);
                 const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
                 const mResB = Math.floor((fighterB.magic || 0) * 0.05);
-                elemDmgToB = Math.max(1, raw - eResB - mResB);
+                elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
                 hpB = Math.max(0, hpB - elemDmgToB);
                 log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
             }
@@ -5736,7 +5736,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             const statsB = calcElemStats(elemB);
             const elemEl = elemB.element || 'pyro';
             if ((statsB.def || 0) >= (statsB.str || 0)) {
-                const healAmt = calcElemHealValue(elemB, statsB);
+                const healAmt = Math.round(calcElemHealValue(elemB, statsB));
                 hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
                 log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
             } else {
@@ -5744,7 +5744,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                 const raw = calcElemAttackValue(elemB, statsB, playerDmg);
                 const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
                 const mResA = Math.floor((fighterA.magic || 0) * 0.05);
-                elemDmgToA = Math.max(1, raw - eResA - mResA);
+                elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
                 hpA = Math.max(0, hpA - elemDmgToA);
                 log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
             }
@@ -15389,8 +15389,8 @@ function calcElemStats(elem) {
 
 function calcElemAttackValue(elem, computedStats, playerElemDmgValue) {
     const elemLvl = elem.element_level || 1;
-    const fromPlayer = Math.floor((playerElemDmgValue || 0) * 0.15);
-    const base = 2 + elemLvl * 3 + fromPlayer;
+    const fromPlayer = Math.floor((playerElemDmgValue || 0) * 0.015);
+    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + fromPlayer));
     const variance = Math.floor(base * 0.2);
     return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
 }
@@ -15399,8 +15399,8 @@ function calcElemHealValue(elem, computedStats) {
     const elemLvl = elem.element_level || 1;
     const vit = computedStats.vit;
     const def = computedStats.def;
-    const base = 5 + elemLvl * 2 + Math.floor(vit * 0.3) + Math.floor(def * 0.1);
-    const variance = Math.floor(base * 0.15);
+    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + Math.floor(vit * 0.03) + Math.floor(def * 0.01)));
+    const variance = Math.floor(base * 0.2);
     return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
 }
 
