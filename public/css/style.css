@@ -2846,7 +2846,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     margin-left: 3px;
 }
 .stat-bonus.positive { color: #2ecc71; }
-.stat-bonus.beast-bonus { color: #a855f7; }
+.stat-beast-active { background: rgba(168,85,247,0.06); border-radius: 6px; padding: 1px 0; }
 .stat-upgrade-btn {
     font-size: 0.62rem;
     padding: 2px 0;
