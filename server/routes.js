@@ -9040,11 +9040,16 @@ router.get('/elementals', auth, async (req, res) => {
 
         const elementals = await dbAll(db, `SELECT * FROM elementals WHERE char_id = ? ORDER BY created_at DESC`, [char.id]);
 
-        const responseElementals = elementals.map(e => ({
-            ...e,
-            item_data: { name: e.name, element: e.element, level: e.level },
-            equipped: !!e.is_equipped
-        }));
+        const responseElementals = elementals.map(e => {
+            const stats = calcElemStats(e);
+            return {
+                ...e,
+                ...stats,
+                item_data: { name: e.name, element: e.element, level: e.level, ...stats },
+                equipped: !!e.is_equipped,
+                xpNext: elemXpForLevel(e.level || 1)
+            };
+        });
 
         res.json({ elementals: responseElementals });
 
