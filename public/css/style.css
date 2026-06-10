@@ -2575,6 +2575,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .elem-assign-val { min-width:16px;text-align:center;color:var(--text-bright);font-weight:600 }
 .elem-assign-go { display:block;text-align:center;font-size:0.72rem;padding:5px;margin-top:6px;border:1px solid rgba(168,85,247,0.3);border-radius:6px;background:rgba(168,85,247,0.1);color:#a855f7;cursor:pointer;user-select:none }
 .elem-assign-go:hover { background:rgba(168,85,247,0.2) }
+.elem-assign-dec, .elem-assign-inc { cursor:pointer !important }
 
 .profile-card::before,
 .shop-card::after,
