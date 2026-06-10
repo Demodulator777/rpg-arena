@@ -1822,26 +1822,6 @@ async function unequipElemental(invId) {
 }
 
 window.equipElemental = equipElemental;
-window.elemAssignStat = function(stat, dir) {
-    const row = document.querySelector(`.elem-assign-row[data-elem-assign="${stat}"]`);
-    if (!row) return;
-    const valEl = row.querySelector('.elem-assign-val');
-    const ptsEl = document.querySelector('.elem-pts-left');
-    const assignBtn = row.closest('.elem-stat-assign')?.querySelector('.elem-assign-go');
-    
-    if (assignBtn?.disabled || assignBtn?.getAttribute('aria-disabled') === 'true') return;
-    
-    let cur = parseInt(valEl.textContent) || 0;
-    let pts = parseInt(ptsEl?.textContent) || 0;
-    
-    if (dir === 'inc' && pts > 0) {
-        valEl.textContent = cur + 1;
-        ptsEl.textContent = pts - 1;
-    } else if (dir === 'dec' && cur > 0) {
-        valEl.textContent = cur - 1;
-        ptsEl.textContent = pts + 1;
-    }
-};
 function toggleMissionsHubInline() {
     const trigger = document.getElementById('missions-hub-trigger');
     if (!trigger) return;
@@ -2511,10 +2491,18 @@ const eqGrid = `
         const valEl = row.querySelector('.elem-assign-val');
         const ptsEl = document.querySelector('.elem-pts-left');
         const assignBtn = row.closest('.elem-stat-assign')?.querySelector('.elem-assign-go');
-        row.querySelector('.elem-assign-inc').setAttribute('data-action', 'elemAssignStat');
-        row.querySelector('.elem-assign-inc').setAttribute('data-args', JSON.stringify([stat, 'inc']));
-        row.querySelector('.elem-assign-dec').setAttribute('data-action', 'elemAssignStat');
-        row.querySelector('.elem-assign-dec').setAttribute('data-args', JSON.stringify([stat, 'dec']));
+        row.querySelector('.elem-assign-inc').onclick = () => {
+            if (assignBtn?.disabled || assignBtn?.getAttribute('aria-disabled') === 'true') return;
+            const cur = parseInt(valEl.textContent) || 0;
+            const pts = parseInt(ptsEl?.textContent) || 0;
+            if (pts > 0) { valEl.textContent = cur + 1; if (ptsEl) ptsEl.textContent = pts - 1; }
+        };
+        row.querySelector('.elem-assign-dec').onclick = () => {
+            if (assignBtn?.disabled || assignBtn?.getAttribute('aria-disabled') === 'true') return;
+            const cur = parseInt(valEl.textContent) || 0;
+            const pts = parseInt(ptsEl?.textContent) || 0;
+            if (cur > 0) { valEl.textContent = cur - 1; if (ptsEl) ptsEl.textContent = pts + 1; }
+        };
     });
     if (c.elemental) loadElemFeedItems(c.elemental.id);
 }
