@@ -6542,6 +6542,37 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @keyframes spin-cw { to { transform: rotate(360deg) } }
 @keyframes spin-ccw { to { transform: rotate(-360deg) } }
 
+@media (max-width: 680px) {
+    .loading-rings {
+        width: min(363px, 85vw);
+        height: min(361px, calc(85vw * 361 / 363));
+    }
+    .ring-layer {
+        width: min(363px, 85vw);
+        height: min(361px, calc(85vw * 361 / 363));
+    }
+    .loading-ring {
+        width: min(363px, 85vw);
+        height: min(361px, calc(85vw * 361 / 363));
+    }
+    .loading-text { font-size: 1rem }
+}
+@media (max-width: 480px) {
+    .loading-rings {
+        width: min(363px, 92vw);
+        height: min(361px, calc(92vw * 361 / 363));
+    }
+    .ring-layer {
+        width: min(363px, 92vw);
+        height: min(361px, calc(92vw * 361 / 363));
+    }
+    .loading-ring {
+        width: min(363px, 92vw);
+        height: min(361px, calc(92vw * 361 / 363));
+    }
+    .loading-text { font-size: 0.85rem }
+}
+
 .loading-text {
     margin-top: 24px;
     font-family: 'Cinzel', serif;
