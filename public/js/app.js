@@ -2356,7 +2356,7 @@ const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
             ${c.elemental ? (() => {
               const el = c.elemental;
               const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
-              const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, agi: el.agi, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax, hit: el.hit, crit: el.crit }));
+              const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
               return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
             })() : ''}
         </div>` : '';
@@ -2457,12 +2457,9 @@ const eqGrid = `
               <div class="elem-bar"><div class="elem-bar-fill xp-fill" style="width:${elXpPct}%"></div></div>
               <div>💪 ${el.str}</div>
               <div>🛡️ ${el.def}</div>
-              <div>⚡ ${el.agi}</div>
               <div>✨ ${el.mag}</div>
               <div>❤️ ${el.vit}</div>
               <div>⚔️ ${el.dmgMin}-${el.dmgMax}</div>
-              <div>🎯 ${el.hit}%</div>
-              <div>💥 ${el.crit}%</div>
             </div>
             ${el.stat_points > 0 ? `
             <div class="elem-stat-assign">
@@ -2471,7 +2468,6 @@ const eqGrid = `
               </div>
               <div class="elem-assign-row" data-elem-assign="str"><span>💪 Str</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
               <div class="elem-assign-row" data-elem-assign="def"><span>🛡️ Def</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
-              <div class="elem-assign-row" data-elem-assign="agi"><span>⚡ Agi</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
               <div class="elem-assign-row" data-elem-assign="mag"><span>✨ Mag</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
               <div class="elem-assign-row" data-elem-assign="vit"><span>❤️ Vit</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
               <div class="elem-assign-go" data-elem-id="${el.id}" data-action="elemAssignStats">Assign</div>
@@ -5586,12 +5582,9 @@ function hoverElemTooltip(el, event) {
             <div class="tt-stats">
                 <div class="tt-stat"><span class="tt-stat-name">💪 Str</span><span class="tt-stat-val">${d.str}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">🛡️ Def</span><span class="tt-stat-val">${d.def}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">⚡ Agi</span><span class="tt-stat-val">${d.agi}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">✨ Mag</span><span class="tt-stat-val">${d.mag}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">❤️ Vit</span><span class="tt-stat-val">${d.vit}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">⚔️ Dmg</span><span class="tt-stat-val">${d.dmgMin}-${d.dmgMax}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">🎯 Hit</span><span class="tt-stat-val">${d.hit}%</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">💥 Crit</span><span class="tt-stat-val">${d.crit}%</span></div>
             </div>
         </div>`;
     tooltip.classList.remove('hidden');
@@ -7509,7 +7502,7 @@ async function openProfile(id) {
                     <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
                     ${p.elemental ? (() => {
                         const el = p.elemental;
-                        const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, agi: el.agi, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax, hit: el.hit, crit: el.crit }));
+                        const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
                         return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
                     })() : ''}
                 </div>` : '';
