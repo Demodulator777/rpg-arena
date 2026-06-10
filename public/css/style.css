@@ -3729,6 +3729,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 100%;
     border-radius: 3px;
     transition: width 0.3s;
+    position: relative;
+    overflow: hidden;
 }
 .elem-inv-card .hp-fill { background: linear-gradient(90deg,#22c55e,#16a34a) }
 .elem-inv-card .xp-fill { background: linear-gradient(90deg,#a855f7,#7c3aed) }
