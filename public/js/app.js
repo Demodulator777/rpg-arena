@@ -2543,7 +2543,7 @@ async function elemFeedItem(elemId, invId, el) {
 window.elemFeedItem = elemFeedItem;
 
 // Elemental stat assignment handler (called via data-action="elemAssignStats")
-window.elemAssignStats = async function(elemId, el, event) {
+window.elemAssignStats = async function(el, event) {
     const panel = el?.closest('.char-panel-elemental');
     if (!panel) return;
     const ptsEl = panel.querySelector('.elem-pts-left');
