@@ -1,3 +1,23 @@
+// ── Loading Overlay ───────────────────────────────────────────────────────
+(function(){
+    var dots = document.getElementById('loading-dots');
+    if (dots) {
+        var frames = ['', '.', '..', '...'];
+        var i = 0;
+        setInterval(function() {
+            i = (i + 1) % frames.length;
+            dots.textContent = frames[i];
+        }, 400);
+    }
+    window.addEventListener('load', function() {
+        var ov = document.getElementById('loading-overlay');
+        if (ov) {
+            ov.classList.add('hidden');
+            setTimeout(function() { ov.remove(); }, 600);
+        }
+    });
+})();
+
 // ── State ─────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('rpg_token');
 let username = localStorage.getItem('rpg_username');
