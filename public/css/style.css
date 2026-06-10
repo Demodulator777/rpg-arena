@@ -6512,6 +6512,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none;
 }
 
+.loading-text {
+    margin-top: 28px;
+    font-size: 1.05rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+    display: flex;
+    align-items: baseline;
+}
+#loading-dots {
+    display: inline-block;
+    width: 1.8em;
+    text-align: left;
+}
+
 .loading-rings {
     position: relative;
     width: 363px;
@@ -6526,8 +6541,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 361px;
     left: 0;
     top: 0;
-    transition: opacity 1.2s ease, filter 1.2s ease;
-    box-shadow: 0 0 200px 80px var(--ring-color);
 }
 .loading-ring {
     position: absolute;
@@ -6538,28 +6551,28 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .ring-ambient-glow {
     position: absolute;
-    left: -300px;
-    top: -300px;
-    width: calc(100% + 600px);
-    height: calc(100% + 600px);
+    left: -280px;
+    top: -280px;
+    width: calc(100% + 560px);
+    height: calc(100% + 560px);
     border-radius: 50%;
-    background: radial-gradient(circle, var(--ring-color) 0%, var(--ring-color) 25%, transparent 72%);
-    opacity: 0.45;
+    background: radial-gradient(circle, var(--ring-color) 0%, transparent 65%);
+    opacity: 0;
     pointer-events: none;
-    transition: opacity 1.2s ease, background 1.2s ease;
+    transition: opacity 2.4s ease, background 2.4s ease;
 }
 .ring-color-overlay {
     position: absolute;
     inset: 0;
     background: var(--ring-color);
     mix-blend-mode: color;
-    opacity: 0.5;
+    opacity: 0;
     pointer-events: none;
-    transition: opacity 1.2s ease, background 1.2s ease;
+    transition: opacity 2.4s ease, background 2.4s ease;
 }
-.outer-ring { animation: spin-cw 8s linear infinite; filter: drop-shadow(0 0 120px var(--ring-color)) }
-.middle-ring { animation: spin-ccw 5s linear infinite; filter: drop-shadow(0 0 100px var(--ring-color)) }
-.inner-ring { animation: spin-cw 3s linear infinite; filter: drop-shadow(0 0 80px var(--ring-color)) }
+.outer-ring { animation: spin-cw 18s linear infinite; }
+.middle-ring { animation: spin-ccw 13s linear infinite; }
+.inner-ring { animation: spin-cw 9s linear infinite; }
 
 @keyframes spin-cw { to { transform: rotate(360deg) } }
 @keyframes spin-ccw { to { transform: rotate(-360deg) } }
