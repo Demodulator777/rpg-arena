@@ -15378,21 +15378,21 @@ function calcElemStats(elem) {
     const lvl = elem.level || 1;
     const str = (elem.strength || 5) + (elem.stat_str || 0) * 2;
     const def = (elem.defense || 5) + (elem.stat_def || 0) * 2;
-    const agi = (elem.agility || 5) + (elem.stat_agi || 0) * 2;
     const mag = (elem.magic || 5) + (elem.stat_mag || 0) * 2;
     const vit = (elem.vitality || 5) + (elem.stat_vit || 0) * 2;
     const hpMax = 30 + vit * 4 + lvl * 8;
-    const dmgMin = 2 + Math.floor(str * 0.4) + Math.floor(lvl * 0.5);
-    const dmgMax = 5 + Math.floor(str * 0.6) + Math.floor(lvl * 0.8);
-    const hit = 5 + Math.floor(agi * 0.4) + lvl;
-    const crit = 2 + Math.floor(agi * 0.15) + Math.floor(lvl * 0.3);
-    return { str, def, agi, mag, vit, hpMax, dmgMin, dmgMax, hit, crit };
+    const dmgMin = 2 + Math.floor(str * 0.3) + Math.floor(mag * 0.2) + Math.floor(lvl * 0.5);
+    const dmgMax = 5 + Math.floor(str * 0.4) + Math.floor(mag * 0.3) + Math.floor(lvl * 0.8);
+    return { str, def, mag, vit, hpMax, dmgMin, dmgMax };
 }
 
 function calcElemAttackValue(elem, computedStats, playerElemDmgValue) {
     const elemLvl = elem.element_level || 1;
+    const str = computedStats.str || 0;
+    const mag = computedStats.mag || 0;
+    const fromStrMag = Math.floor(str * 0.08) + Math.floor(mag * 0.06);
     const fromPlayer = Math.floor((playerElemDmgValue || 0) * 0.015);
-    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + fromPlayer));
+    const base = Math.max(1, 2 + fromStrMag + fromPlayer + Math.floor(elemLvl * 0.5));
     const variance = Math.floor(base * 0.2);
     return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
 }
@@ -15655,13 +15655,11 @@ function buildElementalFighter(elem, playerLevel) {
         dmgMin: stats.dmgMin,
         dmgMax: stats.dmgMax,
         strength: stats.str,
-        agility: stats.agi,
         magic: stats.mag,
         defense: stats.def,
-        hit_chance: stats.hit,
-        crit_chance: stats.crit,
         armor: Math.floor(stats.def / 3),
-        agility_bonus: 0,
+        hit_chance: 0,
+        crit_chance: 0,
         dmg_bonus: 0,
         elem_dmg: elems,
         elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
