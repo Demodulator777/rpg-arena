@@ -3650,7 +3650,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .elem-inv-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 14px;
 }
 .elem-inv-card {
@@ -3660,7 +3660,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
 }
 .elem-inv-card.equipped {
     border-color: rgba(241, 196, 15, 0.5);
@@ -3669,12 +3669,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .elem-inv-top {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    margin-bottom: 4px;
 }
 .elem-inv-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
     background: rgba(255,255,255,0.04);
     display: flex;
     align-items: center;
@@ -3682,8 +3683,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     flex-shrink: 0;
 }
 .elem-inv-icon img {
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
     object-fit: contain;
 }
 .elem-inv-copy {
@@ -3693,20 +3694,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .elem-inv-name {
     color: var(--text-bright);
     font-weight: 700;
-    font-size: 0.84rem;
-    line-height: 1.25;
+    font-size: 0.82rem;
+    line-height: 1.2;
 }
 .elem-inv-meta {
     color: var(--text-dim);
-    font-size: 0.72rem;
-    margin-top: 3px;
+    font-size: 0.7rem;
+    margin-top: 2px;
 }
-.elem-inv-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 10px;
+.elem-inv-stat {
     font-size: 0.77rem;
     color: var(--text-dim);
+    line-height: 1.6;
 }
 .elem-inv-bars {
     display: flex;
