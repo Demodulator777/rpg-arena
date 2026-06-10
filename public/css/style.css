@@ -6527,14 +6527,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     left: 0;
     top: 0;
 }
-.ring-color-overlay {
-    position: absolute;
-    inset: 0;
-    background: var(--ring-color);
-    mix-blend-mode: overlay;
-    opacity: 0.3;
-    pointer-events: none;
-}
 .outer-ring { animation: spin-cw 8s linear infinite; filter: drop-shadow(0 0 25px var(--ring-color)) }
 .middle-ring { animation: spin-ccw 5s linear infinite; filter: drop-shadow(0 0 20px var(--ring-color)) }
 .inner-ring { animation: spin-cw 3s linear infinite; filter: drop-shadow(0 0 15px var(--ring-color)) }
