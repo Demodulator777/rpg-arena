@@ -2323,20 +2323,15 @@ function renderCharacter() {
     const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
-    function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey, beastBonus) {
+    function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey, hasBeast) {
         const total = base + bonus;
         const pct = Math.round(total / Math.max(max, 1) * 100);
-        let bonusHtml = '';
-        if (bonus !== 0) {
-            const beastPart = beastBonus || 0;
-            const gearPart = bonus - beastPart;
-            const parts = [];
-            if (gearPart !== 0) parts.push(`<span class="stat-bonus ${gearPart > 0 ? 'positive' : 'negative'}">${gearPart>0?'+':''}${gearPart}</span>`);
-            if (beastPart !== 0) parts.push(`<span class="stat-bonus beast-bonus" title="Spirit Beast">${beastPart>0?'+':''}${beastPart}🐾</span>`);
-            bonusHtml = ' ' + parts.join(' ');
-        }
+        const beastClass = hasBeast ? 'stat-beast-active' : '';
+        let bonusHtml = bonus !== 0
+            ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
+            : '';
         const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+</button>` : '';
-        return `<div class="stat-row">
+        return `<div class="stat-row ${beastClass}">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
             <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${pct}%"></div></div></div>
@@ -2419,11 +2414,11 @@ const eqGrid = `
       <div class="class-scene-content char-grid">
         <div class="char-panel">
           <h3>STATS</h3>
-          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr)}
-          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef)}
-          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility', 0)}
-          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic', beastMag)}
-          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality', beastVit)}
+          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr > 0)}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef > 0)}
+          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility', false)}
+          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic', beastMag > 0)}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality', beastVit > 0)}
           ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit', c.upgradeCosts?.hit_chance, 'hit_chance'):''}
           ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
