@@ -486,8 +486,7 @@ function deathmatchBattle(fighterA, fighterB) {
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
       } else {
-        const playerDmg = fighterA.elem_dmg?.[elemEl] || 0;
-        const raw = calcElemAttackValue(elemA, elemA, playerDmg);
+        const raw = calcElemAttackValue(elemA, elemA);
         const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
         const mResB = Math.floor((fighterB.magic || 0) * 0.05);
         elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
@@ -502,8 +501,7 @@ function deathmatchBattle(fighterA, fighterB) {
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
       } else {
-        const playerDmg = fighterB.elem_dmg?.[elemEl] || 0;
-        const raw = calcElemAttackValue(elemB, elemB, playerDmg);
+        const raw = calcElemAttackValue(elemB, elemB);
         const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
         const mResA = Math.floor((fighterA.magic || 0) * 0.05);
         elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
@@ -654,8 +652,7 @@ function normalBattle(fighterA, fighterB) {
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
       } else {
-        const playerDmg = fighterA.elem_dmg?.[elemEl] || 0;
-        const raw = calcElemAttackValue(elemA, elemA, playerDmg);
+        const raw = calcElemAttackValue(elemA, elemA);
         const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
         const mResB = Math.floor((fighterB.magic || 0) * 0.05);
         elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
@@ -670,8 +667,7 @@ function normalBattle(fighterA, fighterB) {
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
       } else {
-        const playerDmg = fighterB.elem_dmg?.[elemEl] || 0;
-        const raw = calcElemAttackValue(elemB, elemB, playerDmg);
+        const raw = calcElemAttackValue(elemB, elemB);
         const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
         const mResA = Math.floor((fighterA.magic || 0) * 0.05);
         elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
