@@ -15499,7 +15499,7 @@ router.post('/elemental/discover', auth, async (req, res) => {
             return res.status(400).json({ error: 'Reach dungeon floor 5 to discover an elemental' });
         }
         const name = (req.body?.name || '').trim().slice(0, 24) || 'Elemental';
-        const ins = await dbRun(db, `INSERT INTO elementals (char_id, name) VALUES (?, ?)`, [char.id, name]);
+        const ins = await dbRun(db, `INSERT INTO elementals (char_id, name, stat_points) VALUES (?, ?, ?)`, [char.id, name, 5]);
         console.log('[ElemDiscover] INSERT result:', JSON.stringify(ins), 'char_id:', char.id, 'name:', name);
         const elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]);
         if (!elem) {
