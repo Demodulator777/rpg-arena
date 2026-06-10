@@ -2429,6 +2429,7 @@ const eqGrid = `
               <span class="elem-name">${elEmoji} ${escHtml(el.name)}</span>
               <span class="elem-lvl-badge">Lv.${el.level}</span>
               <span class="elem-element-tag">${el.element}</span>
+              <span class="elem-role-tag" style="color:${(el.str||0) > (el.def||0) ? '#ef4444' : '#22c55e'};font-size:0.6rem;margin-left:4px">${(el.str||0) > (el.def||0) ? '⚔️ ATTACK' : '💚 HEAL'}</span>
             </div>
             <div class="elem-stat-grid">
               <div><span class="stat-hp">❤️</span> ${el.hp_current}/${el.hpMax}</div>
@@ -2444,6 +2445,19 @@ const eqGrid = `
               <div>🎯 ${el.hit}%</div>
               <div>💥 ${el.crit}%</div>
             </div>
+            ${el.stat_points > 0 ? `
+            <div class="elem-stat-assign">
+              <div style="font-size:0.75rem;margin:8px 0 4px;color:var(--gold);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
+                📊 Assign Stats <span style="float:right">Points: <strong class="elem-pts-left">${el.stat_points}</strong></span>
+              </div>
+              <div class="elem-assign-row" data-elem-assign="str"><span>💪 Str</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="def"><span>🛡️ Def</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="agi"><span>⚡ Agi</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="mag"><span>✨ Mag</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="vit"><span>❤️ Vit</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-go" data-elem-id="${el.id}" data-action="elemAssignStats">Assign</div>
+            </div>
+            ` : ''}
             <div id="elem-feed-section-${el.id}">
               <div style="font-size:0.75rem;margin:10px 0 6px;color:var(--text-dim);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">🍽️ Feed Materials</div>
               <div class="elem-feed-loading" style="font-size:0.7rem;color:var(--text-dim)">Loading...</div>
@@ -2471,6 +2485,22 @@ const eqGrid = `
     refreshInlineBadgeChips();
     charSheet.querySelectorAll('.stat-upgrade-btn').forEach(btn => {
         btn.addEventListener('click', () => upgradestat(btn.dataset.stat));
+    });
+    // Elemental stat assignment +/- buttons
+    charSheet.querySelectorAll('.elem-assign-row').forEach(row => {
+        const stat = row.dataset.elemAssign;
+        const valEl = row.querySelector('.elem-assign-val');
+        const ptsEl = document.querySelector('.elem-pts-left');
+        row.querySelector('.elem-assign-inc').onclick = () => {
+            const cur = parseInt(valEl.textContent) || 0;
+            const pts = parseInt(ptsEl?.textContent) || 0;
+            if (pts > 0) { valEl.textContent = cur + 1; if (ptsEl) ptsEl.textContent = pts - 1; }
+        };
+        row.querySelector('.elem-assign-dec').onclick = () => {
+            const cur = parseInt(valEl.textContent) || 0;
+            const pts = parseInt(ptsEl?.textContent) || 0;
+            if (cur > 0) { valEl.textContent = cur - 1; if (ptsEl) ptsEl.textContent = pts + 1; }
+        };
     });
     if (c.elemental) loadElemFeedItems(c.elemental.id);
 }
@@ -2509,6 +2539,37 @@ async function elemFeedItem(elemId, invId, el) {
 
 // Ensure the function is globally accessible
 window.elemFeedItem = elemFeedItem;
+
+// Elemental stat assignment handler (called via data-action="elemAssignStats")
+window.elemAssignStats = async function(elemId, el, event) {
+    const panel = el?.closest('.char-panel-elemental');
+    if (!panel) return;
+    const ptsEl = panel.querySelector('.elem-pts-left');
+    const pts = parseInt(ptsEl?.textContent) || 0;
+    if (pts <= 0) return;
+    const stats = {};
+    panel.querySelectorAll('.elem-assign-row').forEach(row => {
+        const stat = row.dataset.elemAssign;
+        stats[stat] = parseInt(row.querySelector('.elem-assign-val')?.textContent) || 0;
+    });
+    const total = Object.values(stats).reduce((a, b) => a + b, 0);
+    if (total <= 0) return;
+    try {
+        el.textContent = '...';
+        const r = await api('POST', '/game/elemental/assign-stats', stats);
+        if (r.elemental) {
+            const charR = await api('GET', '/game/character');
+            if (charR) Object.assign(character, charR);
+            renderCharacter();
+            gameLog(r.message || 'Stats assigned!', 'info');
+        } else {
+            gameLog('⚠️ ' + (r.error || 'Failed to assign'), 'error');
+        }
+    } catch (e) {
+        console.error('[ElemAssign]', e);
+        gameLog('⚠️ ' + e.message, 'error');
+    }
+};
 
 async function loadElemFeedItems(elemId) {
     try {
