@@ -2491,12 +2491,15 @@ const eqGrid = `
         const stat = row.dataset.elemAssign;
         const valEl = row.querySelector('.elem-assign-val');
         const ptsEl = document.querySelector('.elem-pts-left');
+        const assignBtn = row.closest('.elem-stat-assign')?.querySelector('.elem-assign-go');
         row.querySelector('.elem-assign-inc').onclick = () => {
+            if (assignBtn?.disabled || assignBtn?.getAttribute('aria-disabled') === 'true') return;
             const cur = parseInt(valEl.textContent) || 0;
             const pts = parseInt(ptsEl?.textContent) || 0;
             if (pts > 0) { valEl.textContent = cur + 1; if (ptsEl) ptsEl.textContent = pts - 1; }
         };
         row.querySelector('.elem-assign-dec').onclick = () => {
+            if (assignBtn?.disabled || assignBtn?.getAttribute('aria-disabled') === 'true') return;
             const cur = parseInt(valEl.textContent) || 0;
             const pts = parseInt(ptsEl?.textContent) || 0;
             if (cur > 0) { valEl.textContent = cur - 1; if (ptsEl) ptsEl.textContent = pts + 1; }
@@ -2554,8 +2557,9 @@ window.elemAssignStats = async function(elemId, el, event) {
     });
     const total = Object.values(stats).reduce((a, b) => a + b, 0);
     if (total <= 0) return;
+    const origText = el.textContent;
+    el.textContent = '...';
     try {
-        el.textContent = '...';
         const r = await api('POST', '/game/elemental/assign-stats', stats);
         if (r.elemental) {
             const charR = await api('GET', '/game/character');
@@ -2563,10 +2567,12 @@ window.elemAssignStats = async function(elemId, el, event) {
             renderCharacter();
             gameLog(r.message || 'Stats assigned!', 'info');
         } else {
+            el.textContent = origText;
             gameLog('⚠️ ' + (r.error || 'Failed to assign'), 'error');
         }
     } catch (e) {
         console.error('[ElemAssign]', e);
+        el.textContent = origText;
         gameLog('⚠️ ' + e.message, 'error');
     }
 };
@@ -9619,7 +9625,8 @@ function shouldAutoLockActionTrigger(el, event, attrName) {
         el.classList?.contains('btn-secondary') ||
         el.classList?.contains('btn-sm') ||
         el.classList?.contains('btn-collect') ||
-        el.classList?.contains('btn-confirm-upgrade');
+        el.classList?.contains('btn-confirm-upgrade') ||
+        el.classList?.contains('elem-assign-go');
 }
 
 function setActionTriggerBusy(el, busy) {
