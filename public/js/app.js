@@ -28,15 +28,7 @@
 
     function animateLayer(layer, minDelay, maxDelay) {
         var color = palette[Math.floor(Math.random() * palette.length)];
-        // Opacity 0-50%: ambient gets 0-0.5, overlay gets 0-0.22
-        var ambientOpacity = (Math.random() * 0.5).toFixed(3);
-        var overlayOpacity = (Math.random() * 0.22).toFixed(3);
-
         layer.style.setProperty('--ring-color', color);
-        var ambient = layer.querySelector('.ring-ambient-glow');
-        var overlay = layer.querySelector('.ring-color-overlay');
-        if (ambient) ambient.style.opacity = ambientOpacity;
-        if (overlay) overlay.style.opacity = overlayOpacity;
 
         var delay = minDelay + Math.random() * (maxDelay - minDelay);
         setTimeout(function() { animateLayer(layer, minDelay, maxDelay); }, delay);
