@@ -6548,6 +6548,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 100%;
     left: 0;
     top: 0;
+    opacity: 0;
 }
 .ring-ambient-glow { display: none; }
 .ring-color-overlay { display: none; }
