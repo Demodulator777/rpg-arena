@@ -568,7 +568,7 @@
                     <button class="nav-btn nav-sub-btn" title="Shop" data-action="navigateInventoryHub" data-args='["shop"]'>
                         <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/shopicon.png" alt=""><span class="sub-btn-label">SHOP</span></div>
                     </button>
-                    <button class="nav-btn nav-sub-btn" title="Elementals" data-action="navigateInventoryHub" data-args='["elementals"]'>
+                    <button class="nav-btn nav-sub-btn" title="Elementals" data-action="navigateInventoryHubElementals" data-args='[]'>
                         <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/elementalicon.png" alt=""><span class="sub-btn-label">ELEMENTALS</span></div>
                     </button>
                 </div>
@@ -722,11 +722,25 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
                 </div>
 
                 <!-- ELEMENTALS -->
-                <div id="tab-elementals" class="game-tab">
-                    <div class="tab-header"><h2>✨ Your Elementals</h2></div>
-                    <div id="elementals-content">
-                        <!-- Elementals will be rendered here -->
+                <!-- INVENTORY -->
+                <div id="tab-inventory" class="game-tab">
+                    <div class="tab-header"><h2><img src="/images/assets/inventory/inventory.png" class="tab-icon-lg"></h2></div>
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" data-action="setInvTab" data-args='["weapons"]'><img src="/images/assets/inventory/weapons.png" class="tab-icon"> Weapons</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["armor"]'><img src="/images/assets/inventory/armor.png" class="tab-icon"> Armor</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["helmets"]'><img src="/images/assets/inventory/helmets.png" class="tab-icon"> Helmets</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["shields"]'><img src="/images/assets/inventory/shields.png" class="tab-icon"> Shields</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["boots"]'><img src="/images/assets/inventory/boots.png" class="tab-icon"> Boots</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["jewelry"]'><img src="/images/assets/inventory/jewelry.png" class="tab-icon"> Jewelry</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["accessory"]'><img src="/images/assets/inventory/accessory.png" class="tab-icon"> Accessory</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["consumables"]'><img src="/images/assets/inventory/potions.png" class="tab-icon"> Potions</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["materials"]'><img src="/images/assets/inventory/materials.png" class="tab-icon"> Materials</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["lootboxes"]'><img src="/images/assets/inventory/lootboxes.png" class="tab-icon"> Loot Boxes</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["elementals"]'><img src="/images/assets/elemental.png" class="tab-icon"> Elementals</button>
                     </div>
+                    <div id="inventory-content"></div>
+                    <div id="inv-msg" class="msg-bar hidden"></div>
+                </div>
                     <div id="elementals-msg" class="msg-bar hidden"></div>
                 </div>
 
