@@ -1817,73 +1817,41 @@ function toggleInventoryHubInline() {
 
 function navigateInventoryHub(tabName) {
     closeCharacterHubInline();
-    showTab(tabName);
-    if (tabName === 'elementals') loadElementals();
-}
-
-async function loadElementals() {
-    const content = document.getElementById('elementals-content');
-    if (!content) return;
-    content.innerHTML = '<div class="loading">Loading elementals...</div>';
-
-    try {
-        const r = await api('GET', '/game/elementals');
-        console.log('[DEBUG] LoadElementals response:', r);
-        if (r.error) throw new Error(r.error);
-        
-        if (!r.elementals || r.elementals.length === 0) {
-            content.innerHTML = '<div class="empty-msg">No elementals found.</div>';
-            return;
-        }
-
-        content.innerHTML = r.elementals.map(e => `
-            <div class="elemental-item ${e.equipped ? 'equipped' : ''}">
-                <div class="elemental-info">
-                    <strong>${escHtml(e.item_data.name)}</strong>
-                    ${e.equipped ? '<span class="equipped-badge">Equipped</span>' : ''}
-                </div>
-                <div class="elemental-actions">
-                    ${e.equipped 
-                        ? `<button class="btn-secondary" data-action="unequipElemental" data-args='[${e.id}]'>Unequip</button>`
-                        : `<button class="btn-primary" data-action="equipElemental" data-args='[${e.id}]'>Equip</button>`
-                    }
-                </div>
-            </div>
-        `).join('');
-    } catch (e) {
-        content.innerHTML = `<div class="error">Failed to load elementals: ${e.message}</div>`;
+    if (tabName === 'elementals') {
+        showTab('inventory');
+        invTab = 'elementals';
+        syncInvTabButtons();
+        loadInventory();
+        return;
     }
+    showTab(tabName);
 }
+window.navigateInventoryHubElementals = function() {
+    navigateInventoryHub('elementals');
+};
 
-async function equipElemental(invId) {
+async function equipElementalInv(invId) {
     try {
         const r = await api('POST', `/game/elemental/equip/${invId}`);
         if (r.error) throw new Error(r.error);
         gameLog(r.message, 'success');
-        
-        // Force refresh of character state and UI
         await syncActiveCharacterState();
         renderCharacter();
-        
-        loadElementals();
+        loadInventory();
     } catch (e) { gameLog(e.message, 'error'); }
 }
-
-async function unequipElemental(invId) {
+async function unequipElementalInv() {
     try {
         const r = await api('POST', '/game/elemental/unequip');
         if (r.error) throw new Error(r.error);
         gameLog(r.message, 'success');
-        
-        // Force refresh of character state and UI
         await syncActiveCharacterState();
         renderCharacter();
-        
-        loadElementals();
+        loadInventory();
     } catch (e) { gameLog(e.message, 'error'); }
 }
-
-window.equipElemental = equipElemental;
+window.equipElementalInv = equipElementalInv;
+window.unequipElementalInv = unequipElementalInv;
 function toggleMissionsHubInline() {
     const trigger = document.getElementById('missions-hub-trigger');
     if (!trigger) return;
@@ -5167,7 +5135,7 @@ function setInvTab(tab, btn) {
 }
 
 function syncInvTabButtons() {
-    const tabs = ['weapons', 'armor', 'helmets', 'shields', 'boots', 'jewelry', 'accessory', 'consumables', 'materials', 'lootboxes'];
+    const tabs = ['weapons', 'armor', 'helmets', 'shields', 'boots', 'jewelry', 'accessory', 'consumables', 'materials', 'lootboxes', 'elementals'];
     document.querySelectorAll('#tab-inventory .filter-btn').forEach((btn, i) => {
         btn.classList.toggle('active', tabs[i] === invTab);
     });
@@ -5370,6 +5338,52 @@ function renderInventory(data) {
                 </div>
             </div>`;
         }).join('') + '</div>';
+        return;
+    } else if (invTab === 'elementals') {
+        el.innerHTML = '<div class="loading">Loading elementals...</div>';
+        (async () => {
+            try {
+                const r = await api('GET', '/game/elementals');
+                if (r.error) throw new Error(r.error);
+                if (!r.elementals || r.elementals.length === 0) {
+                    el.innerHTML = '<p class="empty">No elementals. Discover one in the Elemental tab!</p>';
+                    return;
+                }
+                el.innerHTML = '<div class="elem-inv-grid">' + r.elementals.map(e => {
+                    const elEmoji = e.element === 'pyro' ? '🔥' : e.element === 'water' ? '💧' : e.element === 'wind' ? '🌪️' : '⚡';
+                    const hpPct = e.hpMax > 0 ? Math.round((e.hp_current / e.hpMax) * 100) : 0;
+                    const xpPct = e.xpNext > 0 ? Math.round(((e.xp || 0) / e.xpNext) * 100) : 0;
+                    return `<div class="elem-inv-card ${e.equipped ? 'equipped' : ''}">
+                        <div class="elem-inv-top">
+                            <div class="elem-inv-icon"><img src="/images/assets/elemental.png" alt="Elemental"></div>
+                            <div class="elem-inv-copy">
+                                <div class="elem-inv-name">${escHtml(e.name)}</div>
+                                <div class="elem-inv-meta">${elEmoji} ${e.element} · Lv.${e.level}</div>
+                            </div>
+                            ${e.equipped ? '<span class="equipped-badge">Equipped</span>' : ''}
+                        </div>
+                        <div class="elem-inv-stats">
+                            <span>💪 ${e.str}</span><span>🛡️ ${e.def}</span><span>✨ ${e.mag}</span><span>❤️ ${e.vit}</span>
+                            <span>⚔️ ${e.dmgMin}-${e.dmgMax}</span>
+                        </div>
+                        <div class="elem-inv-bars">
+                            <div class="elem-bar-label">HP ${e.hp_current}/${e.hpMax}</div>
+                            <div class="elem-bar"><div class="elem-bar-fill hp-fill" style="width:${hpPct}%"></div></div>
+                            <div class="elem-bar-label">XP ${e.xp || 0}/${e.xpNext}</div>
+                            <div class="elem-bar"><div class="elem-bar-fill xp-fill" style="width:${xpPct}%"></div></div>
+                        </div>
+                        <div class="elem-inv-actions">
+                            ${e.equipped
+                                ? `<button class="btn-secondary" data-action="unequipElementalInv" data-args='[${e.id}]'>Unequip</button>`
+                                : `<button class="btn-primary" data-action="equipElementalInv" data-args='[${e.id}]'>Equip</button>`
+                            }
+                        </div>
+                    </div>`;
+                }).join('') + '</div>';
+            } catch (e) {
+                el.innerHTML = `<div class="error">Failed to load elementals: ${e.message}</div>`;
+            }
+        })();
         return;
     } else if (invTab === 'consumables') {
         // CONSUMABLES TAB
