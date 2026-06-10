@@ -5564,8 +5564,6 @@ function hoverElemTooltip(el, event) {
             <div class="tt-name" style="color:#a855f7">${escHtml(d.name)}</div>
             <div class="tt-meta">${elEmoji} ${d.element} · Lv.${d.level}</div>
             <div class="tt-stats">
-                <div class="tt-stat"><span class="tt-stat-name">❤️ HP</span><span class="tt-stat-val" style="color:#22c55e">${d.hp}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">XP</span><span class="tt-stat-val" style="color:#a855f7">${d.xp}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">💪 Str</span><span class="tt-stat-val">${d.str}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">🛡️ Def</span><span class="tt-stat-val">${d.def}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">⚡ Agi</span><span class="tt-stat-val">${d.agi}</span></div>
@@ -7491,7 +7489,7 @@ async function openProfile(id) {
                     <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
                     ${p.elemental ? (() => {
                         const el = p.elemental;
-                        const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, agi: el.agi, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
+                        const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, agi: el.agi, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax, hit: el.hit, crit: el.crit }));
                         return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
                     })() : ''}
                 </div>` : '';
