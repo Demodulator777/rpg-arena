@@ -5630,8 +5630,8 @@ function hoverElemTooltip(el, event) {
     const r = el.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth || 220;
-    let left = r.left - tw - 12, top = r.top;
-    if (left < 8) left = r.right + 12;
+    let left = r.right + 12, top = r.top;
+    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
     if (top + tooltip.offsetHeight > window.innerHeight - 8) top = window.innerHeight - tooltip.offsetHeight - 8;
     tooltip.style.left = Math.max(8, left) + 'px';
     tooltip.style.top = Math.max(8, top) + 'px';
