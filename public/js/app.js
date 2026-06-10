@@ -5493,7 +5493,7 @@ function hoverElemTooltip(el, event) {
     if (!tooltip) return;
     const elEmoji = d.element === 'pyro' ? '🔥' : d.element === 'water' ? '💧' : d.element === 'wind' ? '🌪️' : '⚡';
     tooltip.innerHTML = `
-        <div class="tt-preview"><img src="/images/assets/elemental.png" alt="Elemental" style="width:48px;height:48px;object-fit:contain"></div>
+        <div class="tt-preview"><img src="/images/assets/elemental.png" alt="Elemental" style="width:148px;height:148px;object-fit:contain"></div>
         <div class="tt-body">
             <div class="tt-name" style="color:#a855f7">${escHtml(d.name)}</div>
             <div class="tt-meta">${elEmoji} ${d.element} · Lv.${d.level}</div>
