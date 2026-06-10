@@ -897,7 +897,12 @@ async function finalizeTournament(db, tournamentId) {
     orderSQL = 'points DESC, wins DESC';
     pointsField = 'points';
   }
-  let standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
+  let standings;
+  if (mode === 'least_damage') {
+    standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? AND hp_start > 0 ORDER BY ${orderSQL}`, [tournamentId]);
+  } else {
+    standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
+  }
 
   // Head-to-head tiebreaker for points-based modes
   if (mode !== 'damage' && mode !== 'least_damage' && mode !== 'all_vs_all' && mode !== 'elimination') {
@@ -1143,6 +1148,7 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN mode TEXT NOT NULL DEFAULT 'deathmatch'"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN total_damage_dealt INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN total_damage_taken INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN hp_start INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN eliminated_id INTEGER"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated_round INTEGER"); } catch {}
@@ -1161,9 +1167,9 @@ router.post('/tournaments/add-player/:id', auth, async (req, res) => {
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const existing = await dbGet_t(db, 'SELECT id FROM tournament_participants WHERE tournament_id = ? AND char_id = ?', [t.id, char.id]);
     if (existing) return res.status(400).json({ error: 'Already a participant' });
-    await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current]);
+    await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max, hp_start)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current, char.hp_current]);
     res.json({ message: `Added ${char.name} to tournament #${t.id}` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
