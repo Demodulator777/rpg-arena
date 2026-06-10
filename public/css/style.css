@@ -6507,16 +6507,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .loading-rings {
     position: relative;
-    width: 727px;
-    height: 722px;
+    width: 363px;
+    height: 361px;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .loading-ring {
     position: absolute;
-    width: 727px;
-    height: 722px;
+    width: 363px;
+    height: 361px;
     left: 0;
     top: 0;
 }
