@@ -6527,6 +6527,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     left: 0;
     top: 0;
     transition: opacity 1.2s ease, filter 1.2s ease;
+    box-shadow: 0 0 200px 80px var(--ring-color);
 }
 .loading-ring {
     position: absolute;
@@ -6534,19 +6535,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 100%;
     left: 0;
     top: 0;
-    mix-blend-mode: screen;
-    filter: blur(1.2px);
-    transition: filter 1.2s ease;
 }
 .ring-ambient-glow {
     position: absolute;
-    left: -60px;
-    top: -60px;
-    width: calc(100% + 120px);
-    height: calc(100% + 120px);
+    left: -300px;
+    top: -300px;
+    width: calc(100% + 600px);
+    height: calc(100% + 600px);
     border-radius: 50%;
-    background: radial-gradient(circle, var(--ring-color) 0%, transparent 65%);
-    opacity: 0.18;
+    background: radial-gradient(circle, var(--ring-color) 0%, var(--ring-color) 25%, transparent 72%);
+    opacity: 0.45;
     pointer-events: none;
     transition: opacity 1.2s ease, background 1.2s ease;
 }
@@ -6559,23 +6557,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none;
     transition: opacity 1.2s ease, background 1.2s ease;
 }
-.outer-ring { animation: spin-cw 8s linear infinite }
-.middle-ring { animation: spin-ccw 5s linear infinite }
-.inner-ring { animation: spin-cw 3s linear infinite }
-.ring-layer { filter: drop-shadow(0 0 25px var(--ring-color)) }
+.outer-ring { animation: spin-cw 8s linear infinite; filter: drop-shadow(0 0 120px var(--ring-color)) }
+.middle-ring { animation: spin-ccw 5s linear infinite; filter: drop-shadow(0 0 100px var(--ring-color)) }
+.inner-ring { animation: spin-cw 3s linear infinite; filter: drop-shadow(0 0 80px var(--ring-color)) }
 
 @keyframes spin-cw { to { transform: rotate(360deg) } }
 @keyframes spin-ccw { to { transform: rotate(-360deg) } }
-
-.loading-text {
-    margin-top: 28px;
-    font-family: 'Cinzel', serif;
-    font-size: 1.1rem;
-    color: rgba(200, 212, 232, 0.5);
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    font-weight: 400;
-}
 
 @media (max-width: 680px) {
     .loading-rings {
@@ -6590,7 +6577,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: min(363px, 85vw);
         height: min(361px, calc(85vw * 361 / 363));
     }
-    .loading-text { font-size: 0.95rem }
+    .loading-text { font-size: 0.95rem; letter-spacing: 3px }
 }
 @media (max-width: 480px) {
     .loading-rings {
@@ -6606,13 +6593,4 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         height: min(361px, calc(92vw * 361 / 363));
     }
     .loading-text { font-size: 0.8rem; letter-spacing: 3px }
-}
-
-.loading-text {
-    margin-top: 24px;
-    font-family: 'Cinzel', serif;
-    font-size: 1.2rem;
-    color: rgba(200, 212, 232, 0.6);
-    letter-spacing: 3px;
-    text-transform: uppercase;
 }
