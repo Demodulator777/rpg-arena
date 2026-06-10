@@ -2604,9 +2604,6 @@ window.elemFeedItem = elemFeedItem;
 window.elemAssignStats = async function(el, event) {
     const panel = el?.closest('.char-panel-elemental');
     if (!panel) return;
-    const ptsEl = panel.querySelector('.elem-pts-left');
-    const pts = parseInt(ptsEl?.textContent) || 0;
-    if (pts <= 0) return;
     const stats = {};
     panel.querySelectorAll('.elem-assign-row').forEach(row => {
         const stat = row.dataset.elemAssign;
