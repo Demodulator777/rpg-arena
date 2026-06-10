@@ -3648,6 +3648,96 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .mat-name { font-size: 0.74rem; color: var(--text-bright); margin: 5px 0 2px; }
 .mat-qty { font-size: 1.05rem; color: var(--gold); font-weight: 700; }
 
+.elem-inv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+.elem-inv-card {
+    background: linear-gradient(145deg, rgba(12,18,30,0.92), rgba(10,15,24,0.72));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.elem-inv-card.equipped {
+    border-color: rgba(241, 196, 15, 0.5);
+    background: rgba(241, 196, 15, 0.05);
+}
+.elem-inv-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.elem-inv-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.elem-inv-icon img {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+}
+.elem-inv-copy {
+    min-width: 0;
+    flex: 1;
+}
+.elem-inv-name {
+    color: var(--text-bright);
+    font-weight: 700;
+    font-size: 0.84rem;
+    line-height: 1.25;
+}
+.elem-inv-meta {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    margin-top: 3px;
+}
+.elem-inv-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    font-size: 0.77rem;
+    color: var(--text-dim);
+}
+.elem-inv-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.elem-bar-label {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+}
+.elem-inv-card .elem-bar {
+    width: 100%;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+    margin: 1px 0;
+}
+.elem-inv-card .elem-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+.elem-inv-card .hp-fill { background: linear-gradient(90deg,#22c55e,#16a34a) }
+.elem-inv-card .xp-fill { background: linear-gradient(90deg,#a855f7,#7c3aed) }
+.elem-inv-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
 .tt-close {
   position:absolute; top:6px; right:6px; z-index:10;
   width:28px; height:28px; border:none; border-radius:50%;
@@ -6456,28 +6546,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 /* ════════════════════════════════════════════════════════════════════════
    ELEMENTALS TAB
    ════════════════════════════════════════════════════════════════════════ */
-#elementals-content {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px;
-}
-
-.elemental-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-.elemental-item.equipped {
-    border-color: rgba(241, 196, 15, 0.5);
-    background: rgba(241, 196, 15, 0.05);
-}
-
 .equipped-badge {
     background: rgba(241, 196, 15, 0.2);
     color: #f1c40f;
