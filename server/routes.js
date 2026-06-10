@@ -5723,8 +5723,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                 hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
                 log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
             } else {
-                const playerDmg = fighterA.elem_dmg?.[elemEl] || 0;
-                const raw = calcElemAttackValue(elemA, statsA, playerDmg);
+                const raw = calcElemAttackValue(elemA, statsA);
                 const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
                 const mResB = Math.floor((fighterB.magic || 0) * 0.05);
                 elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
@@ -5740,8 +5739,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                 hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
                 log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
             } else {
-                const playerDmg = fighterB.elem_dmg?.[elemEl] || 0;
-                const raw = calcElemAttackValue(elemB, statsB, playerDmg);
+                const raw = calcElemAttackValue(elemB, statsB);
                 const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
                 const mResA = Math.floor((fighterA.magic || 0) * 0.05);
                 elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
@@ -15391,13 +15389,12 @@ function calcElemStats(elem) {
     return { str, def, mag, vit, hpMax, dmgMin, dmgMax };
 }
 
-function calcElemAttackValue(elem, computedStats, playerElemDmgValue) {
+function calcElemAttackValue(elem, computedStats) {
     const elemLvl = elem.element_level || 1;
     const str = computedStats.str || 0;
     const mag = computedStats.mag || 0;
     const fromStrMag = Math.floor(str * 0.08) + Math.floor(mag * 0.06);
-    const fromPlayer = Math.floor((playerElemDmgValue || 0) * 0.015);
-    const base = Math.max(1, 2 + fromStrMag + fromPlayer + Math.floor(elemLvl * 0.5));
+    const base = Math.max(1, 2 + fromStrMag + Math.floor(elemLvl * 0.5));
     const variance = Math.floor(base * 0.2);
     return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
 }
