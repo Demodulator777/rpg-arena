@@ -10609,8 +10609,10 @@ router.get('/player/:id', auth, async (req, res) => {
             equipped_set_bonuses: profileSetBonuses,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
             elemental: await (async () => {
-                const er = await dbGet(db, 'SELECT name, element, level FROM elementals WHERE char_id = ?', [player.id]).catch(() => null);
-                return er || null;
+                const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [player.id]).catch(() => null);
+                if (!er) return null;
+                const stats = calcElemStats(er);
+                return { ...er, ...stats };
             })(),
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
