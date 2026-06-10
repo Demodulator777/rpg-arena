@@ -28,7 +28,10 @@
 
     function animateLayer(layer, minDelay, maxDelay) {
         var color = palette[Math.floor(Math.random() * palette.length)];
+        var opacity = (Math.random()).toFixed(3); // 0.0 – 1.0
         layer.style.setProperty('--ring-color', color);
+        var img = layer.querySelector('.loading-ring');
+        if (img) img.style.opacity = opacity;
 
         var delay = minDelay + Math.random() * (maxDelay - minDelay);
         setTimeout(function() { animateLayer(layer, minDelay, maxDelay); }, delay);
