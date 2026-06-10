@@ -6534,6 +6534,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     height: 100%;
     left: 0;
     top: 0;
+    mix-blend-mode: screen;
+    filter: blur(1.2px);
     transition: filter 1.2s ease;
 }
 .ring-ambient-glow {
@@ -6560,6 +6562,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .outer-ring { animation: spin-cw 8s linear infinite }
 .middle-ring { animation: spin-ccw 5s linear infinite }
 .inner-ring { animation: spin-cw 3s linear infinite }
+.ring-layer { filter: drop-shadow(0 0 25px var(--ring-color)) }
 
 @keyframes spin-cw { to { transform: rotate(360deg) } }
 @keyframes spin-ccw { to { transform: rotate(-360deg) } }
