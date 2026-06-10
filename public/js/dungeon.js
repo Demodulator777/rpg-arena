@@ -370,10 +370,10 @@ function getBossForFloor(floor) {
 
   // ── Loot Tables ────────────────────────────────────────────
   const MINION_LOOT = [
-    { type:'gold',       weight:84, min:12, max:70  },
-    { type:'potion_hp',  weight:7,  icon:'??' },
-    { type:'potion_mp',  weight:3, name:'Mana Potion',    icon:'??', mp:30    },
-    { type:'item_common',weight:6 },
+    { type:'gold',       weight:76, min:12, max:70  },
+    { type:'potion_hp',  weight:4,  icon:'??' },
+    { type:'potion_mp',  weight:1,  name:'Mana Potion',    icon:'??', mp:30    },
+    { type:'item_common',weight:12 },
   ];
 
   function getHealthPotionDropForFloor(floor) {
@@ -388,11 +388,10 @@ function getBossForFloor(floor) {
   }
 
   const COMMON_ITEMS = [
-    { name:'Iron Shard',       icon:'🔩', type:'material', rarity:'common' },
-    { name:'Bone Fragment',    icon:'🦴', type:'material', rarity:'common' },
-    { name:'Dim Crystal',      icon:'💎', type:'material', rarity:'common' },
-    { name:'Frayed Cloth',     icon:'🧵', type:'material', rarity:'common' },
-    { name:'Tarnished Coin',   icon:'🪙', type:'material', rarity:'common' },
+    { name:'Pyro Cinder',       icon:'🔥', type:'material', rarity:'common' },
+    { name:'Water Droplet',     icon:'💧', type:'material', rarity:'common' },
+    { name:'Electro Spark',     icon:'⚡', type:'material', rarity:'common' },
+    { name:'Wind Feather',      icon:'🌪️', type:'material', rarity:'common' },
   ];
 
   // ── State ──────────────────────────────────────────────────
@@ -1756,7 +1755,7 @@ function fightRound() {
                     saveState();
                     saveProgressToDB();
                     refreshCharacter();
-                    renderDungeonView();
+        renderDungeonView();
                     return;
                 }
 
