@@ -2475,11 +2475,11 @@ const eqGrid = `
     if (c.elemental) loadElemFeedItems(c.elemental.id);
 }
 const ELEM_FEED_IDS = new Set([
-    'iron_shard','bone_fragment','dim_crystal','frayed_cloth','tarnished_coin',
-    'void_shard','shadow_essence','arcane_dust','crypt_dust',
-    'dragon_scale_shard','frost_essence','soul_essence','demon_core',
-    'dark_essence','abyss_fragment','dragon_scale','eternal_essence',
-    'abyssal_core','titan_heart','void_crystal',
+    'dgn_pyro_cinder','dgn_water_droplet','dgn_electro_spark','dgn_wind_feather',
+    'dgn_pyro_ember','dgn_water_crystal','dgn_electro_shard','dgn_wind_whisper',
+    'dgn_pyro_core','dgn_water_core','dgn_electro_core','dgn_wind_core',
+    'dgn_pyro_essence','dgn_water_essence','dgn_electro_essence','dgn_wind_essence',
+    'dgn_pyro_primordial','dgn_water_primordial','dgn_electro_primordial','dgn_wind_primordial',
 ]);
 async function elemFeedItem(elemId, invId, el) {
     if (el.disabled) return;
