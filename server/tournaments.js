@@ -482,7 +482,7 @@ function deathmatchBattle(fighterA, fighterB) {
     if (elemA && elemAHp > 0) {
       const elemEl = elemA.element || 'pyro';
       if ((elemA.defense || 0) >= (elemA.strength || 0)) {
-        const healAmt = calcElemHealValue(elemA, elemA);
+        const healAmt = Math.round(calcElemHealValue(elemA, elemA));
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
       } else {
@@ -490,7 +490,7 @@ function deathmatchBattle(fighterA, fighterB) {
         const raw = calcElemAttackValue(elemA, elemA, playerDmg);
         const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
         const mResB = Math.floor((fighterB.magic || 0) * 0.05);
-        elemDmgToB = Math.max(1, raw - eResB - mResB);
+        elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
         hpB = Math.max(0, hpB - elemDmgToB);
         log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
       }
@@ -498,7 +498,7 @@ function deathmatchBattle(fighterA, fighterB) {
     if (elemB && elemBHp > 0) {
       const elemEl = elemB.element || 'pyro';
       if ((elemB.defense || 0) >= (elemB.strength || 0)) {
-        const healAmt = calcElemHealValue(elemB, elemB);
+        const healAmt = Math.round(calcElemHealValue(elemB, elemB));
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
       } else {
@@ -506,7 +506,7 @@ function deathmatchBattle(fighterA, fighterB) {
         const raw = calcElemAttackValue(elemB, elemB, playerDmg);
         const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
         const mResA = Math.floor((fighterA.magic || 0) * 0.05);
-        elemDmgToA = Math.max(1, raw - eResA - mResA);
+        elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
         hpA = Math.max(0, hpA - elemDmgToA);
         log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
       }
@@ -650,7 +650,7 @@ function normalBattle(fighterA, fighterB) {
     if (elemA && elemAHp > 0) {
       const elemEl = elemA.element || 'pyro';
       if ((elemA.defense || 0) >= (elemA.strength || 0)) {
-        const healAmt = calcElemHealValue(elemA, elemA);
+        const healAmt = Math.round(calcElemHealValue(elemA, elemA));
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
       } else {
@@ -658,7 +658,7 @@ function normalBattle(fighterA, fighterB) {
         const raw = calcElemAttackValue(elemA, elemA, playerDmg);
         const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
         const mResB = Math.floor((fighterB.magic || 0) * 0.05);
-        elemDmgToB = Math.max(1, raw - eResB - mResB);
+        elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
         hpB = Math.max(0, hpB - elemDmgToB);
         log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
       }
@@ -666,7 +666,7 @@ function normalBattle(fighterA, fighterB) {
     if (elemB && elemBHp > 0) {
       const elemEl = elemB.element || 'pyro';
       if ((elemB.defense || 0) >= (elemB.strength || 0)) {
-        const healAmt = calcElemHealValue(elemB, elemB);
+        const healAmt = Math.round(calcElemHealValue(elemB, elemB));
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
       } else {
@@ -674,7 +674,7 @@ function normalBattle(fighterA, fighterB) {
         const raw = calcElemAttackValue(elemB, elemB, playerDmg);
         const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
         const mResA = Math.floor((fighterA.magic || 0) * 0.05);
-        elemDmgToA = Math.max(1, raw - eResA - mResA);
+        elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
         hpA = Math.max(0, hpA - elemDmgToA);
         log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
       }
