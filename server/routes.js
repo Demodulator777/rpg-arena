@@ -15368,7 +15368,7 @@ router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
 });
 
 // ── Elemental Spirit Beast ───────────────────────────────────────────────
-const ELEM_XP_TABLE = [0, 100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000];
+const ELEM_XP_TABLE = [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000];
 function elemXpForLevel(lvl) {
     if (lvl <= 10) return ELEM_XP_TABLE[lvl - 1] || 5000;
     return 5000 + (lvl - 10) * 1000;
@@ -15425,7 +15425,7 @@ async function ensureElemental(db, charId) {
 async function levelUpElemental(db, elem) {
     let newLevel = elem.level;
     let xp = elem.xp;
-    while (xp >= elemXpForLevel(newLevel)) {
+    while (newLevel < 90 && xp >= elemXpForLevel(newLevel)) {
         xp -= elemXpForLevel(newLevel);
         newLevel++;
     }
