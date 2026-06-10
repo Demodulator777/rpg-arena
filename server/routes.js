@@ -5735,8 +5735,10 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         totalElemDmgDealtA += resA.totalElemDmg;
         totalElemDmgDealtB += resB.totalElemDmg;
         
-        totalDmgToA += dmgToA;
-        totalDmgToB += dmgToB;
+        totalDmgToA += dmgToA + elemDmgToA;
+        totalDmgToB += dmgToB + elemDmgToB;
+        totalElemDmgDealtA += elemDmgToA;
+        totalElemDmgDealtB += elemDmgToB;
         roundsCompleted = round;
         
         hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
