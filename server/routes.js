@@ -15401,9 +15401,9 @@ function calcElemHealValue(elem, computedStats) {
     const elemLvl = elem.element_level || 1;
     const vit = computedStats.vit;
     const def = computedStats.def;
-    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + Math.floor(vit * 0.03) + Math.floor(def * 0.01)));
+    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + Math.floor(vit * 0.0375) + Math.floor(def * 0.0125)));
     const variance = Math.floor(base * 0.2);
-    return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
+    return Math.max(1, Math.floor((base + Math.floor(Math.random() * variance) - Math.floor(variance / 2)) / 8));
 }
 
 async function ensureElemental(db, charId) {
