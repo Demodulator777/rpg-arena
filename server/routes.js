@@ -891,6 +891,15 @@ const WEEKLY_TASKS = [
         for (const colDef of ['elemental_xp INTEGER NOT NULL DEFAULT 0', 'element_level INTEGER NOT NULL DEFAULT 1']) {
             try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
         }
+        // Element affinity columns (for element-based feeding)
+        for (const colDef of [
+            'pyro_affinity INTEGER NOT NULL DEFAULT 0',
+            'water_affinity INTEGER NOT NULL DEFAULT 0',
+            'electro_affinity INTEGER NOT NULL DEFAULT 0',
+            'wind_affinity INTEGER NOT NULL DEFAULT 0',
+        ]) {
+            try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
+        }
         
         console.log('✅ DB migrations applied');
     } catch (e) { console.error('Migration error:', e.message); }
@@ -12182,29 +12191,31 @@ const DUNGEON_MINI_BOSS_POOL = [
   { id:'doom_knight',    name:'Doom Knight',    baseHp:700, baseAtk:65, baseDef:50, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
 ];
 
-const DUNGEON_COMMON_ITEMS = [
-  { id:'iron_shard',      name:'Iron Shard',     emoji:'🔩', rarity:'common',    type: 'raw_mat' },
-  { id:'bone_fragment',   name:'Bone Fragment',  emoji:'🦴', rarity:'common',    type: 'raw_mat' },
-  { id:'dim_crystal',     name:'Dim Crystal',    emoji:'💎', rarity:'common',    type: 'raw_mat' },
-  { id:'frayed_cloth',    name:'Frayed Cloth',   emoji:'🧵', rarity:'common',    type: 'raw_mat' },
-  { id:'tarnished_coin',  name:'Tarnished Coin', emoji:'🪙', rarity:'common',    type: 'raw_mat' },
+// Element-aligned dungeon materials for spirit beast feeding
+const DUNGEON_ELEM_COMMON = [
+  { id:'dgn_pyro_cinder',     name:'Pyro Cinder',     emoji:'🔥', element:'pyro',    rarity:'common',    type:'raw_mat' },
+  { id:'dgn_water_droplet',   name:'Water Droplet',   emoji:'💧', element:'water',   rarity:'common',    type:'raw_mat' },
+  { id:'dgn_electro_spark',   name:'Electro Spark',   emoji:'⚡', element:'electro', rarity:'common',    type:'raw_mat' },
+  { id:'dgn_wind_feather',    name:'Wind Feather',    emoji:'🌪️', element:'wind',    rarity:'common',    type:'raw_mat' },
 ];
 
-const DUNGEON_RARE_ITEMS = [
-  { id:'void_shard',       name:'Void Shard',      emoji:'🔮', rarity:'uncommon',  minFloor: 10, type: 'raw_mat' },
-  { id:'shadow_essence',   name:'Shadow Essence',  emoji:'🌑', rarity:'uncommon',  minFloor: 10, type: 'raw_mat' },
-  { id:'arcane_dust',      name:'Arcane Dust',     emoji:'✨', rarity:'uncommon',  minFloor: 15, type: 'raw_mat' },
-  { id:'crypt_dust',       name:'Crypt Dust',      emoji:'💀', rarity:'uncommon',  minFloor: 15, type: 'raw_mat' },
-  { id:'dragon_scale_shard',name:'Dragon Scale Shard', emoji:'🐉', rarity:'rare',  minFloor: 20, type: 'raw_mat' },
-  { id:'frost_essence',    name:'Frost Essence',   emoji:'❄️', rarity:'rare',     minFloor: 20, type: 'raw_mat' },
-  { id:'soul_essence',     name:'Soul Essence',    emoji:'👻', rarity:'rare',     minFloor: 25, type: 'raw_mat' },
-  { id:'demon_core',       name:'Demon Core',      emoji:'👹', rarity:'rare',     minFloor: 30, type: 'raw_mat' },
-  { id:'dark_essence',     name:'Dark Essence',    emoji:'🖤', rarity:'epic',     minFloor: 35, type: 'raw_mat' },
-  { id:'abyss_fragment',   name:'Abyss Fragment',  emoji:'🧩', rarity:'epic',     minFloor: 40, type: 'raw_mat' },
-  { id:'dragon_scale',     name:'Dragon Scale',    emoji:'🐲', rarity:'epic',     minFloor: 45, type: 'raw_mat' },
-  { id:'eternal_essence',  name:'Eternal Essence', emoji:'💠', rarity:'legendary',minFloor: 50, type: 'raw_mat' },
-  { id:'abyssal_core',     name:'Abyssal Core',    emoji:'🔴', rarity:'legendary',minFloor: 60, type: 'raw_mat' },
-  { id:'titan_heart',      name:'Titan Heart',     emoji:'❤️‍🔥', rarity:'legendary',minFloor: 75, type: 'raw_mat' },
+const DUNGEON_ELEM_RARE = [
+  { id:'dgn_pyro_ember',      name:'Pyro Ember',      emoji:'🔥', element:'pyro',    rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_water_crystal',   name:'Water Crystal',   emoji:'💧', element:'water',   rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_electro_shard',   name:'Electro Shard',   emoji:'⚡', element:'electro', rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_wind_whisper',    name:'Wind Whisper',    emoji:'🌪️', element:'wind',    rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_pyro_core',       name:'Pyro Core',       emoji:'🔥', element:'pyro',    rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_water_core',      name:'Water Core',      emoji:'💧', element:'water',   rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_electro_core',    name:'Electro Core',    emoji:'⚡', element:'electro', rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_wind_core',       name:'Wind Core',       emoji:'🌪️', element:'wind',    rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_pyro_essence',    name:'Pyro Essence',    emoji:'🔥', element:'pyro',    rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_water_essence',   name:'Water Essence',   emoji:'💧', element:'water',   rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_electro_essence', name:'Electro Essence', emoji:'⚡', element:'electro', rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_wind_essence',    name:'Wind Essence',    emoji:'🌪️', element:'wind',    rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_pyro_primordial', name:'Pyro Primordial', emoji:'🔥', element:'pyro',    rarity:'legendary', minFloor:55, type:'raw_mat' },
+  { id:'dgn_water_primordial',name:'Water Primordial',emoji:'💧', element:'water',   rarity:'legendary', minFloor:55, type:'raw_mat' },
+  { id:'dgn_electro_primordial',name:'Electro Primordial',emoji:'⚡', element:'electro', rarity:'legendary', minFloor:55, type:'raw_mat' },
+  { id:'dgn_wind_primordial', name:'Wind Primordial', emoji:'🌪️', element:'wind',    rarity:'legendary', minFloor:55, type:'raw_mat' },
 ];
 
 function buildRegularMonsterForFloor(monsterId, floor) {
@@ -12272,12 +12283,12 @@ function getHealthPotionDropForFloorServer(floor) {
 function rollMinorLootServer(rngState, floor) {
   const safeFloor = Math.max(1, Number(floor) || 1);
   // Add rare material weight on higher floors
-  const rareWeight = Math.min(12, 3 + Math.floor(safeFloor / 5));
+  const rareWeight = Math.min(16, 4 + Math.floor(safeFloor / 5));
   const table = [
-    { type:'gold', weight: Math.max(70, 84 - rareWeight) },
-    { type:'potion_hp', weight:7 },
-    { type:'potion_mp', weight:3 },
-    { type:'item_common', weight:5 },
+    { type:'gold', weight: Math.max(60, 76 - rareWeight) },
+    { type:'potion_hp', weight:4 },
+    { type:'potion_mp', weight:1 },
+    { type:'item_common', weight:10 },
     { type:'item_rare', weight: rareWeight },
   ];
   const total = table.reduce((s, e) => s + e.weight, 0);
@@ -12300,19 +12311,19 @@ function rollMinorLootServer(rngState, floor) {
     return { rngState, loot: { type:'potion_mp', id:'mp_potion_small', name:'Mana Potion', mp:30, emoji:'💧' } };
   }
   if (chosen.type === 'item_rare') {
-    const available = DUNGEON_RARE_ITEMS.filter(i => safeFloor >= i.minFloor);
+    const available = DUNGEON_ELEM_RARE.filter(i => safeFloor >= i.minFloor);
     if (available.length > 0) {
       const pick = rngIntInclusive(rngState, 0, available.length - 1);
       const item = available[pick.n] || available[0];
       return { rngState: pick.rngState, loot: { type:'item_rare', item } };
     }
     // fallback to common
-    const pick = rngIntInclusive(rngState, 0, DUNGEON_COMMON_ITEMS.length - 1);
-    const item = DUNGEON_COMMON_ITEMS[pick.n] || DUNGEON_COMMON_ITEMS[0];
+    const pick = rngIntInclusive(rngState, 0, DUNGEON_ELEM_COMMON.length - 1);
+    const item = DUNGEON_ELEM_COMMON[pick.n] || DUNGEON_ELEM_COMMON[0];
     return { rngState: pick.rngState, loot: { type:'item_common', item } };
   }
-  const pick = rngIntInclusive(rngState, 0, DUNGEON_COMMON_ITEMS.length - 1);
-  const item = DUNGEON_COMMON_ITEMS[pick.n] || DUNGEON_COMMON_ITEMS[0];
+  const pick = rngIntInclusive(rngState, 0, DUNGEON_ELEM_COMMON.length - 1);
+  const item = DUNGEON_ELEM_COMMON[pick.n] || DUNGEON_ELEM_COMMON[0];
   return { rngState: pick.rngState, loot: { type:'item_common', item } };
 }
 
@@ -15402,15 +15413,28 @@ async function levelUpElemental(db, elem) {
     return elem;
 }
 
-// Material XP values for feeding (dungeon-drop materials only)
+// Material feed values: each entry = { xp, element }
 const ELEM_FEED_VALUES = {
-    iron_shard: 3, bone_fragment: 3, dim_crystal: 4, frayed_cloth: 2, tarnished_coin: 3,
-    void_shard: 10, shadow_essence: 10, arcane_dust: 8,
-    dragon_scale_shard: 14, frost_essence: 10,
-    demon_core: 20, abyss_fragment: 12, dark_essence: 15,
-    soul_essence: 12, eternal_essence: 25,
-    dragon_scale: 18, abyssal_core: 30, titan_heart: 40,
-    crypt_dust: 5, void_crystal: 15,
+    dgn_pyro_cinder:     { xp: 3,  element:'pyro'    },
+    dgn_water_droplet:   { xp: 3,  element:'water'   },
+    dgn_electro_spark:   { xp: 3,  element:'electro' },
+    dgn_wind_feather:    { xp: 3,  element:'wind'    },
+    dgn_pyro_ember:      { xp: 8,  element:'pyro'    },
+    dgn_water_crystal:   { xp: 8,  element:'water'   },
+    dgn_electro_shard:   { xp: 8,  element:'electro' },
+    dgn_wind_whisper:    { xp: 8,  element:'wind'    },
+    dgn_pyro_core:       { xp: 15, element:'pyro'    },
+    dgn_water_core:      { xp: 15, element:'water'   },
+    dgn_electro_core:    { xp: 15, element:'electro' },
+    dgn_wind_core:       { xp: 15, element:'wind'    },
+    dgn_pyro_essence:    { xp: 25, element:'pyro'    },
+    dgn_water_essence:   { xp: 25, element:'water'   },
+    dgn_electro_essence: { xp: 25, element:'electro' },
+    dgn_wind_essence:    { xp: 25, element:'wind'    },
+    dgn_pyro_primordial: { xp: 45, element:'pyro'    },
+    dgn_water_primordial:{ xp: 45, element:'water'   },
+    dgn_electro_primordial:{xp: 45, element:'electro' },
+    dgn_wind_primordial: { xp: 45, element:'wind'    },
 };
 
 router.get('/elemental', auth, async (req, res) => {
@@ -15473,8 +15497,13 @@ router.post('/elemental/feed', auth, async (req, res) => {
         if (data.type !== 'raw_mat' && data.category !== 'material') {
             return res.status(400).json({ error: 'Can only feed raw materials' });
         }
+        const feedInfo = ELEM_FEED_VALUES[data.id];
+        if (!feedInfo) {
+            return res.status(400).json({ error: 'This material cannot be fed to the spirit beast' });
+        }
         const feedQty = Math.min(qty || 1, data.qty || 1);
-        const xpPerUnit = ELEM_FEED_VALUES[data.id] || 2;
+        const xpPerUnit = feedInfo.xp;
+        const element = feedInfo.element;
         const totalXp = xpPerUnit * feedQty;
         if (data.qty !== undefined) {
             data.qty -= feedQty;
@@ -15488,9 +15517,26 @@ router.post('/elemental/feed', auth, async (req, res) => {
         }
         const elemXp = (elem.elemental_xp || 0) + totalXp;
         const newElemLevel = 1 + Math.floor(elemXp / 100);
+        const affinityField = `${element}_affinity`;
         elem.xp = (elem.xp || 0) + totalXp;
-        await dbRun(db, 'UPDATE elementals SET xp=?, elemental_xp=?, element_level=? WHERE id=?',
-            [elem.xp, elemXp, newElemLevel, elem.id]);
+        await dbRun(db, `UPDATE elementals SET xp=?, elemental_xp=?, element_level=?, ${affinityField} = COALESCE(${affinityField},0)+? WHERE id=?`,
+            [elem.xp, elemXp, newElemLevel, totalXp, elem.id]);
+        // Auto-switch element if the fed element's affinity becomes the highest
+        const updatedElem = await dbGet(db, 'SELECT * FROM elementals WHERE id=?', [elem.id]);
+        if (updatedElem) {
+            const affs = [
+                { el:'pyro',    val: Number(updatedElem.pyro_affinity || 0) },
+                { el:'water',   val: Number(updatedElem.water_affinity || 0) },
+                { el:'electro', val: Number(updatedElem.electro_affinity || 0) },
+                { el:'wind',    val: Number(updatedElem.wind_affinity || 0) },
+            ];
+            const top = affs.reduce((a, b) => a.val >= b.val ? a : b);
+            if (top.el !== updatedElem.element && top.val > 0) {
+                await dbRun(db, 'UPDATE elementals SET element=? WHERE id=?', [top.el, updatedElem.id]);
+                updatedElem.element = top.el;
+            }
+            elem = updatedElem;
+        }
         const xpNext = elemXpForLevel(elem.level);
         const stats = calcElemStats(elem);
         const leveled = await levelUpElemental(db, elem);
@@ -15512,7 +15558,10 @@ router.post('/elemental/set-element', auth, async (req, res) => {
         const changeCost = 5000;
         if ((char.gold || 0) < changeCost) return res.status(400).json({ error: `Need ${changeCost} gold to change element` });
         await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [changeCost, char.id]);
-        await dbRun(db, 'UPDATE elementals SET element = ?, element_level = 1, elemental_xp = 0 WHERE id = ?', [element, elem.id]);
+        // Set element, reset element_level/xp, and reset affinities (chosen gets 1 so it sticks)
+        await dbRun(db, `UPDATE elementals SET element=?, element_level=1, elemental_xp=0,
+            pyro_affinity=0, water_affinity=0, electro_affinity=0, wind_affinity=0
+            WHERE id=?`, [element, elem.id]);
         res.json({ message: `⚡ Elemental's element changed to ${element}!`, gold: Math.max(0, (char.gold || 0) - changeCost) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -15543,8 +15592,26 @@ function buildElementalFighter(elem, playerLevel) {
     if (!elem) return null;
     const stats = calcElemStats(elem);
     const elemLvl = elem.element_level || 1;
-    const elems = { pyro: 0, water: 0, wind: 0, electro: 0 };
-    elems[elem.element || 'pyro'] = 1;
+    // Elemental damage from affinities — higher affinity = more elemental damage
+    const affPyro = Number(elem.pyro_affinity || 0);
+    const affWater = Number(elem.water_affinity || 0);
+    const affElectro = Number(elem.electro_affinity || 0);
+    const affWind = Number(elem.wind_affinity || 0);
+    const totalAff = affPyro + affWater + affElectro + affWind;
+    let elems;
+    if (totalAff === 0) {
+        // Fresh elemental — use base element at full value
+        elems = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        elems[elem.element || 'pyro'] = 1;
+    } else {
+        const maxAff = Math.max(affPyro, affWater, affElectro, affWind);
+        elems = {
+            pyro:    affPyro / maxAff,
+            water:   affWater / maxAff,
+            wind:    affWind / maxAff,
+            electro: affElectro / maxAff,
+        };
+    }
     const dmg = calcElemDmgValue(elem, stats);
     return {
         id: `elem_${elem.id}`,
