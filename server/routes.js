@@ -900,6 +900,8 @@ const WEEKLY_TASKS = [
         ]) {
             try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
         }
+        // HP regen timestamp
+        try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN hp_regen_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         
         console.log('✅ DB migrations applied');
     } catch (e) { console.error('Migration error:', e.message); }
@@ -7537,8 +7539,21 @@ const userSettings = char.user_id
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
     const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
+    // Spirit Beast flat stat bonuses
+    let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
+    let beastRole = null;
     if (elemental) {
-        console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, is_equipped: ${elemental.is_equipped}`);
+        const beastStats = calcElemStats(elemental);
+        if ((beastStats.str || 0) > (beastStats.def || 0)) {
+            beastRole = 'attack';
+            beastStrBonus = beastStats.str || 0;
+            beastMagBonus = beastStats.mag || 0;
+        } else {
+            beastRole = 'heal';
+            beastDefBonus = beastStats.def || 0;
+            beastVitBonus = beastStats.vit || 0;
+        }
+        console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, role: ${beastRole}`);
     } else {
         console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
     }
@@ -7549,14 +7564,16 @@ const userSettings = char.user_id
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
         draws:        (char.draws       || 0),
-        vitality:     (char.vitality    || 10),
+        vitality:     (char.vitality    || 10) + beastVitBonus,
         gems:         char.gems        || 0,
         hp_max:       hpMax,
         hp_current:   hpCurrent,
-        strength:     (char.strength    || 0),
-        defense:      (char.defense     || 0),
+        strength:     (char.strength    || 0) + beastStrBonus,
+        defense:      (char.defense     || 0) + beastDefBonus,
         agility:      (char.agility     || 0),
-        magic:        (char.magic       || 0),
+        magic:        (char.magic       || 0) + beastMagBonus,
+        beast_role:   beastRole,
+        beast_stat_bonus: { str: beastStrBonus, def: beastDefBonus, mag: beastMagBonus, vit: beastVitBonus },
         hit_chance:   (char.hit_chance  || 0),
         crit_chance:  (char.crit_chance || 0),
         mission_points: Math.min(effectiveMpMax, char.mission_points ?? 0),
@@ -15393,9 +15410,10 @@ function calcElemAttackValue(elem, computedStats) {
     const elemLvl = elem.element_level || 1;
     const str = computedStats.str || 0;
     const mag = computedStats.mag || 0;
-    const fromStrMag = Math.floor(str * 0.08) + Math.floor(mag * 0.06);
-    const base = Math.max(1, 2 + fromStrMag + Math.floor(elemLvl * 0.5));
-    const variance = Math.floor(base * 0.2);
+    const fromStr = Math.floor(str * 0.4);
+    const fromMag = Math.floor(mag * 0.3);
+    const base = Math.max(1, 2 + fromStr + fromMag + Math.floor(elemLvl * 2));
+    const variance = Math.max(1, Math.floor(base * 0.2));
     return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
 }
 
@@ -15420,6 +15438,22 @@ async function ensureElemental(db, charId) {
     if (elem.hp_current > newHpMax) {
         await dbRun(db, 'UPDATE elementals SET hp_current = ? WHERE id = ?', [newHpMax, elem.id]);
         elem.hp_current = newHpMax;
+    }
+    // HP regen: 10% of max HP per hour
+    const now = Math.floor(Date.now() / 1000);
+    const lastRegen = elem.hp_regen_at || 0;
+    if (lastRegen > 0 && elem.hp_current < newHpMax) {
+        const hoursElapsed = Math.floor((now - lastRegen) / 3600);
+        if (hoursElapsed >= 1) {
+            const healAmount = Math.floor(newHpMax * 0.1 * hoursElapsed);
+            const newHp = Math.min(newHpMax, elem.hp_current + healAmount);
+            await dbRun(db, 'UPDATE elementals SET hp_current = ?, hp_regen_at = ? WHERE id = ?', [newHp, now, elem.id]);
+            elem.hp_current = newHp;
+            elem.hp_regen_at = now;
+        }
+    } else if (lastRegen === 0) {
+        await dbRun(db, 'UPDATE elementals SET hp_regen_at = ? WHERE id = ?', [now, elem.id]);
+        elem.hp_regen_at = now;
     }
     return elem;
 }
