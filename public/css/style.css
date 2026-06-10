@@ -6549,30 +6549,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     left: 0;
     top: 0;
 }
-.ring-ambient-glow {
-    position: absolute;
-    left: -280px;
-    top: -280px;
-    width: calc(100% + 560px);
-    height: calc(100% + 560px);
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--ring-color) 0%, transparent 65%);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 2.4s ease, background 2.4s ease;
-}
-.ring-color-overlay {
-    position: absolute;
-    inset: 0;
-    background: var(--ring-color);
-    mix-blend-mode: color;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 2.4s ease, background 2.4s ease;
-}
-.outer-ring { animation: spin-cw 18s linear infinite; }
-.middle-ring { animation: spin-ccw 13s linear infinite; }
-.inner-ring { animation: spin-cw 9s linear infinite; }
+.ring-ambient-glow { display: none; }
+.ring-color-overlay { display: none; }
+.outer-ring { animation: spin-cw 18s linear infinite; transition: filter 2.4s ease; filter: drop-shadow(0 0 32px var(--ring-color)) drop-shadow(0 0 80px var(--ring-color)); }
+.middle-ring { animation: spin-ccw 13s linear infinite; transition: filter 2.4s ease; filter: drop-shadow(0 0 28px var(--ring-color)) drop-shadow(0 0 64px var(--ring-color)); }
+.inner-ring { animation: spin-cw 9s linear infinite; transition: filter 2.4s ease; filter: drop-shadow(0 0 22px var(--ring-color)) drop-shadow(0 0 48px var(--ring-color)); }
 
 @keyframes spin-cw { to { transform: rotate(360deg) } }
 @keyframes spin-ccw { to { transform: rotate(-360deg) } }
