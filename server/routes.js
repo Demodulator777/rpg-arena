@@ -530,6 +530,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN wins_without_armor INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_boots INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_equipment INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN nightmare_missions_completed INTEGER DEFAULT 0',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -3786,6 +3787,108 @@ function buildExtendedAchievements() {
         rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
+    const nightmareMissionBase = ACHIEVEMENTS.find((a) => a.id === 'nightmare_missions_100');
+    if (nightmareMissionBase) {
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_150',
+            name: 'Abyss Lord',
+            desc: 'Complete 150 nightmare missions.',
+            target: 150,
+            rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_200',
+            name: "Nightmare's End",
+            desc: 'Complete 200 nightmare missions.',
+            target: 200,
+            rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_300',
+            name: 'Realm Breaker',
+            desc: 'Complete 300 nightmare missions.',
+            target: 300,
+            rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_500',
+            name: 'Abyss Eternal',
+            desc: 'Complete 500 nightmare missions.',
+            target: 500,
+            rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_750',
+            name: 'Void Incarnate',
+            desc: 'Complete 750 nightmare missions.',
+            target: 750,
+            rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_1000',
+            name: 'Nightmare Sovereign',
+            desc: 'Complete 1,000 nightmare missions.',
+            target: 1000,
+            rewards: { gold: 6000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_1500',
+            name: 'Abyss Tyrant',
+            desc: 'Complete 1,500 nightmare missions.',
+            target: 1500,
+            rewards: { gold: 9000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_2000',
+            name: 'Realm Ender',
+            desc: 'Complete 2,000 nightmare missions.',
+            target: 2000,
+            rewards: { gold: 12000000, gems: 25, premium: { id: 'iron_fortress', days: 30 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_2500',
+            name: 'Void Eternal',
+            desc: 'Complete 2,500 nightmare missions.',
+            target: 2500,
+            rewards: { gold: 16000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_3000',
+            name: 'Abyss God',
+            desc: 'Complete 3,000 nightmare missions.',
+            target: 3000,
+            rewards: { gold: 20000000, gems: 25, premium: { id: 'iron_fortress', days: 60 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_3500',
+            name: 'Nightmare Ascended',
+            desc: 'Complete 3,500 nightmare missions.',
+            target: 3500,
+            rewards: { gold: 25000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_4000',
+            name: 'Oblivion Walker',
+            desc: 'Complete 4,000 nightmare missions.',
+            target: 4000,
+            rewards: { gold: 30000000, gems: 25, premium: { id: 'iron_fortress', days: 90 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_4500',
+            name: 'Abyss Absolute',
+            desc: 'Complete 4,500 nightmare missions.',
+            target: 4500,
+            rewards: { gold: 35000000, gems: 25, premium: { id: 'fortune_hunter', days: 90 } },
+        });
+        addFromBase(nightmareMissionBase, {
+            id: 'nightmare_missions_5000',
+            name: 'The Void Itself',
+            desc: 'Complete 5,000 nightmare missions.',
+            target: 5000,
+            rewards: { gold: 50000000, gems: 25, premium: { id: 'fortune_hunter', days: 120 } },
+        });
+    }
+
     return extras;
 }
 
@@ -3881,6 +3984,11 @@ ACHIEVEMENTS.push(
     // Hard missions
     { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
     { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
+
+    // Nightmare missions
+    { id: 'nightmare_missions_5', category: 'missions', name: 'Night Treader', desc: 'Complete 5 nightmare missions.', icon: '🌑', metric: 'nightmare_missions_completed', target: 5, rewards: { gold: 25000 } },
+    { id: 'nightmare_missions_25', category: 'missions', name: 'Void Walker', desc: 'Complete 25 nightmare missions.', icon: '🌑', metric: 'nightmare_missions_completed', target: 25, rewards: { gold: 100000, gems: 15 } },
+    { id: 'nightmare_missions_100', category: 'missions', name: 'Abyss Conqueror', desc: 'Complete 100 nightmare missions.', icon: '🌑', metric: 'nightmare_missions_completed', target: 100, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 
     // ── Stat upgrade achievements ─────────────────────────────────────────
 
@@ -4085,6 +4193,7 @@ async function buildAchievementMetricSnapshot(db, char) {
         mp_spent: char.total_mp_spent || 0,
         dungeon_floor: char.dungeon_highest_floor || 1,
         hard_missions_completed: char.hard_missions_completed || 0,
+        nightmare_missions_completed: char.nightmare_missions_completed || 0,
         total_missions_completed: char.total_missions_completed || 0,
         level: char.level || 1,
         elemental_kills: char.elemental_kills || 0,
@@ -4119,6 +4228,7 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'mp_spent') return metrics.mp_spent;
     if (metric === 'dungeon_floor') return metrics.dungeon_floor;
     if (metric === 'hard_missions_completed') return metrics.hard_missions_completed;
+    if (metric === 'nightmare_missions_completed') return metrics.nightmare_missions_completed;
     if (metric === 'elemental_kills') return metrics.elemental_kills;
     if (metric === 'physical_only_wins') return metrics.physical_only_wins;
     if (metric === 'wins_without_shield') return metrics.wins_without_shield;
@@ -9124,6 +9234,9 @@ if (freshChar.class === 'rogue') {
         // ── Skill tree stat tracking ───────────────────────────────────────
         if (playerWon && mission.difficulty === 'hard') {
             await dbRun(db, 'UPDATE characters SET hard_missions_completed = hard_missions_completed + 1 WHERE id=?', [freshChar.id]);
+        }
+        if (playerWon && mission.difficulty === 'nightmare') {
+            await dbRun(db, 'UPDATE characters SET nightmare_missions_completed = nightmare_missions_completed + 1 WHERE id=?', [freshChar.id]);
         }
         if (playerWon) {
             await dbRun(db, 'UPDATE characters SET total_missions_completed = total_missions_completed + 1 WHERE id=?', [freshChar.id]);
