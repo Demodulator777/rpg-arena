@@ -178,15 +178,21 @@
     }
 
     // ── Cleanup on load ────────────────────────────────────────────────────
-    window.addEventListener('load', function() {
+    function dismissOverlay() {
         var ov = document.getElementById('loading-overlay');
         var app = document.getElementById('app');
         if (app) app.style.display = '';
-        if (ov) {
+        if (ov && !ov.classList.contains('hidden')) {
             ov.classList.add('hidden');
-            setTimeout(function() { ov.remove(); }, 800);
+            setTimeout(function() { if (ov.parentNode) ov.remove(); }, 800);
         }
-    });
+    }
+
+    if (document.readyState === 'complete') {
+        dismissOverlay();
+    } else {
+        window.addEventListener('load', dismissOverlay);
+    }
 })();
 // ── State ─────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('rpg_token');
