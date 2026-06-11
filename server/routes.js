@@ -3319,19 +3319,13 @@ function buildExtendedAchievements() {
     });
 
     const referralLvlBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_30');
-    addFromBase(referralLvlBase, {
-        id: 'referrals_level5_60',
-        name: 'Mentor of Legends',
-        desc: 'Have 60 referred players reach level 5.',
-        target: 60,
-        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
-    });
+
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_100',
         name: 'Teacher of Heroes',
         desc: 'Have 100 referred players reach level 5.',
         target: 100,
-        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_150',
