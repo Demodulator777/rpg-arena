@@ -2611,6 +2611,29 @@ const eqGrid = `
               <div>❤️ ${el.vit}</div>
               <div>⚔️ ${el.dmgMin}-${el.dmgMax}</div>
             </div>
+            <div style="margin:8px 0 4px;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:6px">
+              <div style="font-size:0.65rem;color:var(--text-dim);margin-bottom:4px">Element Affinity:</div>
+              ${(() => {
+                const meta = {pyro:['🔥','#ef4444'],water:['💧','#3b82f6'],electro:['⚡','#a855f7'],wind:['🌪️','#22c55e']};
+                const affs = [{k:'pyro',v:Number(el.pyro_affinity||0)},{k:'water',v:Number(el.water_affinity||0)},{k:'electro',v:Number(el.electro_affinity||0)},{k:'wind',v:Number(el.wind_affinity||0)}];
+                const curV = affs.find(a=>a.k===el.element)?.v||0;
+                const maxV = Math.max(...affs.map(a=>a.v),1);
+                return affs.map(a => {
+                  const [emo,clr] = meta[a.k];
+                  const isCur = a.k === el.element;
+                  const gap = curV - a.v;
+                  const pct = Math.round((a.v/maxV)*100);
+                  return `<div style="display:flex;align-items:center;gap:4px;padding:1px 0">
+                    <span style="font-size:0.7rem">${emo}</span>
+                    <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+                      <div style="height:100%;width:${pct}%;background:${clr};border-radius:3px"></div>
+                    </div>
+                    <span style="font-size:0.6rem;color:var(--text-dim);min-width:16px;text-align:right">${a.v}</span>
+                    ${isCur?'<span style="font-size:0.55rem;color:var(--gold)">◀</span>':`<span style="font-size:0.55rem;color:${gap>0?'var(--text-dim)':'#ef4444'}">${gap>0?'+'+gap:'⚡'}</span>`}
+                  </div>`;
+                }).join('');
+              })()}
+            </div>
             ${el.stat_points > 0 ? `
             <div class="elem-stat-assign">
               <div style="font-size:0.75rem;margin:8px 0 4px;color:var(--gold);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
