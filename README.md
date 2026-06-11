@@ -130,3 +130,4 @@ docker run -p 3000:3000 rpg-arena
 | `JWT_SECRET`  | (required)        | JWT signing secret |
 | `DATABASE_URL`| `file:game.db`    | SQLite DB URL (Turso or local) |
 | `ADMIN_PANEL_PASSWORD` | `baisbetterthanbk` | Password for admin panel access |
+(subject to change once production stage ends)
