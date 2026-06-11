@@ -1,65 +1,191 @@
 // ── Loading Overlay ───────────────────────────────────────────────────────
 (function(){
+
+    // ── Dots ──────────────────────────────────────────────────────────────
     var dots = document.getElementById('loading-dots');
     if (dots) {
         var frames = ['', '.', '..', '...'];
-        var i = 0;
-        setInterval(function() {
-            i = (i + 1) % frames.length;
-            dots.textContent = frames[i];
-        }, 400);
+        var di = 0;
+        setInterval(function() { di = (di + 1) % frames.length; dots.textContent = frames[di]; }, 400);
     }
 
-    // Curated elegant palette — rich jewel tones that blend beautifully
+    // ── Ring color cycling ─────────────────────────────────────────────────
     var palette = [
-        '#c084fc', // violet
-        '#818cf8', // indigo
-        '#38bdf8', // sky
-        '#34d399', // emerald
-        '#fbbf24', // amber
-        '#f472b6', // pink
-        '#fb923c', // orange
-        '#a78bfa', // purple
-        '#2dd4bf', // teal
-        '#e879f9', // fuchsia
+        '#c084fc','#818cf8','#38bdf8','#34d399',
+        '#fbbf24','#f472b6','#fb923c','#a78bfa',
+        '#2dd4bf','#e879f9'
     ];
-
     var ringLayers = document.querySelectorAll('.ring-layer');
-
     function animateLayer(layer, minDelay, maxDelay) {
-        var color = palette[Math.floor(Math.random() * palette.length)];
-        var opacity = (Math.random() * 0.5).toFixed(3); // 0.0 – 0.5
+        var color   = palette[Math.floor(Math.random() * palette.length)];
+        var opacity = (Math.random() * 0.5).toFixed(3);
         layer.style.setProperty('--ring-color', color);
         var img = layer.querySelector('.loading-ring');
         if (img) img.style.opacity = opacity;
-
         var delay = minDelay + Math.random() * (maxDelay - minDelay);
         setTimeout(function() { animateLayer(layer, minDelay, maxDelay); }, delay);
     }
+    var ringCfgs = [{ min:2800,max:4200 },{ min:2000,max:3400 },{ min:1600,max:2800 }];
+    ringLayers.forEach(function(layer, idx) {
+        var cfg = ringCfgs[idx] || ringCfgs[0];
+        setTimeout(function() { animateLayer(layer, cfg.min, cfg.max); }, idx * 600 + Math.random() * 400);
+    });
 
-    if (ringLayers.length >= 1) {
-        // Each layer gets its own random timing window so they drift independently
-        var configs = [
-            { min: 2800, max: 4200 },  // outer — slower, majestic
-            { min: 2000, max: 3400 },  // middle
-            { min: 1600, max: 2800 },  // inner — quickest
-        ];
-        ringLayers.forEach(function(layer, idx) {
-            var cfg = configs[idx] || configs[0];
-            var initialDelay = idx * 600 + Math.random() * 400;
-            setTimeout(function() { animateLayer(layer, cfg.min, cfg.max); }, initialDelay);
-        });
+    // ── Star & Constellation canvas ────────────────────────────────────────
+    var starCanvas = document.getElementById('loading-stars');
+    if (starCanvas) {
+        var sc = starCanvas.getContext('2d');
+        var stars = [], constellations = [], starRaf;
+        var NUM_STARS = 130, MAX_DIST = 130;
+        function resizeStars() { starCanvas.width = window.innerWidth; starCanvas.height = window.innerHeight; }
+        resizeStars();
+        window.addEventListener('resize', resizeStars);
+        var starColors = ['rgba(255,255,255,','rgba(200,215,255,','rgba(220,200,255,','rgba(255,240,200,','rgba(180,230,255,'];
+        for (var s = 0; s < NUM_STARS; s++) {
+            stars.push({ x:Math.random(), y:Math.random(), r:0.4+Math.random()*1.4,
+                color:starColors[Math.floor(Math.random()*starColors.length)],
+                opacity:0, target:Math.random()*0.85+0.05, speed:0.003+Math.random()*0.009,
+                waitFrames:Math.floor(Math.random()*180), waited:0 });
+        }
+        function spawnConst() {
+            var seed = Math.floor(Math.random()*stars.length);
+            var sx = stars[seed].x*starCanvas.width, sy = stars[seed].y*starCanvas.height;
+            var nearby = [seed];
+            var shuffled = stars.map(function(_,i){return i;}).sort(function(){return Math.random()-0.5;});
+            for (var k=0; k<shuffled.length && nearby.length<6; k++) {
+                var ii=shuffled[k]; if(ii===seed) continue;
+                var dx=stars[ii].x*starCanvas.width-sx, dy=stars[ii].y*starCanvas.height-sy;
+                if (Math.sqrt(dx*dx+dy*dy)<MAX_DIST) nearby.push(ii);
+            }
+            if (nearby.length>=3) constellations.push({indices:nearby,opacity:0,dir:1});
+        }
+        var starFrame=0, nextSpawn=120;
+        function drawStars() {
+            if (!document.getElementById('loading-overlay')) { cancelAnimationFrame(starRaf); return; }
+            sc.clearRect(0,0,starCanvas.width,starCanvas.height);
+            starFrame++;
+            if (starFrame>=nextSpawn) { spawnConst(); nextSpawn=starFrame+100+Math.floor(Math.random()*160); }
+            for (var c=constellations.length-1;c>=0;c--) {
+                var con=constellations[c];
+                con.opacity+=con.dir*0.008;
+                if (con.opacity>=0.45){con.opacity=0.45;con.dir=-1;}
+                if (con.opacity<=0){constellations.splice(c,1);continue;}
+                sc.strokeStyle='rgba(160,195,255,'+con.opacity.toFixed(3)+')';
+                sc.lineWidth=0.6; sc.beginPath();
+                var p0=stars[con.indices[0]];
+                sc.moveTo(p0.x*starCanvas.width,p0.y*starCanvas.height);
+                for (var j=1;j<con.indices.length;j++) {
+                    var pj=stars[con.indices[j]],prev=stars[con.indices[j-1]];
+                    var ddx=pj.x*starCanvas.width-prev.x*starCanvas.width;
+                    var ddy=pj.y*starCanvas.height-prev.y*starCanvas.height;
+                    if(Math.sqrt(ddx*ddx+ddy*ddy)<MAX_DIST) sc.lineTo(pj.x*starCanvas.width,pj.y*starCanvas.height);
+                    else sc.moveTo(pj.x*starCanvas.width,pj.y*starCanvas.height);
+                }
+                sc.stroke();
+            }
+            for (var i=0;i<stars.length;i++) {
+                var st=stars[i];
+                if(Math.abs(st.opacity-st.target)<st.speed){
+                    if(st.waited<st.waitFrames){st.waited++;}
+                    else{st.target=Math.random()*0.85+0.05;st.waitFrames=Math.floor(Math.random()*200+60);st.speed=0.003+Math.random()*0.009;st.waited=0;}
+                } else { st.opacity+=(st.target-st.opacity)>0?st.speed:-st.speed; }
+                var px=st.x*starCanvas.width,py=st.y*starCanvas.height;
+                sc.beginPath(); sc.arc(px,py,st.r*2.5,0,Math.PI*2);
+                sc.fillStyle=st.color+(st.opacity*0.18).toFixed(3)+')'; sc.fill();
+                sc.beginPath(); sc.arc(px,py,st.r,0,Math.PI*2);
+                sc.fillStyle=st.color+st.opacity.toFixed(3)+')'; sc.fill();
+            }
+            starRaf=requestAnimationFrame(drawStars);
+        }
+        starRaf=requestAnimationFrame(drawStars);
     }
 
+    // ── Runic particle canvas ──────────────────────────────────────────────
+    var pCanvas = document.getElementById('loading-particles');
+    if (pCanvas) {
+        var pc = pCanvas.getContext('2d');
+        var particles = [], pRaf;
+        // Rune-like glyphs — simple strokes that feel arcane
+        var glyphs = ['✦','✧','⊕','⊗','◈','⟁','⌬','⍟','⎊','⏣','⋆','∴','∵','⁂'];
+        var pColors = [
+            'rgba(192,132,252,', 'rgba(129,140,248,', 'rgba(56,189,248,',
+            'rgba(52,211,153,',  'rgba(251,191,36,',  'rgba(244,114,182,'
+        ];
+        function resizeP() {
+            var rect = pCanvas.parentElement.getBoundingClientRect();
+            pCanvas.width  = rect.width  + 240;
+            pCanvas.height = rect.height + 240;
+        }
+        resizeP();
+        window.addEventListener('resize', resizeP);
+
+        function spawnParticle() {
+            var w = pCanvas.width, h = pCanvas.height;
+            // spawn along bottom edge of the canvas, within ring area roughly
+            var angle = Math.random() * Math.PI * 2;
+            var r = 80 + Math.random() * 160; // spawn in a ring around center
+            particles.push({
+                x: w/2 + Math.cos(angle)*r,
+                y: h/2 + Math.sin(angle)*r,
+                vx: (Math.random()-0.5)*0.4,
+                vy: -(0.3 + Math.random()*0.7), // float upward
+                opacity: 0,
+                maxOpacity: 0.15 + Math.random()*0.35,
+                fadeIn: true,
+                size: 7 + Math.random()*9,
+                glyph: glyphs[Math.floor(Math.random()*glyphs.length)],
+                color: pColors[Math.floor(Math.random()*pColors.length)],
+                life: 0,
+                maxLife: 120 + Math.floor(Math.random()*180),
+                spin: (Math.random()-0.5)*0.02
+            });
+        }
+
+        var pFrame = 0;
+        function drawParticles() {
+            if (!document.getElementById('loading-overlay')) { cancelAnimationFrame(pRaf); return; }
+            pc.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            pFrame++;
+            // spawn a new particle every ~40 frames
+            if (pFrame % 40 === 0) spawnParticle();
+
+            for (var i = particles.length-1; i >= 0; i--) {
+                var p = particles[i];
+                p.x  += p.vx;
+                p.y  += p.vy;
+                p.life++;
+                // fade in first 30 frames, fade out last 40
+                if (p.life < 30) { p.opacity = (p.life/30) * p.maxOpacity; }
+                else if (p.life > p.maxLife - 40) { p.opacity = ((p.maxLife-p.life)/40) * p.maxOpacity; }
+                else { p.opacity = p.maxOpacity; }
+                if (p.life >= p.maxLife) { particles.splice(i,1); continue; }
+
+                pc.save();
+                pc.translate(p.x, p.y);
+                pc.rotate(p.life * p.spin);
+                pc.font = p.size + 'px serif';
+                pc.textAlign = 'center';
+                pc.textBaseline = 'middle';
+                pc.fillStyle = p.color + p.opacity.toFixed(3) + ')';
+                pc.fillText(p.glyph, 0, 0);
+                pc.restore();
+            }
+            pRaf = requestAnimationFrame(drawParticles);
+        }
+        // seed a few particles immediately
+        for (var pi=0; pi<5; pi++) spawnParticle();
+        pRaf = requestAnimationFrame(drawParticles);
+    }
+
+    // ── Cleanup on load ────────────────────────────────────────────────────
     window.addEventListener('load', function() {
         var ov = document.getElementById('loading-overlay');
         if (ov) {
             ov.classList.add('hidden');
-            setTimeout(function() { ov.remove(); }, 600);
+            setTimeout(function() { ov.remove(); }, 800);
         }
     });
 })();
-
 // ── State ─────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('rpg_token');
 let username = localStorage.getItem('rpg_username');
