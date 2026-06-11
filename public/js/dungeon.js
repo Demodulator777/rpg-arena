@@ -3340,7 +3340,6 @@ function renderRoomInfo(room) {
                 <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" data-error-hide="true" data-error-next-display="block">
                 <div style="display:none;font-size:3rem">${boss.icon}</div>
                 <div class="boss-name-big">${boss.name}</div>
-                ${boss.lore ? `<div class="dungeon-lore-text">${boss.lore}</div>` : ''}
                 <div class="boss-stats" style="color:var(--dungeon-muted)">
                     Stats revealed in battle.
                 </div>
@@ -3361,7 +3360,6 @@ function renderRoomInfo(room) {
                 <div class="monster-icon">⚠️ ${m.icon}</div>
                 <div class="monster-info">
                     <div class="monster-name">MINI-BOSS: ${m.name}</div>
-                    ${m.lore ? `<div class="dungeon-lore-text">${m.lore}</div>` : ''}
                     <div class="monster-stats" style="color:var(--dungeon-muted)">
                         Stats revealed in battle.
                     </div>
@@ -3382,7 +3380,6 @@ function renderRoomInfo(room) {
                 <div class="monster-icon">${monsterCount > 1 ? `👥 ${monsterCount}x` : m.icon}</div>
                 <div class="monster-info">
                     <div class="monster-name">${monsterCount > 1 ? `${monsterCount} Enemies` : m.name}</div>
-                    ${m.lore && monsterCount === 1 ? `<div class="dungeon-lore-text">${m.lore}</div>` : ''}
                     <div class="monster-list" style="font-size:0.7rem;color:var(--dungeon-muted);margin-bottom:6px">
                         ${monsterNames}
                     </div>
@@ -3450,7 +3447,8 @@ function renderRoomInfo(room) {
                 <div style="display:flex;align-items:center;gap:8px">
                     <span class="fighter-icon" style="font-size:1.2rem">${isDead ? '💀' : m.icon}</span>
                     <div style="flex:1">
-                        <div style="font-size:0.7rem">${m.name} ${isCurrent ? '(current)' : ''}</div>
+                        <div class="combat-monster-name" style="font-size:0.7rem;cursor:${m.lore ? 'pointer' : 'default'}" title="${m.lore ? m.lore.replace(/"/g,'&quot;') : ''}" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'">${m.name} ${isCurrent ? '(current)' : ''}${m.lore ? ' 📖' : ''}</div>
+                        ${m.lore ? `<div class="combat-monster-lore" style="display:none;margin-top:4px;padding:4px 6px;font-size:0.65rem;line-height:1.4;color:rgba(220,200,160,0.85);background:rgba(0,0,0,0.35);border-left:2px solid rgba(200,170,80,0.4);border-radius:0 4px 4px 0">${m.lore}</div>` : ''}
                         <div class="fighter-hp-bar-wrap" style="height:6px">
                             <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%;height:6px"></div>
                         </div>
