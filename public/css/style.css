@@ -6588,9 +6588,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     letter-spacing: 4px;
     text-transform: uppercase;
     color: rgba(255,255,255,0.55);
-    display: flex;
-    align-items: baseline;
-    justify-content: center;
+    text-align: center;
 }
 #loading-dots {
     display: inline-block;
