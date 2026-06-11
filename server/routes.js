@@ -9687,7 +9687,7 @@ if (freshChar.class === 'rogue') {
             return res.status(409).json({ error: 'Mission rewards already collected.' });
         }
 
-        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=GREATEST(top_damage_dealt, ?) WHERE id=?`,
+                 await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshChar.id]);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
         
