@@ -3589,7 +3589,7 @@ ACHIEVEMENTS.push(
     { id: 'gold_earned_2m', category: 'economy', name: 'Empire', desc: 'Earn 2,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 2000000, rewards: { gold: 150000, gems: 25 } },
     { id: 'gold_earned_3m', category: 'economy', name: 'Banking', desc: 'Earn 3,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 3000000, rewards: { gold: 200000, gems: 25 } },
     { id: 'gold_earned_4m', category: 'economy', name: 'Tycoon Empire', desc: 'Earn 4,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 4000000, rewards: { gold: 250000, gems: 25 } },
-    { id: 'gold_earned_5m', category: 'economy', name: 'Trillionaire', desc: 'Earn 5,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000000, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
     { id: 'gold_earned_6m', category: 'economy', name: 'Zillionaire', desc: 'Earn 6,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 6000000, rewards: { gold: 400000, gems: 25 } },
     { id: 'gold_earned_8m', category: 'economy', name: 'Dragon\'s Hoard', desc: 'Earn 8,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 8000000, rewards: { gold: 500000, gems: 25 } },
     { id: 'gold_earned_10m', category: 'economy', name: 'Midas Touch', desc: 'Earn 10,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 10000000, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
