@@ -1980,6 +1980,18 @@
   font-style: italic;
 }
 
+.dungeon-lore-text {
+  margin: 6px 0 10px;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.35);
+  border-left: 3px solid rgba(200,170,80,0.4);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: rgba(220,200,160,0.85);
+  font-style: italic;
+}
+
 /* ── Travel Bar ───────────────────────────────────────────── */
 .dungeon-travel-bar-wrap {
   height: 3px;
