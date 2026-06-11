@@ -8,6 +8,25 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css"/>
     <link rel="stylesheet" href="/css/tournaments.css"/>
+    <style>
+        /* Critical: applied before external CSS loads — prevents flash of unstyled content */
+        html, body { margin: 0; padding: 0; background: #070b10; }
+        body > *:not(#loading-overlay) { visibility: hidden; }
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at 50% 45%, #111a2e 0%, #070b10 65%, #020408 100%);
+            overflow: hidden;
+        }
+        .loading-filigree { display: none; }
+        .loading-rings { position: relative; }
+        .loading-ring { opacity: 0; }
+    </style>
 </head>
 <body>
 <div id="loading-overlay">
