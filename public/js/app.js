@@ -179,16 +179,16 @@
 
     // ── Cleanup on load ────────────────────────────────────────────────────
     function dismissOverlay() {
-        var ov = document.getElementById('loading-overlay');
+        var ov  = document.getElementById('loading-overlay');
         var app = document.getElementById('app');
-        if (app) app.style.display = '';
+        if (app) app.style.display = 'block';
         if (ov && !ov.classList.contains('hidden')) {
             ov.classList.add('hidden');
             setTimeout(function() { if (ov.parentNode) ov.remove(); }, 800);
         }
     }
 
-    if (document.readyState === 'complete') {
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
         dismissOverlay();
     } else {
         window.addEventListener('load', dismissOverlay);
