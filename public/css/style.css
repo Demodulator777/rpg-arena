@@ -6589,11 +6589,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     text-transform: uppercase;
     color: rgba(255,255,255,0.55);
     text-align: center;
+    position: relative;
 }
 #loading-dots {
-    display: inline-block;
-    width: 1.8em;
-    text-align: left;
+    position: absolute;
+    white-space: nowrap;
 }
 
 .loading-rings {
