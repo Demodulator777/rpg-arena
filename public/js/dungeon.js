@@ -3447,7 +3447,7 @@ function renderRoomInfo(room) {
                 <div style="display:flex;align-items:center;gap:8px">
                     <span class="fighter-icon" style="font-size:1.2rem">${isDead ? '💀' : m.icon}</span>
                     <div style="flex:1">
-                        <div class="combat-monster-name" style="font-size:0.7rem;cursor:${m.lore ? 'pointer' : 'default'}" title="${m.lore ? m.lore.replace(/"/g,'&quot;') : ''}" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'">${m.name} ${isCurrent ? '(current)' : ''}${m.lore ? ' 📖' : ''}</div>
+                        <div class="combat-monster-name" style="font-size:0.7rem;cursor:${m.lore ? 'pointer' : 'default'}" title="${m.lore ? m.lore.replace(/"/g,'&quot;') : ''}" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${idx}]'` : ''}>${m.name} ${isCurrent ? '(current)' : ''}${m.lore ? ' 📖' : ''}</div>
                         ${m.lore ? `<div class="combat-monster-lore" style="display:none;margin-top:4px;padding:4px 6px;font-size:0.65rem;line-height:1.4;color:rgba(220,200,160,0.85);background:rgba(0,0,0,0.35);border-left:2px solid rgba(200,170,80,0.4);border-radius:0 4px 4px 0">${m.lore}</div>` : ''}
                         <div class="fighter-hp-bar-wrap" style="height:6px">
                             <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%;height:6px"></div>
@@ -3542,6 +3542,15 @@ function renderRoomInfo(room) {
       <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('closeDungeonVictory')}>Continue Delving</button>
     </div>
   `;
+}
+
+function toggleMonsterLore(idx) {
+  const entries = document.querySelectorAll('.combat-monster-entry');
+  const entry = entries[idx];
+  if (!entry) return;
+  const lore = entry.querySelector('.combat-monster-lore');
+  if (!lore) return;
+  lore.style.display = lore.style.display === 'block' ? 'none' : 'block';
 }
 
   function updateTravelBtn(idx, disabled) {
