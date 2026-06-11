@@ -531,6 +531,8 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN wins_without_boots INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_equipment INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN nightmare_missions_completed INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN damage_dealt INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN top_damage_dealt INTEGER DEFAULT 0',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -2872,6 +2874,215 @@ function buildExtendedAchievements() {
             rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
+            id: 'top_damage_dealt_500',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'First Blood',
+            desc: 'Deal 500 damage in a single battle.',
+            icon: '🩸',
+            metric: 'top_damage_dealt',
+            target: 500,
+            rewards: { gold: 5000, consumable: { id: 'potion_health', qty: 2 } },
+        },
+        {
+            id: 'top_damage_dealt_1000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Skirmisher',
+            desc: 'Deal 1,000 damage in a single battle.',
+            icon: '⚔️',
+            metric: 'top_damage_dealt',
+            target: 1000,
+            rewards: { gold: 15000, gems: 5, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'top_damage_dealt_2000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Warrior',
+            desc: 'Deal 2,000 damage in a single battle.',
+            icon: '🛡️',
+            metric: 'top_damage_dealt',
+            target: 2000,
+            rewards: { gold: 40000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'top_damage_dealt_4000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Battle-Hardened',
+            desc: 'Deal 4,000 damage in a single battle.',
+            icon: '💥',
+            metric: 'top_damage_dealt',
+            target: 4000,
+            rewards: { gold: 100000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 2 } },
+        },
+        {
+            id: 'top_damage_dealt_6000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Champion',
+            desc: 'Deal 6,000 damage in a single battle.',
+            icon: '🏆',
+            metric: 'top_damage_dealt',
+            target: 6000,
+            rewards: { gold: 200000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'top_damage_dealt_8000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Warlord',
+            desc: 'Deal 8,000 damage in a single battle.',
+            icon: '🏰',
+            metric: 'top_damage_dealt',
+            target: 8000,
+            rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 2 } },
+        },
+        {
+            id: 'top_damage_dealt_10000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Avatar of War',
+            desc: 'Deal 10,000 damage in a single battle.',
+            icon: '🔥',
+            metric: 'top_damage_dealt',
+            target: 10000,
+            rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'top_damage_dealt_13000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'Master of Carnage',
+            desc: 'Deal 13,000 damage in a single battle.',
+            icon: '🗡️',
+            metric: 'top_damage_dealt',
+            target: 13000,
+            rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'iron_fortress', days: 7 } },
+        },
+        {
+            id: 'top_damage_dealt_16000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'God of Destruction',
+            desc: 'Deal 16,000 damage in a single battle.',
+            icon: '👑',
+            metric: 'top_damage_dealt',
+            target: 16000,
+            rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        },
+        {
+            id: 'top_damage_dealt_20000',
+            chain: 'top_damage_dealt',
+            category: 'combat',
+            name: 'The Unstoppable',
+            desc: 'Deal 20,000 damage in a single battle.',
+            icon: '⚡',
+            metric: 'top_damage_dealt',
+            target: 20000,
+            rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 }, premium: { id: 'fortune_hunter', days: 14 } },
+        },
+        {
+            id: 'damage_dealt_1000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Blood Spiller',
+            desc: 'Deal 1,000 total damage in battles.',
+            icon: '🩸',
+            metric: 'damage_dealt',
+            target: 1000,
+            rewards: { gold: 2000, consumable: { id: 'potion_health', qty: 2 } },
+        },
+        {
+            id: 'damage_dealt_5000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Skirmisher',
+            desc: 'Deal 5,000 total damage in battles.',
+            icon: '⚔️',
+            metric: 'damage_dealt',
+            target: 5000,
+            rewards: { gold: 10000, gems: 5, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'damage_dealt_15000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Warrior',
+            desc: 'Deal 15,000 total damage in battles.',
+            icon: '🛡️',
+            metric: 'damage_dealt',
+            target: 15000,
+            rewards: { gold: 30000, gems: 5, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'damage_dealt_40000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Battle-Hardened',
+            desc: 'Deal 40,000 total damage in battles.',
+            icon: '💪',
+            metric: 'damage_dealt',
+            target: 40000,
+            rewards: { gold: 80000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'damage_dealt_100000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Veteran Slayer',
+            desc: 'Deal 100,000 total damage in battles.',
+            icon: '💀',
+            metric: 'damage_dealt',
+            target: 100000,
+            rewards: { gold: 200000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 2 } },
+        },
+        {
+            id: 'damage_dealt_200000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Champion',
+            desc: 'Deal 200,000 total damage in battles.',
+            icon: '🏆',
+            metric: 'damage_dealt',
+            target: 200000,
+            rewards: { gold: 400000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'damage_dealt_400000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Warlord',
+            desc: 'Deal 400,000 total damage in battles.',
+            icon: '🏰',
+            metric: 'damage_dealt',
+            target: 400000,
+            rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 2 } },
+        },
+        {
+            id: 'damage_dealt_650000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'Avatar of War',
+            desc: 'Deal 650,000 total damage in battles.',
+            icon: '🔥',
+            metric: 'damage_dealt',
+            target: 650000,
+            rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'damage_dealt_1000000',
+            chain: 'damage_dealt',
+            category: 'combat',
+            name: 'God of War',
+            desc: 'Deal 1,000,000 total damage in battles.',
+            icon: '👑',
+            metric: 'damage_dealt',
+            target: 1000000,
+            rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 }, premium: { id: 'fortune_hunter', days: 30 } },
+        },
+        {
             id: 'elemental_kills_10',
             chain: 'elemental_kills',
             category: 'combat',
@@ -4186,6 +4397,8 @@ async function buildAchievementMetricSnapshot(db, char) {
         dungeon_floor: char.dungeon_highest_floor || 1,
         hard_missions_completed: char.hard_missions_completed || 0,
         nightmare_missions_completed: char.nightmare_missions_completed || 0,
+        damage_dealt: char.damage_dealt || 0,
+        top_damage_dealt: char.top_damage_dealt || 0,
         total_missions_completed: char.total_missions_completed || 0,
         level: char.level || 1,
         elemental_kills: char.elemental_kills || 0,
@@ -4221,6 +4434,8 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'dungeon_floor') return metrics.dungeon_floor;
     if (metric === 'hard_missions_completed') return metrics.hard_missions_completed;
     if (metric === 'nightmare_missions_completed') return metrics.nightmare_missions_completed;
+    if (metric === 'damage_dealt') return metrics.damage_dealt;
+    if (metric === 'top_damage_dealt') return metrics.top_damage_dealt;
     if (metric === 'elemental_kills') return metrics.elemental_kills;
     if (metric === 'physical_only_wins') return metrics.physical_only_wins;
     if (metric === 'wins_without_shield') return metrics.wins_without_shield;
@@ -9219,8 +9434,8 @@ if (freshChar.class === 'rogue') {
             return res.status(409).json({ error: 'Mission rewards already collected.' });
         }
 
-        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+? WHERE id=?`,
-            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
+                 await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
+            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshChar.id]);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
         
         // ── Skill tree stat tracking ───────────────────────────────────────
@@ -10852,11 +11067,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         await ensureWeeklyTaskState(db, freshA);
         await ensureWeeklyTaskState(db, freshD);
-        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
-            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=GREATEST(top_damage_dealt, ?) WHERE id=?`,
+            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshA.id]);
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
-        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
-            [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, freshD.id]);
+        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=GREATEST(top_damage_dealt, ?) WHERE id=?`,
+            [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, freshD.id]);
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
                 [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained)]);
