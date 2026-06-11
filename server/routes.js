@@ -3586,9 +3586,7 @@ ACHIEVEMENTS.push(
 
     { id: 'gold_earned_6m', category: 'economy', name: 'Zillionaire', desc: 'Earn 6,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 6000000, rewards: { gold: 400000, gems: 25 } },
     { id: 'gold_earned_8m', category: 'economy', name: 'Dragon\'s Hoard', desc: 'Earn 8,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 8000000, rewards: { gold: 500000, gems: 25 } },
-    { id: 'gold_earned_10m', category: 'economy', name: 'Midas Touch', desc: 'Earn 10,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 10000000, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     { id: 'gold_earned_15m', category: 'economy', name: 'King\'s Ransom', desc: 'Earn 15,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 15000000, rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
-    { id: 'gold_earned_20m', category: 'economy', name: 'World Bank', desc: 'Earn 20,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 20000000, rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
 
     // Total missions completed
     { id: 'missions_complete_10', category: 'missions', name: 'Missioner', desc: 'Complete 10 missions.', icon: '📜', metric: 'total_missions_completed', target: 10, rewards: { gold: 3000 } },
@@ -3612,7 +3610,6 @@ ACHIEVEMENTS.push(
     { id: 'dungeon_floor_70', category: 'dungeon', name: 'Floor 70', desc: 'Reach floor 70 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 70, rewards: { gold: 100000, gems: 25 } },
     { id: 'dungeon_floor_80', category: 'dungeon', name: 'Floor 80', desc: 'Reach floor 80 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 80, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     { id: 'dungeon_floor_90', category: 'dungeon', name: 'Floor 90', desc: 'Reach floor 90 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 90, rewards: { gold: 200000, gems: 25 } },
-    { id: 'dungeon_floor_100', category: 'dungeon', name: 'Tower Legend', desc: 'Reach floor 100 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 100, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
 
     // Gems earned achievements
     { id: 'gems_earned_5', category: 'economy', name: 'Gem Finder', desc: 'Earn 5 gems total.', icon: '💎', metric: 'gems_earned', target: 5, rewards: { gold: 1000 } },
