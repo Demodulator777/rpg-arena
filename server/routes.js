@@ -523,6 +523,11 @@ const WEEKLY_TASKS = [
             'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
             'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
             'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_weapon INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_helmet INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_armor INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_boots INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_equipment INTEGER DEFAULT 0',
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -2999,6 +3004,171 @@ function buildExtendedAchievements() {
             rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
+            id: 'weaponless_wins_10',
+            chain: 'wins_without_weapon',
+            category: 'combat',
+            name: 'Fist Fighter',
+            desc: 'Win 10 battles without a weapon equipped.',
+            icon: '👊',
+            metric: 'wins_without_weapon',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'weaponless_wins_50',
+            chain: 'wins_without_weapon',
+            category: 'combat',
+            name: 'Barehanded Brawler',
+            desc: 'Win 50 battles without a weapon equipped.',
+            icon: '👊',
+            metric: 'wins_without_weapon',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'weaponless_wins_200',
+            chain: 'wins_without_weapon',
+            category: 'combat',
+            name: 'Unarmed Master',
+            desc: 'Win 200 battles without a weapon equipped.',
+            icon: '🥊',
+            metric: 'wins_without_weapon',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'helmless_wins_10',
+            chain: 'wins_without_helmet',
+            category: 'combat',
+            name: 'Fresh Air',
+            desc: 'Win 10 battles without a helmet equipped.',
+            icon: '🌬️',
+            metric: 'wins_without_helmet',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'helmless_wins_50',
+            chain: 'wins_without_helmet',
+            category: 'combat',
+            name: 'Wind in Your Hair',
+            desc: 'Win 50 battles without a helmet equipped.',
+            icon: '🌬️',
+            metric: 'wins_without_helmet',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'helmless_wins_200',
+            chain: 'wins_without_helmet',
+            category: 'combat',
+            name: 'Unhelmeted Warrior',
+            desc: 'Win 200 battles without a helmet equipped.',
+            icon: '🪖',
+            metric: 'wins_without_helmet',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'armorless_wins_10',
+            chain: 'wins_without_armor',
+            category: 'combat',
+            name: 'Lightly Dressed',
+            desc: 'Win 10 battles without armor equipped.',
+            icon: '🦺',
+            metric: 'wins_without_armor',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'armorless_wins_50',
+            chain: 'wins_without_armor',
+            category: 'combat',
+            name: 'Shirtless Champion',
+            desc: 'Win 50 battles without armor equipped.',
+            icon: '🦺',
+            metric: 'wins_without_armor',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'armorless_wins_200',
+            chain: 'wins_without_armor',
+            category: 'combat',
+            name: 'Naked Warrior',
+            desc: 'Win 200 battles without armor equipped.',
+            icon: '💪',
+            metric: 'wins_without_armor',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'bootless_wins_10',
+            chain: 'wins_without_boots',
+            category: 'combat',
+            name: 'Barefoot',
+            desc: 'Win 10 battles without boots equipped.',
+            icon: '🦶',
+            metric: 'wins_without_boots',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'bootless_wins_50',
+            chain: 'wins_without_boots',
+            category: 'combat',
+            name: 'Sole Survivor',
+            desc: 'Win 50 battles without boots equipped.',
+            icon: '🦶',
+            metric: 'wins_without_boots',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'bootless_wins_200',
+            chain: 'wins_without_boots',
+            category: 'combat',
+            name: 'Unshod Legend',
+            desc: 'Win 200 battles without boots equipped.',
+            icon: '👟',
+            metric: 'wins_without_boots',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'equipmentless_wins_10',
+            chain: 'wins_without_equipment',
+            category: 'combat',
+            name: 'Completely Naked',
+            desc: 'Win 10 battles with no equipment at all.',
+            icon: '🫣',
+            metric: 'wins_without_equipment',
+            target: 10,
+            rewards: { gold: 50000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'equipmentless_wins_50',
+            chain: 'wins_without_equipment',
+            category: 'combat',
+            name: 'Skyclad',
+            desc: 'Win 50 battles with no equipment at all.',
+            icon: '🫣',
+            metric: 'wins_without_equipment',
+            target: 50,
+            rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'equipmentless_wins_200',
+            chain: 'wins_without_equipment',
+            category: 'combat',
+            name: 'Born This Way',
+            desc: 'Win 200 battles with no equipment at all.',
+            icon: '✨',
+            metric: 'wins_without_equipment',
+            target: 200,
+            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
             id: 'physical_only_wins_10',
             chain: 'physical_only_wins',
             category: 'combat',
@@ -3234,6 +3404,58 @@ function buildExtendedAchievements() {
         target: 10000,
         rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
     });
+
+    const weaponlessBase = ACHIEVEMENTS.find((a) => a.id === 'weaponless_wins_200');
+    const helmlessBase = ACHIEVEMENTS.find((a) => a.id === 'helmless_wins_200');
+    const armorlessBase = ACHIEVEMENTS.find((a) => a.id === 'armorless_wins_200');
+    const bootlessBase = ACHIEVEMENTS.find((a) => a.id === 'bootless_wins_200');
+    const equipmentlessBase = ACHIEVEMENTS.find((a) => a.id === 'equipmentless_wins_200');
+
+    function addFromBaseMulti(bases, overrides) {
+        for (const base of bases) {
+            if (base) addFromBase(base, overrides);
+        }
+    }
+
+    const noGearTiers = [
+        { target: 300, suffix: '300', rewards: { gold: 120000, gems: 24, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 500, suffix: '500', rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 750, suffix: '750', rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 1000, suffix: '1000', rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+        { target: 2000, suffix: '2000', rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+        { target: 3000, suffix: '3000', rewards: { gold: 2000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+        { target: 5000, suffix: '5000', rewards: { gold: 3500000, gems: 25, premium: { id: 'apprentice', days: 30 } } },
+        { target: 7500, suffix: '7500', rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+        { target: 10000, suffix: '10000', rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } } },
+    ];
+    const noGearBases = [weaponlessBase, helmlessBase, armorlessBase, bootlessBase];
+    const noGearIdPrefixMap = { weaponless: 'wins_without_weapon', helmless: 'wins_without_helmet', armorless: 'wins_without_armor', bootless: 'wins_without_boots' };
+    const noGearNameMap = { weaponless: 'weapon', helmless: 'helmet', armorless: 'armor', bootless: 'boots' };
+    for (const [idx, base] of noGearBases.entries()) {
+        if (!base) continue;
+        const prefix = Object.keys(noGearIdPrefixMap)[idx];
+        const slotName = noGearNameMap[prefix];
+        for (const tier of noGearTiers) {
+            addFromBase(base, {
+                id: noGearIdPrefixMap[prefix] + '_' + tier.suffix,
+                name: base.name + ' ' + tier.suffix,
+                desc: 'Win ' + Number(tier.target).toLocaleString() + ' battles without a ' + slotName + ' equipped.',
+                target: tier.target,
+                rewards: tier.rewards,
+            });
+        }
+    }
+    if (equipmentlessBase) {
+        for (const tier of noGearTiers) {
+            addFromBase(equipmentlessBase, {
+                id: 'wins_without_equipment_' + tier.suffix,
+                name: equipmentlessBase.name + ' ' + tier.suffix,
+                desc: 'Win ' + Number(tier.target).toLocaleString() + ' battles with no equipment at all.',
+                target: tier.target,
+                rewards: tier.rewards,
+            });
+        }
+    }
 
     const physicalBase = ACHIEVEMENTS.find((a) => a.id === 'physical_only_wins_200');
     addFromBase(physicalBase, {
@@ -3866,6 +4088,11 @@ async function buildAchievementMetricSnapshot(db, char) {
         elemental_kills: char.elemental_kills || 0,
         physical_only_wins: char.physical_only_wins || 0,
         wins_without_shield: char.wins_without_shield || 0,
+        wins_without_weapon: char.wins_without_weapon || 0,
+        wins_without_helmet: char.wins_without_helmet || 0,
+        wins_without_armor: char.wins_without_armor || 0,
+        wins_without_boots: char.wins_without_boots || 0,
+        wins_without_equipment: char.wins_without_equipment || 0,
         raids_participated: Number(raidRow?.raids_participated || 0),
         raids_won: Number(raidRow?.raids_won || 0),
         referrals_registered: Number(referralRow?.referrals_registered || 0),
@@ -3893,6 +4120,11 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'elemental_kills') return metrics.elemental_kills;
     if (metric === 'physical_only_wins') return metrics.physical_only_wins;
     if (metric === 'wins_without_shield') return metrics.wins_without_shield;
+    if (metric === 'wins_without_weapon') return metrics.wins_without_weapon;
+    if (metric === 'wins_without_helmet') return metrics.wins_without_helmet;
+    if (metric === 'wins_without_armor') return metrics.wins_without_armor;
+    if (metric === 'wins_without_boots') return metrics.wins_without_boots;
+    if (metric === 'wins_without_equipment') return metrics.wins_without_equipment;
     if (metric === 'raids_participated') return metrics.raids_participated;
     if (metric === 'raids_won') return metrics.raids_won;
     if (metric === 'referrals_registered') return metrics.referrals_registered;
@@ -4586,6 +4818,31 @@ async function recordShieldlessWin(db, char, equippedItems) {
     if (!char?.id) return;
     if (hasShieldEquipped(equippedItems)) return;
     await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+}
+
+function hasSlotEquipped(items, slot) {
+    return (items || []).some(item => {
+        try {
+            const raw = typeof item?.item_data === 'string' ? JSON.parse(item.item_data) : item;
+            return raw?.slot === slot;
+        } catch {
+            return false;
+        }
+    });
+}
+
+async function recordEquipmentlessWins(db, char, equippedItems) {
+    if (!char?.id) return;
+    const items = equippedItems || [];
+    if (!hasShieldEquipped(items)) await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'weapon')) await dbRun(db, 'UPDATE characters SET wins_without_weapon = wins_without_weapon + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'helmet')) await dbRun(db, 'UPDATE characters SET wins_without_helmet = wins_without_helmet + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'armor')) await dbRun(db, 'UPDATE characters SET wins_without_armor = wins_without_armor + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'boots')) await dbRun(db, 'UPDATE characters SET wins_without_boots = wins_without_boots + 1 WHERE id=?', [char.id]);
+    const essentialSlots = ['weapon', 'helmet', 'armor', 'boots', 'shield'];
+    if (essentialSlots.every(s => !hasSlotEquipped(items, s))) {
+        await dbRun(db, 'UPDATE characters SET wins_without_equipment = wins_without_equipment + 1 WHERE id=?', [char.id]);
+    }
 }
 
 async function recordDamageStyleWin(db, charId, elementalDamageTotal) {
@@ -8781,7 +9038,7 @@ if (freshChar.class === 'rogue') {
                 count: 1,
                 now
             });
-            await recordShieldlessWin(db, freshChar, equippedArray);
+            await recordEquipmentlessWins(db, freshChar, equippedArray);
             await grantWeaponXP(db, freshChar.id, WEAPON_XP_PER_MISSION);
         }
         
@@ -10442,11 +10699,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         if (isDraw) {
             // No achievements for draws
         } else if (attackerWon) {
-            await recordShieldlessWin(db, freshA, equippedA);
+            await recordEquipmentlessWins(db, freshA, equippedA);
             await recordDamageStyleWin(db, freshA.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
             await grantWeaponXP(db, freshA.id, WEAPON_XP_PER_PVP);
         } else {
-            await recordShieldlessWin(db, freshD, equippedD);
+            await recordEquipmentlessWins(db, freshD, equippedD);
             await recordDamageStyleWin(db, freshD.id, battle.totalElemDmgDealtB || 0);
             await grantWeaponXP(db, freshD.id, WEAPON_XP_PER_PVP);
         }
