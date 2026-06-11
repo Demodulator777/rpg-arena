@@ -182,7 +182,12 @@
         var ov = document.getElementById('loading-overlay');
         if (ov) {
             ov.classList.add('hidden');
-            setTimeout(function() { ov.remove(); }, 800);
+            setTimeout(function() {
+                ov.remove();
+                document.querySelectorAll('body > *').forEach(function(el) {
+                    el.style.visibility = '';
+                });
+            }, 800);
         }
     });
 })();
