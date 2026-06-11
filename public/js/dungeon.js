@@ -4202,6 +4202,7 @@ global.dungeonRun = (roomIdx) => {
   global.dungeonFightBoss    = fightBoss;
   global.dungeonExit         = dungeonExit;
   global.closeDungeonVictory = closeDungeonVictory;
+  global.toggleMonsterLore   = toggleMonsterLore;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
   global.dungeonShowFeedModal = globalThis.dungeonShowFeedModal;
