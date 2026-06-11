@@ -11,6 +11,60 @@
 </head>
 <body>
 <div id="loading-overlay">
+    <canvas id="loading-stars"></canvas>
+    <div class="loading-tendrils">
+        <div class="tendril tendril-1"></div>
+        <div class="tendril tendril-2"></div>
+        <div class="tendril tendril-3"></div>
+    </div>
+    <svg class="loading-filigree loading-filigree-tl" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 8 L8 50 Q8 8 50 8 Z" stroke="rgba(168,130,255,0.35)" stroke-width="0.8" fill="none"/>
+        <path d="M8 8 L8 70 Q8 8 70 8 Z" stroke="rgba(168,130,255,0.18)" stroke-width="0.5" fill="none"/>
+        <circle cx="8" cy="8" r="2.5" fill="rgba(200,170,255,0.5)"/>
+        <circle cx="8" cy="8" r="5" fill="none" stroke="rgba(168,130,255,0.25)" stroke-width="0.6"/>
+        <line x1="8" y1="18" x2="8" y2="55" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <line x1="18" y1="8" x2="55" y2="8" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <path d="M8 30 Q20 20 30 8" stroke="rgba(140,100,255,0.22)" stroke-width="0.5" fill="none"/>
+        <path d="M8 45 Q30 30 45 8" stroke="rgba(140,100,255,0.15)" stroke-width="0.4" fill="none"/>
+        <circle cx="8" cy="30" r="1.2" fill="rgba(200,170,255,0.4)"/>
+        <circle cx="30" cy="8" r="1.2" fill="rgba(200,170,255,0.4)"/>
+    </svg>
+    <svg class="loading-filigree loading-filigree-tr" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M112 8 L112 50 Q112 8 70 8 Z" stroke="rgba(168,130,255,0.35)" stroke-width="0.8" fill="none"/>
+        <path d="M112 8 L112 70 Q112 8 50 8 Z" stroke="rgba(168,130,255,0.18)" stroke-width="0.5" fill="none"/>
+        <circle cx="112" cy="8" r="2.5" fill="rgba(200,170,255,0.5)"/>
+        <circle cx="112" cy="8" r="5" fill="none" stroke="rgba(168,130,255,0.25)" stroke-width="0.6"/>
+        <line x1="112" y1="18" x2="112" y2="55" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <line x1="102" y1="8" x2="65" y2="8" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <path d="M112 30 Q100 20 90 8" stroke="rgba(140,100,255,0.22)" stroke-width="0.5" fill="none"/>
+        <path d="M112 45 Q90 30 75 8" stroke="rgba(140,100,255,0.15)" stroke-width="0.4" fill="none"/>
+        <circle cx="112" cy="30" r="1.2" fill="rgba(200,170,255,0.4)"/>
+        <circle cx="90" cy="8" r="1.2" fill="rgba(200,170,255,0.4)"/>
+    </svg>
+    <svg class="loading-filigree loading-filigree-bl" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 112 L8 70 Q8 112 50 112 Z" stroke="rgba(168,130,255,0.35)" stroke-width="0.8" fill="none"/>
+        <path d="M8 112 L8 50 Q8 112 70 112 Z" stroke="rgba(168,130,255,0.18)" stroke-width="0.5" fill="none"/>
+        <circle cx="8" cy="112" r="2.5" fill="rgba(200,170,255,0.5)"/>
+        <circle cx="8" cy="112" r="5" fill="none" stroke="rgba(168,130,255,0.25)" stroke-width="0.6"/>
+        <line x1="8" y1="102" x2="8" y2="65" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <line x1="18" y1="112" x2="55" y2="112" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <path d="M8 90 Q20 100 30 112" stroke="rgba(140,100,255,0.22)" stroke-width="0.5" fill="none"/>
+        <path d="M8 75 Q30 90 45 112" stroke="rgba(140,100,255,0.15)" stroke-width="0.4" fill="none"/>
+        <circle cx="8" cy="90" r="1.2" fill="rgba(200,170,255,0.4)"/>
+        <circle cx="30" cy="112" r="1.2" fill="rgba(200,170,255,0.4)"/>
+    </svg>
+    <svg class="loading-filigree loading-filigree-br" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M112 112 L112 70 Q112 112 70 112 Z" stroke="rgba(168,130,255,0.35)" stroke-width="0.8" fill="none"/>
+        <path d="M112 112 L112 50 Q112 112 50 112 Z" stroke="rgba(168,130,255,0.18)" stroke-width="0.5" fill="none"/>
+        <circle cx="112" cy="112" r="2.5" fill="rgba(200,170,255,0.5)"/>
+        <circle cx="112" cy="112" r="5" fill="none" stroke="rgba(168,130,255,0.25)" stroke-width="0.6"/>
+        <line x1="112" y1="102" x2="112" y2="65" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <line x1="102" y1="112" x2="65" y2="112" stroke="rgba(168,130,255,0.2)" stroke-width="0.5"/>
+        <path d="M112 90 Q100 100 90 112" stroke="rgba(140,100,255,0.22)" stroke-width="0.5" fill="none"/>
+        <path d="M112 75 Q90 90 75 112" stroke="rgba(140,100,255,0.15)" stroke-width="0.4" fill="none"/>
+        <circle cx="112" cy="90" r="1.2" fill="rgba(200,170,255,0.4)"/>
+        <circle cx="90" cy="112" r="1.2" fill="rgba(200,170,255,0.4)"/>
+    </svg>
     <div class="loading-rings">
         <div class="ring-layer" style="--ring-color:transparent">
             <div class="ring-ambient-glow"></div>
@@ -27,8 +81,9 @@
             <img src="/images/loading/innerringelement.png" class="loading-ring inner-ring" alt="">
             <div class="ring-color-overlay"></div>
         </div>
+        <canvas id="loading-particles"></canvas>
     </div>
-    <div class="loading-text">Loading<span id="loading-dots"></span></div>
+    <div class="loading-text"><span class="loading-title-shimmer">Loading</span><span id="loading-dots"></span></div>
 </div>
 <div id="app">
 
