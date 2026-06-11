@@ -6680,10 +6680,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     z-index: 9;
     animation: filigree-pulse 4s ease-in-out infinite;
 }
-.loading-filigree-tl { top: 0;    left: 0;  }
-.loading-filigree-tr { top: 0;    right: 0; transform: scaleX(-1); }
-.loading-filigree-bl { bottom: 0; left: 0;  transform: scaleY(-1); }
-.loading-filigree-br { bottom: 0; right: 0; transform: scale(-1);  }
+.loading-filigree-tl { top: 0;    left: 0;                                                        }
+.loading-filigree-tr { top: 0;    right: 0;  transform: scaleX(-1); transform-origin: right top;  }
+.loading-filigree-bl { bottom: 0; left: 0;   transform: scaleY(-1); transform-origin: left bottom; }
+.loading-filigree-br { bottom: 0; right: 0;  transform: scale(-1);  transform-origin: right bottom;}
 @keyframes filigree-pulse {
     0%, 100% { opacity: 0.55; }
     50%       { opacity: 1;    }
