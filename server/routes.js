@@ -2968,9 +2968,9 @@ function buildExtendedAchievements() {
         {
             id: 'shieldless_wins_10',
             chain: 'wins_without_shield',
-            category: 'class',
+            category: 'combat',
             name: 'Light on Your Feet',
-            desc: 'Win 10 battles as a rogue without a shield equipped.',
+            desc: 'Win 10 battles without a shield equipped.',
             icon: '🗡️',
             metric: 'wins_without_shield',
             target: 10,
@@ -2979,9 +2979,9 @@ function buildExtendedAchievements() {
         {
             id: 'shieldless_wins_50',
             chain: 'wins_without_shield',
-            category: 'class',
+            category: 'combat',
             name: 'Untouchable Rogue',
-            desc: 'Win 50 battles as a rogue without a shield equipped.',
+            desc: 'Win 50 battles without a shield equipped.',
             icon: '🦊',
             metric: 'wins_without_shield',
             target: 50,
@@ -2990,9 +2990,9 @@ function buildExtendedAchievements() {
         {
             id: 'shieldless_wins_200',
             chain: 'wins_without_shield',
-            category: 'class',
+            category: 'combat',
             name: 'Shadow Duelist',
-            desc: 'Win 200 battles as a rogue without a shield equipped.',
+            desc: 'Win 200 battles without a shield equipped.',
             icon: '🌒',
             metric: 'wins_without_shield',
             target: 200,
@@ -4555,7 +4555,7 @@ function hasShieldEquipped(items = []) {
 }
 
 async function recordShieldlessWin(db, char, equippedItems) {
-    if (!char?.id || char.class !== 'rogue') return;
+    if (!char?.id) return;
     if (hasShieldEquipped(equippedItems)) return;
     await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
 }
