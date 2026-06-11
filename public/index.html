@@ -43,8 +43,8 @@
         .loading-text::after { animation-delay: 1.4s; }
         @keyframes shimmer-sweep { from { background-position: 250% center; } to { background-position: 0% center; } }
         @keyframes rune-flicker { 0%, 100% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 0.9; transform: scale(1.2); } }
-        @media (max-width: 680px) { .loading-text { width: 280px; } .loading-title-shimmer { font-size: 1.1rem; letter-spacing: 7px; } }
-        @media (max-width: 480px) { .loading-text { width: 240px; } .loading-title-shimmer { font-size: 0.95rem; letter-spacing: 5px; } }
+        @media (max-width: 680px) { .loading-rings, .ring-layer, .loading-ring { width: min(363px, 85vw); height: min(361px, calc(85vw * 361 / 363)); } .loading-text { width: 280px; } .loading-title-shimmer { font-size: 1.1rem; letter-spacing: 7px; } }
+        @media (max-width: 480px) { .loading-rings, .ring-layer, .loading-ring { width: min(363px, 92vw); height: min(361px, calc(92vw * 361 / 363)); } .loading-text { width: 240px; } .loading-title-shimmer { font-size: 0.95rem; letter-spacing: 5px; } }
     </style>
 </head>
 <body>
