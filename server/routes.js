@@ -3283,25 +3283,7 @@ function buildExtendedAchievements() {
         },
     );
 
-// New progression achievements (moved to after buildExtendedAchievements call)
-
-    const referralsBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_10');
-    addFromBase(referralsBase, {
-        id: 'referrals_25',
-        name: 'Herald of the Arena',
-        desc: 'Refer 25 players to Battle Arena.',
-        target: 25,
-        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
-    });
-    addFromBase(referralsBase, {
-        id: 'referrals_50',
-        name: 'Architect of the Crowd',
-        desc: 'Refer 50 players to Battle Arena.',
-        target: 50,
-        rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
-    });
-
-    const referralsLevelBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_15');
+    const referralsLevelBase = extras.find((a) => a.id === 'referrals_level5_15');
     addFromBase(referralsLevelBase, {
         id: 'referrals_level5_30',
         name: 'Guild Builder',
@@ -3317,7 +3299,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 1800000, gems: 25, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 2 } },
     });
 
-    const elementalKillsBase = ACHIEVEMENTS.find((a) => a.id === 'elemental_kills_200');
+    const elementalKillsBase = extras.find((a) => a.id === 'elemental_kills_200');
     addFromBase(elementalKillsBase, {
         id: 'elemental_kills_300',
         name: 'Elemental Storm',
@@ -3354,7 +3336,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const noShieldBase = ACHIEVEMENTS.find((a) => a.id === 'shieldless_wins_200');
+    const noShieldBase = extras.find((a) => a.id === 'shieldless_wins_200');
     addFromBase(noShieldBase, {
         id: 'wins_without_shield_300',
         name: 'Reckless Glory',
@@ -3419,11 +3401,11 @@ function buildExtendedAchievements() {
         rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
     });
 
-    const weaponlessBase = ACHIEVEMENTS.find((a) => a.id === 'weaponless_wins_200');
-    const helmlessBase = ACHIEVEMENTS.find((a) => a.id === 'helmless_wins_200');
-    const armorlessBase = ACHIEVEMENTS.find((a) => a.id === 'armorless_wins_200');
-    const bootlessBase = ACHIEVEMENTS.find((a) => a.id === 'bootless_wins_200');
-    const equipmentlessBase = ACHIEVEMENTS.find((a) => a.id === 'equipmentless_wins_200');
+    const weaponlessBase = extras.find((a) => a.id === 'weaponless_wins_200');
+    const helmlessBase = extras.find((a) => a.id === 'helmless_wins_200');
+    const armorlessBase = extras.find((a) => a.id === 'armorless_wins_200');
+    const bootlessBase = extras.find((a) => a.id === 'bootless_wins_200');
+    const equipmentlessBase = extras.find((a) => a.id === 'equipmentless_wins_200');
 
     function addFromBaseMulti(bases, overrides) {
         for (const base of bases) {
@@ -3471,7 +3453,7 @@ function buildExtendedAchievements() {
         }
     }
 
-    const physicalBase = ACHIEVEMENTS.find((a) => a.id === 'physical_only_wins_200');
+    const physicalBase = extras.find((a) => a.id === 'physical_only_wins_200');
     addFromBase(physicalBase, {
         id: 'physical_only_wins_300',
         name: 'Iron Fist',
@@ -3508,7 +3490,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const gemsWealthBase = ACHIEVEMENTS.find((a) => a.id === 'gems_collected_1500');
+    const gemsWealthBase = extras.find((a) => a.id === 'gems_earn_1500');
     addFromBase(gemsWealthBase, {
         id: 'gems_collected_2000',
         name: 'Gem Mountain',
@@ -3545,7 +3527,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 3000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const referralBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_registered_25');
+    const referralBase = extras.find((a) => a.id === 'referrals_10');
     addFromBase(referralBase, {
         id: 'referrals_registered_50',
         name: 'Recruiter Extraordinaire',
@@ -3582,7 +3564,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 1500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const referralLvlBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_30');
+    const referralLvlBase = extras.find((a) => a.id === 'referrals_level5_30');
 
     addFromBase(referralLvlBase, {
         id: 'referrals_level5_100',
@@ -3724,7 +3706,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     });
 
-    const monsterTypesBase = ACHIEVEMENTS.find((a) => a.id === 'monster_types_20');
+    const monsterTypesBase = extras.find((a) => a.id === 'monster_types_20');
     addFromBase(monsterTypesBase, {
         id: 'monster_types_25',
         name: 'Living Bestiary',
