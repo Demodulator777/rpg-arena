@@ -180,14 +180,11 @@
     // ── Cleanup on load ────────────────────────────────────────────────────
     window.addEventListener('load', function() {
         var ov = document.getElementById('loading-overlay');
+        var app = document.getElementById('app');
+        if (app) app.style.display = '';
         if (ov) {
             ov.classList.add('hidden');
-            setTimeout(function() {
-                ov.remove();
-                document.querySelectorAll('body > *').forEach(function(el) {
-                    el.style.visibility = '';
-                });
-            }, 800);
+            setTimeout(function() { ov.remove(); }, 800);
         }
     });
 })();
