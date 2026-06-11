@@ -3170,7 +3170,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const noShieldBase = ACHIEVEMENTS.find((a) => a.id === 'wins_without_shield_200');
+    const noShieldBase = ACHIEVEMENTS.find((a) => a.id === 'shieldless_wins_200');
     addFromBase(noShieldBase, {
         id: 'wins_without_shield_300',
         name: 'Reckless Glory',
@@ -3205,6 +3205,34 @@ function buildExtendedAchievements() {
         desc: 'Win 2,000 battles without a shield.',
         target: 2000,
         rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_3000',
+        name: 'Naked Ambition',
+        desc: 'Win 3,000 battles without a shield.',
+        target: 3000,
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_5000',
+        name: 'Fearless',
+        desc: 'Win 5,000 battles without a shield.',
+        target: 5000,
+        rewards: { gold: 3500000, gems: 25, premium: { id: 'apprentice', days: 30 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_7500',
+        name: 'The Unarmored God',
+        desc: 'Win 7,500 battles without a shield.',
+        target: 7500,
+        rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_10000',
+        name: 'Absolute Zero Defense',
+        desc: 'Win 10,000 battles without a shield.',
+        target: 10000,
+        rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
     });
 
     const physicalBase = ACHIEVEMENTS.find((a) => a.id === 'physical_only_wins_200');
