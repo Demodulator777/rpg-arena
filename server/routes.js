@@ -272,6 +272,16040 @@ const GUILD_RAID_MAX_MEMBERS = 6;
 const GUILD_RAID_GLOBAL_COOLDOWN = 20 * 60 * 60;
 const GUILD_RAID_MERCENARY_COST_GEMS = 1;
 const GUILD_RAID_BOSS_POOL = [
+    { name: 'Death Knight Malachar', image: '/images/boss/malachar.jpg', baseHp: 600, baseAtk: 45, baseDef: 20, lore:'The Death Knight is the remnant of a forgotten warrior bound in undeath to oppose all who enter his final abode.' },
+    { name: 'Ignarath the Eternal', image: '/images/boss/ignarath.jpg', baseHp: 700, baseAtk: 55, baseDef: 25, lore:'Ignarath is a fusion of demonic and necrotic energy warped to resemble a human abomination. Win quickly or be forever lost to corruption\'s touch.' },
+    { name: 'Nyxaroth the Devourer', image: '/images/boss/nyxaroth.jpg', baseHp: 800, baseAtk: 65, baseDef: 30, lore:'Nyxaroth is a mindless predator of unequal quickness and fury. Few survive to whisper tales of the calamity that follows her wake.' },
+    { name: 'Vizorax the Unholy', image: '/images/boss/vizorax.jpg', baseHp: 850, baseAtk: 60, baseDef: 35, lore:'Vizorax the Unholy, a Demon from the depths who adds a piece of each defeated opponent to his living armor. Said to be so magically potent reality bends to his whims.' },
+    { name: 'The Hollow King', image: '/images/boss/hollowking.jpg', baseHp: 900, baseAtk: 70, baseDef: 35 },
+    { name: 'Voidborn Colossus', image: '/images/boss/voidborn.jpg', baseHp: 1000, baseAtk: 80, baseDef: 40 },
+    { name: 'The Undying Empress', image: '/images/boss/empress.jpg', baseHp: 1100, baseAtk: 90, baseDef: 45, lore:'The Undying Empress is rumored to have sacrificed an entire civilization to fuel her immortality, pure speculation as none exist to bear witness to the truths of her existence.' },
+    { name: 'Abyssal Sovereign', image: '/images/boss/sovereign.jpg', baseHp: 1200, baseAtk: 95, baseDef: 50, lore:'An abomination that crawled out of the void, the Abyssal Sovereign desecrates reality with his presence as he seeks to consume all to fuel his existence.' },
+];
+
+function getGuildRaidBossForFloor(floor) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const idx = (safeFloor - 1) % GUILD_RAID_BOSS_POOL.length;
+    const tier = Math.floor((safeFloor - 1) / GUILD_RAID_BOSS_POOL.length);
+    const base = GUILD_RAID_BOSS_POOL[idx];
+    const scale = 1 + (safeFloor - 1) * 0.18 + tier * 0.5;
+    const hp = Math.round(base.baseHp * scale * 6);
+    const atk = Math.round(base.baseAtk * scale * 6);
+    const def = Math.round(base.baseDef * scale * 6);
+    return {
+        floor: safeFloor,
+        name: base.name,
+        image: base.image,
+        hp,
+        atk,
+        def,
+        lore: base.lore,
+        dmgMin: Math.max(1, Math.round(atk * 0.78)),
+        dmgMax: Math.max(2, Math.round(atk * 1.18)),
+    };
+}
+
+const GUILD_RAID_MERCENARY_POOL = [
+    { key: 'skeleton', name: 'Skeleton Warrior', class: 'mercenary', hpBase: 95, atkBase: 18, defBase: 8, agiBase: 10, magicBase: 2 },
+    { key: 'ghost', name: 'Wailing Ghost', class: 'mercenary', hpBase: 82, atkBase: 16, defBase: 6, agiBase: 14, magicBase: 8 },
+    { key: 'zombie', name: 'Rotting Zombie', class: 'mercenary', hpBase: 118, atkBase: 17, defBase: 12, agiBase: 6, magicBase: 1 },
+    { key: 'fire_imp', name: 'Fire Imp', class: 'mercenary', hpBase: 76, atkBase: 20, defBase: 5, agiBase: 16, magicBase: 12 },
+    { key: 'void_wraith', name: 'Void Wraith', class: 'mercenary', hpBase: 88, atkBase: 22, defBase: 7, agiBase: 18, magicBase: 14 },
+    { key: 'abyssal_eye', name: 'Abyssal Eye', class: 'mercenary', hpBase: 92, atkBase: 19, defBase: 9, agiBase: 12, magicBase: 16 },
+    { key: 'shadow_lord', name: 'Shadow Lord', class: 'mercenary', hpBase: 110, atkBase: 24, defBase: 11, agiBase: 15, magicBase: 10 },
+    { key: 'dread_knight', name: 'Dread Knight', class: 'mercenary', hpBase: 128, atkBase: 26, defBase: 14, agiBase: 11, magicBase: 6 },
+];
+
+function generateRaidMercenary(floor, slotIndex) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const base = GUILD_RAID_MERCENARY_POOL[Math.floor(Math.random() * GUILD_RAID_MERCENARY_POOL.length)];
+    const scale = 1 + safeFloor * 0.14 + (Math.random() * 0.18);
+    const hp = Math.round(base.hpBase * scale);
+    const strength = Math.round(base.atkBase * scale);
+    const defense = Math.round(base.defBase * scale);
+    const agility = Math.round(base.agiBase * scale);
+    const magic = Math.round(base.magicBase * scale);
+    const hitChance = Math.min(95, 62 + safeFloor + Math.floor(Math.random() * 10));
+    const critChance = Math.min(35, 5 + Math.floor(safeFloor / 3) + Math.floor(Math.random() * 6));
+    const armor = Math.max(0, Math.round(defense * 0.45));
+    const dmgMin = Math.max(1, Math.round(strength * 0.58));
+    const dmgMax = Math.max(dmgMin + 1, Math.round(strength * 0.92));
+    return {
+        id: `merc_${slotIndex}_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+        slotIndex,
+        key: base.key,
+        name: base.name,
+        level: Math.max(1, safeFloor),
+        recruited: false,
+        costGems: GUILD_RAID_MERCENARY_COST_GEMS,
+        stats: { hp, strength, defense, agility, magic, hitChance, critChance, armor, dmgMin, dmgMax },
+        fighter: {
+            id: `raid_merc_${slotIndex}_${safeFloor}`,
+            name: base.name,
+            class: base.class,
+            hp,
+            dmgMin,
+            dmgMax,
+            strength,
+            agility,
+            magic,
+            defense,
+            hit_chance: hitChance,
+            crit_chance: critChance,
+            armor,
+            elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+            elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+            skillMods: {},
+            activeSkills: {},
+            attackZones: DEFAULT_ATTACK_ZONES,
+            blockZones: DEFAULT_BLOCK_ZONES,
+            dualWield: false,
+        }
+    };
+}
+
+function generateRaidMercenaryPool(floor, count = 10) {
+    return Array.from({ length: count }, (_, idx) => generateRaidMercenary(floor, idx));
+}
+
+async function ensureRaidMercenaryPool(db, raid) {
+    if (!raid) return [];
+    let pool = [];
+    try { pool = JSON.parse(raid.mercenary_pool || '[]') || []; } catch {}
+    if (Array.isArray(pool) && pool.length) return pool;
+    if (raid.status !== 'forming') return [];
+    pool = generateRaidMercenaryPool(raid.floor, 10);
+    await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ?', [JSON.stringify(pool), raid.id]);
+    raid.mercenary_pool = JSON.stringify(pool);
+    return pool;
+}
+
+const WEEKLY_TASK_MATERIAL_OPTIONS = [
+    'mithril_ore',
+    'frost_essence',
+    'dragon_scale_shard',
+    'arcane_dust',
+    'void_shard'
+];
+
+const WEEKLY_TASKS = [
+    {
+        id: 'weekly_mp_1000',
+        name: 'Arcane Expenditure',
+        icon: '🔮',
+        desc: 'Spend 1,000 MP this week.',
+        metric: 'mp_spent',
+        target: 1000,
+        rewards: { gems: 5 }
+    },
+    {
+        id: 'weekly_wins_12',
+        name: 'Victor\'s Purse',
+        icon: '⚔️',
+        desc: 'Win 12 battles this week.',
+        metric: 'wins',
+        target: 12,
+        rewards: { gold: 25000 }
+    },
+    {
+        id: 'weekly_material_choice',
+        name: 'Quartermaster\'s Pick',
+        icon: '🧱',
+        desc: 'Complete 10 battles this week and choose rare materials.',
+        metric: 'battles',
+        target: 10,
+        rewards: { choose_material: { qty: 5, options: WEEKLY_TASK_MATERIAL_OPTIONS } }
+    },
+    {
+        id: 'weekly_battles_25',
+        name: 'Warpath',
+        icon: '🎁',
+        desc: 'Complete 25 battles this week.',
+        metric: 'battles',
+        target: 25,
+        rewards: { lootbox: { id: 'lootbox_rare', qty: 1 } }
+    }
+];
+
+// ── DB Migrations ─────────────────────────────────────────────────────────
+(async () => {
+    try {
+        const db = await getDb();
+        const migrations = [
+            'ALTER TABLE characters ADD COLUMN draws INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN last_battle_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN vitality INTEGER DEFAULT 10',
+            'ALTER TABLE characters ADD COLUMN attack_zones TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN block_zones TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN last_regen_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN travel_start_time INTEGER DEFAULT 0',
+            'ALTER TABLE equipment ADD COLUMN accessory_id INTEGER',
+            'ALTER TABLE equipment ADD COLUMN helmet_id INTEGER',
+            'ALTER TABLE equipment ADD COLUMN shield_id INTEGER',
+            'ALTER TABLE characters ADD COLUMN hit_chance INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN crit_chance INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN mission_points INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN mp_last_regen_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN total_mp_earned INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN total_mp_spent INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN daily_mp_spent INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN daily_mp_reset_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN active_skills TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN skill_last_used TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN premium_features TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN dungeon_tokens INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN dungeon_floor INTEGER DEFAULT 1',
+            'ALTER TABLE characters ADD COLUMN dungeon_highest_floor INTEGER DEFAULT 1',
+            'ALTER TABLE characters ADD COLUMN dungeon_progress TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN dungeon_gold INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN guild_reputation INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN unlocked_zones TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN unlocked_profile_pics TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN tutorial_skipped INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN last_free_gems_claim_at INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN global_cooldown_until INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN raid_cooldown_until INTEGER DEFAULT 0',
+            'ALTER TABLE guild_raids ADD COLUMN mercenary_pool TEXT DEFAULT NULL',
+            'ALTER TABLE guild_raid_members ADD COLUMN is_npc INTEGER DEFAULT 0',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_name TEXT DEFAULT NULL',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_class TEXT DEFAULT NULL',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_level INTEGER DEFAULT 1',
+            'ALTER TABLE guild_raid_members ADD COLUMN member_payload TEXT DEFAULT NULL',
+            `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
+            `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
+            'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN user_session TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN profile_pic TEXT DEFAULT NULL',
+            'ALTER TABLE characters ADD COLUMN profile_badges TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN pending_referral_gems INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN referrals_registered INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN referrals_level5 INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_badge_messages INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN inbox_badge_battles INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN inbox_badge_missions INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN chat_enabled INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN inbox_autoread_messages INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_autoread_battles INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_autoread_missions INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN password_reset_expires_at INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN password_reset_requested_at INTEGER DEFAULT NULL',
+            'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
+            'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
+            'ALTER TABLE messages ADD COLUMN sender_label TEXT DEFAULT NULL',
+            'ALTER TABLE messages ADD COLUMN reward_payload TEXT DEFAULT NULL',
+            'ALTER TABLE messages ADD COLUMN reward_claimed INTEGER DEFAULT 0',
+            'ALTER TABLE messages ADD COLUMN system_message INTEGER DEFAULT 0',
+            'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
+`CREATE TABLE IF NOT EXISTS chat_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sender_user_id INTEGER NOT NULL,
+                sender_char_id INTEGER NOT NULL,
+                sender_name TEXT NOT NULL,
+                recipient_char_id INTEGER DEFAULT NULL,
+                recipient_name TEXT DEFAULT NULL,
+                message_text TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                edited INTEGER DEFAULT 0,
+                edited_at INTEGER DEFAULT NULL
+            )`,
+            'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
+            'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_name_nocase ON characters(name COLLATE NOCASE)',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE)',
+            'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
+            'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
+            'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_weapon INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_helmet INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_armor INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_boots INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN wins_without_equipment INTEGER DEFAULT 0',
+        ];
+        for (const sql of migrations) {
+            try { await db.execute({ sql, args: [] }); } catch {}
+        }
+        try {
+            await db.execute({ sql: 'UPDATE users SET is_admin = 1 WHERE username = ?', args: ['Forsaken'] });
+        } catch {}
+        try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN user_id INTEGER DEFAULT NULL", args: [] }); } catch {}
+        try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN character_name TEXT DEFAULT NULL", args: [] }); } catch {}
+        try {
+            const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
+            const charSql = charTable?.sql || '';
+            const hasLegacySingleCharConstraint =
+                /user_id\s+INTEGER\s+UNIQUE\s+NOT\s+NULL/i.test(charSql) ||
+                /user_id\s+INTEGER\s+NOT\s+NULL\s+UNIQUE/i.test(charSql);
+            if (hasLegacySingleCharConstraint) {
+                const rebuiltSql = charSql
+                    .replace(/^CREATE TABLE\s+characters/i, 'CREATE TABLE characters_new')
+                    .replace(/user_id\s+INTEGER\s+UNIQUE\s+NOT\s+NULL/i, 'user_id INTEGER NOT NULL')
+                    .replace(/user_id\s+INTEGER\s+NOT\s+NULL\s+UNIQUE/i, 'user_id INTEGER NOT NULL');
+                await db.execute({ sql: 'PRAGMA foreign_keys = OFF', args: [] });
+                await db.execute({ sql: rebuiltSql, args: [] });
+                await db.execute({ sql: 'INSERT INTO characters_new SELECT * FROM characters', args: [] });
+                await db.execute({ sql: 'DROP TABLE characters', args: [] });
+                await db.execute({ sql: 'ALTER TABLE characters_new RENAME TO characters', args: [] });
+                await db.execute({ sql: 'PRAGMA foreign_keys = ON', args: [] });
+            }
+        } catch (e) {
+            console.error('Character schema migration error:', e.message);
+        }
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS global_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_key TEXT NOT NULL,
+            started_at INTEGER NOT NULL,
+            ends_at INTEGER NOT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_attack_cooldowns (
+            attacker_id INTEGER,
+            defender_id INTEGER,
+            expires_at INTEGER,
+            PRIMARY KEY (attacker_id, defender_id)
+        )`, args: [] });
+
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER,
+            receiver_id INTEGER NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            read INTEGER NOT NULL DEFAULT 0,
+            sent_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            sender_label TEXT DEFAULT NULL,
+            reward_payload TEXT DEFAULT NULL,
+            reward_claimed INTEGER NOT NULL DEFAULT 0,
+            system_message INTEGER NOT NULL DEFAULT 0,
+            admin_batch_id INTEGER DEFAULT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            report_timestamp TEXT NOT NULL,
+            username TEXT,
+            character_name TEXT,
+            character_level INTEGER DEFAULT 0,
+            character_class TEXT,
+            category TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT NOT NULL,
+            steps_to_reproduce TEXT,
+            browser TEXT,
+            game_location TEXT,
+            game_hp INTEGER DEFAULT 0,
+            game_gold INTEGER DEFAULT 0,
+            game_level INTEGER DEFAULT 0,
+            has_screenshot INTEGER DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_screenshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bug_report_id INTEGER NOT NULL,
+            filename TEXT,
+            image_data BLOB NOT NULL,
+            mime_type TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_achievements (
+            char_id INTEGER NOT NULL,
+            achievement_id TEXT NOT NULL,
+            claimed_at INTEGER NOT NULL,
+            PRIMARY KEY (char_id, achievement_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_gatekeeper_defeats (
+            char_id INTEGER NOT NULL,
+            gatekeeper_key TEXT NOT NULL,
+            defeated_at INTEGER NOT NULL,
+            PRIMARY KEY (char_id, gatekeeper_key)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            invite_code TEXT NOT NULL UNIQUE,
+            owner_char_id INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_members (
+            squad_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            joined_at INTEGER NOT NULL,
+            PRIMARY KEY (squad_id, char_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_squad_members_char_id ON squad_members(char_id)`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            squad_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at INTEGER NOT NULL
+        )`, args: [] });
+
+        // Backfill: older characters may already have zones unlocked (beaten gatekeepers) before we tracked it.
+        try {
+            const rows = await dbAll(db, 'SELECT id, unlocked_zones FROM characters', []);
+            const now = Math.floor(Date.now() / 1000);
+            for (const r of rows) {
+                const charId = Number(r.id || 0);
+                if (!charId) continue;
+                let parsed = null;
+                try { parsed = r.unlocked_zones ? JSON.parse(r.unlocked_zones) : null; } catch {}
+                const unlocks = (() => {
+                    const defaults = { overworld: ['forest'], abyss: ['shadowfen'] };
+                    if (!parsed) return defaults;
+                    if (Array.isArray(parsed)) {
+                        return { ...defaults, overworld: Array.from(new Set([...defaults.overworld, ...parsed])) };
+                    }
+                    return {
+                        overworld: Array.from(new Set([...(defaults.overworld || []), ...((parsed && parsed.overworld) || [])])),
+                        abyss: Array.from(new Set([...(defaults.abyss || []), ...((parsed && parsed.abyss) || [])])),
+                    };
+                })();
+
+                const add = async (key) => {
+                    await dbRun(
+                        db,
+                        'INSERT OR IGNORE INTO character_gatekeeper_defeats (char_id, gatekeeper_key, defeated_at) VALUES (?,?,?)',
+                        [charId, key, now]
+                    );
+                };
+
+                // Overworld gatekeepers correspond to having that zone unlocked for travel.
+                if (unlocks.overworld.includes('swamp')) await add('overworld:swamp');
+                if (unlocks.overworld.includes('mountains')) await add('overworld:mountains');
+                if (unlocks.overworld.includes('ruins')) await add('overworld:ruins');
+                if (unlocks.overworld.includes('dark_city')) await add('overworld:dark_city');
+
+                // Abyss gatekeepers (if those zones exist in the unlock list).
+                if (unlocks.abyss.includes('crimson')) await add('abyss:crimson');
+                if (unlocks.abyss.includes('void')) await add('abyss:void');
+                if (unlocks.abyss.includes('citadel')) await add('abyss:citadel');
+                if (unlocks.abyss.includes('eternal_dark')) await add('abyss:eternal_dark');
+            }
+        } catch {}
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_mission_spot_stats (
+            char_id INTEGER NOT NULL,
+            map_type TEXT NOT NULL DEFAULT 'overworld',
+            zone_id TEXT NOT NULL,
+            spot_id TEXT NOT NULL,
+            fights INTEGER NOT NULL DEFAULT 0,
+            wins INTEGER NOT NULL DEFAULT 0,
+            last_fought_at INTEGER NOT NULL DEFAULT 0,
+            last_won_at INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (char_id, map_type, spot_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_monster_stats (
+            char_id INTEGER NOT NULL,
+            source TEXT NOT NULL,
+            monster_key TEXT NOT NULL,
+            monster_name TEXT NOT NULL,
+            kills INTEGER NOT NULL DEFAULT 0,
+            wins INTEGER NOT NULL DEFAULT 0,
+            last_defeated_at INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (char_id, source, monster_key)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_guild_bounties (
+            char_id INTEGER PRIMARY KEY,
+            bounty_id TEXT NOT NULL,
+            target_source TEXT NOT NULL,
+            target_key TEXT NOT NULL,
+            target_name TEXT NOT NULL,
+            target_count INTEGER NOT NULL DEFAULT 0,
+            progress INTEGER NOT NULL DEFAULT 0,
+            reward_gold INTEGER NOT NULL DEFAULT 0,
+            reward_reputation INTEGER NOT NULL DEFAULT 0,
+            completed_at INTEGER NOT NULL DEFAULT 0,
+            claimed_at INTEGER NOT NULL DEFAULT 0,
+            rolled_at INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_state (
+            char_id INTEGER PRIMARY KEY,
+            week_start INTEGER NOT NULL,
+            mp_spent_base INTEGER NOT NULL DEFAULT 0,
+            wins_base INTEGER NOT NULL DEFAULT 0,
+            losses_base INTEGER NOT NULL DEFAULT 0,
+            mission_fights_base INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_claims (
+            char_id INTEGER NOT NULL,
+            week_start INTEGER NOT NULL,
+            task_id TEXT NOT NULL,
+            claimed_at INTEGER NOT NULL,
+            PRIMARY KEY (char_id, week_start, task_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS admin_reward_batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL,
+            scope TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            reward_payload TEXT,
+            recipient_count INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raids (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            leader_char_id INTEGER NOT NULL,
+            leader_user_id INTEGER NOT NULL,
+            floor INTEGER NOT NULL,
+            boss_name TEXT NOT NULL,
+            boss_image TEXT,
+            boss_hp INTEGER NOT NULL DEFAULT 0,
+            boss_atk INTEGER NOT NULL DEFAULT 0,
+            boss_def INTEGER NOT NULL DEFAULT 0,
+            auto_start_mode TEXT NOT NULL DEFAULT 'manual',
+            scheduled_start_at INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL DEFAULT 'forming',
+            created_at INTEGER NOT NULL,
+            started_at INTEGER NOT NULL DEFAULT 0,
+            completed_at INTEGER NOT NULL DEFAULT 0,
+            result_summary TEXT,
+            result_log TEXT
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raid_members (
+            raid_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            joined_at INTEGER NOT NULL,
+            claimed_at INTEGER NOT NULL DEFAULT 0,
+            reward_payload TEXT,
+            PRIMARY KEY (raid_id, char_id)
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dungeon_room_instances (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            floor_number INTEGER NOT NULL,
+            room_index INTEGER NOT NULL,
+            status TEXT DEFAULT 'active',
+            session_id TEXT,
+            created_at INTEGER
+        )`, args: [] });
+
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dungeon_combat_sessions (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            floor_number INTEGER NOT NULL,
+            room_index INTEGER NOT NULL,
+            combat_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            seed INTEGER NOT NULL,
+            rng_state INTEGER NOT NULL,
+            turn_nonce INTEGER NOT NULL DEFAULT 0,
+            state_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_dungeon_combat_char ON dungeon_combat_sessions(char_id, floor_number, combat_type, status)`, args: [] });
+
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_crawler_stats (
+            char_id INTEGER PRIMARY KEY,
+            encounters INTEGER NOT NULL DEFAULT 0,
+            defeats INTEGER NOT NULL DEFAULT 0,
+            deaths INTEGER NOT NULL DEFAULT 0,
+            last_encounter_at INTEGER NOT NULL DEFAULT 0,
+            last_defeat_at INTEGER NOT NULL DEFAULT 0,
+            last_death_at INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        
+        // Add session_id column if missing (for existing DBs)
+        try {
+            await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN session_id TEXT DEFAULT NULL`, args: [] });
+        } catch {}
+        try {
+            await db.execute({ sql: `ALTER TABLE dungeon_room_instances ADD COLUMN created_at INTEGER DEFAULT NULL`, args: [] });
+        } catch {}
+        
+        // Skill tree migrations
+        const { SKILL_TREE_MIGRATIONS } = require('./skills');
+        for (const sql of SKILL_TREE_MIGRATIONS) {
+            try { await db.execute({ sql, args: [] }); } catch {}
+        }
+        
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS elementals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER UNIQUE NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Elemental',
+            element TEXT NOT NULL DEFAULT 'pyro',
+            level INTEGER NOT NULL DEFAULT 1,
+            xp INTEGER NOT NULL DEFAULT 0,
+            hp INTEGER NOT NULL DEFAULT 30,
+            hp_max INTEGER NOT NULL DEFAULT 30,
+            strength INTEGER NOT NULL DEFAULT 5,
+            defense INTEGER NOT NULL DEFAULT 5,
+            agility INTEGER NOT NULL DEFAULT 5,
+            magic INTEGER NOT NULL DEFAULT 5,
+            vitality INTEGER NOT NULL DEFAULT 5,
+            hit_chance INTEGER NOT NULL DEFAULT 5,
+            crit_chance INTEGER NOT NULL DEFAULT 2,
+            dmg_min INTEGER NOT NULL DEFAULT 2,
+            dmg_max INTEGER NOT NULL DEFAULT 5,
+            stat_points INTEGER NOT NULL DEFAULT 0,
+            stat_str INTEGER NOT NULL DEFAULT 0,
+            stat_def INTEGER NOT NULL DEFAULT 0,
+            stat_agi INTEGER NOT NULL DEFAULT 0,
+            stat_mag INTEGER NOT NULL DEFAULT 0,
+            stat_vit INTEGER NOT NULL DEFAULT 0,
+            hp_current INTEGER NOT NULL DEFAULT 30,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`, args: [] });
+        
+        // Migrate elementals table — verify schema, recreate if broken
+        try {
+            const elemSchema = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='elementals'");
+            if (elemSchema && elemSchema.sql && !elemSchema.sql.includes('char_id')) {
+                // Table exists but has wrong schema (no char_id column) — drop and recreate
+                await db.execute({ sql: 'DROP TABLE IF EXISTS elementals', args: [] });
+                console.log('♻️ Recreated elementals table with correct schema');
+            }
+        } catch {}
+        // Re-run CREATE TABLE for fresh or just-dropped table
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS elementals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER UNIQUE NOT NULL,
+            name TEXT NOT NULL DEFAULT 'Elemental',
+            element TEXT NOT NULL DEFAULT 'pyro',
+            level INTEGER NOT NULL DEFAULT 1,
+            xp INTEGER NOT NULL DEFAULT 0,
+            hp INTEGER NOT NULL DEFAULT 30,
+            hp_max INTEGER NOT NULL DEFAULT 30,
+            strength INTEGER NOT NULL DEFAULT 5,
+            defense INTEGER NOT NULL DEFAULT 5,
+            agility INTEGER NOT NULL DEFAULT 5,
+            magic INTEGER NOT NULL DEFAULT 5,
+            vitality INTEGER NOT NULL DEFAULT 5,
+            hit_chance INTEGER NOT NULL DEFAULT 5,
+            crit_chance INTEGER NOT NULL DEFAULT 2,
+            dmg_min INTEGER NOT NULL DEFAULT 2,
+            dmg_max INTEGER NOT NULL DEFAULT 5,
+            stat_points INTEGER NOT NULL DEFAULT 0,
+            stat_str INTEGER NOT NULL DEFAULT 0,
+            stat_def INTEGER NOT NULL DEFAULT 0,
+            stat_agi INTEGER NOT NULL DEFAULT 0,
+            stat_mag INTEGER NOT NULL DEFAULT 0,
+            stat_vit INTEGER NOT NULL DEFAULT 0,
+            hp_current INTEGER NOT NULL DEFAULT 30,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`, args: [] });
+        // Add more recent columns for DBs created by earlier schema
+        for (const colDef of ['elemental_xp INTEGER NOT NULL DEFAULT 0', 'element_level INTEGER NOT NULL DEFAULT 1']) {
+            try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
+        }
+        // Element affinity columns (for element-based feeding)
+        for (const colDef of [
+            'pyro_affinity INTEGER NOT NULL DEFAULT 0',
+            'water_affinity INTEGER NOT NULL DEFAULT 0',
+            'electro_affinity INTEGER NOT NULL DEFAULT 0',
+            'wind_affinity INTEGER NOT NULL DEFAULT 0',
+        ]) {
+            try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
+        }
+        // HP regen timestamp
+        try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN hp_regen_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
+        
+        console.log('✅ DB migrations applied');
+    } catch (e) { console.error('Migration error:', e.message); }
+})();
+
+// ── Class definitions ─────────────────────────────────────────────────────
+const CLASSES = {
+    warrior:  { strength:16, defense:14, agility:10, magic:5,  hp_max:130 },
+    mage:     { strength:8,  defense:8,  agility:10, magic:20, hp_max:90  },
+    rogue:    { strength:12, defense:8,  agility:20, magic:6,  hp_max:100 },
+    paladin:  { strength:12, defense:16, agility:8,  magic:12, hp_max:120 },
+};
+const CLASS_DISCOUNTS = {
+    // Positive = discount (benefit), Negative = penalty
+    warrior:  { strength:0.30, defense:0.15, agility:0,    magic:0,    vitality:0.10 },
+    mage:     { strength:-0.50, defense:-0.30, agility:0.10, magic:0.35, vitality:0    },  // -50% = +50% cost
+    rogue:    { strength:0.10, defense:-0.30, agility:0.35, magic:-0.20, vitality:0    },  // -30% defense cost penalty
+    paladin:  { strength:-0.20, defense:0.25, agility:-0.60, magic:0.20, vitality:0.15 },  // -60% agility cost penalty
+};
+const UPGRADE_BASE = 5;
+const UPGRADE_EXPONENT = 1.705;
+function upgradeCost(stat, currentVal, charClass) {
+    const raw = Math.floor(UPGRADE_BASE * Math.pow(currentVal, UPGRADE_EXPONENT));
+    // No class discounts here - those come from skill tree
+    return Math.max(10, raw);
+}
+
+// ── Component Upgrade Values ─────────────────────────────────────────────
+const COMPONENT_UPGRADE_VALUES = {
+    iron_ingot: { bonus: 2, name: 'Iron Ingot' },
+    hardwood_plank: { bonus: 2, name: 'Hardwood Plank' },
+    tanned_hide: { bonus: 2, name: 'Tanned Hide' },
+    poison_extract: { bonus: 3, name: 'Poison Extract' },
+    frost_core: { bonus: 3, name: 'Frost Core' },
+    mithril_ingot: { bonus: 4, name: 'Mithril Ingot' },
+    arcane_shard: { bonus: 4, name: 'Arcane Shard' },
+    dragon_plate: { bonus: 6, name: 'Dragon Plate' },
+    void_crystal: { bonus: 6, name: 'Void Crystal' },
+    legendary_fragment: { bonus: 5, name: 'Legendary Fragment' },
+    demon_core: { bonus: 7, name: 'Demon Core' },
+    shadow_weave: { bonus: 8, name: 'Shadow Weave' },
+    demon_alloy: { bonus: 10, name: 'Demon Alloy' },
+    crimson_alloy: { bonus: 10, name: 'Crimson Alloy', statPick: true }
+};
+
+// Also define POSSIBLE_STATS if not already defined
+const POSSIBLE_STATS = [
+    'strength', 'defense', 'agility', 'magic', 'vitality',
+    'hit_chance', 'crit_chance', 'armor', 'hp_max',
+    'dmg_min', 'dmg_max', 'pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg',
+    'pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'
+];
+
+const TRAINING_DURATION_SEC = 6000;
+const TRAINING_GAIN = 1;
+const LEVEL_XP = (l) => l * 25;
+
+// ── Upgrade Equipment ─────────────────────────────────────────────────────
+const UPGRADE_MATERIALS = {
+    1: {  // +1 upgrade
+        materials: { legendary_fragment: 1 },
+        goldCost: 10000,
+        successRate: 1.0  // 100%
+    },
+    2: {  // +2 upgrade
+        materials: { legendary_fragment: 2 },
+        goldCost: 25000,
+        successRate: 0.9  // 90%
+    },
+    3: {  // +3 upgrade
+        materials: { legendary_fragment: 3, demon_core: 1 },
+        goldCost: 50000,
+        successRate: 0.7  // 70%
+    },
+    4: {  // +4 upgrade
+        materials: { legendary_fragment: 5, demon_core: 2, void_crystal: 1 },
+        goldCost: 100000,
+        successRate: 0.5  // 50%
+    },
+    5: {  // +5 upgrade (max)
+        materials: { legendary_fragment: 8, demon_core: 3, void_crystal: 2, shadow_weave: 1 },
+        goldCost: 200000,
+        successRate: 0.3  // 30%
+    }
+};
+console.log('COMPONENT_UPGRADE_VALUES defined?', typeof COMPONENT_UPGRADE_VALUES);
+console.log('Keys:', Object.keys(COMPONENT_UPGRADE_VALUES || {}));
+
+// ── Zone-based battle constants ───────────────────────────────────────────
+const HIT_ZONES = {
+    head:         { dmgMult: 1.50, hitChance: 0.60 },
+    throat:       { dmgMult: 1.30, hitChance: 0.65 },
+    chest:        { dmgMult: 1.00, hitChance: 0.85 },
+    heart:        { dmgMult: 1.75, hitChance: 0.45 },
+    solar_plexus: { dmgMult: 1.20, hitChance: 0.75 },
+    stomach:      { dmgMult: 1.10, hitChance: 0.80 },
+    left_arm:     { dmgMult: 0.80, hitChance: 0.90 },
+    right_arm:    { dmgMult: 0.80, hitChance: 0.90 },
+    left_leg:     { dmgMult: 0.70, hitChance: 0.92 },
+    right_leg:    { dmgMult: 0.70, hitChance: 0.92 },
+};
+const BLOCK_ZONES = {
+    high_guard:    { protects: ['head','throat'],           reduction: 0.85 },
+    cross_guard:   { protects: ['heart','chest'],           reduction: 0.85 },
+    mid_guard:     { protects: ['solar_plexus','stomach'],  reduction: 0.80 },
+    left_guard:    { protects: ['left_arm','left_leg'],     reduction: 0.75 },
+    right_guard:   { protects: ['right_arm','right_leg'],   reduction: 0.75 },
+    full_turtle:   { protects: ['chest','stomach'],         reduction: 0.70, special: 'next_round_hit_penalty' },
+    weave_left:    { protects: ['head','left_arm'],         reduction: 0.80, special: 'attacker_miss_20' },
+    weave_right:   { protects: ['head','right_arm'],        reduction: 0.80, special: 'attacker_miss_20' },
+    counter_stance:{ protects: ['chest','solar_plexus'],   reduction: 0.55, special: 'counter_25' },
+    no_block:      { protects: [],                          reduction: 0.00, special: 'attacker_bonus_10' },
+};
+const DEFAULT_ATTACK_ZONES = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
+const DEFAULT_BLOCK_ZONES  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
+const HP_REGEN_RATE     = 0.10;
+const HP_REGEN_INTERVAL = 3600;
+const MP_MAX            = 120;
+const MP_REGEN_AMOUNT   = 5;
+const MP_SKILL_UNLOCK   = 60;
+// Global nerf to mission base gold rolls (before size multipliers).
+const MISSION_BASE_GOLD_MULT = 1 / 3;
+const MISSION_SIZES = {
+    small:  { mpCost: 20, duration: 600,  label: 'Small',  rewardMult: 1.0 },
+    medium: { mpCost: 40, duration: 1200, label: 'Medium', rewardMult: 1.8 },
+    large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 2.5 },
+};
+const SKILL_DURATION = 5 * 3600;
+const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
+const HEALTH_POTION_COOLDOWN = 30 * 60;
+
+// ── Premium Features ───────────────────────────────────────────────────────
+const PREMIUM_FEATURES = {
+    arcane_reservoir: {
+        id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', cost: 30,
+        desc: '2× max MP (240) and 2× MP regen (+10/hr instead of +5/hr).',
+        effect: { mp_max_mult: 2, mp_regen_mult: 2 },
+    },
+    warlord: {
+        id: 'warlord', name: 'Warlord', emoji: '⚔️', cost: 25,
+        desc: '+15% damage and +10% hit chance on attacks.',
+        effect: { atk_dmg_bonus: 0.15, atk_hit_bonus: 0.10 },
+    },
+    iron_fortress: {
+        id: 'iron_fortress', name: 'Iron Fortress', emoji: '🏰', cost: 25,
+        desc: '+10% agility and +15% armor when defending.',
+        effect: { def_agility_bonus: 0.10, def_armor_bonus: 0.15 },
+    },
+    apprentice: {
+        id: 'apprentice', name: 'Apprentice', emoji: '📚', cost: 15,
+        desc: 'All stat upgrade costs reduced by 20%.',
+        effect: { upgrade_discount: 0.20 },
+    },
+    vault_keeper: {
+        id: 'vault_keeper', name: 'Vault Keeper', emoji: '🏦', cost: 20,
+        desc: 'Lose only 5% gold on PvP defeat instead of 10%.',
+        effect: { gold_loss_reduction: 0.50 },
+    },
+    fortune_hunter: {
+        id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', cost: 20,
+        desc: '+30% gold from missions. Mission and duel cooldowns 50% shorter.',
+        effect: { gold_bonus: 0.30, cooldown_reduction: 0.50 },
+    },
+};
+
+// ── Premium Synergy Bonuses ────────────────────────────────────────────────
+const PREMIUM_SYNERGIES = [
+    {
+        requires: ['warlord', 'iron_fortress'],
+        name: 'Veteran', emoji: '🎖️',
+        desc: '+5% crit chance while both Warlord and Iron Fortress are active.',
+        effect: { crit_bonus: 0.05 },
+    },
+    {
+        requires: ['arcane_reservoir', 'fortune_hunter'],
+        name: 'Midas Flow', emoji: '✨',
+        desc: 'Mission MP cost reduced by 10 while both Arcane Reservoir and Fortune Hunter are active.',
+        effect: { mp_cost_reduction: 10 },
+    },
+    {
+        requires: ['vault_keeper', 'apprentice'],
+        name: 'Merchant Prince', emoji: '👑',
+        desc: 'Sell items for 40% of value instead of 30% while both are active.',
+        effect: { sell_bonus: 0.10 },
+    },
+];
+
+const PREMIUM_ULTIMATE = {
+    name: 'Ascendant', emoji: '🌟',
+    desc: 'All 6 features active: +50% XP from all sources and +1% to all stats.',
+    effect: { xp_bonus: 0.50, all_stats_pct: 0.01 },
+};
+
+function getActivePremium(char) {
+    if (!char.premium_features) return {};
+    try {
+        const feats = JSON.parse(char.premium_features);
+        const now = Math.floor(Date.now() / 1000);
+        const active = {};
+        for (const [id, expiresAt] of Object.entries(feats)) {
+            if (expiresAt > now) active[id] = expiresAt;
+        }
+        return active;
+    } catch { return {}; }
+}
+
+function hasPremium(activePremium, featureId) {
+    return !!activePremium[featureId];
+}
+
+function getActiveSynergies(activePremium) {
+    const active = [];
+    for (const syn of PREMIUM_SYNERGIES) {
+        if (syn.requires.every(id => hasPremium(activePremium, id))) {
+            active.push(syn);
+        }
+    }
+    return active;
+}
+
+function hasUltimate(activePremium) {
+    return Object.keys(PREMIUM_FEATURES).every(id => hasPremium(activePremium, id));
+}
+
+// ── Dungeon Premium Rewards ────────────────────────────────────────────────
+const PREMIUM_FEATURE_IDS = Object.keys(PREMIUM_FEATURES);
+
+function getRandomPremiumFeature(days = null) {
+    // Randomly select one of the available premium features
+    const featureId = PREMIUM_FEATURE_IDS[Math.floor(Math.random() * PREMIUM_FEATURE_IDS.length)];
+    const feature = PREMIUM_FEATURES[featureId];
+    
+    // Random duration between 5-10 days (in seconds)
+    const durationDays = days || (5 + Math.floor(Math.random() * 6)); // 5-10 days
+    const durationSeconds = durationDays * 24 * 3600;
+    
+    return {
+        id: featureId,
+        name: feature.name,
+        emoji: feature.emoji,
+        durationDays: durationDays,
+        durationSeconds: durationSeconds,
+        description: feature.desc
+    };
+}
+
+function applyPremiumFeatureToCharacter(char, featureId, durationSeconds) {
+    const now = Math.floor(Date.now() / 1000);
+    let activePrem = {};
+    
+    try {
+        if (char.premium_features) {
+            activePrem = JSON.parse(char.premium_features);
+        }
+    } catch {}
+    
+    // Add or extend the premium feature
+    const currentExpiry = activePrem[featureId] || 0;
+    const newExpiry = Math.max(currentExpiry, now) + durationSeconds;
+    activePrem[featureId] = newExpiry;
+    
+    return activePrem;
+}
+
+const ACHIEVEMENTS = [
+    {
+        id: 'wins_1',
+        chain: 'wins',
+        category: 'victories',
+        name: 'First Blood',
+        desc: 'Win your first PvP battle.',
+        icon: '⚔️',
+        metric: 'wins',
+        target: 1,
+        rewards: { gold: 1000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'wins_10',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Arena Regular',
+        desc: 'Reach 10 victories.',
+        icon: '🛡️',
+        metric: 'wins',
+        target: 10,
+        rewards: { gold: 5000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'wins_25',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Battle-Tested',
+        desc: 'Reach 25 victories.',
+        icon: '🏅',
+        metric: 'wins',
+        target: 25,
+        rewards: { gold: 12000, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'wins_50',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Champion Spark',
+        desc: 'Reach 50 victories.',
+        icon: '🔥',
+        metric: 'wins',
+        target: 50,
+        rewards: { gold: 25000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'wins_100',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Centurion of the Arena',
+        desc: 'Reach 100 victories.',
+        icon: '💎',
+        metric: 'wins',
+        target: 100,
+        rewards: { gold: 50000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'wins_500',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Warpath',
+        desc: 'Reach 500 victories.',
+        icon: '👑',
+        metric: 'wins',
+        target: 500,
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'wins_1000',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Legend of Steel',
+        desc: 'Reach 1,000 victories.',
+        icon: '🌟',
+        metric: 'wins',
+        target: 1000,
+        rewards: { gold: 500000, gems: 25, premium: { id: 'apprentice', days: 7 } },
+    },
+    {
+        id: 'wins_2500',
+        chain: 'wins',
+        category: 'victories',
+        name: 'Mythic Conqueror',
+        desc: 'Reach 2,500 victories.',
+        icon: '🏆',
+        metric: 'wins',
+        target: 2500,
+        rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
+    },
+    {
+        id: 'battles_25',
+        chain: 'battles',
+        category: 'battles',
+        name: 'Scarred Veteran',
+        desc: 'Fight 25 total battles.',
+        icon: '🗡️',
+        metric: 'battles',
+        target: 25,
+        rewards: { gold: 4000, consumable: { id: 'potion_mana', qty: 1 } },
+    },
+    {
+        id: 'battles_100',
+        chain: 'battles',
+        category: 'battles',
+        name: 'Seasoned Duelist',
+        desc: 'Fight 100 total battles.',
+        icon: '📜',
+        metric: 'battles',
+        target: 100,
+        rewards: { gold: 15000, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'battles_500',
+        chain: 'battles',
+        category: 'battles',
+        name: 'Arena Fixture',
+        desc: 'Fight 500 total battles.',
+        icon: '⚜️',
+        metric: 'battles',
+        target: 500,
+        rewards: { gold: 100000, consumable: { id: 'special_mana_potion', qty: 2 } },
+    },
+    {
+        id: 'gold_10000',
+        chain: 'gold_earned',
+        category: 'wealth',
+        name: 'First Fortune',
+        desc: 'Earn 10,000 total gold.',
+        icon: '💰',
+        metric: 'gold_earned',
+        target: 10000,
+        rewards: { gold: 3000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'gold_100000',
+        chain: 'gold_earned',
+        category: 'wealth',
+        name: 'Treasure Hoard',
+        desc: 'Earn 100,000 total gold.',
+        icon: '🪙',
+        metric: 'gold_earned',
+        target: 100000,
+        rewards: { gold: 25000, gems: 5, consumable: { id: 'potion_mana', qty: 3 } },
+    },
+    {
+        id: 'gold_1000000',
+        chain: 'gold_earned',
+        category: 'wealth',
+        name: 'Golden Legend',
+        desc: 'Earn 1,000,000 total gold.',
+        icon: '🏦',
+        metric: 'gold_earned',
+        target: 1000000,
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'floor_5',
+        chain: 'dungeon_floor',
+        category: 'dungeon',
+        name: 'Into the Deep',
+        desc: 'Reach dungeon floor 5.',
+        icon: '🕳️',
+        metric: 'dungeon_floor',
+        target: 5,
+        rewards: { gold: 7500, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'floor_10',
+        chain: 'dungeon_floor',
+        category: 'dungeon',
+        name: 'Abyss Diver',
+        desc: 'Reach dungeon floor 10.',
+        icon: '🌑',
+        metric: 'dungeon_floor',
+        target: 10,
+        rewards: { gold: 20000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'floor_25',
+        chain: 'dungeon_floor',
+        category: 'dungeon',
+        name: 'Underworld Walker',
+        desc: 'Reach dungeon floor 25.',
+        icon: '👁️',
+        metric: 'dungeon_floor',
+        target: 25,
+        rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'floor_50',
+        chain: 'dungeon_floor',
+        category: 'dungeon',
+        name: 'Abyss Sovereign',
+        desc: 'Reach dungeon floor 50.',
+        icon: '👹',
+        metric: 'dungeon_floor',
+        target: 50,
+        rewards: { gold: 250000, gems: 25, premium: { id: 'iron_fortress', days: 10 } },
+    },
+    {
+        id: 'crawler_encounters_1',
+        chain: 'crawler_encounters',
+        category: 'dungeon',
+        name: 'Skittering Heard',
+        desc: 'Encounter The Crawler 1 time.',
+        icon: '🕷️',
+        metric: 'crawler_encounters',
+        target: 1,
+        rewards: { gold: 250 },
+    },
+    {
+        id: 'crawler_encounters_5',
+        chain: 'crawler_encounters',
+        category: 'dungeon',
+        name: 'It Knows Your Scent',
+        desc: 'Encounter The Crawler 5 times.',
+        icon: '🕷️',
+        metric: 'crawler_encounters',
+        target: 5,
+        rewards: { gold: 750 },
+    },
+    {
+        id: 'crawler_encounters_20',
+        chain: 'crawler_encounters',
+        category: 'dungeon',
+        name: 'Marked By The Crawler',
+        desc: 'Encounter The Crawler 20 times.',
+        icon: '🕷️',
+        metric: 'crawler_encounters',
+        target: 20,
+        rewards: { gold: 2500, gems: 5 },
+    },
+    {
+        id: 'crawler_defeats_1',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Slayer',
+        desc: 'Defeat The Crawler.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 1,
+        rewards: { gold: 3000, gems: 5 },
+    },
+    {
+        id: 'crawler_defeats_5',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Hunter',
+        desc: 'Defeat The Crawler 5 times.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 5,
+        rewards: { gold: 15000, gems: 15 },
+    },
+    {
+        id: 'crawler_defeats_10',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Nemesis',
+        desc: 'Defeat The Crawler 10 times.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 10,
+        rewards: { gold: 40000, gems: 25 },
+    },
+    {
+        id: 'crawler_defeats_25',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Bane',
+        desc: 'Defeat The Crawler 25 times.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 25,
+        rewards: { gold: 100000, gems: 25 },
+    },
+    {
+        id: 'crawler_defeats_50',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Exorcist',
+        desc: 'Defeat The Crawler 50 times.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 50,
+        rewards: { gold: 250000, gems: 25 },
+    },
+    {
+        id: 'crawler_defeats_100',
+        chain: 'crawler_defeats',
+        category: 'dungeon',
+        name: 'Crawler Annihilator',
+        desc: 'Defeat The Crawler 100 times.',
+        icon: '🏆',
+        metric: 'crawler_defeats',
+        target: 100,
+        rewards: { gold: 500000, gems: 25 },
+    },
+    {
+        id: 'crawler_deaths_1',
+        chain: 'crawler_deaths',
+        category: 'dungeon',
+        name: 'Crawler Food',
+        desc: 'Die to The Crawler.',
+        icon: '💀',
+        metric: 'crawler_deaths',
+        target: 1,
+        rewards: { gold: 150 },
+    },
+    {
+        id: 'mp_60',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Mana Investor',
+        desc: 'Spend 60 total MP on missions and conversions.',
+        icon: '🔮',
+        metric: 'mp_spent',
+        target: 60,
+        rewards: { gold: 2500, consumable: { id: 'potion_mana', qty: 1 } },
+    },
+    {
+        id: 'mp_300',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Mission Addict',
+        desc: 'Spend 300 total MP.',
+        icon: '✨',
+        metric: 'mp_spent',
+        target: 300,
+        rewards: { gold: 10000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'mp_1000',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Arcane Workhorse',
+        desc: 'Spend 1,000 total MP.',
+        icon: '🧪',
+        metric: 'mp_spent',
+        target: 1000,
+        rewards: { gold: 40000, gems: 8, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'mp_5000',
+        chain: 'mp_spent',
+        category: 'missions',
+        name: 'Master of Endurance',
+        desc: 'Spend 5,000 total MP.',
+        icon: '🌌',
+        metric: 'mp_spent',
+        target: 5000,
+        rewards: { gold: 175000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'mission_wins_10',
+        chain: 'mission_wins_total',
+        category: 'missions',
+        name: 'Field Operative',
+        desc: 'Win 10 missions.',
+        icon: '🗺️',
+        metric: 'mission_wins_total',
+        target: 10,
+        rewards: { gold: 5000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'mission_wins_50',
+        chain: 'mission_wins_total',
+        category: 'missions',
+        name: 'Contract Finisher',
+        desc: 'Win 50 missions.',
+        icon: '📜',
+        metric: 'mission_wins_total',
+        target: 50,
+        rewards: { gold: 25000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'mission_wins_250',
+        chain: 'mission_wins_total',
+        category: 'missions',
+        name: 'Mercenary Legend',
+        desc: 'Win 250 missions.',
+        icon: '⚔️',
+        metric: 'mission_wins_total',
+        target: 250,
+        rewards: { gold: 125000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'mission_spots_3',
+        chain: 'mission_spots_discovered',
+        category: 'missions',
+        name: 'Trailblazer',
+        desc: 'Fight in 3 different mission locations.',
+        icon: '🧭',
+        metric: 'mission_spots_discovered',
+        target: 3,
+        rewards: { gold: 3500, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'mission_spots_10',
+        chain: 'mission_spots_discovered',
+        category: 'missions',
+        name: 'Worldwalker',
+        desc: 'Fight in 10 different mission locations.',
+        icon: '🌍',
+        metric: 'mission_spots_discovered',
+        target: 10,
+        rewards: { gold: 30000, gems: 6, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'forest_camp_wins_10',
+        chain: 'mission_spot_forest_camp_wins',
+        category: 'missions',
+        name: 'Keeper of the Camp',
+        desc: 'Win 10 missions at Hunting Camp.',
+        icon: '🌲',
+        metric: 'mission_spot_wins',
+        metric_key: 'forest_camp',
+        metric_label: 'Hunting Camp',
+        target: 10,
+        rewards: { gold: 8000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'city_palace_wins_10',
+        chain: 'mission_spot_city_palace_wins',
+        category: 'missions',
+        name: 'Shadowbreaker',
+        desc: 'Win 10 missions at Shadow Palace.',
+        icon: '🏙️',
+        metric: 'mission_spot_wins',
+        metric_key: 'city_palace',
+        metric_label: 'Shadow Palace',
+        target: 10,
+        rewards: { gold: 90000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'forest_bandits_wins_10',
+        chain: 'mission_spot_forest_bandits_wins',
+        category: 'missions',
+        name: 'Banditbane',
+        desc: 'Win 10 missions at Bandit Hideout.',
+        icon: '🪓',
+        metric: 'mission_spot_wins',
+        metric_key: 'forest_bandits',
+        metric_label: 'Bandit Hideout',
+        target: 10,
+        rewards: { gold: 9000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'forest_ruins_wins_10',
+        chain: 'mission_spot_forest_ruins_wins',
+        category: 'missions',
+        name: 'Relic Seeker',
+        desc: 'Win 10 missions at Old Ruins.',
+        icon: '🏚️',
+        metric: 'mission_spot_wins',
+        metric_key: 'forest_ruins',
+        metric_label: 'Old Ruins',
+        target: 10,
+        rewards: { gold: 12000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'swamp_edge_wins_10',
+        chain: 'mission_spot_swamp_edge_wins',
+        category: 'missions',
+        name: 'Bog Skimmer',
+        desc: 'Win 10 missions at Swamp Edge.',
+        icon: '🌿',
+        metric: 'mission_spot_wins',
+        metric_key: 'swamp_edge',
+        metric_label: 'Swamp Edge',
+        target: 10,
+        rewards: { gold: 15000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'swamp_village_wins_10',
+        chain: 'mission_spot_swamp_village_wins',
+        category: 'missions',
+        name: 'Marsh Reclaimer',
+        desc: 'Win 10 missions at Abandoned Village.',
+        icon: '🏚️',
+        metric: 'mission_spot_wins',
+        metric_key: 'swamp_village',
+        metric_label: 'Abandoned Village',
+        target: 10,
+        rewards: { gold: 20000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'swamp_heart_wins_10',
+        chain: 'mission_spot_swamp_heart_wins',
+        category: 'missions',
+        name: 'Heart of the Mire',
+        desc: 'Win 10 missions at Swamp Heart.',
+        icon: '🧫',
+        metric: 'mission_spot_wins',
+        metric_key: 'swamp_heart',
+        metric_label: 'Swamp Heart',
+        target: 10,
+        rewards: { gold: 32000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'mountain_base_wins_10',
+        chain: 'mission_spot_mountain_base_wins',
+        category: 'missions',
+        name: 'Foothill Forger',
+        desc: 'Win 10 missions at Mountain Base.',
+        icon: '⛰️',
+        metric: 'mission_spot_wins',
+        metric_key: 'mountain_base',
+        metric_label: 'Mountain Base',
+        target: 10,
+        rewards: { gold: 25000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'mountain_peak_wins_10',
+        chain: 'mission_spot_mountain_peak_wins',
+        category: 'missions',
+        name: 'Storm Summit',
+        desc: 'Win 10 missions at Frozen Peak.',
+        icon: '❄️',
+        metric: 'mission_spot_wins',
+        metric_key: 'mountain_peak',
+        metric_label: 'Frozen Peak',
+        target: 10,
+        rewards: { gold: 35000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'ice_cavern_wins_10',
+        chain: 'mission_spot_ice_cavern_wins',
+        category: 'missions',
+        name: 'Frost Delver',
+        desc: 'Win 10 missions at Ice Cavern.',
+        icon: '🧊',
+        metric: 'mission_spot_wins',
+        metric_key: 'ice_cavern',
+        metric_label: 'Ice Cavern',
+        target: 10,
+        rewards: { gold: 50000, gems: 6, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'ruins_perimeter_wins_10',
+        chain: 'mission_spot_ruins_perimeter_wins',
+        category: 'missions',
+        name: 'Outer Wallbreaker',
+        desc: 'Win 10 missions at Ruins Perimeter.',
+        icon: '🧱',
+        metric: 'mission_spot_wins',
+        metric_key: 'ruins_perimeter',
+        metric_label: 'Ruins Perimeter',
+        target: 10,
+        rewards: { gold: 60000, gems: 6, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'ruins_temple_wins_10',
+        chain: 'mission_spot_ruins_temple_wins',
+        category: 'missions',
+        name: 'Sunken Ritebreaker',
+        desc: 'Win 10 missions at Sunken Temple.',
+        icon: '🛕',
+        metric: 'mission_spot_wins',
+        metric_key: 'ruins_temple',
+        metric_label: 'Sunken Temple',
+        target: 10,
+        rewards: { gold: 85000, gems: 8, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'ruins_crypt_wins_10',
+        chain: 'mission_spot_ruins_crypt_wins',
+        category: 'missions',
+        name: 'Crypt Unsealer',
+        desc: 'Win 10 missions at Ancient Crypt.',
+        icon: '⚰️',
+        metric: 'mission_spot_wins',
+        metric_key: 'ruins_crypt',
+        metric_label: 'Ancient Crypt',
+        target: 10,
+        rewards: { gold: 115000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'city_outskirts_wins_10',
+        chain: 'mission_spot_city_outskirts_wins',
+        category: 'missions',
+        name: 'Street Purger',
+        desc: 'Win 10 missions at City Outskirts.',
+        icon: '🏘️',
+        metric: 'mission_spot_wins',
+        metric_key: 'city_outskirts',
+        metric_label: 'City Outskirts',
+        target: 10,
+        rewards: { gold: 150000, gems: 10, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'city_cathedral_wins_10',
+        chain: 'mission_spot_city_cathedral_wins',
+        category: 'missions',
+        name: 'Cathedral Cleanser',
+        desc: 'Win 10 missions at Dark Cathedral.',
+        icon: '⛪',
+        metric: 'mission_spot_wins',
+        metric_key: 'city_cathedral',
+        metric_label: 'Dark Cathedral',
+        target: 10,
+        rewards: { gold: 220000, gems: 15, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'dungeon_kills_25',
+        chain: 'dungeon_kills',
+        category: 'dungeon',
+        name: 'Crypt Cleaner',
+        desc: 'Defeat 25 dungeon monsters.',
+        icon: '💀',
+        metric: 'monster_kills_total',
+        metric_source: 'dungeon',
+        target: 25,
+        rewards: { gold: 9000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'dungeon_kills_100',
+        chain: 'dungeon_kills',
+        category: 'dungeon',
+        name: 'Dungeon Exterminator',
+        desc: 'Defeat 100 dungeon monsters.',
+        icon: '🕷️',
+        metric: 'monster_kills_total',
+        metric_source: 'dungeon',
+        target: 100,
+        rewards: { gold: 40000, consumable: { id: 'special_mana_potion', qty: 1 } },
+    },
+    {
+        id: 'dungeon_kills_300',
+        chain: 'dungeon_kills',
+        category: 'dungeon',
+        name: 'Terror of the Underdeep',
+        desc: 'Defeat 300 dungeon monsters.',
+        icon: '👁️',
+        metric: 'monster_kills_total',
+        metric_source: 'dungeon',
+        target: 300,
+        rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'skeleton_kills_15',
+        chain: 'monster_skeleton',
+        category: 'dungeon',
+        name: 'Bonebreaker',
+        desc: 'Defeat 15 Skeleton Warriors in the dungeon.',
+        icon: '🦴',
+        metric: 'monster_kills',
+        metric_source: 'dungeon',
+        metric_key: 'skeleton',
+        metric_label: 'Skeleton Warrior',
+        target: 15,
+        rewards: { gold: 12000, consumable: { id: 'potion_mana', qty: 2 } },
+    },
+    {
+        id: 'void_wraith_kills_10',
+        chain: 'monster_void_wraith',
+        category: 'dungeon',
+        name: 'Wraithbane',
+        desc: 'Defeat 10 Void Wraiths in the dungeon.',
+        icon: '👻',
+        metric: 'monster_kills',
+        metric_source: 'dungeon',
+        metric_key: 'void_wraith',
+        metric_label: 'Void Wraith',
+        target: 10,
+        rewards: { gold: 50000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+];
+
+// Gatekeeper achievements (one-time travel progression milestones).
+ACHIEVEMENTS.push(
+    {
+        id: 'gatekeeper_overworld_swamp',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Bog Breaker',
+        desc: 'Defeat the Bog Warden and unlock Rotting Swamp travel.',
+        icon: '🐊',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:swamp',
+        target: 1,
+        rewards: { gold: 5000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_overworld_mountains',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Frostpiercer',
+        desc: 'Defeat the Frost Sentinel and unlock Frozen Mountains travel.',
+        icon: '❄️',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:mountains',
+        target: 1,
+        rewards: { gold: 8000, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_overworld_ruins',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Crypt Cracker',
+        desc: 'Defeat the Crypt Keeper and unlock Ancient Ruins travel.',
+        icon: '🏺',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:ruins',
+        target: 1,
+        rewards: { gold: 12000, gems: 5, lootbox: { id: 'lootbox_novice', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_overworld_dark_city',
+        chain: 'gatekeepers_overworld',
+        category: 'travel',
+        name: 'Shadow Unbarred',
+        desc: 'Defeat the Shadow Gatekeeper and unlock Dark City travel.',
+        icon: '🌑',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'overworld:dark_city',
+        target: 1,
+        rewards: { gold: 20000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'gatekeeper_abyss_crimson',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Crimson Threshold',
+        desc: 'Defeat the Crimson Gatekeeper.',
+        icon: '🩸',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:crimson',
+        target: 1,
+        rewards: { gold: 25000, gems: 5 },
+    },
+    {
+        id: 'gatekeeper_abyss_void',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Voidwalker’s Seal',
+        desc: 'Defeat the Void Gatekeeper.',
+        icon: '🕳️',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:void',
+        target: 1,
+        rewards: { gold: 30000, gems: 7 },
+    },
+    {
+        id: 'gatekeeper_abyss_citadel',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Watcher’s Fall',
+        desc: 'Defeat the Citadel Watcher.',
+        icon: '🛡️',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:citadel',
+        target: 1,
+        rewards: { gold: 35000, gems: 10 },
+    },
+    {
+        id: 'gatekeeper_abyss_eternal_dark',
+        chain: 'gatekeepers_abyss',
+        category: 'travel',
+        name: 'Eternal Warden Broken',
+        desc: 'Defeat the Eternal Warden.',
+        icon: '🌌',
+        metric: 'gatekeeper_defeated',
+        metric_key: 'abyss:eternal_dark',
+        target: 1,
+        rewards: { gold: 50000, gems: 15, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    }
+);
+
+function buildExtendedAchievements() {
+    console.log('[DEBUG] buildExtendedAchievements called, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+    const extras = [];
+    const addFromBase = (base, overrides) => extras.push({ ...base, ...overrides });
+
+    const battlesBase = ACHIEVEMENTS.find((a) => a.id === 'battles_500');
+    console.log('[DEBUG] battlesBase found:', !!battlesBase);
+    addFromBase(battlesBase, {
+        id: 'battles_1000',
+        name: 'Battleforged',
+        desc: 'Fight 1,000 total battles.',
+        target: 1000,
+        rewards: { gold: 250000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_2500',
+        name: 'Endless Combatant',
+        desc: 'Fight 2,500 total battles.',
+        target: 2500,
+        rewards: { gold: 700000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_5000',
+        name: 'Avatar of War',
+        desc: 'Fight 5,000 total battles.',
+        target: 5000,
+        rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_7500',
+        name: 'Scarred Veteran',
+        desc: 'Fight 7,500 total battles.',
+        target: 7500,
+        rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_10000',
+        name: 'War Machine',
+        desc: 'Fight 10,000 total battles.',
+        target: 10000,
+        rewards: { gold: 4000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_15000',
+        name: 'One-Man Army',
+        desc: 'Fight 15,000 total battles.',
+        target: 15000,
+        rewards: { gold: 6000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_25000',
+        name: 'Warlord',
+        desc: 'Fight 25,000 total battles.',
+        target: 25000,
+        rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(battlesBase, {
+        id: 'battles_50000',
+        name: 'God of Battle',
+        desc: 'Fight 50,000 total battles.',
+        target: 50000,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
+    });
+
+    const goldBase = ACHIEVEMENTS.find((a) => a.id === 'gold_1000000');
+    addFromBase(goldBase, {
+        id: 'gold_2500000',
+        name: 'Imperial Vault',
+        desc: 'Earn 2,500,000 total gold.',
+        target: 2500000,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_5000000',
+        name: 'Kingmaker Treasury',
+        desc: 'Earn 5,000,000 total gold.',
+        target: 5000000,
+        rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_10000000',
+        name: 'Golden Empire',
+        desc: 'Earn 10,000,000 total gold.',
+        target: 10000000,
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_20000000',
+        name: 'Gilded Throne',
+        desc: 'Earn 20,000,000 total gold.',
+        target: 20000000,
+        rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_35000000',
+        name: 'Platinum Paradise',
+        desc: 'Earn 35,000,000 total gold.',
+        target: 35000000,
+        rewards: { gold: 7000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_50000000',
+        name: 'Diamond Dynasty',
+        desc: 'Earn 50,000,000 total gold.',
+        target: 50000000,
+        rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_75000000',
+        name: 'Obsidian Empire',
+        desc: 'Earn 75,000,000 total gold.',
+        target: 75000000,
+        rewards: { gold: 15000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
+    });
+    addFromBase(goldBase, {
+        id: 'gold_100000000',
+        name: 'Cosmic Treasury',
+        desc: 'Earn 100,000,000 total gold.',
+        target: 100000000,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
+    });
+
+    const floorBase = ACHIEVEMENTS.find((a) => a.id === 'floor_50');
+    addFromBase(floorBase, {
+        id: 'floor_75',
+        name: 'Nether Ascendant',
+        desc: 'Reach dungeon floor 75.',
+        target: 75,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_100',
+        name: 'Hundred-Floor Horror',
+        desc: 'Reach dungeon floor 100.',
+        target: 100,
+        rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_150',
+        name: 'Master of the Abyss',
+        desc: 'Reach dungeon floor 150.',
+        target: 150,
+        rewards: { gold: 1500000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_200',
+        name: 'Dungeon Godslayer',
+        desc: 'Reach dungeon floor 200.',
+        target: 200,
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 }, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_250',
+        name: 'Abyss Walker',
+        desc: 'Reach dungeon floor 250.',
+        target: 250,
+        rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_300',
+        name: 'Void Survivor',
+        desc: 'Reach dungeon floor 300.',
+        target: 300,
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 30 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_400',
+        name: 'Endless Knight',
+        desc: 'Reach dungeon floor 400.',
+        target: 400,
+        rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_500',
+        name: 'Titan of the Tower',
+        desc: 'Reach dungeon floor 500.',
+        target: 500,
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(floorBase, {
+        id: 'floor_750',
+        name: 'Dungeon Demigod',
+        desc: 'Reach dungeon floor 750.',
+        target: 750,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
+    });
+
+    const mpBase = ACHIEVEMENTS.find((a) => a.id === 'mp_5000');
+    addFromBase(mpBase, {
+        id: 'mp_10000',
+        name: 'Arcane Marathon',
+        desc: 'Spend 10,000 total MP.',
+        target: 10000,
+        rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_25000',
+        name: 'Mana Furnace',
+        desc: 'Spend 25,000 total MP.',
+        target: 25000,
+        rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_50000',
+        name: 'Engine of Progress',
+        desc: 'Spend 50,000 total MP.',
+        target: 50000,
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_75000',
+        name: 'Mana Ocean',
+        desc: 'Spend 75,000 total MP.',
+        target: 75000,
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_100000',
+        name: 'Arcane Infinite',
+        desc: 'Spend 100,000 total MP.',
+        target: 100000,
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'apprentice', days: 30 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_150000',
+        name: 'Spellforge',
+        desc: 'Spend 150,000 total MP.',
+        target: 150000,
+        rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_250000',
+        name: 'Mana Singularity',
+        desc: 'Spend 250,000 total MP.',
+        target: 250000,
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(mpBase, {
+        id: 'mp_500000',
+        name: 'The Mana Source',
+        desc: 'Spend 500,000 total MP.',
+        target: 500000,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
+    });
+
+    const missionWinsBase = ACHIEVEMENTS.find((a) => a.id === 'mission_wins_250');
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_1000',
+        name: 'Campaign Veteran',
+        desc: 'Win 1,000 missions.',
+        target: 1000,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_2500',
+        name: 'Contract Emperor',
+        desc: 'Win 2,500 missions.',
+        target: 2500,
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_5000',
+        name: 'Unstoppable Expedition',
+        desc: 'Win 5,000 missions.',
+        target: 5000,
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_7500',
+        name: 'Expedition Force',
+        desc: 'Win 7,500 missions.',
+        target: 7500,
+        rewards: { gold: 3500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_10000',
+        name: 'Campaign Overlord',
+        desc: 'Win 10,000 missions.',
+        target: 10000,
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_15000',
+        name: 'March of Legends',
+        desc: 'Win 15,000 missions.',
+        target: 15000,
+        rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_25000',
+        name: 'Eternal Campaign',
+        desc: 'Win 25,000 missions.',
+        target: 25000,
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(missionWinsBase, {
+        id: 'mission_wins_50000',
+        name: 'The Unending War',
+        desc: 'Win 50,000 missions.',
+        target: 50000,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
+    });
+
+    const missionSpotsBase = ACHIEVEMENTS.find((a) => a.id === 'mission_spots_10');
+    addFromBase(missionSpotsBase, {
+        id: 'mission_spots_15',
+        name: 'Master Pathfinder',
+        desc: 'Fight in all 15 mission locations.',
+        target: 15,
+        rewards: { gold: 75000, gems: 18, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    extras.push(
+        {
+            id: 'mission_fights_25',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'First Contract Rush',
+            desc: 'Fight 25 missions.',
+            icon: '🧾',
+            metric: 'mission_fights_total',
+            target: 25,
+            rewards: { gold: 8000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'mission_fights_100',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Road Worn',
+            desc: 'Fight 100 missions.',
+            icon: '🥾',
+            metric: 'mission_fights_total',
+            target: 100,
+            rewards: { gold: 30000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_500',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Campaign Machine',
+            desc: 'Fight 500 missions.',
+            icon: '⚙️',
+            metric: 'mission_fights_total',
+            target: 500,
+            rewards: { gold: 175000, gems: 18, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_2000',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Endless March',
+            desc: 'Fight 2,000 missions.',
+            icon: '🚩',
+            metric: 'mission_fights_total',
+            target: 2000,
+            rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_5000',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'War Path',
+            desc: 'Fight 5,000 missions.',
+            icon: '⚔️',
+            metric: 'mission_fights_total',
+            target: 5000,
+            rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_7500',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Crusader',
+            desc: 'Fight 7,500 missions.',
+            icon: '⚔️',
+            metric: 'mission_fights_total',
+            target: 7500,
+            rewards: { gold: 3500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'mission_fights_10000',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'Campaign God',
+            desc: 'Fight 10,000 missions.',
+            icon: '⚔️',
+            metric: 'mission_fights_total',
+            target: 10000,
+            rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+        },
+        {
+            id: 'mission_fights_15000',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'War Eternal',
+            desc: 'Fight 15,000 missions.',
+            icon: '⚔️',
+            metric: 'mission_fights_total',
+            target: 15000,
+            rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        },
+        {
+            id: 'mission_fights_25000',
+            chain: 'mission_fights_total',
+            category: 'missions',
+            name: 'The Inevitable',
+            desc: 'Fight 25,000 missions.',
+            icon: '⚔️',
+            metric: 'mission_fights_total',
+            target: 25000,
+            rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+        }
+    );
+
+    const dungeonKillsBase = ACHIEVEMENTS.find((a) => a.id === 'dungeon_kills_300');
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_1000',
+        name: 'Nightmare Reaper',
+        desc: 'Defeat 1,000 dungeon monsters.',
+        target: 1000,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_2500',
+        name: 'Catacomb Catastrophe',
+        desc: 'Defeat 2,500 dungeon monsters.',
+        target: 2500,
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_5000',
+        name: 'Lord of the Underdeep',
+        desc: 'Defeat 5,000 dungeon monsters.',
+        target: 5000,
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_7500',
+        name: 'Abyss Butcher',
+        desc: 'Defeat 7,500 dungeon monsters.',
+        target: 7500,
+        rewards: { gold: 3500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_10000',
+        name: 'Monster Holocaust',
+        desc: 'Defeat 10,000 dungeon monsters.',
+        target: 10000,
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'iron_fortress', days: 21 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_15000',
+        name: 'Dungeon Purge',
+        desc: 'Defeat 15,000 dungeon monsters.',
+        target: 15000,
+        rewards: { gold: 7500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_25000',
+        name: 'Extinction Event',
+        desc: 'Defeat 25,000 dungeon monsters.',
+        target: 25000,
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(dungeonKillsBase, {
+        id: 'dungeon_kills_50000',
+        name: 'The Reaper',
+        desc: 'Defeat 50,000 dungeon monsters.',
+        target: 50000,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
+    });
+
+    const skeletonBase = ACHIEVEMENTS.find((a) => a.id === 'skeleton_kills_15');
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_50',
+        name: 'Bonecrusher',
+        desc: 'Defeat 50 Skeleton Warriors in the dungeon.',
+        target: 50,
+        rewards: { gold: 45000, gems: 6, lootbox: { id: 'lootbox_common', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_150',
+        name: 'Marrow Shatterer',
+        desc: 'Defeat 150 Skeleton Warriors in the dungeon.',
+        target: 150,
+        rewards: { gold: 150000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_500',
+        name: 'Graveyard Extinction',
+        desc: 'Defeat 500 Skeleton Warriors in the dungeon.',
+        target: 500,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_1000',
+        name: 'Bone Field',
+        desc: 'Defeat 1,000 Skeleton Warriors in the dungeon.',
+        target: 1000,
+        rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_1500',
+        name: 'Skeleton Crusher',
+        desc: 'Defeat 1,500 Skeleton Warriors in the dungeon.',
+        target: 1500,
+        rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_2000',
+        name: 'Boneyard King',
+        desc: 'Defeat 2,000 Skeleton Warriors in the dungeon.',
+        target: 2000,
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_3000',
+        name: 'Lich Bane',
+        desc: 'Defeat 3,000 Skeleton Warriors in the dungeon.',
+        target: 3000,
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(skeletonBase, {
+        id: 'skeleton_kills_5000',
+        name: 'Death\'s End',
+        desc: 'Defeat 5,000 Skeleton Warriors in the dungeon.',
+        target: 5000,
+        rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const wraithBase = ACHIEVEMENTS.find((a) => a.id === 'void_wraith_kills_10');
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_25',
+        name: 'Shade Hunter',
+        desc: 'Defeat 25 Void Wraiths in the dungeon.',
+        target: 25,
+        rewards: { gold: 90000, gems: 16, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_100',
+        name: 'Wraith Exorcist',
+        desc: 'Defeat 100 Void Wraiths in the dungeon.',
+        target: 100,
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_250',
+        name: 'Nether Exterminator',
+        desc: 'Defeat 250 Void Wraiths in the dungeon.',
+        target: 250,
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_500',
+        name: 'Wraith Slayer',
+        desc: 'Defeat 500 Void Wraiths in the dungeon.',
+        target: 500,
+        rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_750',
+        name: 'Spectral Annihilator',
+        desc: 'Defeat 750 Void Wraiths in the dungeon.',
+        target: 750,
+        rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_1000',
+        name: 'Nether Lord',
+        desc: 'Defeat 1,000 Void Wraiths in the dungeon.',
+        target: 1000,
+        rewards: { gold: 3500000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_1500',
+        name: 'Void Extinction',
+        desc: 'Defeat 1,500 Void Wraiths in the dungeon.',
+        target: 1500,
+        rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(wraithBase, {
+        id: 'void_wraith_kills_2000',
+        name: 'Abyss Purged',
+        desc: 'Defeat 2,000 Void Wraiths in the dungeon.',
+        target: 2000,
+        rewards: { gold: 7500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const winsBase = ACHIEVEMENTS.find((a) => a.id === 'wins_2500');
+    addFromBase(winsBase, {
+        id: 'wins_5000',
+        name: 'Arena Tyrant',
+        desc: 'Reach 5,000 victories.',
+        target: 5000,
+        rewards: { gold: 3000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_10000',
+        name: 'Immortal Gladiator',
+        desc: 'Reach 10,000 victories.',
+        target: 10000,
+        rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_15000',
+        name: 'Arena Emperor',
+        desc: 'Reach 15,000 victories.',
+        target: 15000,
+        rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_25000',
+        name: 'Battle Deity',
+        desc: 'Reach 25,000 victories.',
+        target: 25000,
+        rewards: { gold: 12000000, gems: 25, premium: { id: 'iron_fortress', days: 30 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_50000',
+        name: 'Unstoppable Force',
+        desc: 'Reach 50,000 victories.',
+        target: 50000,
+        rewards: { gold: 20000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_75000',
+        name: 'Conqueror of Worlds',
+        desc: 'Reach 75,000 victories.',
+        target: 75000,
+        rewards: { gold: 30000000, gems: 25, premium: { id: 'apprentice', days: 60 } },
+    });
+    addFromBase(winsBase, {
+        id: 'wins_100000',
+        name: 'Victory Incarnate',
+        desc: 'Reach 100,000 victories.',
+        target: 100000,
+        rewards: { gold: 50000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
+    });
+
+    const spotMilestoneDefs = [
+        { target: 25, suffix: 'Veteran', rewards: { gold: 35000, gems: 4, lootbox: { id: 'lootbox_common', qty: 1 } } },
+        { target: 100, suffix: 'Master', rewards: { gold: 125000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 250, suffix: 'Legend', rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 500, suffix: 'Mythic', rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 750, suffix: 'Immortal', rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 1000, suffix: 'Transcendent', rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+        { target: 1500, suffix: 'Eternal', rewards: { gold: 4000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+        { target: 2000, suffix: 'Divine', rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+    ];
+    ACHIEVEMENTS
+        .filter((a) => a.metric === 'mission_spot_wins' && a.target === 10)
+        .forEach((base) => {
+            spotMilestoneDefs.forEach((tier) => {
+                extras.push({
+                    ...base,
+                    id: `${base.metric_key}_wins_${tier.target}`,
+                    name: `${base.metric_label} ${tier.suffix}`,
+                    desc: `Win ${tier.target} missions at ${base.metric_label}.`,
+                    target: tier.target,
+                    rewards: tier.rewards,
+                });
+            });
+        });
+
+    extras.push(
+    {
+        id: 'raids_participated_1',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'First Into the Breach',
+            desc: 'Participate in 1 raid.',
+            icon: '⚔️',
+            metric: 'raids_participated',
+            target: 1,
+            rewards: { gold: 10000, gems: 2 },
+        },
+        {
+            id: 'raids_participated_5',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Raid Regular',
+            desc: 'Participate in 5 raids.',
+            icon: '🛡️',
+            metric: 'raids_participated',
+            target: 5,
+            rewards: { gold: 35000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_15',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Siegeborn',
+            desc: 'Participate in 15 raids.',
+            icon: '🏰',
+            metric: 'raids_participated',
+            target: 15,
+            rewards: { gold: 110000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_40',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Vanguard of the Guild',
+            desc: 'Participate in 40 raids.',
+            icon: '🏹',
+            metric: 'raids_participated',
+            target: 40,
+            rewards: { gold: 325000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_100',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Raid Legend',
+            desc: 'Participate in 100 raids.',
+            icon: '👑',
+            metric: 'raids_participated',
+            target: 100,
+            rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_150',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Raids Warden',
+            desc: 'Participate in 150 raids.',
+            icon: '🛡️',
+            metric: 'raids_participated',
+            target: 150,
+            rewards: { gold: 1300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_200',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Siege Master',
+            desc: 'Participate in 200 raids.',
+            icon: '🏰',
+            metric: 'raids_participated',
+            target: 200,
+            rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_participated_300',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Conqueror of Raids',
+            desc: 'Participate in 300 raids.',
+            icon: '👑',
+            metric: 'raids_participated',
+            target: 300,
+            rewards: { gold: 2800000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+        },
+        {
+            id: 'raids_participated_500',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'Raid Deity',
+            desc: 'Participate in 500 raids.',
+            icon: '⚔️',
+            metric: 'raids_participated',
+            target: 500,
+            rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        },
+        {
+            id: 'raids_participated_750',
+            chain: 'raids_participated',
+            category: 'raids',
+            name: 'The Raid Messiah',
+            desc: 'Participate in 750 raids.',
+            icon: '🌟',
+            metric: 'raids_participated',
+            target: 750,
+            rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+        },
+        {
+            id: 'raids_won_1',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Boss Breaker',
+            desc: 'Win 1 raid.',
+            icon: '🏆',
+            metric: 'raids_won',
+            target: 1,
+            rewards: { gold: 12000, gems: 3 },
+        },
+        {
+            id: 'raids_won_3',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Boss Hunter',
+            desc: 'Win 3 raids.',
+            icon: '💥',
+            metric: 'raids_won',
+            target: 3,
+            rewards: { gold: 40000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'raids_won_10',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Raid Victor',
+            desc: 'Win 10 raids.',
+            icon: '🔥',
+            metric: 'raids_won',
+            target: 10,
+            rewards: { gold: 125000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'raids_won_25',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Citadel Crusher',
+            desc: 'Win 25 raids.',
+            icon: '⚡',
+            metric: 'raids_won',
+            target: 25,
+            rewards: { gold: 360000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'raids_won_60',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Myth of the Six',
+            desc: 'Win 60 raids.',
+            icon: '🌟',
+            metric: 'raids_won',
+            target: 60,
+            rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_won_100',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Raid Dominator',
+            desc: 'Win 100 raids.',
+            icon: '🏆',
+            metric: 'raids_won',
+            target: 100,
+            rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_won_150',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Raid Overlord',
+            desc: 'Win 150 raids.',
+            icon: '🔥',
+            metric: 'raids_won',
+            target: 150,
+            rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'raids_won_200',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Boss Annihilator',
+            desc: 'Win 200 raids.',
+            icon: '⚡',
+            metric: 'raids_won',
+            target: 200,
+            rewards: { gold: 3600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+        },
+        {
+            id: 'raids_won_300',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'Raid God',
+            desc: 'Win 300 raids.',
+            icon: '🌟',
+            metric: 'raids_won',
+            target: 300,
+            rewards: { gold: 6000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        },
+        {
+            id: 'raids_won_500',
+            chain: 'raids_won',
+            category: 'raids',
+            name: 'The Unconquered',
+            desc: 'Win 500 raids.',
+            icon: '👑',
+            metric: 'raids_won',
+            target: 500,
+            rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+        },
+        {
+            id: 'hard_missions_5',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Danger Seeker',
+            desc: 'Win 5 hard missions.',
+            icon: '⚠️',
+            metric: 'hard_missions_completed',
+            target: 5,
+            rewards: { gold: 20000, consumable: { id: 'special_mana_potion', qty: 1 } },
+        },
+        {
+            id: 'hard_missions_25',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Hazard Collector',
+            desc: 'Win 25 hard missions.',
+            icon: '☠️',
+            metric: 'hard_missions_completed',
+            target: 25,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'hard_missions_100',
+            chain: 'hard_missions_completed',
+            category: 'missions',
+            name: 'Calamity Walker',
+            desc: 'Win 100 hard missions.',
+            icon: '🌋',
+            metric: 'hard_missions_completed',
+            target: 100,
+            rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'elemental_kills_10',
+            chain: 'elemental_kills',
+            category: 'combat',
+            name: 'Spark of Power',
+            desc: 'Win 10 battles while dealing elemental damage.',
+            icon: '⚡',
+            metric: 'elemental_kills',
+            target: 10,
+            rewards: { gold: 12000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'elemental_kills_50',
+            chain: 'elemental_kills',
+            category: 'combat',
+            name: 'Stormcaller',
+            desc: 'Win 50 battles while dealing elemental damage.',
+            icon: '🌩️',
+            metric: 'elemental_kills',
+            target: 50,
+            rewards: { gold: 60000, gems: 8, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'elemental_kills_200',
+            chain: 'elemental_kills',
+            category: 'combat',
+            name: 'Elemental Cataclysm',
+            desc: 'Win 200 battles while dealing elemental damage.',
+            icon: '🌪️',
+            metric: 'elemental_kills',
+            target: 200,
+            rewards: { gold: 275000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'gems_earn_25',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Gem Seeker',
+            desc: 'Earn 25 gems from missions.',
+            icon: '💎',
+            metric: 'mission_gems_earned',
+            target: 25,
+            rewards: { gold: 15000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'gems_earn_100',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Crystal Touch',
+            desc: 'Earn 100 gems from missions.',
+            icon: '🔷',
+            metric: 'mission_gems_earned',
+            target: 100,
+            rewards: { gold: 75000, consumable: { id: 'special_mana_potion', qty: 2 } },
+        },
+        {
+            id: 'gems_earn_500',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Crown Jeweler',
+            desc: 'Earn 500 gems from missions.',
+            icon: '👑',
+            metric: 'mission_gems_earned',
+            target: 500,
+            rewards: { gold: 350000, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'gems_earn_1500',
+            chain: 'gems_earned',
+            category: 'wealth',
+            name: 'Radiant Treasury',
+            desc: 'Earn 1,500 gems from missions.',
+            icon: '💠',
+            metric: 'mission_gems_earned',
+            target: 1500,
+            rewards: { gold: 1200000, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'apprentice', days: 21 } },
+        },
+        {
+            id: 'monster_types_5',
+            chain: 'monster_types_total_dungeon',
+            category: 'dungeon',
+            name: 'Bestiary Starter',
+            desc: 'Defeat 5 different monster types in the dungeon.',
+            icon: '📖',
+            metric: 'monster_types_total',
+            metric_source: 'dungeon',
+            target: 5,
+            rewards: { gold: 18000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'monster_types_10',
+            chain: 'monster_types_total_dungeon',
+            category: 'dungeon',
+            name: 'Catalog of Horrors',
+            desc: 'Defeat 10 different monster types in the dungeon.',
+            icon: '🕮',
+            metric: 'monster_types_total',
+            metric_source: 'dungeon',
+            target: 10,
+            rewards: { gold: 90000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'monster_types_20',
+            chain: 'monster_types_total_dungeon',
+            category: 'dungeon',
+            name: 'Scholar of the Abyss',
+            desc: 'Defeat 20 different monster types in the dungeon.',
+            icon: '🧠',
+            metric: 'monster_types_total',
+            metric_source: 'dungeon',
+            target: 20,
+            rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'shieldless_wins_10',
+            chain: 'wins_without_shield',
+            category: 'combat',
+            name: 'Light on Your Feet',
+            desc: 'Win 10 battles without a shield equipped.',
+            icon: '🗡️',
+            metric: 'wins_without_shield',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'shieldless_wins_50',
+            chain: 'wins_without_shield',
+            category: 'combat',
+            name: 'Untouchable Rogue',
+            desc: 'Win 50 battles without a shield equipped.',
+            icon: '🦊',
+            metric: 'wins_without_shield',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'shieldless_wins_200',
+            chain: 'wins_without_shield',
+            category: 'combat',
+            name: 'Shadow Duelist',
+            desc: 'Win 200 battles without a shield equipped.',
+            icon: '🌒',
+            metric: 'wins_without_shield',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'weaponless_wins_10',
+            chain: 'wins_without_weapon',
+            category: 'combat',
+            name: 'Fist Fighter',
+            desc: 'Win 10 battles without a weapon equipped.',
+            icon: '👊',
+            metric: 'wins_without_weapon',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'weaponless_wins_50',
+            chain: 'wins_without_weapon',
+            category: 'combat',
+            name: 'Barehanded Brawler',
+            desc: 'Win 50 battles without a weapon equipped.',
+            icon: '👊',
+            metric: 'wins_without_weapon',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'weaponless_wins_200',
+            chain: 'wins_without_weapon',
+            category: 'combat',
+            name: 'Unarmed Master',
+            desc: 'Win 200 battles without a weapon equipped.',
+            icon: '🥊',
+            metric: 'wins_without_weapon',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'helmless_wins_10',
+            chain: 'wins_without_helmet',
+            category: 'combat',
+            name: 'Fresh Air',
+            desc: 'Win 10 battles without a helmet equipped.',
+            icon: '🌬️',
+            metric: 'wins_without_helmet',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'helmless_wins_50',
+            chain: 'wins_without_helmet',
+            category: 'combat',
+            name: 'Wind in Your Hair',
+            desc: 'Win 50 battles without a helmet equipped.',
+            icon: '🌬️',
+            metric: 'wins_without_helmet',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'helmless_wins_200',
+            chain: 'wins_without_helmet',
+            category: 'combat',
+            name: 'Unhelmeted Warrior',
+            desc: 'Win 200 battles without a helmet equipped.',
+            icon: '🪖',
+            metric: 'wins_without_helmet',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'armorless_wins_10',
+            chain: 'wins_without_armor',
+            category: 'combat',
+            name: 'Lightly Dressed',
+            desc: 'Win 10 battles without armor equipped.',
+            icon: '🦺',
+            metric: 'wins_without_armor',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'armorless_wins_50',
+            chain: 'wins_without_armor',
+            category: 'combat',
+            name: 'Shirtless Champion',
+            desc: 'Win 50 battles without armor equipped.',
+            icon: '🦺',
+            metric: 'wins_without_armor',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'armorless_wins_200',
+            chain: 'wins_without_armor',
+            category: 'combat',
+            name: 'Naked Warrior',
+            desc: 'Win 200 battles without armor equipped.',
+            icon: '💪',
+            metric: 'wins_without_armor',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'bootless_wins_10',
+            chain: 'wins_without_boots',
+            category: 'combat',
+            name: 'Barefoot',
+            desc: 'Win 10 battles without boots equipped.',
+            icon: '🦶',
+            metric: 'wins_without_boots',
+            target: 10,
+            rewards: { gold: 18000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'bootless_wins_50',
+            chain: 'wins_without_boots',
+            category: 'combat',
+            name: 'Sole Survivor',
+            desc: 'Win 50 battles without boots equipped.',
+            icon: '🦶',
+            metric: 'wins_without_boots',
+            target: 50,
+            rewards: { gold: 85000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'bootless_wins_200',
+            chain: 'wins_without_boots',
+            category: 'combat',
+            name: 'Unshod Legend',
+            desc: 'Win 200 battles without boots equipped.',
+            icon: '👟',
+            metric: 'wins_without_boots',
+            target: 200,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'equipmentless_wins_10',
+            chain: 'wins_without_equipment',
+            category: 'combat',
+            name: 'Completely Naked',
+            desc: 'Win 10 battles with no equipment at all.',
+            icon: '🫣',
+            metric: 'wins_without_equipment',
+            target: 10,
+            rewards: { gold: 50000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'equipmentless_wins_50',
+            chain: 'wins_without_equipment',
+            category: 'combat',
+            name: 'Skyclad',
+            desc: 'Win 50 battles with no equipment at all.',
+            icon: '🫣',
+            metric: 'wins_without_equipment',
+            target: 50,
+            rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'equipmentless_wins_200',
+            chain: 'wins_without_equipment',
+            category: 'combat',
+            name: 'Born This Way',
+            desc: 'Win 200 battles with no equipment at all.',
+            icon: '✨',
+            metric: 'wins_without_equipment',
+            target: 200,
+            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'physical_only_wins_10',
+            chain: 'physical_only_wins',
+            category: 'combat',
+            name: 'Bare Steel',
+            desc: 'Win 10 battles without dealing any elemental damage.',
+            icon: '⚔️',
+            metric: 'physical_only_wins',
+            target: 10,
+            rewards: { gold: 15000, consumable: { id: 'potion_mana', qty: 2 } },
+        },
+        {
+            id: 'physical_only_wins_50',
+            chain: 'physical_only_wins',
+            category: 'combat',
+            name: 'Pure Duelist',
+            desc: 'Win 50 battles using only physical damage.',
+            icon: '🛡️',
+            metric: 'physical_only_wins',
+            target: 50,
+            rewards: { gold: 70000, gems: 8, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'physical_only_wins_200',
+            chain: 'physical_only_wins',
+            category: 'combat',
+            name: 'Master of Steel',
+            desc: 'Win 200 battles using only physical damage.',
+            icon: '🏛️',
+            metric: 'physical_only_wins',
+            target: 200,
+            rewards: { gold: 275000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'referrals_1',
+            chain: 'referrals_registered',
+            category: 'community',
+            name: 'First Recruit',
+            desc: 'Refer 1 player to Battle Arena.',
+            icon: '🤝',
+            metric: 'referrals_registered',
+            target: 1,
+            rewards: { gold: 5000, gems: 5 },
+        },
+        {
+            id: 'referrals_3',
+            chain: 'referrals_registered',
+            category: 'community',
+            name: 'Arena Scout',
+            desc: 'Refer 3 players to Battle Arena.',
+            icon: '📯',
+            metric: 'referrals_registered',
+            target: 3,
+            rewards: { gold: 15000, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'referrals_10',
+            chain: 'referrals_registered',
+            category: 'community',
+            name: 'Crowd Caller',
+            desc: 'Refer 10 players to Battle Arena.',
+            icon: '🎺',
+            metric: 'referrals_registered',
+            target: 10,
+            rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'referrals_level5_1',
+            chain: 'referrals_level5',
+            category: 'community',
+            name: 'Mentor Spark',
+            desc: 'Have 1 referred player reach level 5.',
+            icon: '🌟',
+            metric: 'referrals_level5',
+            target: 1,
+            rewards: { gold: 10000, gems: 5 },
+        },
+        {
+            id: 'referrals_level5_5',
+            chain: 'referrals_level5',
+            category: 'community',
+            name: 'Battle Mentor',
+            desc: 'Have 5 referred players reach level 5.',
+            icon: '🧭',
+            metric: 'referrals_level5',
+            target: 5,
+            rewards: { gold: 60000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'referrals_level5_15',
+            chain: 'referrals_level5',
+            category: 'community',
+            name: 'Arena Patron',
+            desc: 'Have 15 referred players reach level 5.',
+            icon: '👑',
+            metric: 'referrals_level5',
+            target: 15,
+            rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+    );
+
+// New progression achievements (moved to after buildExtendedAchievements call)
+
+    const referralsBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_10');
+    addFromBase(referralsBase, {
+        id: 'referrals_25',
+        name: 'Herald of the Arena',
+        desc: 'Refer 25 players to Battle Arena.',
+        target: 25,
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(referralsBase, {
+        id: 'referrals_50',
+        name: 'Architect of the Crowd',
+        desc: 'Refer 50 players to Battle Arena.',
+        target: 50,
+        rewards: { gold: 900000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
+    });
+
+    const referralsLevelBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_15');
+    addFromBase(referralsLevelBase, {
+        id: 'referrals_level5_30',
+        name: 'Guild Builder',
+        desc: 'Have 30 referred players reach level 5.',
+        target: 30,
+        rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(referralsLevelBase, {
+        id: 'referrals_level5_60',
+        name: 'Arena Founder',
+        desc: 'Have 60 referred players reach level 5.',
+        target: 60,
+        rewards: { gold: 1800000, gems: 25, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+
+    const elementalKillsBase = ACHIEVEMENTS.find((a) => a.id === 'elemental_kills_200');
+    addFromBase(elementalKillsBase, {
+        id: 'elemental_kills_300',
+        name: 'Elemental Storm',
+        desc: 'Defeat 300 enemies with elemental damage.',
+        target: 300,
+        rewards: { gold: 120000, gems: 24, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(elementalKillsBase, {
+        id: 'elemental_kills_500',
+        name: 'Elemental Cataclysm',
+        desc: 'Defeat 500 enemies with elemental damage.',
+        target: 500,
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(elementalKillsBase, {
+        id: 'elemental_kills_750',
+        name: 'Primal Force',
+        desc: 'Defeat 750 enemies with elemental damage.',
+        target: 750,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(elementalKillsBase, {
+        id: 'elemental_kills_1000',
+        name: 'Elemental Overlord',
+        desc: 'Defeat 1,000 enemies with elemental damage.',
+        target: 1000,
+        rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(elementalKillsBase, {
+        id: 'elemental_kills_2000',
+        name: 'Avatar of Elements',
+        desc: 'Defeat 2,000 enemies with elemental damage.',
+        target: 2000,
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const noShieldBase = ACHIEVEMENTS.find((a) => a.id === 'shieldless_wins_200');
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_300',
+        name: 'Reckless Glory',
+        desc: 'Win 300 battles without a shield.',
+        target: 300,
+        rewards: { gold: 120000, gems: 24, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_500',
+        name: 'Unarmored and Unafraid',
+        desc: 'Win 500 battles without a shield.',
+        target: 500,
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_750',
+        name: 'Bare-Chested Brawler',
+        desc: 'Win 750 battles without a shield.',
+        target: 750,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_1000',
+        name: 'No Guard, All Glory',
+        desc: 'Win 1,000 battles without a shield.',
+        target: 1000,
+        rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_2000',
+        name: 'Unbreakable Offense',
+        desc: 'Win 2,000 battles without a shield.',
+        target: 2000,
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_3000',
+        name: 'Naked Ambition',
+        desc: 'Win 3,000 battles without a shield.',
+        target: 3000,
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_5000',
+        name: 'Fearless',
+        desc: 'Win 5,000 battles without a shield.',
+        target: 5000,
+        rewards: { gold: 3500000, gems: 25, premium: { id: 'apprentice', days: 30 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_7500',
+        name: 'The Unarmored God',
+        desc: 'Win 7,500 battles without a shield.',
+        target: 7500,
+        rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(noShieldBase, {
+        id: 'wins_without_shield_10000',
+        name: 'Absolute Zero Defense',
+        desc: 'Win 10,000 battles without a shield.',
+        target: 10000,
+        rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } },
+    });
+
+    const weaponlessBase = ACHIEVEMENTS.find((a) => a.id === 'weaponless_wins_200');
+    const helmlessBase = ACHIEVEMENTS.find((a) => a.id === 'helmless_wins_200');
+    const armorlessBase = ACHIEVEMENTS.find((a) => a.id === 'armorless_wins_200');
+    const bootlessBase = ACHIEVEMENTS.find((a) => a.id === 'bootless_wins_200');
+    const equipmentlessBase = ACHIEVEMENTS.find((a) => a.id === 'equipmentless_wins_200');
+
+    function addFromBaseMulti(bases, overrides) {
+        for (const base of bases) {
+            if (base) addFromBase(base, overrides);
+        }
+    }
+
+    const noGearTiers = [
+        { target: 300, suffix: '300', rewards: { gold: 120000, gems: 24, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 500, suffix: '500', rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 750, suffix: '750', rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 1000, suffix: '1000', rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+        { target: 2000, suffix: '2000', rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+        { target: 3000, suffix: '3000', rewards: { gold: 2000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+        { target: 5000, suffix: '5000', rewards: { gold: 3500000, gems: 25, premium: { id: 'apprentice', days: 30 } } },
+        { target: 7500, suffix: '7500', rewards: { gold: 5000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+        { target: 10000, suffix: '10000', rewards: { gold: 8000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } } },
+    ];
+    const noGearBases = [weaponlessBase, helmlessBase, armorlessBase, bootlessBase];
+    const noGearIdPrefixMap = { weaponless: 'wins_without_weapon', helmless: 'wins_without_helmet', armorless: 'wins_without_armor', bootless: 'wins_without_boots' };
+    const noGearNameMap = { weaponless: 'weapon', helmless: 'helmet', armorless: 'armor', bootless: 'boots' };
+    for (const [idx, base] of noGearBases.entries()) {
+        if (!base) continue;
+        const prefix = Object.keys(noGearIdPrefixMap)[idx];
+        const slotName = noGearNameMap[prefix];
+        for (const tier of noGearTiers) {
+            addFromBase(base, {
+                id: noGearIdPrefixMap[prefix] + '_' + tier.suffix,
+                name: base.name + ' ' + tier.suffix,
+                desc: 'Win ' + Number(tier.target).toLocaleString() + ' battles without a ' + slotName + ' equipped.',
+                target: tier.target,
+                rewards: tier.rewards,
+            });
+        }
+    }
+    if (equipmentlessBase) {
+        for (const tier of noGearTiers) {
+            addFromBase(equipmentlessBase, {
+                id: 'wins_without_equipment_' + tier.suffix,
+                name: equipmentlessBase.name + ' ' + tier.suffix,
+                desc: 'Win ' + Number(tier.target).toLocaleString() + ' battles with no equipment at all.',
+                target: tier.target,
+                rewards: tier.rewards,
+            });
+        }
+    }
+
+    const physicalBase = ACHIEVEMENTS.find((a) => a.id === 'physical_only_wins_200');
+    addFromBase(physicalBase, {
+        id: 'physical_only_wins_300',
+        name: 'Iron Fist',
+        desc: 'Win 300 battles with physical damage only.',
+        target: 300,
+        rewards: { gold: 120000, gems: 24, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(physicalBase, {
+        id: 'physical_only_wins_500',
+        name: 'Brute Force',
+        desc: 'Win 500 battles with physical damage only.',
+        target: 500,
+        rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(physicalBase, {
+        id: 'physical_only_wins_750',
+        name: 'Pure Muscle',
+        desc: 'Win 750 battles with physical damage only.',
+        target: 750,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(physicalBase, {
+        id: 'physical_only_wins_1000',
+        name: 'No Magic Needed',
+        desc: 'Win 1,000 battles with physical damage only.',
+        target: 1000,
+        rewards: { gold: 600000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(physicalBase, {
+        id: 'physical_only_wins_2000',
+        name: 'Primordial Strength',
+        desc: 'Win 2,000 battles with physical damage only.',
+        target: 2000,
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const gemsWealthBase = ACHIEVEMENTS.find((a) => a.id === 'gems_collected_1500');
+    addFromBase(gemsWealthBase, {
+        id: 'gems_collected_2000',
+        name: 'Gem Mountain',
+        desc: 'Collect 2,000 gems from missions.',
+        target: 2000,
+        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(gemsWealthBase, {
+        id: 'gems_collected_3000',
+        name: 'Gem River',
+        desc: 'Collect 3,000 gems from missions.',
+        target: 3000,
+        rewards: { gold: 700000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(gemsWealthBase, {
+        id: 'gems_collected_5000',
+        name: 'Gem Ocean',
+        desc: 'Collect 5,000 gems from missions.',
+        target: 5000,
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(gemsWealthBase, {
+        id: 'gems_collected_7500',
+        name: 'Gem Galaxy',
+        desc: 'Collect 7,500 gems from missions.',
+        target: 7500,
+        rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(gemsWealthBase, {
+        id: 'gems_collected_10000',
+        name: 'Gem Universe',
+        desc: 'Collect 10,000 gems from missions.',
+        target: 10000,
+        rewards: { gold: 3000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const referralBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_registered_25');
+    addFromBase(referralBase, {
+        id: 'referrals_registered_50',
+        name: 'Recruiter Extraordinaire',
+        desc: 'Refer 50 new players.',
+        target: 50,
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(referralBase, {
+        id: 'referrals_registered_75',
+        name: 'Recruitment Drive',
+        desc: 'Refer 75 new players.',
+        target: 75,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(referralBase, {
+        id: 'referrals_registered_100',
+        name: 'Army of One',
+        desc: 'Refer 100 new players.',
+        target: 100,
+        rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(referralBase, {
+        id: 'referrals_registered_150',
+        name: 'Guild Builder',
+        desc: 'Refer 150 new players.',
+        target: 150,
+        rewards: { gold: 1000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(referralBase, {
+        id: 'referrals_registered_200',
+        name: 'Community Legend',
+        desc: 'Refer 200 new players.',
+        target: 200,
+        rewards: { gold: 1500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const referralLvlBase = ACHIEVEMENTS.find((a) => a.id === 'referrals_level5_30');
+
+    addFromBase(referralLvlBase, {
+        id: 'referrals_level5_100',
+        name: 'Teacher of Heroes',
+        desc: 'Have 100 referred players reach level 5.',
+        target: 100,
+        rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(referralLvlBase, {
+        id: 'referrals_level5_150',
+        name: 'Master Trainer',
+        desc: 'Have 150 referred players reach level 5.',
+        target: 150,
+        rewards: { gold: 1200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(referralLvlBase, {
+        id: 'referrals_level5_200',
+        name: 'Grand Mentor',
+        desc: 'Have 200 referred players reach level 5.',
+        target: 200,
+        rewards: { gold: 1800000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(referralLvlBase, {
+        id: 'referrals_level5_300',
+        name: 'Immortal Teacher',
+        desc: 'Have 300 referred players reach level 5.',
+        target: 300,
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const crawlerEncBase = ACHIEVEMENTS.find((a) => a.id === 'crawler_encounters_20');
+    addFromBase(crawlerEncBase, {
+        id: 'crawler_encounters_30',
+        name: 'Crawler Magnet',
+        desc: 'Encounter the Crawler 30 times.',
+        target: 30,
+        rewards: { gold: 150000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(crawlerEncBase, {
+        id: 'crawler_encounters_50',
+        name: 'Crawler\'s Bane',
+        desc: 'Encounter the Crawler 50 times.',
+        target: 50,
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(crawlerEncBase, {
+        id: 'crawler_encounters_75',
+        name: 'Stalker Stalked',
+        desc: 'Encounter the Crawler 75 times.',
+        target: 75,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(crawlerEncBase, {
+        id: 'crawler_encounters_100',
+        name: 'Crawler\'s Nemesis',
+        desc: 'Encounter the Crawler 100 times.',
+        target: 100,
+        rewards: { gold: 750000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(crawlerEncBase, {
+        id: 'crawler_encounters_150',
+        name: 'The Hunter Becomes the Hunted',
+        desc: 'Encounter the Crawler 150 times.',
+        target: 150,
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const crawlerDefBase = ACHIEVEMENTS.find((a) => a.id === 'crawler_defeats_100');
+    addFromBase(crawlerDefBase, {
+        id: 'crawler_defeats_150',
+        name: 'Crawler Exterminator',
+        desc: 'Defeat the Crawler 150 times.',
+        target: 150,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(crawlerDefBase, {
+        id: 'crawler_defeats_200',
+        name: 'Crawler Hunter',
+        desc: 'Defeat the Crawler 200 times.',
+        target: 200,
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(crawlerDefBase, {
+        id: 'crawler_defeats_300',
+        name: 'Crawler Slayer',
+        desc: 'Defeat the Crawler 300 times.',
+        target: 300,
+        rewards: { gold: 1200000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(crawlerDefBase, {
+        id: 'crawler_defeats_500',
+        name: 'Crawler Apocalypse',
+        desc: 'Defeat the Crawler 500 times.',
+        target: 500,
+        rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    });
+    addFromBase(crawlerDefBase, {
+        id: 'crawler_defeats_750',
+        name: 'The End of Crawlers',
+        desc: 'Defeat the Crawler 750 times.',
+        target: 750,
+        rewards: { gold: 3000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const crawlerDeathBase = ACHIEVEMENTS.find((a) => a.id === 'crawler_deaths_1');
+    addFromBase(crawlerDeathBase, {
+        id: 'crawler_deaths_3',
+        name: 'Crawler\'s Snack',
+        desc: 'Die to the Crawler 3 times.',
+        target: 3,
+        rewards: { gold: 10000, consumable: { id: 'potion_mana', qty: 2 } },
+    });
+    addFromBase(crawlerDeathBase, {
+        id: 'crawler_deaths_5',
+        name: 'Crawler\'s Meal',
+        desc: 'Die to the Crawler 5 times.',
+        target: 5,
+        rewards: { gold: 25000, lootbox: { id: 'lootbox_common', qty: 1 } },
+    });
+    addFromBase(crawlerDeathBase, {
+        id: 'crawler_deaths_10',
+        name: 'Crawler\'s Feast',
+        desc: 'Die to the Crawler 10 times.',
+        target: 10,
+        rewards: { gold: 75000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    });
+    addFromBase(crawlerDeathBase, {
+        id: 'crawler_deaths_20',
+        name: 'Crawler\'s All-You-Can-Eat',
+        desc: 'Die to the Crawler 20 times.',
+        target: 20,
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(crawlerDeathBase, {
+        id: 'crawler_deaths_50',
+        name: 'Crawler\'s Favorite Meal',
+        desc: 'Die to the Crawler 50 times.',
+        target: 50,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+
+    const monsterTypesBase = ACHIEVEMENTS.find((a) => a.id === 'monster_types_20');
+    addFromBase(monsterTypesBase, {
+        id: 'monster_types_25',
+        name: 'Living Bestiary',
+        desc: 'Encounter 25 different dungeon monster types.',
+        target: 25,
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(monsterTypesBase, {
+        id: 'monster_types_30',
+        name: 'Walking Encyclopedia',
+        desc: 'Encounter 30 different dungeon monster types.',
+        target: 30,
+        rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(monsterTypesBase, {
+        id: 'monster_types_35',
+        name: 'Codex Complete',
+        desc: 'Encounter 35 different dungeon monster types.',
+        target: 35,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(monsterTypesBase, {
+        id: 'monster_types_40',
+        name: 'Monster Scholar',
+        desc: 'Encounter 40 different dungeon monster types.',
+        target: 40,
+        rewards: { gold: 750000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(monsterTypesBase, {
+        id: 'monster_types_50',
+        name: 'Bestiary Legend',
+        desc: 'Encounter 50 different dungeon monster types.',
+        target: 50,
+        rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    const hardMissionBase = extras.find((a) => a.id === 'hard_missions_100');
+    addFromBase(hardMissionBase, {
+        id: 'hard_missions_150',
+        name: 'Extreme Daredevil',
+        desc: 'Complete 150 hard missions.',
+        target: 150,
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    });
+    addFromBase(hardMissionBase, {
+        id: 'hard_missions_200',
+        name: 'Death Defier',
+        desc: 'Complete 200 hard missions.',
+        target: 200,
+        rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(hardMissionBase, {
+        id: 'hard_missions_300',
+        name: 'Impossible Odds',
+        desc: 'Complete 300 hard missions.',
+        target: 300,
+        rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    });
+    addFromBase(hardMissionBase, {
+        id: 'hard_missions_500',
+        name: 'Extreme Legend',
+        desc: 'Complete 500 hard missions.',
+        target: 500,
+        rewards: { gold: 1500000, gems: 25, premium: { id: 'iron_fortress', days: 14 } },
+    });
+    addFromBase(hardMissionBase, {
+        id: 'hard_missions_750',
+        name: 'The Impossible Dream',
+        desc: 'Complete 750 hard missions.',
+        target: 750,
+        rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
+    });
+
+    return extras;
+}
+
+const extended = buildExtendedAchievements();
+console.log('[DEBUG] Extended achievements count:', extended.length);
+console.log('[DEBUG] ACHIEVEMENTS length after push:', ACHIEVEMENTS.length);
+ACHIEVEMENTS.push(...extended);
+console.log('[DEBUG] Final ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+
+// Add new progression achievements
+ACHIEVEMENTS.push(
+    // Level achievements (every 10 levels)
+    { id: 'level_10', category: 'progression', name: 'Apprentice', desc: 'Reach level 10.', icon: '⭐', metric: 'level', target: 10, rewards: { gold: 2500 } },
+    { id: 'level_20', category: 'progression', name: 'Adventurer', desc: 'Reach level 20.', icon: '⭐', metric: 'level', target: 20, rewards: { gold: 5000 } },
+    { id: 'level_30', category: 'progression', name: 'Warrior', desc: 'Reach level 30.', icon: '⭐', metric: 'level', target: 30, rewards: { gold: 10000 } },
+    { id: 'level_40', category: 'progression', name: 'Soldier', desc: 'Reach level 40.', icon: '⭐', metric: 'level', target: 40, rewards: { gold: 15000, gems: 5 } },
+    { id: 'level_50', category: 'progression', name: 'Elite', desc: 'Reach level 50.', icon: '⭐', metric: 'level', target: 50, rewards: { gold: 25000, gems: 10 } },
+    { id: 'level_60', category: 'progression', name: 'Veteran', desc: 'Reach level 60.', icon: '⭐', metric: 'level', target: 60, rewards: { gold: 35000, gems: 15 } },
+    { id: 'level_70', category: 'progression', name: 'Champion', desc: 'Reach level 70.', icon: '⭐', metric: 'level', target: 70, rewards: { gold: 50000, gems: 20 } },
+    { id: 'level_80', category: 'progression', name: 'Hero', desc: 'Reach level 80.', icon: '⭐', metric: 'level', target: 80, rewards: { gold: 75000, gems: 25 } },
+    { id: 'level_90', category: 'progression', name: 'Master', desc: 'Reach level 90.', icon: '⭐', metric: 'level', target: 90, rewards: { gold: 100000, gems: 25 } },
+    { id: 'level_100', category: 'progression', name: 'Legend', desc: 'Reach level 100.', icon: '⭐', metric: 'level', target: 100, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'level_110', category: 'progression', name: 'Mythic', desc: 'Reach level 110.', icon: '⭐', metric: 'level', target: 110, rewards: { gold: 200000, gems: 25 } },
+    { id: 'level_120', category: 'progression', name: 'Ancient', desc: 'Reach level 120.', icon: '⭐', metric: 'level', target: 120, rewards: { gold: 250000, gems: 25 } },
+    { id: 'level_130', category: 'progression', name: 'Eternal', desc: 'Reach level 130.', icon: '⭐', metric: 'level', target: 130, rewards: { gold: 300000, gems: 25 } },
+    { id: 'level_140', category: 'progression', name: 'Divine', desc: 'Reach level 140.', icon: '⭐', metric: 'level', target: 140, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'level_150', category: 'progression', name: 'Transcendent', desc: 'Reach level 150.', icon: '⭐', metric: 'level', target: 150, rewards: { gold: 400000, gems: 25 } },
+    { id: 'level_160', category: 'progression', name: 'Celestial', desc: 'Reach level 160.', icon: '⭐', metric: 'level', target: 160, rewards: { gold: 450000, gems: 25 } },
+    { id: 'level_170', category: 'progression', name: 'Immortal', desc: 'Reach level 170.', icon: '⭐', metric: 'level', target: 170, rewards: { gold: 500000, gems: 25 } },
+    { id: 'level_180', category: 'progression', name: 'Omnipotent', desc: 'Reach level 180.', icon: '⭐', metric: 'level', target: 180, rewards: { gold: 550000, gems: 25 } },
+    { id: 'level_190', category: 'progression', name: 'Supreme', desc: 'Reach level 190.', icon: '⭐', metric: 'level', target: 190, rewards: { gold: 600000, gems: 25 } },
+    { id: 'level_200', category: 'progression', name: 'Ultimate', desc: 'Reach level 200.', icon: '⭐', metric: 'level', target: 200, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'level_210', category: 'progression', name: 'Paragon', desc: 'Reach level 210.', icon: '⭐', metric: 'level', target: 210, rewards: { gold: 800000, gems: 25 } },
+    { id: 'level_220', category: 'progression', name: 'Demigod', desc: 'Reach level 220.', icon: '⭐', metric: 'level', target: 220, rewards: { gold: 850000, gems: 25 } },
+    { id: 'level_230', category: 'progression', name: 'Ascended', desc: 'Reach level 230.', icon: '⭐', metric: 'level', target: 230, rewards: { gold: 900000, gems: 25 } },
+    { id: 'level_240', category: 'progression', name: 'Limitless', desc: 'Reach level 240.', icon: '⭐', metric: 'level', target: 240, rewards: { gold: 950000, gems: 25 } },
+    { id: 'level_250', category: 'progression', name: 'Alpha', desc: 'Reach level 250.', icon: '⭐', metric: 'level', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
+    // Gold earned achievements
+    { id: 'gold_earned_5k', category: 'economy', name: 'Penny Pincher', desc: 'Earn 5,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000, rewards: { gold: 1000 } },
+    { id: 'gold_earned_25k', category: 'economy', name: 'Coin Collector', desc: 'Earn 25,000 gold total.', icon: '💰', metric: 'gold_earned', target: 25000, rewards: { gold: 4000 } },
+    { id: 'gold_earned_50k', category: 'economy', name: 'Wealth Builder', desc: 'Earn 50,000 gold total.', icon: '💰', metric: 'gold_earned', target: 50000, rewards: { gold: 7500 } },
+    { id: 'gold_earned_75k', category: 'economy', name: 'Money Maker', desc: 'Earn 75,000 gold total.', icon: '💰', metric: 'gold_earned', target: 75000, rewards: { gold: 10000 } },
+    { id: 'gold_earned_250k', category: 'economy', name: 'Fortune', desc: 'Earn 250,000 gold total.', icon: '💰', metric: 'gold_earned', target: 250000, rewards: { gold: 30000, gems: 10 } },
+    { id: 'gold_earned_500k', category: 'economy', name: 'Tycoon', desc: 'Earn 500,000 gold total.', icon: '💰', metric: 'gold_earned', target: 500000, rewards: { gold: 50000, gems: 15 } },
+    { id: 'gold_earned_750k', category: 'economy', name: 'Mogul', desc: 'Earn 750,000 gold total.', icon: '💰', metric: 'gold_earned', target: 750000, rewards: { gold: 75000, gems: 20 } },
+    { id: 'gold_earned_2m', category: 'economy', name: 'Empire', desc: 'Earn 2,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 2000000, rewards: { gold: 150000, gems: 25 } },
+    { id: 'gold_earned_3m', category: 'economy', name: 'Banking', desc: 'Earn 3,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 3000000, rewards: { gold: 200000, gems: 25 } },
+    { id: 'gold_earned_4m', category: 'economy', name: 'Tycoon Empire', desc: 'Earn 4,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 4000000, rewards: { gold: 250000, gems: 25 } },
+
+    { id: 'gold_earned_6m', category: 'economy', name: 'Zillionaire', desc: 'Earn 6,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 6000000, rewards: { gold: 400000, gems: 25 } },
+    { id: 'gold_earned_8m', category: 'economy', name: 'Dragon\'s Hoard', desc: 'Earn 8,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 8000000, rewards: { gold: 500000, gems: 25 } },
+    { id: 'gold_earned_15m', category: 'economy', name: 'King\'s Ransom', desc: 'Earn 15,000,000 gold total.', icon: '💰', metric: 'gold_earned', target: 15000000, rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+
+    // Total missions completed
+    { id: 'missions_complete_10', category: 'missions', name: 'Missioner', desc: 'Complete 10 missions.', icon: '📜', metric: 'total_missions_completed', target: 10, rewards: { gold: 3000 } },
+    { id: 'missions_complete_50', category: 'missions', name: 'Taskmaster', desc: 'Complete 50 missions.', icon: '📜', metric: 'total_missions_completed', target: 50, rewards: { gold: 10000, gems: 5 } },
+    { id: 'missions_complete_100', category: 'missions', name: 'Questgiver', desc: 'Complete 100 missions.', icon: '📜', metric: 'total_missions_completed', target: 100, rewards: { gold: 25000, gems: 10 } },
+    { id: 'missions_complete_250', category: 'missions', name: 'Adventurer', desc: 'Complete 250 missions.', icon: '📜', metric: 'total_missions_completed', target: 250, rewards: { gold: 50000, gems: 15 } },
+    { id: 'missions_complete_500', category: 'missions', name: 'Explorer', desc: 'Complete 500 missions.', icon: '📜', metric: 'total_missions_completed', target: 500, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'missions_complete_750', category: 'missions', name: 'Seeker', desc: 'Complete 750 missions.', icon: '📜', metric: 'total_missions_completed', target: 750, rewards: { gold: 150000, gems: 25 } },
+    { id: 'missions_complete_1000', category: 'missions', name: 'Champion of Tasks', desc: 'Complete 1,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 1000, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'missions_complete_1500', category: 'missions', name: 'Unstoppable', desc: 'Complete 1,500 missions.', icon: '📜', metric: 'total_missions_completed', target: 1500, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'missions_complete_2000', category: 'missions', name: 'Relentless', desc: 'Complete 2,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 2000, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'missions_complete_3000', category: 'missions', name: 'Tireless', desc: 'Complete 3,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 3000, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'missions_complete_5000', category: 'missions', name: 'Eternal Quest', desc: 'Complete 5,000 missions.', icon: '📜', metric: 'total_missions_completed', target: 5000, rewards: { gold: 1250000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'missions_complete_7500', category: 'missions', name: 'Legend of Tasks', desc: 'Complete 7,500 missions.', icon: '📜', metric: 'total_missions_completed', target: 7500, rewards: { gold: 2000000, gems: 25, premium: { id: 'apprentice', days: 21 } } },
+
+    // Dungeon floor achievements
+    { id: 'dungeon_floor_20', category: 'dungeon', name: 'Floor 20', desc: 'Reach floor 20 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 20, rewards: { gold: 10000, gems: 5 } },
+    { id: 'dungeon_floor_30', category: 'dungeon', name: 'Floor 30', desc: 'Reach floor 30 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 30, rewards: { gold: 20000, gems: 10 } },
+    { id: 'dungeon_floor_40', category: 'dungeon', name: 'Floor 40', desc: 'Reach floor 40 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 40, rewards: { gold: 35000, gems: 15 } },
+    { id: 'dungeon_floor_60', category: 'dungeon', name: 'Floor 60', desc: 'Reach floor 60 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 60, rewards: { gold: 75000, gems: 25 } },
+    { id: 'dungeon_floor_70', category: 'dungeon', name: 'Floor 70', desc: 'Reach floor 70 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 70, rewards: { gold: 100000, gems: 25 } },
+    { id: 'dungeon_floor_80', category: 'dungeon', name: 'Floor 80', desc: 'Reach floor 80 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 80, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'dungeon_floor_90', category: 'dungeon', name: 'Floor 90', desc: 'Reach floor 90 in the tower.', icon: '🗼', metric: 'dungeon_floor', target: 90, rewards: { gold: 200000, gems: 25 } },
+
+    // Gems earned achievements
+    { id: 'gems_earned_5', category: 'economy', name: 'Gem Finder', desc: 'Earn 5 gems total.', icon: '💎', metric: 'gems_earned', target: 5, rewards: { gold: 1000 } },
+    { id: 'gems_earned_10', category: 'economy', name: 'Gem Collector', desc: 'Earn 10 gems total.', icon: '💎', metric: 'gems_earned', target: 10, rewards: { gold: 2000 } },
+    { id: 'gems_earned_25', category: 'economy', name: 'Gem Hunter', desc: 'Earn 25 gems total.', icon: '💎', metric: 'gems_earned', target: 25, rewards: { gold: 5000 } },
+    { id: 'gems_earned_50', category: 'economy', name: 'Gem Hoarder', desc: 'Earn 50 gems total.', icon: '💎', metric: 'gems_earned', target: 50, rewards: { gold: 10000 } },
+    { id: 'gems_earned_75', category: 'economy', name: 'Gem Master', desc: 'Earn 75 gems total.', icon: '💎', metric: 'gems_earned', target: 75, rewards: { gold: 15000 } },
+    { id: 'gems_earned_100', category: 'economy', name: 'Gem Tycoon', desc: 'Earn 100 gems total.', icon: '💎', metric: 'gems_earned', target: 100, rewards: { gold: 20000, gems: 5 } },
+    { id: 'gems_earned_250', category: 'economy', name: 'Gem Baron', desc: 'Earn 250 gems total.', icon: '💎', metric: 'gems_earned', target: 250, rewards: { gold: 40000, gems: 10 } },
+    { id: 'gems_earned_500', category: 'economy', name: 'Gem Emperor', desc: 'Earn 500 gems total.', icon: '💎', metric: 'gems_earned', target: 500, rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'gems_earned_750', category: 'economy', name: 'Gem Magnate', desc: 'Earn 750 gems total.', icon: '💎', metric: 'gems_earned', target: 750, rewards: { gold: 100000, gems: 25 } },
+    { id: 'gems_earned_1000', category: 'economy', name: 'Gem Overlord', desc: 'Earn 1,000 gems total.', icon: '💎', metric: 'gems_earned', target: 1000, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'gems_earned_1500', category: 'economy', name: 'Gem Deity', desc: 'Earn 1,500 gems total.', icon: '💎', metric: 'gems_earned', target: 1500, rewards: { gold: 250000, gems: 25 } },
+    { id: 'gems_earned_2000', category: 'economy', name: 'Gem Celestial', desc: 'Earn 2,000 gems total.', icon: '💎', metric: 'gems_earned', target: 2000, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'gems_earned_3000', category: 'economy', name: 'Gem Infinity', desc: 'Earn 3,000 gems total.', icon: '💎', metric: 'gems_earned', target: 3000, rewards: { gold: 500000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
+
+    // Hard missions
+    { id: 'hard_missions_10', category: 'missions', name: 'Daredevil', desc: 'Complete 10 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 10, rewards: { gold: 10000 } },
+    { id: 'hard_missions_50', category: 'missions', name: 'Braveheart', desc: 'Complete 50 hard missions.', icon: '⚠️', metric: 'hard_missions_completed', target: 50, rewards: { gold: 50000, gems: 15 } },
+
+    // ── Stat upgrade achievements ─────────────────────────────────────────
+
+    // Strength
+    { id: 'stat_strength_100', chain: 'stat_strength', category: 'progression', name: 'Strong Arm', desc: 'Reach 100 strength.', icon: '💪', metric: 'stat_strength', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_strength_200', chain: 'stat_strength', category: 'progression', name: 'Mighty', desc: 'Reach 200 strength.', icon: '💪', metric: 'stat_strength', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_strength_300', chain: 'stat_strength', category: 'progression', name: 'Powerhouse', desc: 'Reach 300 strength.', icon: '💪', metric: 'stat_strength', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_strength_500', chain: 'stat_strength', category: 'progression', name: 'Brute Force', desc: 'Reach 500 strength.', icon: '💪', metric: 'stat_strength', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_strength_750', chain: 'stat_strength', category: 'progression', name: "Titan's Grip", desc: 'Reach 750 strength.', icon: '💪', metric: 'stat_strength', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_strength_1000', chain: 'stat_strength', category: 'progression', name: 'God of War', desc: 'Reach 1000 strength.', icon: '💪', metric: 'stat_strength', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_strength_1250', chain: 'stat_strength', category: 'progression', name: 'Colossus', desc: 'Reach 1250 strength.', icon: '💪', metric: 'stat_strength', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_strength_1500', chain: 'stat_strength', category: 'progression', name: 'Mountain', desc: 'Reach 1500 strength.', icon: '💪', metric: 'stat_strength', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_strength_2000', chain: 'stat_strength', category: 'progression', name: 'Titan', desc: 'Reach 2000 strength.', icon: '💪', metric: 'stat_strength', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_strength_3000', chain: 'stat_strength', category: 'progression', name: 'Worldbreaker', desc: 'Reach 3000 strength.', icon: '💪', metric: 'stat_strength', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_strength_5000', chain: 'stat_strength', category: 'progression', name: 'Strength Incarnate', desc: 'Reach 5000 strength.', icon: '💪', metric: 'stat_strength', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+
+    // Defense
+    { id: 'stat_defense_100', chain: 'stat_defense', category: 'progression', name: 'Turtle', desc: 'Reach 100 defense.', icon: '🛡️', metric: 'stat_defense', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_defense_200', chain: 'stat_defense', category: 'progression', name: 'Fortress', desc: 'Reach 200 defense.', icon: '🛡️', metric: 'stat_defense', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_defense_300', chain: 'stat_defense', category: 'progression', name: 'Iron Wall', desc: 'Reach 300 defense.', icon: '🛡️', metric: 'stat_defense', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_defense_500', chain: 'stat_defense', category: 'progression', name: 'Bulwark', desc: 'Reach 500 defense.', icon: '🛡️', metric: 'stat_defense', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_defense_750', chain: 'stat_defense', category: 'progression', name: 'Impregnable', desc: 'Reach 750 defense.', icon: '🛡️', metric: 'stat_defense', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_defense_1000', chain: 'stat_defense', category: 'progression', name: 'The Unbreakable', desc: 'Reach 1000 defense.', icon: '🛡️', metric: 'stat_defense', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_defense_1250', chain: 'stat_defense', category: 'progression', name: 'Bastion', desc: 'Reach 1250 defense.', icon: '🛡️', metric: 'stat_defense', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_defense_1500', chain: 'stat_defense', category: 'progression', name: 'Citadel', desc: 'Reach 1500 defense.', icon: '🛡️', metric: 'stat_defense', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_defense_2000', chain: 'stat_defense', category: 'progression', name: 'Fortress of Solitude', desc: 'Reach 2000 defense.', icon: '🛡️', metric: 'stat_defense', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_defense_3000', chain: 'stat_defense', category: 'progression', name: 'Indestructible', desc: 'Reach 3000 defense.', icon: '🛡️', metric: 'stat_defense', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_defense_5000', chain: 'stat_defense', category: 'progression', name: 'The Absolute', desc: 'Reach 5000 defense.', icon: '🛡️', metric: 'stat_defense', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+
+    // Agility
+    { id: 'stat_agility_100', chain: 'stat_agility', category: 'progression', name: 'Quick Feet', desc: 'Reach 100 agility.', icon: '💨', metric: 'stat_agility', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_agility_200', chain: 'stat_agility', category: 'progression', name: 'Swift', desc: 'Reach 200 agility.', icon: '💨', metric: 'stat_agility', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_agility_300', chain: 'stat_agility', category: 'progression', name: 'Wind Walker', desc: 'Reach 300 agility.', icon: '💨', metric: 'stat_agility', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_agility_500', chain: 'stat_agility', category: 'progression', name: 'Blur', desc: 'Reach 500 agility.', icon: '💨', metric: 'stat_agility', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_agility_750', chain: 'stat_agility', category: 'progression', name: 'Phantom', desc: 'Reach 750 agility.', icon: '💨', metric: 'stat_agility', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_agility_1000', chain: 'stat_agility', category: 'progression', name: 'Flash', desc: 'Reach 1000 agility.', icon: '💨', metric: 'stat_agility', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_agility_1250', chain: 'stat_agility', category: 'progression', name: 'Zephyr', desc: 'Reach 1250 agility.', icon: '💨', metric: 'stat_agility', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_agility_1500', chain: 'stat_agility', category: 'progression', name: 'Sonic', desc: 'Reach 1500 agility.', icon: '💨', metric: 'stat_agility', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_agility_2000', chain: 'stat_agility', category: 'progression', name: 'Teleporter', desc: 'Reach 2000 agility.', icon: '💨', metric: 'stat_agility', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_agility_3000', chain: 'stat_agility', category: 'progression', name: 'Omnipresent', desc: 'Reach 3000 agility.', icon: '💨', metric: 'stat_agility', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_agility_5000', chain: 'stat_agility', category: 'progression', name: 'Speed of Light', desc: 'Reach 5000 agility.', icon: '💨', metric: 'stat_agility', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+
+    // Magic
+    { id: 'stat_magic_100', chain: 'stat_magic', category: 'progression', name: 'Magic Touch', desc: 'Reach 100 magic.', icon: '🔮', metric: 'stat_magic', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_magic_200', chain: 'stat_magic', category: 'progression', name: 'Sorcerer', desc: 'Reach 200 magic.', icon: '🔮', metric: 'stat_magic', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_magic_300', chain: 'stat_magic', category: 'progression', name: 'Mage Lord', desc: 'Reach 300 magic.', icon: '🔮', metric: 'stat_magic', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_magic_500', chain: 'stat_magic', category: 'progression', name: 'Archmage', desc: 'Reach 500 magic.', icon: '🔮', metric: 'stat_magic', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_magic_750', chain: 'stat_magic', category: 'progression', name: 'Wizard King', desc: 'Reach 750 magic.', icon: '🔮', metric: 'stat_magic', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_magic_1000', chain: 'stat_magic', category: 'progression', name: 'God of Magic', desc: 'Reach 1000 magic.', icon: '🔮', metric: 'stat_magic', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_magic_1250', chain: 'stat_magic', category: 'progression', name: 'Arcane Overlord', desc: 'Reach 1250 magic.', icon: '🔮', metric: 'stat_magic', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_magic_1500', chain: 'stat_magic', category: 'progression', name: 'Mana Well', desc: 'Reach 1500 magic.', icon: '🔮', metric: 'stat_magic', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_magic_2000', chain: 'stat_magic', category: 'progression', name: 'Spellweaver', desc: 'Reach 2000 magic.', icon: '🔮', metric: 'stat_magic', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_magic_3000', chain: 'stat_magic', category: 'progression', name: 'Elder God', desc: 'Reach 3000 magic.', icon: '🔮', metric: 'stat_magic', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_magic_5000', chain: 'stat_magic', category: 'progression', name: 'Magic Incarnate', desc: 'Reach 5000 magic.', icon: '🔮', metric: 'stat_magic', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+
+    // Vitality
+    { id: 'stat_vitality_100', chain: 'stat_vitality', category: 'progression', name: 'Healthy', desc: 'Reach 100 vitality.', icon: '❤️', metric: 'stat_vitality', target: 100, rewards: { gold: 5000 } },
+    { id: 'stat_vitality_200', chain: 'stat_vitality', category: 'progression', name: 'Sturdy', desc: 'Reach 200 vitality.', icon: '❤️', metric: 'stat_vitality', target: 200, rewards: { gold: 15000 } },
+    { id: 'stat_vitality_300', chain: 'stat_vitality', category: 'progression', name: 'Resilient', desc: 'Reach 300 vitality.', icon: '❤️', metric: 'stat_vitality', target: 300, rewards: { gold: 30000, gems: 10 } },
+    { id: 'stat_vitality_500', chain: 'stat_vitality', category: 'progression', name: 'Tank', desc: 'Reach 500 vitality.', icon: '❤️', metric: 'stat_vitality', target: 500, rewards: { gold: 75000, gems: 20 } },
+    { id: 'stat_vitality_750', chain: 'stat_vitality', category: 'progression', name: 'Juggernaut', desc: 'Reach 750 vitality.', icon: '❤️', metric: 'stat_vitality', target: 750, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_vitality_1000', chain: 'stat_vitality', category: 'progression', name: 'Immortal', desc: 'Reach 1000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1000, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_vitality_1250', chain: 'stat_vitality', category: 'progression', name: 'Everlasting', desc: 'Reach 1250 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1250, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_vitality_1500', chain: 'stat_vitality', category: 'progression', name: 'Unkillable', desc: 'Reach 1500 vitality.', icon: '❤️', metric: 'stat_vitality', target: 1500, rewards: { gold: 750000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_vitality_2000', chain: 'stat_vitality', category: 'progression', name: 'Phoenix', desc: 'Reach 2000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 2000, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_vitality_3000', chain: 'stat_vitality', category: 'progression', name: 'Ancient Being', desc: 'Reach 3000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 3000, rewards: { gold: 2000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_vitality_5000', chain: 'stat_vitality', category: 'progression', name: 'The Eternal', desc: 'Reach 5000 vitality.', icon: '❤️', metric: 'stat_vitality', target: 5000, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+
+    // Hit Chance
+    { id: 'stat_hit_chance_30', chain: 'stat_hit_chance', category: 'progression', name: 'Steady Hand', desc: 'Reach 30 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 30, rewards: { gold: 5000 } },
+    { id: 'stat_hit_chance_50', chain: 'stat_hit_chance', category: 'progression', name: 'Marksman', desc: 'Reach 50 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 50, rewards: { gold: 15000, gems: 5 } },
+    { id: 'stat_hit_chance_75', chain: 'stat_hit_chance', category: 'progression', name: 'Sniper', desc: 'Reach 75 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'stat_hit_chance_100', chain: 'stat_hit_chance', category: 'progression', name: 'Hawkeye', desc: 'Reach 100 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_hit_chance_125', chain: 'stat_hit_chance', category: 'progression', name: 'Deadshot', desc: 'Reach 125 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 125, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_hit_chance_150', chain: 'stat_hit_chance', category: 'progression', name: 'Bullseye', desc: 'Reach 150 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 150, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_hit_chance_175', chain: 'stat_hit_chance', category: 'progression', name: 'Piercing Gaze', desc: 'Reach 175 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 175, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_hit_chance_200', chain: 'stat_hit_chance', category: 'progression', name: 'All-Seeing', desc: 'Reach 200 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 200, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_250', chain: 'stat_hit_chance', category: 'progression', name: 'Omega Eye', desc: 'Reach 250 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_300', chain: 'stat_hit_chance', category: 'progression', name: 'Perfect Aim', desc: 'Reach 300 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 300, rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_hit_chance_350', chain: 'stat_hit_chance', category: 'progression', name: 'Unwavering', desc: 'Reach 350 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 350, rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'stat_hit_chance_400', chain: 'stat_hit_chance', category: 'progression', name: 'Absolute Precision', desc: 'Reach 400 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 400, rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 7 } } },
+    { id: 'stat_hit_chance_450', chain: 'stat_hit_chance', category: 'progression', name: 'Omniscient', desc: 'Reach 450 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 450, rewards: { gold: 3000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_hit_chance_500', chain: 'stat_hit_chance', category: 'progression', name: "God's Eye", desc: 'Reach 500 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 500, rewards: { gold: 4000000, gems: 25, premium: { id: 'fortune_hunter', days: 7 } } },
+    { id: 'stat_hit_chance_600', chain: 'stat_hit_chance', category: 'progression', name: 'Cosmic Vision', desc: 'Reach 600 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 600, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'stat_hit_chance_700', chain: 'stat_hit_chance', category: 'progression', name: 'Fate Weaver', desc: 'Reach 700 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 700, rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+    { id: 'stat_hit_chance_800', chain: 'stat_hit_chance', category: 'progression', name: 'Universal Truth', desc: 'Reach 800 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 800, rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
+    { id: 'stat_hit_chance_900', chain: 'stat_hit_chance', category: 'progression', name: 'All-Knowing', desc: 'Reach 900 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 900, rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_hit_chance_1000', chain: 'stat_hit_chance', category: 'progression', name: 'The Absolute Eye', desc: 'Reach 1000 hit chance.', icon: '🎯', metric: 'stat_hit_chance', target: 1000, rewards: { gold: 15000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } } },
+
+    // Crit Chance
+    { id: 'stat_crit_chance_30', chain: 'stat_crit_chance', category: 'progression', name: 'Lucky', desc: 'Reach 30 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 30, rewards: { gold: 5000 } },
+    { id: 'stat_crit_chance_50', chain: 'stat_crit_chance', category: 'progression', name: 'Opportunist', desc: 'Reach 50 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 50, rewards: { gold: 15000, gems: 5 } },
+    { id: 'stat_crit_chance_75', chain: 'stat_crit_chance', category: 'progression', name: 'Assassin', desc: 'Reach 75 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'stat_crit_chance_100', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Mass', desc: 'Reach 100 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_crit_chance_125', chain: 'stat_crit_chance', category: 'progression', name: 'Fatal Strike', desc: 'Reach 125 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 125, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'stat_crit_chance_150', chain: 'stat_crit_chance', category: 'progression', name: 'Executioner', desc: 'Reach 150 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 150, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_crit_chance_175', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilator', desc: 'Reach 175 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 175, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'stat_crit_chance_200', chain: 'stat_crit_chance', category: 'progression', name: 'One-Shot', desc: 'Reach 200 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 200, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_250', chain: 'stat_crit_chance', category: 'progression', name: 'Critical God', desc: 'Reach 250 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_300', chain: 'stat_crit_chance', category: 'progression', name: 'Devastating', desc: 'Reach 300 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 300, rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'stat_crit_chance_350', chain: 'stat_crit_chance', category: 'progression', name: 'Obliterator', desc: 'Reach 350 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 350, rewards: { gold: 2000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'stat_crit_chance_400', chain: 'stat_crit_chance', category: 'progression', name: 'Eradicator', desc: 'Reach 400 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 400, rewards: { gold: 2500000, gems: 25, premium: { id: 'iron_fortress', days: 7 } } },
+    { id: 'stat_crit_chance_450', chain: 'stat_crit_chance', category: 'progression', name: 'Cataclysmic', desc: 'Reach 450 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 450, rewards: { gold: 3000000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'stat_crit_chance_500', chain: 'stat_crit_chance', category: 'progression', name: 'One Punch', desc: 'Reach 500 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 500, rewards: { gold: 4000000, gems: 25, premium: { id: 'fortune_hunter', days: 7 } } },
+    { id: 'stat_crit_chance_600', chain: 'stat_crit_chance', category: 'progression', name: 'Omega Strike', desc: 'Reach 600 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 600, rewards: { gold: 5000000, gems: 25, premium: { id: 'fortune_hunter', days: 14 } } },
+    { id: 'stat_crit_chance_700', chain: 'stat_crit_chance', category: 'progression', name: 'Annihilation', desc: 'Reach 700 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 700, rewards: { gold: 6000000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } } },
+    { id: 'stat_crit_chance_800', chain: 'stat_crit_chance', category: 'progression', name: 'Reality Tear', desc: 'Reach 800 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 800, rewards: { gold: 8000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 } } },
+    { id: 'stat_crit_chance_900', chain: 'stat_crit_chance', category: 'progression', name: 'Critical Singularity', desc: 'Reach 900 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 900, rewards: { gold: 10000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+    { id: 'stat_crit_chance_1000', chain: 'stat_crit_chance', category: 'progression', name: 'The One', desc: 'Reach 1000 crit chance.', icon: '⚡', metric: 'stat_crit_chance', target: 1000, rewards: { gold: 15000000, gems: 25, premium: { id: 'fortune_hunter', days: 60 } } },
+
+    // ── Tournament win achievements ───────────────────────────────────────
+    { id: 'tournament_wins_1', chain: 'tournament_wins', category: 'victories', name: 'Tournament Rookie', desc: 'Win your first tournament.', icon: '🏆', metric: 'tournament_wins', target: 1, rewards: { gold: 2000 } },
+    { id: 'tournament_wins_5', chain: 'tournament_wins', category: 'victories', name: 'Tournament Fighter', desc: 'Win 5 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 5, rewards: { gold: 5000 } },
+    { id: 'tournament_wins_10', chain: 'tournament_wins', category: 'victories', name: 'Tournament Contender', desc: 'Win 10 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 10, rewards: { gold: 10000, gems: 5 } },
+    { id: 'tournament_wins_25', chain: 'tournament_wins', category: 'victories', name: 'Tournament Veteran', desc: 'Win 25 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 25, rewards: { gold: 25000, gems: 10 } },
+    { id: 'tournament_wins_50', chain: 'tournament_wins', category: 'victories', name: 'Tournament Champion', desc: 'Win 50 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 50, rewards: { gold: 50000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'tournament_wins_100', chain: 'tournament_wins', category: 'victories', name: 'Tournament Legend', desc: 'Win 100 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 100, rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'tournament_wins_150', chain: 'tournament_wins', category: 'victories', name: 'Tournament Master', desc: 'Win 150 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 150, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'tournament_wins_200', chain: 'tournament_wins', category: 'victories', name: 'Tournament Grandmaster', desc: 'Win 200 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 200, rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_250', chain: 'tournament_wins', category: 'victories', name: 'Tournament Warlord', desc: 'Win 250 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 250, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_300', chain: 'tournament_wins', category: 'victories', name: 'Tournament Conqueror', desc: 'Win 300 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 300, rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_350', chain: 'tournament_wins', category: 'victories', name: 'Tournament Emperor', desc: 'Win 350 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 350, rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'tournament_wins_400', chain: 'tournament_wins', category: 'victories', name: 'Tournament Immortal', desc: 'Win 400 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 400, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_500', chain: 'tournament_wins', category: 'victories', name: 'Tournament God', desc: 'Win 500 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 500, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_600', chain: 'tournament_wins', category: 'victories', name: 'Tournament Transcendent', desc: 'Win 600 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 600, rewards: { gold: 600000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_700', chain: 'tournament_wins', category: 'victories', name: 'Tournament Eternal', desc: 'Win 700 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 700, rewards: { gold: 700000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    { id: 'tournament_wins_800', chain: 'tournament_wins', category: 'victories', name: 'Tournament Unchained', desc: 'Win 800 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 800, rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
+    { id: 'tournament_wins_900', chain: 'tournament_wins', category: 'victories', name: 'Tournament Absolute', desc: 'Win 900 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 900, rewards: { gold: 900000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
+    { id: 'tournament_wins_1000', chain: 'tournament_wins', category: 'victories', name: 'Tournament Messiah', desc: 'Win 1000 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 1000, rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+);
+
+console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+
+async function buildAchievementMetricSnapshot(db, char) {
+    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow] = await Promise.all([
+        dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
+        dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
+        char.user_id
+            ? dbGet(db, 'SELECT referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
+            : Promise.resolve(null),
+        dbGet(db, `SELECT
+                COUNT(CASE WHEN gr.status = 'completed' THEN 1 END) AS raids_participated,
+                COUNT(CASE WHEN gr.status = 'completed' AND gm.reward_payload IS NOT NULL THEN 1 END) AS raids_won
+            FROM guild_raid_members gm
+            JOIN guild_raids gr ON gr.id = gm.raid_id
+            WHERE gm.char_id = ?`, [char.id]),
+        dbAll(db, 'SELECT gatekeeper_key FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id]),
+        dbGet(db, 'SELECT encounters, defeats, deaths FROM character_crawler_stats WHERE char_id = ?', [char.id]),
+    ]);
+
+    const missionTotals = {
+        wins: 0,
+        fights: 0,
+        discovered: missionRows.length,
+        bySpot: {},
+    };
+    for (const row of missionRows) {
+        const wins = Number(row.wins || 0);
+        const fights = Number(row.fights || 0);
+        missionTotals.wins += wins;
+        missionTotals.fights += fights;
+        missionTotals.bySpot[row.spot_id] = { wins, fights };
+    }
+
+    const monsterTotals = {
+        all: { kills: 0, keys: new Set(), byKey: {} },
+        bySource: {},
+    };
+    for (const row of monsterRows) {
+        const source = row.source || 'unknown';
+        const key = row.monster_key;
+        const kills = Number(row.kills || 0);
+        monsterTotals.all.kills += kills;
+        if (key) {
+            monsterTotals.all.keys.add(key);
+            monsterTotals.all.byKey[key] = (monsterTotals.all.byKey[key] || 0) + kills;
+        }
+        if (!monsterTotals.bySource[source]) {
+            monsterTotals.bySource[source] = { kills: 0, keys: new Set(), byKey: {} };
+        }
+        monsterTotals.bySource[source].kills += kills;
+        if (key) {
+            monsterTotals.bySource[source].keys.add(key);
+            monsterTotals.bySource[source].byKey[key] = (monsterTotals.bySource[source].byKey[key] || 0) + kills;
+        }
+    }
+
+    const gatekeeperTotals = { total: 0, keys: new Set() };
+    for (const row of gatekeeperRows) {
+        const key = String(row.gatekeeper_key || '').trim();
+        if (!key) continue;
+        gatekeeperTotals.total += 1;
+        gatekeeperTotals.keys.add(key);
+    }
+
+    return {
+        wins: char.wins || 0,
+        battles: (char.wins || 0) + (char.losses || 0),
+        gold_earned: char.total_gold_earned || 0,
+        gems_earned: char.total_gems_earned || 0,
+        mission_gems_earned: char.mission_gems_earned || 0,
+        mp_spent: char.total_mp_spent || 0,
+        dungeon_floor: char.dungeon_highest_floor || 1,
+        hard_missions_completed: char.hard_missions_completed || 0,
+        total_missions_completed: char.total_missions_completed || 0,
+        level: char.level || 1,
+        elemental_kills: char.elemental_kills || 0,
+        physical_only_wins: char.physical_only_wins || 0,
+        wins_without_shield: char.wins_without_shield || 0,
+        wins_without_weapon: char.wins_without_weapon || 0,
+        wins_without_helmet: char.wins_without_helmet || 0,
+        wins_without_armor: char.wins_without_armor || 0,
+        wins_without_boots: char.wins_without_boots || 0,
+        wins_without_equipment: char.wins_without_equipment || 0,
+        raids_participated: Number(raidRow?.raids_participated || 0),
+        raids_won: Number(raidRow?.raids_won || 0),
+        referrals_registered: Number(referralRow?.referrals_registered || 0),
+        referrals_level5: Number(referralRow?.referrals_level5 || 0),
+        crawler_encounters: Number(crawlerRow?.encounters || 0),
+        crawler_defeats: Number(crawlerRow?.defeats || 0),
+        crawler_deaths: Number(crawlerRow?.deaths || 0),
+        missionTotals,
+        monsterTotals,
+        gatekeeperTotals,
+    };
+}
+
+async function getAchievementMetricValue(db, char, achievement, snapshot = null) {
+    const metrics = snapshot || await buildAchievementMetricSnapshot(db, char);
+    const metric = achievement.metric;
+    if (metric === 'wins') return metrics.wins;
+    if (metric === 'battles') return metrics.battles;
+    if (metric === 'gold_earned') return metrics.gold_earned;
+    if (metric === 'gems_earned') return metrics.gems_earned;
+    if (metric === 'mission_gems_earned') return metrics.mission_gems_earned;
+    if (metric === 'mp_spent') return metrics.mp_spent;
+    if (metric === 'dungeon_floor') return metrics.dungeon_floor;
+    if (metric === 'hard_missions_completed') return metrics.hard_missions_completed;
+    if (metric === 'elemental_kills') return metrics.elemental_kills;
+    if (metric === 'physical_only_wins') return metrics.physical_only_wins;
+    if (metric === 'wins_without_shield') return metrics.wins_without_shield;
+    if (metric === 'wins_without_weapon') return metrics.wins_without_weapon;
+    if (metric === 'wins_without_helmet') return metrics.wins_without_helmet;
+    if (metric === 'wins_without_armor') return metrics.wins_without_armor;
+    if (metric === 'wins_without_boots') return metrics.wins_without_boots;
+    if (metric === 'wins_without_equipment') return metrics.wins_without_equipment;
+    if (metric === 'raids_participated') return metrics.raids_participated;
+    if (metric === 'raids_won') return metrics.raids_won;
+    if (metric === 'referrals_registered') return metrics.referrals_registered;
+    if (metric === 'referrals_level5') return metrics.referrals_level5;
+    if (metric === 'crawler_encounters') return metrics.crawler_encounters || 0;
+    if (metric === 'crawler_defeats') return metrics.crawler_defeats || 0;
+    if (metric === 'crawler_deaths') return metrics.crawler_deaths || 0;
+    
+    if (metric === 'level') return char.level || 1;
+    if (metric === 'total_missions_completed') return char.total_missions_completed || 0;
+
+    // Per-stat upgrade achievements
+    if (metric === 'stat_strength') return Number(char.strength) || 0;
+    if (metric === 'stat_defense') return Number(char.defense) || 0;
+    if (metric === 'stat_agility') return Number(char.agility) || 0;
+    if (metric === 'stat_magic') return Number(char.magic) || 0;
+    if (metric === 'stat_vitality') return Number(char.vitality) || 0;
+    if (metric === 'stat_hit_chance') return Number(char.hit_chance) || 0;
+    if (metric === 'stat_crit_chance') return Number(char.crit_chance) || 0;
+    if (metric === 'tournament_wins') return Number(char.tournament_wins) || 0;
+
+    if (metric === 'mission_wins_total') return metrics.missionTotals.wins;
+    if (metric === 'mission_fights_total') return metrics.missionTotals.fights;
+    if (metric === 'mission_spots_discovered') return metrics.missionTotals.discovered;
+
+    if (metric === 'mission_spot_wins' || metric === 'mission_spot_fights') {
+        if (!achievement.metric_key) return 0;
+        const row = metrics.missionTotals.bySpot[achievement.metric_key];
+        if (!row) return 0;
+        return metric === 'mission_spot_wins' ? row.wins : row.fights;
+    }
+
+    if (metric === 'monster_kills_total' || metric === 'monster_types_total' || metric === 'monster_kills') {
+        const sourceMetrics = achievement.metric_source
+            ? (metrics.monsterTotals.bySource[achievement.metric_source] || { kills: 0, keys: new Set(), byKey: {} })
+            : metrics.monsterTotals.all;
+        if (metric === 'monster_kills_total') return sourceMetrics.kills;
+        if (metric === 'monster_types_total') return sourceMetrics.keys.size;
+        if (!achievement.metric_key) return 0;
+        return sourceMetrics.byKey[achievement.metric_key] || 0;
+    }
+
+    if (metric === 'gatekeeper_defeats_total') return metrics.gatekeeperTotals?.total || 0;
+    if (metric === 'gatekeeper_defeated') {
+        if (!achievement.metric_key) return 0;
+        return metrics.gatekeeperTotals?.keys?.has(achievement.metric_key) ? 1 : 0;
+    }
+
+    return 0;
+}
+
+function formatDurationShort(seconds) {
+    const total = Math.max(0, Math.ceil(seconds));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (minutes > 0) return `${minutes}m ${secs}s`;
+    return `${secs}s`;
+}
+
+function getCurrentWeekStart(now = Math.floor(Date.now() / 1000)) {
+    const date = new Date(now * 1000);
+    const utcDay = date.getUTCDay();
+    const diffToMonday = utcDay === 0 ? 6 : utcDay - 1;
+    date.setUTCHours(0, 0, 0, 0);
+    date.setUTCDate(date.getUTCDate() - diffToMonday);
+    return Math.floor(date.getTime() / 1000);
+}
+
+function getNextWeekStart(now = Math.floor(Date.now() / 1000)) {
+    return getCurrentWeekStart(now) + 7 * 24 * 3600;
+}
+
+async function getMissionFightTotal(db, charId) {
+    const row = await dbGet(db, 'SELECT COALESCE(SUM(fights), 0) AS total FROM character_mission_spot_stats WHERE char_id = ?', [charId]);
+    return Number(row?.total || 0);
+}
+
+async function ensureWeeklyTaskState(db, char) {
+    const weekStart = getCurrentWeekStart();
+    const existing = await dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
+    if (existing && Number(existing.week_start) === weekStart) return existing;
+    const missionFightsBase = await getMissionFightTotal(db, char.id);
+
+    await dbRun(db, `INSERT INTO character_weekly_state
+        (char_id, week_start, mp_spent_base, wins_base, losses_base, mission_fights_base)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(char_id) DO UPDATE SET
+            week_start = excluded.week_start,
+            mp_spent_base = excluded.mp_spent_base,
+            wins_base = excluded.wins_base,
+            losses_base = excluded.losses_base,
+            mission_fights_base = excluded.mission_fights_base`,
+        [char.id, weekStart, char.total_mp_spent || 0, char.wins || 0, char.losses || 0, missionFightsBase]
+    );
+    await dbRun(db, 'DELETE FROM character_weekly_claims WHERE char_id = ? AND week_start <> ?', [char.id, weekStart]);
+    return dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
+}
+
+async function getWeeklyTaskProgress(db, char, weeklyState, metric) {
+    if (!weeklyState) return 0;
+    if (metric === 'mp_spent') {
+        return Math.max(0, (char.total_mp_spent || 0) - (weeklyState.mp_spent_base || 0));
+    }
+    if (metric === 'wins') {
+        return Math.max(0, (char.wins || 0) - (weeklyState.wins_base || 0));
+    }
+    if (metric === 'battles') {
+        const pvpBattles = Math.max(0, ((char.wins || 0) + (char.losses || 0)) - ((weeklyState.wins_base || 0) + (weeklyState.losses_base || 0)));
+        const missionBattles = Math.max(0, (await getMissionFightTotal(db, char.id)) - (weeklyState.mission_fights_base || 0));
+        return pvpBattles + missionBattles;
+    }
+    return 0;
+}
+
+function buildWeeklyRewardSummary(rewards) {
+    const parts = [];
+    if (rewards.gold) parts.push(`💰 ${rewards.gold.toLocaleString()} gold`);
+    if (rewards.gems) parts.push(`💎 ${rewards.gems}`);
+    if (rewards.lootbox) parts.push(`📦 ${rewards.lootbox.qty}x ${LOOT_BOXES.find(b => b.id === rewards.lootbox.id)?.name || 'Loot Box'}`);
+    if (rewards.choose_material) parts.push(`🧱 Choose ${rewards.choose_material.qty}x rare material`);
+    return parts;
+}
+
+function getWeeklyTaskMaterialChoices(task) {
+    const options = task?.rewards?.choose_material?.options || [];
+    return options
+        .map((id) => {
+            const def = RAW_MATERIALS[id];
+            if (!def) return null;
+            return {
+                id,
+                name: def.name || id.replace(/_/g, ' '),
+                emoji: def.emoji || '🧱',
+                rarity: def.rarity || 'rare'
+            };
+        })
+        .filter(Boolean);
+}
+
+async function getWeeklyTasksPayload(db, char) {
+    const weeklyState = await ensureWeeklyTaskState(db, char);
+    const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
+    const claimedRows = await dbAll(db, 'SELECT task_id, claimed_at FROM character_weekly_claims WHERE char_id = ? AND week_start = ?', [char.id, weekStart]);
+    const claimedMap = new Map(claimedRows.map((row) => [row.task_id, Number(row.claimed_at || 0)]));
+    const items = await Promise.all(WEEKLY_TASKS.map(async (task) => {
+        const progress = await getWeeklyTaskProgress(db, char, weeklyState, task.metric);
+        const claimedAt = claimedMap.get(task.id) || 0;
+        return {
+            ...task,
+            progress,
+            claimed: !!claimedAt,
+            claimed_at: claimedAt,
+            claimable: !claimedAt && progress >= task.target,
+            reward_summary: buildWeeklyRewardSummary(task.rewards),
+            material_choices: task.rewards?.choose_material ? getWeeklyTaskMaterialChoices(task) : []
+        };
+    }));
+    return {
+        weekStart,
+        nextResetAt: getNextWeekStart(),
+        totals: {
+            total: items.length,
+            claimable: items.filter((item) => item.claimable).length,
+            claimed: items.filter((item) => item.claimed).length
+        },
+        items
+    };
+}
+
+function buildAchievementRewardSummary(rewards) {
+    const parts = [];
+    if (rewards.gold) parts.push(`💰 ${rewards.gold.toLocaleString()} gold`);
+    if (rewards.gems) parts.push(`💎 ${rewards.gems}`);
+    if (rewards.lootbox) parts.push(`📦 ${rewards.lootbox.qty}x ${LOOT_BOXES.find(b => b.id === rewards.lootbox.id)?.name || 'Loot Box'}`);
+    if (rewards.consumable) parts.push(`🧪 ${rewards.consumable.qty}x ${rewards.consumable.id === 'special_mana_potion' ? 'Special Mana Potion' : 'Mana Potion'}`);
+    if (rewards.premium) parts.push(`✨ ${PREMIUM_FEATURES[rewards.premium.id]?.name || rewards.premium.id} (${rewards.premium.days}d)`);
+    return parts;
+}
+
+// ── All equipment slots ───────────────────────────────────────────────────
+const EQUIPMENT_SLOTS = ['weapon','armor','helmet','shield','boots','ring', 'amulet', 'accessory'];
+
+// ── Class Skills ──────────────────────────────────────────────────────────
+const CLASS_SKILLS = {
+    warrior: [
+        { id:'berserker_rage',   name:'Berserker Rage',   emoji:'🔥', desc:'+25% damage on all attacks for 5h.',                        effect:'dmg_bonus',       value:0.25 },
+        { id:'iron_wall',        name:'Iron Wall',         emoji:'🏰', desc:'+30% block effectiveness on all guards for 5h.',            effect:'block_bonus',     value:0.30 },
+        { id:'war_cry',          name:'War Cry',           emoji:'📯', desc:'Your hits cannot miss for the first 3 rounds for 5h.',      effect:'no_miss_rounds',  value:3    },
+    ],
+    mage: [
+        { id:'arcane_surge',     name:'Arcane Surge',      emoji:'🌟', desc:'+20% elemental damage for 5h.',                            effect:'elem_dmg_bonus',  value:0.20 },
+        { id:'hex',              name:'Hex',                emoji:'💜', desc:'Reduces opponent elemental resistance by 15% for 5h.',     effect:'elem_res_debuff', value:0.15 },
+        { id:'magic_circle',     name:'Magic Circle',       emoji:'🔵', desc:'Avoid 20% of all incoming hits for 5h.',                  effect:'magic_dodge',     value:0.20 },
+    ],
+    rogue: [
+        { id:'shadow_step',      name:'Shadow Step',        emoji:'🌑', desc:'+40% dodge chance for 5h.',                               effect:'dodge_bonus',     value:0.40 },
+        { id:'expose',           name:'Expose',             emoji:'🎯', desc:'+15% crit chance for 5h.',                                effect:'crit_bonus',      value:0.15 },
+        { id:'venomfang',        name:'Venomfang',          emoji:'🐍', desc:'Each hit poisons for 8% bonus damage per round for 5h.',  effect:'poison',          value:0.08 },
+    ],
+    paladin: [
+        { id:'divine_shield',    name:'Divine Shield',      emoji:'✨', desc:'Negate the first hit received each battle round for 5h.', effect:'first_hit_negate',value:1    },
+        { id:'holy_strike',      name:'Holy Strike',        emoji:'⚡', desc:'+20% damage and heal 10% of damage dealt per hit for 5h.',effect:'holy_strike',     value:0.20 },
+        { id:'consecrate',       name:'Consecrate',         emoji:'🌿', desc:'Reflect 15% of damage received back to attacker for 5h.',effect:'reflect',         value:0.15 },
+    ],
+};
+
+// ── Global Events ─────────────────────────────────────────────────────────
+const ADMIN_EVENT_ACTIVE  = false;
+const ADMIN_EVENT_ENDS_AT = 0;
+const ADMIN_EVENT_NAME    = '🎉 Grand Festival';
+const ADMIN_EVENT_DESC    = 'Everything discounted! Cheaper stats, doubled gold, halved missions, more gems, doubled XP, reduced PvP cooldowns!';
+const GLOBAL_EVENTS = [
+    { key:'grand_festival', name: ADMIN_EVENT_NAME, desc: ADMIN_EVENT_DESC, duration: 4*3600 },
+];
+function getActiveEvent() {
+    const now = Math.floor(Date.now() / 1000);
+    if (ADMIN_EVENT_ACTIVE && ADMIN_EVENT_ENDS_AT > now) {
+        return { event_key: 'grand_festival', started_at: ADMIN_EVENT_ENDS_AT - 4*3600, ends_at: ADMIN_EVENT_ENDS_AT };
+    }
+    return null;
+}
+function eventHas(bonus) {
+    const ev = getActiveEvent();
+    if (!ev) return false;
+    return ev.event_key === 'grand_festival';
+}
+
+// ── DB helpers ────────────────────────────────────────────────────────────
+async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
+async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows; }
+async function dbRun(db, sql, args = []) { return db.execute({ sql, args }); }
+
+function normalizeMonsterKey(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'unknown';
+}
+
+async function recordTotalMpSpent(db, charId, amount) {
+    const spent = Math.max(0, Number(amount) || 0);
+    if (!spent) return;
+    const char = await dbGet(db, 'SELECT id, total_mp_spent, wins, losses FROM characters WHERE id = ?', [charId]);
+    if (char) await ensureWeeklyTaskState(db, char);
+    await dbRun(db, 'UPDATE characters SET total_mp_spent = COALESCE(total_mp_spent, 0) + ? WHERE id = ?', [spent, charId]);
+}
+
+async function recordMissionSpotResult(db, { charId, mapType = 'overworld', zoneId, spotId, won, now }) {
+    if (!charId || !zoneId || !spotId) return;
+    const ts = now || Math.floor(Date.now() / 1000);
+    const didWin = won ? 1 : 0;
+    const char = await dbGet(
+        db,
+        'SELECT id, total_mp_spent, wins, losses FROM characters WHERE id = ?',
+        [charId]
+    );
+    if (char) await ensureWeeklyTaskState(db, char);
+    await dbRun(db, `INSERT INTO character_mission_spot_stats
+        (char_id, map_type, zone_id, spot_id, fights, wins, last_fought_at, last_won_at)
+        VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+        ON CONFLICT(char_id, map_type, spot_id) DO UPDATE SET
+            zone_id = excluded.zone_id,
+            fights = fights + 1,
+            wins = wins + excluded.wins,
+            last_fought_at = excluded.last_fought_at,
+            last_won_at = CASE WHEN excluded.wins > 0 THEN excluded.last_won_at ELSE last_won_at END`,
+        [charId, mapType, zoneId, spotId, didWin, ts, didWin ? ts : 0]
+    );
+}
+
+async function ensureActiveGuildBounty(db, charId) {
+    let bounty = await dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+    if (bounty && !bounty.claimed_at) return bounty;
+
+    const template = DUNGEON_GUILD_BOUNTY_POOL[Math.floor(Math.random() * DUNGEON_GUILD_BOUNTY_POOL.length)];
+    const targetCount = template.minCount + Math.floor(Math.random() * (template.maxCount - template.minCount + 1));
+    const now = Math.floor(Date.now() / 1000);
+    const nextBounty = {
+        bountyId: `${template.id}_${now}`,
+        targetSource: 'dungeon',
+        targetKey: template.monsterKey,
+        targetName: template.monsterName,
+        targetCount,
+        rewardGold: template.rewardGold + (targetCount - template.minCount) * 60,
+        rewardReputation: template.rewardReputation + Math.max(0, targetCount - template.minCount > 1 ? 1 : 0),
+        progress: 0,
+        completedAt: 0,
+        claimedAt: 0,
+        rolledAt: now
+    };
+
+    await dbRun(db, `INSERT INTO character_guild_bounties
+        (char_id, bounty_id, target_source, target_key, target_name, target_count, progress, reward_gold, reward_reputation, completed_at, claimed_at, rolled_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(char_id) DO UPDATE SET
+            bounty_id = excluded.bounty_id,
+            target_source = excluded.target_source,
+            target_key = excluded.target_key,
+            target_name = excluded.target_name,
+            target_count = excluded.target_count,
+            progress = excluded.progress,
+            reward_gold = excluded.reward_gold,
+            reward_reputation = excluded.reward_reputation,
+            completed_at = excluded.completed_at,
+            claimed_at = excluded.claimed_at,
+            rolled_at = excluded.rolled_at`,
+        [charId, nextBounty.bountyId, nextBounty.targetSource, nextBounty.targetKey, nextBounty.targetName, nextBounty.targetCount, nextBounty.progress, nextBounty.rewardGold, nextBounty.rewardReputation, nextBounty.completedAt, nextBounty.claimedAt, nextBounty.rolledAt]
+    );
+    return dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+}
+
+async function getGuildRaidMembers(db, raidId) {
+    return dbAll(db, `SELECT m.*,
+            COALESCE(c.name, m.member_name) AS name,
+            COALESCE(c.class, m.member_class) AS class,
+            COALESCE(c.level, m.member_level, 1) AS level
+        FROM guild_raid_members m
+        LEFT JOIN characters c ON c.id = m.char_id
+        WHERE m.raid_id = ?
+        ORDER BY m.joined_at ASC, m.char_id ASC`, [raidId]);
+}
+
+async function getGuildRaidById(db, raidId) {
+    return dbGet(db, 'SELECT * FROM guild_raids WHERE id = ?', [raidId]);
+}
+
+async function getOpenRaidForLeader(db, leaderCharId) {
+    return dbGet(db, `SELECT * FROM guild_raids
+        WHERE leader_char_id = ? AND status = 'forming'
+        ORDER BY created_at DESC LIMIT 1`, [leaderCharId]);
+}
+
+async function getActiveRaidMembershipForUser(db, userId) {
+    return dbGet(db, `SELECT gr.id, gr.status
+        FROM guild_raid_members gm
+        JOIN guild_raids gr ON gr.id = gm.raid_id
+        WHERE gm.user_id = ? AND gr.status = 'forming'
+        LIMIT 1`, [userId]);
+}
+
+async function getActiveRaidMembershipForChar(db, charId) {
+    return dbGet(db, `SELECT gr.id, gr.status
+        FROM guild_raid_members gm
+        JOIN guild_raids gr ON gr.id = gm.raid_id
+        WHERE gm.char_id = ? AND gr.status = 'forming'
+        LIMIT 1`, [charId]);
+}
+
+async function getCharacterBusyState(db, char) {
+    const now = Math.floor(Date.now() / 1000);
+    const raidCooldownUntil = Number(char.raid_cooldown_until || 0);
+    if (raidCooldownUntil > now) {
+        return { busy: true, reason: `Raid cooldown active for ${Math.ceil((raidCooldownUntil - now) / 3600)}h.` };
+    }
+    return { busy: false, reason: '' };
+}
+
+function buildRaidRewardPayload(floor, includeItem = false) {
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const gold = (900 + safeFloor * 220) * 2;
+    const gems = 1;
+    const payload = { gold, gems };
+    if (includeItem) {
+        payload.lootbox = { id: 'lootbox_rare', qty: 1 };
+    }
+    return payload;
+}
+
+function buildRaidBossFighter(raid) {
+    return {
+        id: `raid_boss_${raid.id}`,
+        name: raid.boss_name,
+        class: 'raid_boss',
+        hp: Number(raid.boss_hp || 1),
+        hpMax: Number(raid.boss_hp || 1),
+        dmgMin: Math.max(1, Math.round((raid.boss_atk || 1) * 0.78)),
+        dmgMax: Math.max(2, Math.round((raid.boss_atk || 1) * 1.18)),
+        strength: Number(raid.boss_atk || 1),
+        agility: Math.max(12, Math.round((raid.floor || 1) * 1.5) + 10),
+        magic: Math.round((raid.boss_atk || 1) * 0.55),
+        defense: Number(raid.boss_def || 0),
+        hit_chance: Math.min(95, 28 + Number(raid.floor || 1)),
+        crit_chance: Math.min(35, 8 + Math.floor(Number(raid.floor || 1) / 3)),
+        armor: Number(raid.boss_def || 0),
+        elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        skillMods: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        dualWield: false,
+    };
+}
+
+function buildRaidPartyFighter(raidId, members, fighters) {
+    const base = {
+        id: `raid_party_${raidId}`,
+        name: 'Raid Party',
+        class: 'raid_party',
+        hp: 0,
+        hpMax: 0,
+        dmgMin: 0,
+        dmgMax: 0,
+        strength: 0,
+        agility: 0,
+        magic: 0,
+        defense: 0,
+        hit_chance: 0,
+        crit_chance: 0,
+        armor: 0,
+        elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        skillMods: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        dualWield: false,
+    };
+    for (const fighter of fighters) {
+        base.hp += Number(fighter.hp || 0);
+        base.hpMax += Number(fighter.hpMax || 0);
+        base.dmgMin += Number(fighter.dmgMin || 0);
+        base.dmgMax += Number(fighter.dmgMax || 0);
+        base.strength += Number(fighter.strength || 0);
+        base.agility += Number(fighter.agility || 0);
+        base.magic += Number(fighter.magic || 0);
+        base.defense += Number(fighter.defense || 0);
+        base.hit_chance += Number(fighter.hit_chance || 0);
+        base.crit_chance += Number(fighter.crit_chance || 0);
+        base.armor += Number(fighter.armor || 0);
+        for (const elem of ELEMENTS) {
+            base.elem_dmg[elem] += Number(fighter.elem_dmg?.[elem] || 0);
+            base.elem_resist[elem] += Number(fighter.elem_resist?.[elem] || 0);
+        }
+    }
+    const count = Math.max(1, fighters.length);
+    base.hit_chance = Math.min(95, Math.round(base.hit_chance / count));
+    base.crit_chance = Math.min(60, Math.round(base.crit_chance / count));
+    return base;
+}
+
+function getGuildRaidAutoStartThreshold(raid) {
+    const autoMode = String(raid?.auto_start_mode || 'manual');
+    if (autoMode.startsWith('count_')) {
+        return Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoMode.split('_')[1] || 0)));
+    }
+    if (autoMode === 'full') {
+        return GUILD_RAID_MAX_MEMBERS;
+    }
+    return 0;
+}
+
+async function finalizeGuildRaid(db, raid, members) {
+    if (!raid || !['forming', 'starting'].includes(String(raid.status || '')) || !members?.length) return raid;
+    const now = Math.floor(Date.now() / 1000);
+    if (String(raid.status || '') === 'forming') {
+        const claim = await dbRun(
+            db,
+            'UPDATE guild_raids SET status = ?, started_at = ? WHERE id = ? AND status = ?',
+            ['starting', now, raid.id, 'forming']
+        );
+        const claimed = claim?.rowsAffected ?? claim?.changes ?? 0;
+        if (!claimed) return getGuildRaidById(db, raid.id);
+        raid = await getGuildRaidById(db, raid.id);
+        if (!raid) return null;
+    }
+    const fighters = [];
+    const memberChars = [];
+    for (const member of members) {
+        if (Number(member.is_npc || 0) !== 0) {
+            let payload = null;
+            try { payload = member.member_payload ? JSON.parse(member.member_payload) : null; } catch {}
+            if (payload?.fighter) {
+                fighters.push(payload.fighter);
+            }
+            continue;
+        }
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [member.char_id]);
+        if (!char) continue;
+        await applyHpRegen(db, char.id);
+        const refreshed = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        if (!refreshed) continue;
+        memberChars.push(refreshed);
+        fighters.push(await buildCombatFighter(db, refreshed));
+    }
+    if (!fighters.length) {
+        await dbRun(db, 'UPDATE guild_raids SET status = ?, completed_at = ? WHERE id = ?', ['completed', now, raid.id]);
+        return getGuildRaidById(db, raid.id);
+    }
+
+    const party = buildRaidPartyFighter(raid.id, members, fighters);
+    const boss = buildRaidBossFighter(raid);
+    const battle = runBattle(party, boss, null, { guaranteedHit: true });
+    const raidWon = String(battle.winnerId) === String(party.id);
+
+    // Equal damage to every party member (not proportional to their max HP).
+    const totalEntryHp = fighters.reduce((sum, f) => sum + Number(f.hp || 0), 0);
+    const totalTaken = Math.max(0, totalEntryHp - Number(battle.hpRemainingA || 0));
+    const dmgShare = fighters.length ? Math.floor(totalTaken / fighters.length) : 0;
+
+    const raidCooldownUntil = now + GUILD_RAID_GLOBAL_COOLDOWN;
+    const resultSummary = raidWon
+        ? `${party.name} defeated ${raid.boss_name} on Floor ${raid.floor}.`
+        : `${raid.boss_name} crushed the party on Floor ${raid.floor}.`;
+    const reportBody = [
+        resultSummary,
+        '',
+        `Boss: ${raid.boss_name}`,
+        `Floor: ${raid.floor}`,
+        `Party size: ${members.length}`,
+        '',
+        ...(battle.log || [])
+    ].join('\n');
+
+    for (let i = 0; i < memberChars.length; i++) {
+        const char = memberChars[i];
+        const fighter = fighters[i];
+        const rewardPayload = raidWon ? buildRaidRewardPayload(raid.floor, Math.random() < 0.5) : null;
+
+        // Every member takes the same flat damage share; survivors keep at least 1 HP on win.
+        const entryHp = Number(fighter.hp || 0);
+        const nextHp = raidWon
+            ? Math.max(1, entryHp - dmgShare)
+            : Math.max(0, entryHp - dmgShare);
+
+        await dbRun(
+            db,
+            'UPDATE characters SET hp_current = ?, raid_cooldown_until = ? WHERE id = ?',
+            [nextHp, raidCooldownUntil, char.id]
+        );
+        await dbRun(
+            db,
+            'UPDATE guild_raid_members SET reward_payload = ? WHERE raid_id = ? AND char_id = ?',
+            [rewardPayload ? JSON.stringify(rewardPayload) : null, raid.id, char.id]
+        );
+        await dbRun(
+            db,
+            `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message)
+             VALUES (?, ?, ?, ?, ?, ?, 0, 1)`,
+            [
+                char.id,
+                char.id,
+                'Guild Raid Board',
+                `Raid Report: Floor ${raid.floor} ${raidWon ? 'Victory' : 'Defeat'}`,
+                reportBody,
+                rewardPayload ? JSON.stringify(rewardPayload) : null
+            ]
+        );
+    }
+
+    await dbRun(
+        db,
+        'UPDATE guild_raids SET status = ?, completed_at = ?, result_summary = ?, result_log = ? WHERE id = ?',
+        ['completed', now, resultSummary, JSON.stringify(battle.log || []), raid.id]
+    );
+    return getGuildRaidById(db, raid.id);
+}
+
+async function tryStartGuildRaidIfReady(db, raidId, options = {}) {
+    const forceStart = options.forceStart === true;
+    let raid = await getGuildRaidById(db, raidId);
+    if (!raid || String(raid.status || '') !== 'forming') return raid;
+    const members = await getGuildRaidMembers(db, raidId);
+    if (!members.length) return raid;
+    if (!forceStart) {
+        const threshold = getGuildRaidAutoStartThreshold(raid);
+        if (threshold <= 0 || members.length < threshold) {
+            return raid;
+        }
+    }
+    return finalizeGuildRaid(db, raid, members);
+}
+
+async function maybeAutoStartGuildRaids(db) {
+    const formingRaids = await dbAll(db, `SELECT gr.*,
+        (SELECT COUNT(*) FROM guild_raid_members gm WHERE gm.raid_id = gr.id) AS member_count
+        FROM guild_raids gr
+        WHERE gr.status = 'forming'
+        ORDER BY gr.created_at ASC`);
+    for (const raid of formingRaids) {
+        const threshold = getGuildRaidAutoStartThreshold(raid);
+        if (threshold <= 0 || Number(raid.member_count || 0) < threshold) continue;
+        await tryStartGuildRaidIfReady(db, raid.id);
+    }
+}
+
+async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
+    const members = await getGuildRaidMembers(db, raid.id);
+    const viewerCharMember = members.find(m => String(m.char_id) === String(viewerCharId)) || null;
+    const viewerUserMember = members.find(m => String(m.user_id) === String(viewerUserId)) || null;
+    const autoStartMode = String(raid.auto_start_mode || 'manual');
+    const autoStartPlayers = autoStartMode.startsWith('count_')
+        ? Math.max(1, Math.min(GUILD_RAID_MAX_MEMBERS, Number(autoStartMode.split('_')[1] || 0)))
+        : autoStartMode === 'full'
+            ? GUILD_RAID_MAX_MEMBERS
+            : 0;
+    const mercenaryPool = await ensureRaidMercenaryPool(db, raid);
+    return {
+        id: raid.id,
+        floor: Number(raid.floor || 1),
+        bossName: raid.boss_name,
+        bossImage: raid.boss_image || '',
+        bossHp: Number(raid.boss_hp || 0),
+        bossAtk: Number(raid.boss_atk || 0),
+        bossDef: Number(raid.boss_def || 0),
+        status: raid.status,
+        autoStartMode,
+        autoStartPlayers,
+        createdAt: Number(raid.created_at || 0),
+        startedAt: Number(raid.started_at || 0),
+        completedAt: Number(raid.completed_at || 0),
+        resultSummary: raid.result_summary || '',
+        mercenaryPool,
+        memberCount: members.length,
+        isLeader: String(raid.leader_char_id) === String(viewerCharId),
+        // Membership should be character-scoped. Account-scoped membership is provided separately
+        // so the UI can block joining the same raid with multiple characters while still allowing
+        // parallel raids across different characters.
+        isMember: !!viewerCharMember,
+        isAccountMember: !!viewerUserMember,
+        accountMemberCharId: viewerUserMember ? viewerUserMember.char_id : null,
+        accountMemberName: viewerUserMember ? (viewerUserMember.name || null) : null,
+        members: members.map(member => ({
+            charId: member.char_id,
+            userId: member.user_id,
+            name: member.name,
+            class: member.class,
+            level: member.level,
+            isNpc: Number(member.is_npc || 0) !== 0,
+            joinedAt: Number(member.joined_at || 0),
+            claimedAt: Number(member.claimed_at || 0),
+            isLeader: String(member.char_id) === String(raid.leader_char_id),
+        })),
+    };
+}
+
+async function getGuildRaidList(db, viewerCharId, viewerUserId) {
+    await maybeAutoStartGuildRaids(db);
+    const raids = await dbAll(db, `SELECT * FROM guild_raids
+        WHERE status = 'forming'
+        ORDER BY created_at DESC
+        LIMIT 12`);
+    const payload = [];
+    for (const raid of raids) {
+        payload.push(await buildGuildRaidView(db, raid, viewerCharId, viewerUserId));
+    }
+    return payload;
+}
+
+async function recordMonsterDefeat(db, { charId, source = 'mission', monsterKey, monsterName, count = 1, now }) {
+    const kills = Math.max(1, Number(count) || 1);
+    const key = normalizeMonsterKey(monsterKey || monsterName);
+    const name = String(monsterName || monsterKey || 'Unknown Monster');
+    const ts = now || Math.floor(Date.now() / 1000);
+    if (!charId || !key) return;
+
+    await dbRun(db, `INSERT INTO character_monster_stats
+        (char_id, source, monster_key, monster_name, kills, wins, last_defeated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(char_id, source, monster_key) DO UPDATE SET
+            monster_name = excluded.monster_name,
+            kills = kills + excluded.kills,
+            wins = wins + excluded.wins,
+            last_defeated_at = excluded.last_defeated_at`,
+        [charId, source, key, name, kills, kills, ts]
+    );
+
+    const bounty = await ensureActiveGuildBounty(db, charId);
+    if (bounty && !bounty.claimed_at && bounty.target_source === source && bounty.target_key === key) {
+        const nextProgress = Math.min((bounty.progress || 0) + kills, bounty.target_count || 0);
+        const completedAt = nextProgress >= (bounty.target_count || 0) ? (bounty.completed_at || ts) : 0;
+        await dbRun(db, 'UPDATE character_guild_bounties SET progress = ?, completed_at = ? WHERE char_id = ?', [nextProgress, completedAt, charId]);
+    }
+}
+
+function hasShieldEquipped(items = []) {
+    return (items || []).some(item => {
+        try {
+            const raw = item?.item_data ? JSON.parse(item.item_data) : item;
+            return raw?.slot === 'shield' && raw?.rogueOffhand !== true;
+        } catch {
+            return false;
+        }
+    });
+}
+
+async function recordShieldlessWin(db, char, equippedItems) {
+    if (!char?.id) return;
+    if (hasShieldEquipped(equippedItems)) return;
+    await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+}
+
+function hasSlotEquipped(items, slot) {
+    return (items || []).some(item => {
+        try {
+            const raw = typeof item?.item_data === 'string' ? JSON.parse(item.item_data) : item;
+            return raw?.slot === slot;
+        } catch {
+            return false;
+        }
+    });
+}
+
+async function recordEquipmentlessWins(db, char, equippedItems) {
+    if (!char?.id) return;
+    const items = equippedItems || [];
+    if (!hasShieldEquipped(items)) await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'weapon')) await dbRun(db, 'UPDATE characters SET wins_without_weapon = wins_without_weapon + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'helmet')) await dbRun(db, 'UPDATE characters SET wins_without_helmet = wins_without_helmet + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'armor')) await dbRun(db, 'UPDATE characters SET wins_without_armor = wins_without_armor + 1 WHERE id=?', [char.id]);
+    if (!hasSlotEquipped(items, 'boots')) await dbRun(db, 'UPDATE characters SET wins_without_boots = wins_without_boots + 1 WHERE id=?', [char.id]);
+    const essentialSlots = ['weapon', 'helmet', 'armor', 'boots', 'shield'];
+    if (essentialSlots.every(s => !hasSlotEquipped(items, s))) {
+        await dbRun(db, 'UPDATE characters SET wins_without_equipment = wins_without_equipment + 1 WHERE id=?', [char.id]);
+    }
+}
+
+async function recordDamageStyleWin(db, charId, elementalDamageTotal) {
+    if (!charId) return;
+    if ((elementalDamageTotal || 0) > 0) {
+        await dbRun(db, 'UPDATE characters SET elemental_kills = elemental_kills + 1 WHERE id=?', [charId]);
+    } else {
+        await dbRun(db, 'UPDATE characters SET physical_only_wins = physical_only_wins + 1 WHERE id=?', [charId]);
+    }
+}
+
+async function listUserCharacters(db, userId) {
+    return dbAll(db, `SELECT id, user_id, name, class, level, xp, gold, gems, wins, losses, location, current_map
+        FROM characters WHERE user_id = ? ORDER BY id ASC`, [userId]);
+}
+
+async function ensureActiveCharacter(db, userId, preferredCharacterId = null) {
+    const user = await dbGet(db, 'SELECT active_character_id FROM users WHERE id = ?', [userId]);
+    let activeCharacterId = preferredCharacterId || user?.active_character_id || null;
+
+    if (activeCharacterId) {
+        const existing = await dbGet(db, 'SELECT id FROM characters WHERE id = ? AND user_id = ?', [activeCharacterId, userId]);
+        if (existing) {
+            if (user?.active_character_id !== activeCharacterId) {
+                await dbRun(db, 'UPDATE users SET active_character_id = ? WHERE id = ?', [activeCharacterId, userId]);
+            }
+            return activeCharacterId;
+        }
+    }
+
+    const fallback = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? ORDER BY id ASC LIMIT 1', [userId]);
+    if (!fallback) {
+        await dbRun(db, 'UPDATE users SET active_character_id = NULL WHERE id = ?', [userId]);
+        return null;
+    }
+
+    await dbRun(db, 'UPDATE users SET active_character_id = ? WHERE id = ?', [fallback.id, userId]);
+    return fallback.id;
+}
+
+async function getCurrentCharacter(db, userId, fields = '*') {
+    const activeCharacterId = await ensureActiveCharacter(db, userId);
+    if (!activeCharacterId) return null;
+    return dbGet(db, `SELECT ${fields} FROM characters WHERE id = ? AND user_id = ?`, [activeCharacterId, userId]);
+}
+
+// ── MP Regen ──────────────────────────────────────────────────────────────
+async function applyMpRegen(db, characterId) {
+    const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [characterId]);
+    if (!char) return;
+    const now = Math.floor(Date.now() / 1000);
+    const currentHourStart = Math.floor(now / 3600) * 3600;
+    const lastRegen = char.mp_last_regen_at || 0;
+    const lastRegenHour = Math.floor(lastRegen / 3600) * 3600;
+    if (currentHourStart <= lastRegenHour) return;
+    const hoursElapsed = Math.max(1, Math.floor((currentHourStart - lastRegenHour) / 3600));
+    const activePrem = getActivePremium(char);
+    const regenPerHour = hasPremium(activePrem, 'arcane_reservoir') ? (MP_REGEN_AMOUNT * 2) : MP_REGEN_AMOUNT;
+    const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
+    const currentMp = char.mission_points ?? 0;
+
+    // If MP max was reduced (or premium expired), old DB values can exceed the new cap.
+    // Clamp once here to self-heal the stored value.
+    if (currentMp > mpMax) {
+        await dbRun(
+            db,
+            'UPDATE characters SET mission_points=?, mp_last_regen_at=? WHERE id=?',
+            [mpMax, currentHourStart, characterId]
+        );
+        return;
+    }
+
+    if (currentMp >= mpMax) {
+        await dbRun(db, 'UPDATE characters SET mp_last_regen_at=? WHERE id=?', [currentHourStart, characterId]);
+        return;
+    }
+    const gained = Math.min(regenPerHour * hoursElapsed, mpMax - currentMp);
+    await dbRun(db, 'UPDATE characters SET mission_points=?, mp_last_regen_at=? WHERE id=?', [currentMp + gained, currentHourStart, characterId]);
+}
+
+function getActiveSkills(char) {
+    if (!char.active_skills) return {};
+    try {
+        const skills = JSON.parse(char.active_skills);
+        const now = Math.floor(Date.now() / 1000);
+        const active = {};
+        for (const [id, expiresAt] of Object.entries(skills)) {
+            if (expiresAt > now) active[id] = expiresAt;
+        }
+        return active;
+    } catch { return {}; }
+}
+function hasSkill(activeSkills, skillId) { return !!activeSkills[skillId]; }
+function hasClassModifier(fighter, modifierId) { if (!fighter) return null; return (Array.isArray(fighter.skillMods) ? fighter.skillMods : []).find(m => m.id === modifierId) || null; }
+function getActiveCombatEffect(fighter, effectId) { if (!fighter) return null; return (Array.isArray(fighter.skillEffects) ? fighter.skillEffects : []).find(e => e.id === effectId) || null; }
+function mergeActiveSkills(baseSkills, skillEffects) {
+    const legacySkillIds = new Set();
+    for (const skills of Object.values(CLASS_SKILLS)) {
+        for (const s of skills) legacySkillIds.add(s.id);
+    }
+    const result = { ...(baseSkills || {}) };
+    for (const eff of (skillEffects || [])) {
+        if (eff.id && !legacySkillIds.has(eff.id)) result[eff.id] = true;
+    }
+    return result;
+}
+function skillPassiveBonus(baseValue, passiveValue) {
+    if (!passiveValue) return 0;
+    if (passiveValue > -1 && passiveValue < 1) return Math.floor(baseValue * passiveValue);
+    return Math.floor(passiveValue);
+}
+
+// ── HP Regen ──────────────────────────────────────────────────────────────
+async function applyHpRegen(db, characterId) {
+    const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [characterId]);
+    if (!char) return;
+    const now = Math.floor(Date.now() / 1000);
+    const hoursElapsed = Math.floor((now - (char.last_regen_at || 0)) / HP_REGEN_INTERVAL);
+    if (hoursElapsed < 1) return;
+    const equippedArray = await getEquippedItemsArray(db, characterId);
+    const trueHpMax = calcHpMax(char, equippedArray);
+    const currentHp = char.hp_current ?? trueHpMax;
+    if (currentHp >= trueHpMax) {
+        await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, characterId]);
+        return;
+    }
+    const regenAmount = Math.floor(trueHpMax * HP_REGEN_RATE * hoursElapsed);
+    const newHp = Math.min(trueHpMax, currentHp + regenAmount);
+    await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [newHp, now, characterId]);
+}
+
+function calcHpMax(char, equippedItems) {
+    let base = 50 + ((char.vitality || 10) * 25) + ((char.defense || 0) * 2);
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    if (setBonuses.hp_max) base += setBonuses.hp_max;
+    if (setBonuses.vitality) base += setBonuses.vitality * 25;
+    if (setBonuses.defense) base += setBonuses.defense * 2;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.hp_max) base += Number(data.stats.hp_max || 0);
+            if (data?.stats?.defense) base += Number(data.stats.defense || 0) * 2;
+            if (data?.stats?.vitality) base += Number(data.stats.vitality || 0) * 25;
+        } catch {}
+    }
+    return base;
+}
+
+function calcBaseDamage(char, equippedItems) {
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    let itemStr = 0;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.strength) itemStr += Number(data.stats.strength || 0);
+            if (data?.wp_stats?.strength) itemStr += Number(data.wp_stats.strength || 0);
+        } catch {}
+    }
+    const totalStrength = (char.strength || 1) + (setBonuses.strength || 0) + itemStr;
+    let dmgMin = Math.floor(totalStrength * 0.5);
+    let dmgMax = dmgMin + 4;
+    if (setBonuses.dmg_min) dmgMin += setBonuses.dmg_min;
+    if (setBonuses.dmg_max) dmgMax += setBonuses.dmg_max;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.dmg_min) dmgMin += data.stats.dmg_min;
+            if (data?.stats?.dmg_max) dmgMax += data.stats.dmg_max;
+            if (data?.wp_stats?.dmg_min) dmgMin += data.wp_stats.dmg_min;
+            if (data?.wp_stats?.dmg_max) dmgMax += data.wp_stats.dmg_max;
+        } catch {}
+    }
+    return { dmgMin, dmgMax };
+}
+
+// ── Armor & Elemental helpers ─────────────────────────────────────────────
+function calcArmorValue(char, equippedItems) {
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    let itemDef = 0;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.defense) itemDef += Number(data.stats.defense || 0);
+        } catch {}
+    }
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 4);
+    if (setBonuses.armor) armor += setBonuses.armor;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.armor) armor += data.stats.armor;
+            if (data?.wp_stats?.armor) armor += Number(data.wp_stats.armor);
+        } catch {}
+    }
+    return armor;
+}
+
+function calcElemDmg(equippedItems) {
+    const totals = { pyro:0, water:0, wind:0, electro:0 };
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            const s = data?.stats || {};
+            for (const elem of ['pyro','water','wind','electro']) {
+                const k = elem + '_dmg';
+                if (s[k]) totals[elem] += Number(s[k]);
+                if (data?.wp_stats?.[k]) totals[elem] += Number(data.wp_stats[k]);
+            }
+        } catch {}
+    }
+    return totals;
+}
+
+function calcElemResist(char, equippedItems) {
+    const resist = { pyro:0, water:0, wind:0, electro:0 };
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    for (const elem of ELEMENTS) {
+        resist[elem] += setBonuses[`${elem}_resist`] || 0;
+    }
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (!data?.stats && !data?.wp_stats) continue;
+            for (const elem of ELEMENTS) {
+                if (data.stats?.[`${elem}_resist`]) resist[elem] += data.stats[`${elem}_resist`];
+                if (data.wp_stats?.[`${elem}_resist`]) resist[elem] += data.wp_stats[`${elem}_resist`];
+            }
+        } catch {}
+    }
+    return resist;
+}
+
+function getEquippedStatTotal(equippedItems, statName) {
+    let total = 0;
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.stats?.[statName]) total += Number(data.stats[statName]);
+            if (data?.wp_stats?.[statName]) total += Number(data.wp_stats[statName]);
+        } catch {}
+    }
+    return total;
+}
+
+function getEquippedSetCounts(equippedItems) {
+    const counts = {};
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (!data?.setId) continue;
+            counts[data.setId] = (counts[data.setId] || 0) + 1;
+        } catch {}
+    }
+    return counts;
+}
+
+function getEquippedSetBonuses(equippedItems) {
+    const counts = getEquippedSetCounts(equippedItems);
+    const total = {};
+    for (const [setId, count] of Object.entries(counts)) {
+        const def = CRAFTING_SETS[setId];
+        if (!def) continue;
+        if (count >= 2 && def.bonus3) {
+            for (const [key, value] of Object.entries(def.bonus3)) {
+                if (key === 'desc' || typeof value !== 'number') continue;
+                total[key] = (total[key] || 0) + value;
+            }
+        }
+        if (count >= 5 && def.bonus5) {
+            for (const [key, value] of Object.entries(def.bonus5)) {
+                if (key === 'desc' || typeof value !== 'number') continue;
+                total[key] = (total[key] || 0) + value;
+            }
+        }
+    }
+    return total;
+}
+
+function getEquippedWeaponData(equippedItems) {
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.slot === 'weapon') return data;
+        } catch {}
+    }
+    return null;
+}
+
+// ── Magic Shield & Elemental Damage Functions ─────────────────────────────────
+function calculateMagicShield(attacker, defender) {
+    const defenderMagic = defender.magic || 0;
+    const attackerMagic = attacker.magic || 0;
+    
+    // Warriors and rogues cannot create force fields
+    if (defender.class === 'warrior' || defender.class === 'rogue') {
+        return { active: false, value: 0, remaining: 0 };
+    }
+
+    // Shield created from magic advantage over opponent's magic.
+    // Special rule: Paladins also generate a baseline force field from defense,
+    // so their shield can still activate vs high-magic opponents.
+    const magicAdvantage = Math.max(0, defenderMagic - attackerMagic);
+    const magicShield = Math.floor(magicAdvantage / 4);
+    const paladinShield = defender.class === 'paladin' ? Math.floor((defender.defense || 0) / 4) : 0;
+    const shieldValue = magicShield + paladinShield;
+
+    if (shieldValue > 0) {
+        return { active: true, value: shieldValue, remaining: shieldValue };
+    }
+
+    return { active: false, value: 0, remaining: 0 };
+}
+
+function applyMagicDamageModifiers(attacker, defender) {
+    let damageBonus = 0;
+    let resistance = 0;
+    
+    // Magic adds bonus damage. For mages, that bonus is applied to elemental damage later.
+    if (attacker.magic) {
+        damageBonus = Math.floor(attacker.magic * 0.1);
+    }
+    
+    // Magic reduces damage taken
+    if (defender.magic) {
+        resistance = Math.floor(defender.magic * 0.05); // 5% of magic as damage reduction
+    }
+    
+    return { damageBonus, resistance };
+}
+function getEffectiveMagic(attacker) {
+    const base = attacker.magic || 0;
+    const scale = hasClassModifier(attacker, 'magic_dmg_scale');
+    return scale ? Math.floor(base * (1 + scale.value)) : base;
+}
+
+function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalty, attackerShield, defenderShield) {
+    const hit = HIT_ZONES[atkZone] || HIT_ZONES.chest;
+    const blk = BLOCK_ZONES[blkZone] || BLOCK_ZONES.cross_guard;
+    const atkSkills = attacker.activeSkills || {};
+    const defSkills = defender.activeSkills || {};
+    const ignoreDefenderZones = !!attacker.ignoreDefenderZones;
+
+    let rogueWeaponPenalty = 1.0;
+    let offHandDmgPct = 0;
+    if (attacker.class === 'rogue') {
+        const dualWield = hasClassModifier(attacker, 'dual_wield_unlock');
+        const dualWieldDmg = hasClassModifier(attacker, 'dual_wield_dmg_pct');
+        if (dualWield) {
+            offHandDmgPct = dualWieldDmg ? dualWieldDmg.off_hand_dmg_pct : dualWield.off_hand_dmg_pct;
+        } else {
+            const weapon = attacker.weapon || null;
+            const isDagger = weapon && (weapon.name?.toLowerCase().includes('dagger') || weapon.type === 'dagger' || weapon.weaponType === 'dagger');
+            if (!isDagger && weapon) rogueWeaponPenalty = 0.60;
+        }
+    }
+    
+    let physicalDamagePenalty = 1.0;
+    if (attacker.class === 'mage') physicalDamagePenalty = 0.40;
+
+    const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
+    const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
+    const zoneAdjustedHitStat = totalHitStat * hit.hitChance;
+    let atkHitChance = Math.max(0, Math.min(1.0, (zoneAdjustedHitStat - defAgi + 100) / 100));
+    if (atkPenalty) atkHitChance = Math.max(0, atkHitChance * 0.85);
+    if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
+    if (ignoreDefenderZones) atkHitChance = 1.0;
+    // ── Round-start effects ────────────────────────────────────────────────
+    // Round-start healing effects
+    if (hasSkill(atkSkills, 'radiance') && roundNum >= 1) {
+        const radEff = getActiveCombatEffect(attacker, 'radiance');
+        const healPct = radEff?.heal_pct || 0.04;
+        const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
+        attacker._radianceHeal = (attacker._radianceHeal || 0) + healAmt;
+    }
+    if (hasSkill(atkSkills, 'divine_light') && roundNum >= 1) {
+        const dlEff = getActiveCombatEffect(attacker, 'divine_light');
+        const healPct = dlEff?.heal_pct || 0.06;
+        const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
+        attacker._divineLightHeal = (attacker._divineLightHeal || 0) + healAmt;
+    }
+    if (hasSkill(atkSkills, 'phoenix_soul') && roundNum >= 1) {
+        const psEff = getActiveCombatEffect(attacker, 'phoenix_soul');
+        const healPct = psEff?.heal_pct || 0.05;
+        const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
+        attacker._phoenixSoulHeal = (attacker._phoenixSoulHeal || 0) + healAmt;
+    }
+    // holy_regen: per-round heal (paladin)
+    if (hasSkill(atkSkills, 'holy_regen') && roundNum >= 1) {
+        const hrEff = getActiveCombatEffect(attacker, 'holy_regen');
+        const healPct = hrEff?.heal_pct_per_round || 0.12;
+        const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
+        attacker._holyRegenHeal = (attacker._holyRegenHeal || 0) + healAmt;
+    }
+    // battle_start_heal: one-time heal at start of battle
+    if (roundNum === 1 && hasSkill(atkSkills, 'battle_start_heal')) {
+        const bshEff = getActiveCombatEffect(attacker, 'battle_start_heal');
+        const healPct = bshEff?.heal_pct || 0.15;
+        const bshAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
+        attacker._battleStartHeal = (attacker._battleStartHeal || 0) + bshAmt;
+    }
+    // burn_dot tick: apply stored burn damage to both fighters at round start
+    let attackerBurnDmg = 0;
+    if (roundNum >= 2 && attacker._burnDotDmg && attacker._burnDotDmg > 0) {
+        attackerBurnDmg = Math.max(1, attacker._burnDotDmg);
+        attacker._burnDotDmg = 0;
+    }
+    let defenderBurnDmg = 0;
+    if (roundNum >= 2 && defender._burnDotDmg && defender._burnDotDmg > 0) {
+        defenderBurnDmg = Math.max(1, defender._burnDotDmg);
+        defender._burnDotDmg = 0;
+    }
+
+    // holy_fire_amplify: apply to pyro/holy elem damage
+    let holyFireMult = 1;
+    const hfaMod = hasClassModifier(attacker, 'holy_fire_amplify');
+    if (hfaMod) holyFireMult = 1 + (hfaMod.bonus || 0);
+    // darkness_debuff: enemy hit debuff
+    if (hasSkill(defSkills, 'darkness_debuff')) {
+        const dd = getActiveCombatEffect(defender, 'darkness_debuff');
+        const penalty = dd?.enemy_hit_debuff || 0.20;
+        atkHitChance = Math.max(0, atkHitChance * (1 - penalty));
+    }
+
+    const atkAgi = attacker.agility || 0;
+    const agiDiff = Math.max(0, defAgi - atkAgi);
+    let dodgeChance = Math.min(0.10, agiDiff / 200);
+    if (hasSkill(defSkills, 'shadow_step')) dodgeChance = Math.min(0.999, dodgeChance + 0.40);
+    if (hasSkill(defSkills, 'magic_circle')) dodgeChance = Math.min(0.999, dodgeChance + 0.20);
+    if (ignoreDefenderZones) dodgeChance = 0;
+    // smoke_bomb: rounds 1-3 enemy miss chance
+    if (hasSkill(defSkills, 'smoke_bomb') && roundNum >= 1 && roundNum <= 3) {
+        dodgeChance = Math.min(0.999, dodgeChance + 0.40);
+    }
+    // chill_debuff: hit penalty (tracked on defender across rounds)
+    if (hasSkill(defSkills, 'chill_debuff')) {
+        if (!defender._chillRounds) defender._chillRounds = 0;
+        defender._chillRounds++;
+        const chillEff = getActiveCombatEffect(defender, 'chill_debuff');
+        const chillDuration = chillEff?.duration_rounds || 2;
+        if (defender._chillRounds <= chillDuration) {
+            const penalty = chillEff?.hit_penalty || 0.20;
+            atkHitChance = Math.max(0, atkHitChance * (1 - penalty));
+        }
+    }
+    // shadow_step_mage: teleport first hit (consumed on use)
+    let shadowStepMageActive = false;
+    if (hasSkill(defSkills, 'shadow_step_mage') && !defender._shadowStepMageUsed) {
+        if (roundNum === 1) {
+            shadowStepMageActive = true;
+            defender._shadowStepMageUsed = true;
+        }
+    }
+
+    let isBackstab = false;
+    if (attacker.class === 'rogue') {
+        const bsDiff = Math.max(0, (attacker.agility || 0) - (defender.agility || 0));
+        isBackstab = Math.random() < Math.min(0.20, 0.05 + bsDiff * 0.001);
+    }
+    // Skill-based backstab: round 1, +80% dmg, pierce block
+    const backstabSkill = hasSkill(atkSkills, 'backstab') ? getActiveCombatEffect(attacker, 'backstab') : null;
+    if (backstabSkill && roundNum === 1) isBackstab = true;
+
+    let forceMiss = Math.random() < dodgeChance || shadowStepMageActive;
+
+    let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
+    if (attacker.dmg_bonus) atkBonusDmg *= (1 + attacker.dmg_bonus);
+    if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
+    if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
+    if (hasSkill(atkSkills, 'reckless_swing')) atkBonusDmg *= 1.35;
+    // execute: bonus vs low HP defender
+    if (hasSkill(atkSkills, 'execute')) {
+        const exEff = getActiveCombatEffect(attacker, 'execute');
+        const exThreshold = exEff?.hp_threshold || 0.30;
+        if (defender.hp > 0 && defender.hpMax > 0 && (defender.hp / defender.hpMax) < exThreshold) {
+            const exBonus = exEff?.dmg_bonus || 1.50;
+            atkBonusDmg *= (1 + exBonus);
+        }
+    }
+    // crusader_oath: bonus when defender HP < 40%
+    if (hasSkill(atkSkills, 'crusader_oath')) {
+        if (defender.hp > 0 && defender.hpMax > 0 && (defender.hp / defender.hpMax) < 0.40) {
+            atkBonusDmg *= 1.50;
+        }
+    }
+    // last_stand: bonus when attacker HP < 25% (dmg + block)
+    if (hasSkill(atkSkills, 'last_stand')) {
+        if (attacker.hp > 0 && attacker.hpMax > 0 && (attacker.hp / attacker.hpMax) < 0.25) {
+            atkBonusDmg *= 1.50;
+        }
+    }
+    // frenzy_stacks: per-stack 3% dmg
+    if (hasSkill(atkSkills, 'frenzy_stacks')) {
+        const stacks = Math.min(attacker._frenzyStacks || 0, 5);
+        if (stacks > 0) atkBonusDmg *= (1 + stacks * 0.03);
+    }
+    // momentum: 8% dmg per round cumulative
+    if (hasSkill(atkSkills, 'momentum')) {
+        const mBonus = 1 + (roundNum - 1) * 0.08;
+        atkBonusDmg *= mBonus;
+    }
+    // gladiator_rush: round 1 +100% dmg, pierce block
+    const gladRush = hasSkill(atkSkills, 'gladiator_rush') && roundNum === 1;
+    if (gladRush) atkBonusDmg *= 2.0;
+    // skill backstab: round 1 +80% dmg, pierce block
+    const skillBackstab = backstabSkill && roundNum === 1;
+    if (skillBackstab) {
+        const bsBonus = backstabSkill.dmg_bonus || 0.80;
+        atkBonusDmg *= (1 + bsBonus);
+    }
+
+    let rageActive = false;
+    let holyStrikeBurst = false;
+
+    if (attacker.class === 'warrior' && attacker.rageReady) {
+        rageActive = true;
+        attacker.rageReady = false;
+        attacker.rageHits = 0;
+        atkHitChance = Math.min(1.0, atkHitChance * 1.5);
+    }
+
+    // Paladin Holy Strike "burst": when your force field shatters, your next hit gains 2× hit chance
+    // and ignores blocks (but does not become a guaranteed hit).
+    if (attacker.class === 'paladin' && attacker.holyStrikeReady && hasSkill(atkSkills, 'holy_strike')) {
+        holyStrikeBurst = true;
+        attacker.holyStrikeReady = false;
+        atkHitChance = Math.min(1.0, atkHitChance * 2.0);
+    }
+
+    if (!ignoreDefenderZones && !rageActive && !forceMiss && (blk.special === 'attacker_miss_20') && Math.random() < 0.20) forceMiss = true;
+
+    // auto_block_first_hit / sacred_bastion: consume on use
+    let autoBlocked = false;
+    if (hasSkill(defSkills, 'auto_block_first_hit') && !defender._autoBlockUsed) {
+        defender._autoBlockUsed = true;
+        autoBlocked = true;
+    } else if (hasSkill(defSkills, 'sacred_bastion') && (defender._sacredBastionBlocks || 2) > 0) {
+        if (!defender._sacredBastionBlocks) defender._sacredBastionBlocks = 2;
+        defender._sacredBastionBlocks--;
+        autoBlocked = true;
+    }
+
+    let divineNegate = false;
+    if (!forceMiss && hasSkill(defSkills, 'divine_shield') && Math.random() < 0.50) divineNegate = true;
+
+    const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
+    const autoBlockedHit = autoBlocked && atkHit;
+    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
+
+    const chargeHolyStrikeFromAbsorb = (absorbedAmount) => {
+        if (absorbedAmount <= 0) return;
+        if (defender.class !== 'paladin') return;
+        if (!hasSkill(defSkills, 'holy_strike')) return;
+        defender.holyAbsorbHits = (defender.holyAbsorbHits || 0) + 1;
+        defender.holyAbsorbedTotal = (defender.holyAbsorbedTotal || 0) + absorbedAmount;
+        if (defender.holyAbsorbHits >= 3) {
+            defender.holyEmpowerNext = true;
+            defender.holyAbsorbHits = 0;
+        }
+    };
+
+    const consumeHolyStrikeEmpowerment = () => {
+        if (attacker.class !== 'paladin') return 0;
+        if (!hasSkill(atkSkills, 'holy_strike')) return 0;
+        if (!attacker.holyEmpowerNext) return 0;
+        const absorbedTotal = Math.max(0, Number(attacker.holyAbsorbedTotal || 0));
+        const bonus = Math.max(0, Math.floor(absorbedTotal * 0.20));
+        attacker.holyEmpowerNext = false;
+        attacker.holyAbsorbedTotal = 0;
+        return bonus;
+    };
+
+    if (!atkHit) {
+        if (divineNegate) {
+            logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
+        } else if (forceMiss && dodgeChance > 0.001) {
+            logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
+        } else {
+            const atkDeficit = Math.max(0, defAgi - totalHitStat);
+            const glanceChance = Math.min(0.85, Math.max(0.05, 0.20 + atkHitChance * atkHitChance - Math.max(0, atkDeficit - 100) / 6000));
+            if (Math.random() >= glanceChance) {
+                logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
+                } else {
+                    // Design rule: glancing blows should be *reduced* damage, never higher than a normal hit.
+                    // Use the non-crit base (dmgMin) and then apply the glance reduction further down the pipeline.
+                    const dMin = Number(attacker.dmgMin || 0);
+                    const glanceRaw = dMin;
+                    let gPhys = Math.floor(glanceRaw * rogueWeaponPenalty);
+                    gPhys = Math.floor(gPhys * physicalDamagePenalty);
+                    gPhys = Math.floor(gPhys * hit.dmgMult * atkBonusDmg);
+                    const { damageBonus: dB, resistance: rB } = applyMagicDamageModifiers(attacker, defender);
+                    const m2e = attacker.class === 'mage';
+                    gPhys = Math.max(0, gPhys + (m2e ? 0 : dB) - rB);
+                    const eD = attacker.elem_dmg || {};
+                    const effMagic = getEffectiveMagic(attacker);
+                    const magicFlatBonus = Math.floor((effMagic || 0) * 0.0125);
+                    const magicElemMult = 1 + (effMagic || 0) / 8000;
+                    let gElem = 0;
+                    for (const elem of ELEMENTS) {
+                        let ed = (eD[elem] || 0) + magicFlatBonus;
+                        if (ed <= 0) continue;
+                        ed = Math.floor(ed * magicElemMult);
+                        if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+                        if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+                        ed = Math.floor(ed * atkBonusDmg);
+                        // holy_fire_amplify: amplify pyro/holy damage
+                        if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) {
+                            ed = Math.floor(ed * holyFireMult);
+                        }
+                        const glanceElemMin = Math.floor(ed / 2);
+                        ed = glanceElemMin + Math.floor(Math.random() * (ed - glanceElemMin + 1));
+                        if (m2e) ed += dB;
+                        const eRes = (defender.elem_resist || {})[elem] || 0;
+                        const mRes = Math.floor((defender.magic || 0) * 0.05);
+                        if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
+                            ed = Math.max(0, ed);
+                        } else {
+                            ed = Math.max(0, ed - eRes - mRes);
+                        }
+                        gElem += Math.floor(ed);
+                    }
+                    if (m2e) {
+                        const mRaw = Math.max(1, Math.floor((glanceRaw * rogueWeaponPenalty * physicalDamagePenalty * hit.dmgMult * atkBonusDmg) * 0.05));
+                        const avgR = Math.floor(ELEMENTS.reduce((s, el) => s + ((defender.elem_resist || {})[el] || 0), 0) / ELEMENTS.length);
+                        const mgR = Math.floor((defender.magic || 0) * 0.05);
+                        gElem += Math.max(0, mRaw - avgR - mgR);
+                    }
+                    let gDmg = gPhys + gElem;
+                    if (gDmg > 0 && (defender.armor || 0) > 0) {
+                        const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                        const reducedPhys = Math.max(1, gPhys - Math.min(gPhys - 1, effArmor));
+                        gDmg = reducedPhys + gElem;
+                    }
+                    gDmg = Math.max(1, gDmg);
+                    let absorbed = 0;
+                    if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && gDmg > 0) {
+                        absorbed = Math.min(defenderShield.remaining, gDmg);
+                        gDmg -= absorbed;
+                        defenderShield.remaining -= absorbed;
+                        if (defenderShield.remaining <= 0) {
+                            defenderShield.active = false;
+                            if (defender.class === 'paladin' && hasSkill(defSkills, 'holy_strike')) {
+                                defender.holyStrikeReady = true;
+                            }
+                        }
+                    }
+                    chargeHolyStrikeFromAbsorb(absorbed);
+                    // Force field regeneration handled once per turn at end of simulateRound.
+                    finalDmg = gDmg;
+                    totalElemDmg = gElem;
+                    if (absorbed > 0) {
+                        logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD absorbed ${absorbed} damage! ${Math.round(gDmg)} gets through`;
+                        if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
+                        if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
+                    } else {
+                        const bsTag = isBackstab ? ' BACKSTAB!' : '';
+                        const afterArmorPhys = Math.max(1, gDmg - gElem);
+                        logLine = `Round ${roundNum}: ${attacker.name} lands a glancing blow${bsTag} — ${Math.round(gDmg)} damage (${Math.round(afterArmorPhys)} physical + ${Math.round(gElem)} elemental)`;
+                    }
+                }
+        }
+    } else {
+        const rawCritChance = (attacker.crit_chance || 0) - (defender.crit_chance || 0);
+        const baseCritChance = Math.max(0, rawCritChance / 100);
+        const critBonus = hasSkill(atkSkills, 'expose') ? 0.15 : 0;
+        let isCrit = Math.random() < Math.min(0.99, baseCritChance + critBonus);
+        // negate_crit: 50% chance to negate crit
+        if (isCrit && hasSkill(defSkills, 'negate_crit')) {
+            const negEff = getActiveCombatEffect(defender, 'negate_crit');
+            if (Math.random() < (negEff?.chance || 0.50)) isCrit = false;
+        }
+        
+        const effMagic = getEffectiveMagic(attacker);
+        const magicFlatBonus = Math.floor((effMagic || 0) * 0.0125);
+        const magicElemMult = 1 + (effMagic || 0) / 8000;
+        
+        // ── Special use-limited attacks ──────────────────────────────────────
+        let specialAttackDmg = 0;
+        if (!attacker._usedAbilities) attacker._usedAbilities = {};
+        // death_mark: agility_mult 3x, 1 use
+        if (hasSkill(atkSkills, 'death_mark') && !attacker._usedAbilities.death_mark) {
+            const dmEff = getActiveCombatEffect(attacker, 'death_mark');
+            attacker._usedAbilities.death_mark = true;
+            const agiVal = attacker.agility || 0;
+            specialAttackDmg = Math.floor(agiVal * (dmEff?.agility_mult || 3.0));
+            if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses DEATH MARK — ${specialAttackDmg} damage`;
+        }
+        // blade_storm: dual_strike, pierce_block, 1 use
+        if (!specialAttackDmg && hasSkill(atkSkills, 'blade_storm') && !attacker._usedAbilities.blade_storm) {
+            attacker._usedAbilities.blade_storm = true;
+            const dmg = Math.max(dmgMinConfigured, dmgMaxConfigured);
+            const dualStrike = Math.floor(dmg * 2 * rogueWeaponPenalty * physicalDamagePenalty * atkBonusDmg);
+            specialAttackDmg = Math.max(1, dualStrike);
+            if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} unleashes BLADE STORM — ${specialAttackDmg} damage`;
+        }
+        // divine_judgment: defense_mult, ignore_armor, uses: 1-2
+        if (!specialAttackDmg && hasSkill(atkSkills, 'divine_judgment')) {
+            const djEff = getActiveCombatEffect(attacker, 'divine_judgment');
+            const maxUses = djEff?.uses || 1;
+            if ((attacker._usedAbilities.divineJudgment || 0) < maxUses) {
+                attacker._usedAbilities.divineJudgment = (attacker._usedAbilities.divineJudgment || 0) + 1;
+                const defMult = djEff?.defense_mult || 2.5;
+                specialAttackDmg = Math.max(1, Math.floor((attacker.defense || 0) * defMult));
+                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses DIVINE JUDGMENT — ${specialAttackDmg} damage`;
+            }
+        }
+        // holy_crusade: (magic+defense)*mult, ignore_resist, uses: 1-2
+        if (!specialAttackDmg && hasSkill(atkSkills, 'holy_crusade')) {
+            const hcEff = getActiveCombatEffect(attacker, 'holy_crusade');
+            const maxUses = hcEff?.uses || 1;
+            if ((attacker._usedAbilities.holyCrusade || 0) < maxUses) {
+                attacker._usedAbilities.holyCrusade = (attacker._usedAbilities.holyCrusade || 0) + 1;
+                const stats = hcEff?.stats_sum || ['magic', 'defense'];
+                let sum = 0;
+                for (const s of stats) sum += attacker[s] || 0;
+                specialAttackDmg = Math.max(1, Math.floor(sum * (hcEff?.multiplier || 1.8)));
+                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses HOLY CRUSADE — ${specialAttackDmg} damage`;
+            }
+        }
+        // inferno: magic_mult 2.5-3x elems, ignore resist, uses: 1-2
+        if (!specialAttackDmg && hasSkill(atkSkills, 'inferno')) {
+            const infEff = getActiveCombatEffect(attacker, 'inferno');
+            const maxUses = infEff?.uses || 1;
+            if ((attacker._usedAbilities.inferno || 0) < maxUses) {
+                attacker._usedAbilities.inferno = (attacker._usedAbilities.inferno || 0) + 1;
+                const magicMult = infEff?.magic_mult || 2.5;
+                const ignoreResist = infEff?.ignore_resist || false;
+                let totalInfDmg = 0;
+                for (const elem of ELEMENTS) {
+                    let ed = (attacker.elem_dmg || {})[elem] || 0;
+                    if (ed <= 0) continue;
+                    ed = Math.floor(ed * magicMult * magicElemMult);
+                    if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
+                    if (!ignoreResist) {
+                        const eRes = (defender.elem_resist || {})[elem] || 0;
+                        const mRes = Math.floor((defender.magic || 0) * 0.05);
+                        ed = Math.max(0, ed - eRes - mRes);
+                    }
+                    totalInfDmg += ed;
+                }
+                specialAttackDmg = Math.max(1, totalInfDmg);
+                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} casts INFERNO — ${specialAttackDmg} elemental damage`;
+            }
+        }
+        // tempest: guaranteed hit/crit, elem_mult 2-2.5x, uses: 1-2
+        if (!specialAttackDmg && hasSkill(atkSkills, 'tempest')) {
+            const tpEff = getActiveCombatEffect(attacker, 'tempest');
+            const maxUses = tpEff?.uses || 1;
+            if ((attacker._usedAbilities.tempest || 0) < maxUses) {
+                attacker._usedAbilities.tempest = (attacker._usedAbilities.tempest || 0) + 1;
+                const elemMult = tpEff?.elem_mult || 2.0;
+                let totalTpDmg = 0;
+                for (const elem of ELEMENTS) {
+                    let ed = (attacker.elem_dmg || {})[elem] || 0;
+                    if (ed <= 0) continue;
+                    ed = Math.floor(ed * elemMult * magicElemMult);
+                    if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
+                    const eRes = (defender.elem_resist || {})[elem] || 0;
+                    const mRes = Math.floor((defender.magic || 0) * 0.05);
+                    ed = Math.max(0, ed - eRes - mRes);
+                    totalTpDmg += ed;
+                }
+                specialAttackDmg = Math.max(1, totalTpDmg);
+                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} summons TEMPEST — ${specialAttackDmg} elemental damage`;
+            }
+        }
+        // blizzard: magic_mult 1.5x, split_rounds 5
+        if (!specialAttackDmg && hasSkill(atkSkills, 'blizzard')) {
+            const bzEff = getActiveCombatEffect(attacker, 'blizzard');
+            if (!attacker._blizzardActive) {
+                attacker._blizzardActive = true;
+                attacker._blizzardTotalRounds = bzEff?.split_rounds || 5;
+                attacker._blizzardRound = 0;
+            }
+            if (attacker._blizzardActive && (attacker._blizzardRound || 0) < (attacker._blizzardTotalRounds || 5)) {
+                attacker._blizzardRound = (attacker._blizzardRound || 0) + 1;
+                const magicMult = bzEff?.magic_mult || 1.5;
+                let totalBzDmg = 0;
+                for (const elem of ELEMENTS) {
+                    let ed = (attacker.elem_dmg || {})[elem] || 0;
+                    if (ed <= 0) continue;
+                    ed = Math.floor(ed * magicMult * magicElemMult);
+                    if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
+                    const eRes = (defender.elem_resist || {})[elem] || 0;
+                    const mRes = Math.floor((defender.magic || 0) * 0.05);
+                    ed = Math.max(0, ed - eRes - mRes);
+                    totalBzDmg += ed;
+                }
+                const splitDmg = Math.max(1, Math.floor(totalBzDmg / attacker._blizzardTotalRounds));
+                specialAttackDmg = splitDmg;
+                if (splitDmg > 0) logLine = `Round ${roundNum}: ${attacker.name}'s BLIZZARD hits — ${splitDmg} damage (round ${attacker._blizzardRound}/${attacker._blizzardTotalRounds})`;
+                if (attacker._blizzardRound >= attacker._blizzardTotalRounds) attacker._blizzardActive = false;
+            }
+        }
+        let specialAttackFired = specialAttackDmg > 0;
+        if (specialAttackFired) {
+            finalDmg = specialAttackDmg;
+            totalElemDmg = 0;
+        }
+
+        const dmgMinConfigured = Number(attacker.dmgMin || 0);
+        const dmgMaxConfigured = Number(attacker.dmgMax || 0);
+        const dmgCrit = Math.max(dmgMinConfigured, dmgMaxConfigured);
+        if (!specialAttackFired) {
+        rawPhysicalDmg = isCrit ? dmgCrit : dmgMinConfigured;
+        rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
+        let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
+        physicalDmg = Math.floor(physicalDmg * hit.dmgMult * atkBonusDmg);
+        
+        const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
+        const magicToElemental = attacker.class === 'mage';
+        physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
+
+        const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
+        const blockCovers = autoBlockedHit || (!ignoreDefenderZones && !holyStrikeBurst && !pierceBlock && (blk.protects.includes(atkZone) || blk.protects.includes('any')));
+        const randomBlockPen = Math.random() < 0.001;
+        const blockFails = rageActive || randomBlockPen;
+
+        const elemDmgs = attacker.elem_dmg || {};
+        for (const elem of ELEMENTS) {
+            let ed = (elemDmgs[elem] || 0) + magicFlatBonus;
+            if (ed <= 0) continue;
+            ed = Math.floor(ed * magicElemMult);
+            if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
+                const critElemMult = magicToElemental ? 1.2 : 1.1;
+                ed = Math.floor(ed * critElemMult);
+            }
+            if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
+            if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
+            ed = Math.floor(ed * atkBonusDmg);
+            // holy_fire_amplify: amplify pyro/holy damage
+            if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) {
+                ed = Math.floor(ed * holyFireMult);
+            }
+            if (magicToElemental) ed += damageBonus;
+            const elemResist = (defender.elem_resist || {})[elem] || 0;
+            const magicResist = Math.floor((defender.magic || 0) * 0.05);
+            if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
+                ed = Math.max(0, ed);
+            } else {
+                ed = Math.max(0, ed - elemResist - magicResist);
+            }
+            totalElemDmg += Math.floor(ed);
+        }
+
+        const critTag = isCrit ? ' ⚡CRIT' : '';
+
+        if (magicToElemental) {
+            const mageBaseElemRaw = Math.max(1, Math.floor((rawPhysicalDmg * hit.dmgMult * atkBonusDmg) * 0.05));
+            const avgElemResist = Math.floor(ELEMENTS.reduce((sum, elem) => sum + ((defender.elem_resist || {})[elem] || 0), 0) / ELEMENTS.length);
+            const magicResist = Math.floor((defender.magic || 0) * 0.05);
+            const mageBaseElemDmg = Math.max(0, mageBaseElemRaw - avgElemResist - magicResist);
+            totalElemDmg += mageBaseElemDmg;
+        }
+        if (blockCovers && !blockFails) {
+            logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
+            totalElemDmg = 0; 
+        } else {
+            finalDmg = physicalDmg;
+
+            if (finalDmg > 0 && (defender.armor || 0) > 0) {
+                let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
+                if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
+                const physReduction = Math.min(finalDmg - 1, effArmor);
+                finalDmg = Math.max(1, finalDmg - physReduction);
+            }
+
+            if (totalElemDmg > 0) finalDmg += totalElemDmg;
+
+            const holyEmpowerBonus = consumeHolyStrikeEmpowerment();
+            if (holyEmpowerBonus > 0) {
+                finalDmg += holyEmpowerBonus;
+            }
+            let venomfangBonus = 0;
+            if (hasSkill(atkSkills, 'venomfang')) {
+                const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
+                venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
+                finalDmg += venomfangBonus;
+            }
+
+            // plague_sovereign: poison crit bonus
+            if (venomfangBonus > 0 && isCrit && hasSkill(atkSkills, 'plague_sovereign')) {
+                const psEff = getActiveCombatEffect(attacker, 'plague_sovereign');
+                if (psEff?.poison_crit_bonus) {
+                    const extraPoison = Math.round(venomfangBonus * psEff.poison_crit_bonus);
+                    if (extraPoison > 0) { finalDmg += extraPoison; venomfangBonus += extraPoison; }
+                }
+            }
+
+            // life_drain: heal % of damage dealt
+            if (finalDmg > 0 && hasSkill(atkSkills, 'life_drain')) {
+                const ldEff = getActiveCombatEffect(attacker, 'life_drain');
+                const ldPct = ldEff?.pct || 0.10;
+                const drain = Math.max(1, Math.floor(finalDmg * ldPct));
+                attacker._lifeDrainHeal = (attacker._lifeDrainHeal || 0) + drain;
+                if (logLine) logLine += ` 💚+${drain} life drain`;
+            }
+
+            // sanctioned_strike: crit heal
+            if (isCrit && finalDmg > 0 && hasSkill(atkSkills, 'sanctioned_strike')) {
+                const ssEff = getActiveCombatEffect(attacker, 'sanctioned_strike');
+                const ssPct = ssEff?.crit_heal_pct || 0.30;
+                const critHeal = Math.max(1, Math.floor(finalDmg * ssPct));
+                attacker._sanctionedHeal = (attacker._sanctionedHeal || 0) + critHeal;
+                if (logLine) logLine += ` 💚+${critHeal} sanctified`;
+            }
+
+            // bastion_heart: block heal
+            if (blockCovers && !blockFails && finalDmg > 0 && hasSkill(defSkills, 'bastion_heart')) {
+                const bhEff = getActiveCombatEffect(defender, 'bastion_heart');
+                const bhPct = bhEff?.block_heal_pct || 0.06;
+                const blockHeal = Math.max(1, Math.floor(finalDmg * bhPct));
+                defender._bastionHeal = (defender._bastionHeal || 0) + blockHeal;
+            }
+
+            // void_curse: reduce defender elem resist for future rounds
+            if (finalDmg > 0 && hasSkill(atkSkills, 'void_curse')) {
+                const vcEff = getActiveCombatEffect(attacker, 'void_curse');
+                if (vcEff?.enemy_elem_resist_debuff) {
+                    for (const elem of ELEMENTS) {
+                        if (defender.elem_resist) {
+                            defender.elem_resist[elem] = (defender.elem_resist[elem] || 0) - vcEff.enemy_elem_resist_debuff;
+                        }
+                    }
+                }
+            }
+
+            // burn_dot: apply burning to defender (5% of damage per round, pyro element)
+            if (finalDmg > 0 && hasSkill(atkSkills, 'burn_dot')) {
+                const bdEff = getActiveCombatEffect(attacker, 'burn_dot');
+                const bdPct = bdEff?.dot_pct || 0.05;
+                let burnDmg = Math.max(1, Math.floor(finalDmg * bdPct));
+                // burn_amplify: class modifier that increases burn damage
+                if (hasClassModifier(attacker, 'burn_amplify')) {
+                    const baMod = hasClassModifier(attacker, 'burn_amplify');
+                    burnDmg = Math.floor(burnDmg * (1 + (baMod.bonus || 0)));
+                }
+                defender._burnDotDmg = (defender._burnDotDmg || 0) + burnDmg;
+            }
+
+            // void_blade: proc agility-based elemental damage
+            let voidBladeDmg = 0;
+            if (finalDmg > 0 && hasSkill(atkSkills, 'void_blade')) {
+                const vbEff = getActiveCombatEffect(attacker, 'void_blade');
+                if (vbEff && Math.random() < (vbEff.proc_chance || 0.30)) {
+                    const statVal = attacker[vbEff.bonus_from_stat || 'agility'] || 0;
+                    const rawBonus = Math.floor(statVal * (vbEff.bonus_mult || 1.50));
+                    if (rawBonus > 0) {
+                        voidBladeDmg = rawBonus;
+                        const vbElems = vbEff.elems || ['electro', 'wind'];
+                        let resistSum = 0;
+                        for (const el of vbElems) {
+                            resistSum += (defender.elem_resist || {})[el] || 0;
+                        }
+                        const avgResist = Math.floor(resistSum / Math.max(1, vbElems.length));
+                        const mRes = Math.floor((defender.magic || 0) * 0.05);
+                        voidBladeDmg = Math.max(0, voidBladeDmg - avgResist - mRes);
+                        if (voidBladeDmg > 0) {
+                            finalDmg += voidBladeDmg;
+                        }
+                    }
+                }
+            }
+
+            // lightning_arc: proc bonus electro damage
+            let lightningArcDmg = 0;
+            if (finalDmg > 0 && hasSkill(atkSkills, 'lightning_arc')) {
+                const laEff = getActiveCombatEffect(attacker, 'lightning_arc');
+                if (laEff && Math.random() < (laEff.proc_chance || 0.25)) {
+                    const elemDmg = (attacker.elem_dmg || {}).electro || 0;
+                    lightningArcDmg = Math.max(1, Math.floor((elemDmg + magicFlatBonus) * (laEff.bonus_pct || 0.75)));
+                    const eRes = (defender.elem_resist || {}).electro || 0;
+                    const mRes = Math.floor((defender.magic || 0) * 0.05);
+                    lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
+                    if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
+                }
+            }
+
+            let justAbsorbed = false;
+            let absorbedAmount = 0;
+            if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
+                absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
+                finalDmg -= absorbedAmount;
+                defenderShield.remaining -= absorbedAmount;
+                if (defenderShield.remaining <= 0) {
+                    defenderShield.active = false;
+                    if (defender.class === 'paladin' && hasSkill(defSkills, 'holy_strike')) {
+                        defender.holyStrikeReady = true;
+                    }
+                }
+                justAbsorbed = true;
+            }
+            chargeHolyStrikeFromAbsorb(absorbedAmount);
+
+            const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
+            logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
+            if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
+            if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
+            if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
+            if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
+
+            if (justAbsorbed) {
+                if (finalDmg <= 0) {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
+                } else {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
+                }
+                if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
+            }
+
+            if (justAbsorbed && defenderShield.remaining > 0) {
+                logLine += ` ${defenderShield.remaining} durability remains.`;
+            }
+
+            if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
+                healBack = Math.floor(finalDmg * 0.10);
+                logLine += ` 💚 +${healBack} heal`;
+            }
+            if (hasSkill(defSkills, 'consecrate') && finalDmg > 0) {
+                const reflect = Math.floor(finalDmg * 0.15);
+                logLine += ` 🌿 ${reflect} reflected`;
+                damageCounter += reflect;
+            }
+            // counter_attack: 40% chance to counter for 75% damage
+            if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
+                const caEff = getActiveCombatEffect(defender, 'counter_attack');
+                const caChance = caEff?.counter_chance || 0.40;
+                const caPct = caEff?.counter_dmg_pct || 0.75;
+                if (Math.random() < caChance) {
+                    const counterDmg = Math.floor(finalDmg * caPct);
+                    logLine += ` — COUNTERED for ${counterDmg}`;
+                    damageCounter += counterDmg;
+                }
+            }
+            // phantom_counter: 25% counter on dodge (when attacker missed)
+            if (!atkHit && hasSkill(defSkills, 'phantom_counter')) {
+                const pcEff = getActiveCombatEffect(defender, 'phantom_counter');
+                const pcChance = pcEff?.counter_on_dodge_pct || 0.25;
+                if (Math.random() < pcChance) {
+                    const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
+                    if (phantomDmg > 0) {
+                        logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
+                        damageCounter += phantomDmg;
+                    }
+                }
+            }
+            if (blk.special === 'next_round_hit_penalty' && !hasClassModifier(attacker, 'stun_immune')) nextAtkPenalty = true;
+            if (blk.special === 'counter_25' && Math.random() < 0.25) {
+                const counterDmg = Math.floor(finalDmg * 0.50);
+                logLine += ` — COUNTERED for ${counterDmg}`;
+                damageCounter += counterDmg;
+            }
+        }
+    }
+    } // end if (!specialAttackFired) — normal block/armor/post-dmg/absorb/log pipeline
+    // Warrior rage: track hits taken
+    if (defender.class === 'warrior' && finalDmg > 0) {
+        defender.rageHits = (defender.rageHits || 0) + 1;
+        if (defender.rageHits >= 3) defender.rageReady = true;
+    }
+
+    // Off-hand damage from dual wield
+    if (offHandDmgPct > 0 && finalDmg > 0) {
+        const offHand = Math.floor(finalDmg * offHandDmgPct);
+        if (offHand > 0) {
+            finalDmg += offHand;
+            logLine += ` (+${offHand} off-hand)`;
+        }
+    }
+
+    // Force field regenerates each turn (independent of hit/miss/block).
+    if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && defenderShield.remaining < defenderShield.value) {
+        const regen = Math.max(1, Math.floor(defenderShield.value * 0.05));
+        defenderShield.remaining = Math.min(defenderShield.value, defenderShield.remaining + regen);
+    }
+    // Apply round-start heals before returning
+    const roundStartHeal = (attacker._radianceHeal || 0) + (attacker._divineLightHeal || 0) + (attacker._phoenixSoulHeal || 0) + (attacker._holyRegenHeal || 0) + (attacker._battleStartHeal || 0);
+    if (attacker._radianceHeal) { attacker._radianceHeal = 0; }
+    if (attacker._divineLightHeal) { attacker._divineLightHeal = 0; }
+    if (attacker._phoenixSoulHeal) { attacker._phoenixSoulHeal = 0; }
+    if (attacker._holyRegenHeal) { attacker._holyRegenHeal = 0; }
+    if (attacker._battleStartHeal) { attacker._battleStartHeal = 0; }
+
+    // Post-damage heals (life_drain, sanctioned_strike, bastion_heart)
+    const postDmgHeal = (attacker._lifeDrainHeal || 0) + (attacker._sanctionedHeal || 0);
+    const postDmgHealDefender = (defender._bastionHeal || 0);
+    if (attacker._lifeDrainHeal) { attacker._lifeDrainHeal = 0; }
+    if (attacker._sanctionedHeal) { attacker._sanctionedHeal = 0; }
+    if (defender._bastionHeal) { defender._bastionHeal = 0; }
+
+    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender };
+}
+function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
+    if (options?.guaranteedHit) {
+        fighterA = {
+            ...fighterA,
+            ignoreDefenderZones: true,
+            hit_chance: 100,
+            attackZones: Array(10).fill('chest'),
+            blockZones: Array(10).fill('no_block')
+        };
+        fighterB = {
+            ...fighterB,
+            ignoreDefenderZones: true,
+            hit_chance: 100,
+            attackZones: Array(10).fill('chest'),
+            blockZones: Array(10).fill('no_block')
+        };
+    }
+    const log = [];
+    let hpA = fighterA.hp, hpB = fighterB.hp;
+    let penaltyA = false, penaltyB = false;
+    let totalDmgToA = 0, totalDmgToB = 0;
+    let totalElemDmgDealtA = 0;
+    let totalElemDmgDealtB = 0;
+    
+    // Elemental companions
+    let elemA = fighterA._elementalFighter || null;
+    let elemB = fighterB._elementalFighter || null;
+    let elemAHp = elemA ? elemA.hp : 0;
+    let elemBHp = elemB ? elemB.hp : 0;
+
+    let shieldA = calculateMagicShield(fighterB, fighterA);
+    let shieldB = calculateMagicShield(fighterA, fighterB);
+
+    log.push(`⚔️  ${fighterA.name}  vs  ${fighterB.name}`);
+    const skA = Object.keys(fighterA.baseActiveSkills || {});
+    const skB = Object.keys(fighterB.baseActiveSkills || {});
+    if (skA.length) log.push(`✨ ${fighterA.name}'s active skills: ${skA.join(', ')}`);
+    if (skB.length) log.push(`✨ ${fighterB.name}'s active skills: ${skB.join(', ')}`);
+    if (elemA) log.push(`🐉 ${fighterA.name}'s elemental spirit joins the battle!`);
+    if (elemB) log.push(`🐉 ${fighterB.name}'s elemental spirit joins the battle!`);
+    
+    if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
+    if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
+    log.push('---');
+
+    let roundEndedPrematurely = false;
+    let winnerId = null;
+    let roundsCompleted = 0;
+
+    for (let round = 1; round <= 10; round++) {
+        const atkZoneA = fighterA.attackZones[round-1] || 'chest';
+        const blkZoneA = fighterA.blockZones[round-1]  || 'cross_guard';
+        const atkZoneB = fighterB.attackZones[round-1] || 'chest';
+        const blkZoneB = fighterB.blockZones[round-1]  || 'cross_guard';
+        
+        // Elemental companion action (before main combat)
+        // Role determined by dominant stat: str > def → attack, def >= str → heal
+        let elemDmgToB = 0, elemDmgToA = 0;
+        if (elemA && elemAHp > 0) {
+            const statsA = calcElemStats(elemA);
+            const elemEl = elemA.element || 'pyro';
+            if ((statsA.def || 0) >= (statsA.str || 0)) {
+                const healAmt = Math.round(calcElemHealValue(elemA, statsA));
+                hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
+                log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
+            } else {
+                const raw = calcElemAttackValue(elemA, statsA);
+                const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
+                const mResB = Math.floor((fighterB.magic || 0) * 0.05);
+                elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
+                hpB = Math.max(0, hpB - elemDmgToB);
+                log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
+            }
+        }
+        if (elemB && elemBHp > 0) {
+            const statsB = calcElemStats(elemB);
+            const elemEl = elemB.element || 'pyro';
+            if ((statsB.def || 0) >= (statsB.str || 0)) {
+                const healAmt = Math.round(calcElemHealValue(elemB, statsB));
+                hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
+                log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
+            } else {
+                const raw = calcElemAttackValue(elemB, statsB);
+                const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
+                const mResA = Math.floor((fighterA.magic || 0) * 0.05);
+                elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
+                hpA = Math.max(0, hpA - elemDmgToA);
+                log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
+            }
+        }
+        if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
+
+        const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
+        const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+        
+        const dmgToB = resA.damageDealt + resB.damageCounter;
+        const dmgToA = resB.damageDealt + resA.damageCounter;
+        
+        totalElemDmgDealtA += resA.totalElemDmg;
+        totalElemDmgDealtB += resB.totalElemDmg;
+        
+        totalDmgToA += dmgToA + elemDmgToA;
+        totalDmgToB += dmgToB + elemDmgToB;
+        totalElemDmgDealtA += elemDmgToA;
+        totalElemDmgDealtB += elemDmgToB;
+        roundsCompleted = round;
+        
+        hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
+        hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
+        
+        // Elemental split damage (20% of dmg dealt to player goes to elemental)
+        if (elemA && elemAHp > 0 && dmgToA > 0) {
+            const splitDmg = Math.max(1, Math.floor(dmgToA * 0.2));
+            elemAHp = Math.max(0, elemAHp - splitDmg);
+            if (elemAHp <= 0) log.push(`🐉 ${elemA.name} is knocked out!`);
+        }
+        if (elemB && elemBHp > 0 && dmgToB > 0) {
+            const splitDmg = Math.max(1, Math.floor(dmgToB * 0.2));
+            elemBHp = Math.max(0, elemBHp - splitDmg);
+            if (elemBHp <= 0) log.push(`🐉 ${elemB.name} is knocked out!`);
+        }
+
+        // Apply burn_dot damage to both fighters
+        const burnToA = (resA.attackerBurnDmg || 0) + (resB.defenderBurnDmg || 0);
+        const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
+        if (burnToA > 0) {
+            hpA = Math.max(0, hpA - burnToA);
+            log.push(`🔥 ${fighterA.name} takes ${burnToA} burn damage`);
+        }
+        if (burnToB > 0) {
+            hpB = Math.max(0, hpB - burnToB);
+            log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`);
+        }
+        
+        // Apply round-start heals (radiance, divine_light, phoenix_soul, holy_regen, battle_start_heal)
+        if (resA.roundStartHeal > 0) {
+            hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
+        }
+        if (resB.roundStartHeal > 0) {
+            hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+        }
+        // Apply post-damage heals (life_drain, sanctioned_strike → attacker; bastion_heart → defender)
+        if (resA.postDmgHeal > 0) {
+            hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+        }
+        if (resA.postDmgHealDefender > 0) {
+            hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+        }
+        if (resB.postDmgHeal > 0) {
+            hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+        }
+        if (resB.postDmgHealDefender > 0) {
+            hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
+        }
+        
+        fighterA.hp = hpA; fighterB.hp = hpB;
+        
+        log.push(resA.logLine);
+        log.push(resB.logLine);
+        penaltyA = resB.nextAtkPenalty;
+        penaltyB = resA.nextAtkPenalty;
+        
+        if (hpA <= 0 || hpB <= 0) {
+            let resurrected = false;
+            for (const { fighter, hp } of [[fighterA, hpA], [fighterB, hpB]]) {
+                if (hp > 0) continue;
+                const resMod = hasClassModifier(fighter, 'resurrection');
+                if (resMod && !fighter._resurrectionUsed) {
+                    fighter._resurrectionUsed = true;
+                    const restoreHp = Math.max(1, Math.floor((fighter.hpMax || 9999) * resMod.hp_pct));
+                    if (fighter === fighterA) hpA = restoreHp;
+                    else hpB = restoreHp;
+                    log.push(`✨ ${fighter.name} is resurrected with ${restoreHp} HP!`);
+                    resurrected = true;
+                }
+                // rebirth_flame: active_combat version of resurrection (once per battle)
+                if (!resurrected) {
+                    const rfEff = getActiveCombatEffect(fighter, 'rebirth_flame');
+                    if (rfEff && !fighter._rebirthFlameUsed) {
+                        fighter._rebirthFlameUsed = true;
+                        const rfHpPct = rfEff.revive_hp_pct || 0.20;
+                        const restoreHp = Math.max(1, Math.floor((fighter.hpMax || 9999) * rfHpPct));
+                        if (fighter === fighterA) hpA = restoreHp;
+                        else hpB = restoreHp;
+                        // Apply burn_dot to the OTHER fighter
+                        const rfBurnPct = rfEff.burn_dot || 0.10;
+                        const other = fighter === fighterA ? fighterB : fighterA;
+                        const otherDmgThisRound = fighter === fighterA ? Math.max(0, dmgToA) : Math.max(0, dmgToB);
+                        other._burnDotDmg = (other._burnDotDmg || 0) + Math.max(1, Math.floor((otherDmgThisRound || 9999) * rfBurnPct));
+                        log.push(`🔥🕊️ ${fighter.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
+                        resurrected = true;
+                    }
+                }
+            }
+            if (resurrected) {
+                if (round < 10) log.push('---');
+                continue;
+            }
+            roundEndedPrematurely = true;
+            if (hpA <= 0 && hpB <= 0) {
+                if (totalDmgToB === totalDmgToA) {
+                    const tieA = hasClassModifier(fighterB, 'tie_breaker');
+                    const tieB = hasClassModifier(fighterA, 'tie_breaker');
+                    if (tieA) {
+                        log.push(`Round ${round}: Both fighters fall — but ${fighterA.name} breaks the tie!`);
+                        winnerId = fighterA.id;
+                    } else if (tieB) {
+                        log.push(`Round ${round}: Both fighters fall — but ${fighterB.name} breaks the tie!`);
+                        winnerId = fighterB.id;
+                    } else {
+                        log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`);
+                        winnerId = 0;
+                    }
+                } else {
+                    log.push(`Round ${round}: Both fighters fall simultaneously!`);
+                    winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+                }
+            } else if (hpA <= 0) {
+                log.push(`Round ${round}: ${fighterA.name} has fallen!`);
+                winnerId = fighterB.id;
+            } else {
+                log.push(`Round ${round}: ${fighterB.name} has fallen!`);
+                winnerId = fighterA.id;
+            }
+            break;
+        }
+        if (round < 10) log.push('---');
+    }
+    
+    // Handle tutorial/forced wins
+    if (forceWinnerId) {
+        if (roundEndedPrematurely) {
+            if (winnerId !== forceWinnerId) {
+                // If we need fighterA to win but fighterB won by KO
+                // This is rare in tutorial, but we handle it by "faking" fighterB's survival
+                if (forceWinnerId === fighterA.id) {
+                    hpA = Math.max(1, hpA);
+                    hpB = 0;
+                    winnerId = fighterA.id;
+                    // Replace the "fallen" line or just add one
+                    log.push(`Round ${log.length}: ${fighterB.name} has fallen!`);
+                } else {
+                    hpB = Math.max(1, hpB);
+                    hpA = 0;
+                    winnerId = fighterB.id;
+                    log.push(`Round ${log.length}: ${fighterA.name} has fallen!`);
+                }
+            }
+        } else {
+            // Winner decided by damage race
+            if (forceWinnerId === fighterA.id && totalDmgToB < totalDmgToA) {
+                // Swap or nudge damage totals
+                const originalTotalB = totalDmgToB;
+                totalDmgToB = totalDmgToA + Math.floor(Math.random() * 5) + 1;
+                // Add the extra damage to the last round or just fudge it
+            } else if (forceWinnerId === fighterB.id && totalDmgToA < totalDmgToB) {
+                totalDmgToA = totalDmgToB + Math.floor(Math.random() * 5) + 1;
+            }
+            winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        }
+    } else if (!roundEndedPrematurely) {
+        if (totalDmgToB === totalDmgToA) {
+            const tieA = hasClassModifier(fighterA, 'tie_breaker');
+            const tieB = hasClassModifier(fighterB, 'tie_breaker');
+            if (tieA) {
+                winnerId = fighterA.id;
+            } else if (tieB) {
+                winnerId = fighterB.id;
+            } else {
+                winnerId = 0;
+            }
+        } else {
+            winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+        }
+    }
+
+    log.push('---');
+    if (winnerId === 0) {
+        log.push(`After ${roundsCompleted} rounds: ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage, ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage`);
+        log.push(`Result: Draw — equal damage!`);
+    } else if (winnerId === fighterA.id) {
+        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage, ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage`);
+        log.push(`Winner: ${roundEndedPrematurely ? fighterA.name + ' wins!' : fighterA.name + ' wins by dealing more damage!'}`);
+    } else {
+        log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage, ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage`);
+        log.push(`Winner: ${roundEndedPrematurely ? fighterB.name + ' wins!' : fighterB.name + ' wins by dealing more damage!'}`);
+    }
+
+    return {
+        log,
+        winnerId,
+        hpRemainingA: Math.round(hpA),
+        hpRemainingB: Math.round(hpB),
+        totalDmgToA: Math.round(totalDmgToA),
+        totalDmgToB: Math.round(totalDmgToB),
+        totalElemDmgDealt: Math.round(totalElemDmgDealtA),
+        totalElemDmgDealtA: Math.round(totalElemDmgDealtA),
+        totalElemDmgDealtB: Math.round(totalElemDmgDealtB),
+        elementalHpA: Math.round(Math.max(0, elemAHp)),
+        elementalHpB: Math.round(Math.max(0, elemBHp))
+    };}
+
+function createTutorialBattleResult(playerFighter, npc) {
+    const playerStartHp = Math.max(1, playerFighter.hp || playerFighter.hpMax || 1);
+    const npcStartHp = Math.max(12, npc.hp || npc.hpMax || 12);
+    const opener = Math.min(
+        npcStartHp - 1,
+        Math.max(6, Math.floor((playerFighter.dmgMax || playerFighter.dmgMin || 8) * 0.75))
+    );
+    const counter = Math.min(
+        Math.max(1, playerStartHp - 1),
+        Math.max(1, Math.floor((npc.dmgMin || 4) * 0.35))
+    );
+    const finisher = Math.max(1, npcStartHp - opener);
+    const hpAfterCounter = Math.max(1, playerStartHp - counter);
+        return {
+            winnerId: playerFighter.id,
+            hpRemainingA: Math.round(hpAfterCounter),
+            hpRemainingB: 0,
+            totalDmgToA: Math.round(counter),
+            totalDmgToB: Math.round(npcStartHp),
+            totalElemDmgDealt: 0,
+            totalElemDmgDealtA: 0,
+            totalElemDmgDealtB: 0,
+            log: [
+            `🎓 Tutorial battle begins against ${npc.name}.`,
+            `${playerFighter.name} lands a clean opening hit for ${opener} damage. ${npc.name} has ${finisher} HP left.`,
+            `${npc.name} strikes back for ${counter} damage, but ${playerFighter.name} stays in control at ${hpAfterCounter} HP.`,
+            `${playerFighter.name} answers with a finishing blow for ${finisher} damage.`,
+            `✨ Tutorial victory! You win the lesson and claim your reward.`
+        ]
+    };
+}
+
+function summarizeBattleStats(fighter) {
+    if (!fighter) return null;
+    const physMin = Number(fighter.dmgMin ?? fighter.dmg_min ?? 0);
+    const physMax = Number(fighter.dmgMax ?? fighter.dmg_max ?? 0);
+    const elem = fighter.elem_dmg || {};
+    const elemTotal =
+        Number(elem.pyro || 0) +
+        Number(elem.water || 0) +
+        Number(elem.wind || 0) +
+        Number(elem.electro || 0);
+    const hpMax = Number(fighter.hpMax ?? fighter.hp_max ?? fighter.hp ?? 0);
+    return {
+        dmgMin: Math.round(physMin),
+        dmgMax: Math.round(physMax),
+        elemDmg: Math.round(elemTotal),
+        armor: Math.round(Number(fighter.armor ?? 0)),
+        magic: Math.round(Number(fighter.magic ?? 0)),
+        hp: Math.round(hpMax),
+        agility: Math.round(Number(fighter.agility ?? 0)),
+        hitChance: Math.round(Number(fighter.hit_chance ?? 0)),
+        critChance: Math.round(Number(fighter.crit_chance ?? 0)),
+    };
+}
+
+function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
+    // Base difficulty multipliers
+    const difficultyMultipliers = {
+        easy: { hpMult: 0.8, dmgMult: 0.7, agiMult: 0.7, armorMult: 0.6, elemMult: 0.5 },
+        medium: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
+        hard: { hpMult: 1.8, dmgMult: 2.5, agiMult: 1.4, armorMult: 1.5, elemMult: 1.8, magicMult: 2.5, critMult: 2.5 },
+        normal: { hpMult: 1.2, dmgMult: 1.5, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 },
+        nightmare: { hpMult: 1.0, dmgMult: 1.0, agiMult: 1.0, armorMult: 1.0, elemMult: 1.0 } // Base, will be overridden
+    };
+    
+    let mult = difficultyMultipliers[difficulty] || difficultyMultipliers.medium;
+    const isAbyss = zoneLevel >= 39;
+
+    // Add 10% downward variance (90% to 100% of calculated strength)
+    const varianceMult = 0.9 + (Math.random() * 0.1);
+
+    // For Nightmare difficulty (and all Abyss missions), scale based on player stats
+    let powerScale = 1.0;
+    if ((difficulty === 'nightmare' || isAbyss) && playerStats) {
+        // Calculate player power score
+        // (playerStats may come from buildCombatFighter(), which uses hpMax not hp_max)
+        const hpMax = Number(playerStats.hp_max ?? playerStats.hpMax ?? 100);
+        const strength = Number(playerStats.strength || 0);
+        const defense = Number(playerStats.defense || 0);
+        const agility = Number(playerStats.agility || 0);
+        const magic = Number(playerStats.magic || 0);
+        const hitChance = Number(playerStats.hit_chance ?? playerStats.hitChance ?? 0);
+        const critChance = Number(playerStats.crit_chance ?? playerStats.critChance ?? 0);
+
+        const playerPower = hpMax * 0.5 +
+                    strength * 2 + 
+                    defense * 1.5 + 
+                    agility * 1.1 + 
+                    magic * 2.5 + 
+                    hitChance * 3 + 
+                    critChance * 5; 
+        
+        // Scale NPC to be 80-110% of player power
+        powerScale = Math.max(0.6, Math.min(1.1, playerPower / 5000));
+        
+        // Base Nightmare multipliers (used as base for all Abyss missions)
+        mult = {
+            hpMult: 1.2 * powerScale,
+            dmgMult: 1.3 * powerScale,
+            agiMult: 1.1 * powerScale,
+            armorMult: 1.2 * powerScale,
+            elemMult: 1.4 * powerScale,
+            magicMult: 1.3 * powerScale,
+            critMult: 1.3 * powerScale,
+            hitMult: 1.0 // Base hit chance is usually sufficient
+        };
+
+        // Deduct for Abyss difficulty levels
+        if (isAbyss) {
+            if (difficulty === 'hard') {
+                // -20% from nightmare base
+                mult.hpMult *= 0.8;
+                mult.dmgMult *= 0.8;
+                mult.agiMult *= 0.6;
+                mult.armorMult *= 0.8;
+                mult.elemMult *= 0.8;
+                mult.magicMult *= 0.8;
+                mult.critMult *= 0.8;
+                mult.hitMult = 0.8;
+            } else if (difficulty === 'normal') {
+                // -50% from nightmare base
+                mult.hpMult *= 0.5;
+                mult.dmgMult *= 0.5;
+                mult.agiMult *= 0.4;
+                mult.armorMult *= 0.5;
+                mult.elemMult *= 0.5;
+                mult.magicMult *= 0.5;
+                mult.critMult *= 0.5;
+                mult.hitMult = 0.5;
+            }
+        }
+    }
+    
+    // NPC name configs
+    const configs = {
+        easy: { name: 'Raider' },
+        medium: { name: 'Warlord' },
+        hard: { name: 'Legion Commander' },
+        normal: { name: 'Abyss Minion' },
+        nightmare: { name: 'Abyss Horror' }
+    };
+    const cfg = configs[difficulty] || configs.hard;
+    
+    // Base stats scale with player level AND zone level
+    const effectiveLevel = playerLevel + (zoneLevel * 2);
+    
+    // Calculate base stats (scales with effective level) - reduced for easier early game
+    const baseHp = 60 + (effectiveLevel * 20);
+    const baseDmgMin = 8 + (effectiveLevel * 0.5);
+    const baseDmgMax = 16 + (effectiveLevel * 0.8);
+    const baseAgi = 8 + (effectiveLevel * 0.15);
+    const baseMagic = 6 + (effectiveLevel * 0.2);
+    const baseVitality = 8 + (effectiveLevel * 0.3);
+    const baseHitChance = 70 + (effectiveLevel * 0.2);
+    const baseCritChance = 5 + (effectiveLevel * 0.1);
+    const baseArmor = 5 + (effectiveLevel * 0.2);
+    
+    // Apply difficulty multipliers
+    const hp = Math.floor(baseHp * mult.hpMult);
+    const dmgMin = Math.floor(baseDmgMin * mult.dmgMult);
+    const dmgMax = Math.floor(baseDmgMax * mult.dmgMult);
+    const agility = Math.floor(baseAgi * mult.agiMult);
+    const magic = Math.floor(baseMagic * (mult.magicMult || mult.dmgMult));
+    const vitality = Math.floor(baseVitality * mult.hpMult);
+    const hit_chance = Math.min(85, Math.floor(baseHitChance * (mult.hitMult || 1.0)));
+    const crit_chance = Math.min(30, Math.floor(baseCritChance * (mult.critMult || mult.dmgMult)));
+    const armor = Math.floor(baseArmor * mult.armorMult);
+    
+    // Random attack/block zones
+    const allAttackZones = ['head', 'throat', 'chest', 'heart', 'solar_plexus', 'stomach', 'left_arm', 'right_arm', 'left_leg', 'right_leg'];
+    const attackZones = [];
+    for (let i = 0; i < 10; i++) {
+        attackZones.push(allAttackZones[Math.floor(Math.random() * allAttackZones.length)]);
+    }
+    
+    const allBlockZones = ['high_guard', 'cross_guard', 'mid_guard', 'left_guard', 'right_guard', 'full_turtle', 'weave_left', 'weave_right', 'counter_stance', 'no_block'];
+    const blockZones = [];
+    for (let i = 0; i < 10; i++) {
+        blockZones.push(allBlockZones[Math.floor(Math.random() * allBlockZones.length)]);
+    }
+    
+    // Elemental damage/resist scaling
+    const elemTypes = ['pyro', 'water', 'wind', 'electro'];
+    const elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
+    const elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
+    
+    // Higher chance for elemental damage in harder difficulties and higher zones
+    const elemChance = Math.min(0.6, 0.1 + (effectiveLevel / 200) + (mult.elemMult * 0.2));
+    
+    if (Math.random() < elemChance) {
+        const numElem = difficulty === 'hard' || difficulty === 'nightmare' ? 3 : (difficulty === 'medium' ? 2 : 1);
+        const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < numElem; i++) {
+            const elem = shuffled[i];
+            const elemBase = 10 + (effectiveLevel * 0.5);
+            const dmg = Math.floor(elemBase * mult.elemMult);
+            elem_dmg[elem] = Math.max(1, dmg);
+        }
+    }
+    
+    // Elemental resistances
+    const resistChance = Math.min(0.6, 0.1 + (effectiveLevel / 200));
+    if (Math.random() < resistChance) {
+        const numResist = difficulty === 'hard' || difficulty === 'nightmare' ? 3 : (difficulty === 'medium' ? 2 : 1);
+        const shuffled = [...elemTypes].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < numResist; i++) {
+            const elem = shuffled[i];
+            const resistBase = 10 + (effectiveLevel * 0.4);
+            const resist = Math.floor(resistBase * mult.armorMult);
+            elem_resist[elem] = Math.max(1, resist);
+        }
+    }
+    
+    // Zone prefix for name
+    let zonePrefix = '';
+    if (zoneLevel === 1) zonePrefix = 'Forest';
+    else if (zoneLevel === 5) zonePrefix = 'Swamp';
+    else if (zoneLevel === 10) zonePrefix = 'Mountain';
+    else if (zoneLevel === 20) zonePrefix = 'Ruins';
+    else if (zoneLevel === 35) zonePrefix = 'Dark';
+    else if (zoneLevel >= 39 && zoneLevel < 50) zonePrefix = 'Shadowfen';
+    else if (zoneLevel >= 50 && zoneLevel < 60) zonePrefix = 'Crimson';
+    else if (zoneLevel >= 60 && zoneLevel < 70) zonePrefix = 'Void';
+    else if (zoneLevel >= 70 && zoneLevel < 80) zonePrefix = 'Citadel';
+    else if (zoneLevel >= 80) zonePrefix = 'Eternal';
+    
+    const npc = {
+        id: -1, 
+        name: zonePrefix ? `${zonePrefix} ${cfg.name}` : cfg.name,
+        hp: hp,
+        hpMax: hp,
+        dmgMin: dmgMin,
+        dmgMax: dmgMax,
+        agility: agility,
+        magic: magic,
+        vitality: vitality,
+        hit_chance: hit_chance,
+        crit_chance: crit_chance,
+        armor: armor,
+        elem_dmg: elem_dmg,
+        elem_resist: elem_resist,
+        attackZones: attackZones,
+        blockZones: blockZones,
+        activeSkills: {},
+    };
+
+    // Special Scaling for Nightmare or Abyss Missions
+    // Scale directly off the current character's computed combat stats.
+    if ((difficulty === 'nightmare' || isAbyss) && playerStats) {
+        const pHp = Number(playerStats.hpMax ?? playerStats.hp_max ?? playerStats.hp ?? 100);
+        const pDmgMin = Number(playerStats.dmgMin ?? playerStats.dmg_min ?? 0);
+        const pDmgMax = Number(playerStats.dmgMax ?? playerStats.dmg_max ?? pDmgMin);
+        const pAgi = Number(playerStats.agility || 0);
+        const pMagic = Number(playerStats.magic || 0);
+        const pArmor = Number(playerStats.armor || 0);
+        const pHit = Number(playerStats.hit_chance ?? playerStats.hitChance ?? 0);
+        const pCrit = Number(playerStats.crit_chance ?? playerStats.critChance ?? 0);
+        const pElemDmg = playerStats.elem_dmg || {};
+        const pElemRes = playerStats.elem_resist || {};
+
+        // Per-difficulty stat target (multiplier against player's stat)
+        // Base profile for shadowfen (zoneTier 0), scales up for deeper zones
+        const zoneTier = Math.floor(Math.max(0, zoneLevel - 39) / 10);
+        const zoneScale = 1 + zoneTier * 0.10;
+        const diffProfile = ({
+            easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitMult:0.6,  critRange:[0.2,0.4] },
+            normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitMult:0.8,  critRange:[0.3,0.6] },
+            hard:       { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] },
+            nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitMult:1.0,  critRange:[0.5,1.3] },
+        })[difficulty] || { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] };
+        // Scale profile up by zone tier so deeper zones are tougher
+        if (zoneTier > 0) {
+            diffProfile.hp  = Math.min(1.00, diffProfile.hp  * zoneScale);
+            diffProfile.dmg = Math.min(1.00, diffProfile.dmg * zoneScale);
+            diffProfile.agi = Math.min(0.85, diffProfile.agi * zoneScale);
+            diffProfile.armor = Math.min(0.95, diffProfile.armor * zoneScale);
+            diffProfile.elem = Math.min(0.90, diffProfile.elem * zoneScale);
+            diffProfile.hitMult = Math.min(0.95, diffProfile.hitMult * zoneScale);
+            diffProfile.critRange = [
+                Math.min(1.0, diffProfile.critRange[0] * zoneScale),
+                Math.min(1.3, diffProfile.critRange[1] * zoneScale),
+            ];
+        }
+
+        // Random variance ±15% so no two missions feel identical
+        const r = () => 0.85 + Math.random() * 0.30;
+
+        // Deeper Abyss zones get tougher regardless of player power
+        const zoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.015);
+
+        // Blend the difficulty profile with a small powerScale bump
+        // so a very strong player still faces a tougher NPC
+        const powerBump = 1.0 + (powerScale - 0.8) * 0.15;
+
+        // Cap NPC agility copy per difficulty so high-agi builds don't make
+        // NPCs unhittable (which nerfs gold earnings regardless of class).
+        const agiRange = ({
+            easy:       { min:0.4, max:0.5 },
+            normal:     { min:0.5, max:0.6 },
+            hard:       { min:0.5, max:0.7 },
+            nightmare:  { min:0.7, max:1.0 },
+        })[difficulty] || { min:0.5, max:0.7 };
+        if (zoneTier > 0) {
+            agiRange.min = Math.min(0.7, agiRange.min + zoneTier * 0.05);
+            agiRange.max = Math.min(0.9, agiRange.max + zoneTier * 0.05);
+        }
+        diffProfile.agi = agiRange.min + Math.random() * (agiRange.max - agiRange.min);
+
+        npc.hpMax = Math.max(1, Math.floor(pHp * diffProfile.hp * r() * zoneMult * powerBump));
+        npc.hp = npc.hpMax;
+        npc.dmgMin = Math.max(1, Math.floor(pDmgMin * diffProfile.dmg * r() * zoneMult * powerBump));
+        npc.dmgMax = Math.max(npc.dmgMin + 1, Math.floor(pDmgMax * diffProfile.dmg * r() * zoneMult * powerBump));
+        npc.agility = Math.max(1, Math.floor(pAgi * diffProfile.agi * r() * zoneMult * powerBump));
+        npc.magic = Math.max(0, Math.floor(pMagic * diffProfile.agi * r() * zoneMult * powerBump));
+        npc.armor = Math.max(0, Math.floor(pArmor * diffProfile.armor * r() * zoneMult * powerBump));
+
+        // Keep hit/crit as a fraction of the player's stats so high-hit/crit builds aren't trivialized
+        npc.hit_chance = Math.max(0, Math.floor(pHit * diffProfile.hitMult * r() * zoneMult * powerBump));
+        // Crit rolls independently within a difficulty range — hard caps at player's, nightmare can exceed
+        const critRoll = diffProfile.critRange[0] + Math.random() * (diffProfile.critRange[1] - diffProfile.critRange[0]);
+        npc.crit_chance = Math.max(0, Math.floor(pCrit * critRoll));
+
+        // Elemental tuning: scale from the player's own elemental profile, but never all-zero at this tier.
+        npc.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        npc.elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        for (const el of ELEMENTS) {
+            const d = Math.max(0, Number(pElemDmg?.[el] || 0));
+            const resVal = Math.max(0, Number(pElemRes?.[el] || 0));
+            npc.elem_dmg[el] = d > 0 ? Math.max(1, Math.floor(d * diffProfile.elem * r() * zoneMult * powerBump)) : 0;
+            npc.elem_resist[el] = resVal > 0 ? Math.max(1, Math.floor(resVal * diffProfile.armor * r() * zoneMult * powerBump)) : 0;
+        }
+        const elemTotal = ELEMENTS.reduce((sum, el) => sum + (npc.elem_dmg[el] || 0), 0);
+        if (elemTotal <= 0) {
+            const pick = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
+            npc.elem_dmg[pick] = Math.max(1, Math.floor((10 + effectiveLevel * 0.5) * diffProfile.elem * r()));
+        }
+    }
+
+    return npc;
+}
+
+async function buildCombatFighter(db, char) {
+    const equippedArray = await getEquippedItemsArray(db, char.id);
+    const setBonuses = getEquippedSetBonuses(equippedArray);
+    const hpMax = calcHpMax(char, equippedArray);
+    const hpCurrent = char.hp_current ?? hpMax;
+    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
+    const charActiveSkills = getActiveSkills(char);
+    const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+    const learnedIds = learnedRows.map(r => r.skill_id);
+    const skillPassives = await computePassiveBonusesWithProgress(db, char.class, learnedIds, char.id);
+    const skillActives = await computeActiveCombatEffectsWithProgress(db, char.class, learnedIds, char.id);
+    const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedIds, char.id);
+
+    let noShieldAgiBonus = 0;
+    if (char.class === 'rogue') {
+        const hasShield = equippedArray.some(item => {
+            try {
+                const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+                return data?.slot === 'shield' && data?.rogueOffhand !== true;
+            } catch {
+                return false;
+            }
+        });
+        if (!hasShield) noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+    }
+
+    const weaponItem = equippedArray.find(item => {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            return data?.slot === 'weapon';
+        } catch { return false; }
+    });
+    let weapon = null;
+    if (weaponItem) {
+        try {
+            weapon = typeof weaponItem.item_data === 'string' ? JSON.parse(weaponItem.item_data) : weaponItem.item_data;
+        } catch {}
+    }
+
+    const elemDmg = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
+    return {
+        id: char.id,
+        name: char.name,
+        class: char.class,
+        weapon: weapon,
+        hp: hpCurrent,
+        // For battle reports we want to show potential/full HP, not current HP after the fight.
+        hpMax,
+        dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
+        dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
+        strength: (char.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(char.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
+        agility: (char.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(char.agility || 0, skillPassives.agility) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
+        magic: (char.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(char.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic'),
+        defense: (char.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(char.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense'),
+        hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
+        crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+        armor: calcArmorValue(char, equippedArray) + skillPassiveBonus(calcArmorValue(char, equippedArray), skillPassives.armor),
+        elem_dmg: {
+            pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
+            water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
+            wind: (elemDmg.wind || 0) + (skillPassives.wind_dmg || 0),
+            electro: (elemDmg.electro || 0) + (skillPassives.electro_dmg || 0),
+        },
+        elem_resist: {
+            pyro: (elemResist.pyro || 0) + (skillPassives.pyro_resist || 0),
+            water: (elemResist.water || 0) + (skillPassives.water_resist || 0),
+            wind: (elemResist.wind || 0) + (skillPassives.wind_resist || 0),
+            electro: (elemResist.electro || 0) + (skillPassives.electro_resist || 0),
+        },
+        skillEffects: skillActives,
+        skillMods,
+        baseActiveSkills: charActiveSkills,
+        activeSkills: mergeActiveSkills(charActiveSkills, skillActives),
+        attackZones: JSON.parse(char.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
+        blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+        dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
+        _elementalFighter: await (async () => {
+            const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
+            if (!er) return null;
+            const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
+            const bd = (er.defense || 5) + (er.stat_def || 0) * 2;
+            const ba = (er.agility || 5) + (er.stat_agi || 0) * 2;
+            const bm = (er.magic || 5) + (er.stat_mag || 0) * 2;
+            const bv = (er.vitality || 5) + (er.stat_vit || 0) * 2;
+            const eHp = 30 + bv * 4 + er.level * 8;
+            return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current || eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8) };
+        })(),
+    };
+}
+
+const cfgNames = {
+    easy: 'Raider',
+    medium: 'Warlord', 
+    hard: 'Legion Commander'
+};
+
+const ZONE_LEVELS = {
+    forest: 1,
+    swamp: 5,
+    mountains: 10,
+    ruins: 20,
+    dark_city: 35,
+};
+
+const OVERWORLD_TRAVEL_ROUTES = {
+    forest: { swamp: 60 },
+    swamp: { forest: 60, mountains: 90 },
+    mountains: { swamp: 90, ruins: 120 },
+    ruins: { mountains: 120, dark_city: 60 },
+    dark_city: { ruins: 60 }
+};
+
+const TRAVEL_GUARDIANS = { 
+    overworld: { 
+        swamp: { difficulty: 'medium', name: 'Bog Warden' }, 
+        mountains: { difficulty: 'hard', name: 'Frost Sentinel' }, 
+        ruins: { difficulty: 'hard', name: 'Crypt Keeper' }, 
+        dark_city: { difficulty: 'nightmare', name: 'Shadow Gatekeeper' }, 
+    }, 
+ 
+    abyss: { 
+        shadowfen: { difficulty: 'nightmare', name: 'Abyss Gatekeeper' },
+        crimson: { difficulty: 'nightmare', name: 'Crimson Gatekeeper' }, 
+        void: { difficulty: 'nightmare', name: 'Void Gatekeeper' }, 
+        citadel: { difficulty: 'nightmare', name: 'Citadel Watcher' }, 
+        eternal_dark: { difficulty: 'nightmare', name: 'Eternal Warden' }, 
+    } 
+}; 
+
+// Guardians are intended to be fixed progression checkpoints:
+// - no scaling to player stats/gear
+// - no RNG (attack zones / block zones / elemental rolls / resists)
+// Guardians below are fully hardcoded combat templates.
+const TRAVEL_GUARDIAN_TEMPLATES = {
+    overworld: {
+        swamp: {
+            hp: 260, dmgMin: 18, dmgMax: 26, agility: 28, magic: 18, armor: 18, hit_chance: 72, crit_chance: 10,
+            elem_dmg: { pyro: 8, water: 8, wind: 8, electro: 8 },
+            elem_resist: { pyro: 10, water: 10, wind: 10, electro: 10 },
+        },
+        mountains: {
+            hp: 520, dmgMin: 34, dmgMax: 46, agility: 60, magic: 80, armor: 46, hit_chance: 78, crit_chance: 18,
+            elem_dmg: { pyro: 16, water: 16, wind: 16, electro: 16 },
+            elem_resist: { pyro: 18, water: 18, wind: 18, electro: 18 },
+        },
+        ruins: {
+            hp: 980, dmgMin: 120, dmgMax: 160, agility: 120, magic: 150, armor: 120, hit_chance: 122, crit_chance: 25,
+            elem_dmg: { pyro: 28, water: 28, wind: 28, electro: 28 },
+            elem_resist: { pyro: 26, water: 26, wind: 26, electro: 26 },
+        },
+        dark_city: {
+            hp: 1400, dmgMin: 180, dmgMax: 240, agility: 200, magic: 500, armor: 200, hit_chance: 156, crit_chance: 50,
+            elem_dmg: { pyro: 42, water: 42, wind: 42, electro: 42 },
+            elem_resist: { pyro: 34, water: 34, wind: 34, electro: 34 },
+        },
+    },
+    abyss: {
+        shadowfen: {
+            hp: 1800, dmgMin: 210, dmgMax: 380, agility: 240, magic: 560, armor: 30, hit_chance: 308, crit_chance: 152,
+            elem_dmg: { pyro: 55, water: 155, wind: 55, electro: 55 },
+            elem_resist: { pyro: 68, water: 68, wind: 68, electro: 68 },
+        },
+        crimson: {
+            hp: 2400, dmgMin: 280, dmgMax: 460, agility: 280, magic: 720, armor: 380, hit_chance: 450, crit_chance: 295,
+            elem_dmg: { pyro: 172, water: 64, wind: 164, electro: 64 },
+            elem_resist: { pyro: 75, water: 75, wind: 75, electro: 75 },
+        },
+        void: {
+            hp: 3200, dmgMin: 360, dmgMax: 660, agility: 320, magic: 900, armor: 430, hit_chance: 592, crit_chance: 408,
+            elem_dmg: { pyro: 74, water: 234, wind: 74, electro: 234 },
+            elem_resist: { pyro: 100, water: 100, wind: 100, electro: 100 },
+        },
+        citadel: {
+            hp: 4200, dmgMin: 470, dmgMax: 800, agility: 380, magic: 1100, armor: 490, hit_chance: 644, crit_chance: 552,
+            elem_dmg: { pyro: 190, water: 90, wind: 288, electro: 88 },
+            elem_resist: { pyro: 122, water: 122, wind: 122, electro: 122 },
+        },
+        eternal_dark: {
+            hp: 5600, dmgMin: 620, dmgMax: 980, agility: 440, magic: 1350, armor: 660, hit_chance: 755, crit_chance: 700,
+            elem_dmg: { pyro: 180, water: 180, wind: 180, electro: 310 },
+            elem_resist: { pyro: 174, water: 174, wind: 174, electro: 174 },
+        },
+    },
+};
+
+const TRAVEL_GATEKEEPER_PREREQS = {
+    overworld: {
+        mountains: { unlockZone: 'swamp', guardianName: 'Bog Warden' },
+        ruins: { unlockZone: 'mountains', guardianName: 'Frost Sentinel' },
+        dark_city: { unlockZone: 'ruins', guardianName: 'Crypt Keeper' },
+    }
+};
+
+function parseTravelUnlocks(raw) { 
+    const defaults = { overworld: ['forest'], abyss: [] }; 
+    if (!raw) return defaults; 
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return { ...defaults, overworld: Array.from(new Set([...defaults.overworld, ...parsed])) };
+        }
+        return {
+            overworld: Array.from(new Set([...(defaults.overworld || []), ...((parsed && parsed.overworld) || [])])),
+            abyss: Array.from(new Set([...(defaults.abyss || []), ...((parsed && parsed.abyss) || [])])),
+        };
+    } catch {
+        return defaults;
+    }
+}
+
+function stringifyTravelUnlocks(unlocks) { 
+    return JSON.stringify({ 
+        overworld: Array.from(new Set(unlocks.overworld || ['forest'])), 
+        abyss: Array.from(new Set(unlocks.abyss || [])), 
+    }); 
+} 
+ 
+function getTravelUnlockSet(char, currentMap = 'overworld') { 
+    const unlocks = parseTravelUnlocks(char?.unlocked_zones); 
+    const key = currentMap === 'abyss' ? 'abyss' : 'overworld'; 
+    const set = new Set(unlocks[key] || []); 
+    if (currentMap !== 'abyss') set.add('forest');
+    if (char?.location) set.add(char.location); 
+    return set; 
+} 
+
+function getTravelGatekeeperPrereq(currentMap, targetZone) {
+    return (TRAVEL_GATEKEEPER_PREREQS[currentMap] || {})[targetZone] || null;
+}
+
+async function recordGatekeeperDefeat(db, charId, gatekeeperKey) {
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        await dbRun(
+            db,
+            'INSERT OR IGNORE INTO character_gatekeeper_defeats (char_id, gatekeeper_key, defeated_at) VALUES (?,?,?)',
+            [charId, String(gatekeeperKey || ''), now]
+        );
+    } catch {}
+}
+
+async function unlockTravelZone(db, char, targetZone, currentMap = 'overworld') {
+    const unlocks = parseTravelUnlocks(char?.unlocked_zones);
+    const key = currentMap === 'abyss' ? 'abyss' : 'overworld';
+    unlocks[key] = Array.from(new Set([...(unlocks[key] || []), targetZone]));
+    const encoded = stringifyTravelUnlocks(unlocks);
+    await dbRun(db, 'UPDATE characters SET unlocked_zones=? WHERE id=?', [encoded, char.id]);
+    char.unlocked_zones = encoded;
+    return unlocks;
+}
+
+function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = null) {
+    const zoneMap = currentMap === 'abyss' ? ABYSS_ZONES : ZONES;
+    const guardianDef = (TRAVEL_GUARDIANS[currentMap] || {})[targetZone];
+    if (!guardianDef) return null;
+    const zone = zoneMap[targetZone];
+    const zoneLevel = zone?.minLevel || 1;
+    const template = (TRAVEL_GUARDIAN_TEMPLATES[currentMap] || {})[targetZone] || null;
+    if (!template) return null;
+    const hp = Math.max(1, Number(template.hp || 1));
+    return {
+        id: -1,
+        name: guardianDef.name,
+        class: 'npc',
+        hp,
+        hpMax: hp,
+        dmgMin: Math.max(1, Number(template.dmgMin || 1)),
+        dmgMax: Math.max(2, Number(template.dmgMax || (Number(template.dmgMin || 1) + 1))),
+        agility: Math.max(0, Number(template.agility || 0)),
+        magic: Math.max(0, Number(template.magic || 0)),
+        vitality: Math.max(0, Number(template.vitality || 0)),
+        hit_chance: Math.max(45, Math.min(95, Number(template.hit_chance || 75))),
+        crit_chance: Math.max(0, Math.min(60, Number(template.crit_chance || 0))),
+        armor: Math.max(0, Number(template.armor || 0)),
+        elem_dmg: template.elem_dmg ? { ...template.elem_dmg } : { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: template.elem_resist ? { ...template.elem_resist } : { pyro: 0, water: 0, wind: 0, electro: 0 },
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        activeSkills: {},
+        ignoreDefenderZones: true,
+    };
+}
+
+function getTravelGraph(currentMap) {
+    return currentMap === 'abyss' ? ABYSS_ROUTES : OVERWORLD_TRAVEL_ROUTES;
+}
+
+function getShortestTravel(currentMap, fromZone, toZone, allowedNodes = null) {
+    if (fromZone === toZone) return { time: 0, path: [fromZone] };
+    const graph = getTravelGraph(currentMap);
+    const dist = {};
+    const prev = {};
+    const nodes = new Set(Object.keys(graph));
+    nodes.add(fromZone);
+    nodes.add(toZone);
+    for (const node of nodes) dist[node] = Infinity;
+    dist[fromZone] = 0;
+
+    const unvisited = new Set(nodes);
+    while (unvisited.size) {
+        let current = null;
+        for (const node of unvisited) {
+            if (current === null || dist[node] < dist[current]) current = node;
+        }
+        if (current === null || dist[current] === Infinity) break;
+        unvisited.delete(current);
+        if (current === toZone) break;
+
+        for (const [neighbor, cost] of Object.entries(graph[current] || {})) {
+            if (allowedNodes && neighbor !== toZone && !allowedNodes.has(neighbor)) continue;
+            const alt = dist[current] + cost;
+            if (alt < (dist[neighbor] ?? Infinity)) {
+                dist[neighbor] = alt;
+                prev[neighbor] = current;
+                unvisited.add(neighbor);
+            }
+        }
+    }
+
+    if (!Number.isFinite(dist[toZone])) return null;
+    const path = [];
+    let cursor = toZone;
+    while (cursor) {
+        path.unshift(cursor);
+        cursor = prev[cursor];
+    }
+    if (path[0] !== fromZone) return null;
+    return { time: dist[toZone], path };
+}
+
+function getAssetImagePath(name, basePath = '/images/assets') {
+    const slug = String(name || '')
+        .trim()
+        .toLowerCase()
+        // Prefer possessive names to map cleanly to asset slugs:
+        // "Shadewalker's Kiss" -> "shadewalkers-kiss" (not "shadewalker-s-kiss").
+        .replace(/'s\b/g, 's')
+        .replace(/'/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug ? `${basePath}/${slug}.png` : null;
+}
+
+// ── Item Generators ─────────────────────────────────────────────────────────
+// ELEMENTS already defined at top
+
+function maxElemStats(level) {
+    if (level >= 86) return 6;
+    if (level >= 71) return 5;
+    if (level >= 51) return 4;
+    if (level >= 25) return 3;
+    if (level >= 10) return 2;
+    return 1;
+}
+
+function rollElemStats(stats, level, tier, canDmg, canResist, quality) {
+    const qualBonus = quality === 'legendary' ? 0.25 : quality === 'rare' ? 0.15 : 0;
+    const baseChance = tier >= 5 ? 0.75 : tier >= 3 ? 0.55 : tier >= 2 ? 0.35 : 0.15;
+    if (Math.random() > Math.min(0.95, baseChance + qualBonus)) return;
+
+    const maxStats = maxElemStats(level);
+    const minCount = level >= 45 ? 2 : level >= 30 ? 1 : 0;
+    const qualCount = quality === 'legendary' ? 1 : 0;
+    const maxRoll  = Math.max(minCount, Math.min(maxStats, Math.ceil(level / 20)));
+    const count    = minCount + qualCount + Math.floor(Math.random() * Math.max(1, maxRoll - minCount + 1));
+
+    const shuffled = [...ELEMENTS].sort(() => Math.random() - 0.5);
+    let rolled = 0;
+
+    for (const elem of shuffled) {
+        if (rolled >= count) break;
+        const doDmg    = canDmg    && (!canResist || Math.random() < 0.4);
+        const doResist = canResist && !doDmg;
+        if (!doDmg && !doResist) continue;
+
+        const dmgKey    = `${elem}_dmg`;
+        const resistKey = `${elem}_resist`;
+
+        if (doDmg && !stats[dmgKey]) {
+            const base   = 1 + Math.floor(level * 0.12);
+            const range  = Math.floor(level * 0.08);
+            const dmgVal = base + Math.floor(Math.random() * Math.max(1, range));
+            stats[dmgKey] = dmgVal;
+            rolled++;
+            if (!stats[resistKey] && Math.random() < 0.5) {
+                stats[resistKey] = Math.floor(dmgVal * (1.4 + Math.random() * 0.3));
+            }
+            if (elem === 'pyro' && Math.random() < 0.20) {
+                stats['water_resist'] = (stats['water_resist'] || 0) - (1 + Math.floor(dmgVal * 0.3));
+            }
+        } else if (doResist && !stats[resistKey]) {
+            const base  = 2 + Math.floor(level * 0.18);
+            const range = Math.floor(level * 0.12);
+            stats[resistKey] = base + Math.floor(Math.random() * Math.max(1, range));
+            rolled++;
+        }
+    }
+}
+
+const ITEM_GENERATORS = {
+    weapon: {
+        namePrefixes: ['Iron','Steel','Bronze','Silver','Golden','Crystal','Obsidian','Dragon','Mythril','Adamant'],
+        nameSuffixes: ['Sword','Blade','Axe','Dagger','Bow','Staff','Hammer','Spear','Mace','Scythe'],
+        emojis: ['⚔️','🗡️','🪓','🏹','🪄','🔨','🔪','⚒️'],
+        baseStats: {
+            dmg_min:  { min:4,  max:10,  scale:2.0 },
+            dmg_max:  { min:8,  max:20,  scale:4.0 },
+            strength: { min:0,  max:3,   scale:0.5 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            agility:     { min:0, max:3, scale:0.4, chance:0.5 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            magic:       { min:0, max:3, scale:0.3, chance:0.4 },
+            crit_chance: { min:2, max:7, scale:0.45, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:3, max:10, scale:0.5, chance:0.6 },
+            strength:    { min:1, max:4, scale:0.35, chance:0.5 },
+            agility:     { min:1, max:4, scale:0.4, chance:0.45 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.45 },
+        },
+        elemDmg: true, elemResist: false,
+    },
+    armor: {
+        namePrefixes: ['Leather','Chain','Plate','Scale','Crystal','Obsidian','Dragon','Mythril','Adamant'],
+        nameSuffixes: ['Armor','Vest','Cuirass','Breastplate','Hauberk','Mail','Plate'],
+        emojis: ['🛡️','🧥','🥼','👕','🦺'],
+        baseStats: {
+            defense: { min:2,  max:6,  scale:1.2 },
+            armor:   { min:1,  max:4,  scale:0.8 },
+            hp_max:  { min:10, max:25, scale:1.5 },
+        },
+        rareStats: {
+            defense: { min:5,  max:10, scale:1.8 },
+            armor:   { min:3,  max:7,  scale:1.3 },
+            hp_max:  { min:15, max:35, scale:2.0 },
+            strength: { min:1, max:4, scale:0.5 },
+            vitality: { min:1, max:3, scale:0.4 },
+        },
+        tier2Stats: {
+            vitality: { min:0, max:2, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            vitality:    { min:1, max:3, scale:0.4, chance:0.5 },
+            magic:       { min:0, max:2, scale:0.25, chance:0.4 },
+            crit_chance: { min:1, max:4, scale:0.3, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:2, max:6, scale:0.35, chance:0.55 },
+            strength:    { min:0, max:3, scale:0.35, chance:0.5 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.45 },
+        },
+        elemDmg: false, elemResist: true,
+    },
+    helmet: {
+        namePrefixes: ['Leather','Iron','Steel','Battle','Shadow','Crystal','Dragon','Mythril','Adamant'],
+        nameSuffixes: ['Helm','Helmet','Visor','Cap','Hood','Cowl','Crown','Circlet','Headguard'],
+        emojis: ['⛑️','🪖','👑','🎭'],
+        baseStats: {
+            defense: { min:1, max:4,  scale:0.9 },
+            armor:   { min:1, max:3,  scale:0.5 },
+            hp_max:  { min:5, max:18, scale:1.2 },
+        },
+        rareStats: {
+            defense: { min:3, max:7,  scale:1.4 },
+            armor:   { min:2, max:5,  scale:1.0 },
+            hp_max:  { min:10, max:25, scale:1.5 },
+            magic:   { min:1, max:4, scale:0.5 },
+            vitality: { min:1, max:3, scale:0.35 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            magic:       { min:0, max:3, scale:0.3, chance:0.4 },
+            crit_chance: { min:2, max:6, scale:0.4, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:2, max:8, scale:0.5, chance:0.55 },
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.45 },
+        },
+        elemDmg: true, elemResist: true,
+    },
+    shield: {
+        namePrefixes: ['Wooden','Iron','Steel','Tower','Dragon','Mythril','Crystal','Obsidian','Adamant'],
+        nameSuffixes: ['Shield','Buckler','Aegis','Bulwark','Barrier','Wall','Guard'],
+        emojis: ['🛡️','🔰'],
+        baseStats: {
+            defense: { min:3,  max:7,  scale:1.5 },
+            armor:   { min:2,  max:5,  scale:1.0 },
+            hp_max:  { min:8,  max:22, scale:1.2 },
+        },
+        rareStats: {
+            defense: { min:6,  max:12, scale:2.0 },
+            armor:   { min:4,  max:8,  scale:1.4 },
+            hp_max:  { min:12, max:28, scale:1.5 },
+            strength: { min:2, max:5, scale:0.6 },
+            vitality: { min:1, max:3, scale:0.4 },
+        },
+        tier2Stats: {
+            vitality: { min:0, max:2, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            vitality:    { min:1, max:3, scale:0.4, chance:0.5 },
+            crit_chance: { min:1, max:4, scale:0.35, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:2, max:6, scale:0.35, chance:0.55 },
+            defense:     { min:1, max:4, scale:0.4, chance:0.5 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.45 },
+        },
+        elemDmg: false, elemResist: true,
+    },
+    boots: {
+        namePrefixes: ['Leather','Iron','Steel','Shadow','Swift','Dragon','Mythril'],
+        nameSuffixes: ['Boots','Greaves','Sabatons','Treads','Stompers','Walkers'],
+        emojis: ['👢','🥾','👟'],
+        baseStats: {
+            agility: { min:1, max:5, scale:1.0 },
+            defense: { min:0, max:2, scale:0.4 },
+            armor:   { min:0, max:3, scale:0.5 },
+        },
+        rareStats: {
+            agility: { min:2, max:6, scale:1.0 },
+            defense: { min:1, max:4, scale:0.8 },
+            armor:   { min:2, max:5, scale:0.9 },
+            strength: { min:0, max:3, scale:0.4 },
+            vitality: { min:0, max:2, scale:0.3 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
+            armor:      { min:1, max:2, scale:0.25, chance:0.35 },
+        },
+        tier3Stats: {
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            agility:     { min:1, max:3, scale:0.35, chance:0.5 },
+            armor:       { min:1, max:3, scale:0.35, chance:0.4 },
+            crit_chance: { min:1, max:4, scale:0.35, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:2, max:7, scale:0.45, chance:0.55 },
+            agility:     { min:1, max:4, scale:0.4, chance:0.5 },
+            armor:       { min:2, max:5, scale:0.4, chance:0.45 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.45 },
+        },
+        elemDmg: false, elemResist: true,
+    },
+    ring: {
+        namePrefixes: ['Iron','Silver','Golden','Obsidian','Ruby','Sapphire','Emerald','Diamond','Bone'],
+        nameSuffixes: ['Ring','Band','Loop','Signet','Seal'],
+        emojis: ['💍','⭕','🔵','🟢','🔴'],
+        baseStats: {
+            strength: { min:0, max:3, scale:0.45 },
+            magic:    { min:0, max:3, scale:0.45 },
+            agility:  { min:0, max:3, scale:0.4 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:3, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            hit_chance:  { min:1, max:4, scale:0.3, chance:0.5 },
+            magic:       { min:1, max:3, scale:0.35, chance:0.5 },
+            crit_chance: { min:2, max:5, scale:0.4, chance:0.45 },
+        },
+        tier5Stats: {
+            crit_chance: { min:3, max:9, scale:0.5, chance:0.6 },
+            magic:       { min:1, max:4, scale:0.35, chance:0.5 },
+        },
+        elemDmg: true, elemResist: true,
+    },
+    amulet: {
+        namePrefixes: ['Ancient','Blessed','Cursed','Enchanted','Void','Holy','Shadow','Dragon','Arcane'],
+        nameSuffixes: ['Amulet','Pendant','Talisman','Necklace','Locket','Medallion'],
+        emojis: ['📿','🔱','⚜️','🌟','💫'],
+        baseStats: {
+            magic:   { min:1, max:4, scale:0.6 },
+            defense: { min:0, max:2, scale:0.35 },
+            hp_max:  { min:5, max:20, scale:1.0 },
+        },
+        tier2Stats: {
+            magic: { min:1, max:2, scale:0.25, chance:0.4 },
+        },
+        tier3Stats: {
+            magic:       { min:1, max:4, scale:0.4, chance:0.5 },
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.5 },
+            crit_chance: { min:2, max:6, scale:0.45, chance:0.45 },
+        },
+        tier5Stats: {
+            crit_chance: { min:3, max:9, scale:0.5, chance:0.6 },
+            magic:       { min:2, max:5, scale:0.4, chance:0.5 },
+        },
+        elemDmg: true, elemResist: true,
+    },
+    accessory: {
+        namePrefixes: ['Iron','Silver','Golden','Crystal','Ruby','Sapphire','Emerald','Diamond','Bone'],
+        nameSuffixes: ['Charm','Token','Seal','Signet','Talisman','Rune'],
+        emojis: ['🔮','✨','🪬','💠','🔷'],
+        baseStats: {
+            strength: { min:0, max:2, scale:0.35 },
+            agility:  { min:0, max:2, scale:0.35 },
+            magic:    { min:0, max:2, scale:0.35 },
+        },
+        tier2Stats: {
+            hit_chance: { min:1, max:2, scale:0.2, chance:0.4 },
+        },
+        tier3Stats: {
+            hit_chance:  { min:1, max:3, scale:0.25, chance:0.5 },
+            magic:       { min:0, max:3, scale:0.3, chance:0.4 },
+            crit_chance: { min:2, max:5, scale:0.4, chance:0.4 },
+        },
+        tier5Stats: {
+            crit_chance: { min:3, max:8, scale:0.5, chance:0.55 },
+        },
+        elemDmg: true, elemResist: true,
+    },
+};
+
+function generateBackendRandomItem(level, type) {
+    const generator = ITEM_GENERATORS[type];
+    if (!generator) return null;
+    const tier = Math.min(5, Math.ceil(level / 20) + 1);
+    const stats = {};
+
+    function rollStat(cfg, lvl) {
+        const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.4);
+        const mx = Math.floor(cfg.max + lvl * cfg.scale * 0.7);
+        let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
+        v = Math.floor(v * (0.85 + Math.random() * 0.30));
+        if (quality === 'legendary') v = Math.floor(v * 1.05);
+        return Math.max(cfg.min, v);
+    }
+
+    const quality = (() => {
+        const legendaryChance = 0.05;
+        if (Math.random() < legendaryChance) return 'legendary';
+        
+        let rareChance = 0;
+        if (tier >= 5) rareChance = 0.40;
+        else if (tier >= 4) rareChance = 0.35;
+        else if (tier >= 3) rareChance = 0.30;
+        else if (tier >= 2) rareChance = 0.25;
+        else rareChance = 0.2;
+        
+        return Math.random() < rareChance ? 'rare' : 'common';
+    })();
+
+    function getStatChance(baseChance) {
+        if (quality === 'legendary') return Math.min(0.95, baseChance + 0.35);
+        if (quality === 'rare') return Math.min(0.85, baseChance + 0.20);
+        return baseChance;
+    }
+
+    const primaryStats = quality !== 'common' && generator.rareStats ? generator.rareStats : generator.baseStats;
+    if (primaryStats) {
+        for (const [k, cfg] of Object.entries(primaryStats)) {
+            let shouldRoll = true;
+            if (k === 'hit_chance' || k === 'agility') {
+                shouldRoll = Math.random() < getStatChance(0.5);
+            } else if (k === 'crit_chance') {
+                shouldRoll = Math.random() < getStatChance(0.35);
+            }
+            if (shouldRoll) {
+                let v = rollStat(cfg, level);
+                if (k === 'dmg_min' && v < 1) v = 1;
+                if (k === 'dmg_max' && v < 2) v = 2;
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+    
+    if (stats.dmg_min && stats.dmg_max) {
+        const minGap = Math.max(8, Math.floor(stats.dmg_max * 0.25));
+        if (stats.dmg_max < stats.dmg_min + minGap) {
+            stats.dmg_max = stats.dmg_min + minGap;
+        }
+    }
+    
+    if (tier >= 2 && generator.tier2Stats) {
+        for (const [k, cfg] of Object.entries(generator.tier2Stats)) {
+            let baseChance = cfg.chance || 0.45;
+            if (k === 'hit_chance' || k === 'agility') {
+                baseChance = 0.5;
+            } else if (k === 'crit_chance') {
+                baseChance = 0.35;
+            }
+            const chance = getStatChance(baseChance);
+            if (Math.random() < chance) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+    
+    if (tier >= 3 && generator.tier3Stats) {
+        for (const [k, cfg] of Object.entries(generator.tier3Stats)) {
+            let baseChance = cfg.chance || 0.5;
+            if (k === 'hit_chance' || k === 'agility') {
+                baseChance = 0.5;
+            } else if (k === 'crit_chance') {
+                baseChance = 0.35;
+            }
+            const chance = getStatChance(baseChance);
+            if (Math.random() < chance) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+    
+    if (tier >= 5 && generator.tier5Stats) {
+        for (const [k, cfg] of Object.entries(generator.tier5Stats)) {
+            let baseChance = cfg.chance || 0.45;
+            if (k === 'hit_chance' || k === 'agility') {
+                baseChance = 0.5;
+            } else if (k === 'crit_chance') {
+                baseChance = 0.35;
+            }
+            const chance = getStatChance(baseChance);
+            if (Math.random() < chance) {
+                const v = rollStat(cfg, level);
+                if (v > 0) stats[k] = v;
+            }
+        }
+    }
+
+    rollElemStats(stats, level, tier, generator.elemDmg, generator.elemResist, quality);
+
+    const prefix = generator.namePrefixes[Math.floor(Math.random() * generator.namePrefixes.length)];
+    const suffix = generator.nameSuffixes[Math.floor(Math.random() * generator.nameSuffixes.length)];
+    const name   = `${prefix} ${suffix}`;
+    const emoji  = generator.emojis[Math.floor(Math.random() * generator.emojis.length)];
+    const imgSlug = name.toLowerCase().replace(/\s+/g, '-');
+    
+    const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', jewelry:'amulet', ring:'ring', amulet:'amulet', boots:'boots' };
+
+    const item = {
+        id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+        name, emoji, tier, level,
+        img:     `/images/assets/${imgSlug}.png`,
+        desc:    generateItemLore(name, type, prefix, suffix, quality),
+        stats,
+        slot:    slotMap[type] || type,
+        category: type,
+        price:   0,
+        quality,
+    };
+    item.price = calculateBackendItemPrice(item, level);
+    item.original_price = item.price;  // ← ADDED: Store original price
+
+    if (Math.random() < 0.20) {
+        const maxGems = Math.min(30, Math.max(1, Math.floor(tier * 4 + level * 0.15)));
+        const gemCost = 1 + Math.floor(Math.random() * maxGems);
+        item.gemCost = gemCost;
+        item.price   = Math.max(1, Math.floor(item.price * (1 - Math.min(0.20, gemCost / 150))));
+        item.original_price = item.price;  // ← ADDED: Update original price after gem discount
+        item.desc    = `✨ ${item.desc}`;
+    }
+
+    // Legendary items always require an extra 5-10 gems on top of any existing cost.
+    // This does NOT reduce the gold price.
+    if (String(item.quality || '').toLowerCase() === 'legendary') {
+        const legendaryGemFee = 5 + Math.floor(Math.random() * 6);
+        item.gemCost = Number(item.gemCost || 0) + legendaryGemFee;
+    }
+
+    if (Math.random() < 0.06) {
+        const classes = ['warrior','mage','rogue','paladin'];
+        item.classes = [classes[Math.floor(Math.random() * classes.length)]];
+    }
+    return item;
+}
+
+function generateItemLore(name, type, prefix, suffix, quality) {
+    const loreParts = {
+        prefix: {
+            'Dragon':   ['forged from dragon scales', 'tempered in dragon fire', 'etched with draconic runes'],
+            'Mythril':  ['woven from mythril veins', 'lighter than air yet unyielding', 'mined from the deepest seams'],
+            'Adamant':  ['harder than any known ore', 'capable of cutting stone', 'said to be unbreakable'],
+            'Obsidian': ['carved from volcanic glass', 'born of ancient eruptions', 'sharp as a razor\'s edge'],
+            'Crystal':  ['grown over centuries underground', 'resonating with arcane energy', 'humming with inner light'],
+            'Golden':   ['gilded in pure mountain gold', 'worth a king\'s ransom', 'shimmering with wealth'],
+            'Silver':   ['blessed by moonlight', 'polished to a mirror sheen', 'favored by rogues and priests alike'],
+            'Shadow':   ['absorbed the darkness of the void', 'wreathed in perpetual shadow', 'invisible in dim light'],
+            'Ancient':  ['recovered from a forgotten tomb', 'older than any kingdom', 'inscribed with a dead language'],
+            'Blessed':  ['consecrated by a high priest', 'humming with holy energy', 'said to repel evil'],
+            'Cursed':   ['carrying the weight of a dark oath', 'bound to a restless soul', 'whispering in the dark'],
+            'Holy':     ['radiating divine warmth', 'crafted in a sacred forge', 'glowing with righteous light'],
+            'Arcane':   ['pulsing with raw magical energy', 'traced with glowing sigils', 'humming with arcane power'],
+            'Swift':    ['light as a feather', 'built for speed above all', 'crafted for the fastest warriors'],
+            'Iron':     ['crude but dependable', 'hammered into shape by a steady hand', 'reliable in any battle'],
+            'Steel':    ['folded a thousand times over', 'tempered to perfection', 'hardened through fire and water'],
+            'Leather':  ['stitched from tanned beast hide', 'supple yet tough', 'worn smooth from years of use'],
+            'Tower':    ['wide enough to shelter two', 'an immovable wall in battle', 'tested against siege weapons'],
+            'Wooden':   ['carved from a century-old oak', 'lightweight and surprisingly resilient', 'reinforced with iron bands'],
+            'Battle':   ['scarred from a hundred conflicts', 'tested on the bloodiest fields', 'a veteran\'s companion'],
+            'Void':     ['touched by the emptiness between worlds', 'draining warmth from its surroundings', 'unsettling to behold'],
+            'Bone':     ['carved from the remains of a great beast', 'rattling with an uneasy energy', 'bleached white by sun and wind'],
+            'Ruby':     ['set with a blood-red gemstone', 'warm to the touch', 'catching light like a flame'],
+            'Sapphire': ['inlaid with a deep blue gem', 'cool as the northern sea', 'prized by mages and scholars'],
+            'Emerald':  ['adorned with a verdant stone', 'said to grow sharper in forests', 'humming with natural energy'],
+            'Diamond':  ['encrusted with the hardest gem known', 'refracting light into rainbows', 'beyond the price of most kings'],
+            'Enchanted':['bound with a permanent enchantment', 'glowing faintly in the dark', 'responding to its wielder\'s will'],
+        },
+        suffix: {
+            'Sword':      ['its edge never seems to dull', 'balanced for both slash and thrust'],
+            'Blade':      ['thin enough to slip between ribs', 'honed to an impossible edge'],
+            'Axe':        ['capable of felling trees in one blow', 'built for pure destructive force'],
+            'Dagger':     ['small enough to conceal anywhere', 'favored by assassins throughout history'],
+            'Bow':        ['its string never snaps', 'silent enough to hunt ghosts'],
+            'Staff':      ['amplifying the wielder\'s magic tenfold', 'humming with channeled power'],
+            'Hammer':     ['every strike sending shockwaves through armor', 'heavier than it looks'],
+            'Spear':      ['its reach giving a decisive advantage', 'balanced for both thrust and throw'],
+            'Mace':       ['capable of crumpling armor like parchment', 'devastating against the undead'],
+            'Scythe':     ['originally a farming tool, now a weapon of terror', 'wide arc cuts through crowds'],
+            'Armor':      ['distributed weight across the entire torso', 'showing countless old dents and repairs'],
+            'Vest':       ['allowing full range of movement', 'light enough to forget you\'re wearing it'],
+            'Cuirass':    ['molded perfectly to the warrior\'s chest', 'the centerpiece of a veteran\'s kit'],
+            'Breastplate':['turned aside many a killing blow', 'engraved with a personal crest'],
+            'Helm':       ['protecting the most vital target on the battlefield', 'dented but never broken'],
+            'Helmet':     ['fitted with a sturdy visor', 'padding worn smooth from years of use'],
+            'Crown':      ['commanding instant respect from allies and enemies alike', 'heavier than it appears'],
+            'Shield':     ['absorbing blows that would have ended lesser warriors', 'scarred but unbroken'],
+            'Buckler':    ['small enough to punch with', 'fast enough to deflect arrows mid-flight'],
+            'Aegis':      ['said to have turned aside a dragon\'s claw', 'legendary among defenders'],
+            'Boots':      ['waterproofed with rendered fat', 'silent on any surface'],
+            'Greaves':    ['articulated for full leg mobility', 'protecting shins from sweeping attacks'],
+            'Ring':       ['worn smooth from generations of use', 'always the perfect fit'],
+            'Amulet':     ['passed down through three warrior bloodlines', 'warm against the skin'],
+            'Pendant':    ['swaying gently even in still air', 'given as a token of power'],
+            'Charm':      ['carried for luck by its previous owner — who survived', 'small enough to hide in a fist'],
+            'Talisman':   ['said to ward off dark magic', 'inscribed with a prayer of protection'],
+        }
+    };
+
+    const prefixLore  = loreParts.prefix[prefix]  || [`crafted with great skill`];
+    const suffixLore  = loreParts.suffix[suffix]   || [`built to endure the harshest battles`];
+    const chosenPre   = prefixLore[Math.floor(Math.random() * prefixLore.length)];
+    const chosenSuf   = suffixLore[Math.floor(Math.random() * suffixLore.length)];
+
+    const qualityTag = quality === 'legendary' ? ' A true legend.' : quality === 'rare' ? ' Rarely seen.' : '';
+
+    const firstChar = name[0].toLowerCase();
+    const vowels = ['a', 'e', 'i', 'o', 'u'];
+    const article = vowels.includes(firstChar) ? 'An' : 'A';
+    
+    const nameLower = name.toLowerCase();
+    
+    return `${article} ${nameLower} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
+}
+
+function calculateBackendItemPrice(item, level) {
+    const basePrice = 20 + (level * 13);
+    
+    const statSum = Object.values(item.stats || {}).reduce((sum, val) => {
+        if (typeof val === 'number' && val > 0) {
+            return sum + val;
+        }
+        return sum;
+    }, 0);
+    
+    const statMultiplier = Math.max(1, 1 + (statSum * 0.2));
+    
+    const tierMultiplier = item.tier === 5 ? 2.0 : 
+                           item.tier === 4 ? 1.6 : 
+                           item.tier === 3 ? 1.3 : 
+                           item.tier === 2 ? 1.1 : 1.0;
+    
+    const qualityMultiplier = item.quality === 'legendary' ? 1.35 : 
+                              item.quality === 'rare' ? 1.15 : 1.0;
+    
+    let price = Math.floor(basePrice * statMultiplier * tierMultiplier * qualityMultiplier);
+    
+    if (item.quality === 'legendary') price = Math.max(price, 5000);
+    else if (item.quality === 'rare') price = Math.max(price, 4000);
+    else if (item.tier >= 3) price = Math.max(price, 3000);
+    
+    return price;
+}
+
+const POTION_CATALOGUE = [
+    { id:'potion_minor_hp',    name:'Minor Health Potion',     emoji:'🧪', level:1,  price:80,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
+    { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
+    { id:'potion_minor_def',   name:'Minor Defense Tonic',     emoji:'🧴', level:1,  price:120,  priceType:'gold', desc:'+2 Defense for session.',   effect:{ type:'temp_stat', stat:'defense',  value:2 }, consumable:true, category:'consumable' },
+    { id:'potion_light_hp',    name:'Light Health Potion',     emoji:'🧪', level:5,  price:200,  priceType:'gold', desc:'Restores 100 HP.',          effect:{ type:'heal', value:100 }, consumable:true, category:'consumable' },
+    { id:'potion_light_agi',   name:'Light Agility Draught',   emoji:'⚗️', level:5,  price:250,  priceType:'gold', desc:'+3 Agility for session.',   effect:{ type:'temp_stat', stat:'agility',  value:3 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_hp', name:'Health Potion',           emoji:'🧪', level:10, price:450,  priceType:'gold', desc:'Restores 200 HP.',          effect:{ type:'heal', value:200 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_str',name:'Strength Elixir',         emoji:'⚗️', level:10, price:550,  priceType:'gold', desc:'+5 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:5 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_mag',name:"Mage's Focus Tonic",      emoji:'🔮', level:10, price:550,  priceType:'gold', desc:'+5 Magic for session.',     effect:{ type:'temp_stat', stat:'magic',    value:5 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_hp',  name:'Greater Health Potion',   emoji:'🧪', level:20, price:900,  priceType:'gold', desc:'Restores 300 HP.',          effect:{ type:'heal', value:300 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_def', name:'Greater Defense Tonic',   emoji:'🧴', level:20, price:1100, priceType:'gold', desc:'+8 Defense for session.',   effect:{ type:'temp_stat', stat:'defense',  value:8 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_agi', name:'Greater Agility Draught', emoji:'⚗️', level:20, price:1100, priceType:'gold', desc:'+8 Agility for session.',   effect:{ type:'temp_stat', stat:'agility',  value:8 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_hp', name:'Superior Health Potion',  emoji:'🧪', level:35, price:2200, priceType:'gold', desc:'Restores 500 HP.',          effect:{ type:'heal', value:500 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:2800, priceType:'gold', desc:'+15 Strength for session.', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:2800, priceType:'gold', desc:'+15 Magic for session.',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
+    { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP.',    effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
+    { id:'potion_mana',        name:'Mana Potion',             emoji:'💧', level:1,  price:5,    priceType:'gems', desc:'Restores 100 MP.',          effect:{ type:'mp', value:100 }, consumable:true, category:'consumable' },
+];
+
+function getPotionsForLevel(playerLevel) { 
+    return POTION_CATALOGUE.filter(p => playerLevel >= p.level); 
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function withTrainingStatus(char) {
+    const now = Math.floor(Date.now() / 1000);
+    const trainingDone   = char.training_stat && char.training_ends_at && now >= char.training_ends_at;
+    const trainingActive = char.training_stat && char.training_ends_at && now < char.training_ends_at;
+    return { ...char, trainingDone:!!trainingDone, trainingActive:!!trainingActive,
+        trainingSecondsLeft: trainingActive ? char.training_ends_at - now : 0 };
+}
+function withUpgradeCosts(char) {
+    const costs = {};
+    const stats = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance'];
+    
+    // Apply same premium/event discounts as the upgrade endpoint
+    const activePrem = getActivePremium(char);
+    const discountEvent = typeof eventHas === 'function' ? eventHas('discount_stats') : false;
+    
+    for (const stat of stats) {
+        // Get base cost from CLASS_DISCOUNTS
+        let baseCost = upgradeCost(stat, char[stat] || 0, char.class);
+        
+        // Apply skill tree modifiers
+        let finalCost = applyClassUpgradeCostModifier(char.class, stat, baseCost);
+        
+        // Premium & event discounts (mirrors lines 6404-6406)
+        if (discountEvent) finalCost = Math.max(1, Math.floor(finalCost * 0.70));
+        if (hasPremium(activePrem, 'apprentice')) finalCost = Math.max(1, Math.floor(finalCost * 0.80));
+        
+        costs[stat] = finalCost;
+    }
+    
+    return { ...char, upgradeCosts: costs };
+}
+
+async function getEquippedItems(db, charId) {
+    const char = await dbGet(db, 'SELECT class FROM characters WHERE id=?', [charId]);
+    const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id = ?', [charId]);
+    if (!eq) return {};
+
+    // Check if rogue has dual-wield unlocked
+    let dualWield = false;
+    if (char?.class === 'rogue') {
+        const dwRow = await dbGet(db,
+            `SELECT 1 FROM character_skill_tree WHERE char_id=? AND skill_id='off_hand_training'`, [charId]);
+        dualWield = !!dwRow;
+    }
+
+    const slots = {};
+    for (const slot of EQUIPMENT_SLOTS) {
+        if (slot === 'shield' && dualWield) {
+            // Shield slot is now "off-hand weapon" for dual-wielders
+            const itemId = eq[`shield_id`];
+            if (itemId) {
+                const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
+                if (inv) {
+                    const data = JSON.parse(inv.item_data);
+                    if (data.slot === 'weapon') {
+                        slots['off_hand'] = { ...data, inventoryId: inv.id };
+                    } else {
+                        slots[slot] = { ...data, inventoryId: inv.id };
+                    }
+                }
+            }
+        } else {
+            const itemId = eq[`${slot}_id`];
+            if (itemId) {
+                const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
+                if (inv) slots[slot] = { ...JSON.parse(inv.item_data), inventoryId: inv.id };
+            }
+        }
+    }
+    return slots;
+}
+
+async function getEquippedItemsArray(db, charId) {
+    const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id = ?', [charId]);
+    if (!eq) return [];
+    const items = [];
+    for (const slot of EQUIPMENT_SLOTS) {
+        const itemId = eq[`${slot}_id`];
+        if (itemId) {
+            const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
+            if (inv) items.push(inv);
+        }
+    }
+    return items;
+}
+
+async function getInventoryMaterials(db, charId) {
+    const items = await dbAll(db, `SELECT * FROM inventory WHERE char_id = ? AND item_type IN ('raw_mat','component')`, [charId]);
+    const map = {};
+    items.forEach(i => {
+        const d = JSON.parse(i.item_data);
+        const key = d.id;
+        if (!map[key]) map[key] = { ...d, qty: 0, invId: i.id };
+        map[key].qty += d.qty || 1;
+    });
+    return map;
+}
+
+function makeConsumableRewardItem(itemId) {
+    if (itemId === 'special_mana_potion') {
+        return {
+            id: 'special_mana_potion',
+            name: 'Special Mana Potion',
+            emoji: '💎',
+            desc: 'Restores 60 MP. Crafted from your own MP reserve.',
+            effect: { type: 'mp', value: 60 },
+            consumable: true,
+            category: 'consumable',
+            qty: 1
+        };
+    }
+    return {
+        id: 'potion_mana',
+        name: 'Mana Potion',
+        emoji: '💧',
+        desc: 'Restores 100 MP.',
+        effect: { type: 'mp', value: 100 },
+        consumable: true,
+        category: 'consumable',
+        qty: 1
+    };
+}
+
+async function addStackableInventoryItem(db, charId, itemType, itemData, qty = 1) {
+    const normalizedItemData = { ...itemData };
+    const isLootbox = itemType === 'consumable' && (
+        normalizedItemData.category === 'lootbox' ||
+        String(normalizedItemData.id || '').startsWith('lootbox_')
+    );
+
+    if (isLootbox) {
+        if (!normalizedItemData.source) {
+            normalizedItemData.source = 'reward';
+            normalizedItemData.sell_price_cap = 1;
+        }
+
+        const existingRows = await dbAll(
+            db,
+            `SELECT * FROM inventory WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?`,
+            [charId, itemType, normalizedItemData.id]
+        );
+        const normalizedCap = Number(normalizedItemData.sell_price_cap || 0);
+        const existing = existingRows.find(row => {
+            const data = JSON.parse(row.item_data);
+            const rowSource = data.source || null;
+            if (normalizedItemData.source === 'shop') {
+                return rowSource === 'shop' || rowSource === null;
+            }
+            return rowSource === normalizedItemData.source && Number(data.sell_price_cap || 0) === normalizedCap;
+        });
+
+        if (existing) {
+            const current = JSON.parse(existing.item_data);
+            current.qty = (current.qty || 1) + qty;
+            if (normalizedItemData.source === 'shop' && !current.source) current.source = 'shop';
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(current), existing.id]);
+            return;
+        }
+    } else {
+        const existing = await dbGet(
+            db,
+            `SELECT * FROM inventory WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?`,
+            [charId, itemType, normalizedItemData.id]
+        );
+        if (existing) {
+            const current = JSON.parse(existing.item_data);
+            current.qty = (current.qty || 1) + qty;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(current), existing.id]);
+            return;
+        }
+    }
+
+    await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [
+        charId,
+        itemType,
+        JSON.stringify({ ...normalizedItemData, qty })
+    ]);
+}
+
+async function grantAchievementRewards(db, char, rewards) {
+    if (rewards.gold) {
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [rewards.gold, char.id]);
+    }
+    if (rewards.gems) {
+        await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [rewards.gems, rewards.gems, char.id]);
+    }
+    if (rewards.lootbox) {
+        const lootBox = LOOT_BOXES.find(box => box.id === rewards.lootbox.id);
+        if (lootBox) {
+            await addStackableInventoryItem(db, char.id, 'consumable', lootBox, rewards.lootbox.qty || 1);
+        }
+    }
+    if (rewards.consumable) {
+        await addStackableInventoryItem(db, char.id, 'consumable', makeConsumableRewardItem(rewards.consumable.id), rewards.consumable.qty || 1);
+    }
+    if (rewards.premium) {
+        const refreshedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        const activePrem = applyPremiumFeatureToCharacter(refreshedChar, rewards.premium.id, rewards.premium.days * 24 * 3600);
+        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', [JSON.stringify(activePrem), char.id]);
+    }
+}
+
+async function getCharacterAchievements(db, char) {
+    console.log('[DEBUG] getCharacterAchievements - ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+    console.log('[DEBUG] Sample IDs:', ACHIEVEMENTS.slice(-10).map(a=>a.id));
+    const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
+    const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
+    const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
+    const items = [];
+    for (const def of ACHIEVEMENTS) {
+        const progress = await getAchievementMetricValue(db, char, def, metricSnapshot);
+        const completed = progress >= def.target;
+        const claimedAt = claimedMap.get(def.id) || null;
+        items.push({
+            ...def,
+            progress,
+            completed,
+            claimed: !!claimedAt,
+            claimable: completed && !claimedAt,
+            claimed_at: claimedAt,
+            reward_summary: buildAchievementRewardSummary(def.rewards)
+        });
+    }
+    return {
+        items,
+        totals: {
+            completed: items.filter(item => item.completed).length,
+            claimed: items.filter(item => item.claimed).length,
+            claimable: items.filter(item => item.claimable).length,
+            total: items.length
+        }
+    };
+}
+
+async function getWeeklyClaimableCount(db, char) {
+    try {
+        const cacheKey = `${char.id}:${getCurrentWeekStart()}`;
+        const cached = _weeklyClaimableCountCache.get(cacheKey);
+        const nowMs = Date.now();
+        if (cached && (nowMs - cached.at) < 30000) {
+            return cached.value;
+        }
+        const weeklyState = await ensureWeeklyTaskState(db, char);
+        const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
+        const claimedRows = await dbAll(db, 'SELECT task_id FROM character_weekly_claims WHERE char_id = ? AND week_start = ?', [char.id, weekStart]);
+        const claimedSet = new Set(claimedRows.map(r => r.task_id));
+
+        let count = 0;
+        for (const task of WEEKLY_TASKS) {
+            if (claimedSet.has(task.id)) continue;
+            const progress = await getWeeklyTaskProgress(db, char, weeklyState, task.metric);
+            if (progress >= task.target) {
+                count++;
+            }
+        }
+        _weeklyClaimableCountCache.set(cacheKey, { value: count, at: nowMs });
+        return count;
+    } catch (e) {
+        console.error('Error getting weekly claimable count:', e);
+        return 0;
+    }
+}
+
+async function buildCharacterResponse(char, db) {
+    const equippedObj   = await getEquippedItems(db, char.id);
+    const equippedArray = await getEquippedItemsArray(db, char.id);
+const userSettings = char.user_id
+        ? await dbGet(db, 'SELECT username, email, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
+        : null;
+    const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
+    const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
+    const setBonuses = getEquippedSetBonuses(equippedArray);
+    const setCounts = getEquippedSetCounts(equippedArray);
+    const hpMax     = calcHpMax(char, equippedArray);
+    const hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
+    const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent });
+    const withTrain = withTrainingStatus(withCosts);
+    const now = Math.floor(Date.now() / 1000);
+
+    const activePremium   = getActivePremium(char);
+    const activeSynergies = getActiveSynergies(activePremium);
+    const ultimateActive  = hasUltimate(activePremium);
+    const mpMaxMult       = hasPremium(activePremium, 'arcane_reservoir') ? 2 : 1;
+    const effectiveMpMax  = MP_MAX * mpMaxMult;
+    const upgradeDiscount = hasPremium(activePremium, 'apprentice') ? 0.20 : 0;
+
+    const lastBattle = char.last_battle_at || 0;
+    const pvpCd = hasPremium(activePremium, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+    const battleCooldownEndsAt = lastBattle > 0 ? lastBattle + pvpCd : 0;
+    const battleCooldownRemaining = battleCooldownEndsAt > now ? battleCooldownEndsAt - now : 0;
+
+    const rawSkills = char.active_skills ? (() => { try { return JSON.parse(char.active_skills); } catch { return {}; } })() : {};
+    const activeSkills = {};
+    for (const [id, exp] of Object.entries(rawSkills)) { if (exp > now) activeSkills[id] = exp; }
+
+    const skillLastUsed = char.skill_last_used ? (() => { try { return JSON.parse(char.skill_last_used); } catch { return {}; } })() : {};
+
+    const todayStart2 = Math.floor(now / 86400) * 86400;
+    const dailyMpSpent = (char.daily_mp_reset_at || 0) >= todayStart2 ? (char.daily_mp_spent || 0) : 0;
+    const skillsUnlocked = dailyMpSpent >= MP_SKILL_UNLOCK;
+    const activeEvent = getActiveEvent();
+    let eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
+    try {
+        const db = await getDb();
+        const bannerRows = await db.execute({ sql: `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`, args: [now, now] });
+        if (bannerRows.rows.length > 0) {
+            const b = bannerRows.rows[0];
+            eventInfo = { key: 'banner', name: b.name, desc: `Banner event: ${b.name}`, ends_at: b.end_at, isBanner: true };
+        }
+    } catch (e) { console.error('banner check:', e); }
+
+    const armorValue = calcArmorValue(char, equippedArray);
+    const elemDmg    = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
+    // Rogue no-shield agility bonus
+    let noShieldAgiBonus = 0;
+    if (char.class === 'rogue') {
+        const hasShield = !!equippedObj.shield && equippedObj.shield.rogueOffhand !== true;
+        if (!hasShield) {
+            noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+        }
+    }
+
+    const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
+
+    const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
+    // Spirit Beast flat stat bonuses
+    let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
+    let beastRole = null;
+    if (elemental) {
+        const beastStats = calcElemStats(elemental);
+        if ((beastStats.str || 0) > (beastStats.def || 0)) {
+            beastRole = 'attack';
+            beastStrBonus = beastStats.str || 0;
+            beastMagBonus = beastStats.mag || 0;
+        } else {
+            beastRole = 'heal';
+            beastDefBonus = beastStats.def || 0;
+            beastVitBonus = beastStats.vit || 0;
+        }
+        console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, role: ${beastRole}`);
+    } else {
+        console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
+    }
+
+    return {
+        ...withTrain,
+        tutorial_skipped: char.tutorial_skipped || 0,
+        wins:         (char.wins        || 0),
+        losses:       (char.losses      || 0),
+        draws:        (char.draws       || 0),
+        vitality:     (char.vitality    || 10) + beastVitBonus,
+        gems:         char.gems        || 0,
+        hp_max:       hpMax,
+        hp_current:   hpCurrent,
+        strength:     (char.strength    || 0) + beastStrBonus,
+        defense:      (char.defense     || 0) + beastDefBonus,
+        agility:      (char.agility     || 0),
+        magic:        (char.magic       || 0) + beastMagBonus,
+        beast_role:   beastRole,
+        beast_stat_bonus: { str: beastStrBonus, def: beastDefBonus, mag: beastMagBonus, vit: beastVitBonus },
+        hit_chance:   (char.hit_chance  || 0),
+        crit_chance:  (char.crit_chance || 0),
+        mission_points: Math.min(effectiveMpMax, char.mission_points ?? 0),
+        mp_max:       effectiveMpMax,
+        mp_last_regen_at: char.mp_last_regen_at || 0,
+        daily_mp_spent: dailyMpSpent,
+        skills_unlocked: skillsUnlocked,
+        active_skills: activeSkills,
+        skill_last_used: skillLastUsed,
+        class_skills: CLASS_SKILLS[char.class] || [],
+        attack_zones: char.attack_zones || null,
+        block_zones:  char.block_zones  || null,
+        equipped:     equippedObj,
+        last_regen_at: char.last_regen_at || 0,
+        last_battle_at: char.last_battle_at || 0,
+        battle_cooldown_remaining: battleCooldownRemaining,
+        battle_cooldown_ends_at:   battleCooldownEndsAt,
+        active_event: eventInfo,
+        armor_value:  armorValue,
+        elem_dmg:     elemDmg,
+        elem_resist:  elemResist,
+        premium_features:  activePremium,
+        premium_synergies: activeSynergies,
+        premium_ultimate:  ultimateActive,
+        upgrade_discount:  upgradeDiscount,
+        no_shield_agi_bonus: noShieldAgiBonus,
+        equipped_set_counts: setCounts,
+        equipped_set_bonuses: setBonuses,
+        weekly_claimable_count: weeklyClaimableCount,
+        assistant_enabled: Number(userSettings?.assistant_enabled ?? 1) !== 0,
+        skip_battle_animations: Number(userSettings?.skip_battle_animations ?? 0) !== 0,
+        referral_code: userSettings?.username || null,
+        email: userSettings?.email || null,
+        referrals_registered: Number(userSettings?.referrals_registered || 0),
+        referrals_level5: Number(userSettings?.referrals_level5 || 0),
+        pending_referral_gold: pendingReferralGold,
+        pending_referral_gems: pendingReferralGems,
+        global_cooldown_until: Number(char.global_cooldown_until || 0),
+        inbox_badge_messages: Number(userSettings?.inbox_badge_messages ?? 1) !== 0,
+        inbox_badge_battles: Number(userSettings?.inbox_badge_battles ?? 1) !== 0,
+        inbox_badge_missions: Number(userSettings?.inbox_badge_missions ?? 1) !== 0,
+        chat_enabled: Number(userSettings?.chat_enabled ?? 1) !== 0,
+        inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
+        inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
+        inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
+        profile_pic: char.profile_pic || `${char.class}.png`,
+        elemental: elemental ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
+        profile_badges: (() => {
+            try {
+                const raw = char.profile_badges;
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed.slice(0, 3).map(String) : [];
+            } catch {
+                return [];
+            }
+        })(),
+    };
+}
+// ── Character creation ────────────────────────────────────────────────────
+router.post('/character', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { class: characterClass } = req.body;
+        const normalizedName = normalizeCharacterName(req.body?.name);
+        const userId = req.user.userId;
+        const classDef = CLASSES[characterClass];
+        if (!classDef) return res.status(400).json({ error: 'Invalid class.' });
+        if (!normalizedName) return res.status(400).json({ error: 'Character name required.' });
+        if (containsProfanity(normalizedName)) return res.status(400).json({ error: 'Please choose a different name.' });
+        const existingCount = await dbGet(db, 'SELECT COUNT(*) AS count FROM characters WHERE user_id = ?', [userId]);
+        if ((existingCount?.count || 0) >= 4) return res.status(400).json({ error: 'You can only create up to 4 characters on one account.' });
+        const existingClass = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ?', [userId, characterClass]);
+        if (existingClass) return res.status(400).json({ error: `You already have a ${characterClass} character.` });
+        const existingName = await dbGet(db, 'SELECT id FROM characters WHERE trim(name) = ? COLLATE NOCASE LIMIT 1', [normalizedName]);
+        if (existingName) return res.status(400).json({ error: 'That name is already taken.' });
+        await dbRun(db, `
+            INSERT INTO characters (
+                user_id, name, class, level, xp, gold,
+                strength, defense, agility, magic, vitality,
+                hp_max, hp_current, wins, losses,
+                training_stat, training_ends_at,
+                total_gold_earned, total_gold_lost,
+                gems, total_gems_earned, total_gems_spent,
+                location, travel_target, travel_end_time,
+                elem_resist_pyro, elem_resist_water, elem_resist_wind, elem_resist_electro,
+                hit_chance, crit_chance
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            userId,
+            normalizedName,
+            characterClass,
+            1,
+            0,
+            5000,
+            classDef.strength,
+            classDef.defense,
+            classDef.agility,
+            classDef.magic,
+            10,
+            classDef.hp_max,
+            classDef.hp_max,
+            0,
+            0,
+            null,
+            null,
+            0,
+            0,
+            500,
+            0,
+            0,
+            'forest',
+            null,
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            3
+        ]);
+        const created = await dbGet(db, 'SELECT id FROM characters WHERE user_id = ? AND class = ? ORDER BY id DESC LIMIT 1', [userId, characterClass]);
+        
+        // Equip starter weapon
+        const starterWeapon = {
+            id: `starter_sword_${created?.id || Date.now()}`,
+            name: 'Starter Sword',
+            slot: 'weapon',
+            category: 'weapon',
+            stats: { dmg_min: 5, dmg_max: 10 },
+            quality: 'common',
+            tier: 1,
+            level: 1,
+            price: 0,
+        };
+        const invResult = await dbRun(db, `INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, 'equipment', ?)`, [created?.id, JSON.stringify(starterWeapon)]);
+        const invId = invResult.lastInsertRowid;
+        let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [created?.id]);
+        if (!eq) {
+            await dbRun(db, 'INSERT INTO equipment (char_id) VALUES (?)', [created?.id]);
+        }
+        await dbRun(db, `UPDATE equipment SET weapon_id=? WHERE char_id=?`, [invId, created?.id]);
+        
+        await ensureActiveCharacter(db, userId, created?.id || null);
+        const character = await getCurrentCharacter(db, userId);
+        res.json(await buildCharacterResponse(character, db));
+    } catch (e) {
+        console.error('❌ Character creation error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Get character ─────────────────────────────────────────────────────────
+router.get('/characters', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const activeCharacterId = await ensureActiveCharacter(db, req.user.userId);
+        const characters = await listUserCharacters(db, req.user.userId);
+        res.json({ activeCharacterId, maxCharacters: 4, availableClasses: Object.keys(CLASSES), characters });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/character/select', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const characterId = Number(req.body?.characterId || 0);
+        if (!characterId) return res.status(400).json({ error: 'Character id required.' });
+        const target = await dbGet(db, 'SELECT id FROM characters WHERE id = ? AND user_id = ?', [characterId, req.user.userId]);
+        if (!target) return res.status(404).json({ error: 'Character not found.' });
+        await ensureActiveCharacter(db, req.user.userId, characterId);
+        const current = await getCurrentCharacter(db, req.user.userId);
+        res.json({ success: true, character: await buildCharacterResponse(current, db) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/tutorial/skip', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        console.log('Before skip - tutorial_skipped:', char.tutorial_skipped);
+        
+        // Skip tutorial - set flag
+        await db.execute({ sql: 'UPDATE characters SET tutorial_skipped = 1 WHERE id = ?', args: [char.id] });
+        console.log('After skip - updated');
+        
+        const updated = await getCurrentCharacter(db, req.user.userId);
+        console.log('After skip - tutorial_skipped:', updated.tutorial_skipped);
+        
+        return res.json({ success: true, character: await buildCharacterResponse(updated, db) });
+    } catch (e) {
+        console.error('skip tutorial error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/character', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        await applyHpRegen(db, char.id);
+        await applyMpRegen(db, char.id);
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json(await buildCharacterResponse(freshChar, db));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/profile-pics', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'class, unlocked_profile_pics');
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        
+        const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
+        const defaultPic = `${char.class}.png`;
+        
+        const allPics = [
+            { id: defaultPic, name: 'Default', class: char.class, unlocked: true }
+        ];
+        
+        // Add unlocked themed pics
+        for (const picId of unlocked) {
+            allPics.push({
+                id: `${picId}.png`,
+                name: picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId,
+                class: picId.split('-')[0],
+                unlocked: true
+            });
+        }
+        
+        res.json({ 
+            current: defaultPic,
+            available: allPics 
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/profile-pic/set', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { profilePic } = req.body;
+        if (!profilePic) return res.status(400).json({ error: 'No profile pic specified' });
+        
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, class, unlocked_profile_pics');
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        
+        const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
+        const defaultPic = `${char.class}.png`;
+        const targetPic = profilePic.replace('.png', '');
+        
+        // Check if valid (either default or unlocked)
+        const isDefault = targetPic === defaultPic.replace('.png', '');
+        const isUnlocked = unlocked.includes(targetPic);
+        
+        if (!isDefault && !isUnlocked) {
+            return res.status(403).json({ error: 'Profile pic not unlocked' });
+        }
+        
+        // Store selected pic on character
+        await dbRun(db, 'UPDATE characters SET profile_pic = ? WHERE id = ?', [profilePic, char.id]);
+        
+        res.json({ success: true, profilePic });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/profile/badges', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const badgesRaw = req.body?.badges;
+        const badges = Array.isArray(badgesRaw)
+            ? badgesRaw.map(v => String(v || '').trim()).filter(Boolean)
+            : [];
+
+        const unique = Array.from(new Set(badges)).slice(0, 3);
+
+        // Validate: chosen badges must be completed achievements for this character.
+        const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
+        for (const id of unique) {
+            const def = ACHIEVEMENTS.find(a => a.id === id);
+            if (!def) return res.status(400).json({ error: `Unknown achievement: ${id}` });
+            const progress = await getAchievementMetricValue(db, char, def, metricSnapshot);
+            if (progress < def.target) {
+                return res.status(400).json({ error: `Achievement not completed: ${def.name}` });
+            }
+        }
+
+        await dbRun(db, 'UPDATE characters SET profile_badges=? WHERE id=?', [JSON.stringify(unique), char.id]);
+        const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ success: true, badges: unique, character: await buildCharacterResponse(fresh, db) });
+    } catch (e) {
+        res.status(500).json({ error: e?.message || String(e) });
+    }
+});
+
+router.post('/referrals/claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const userRewards = await dbGet(
+            db,
+            'SELECT pending_referral_gold, pending_referral_gems FROM users WHERE id = ?',
+            [req.user.userId]
+        );
+        const pendingGold = Number(userRewards?.pending_referral_gold || 0);
+        const pendingGems = Number(userRewards?.pending_referral_gems || 0);
+        if (pendingGold <= 0 && pendingGems <= 0) {
+            return res.status(400).json({ error: 'No referral rewards are waiting to be claimed.' });
+        }
+
+        await dbRun(
+            db,
+            `UPDATE characters
+             SET gold = gold + ?,
+                 gems = gems + ?,
+                 total_gold_earned = total_gold_earned + ?,
+                 total_gems_earned = COALESCE(total_gems_earned, 0) + ?
+             WHERE id = ?`,
+            [pendingGold, pendingGems, pendingGold, pendingGems, char.id]
+        );
+        await dbRun(
+            db,
+            'UPDATE users SET pending_referral_gold = 0, pending_referral_gems = 0 WHERE id = ?',
+            [req.user.userId]
+        );
+
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        const rewardBits = [];
+        if (pendingGold > 0) rewardBits.push(`${pendingGold} gold`);
+        if (pendingGems > 0) rewardBits.push(`${pendingGems} gems`);
+        res.json({
+            success: true,
+            message: `Claimed referral rewards: ${rewardBits.join(' and ')}.`,
+            character: await buildCharacterResponse(freshChar, db)
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/settings', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const updates = [];
+        const args = [];
+
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'assistantEnabled')) {
+            updates.push('assistant_enabled = ?');
+            args.push(req.body.assistantEnabled ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'skipBattleAnimations')) {
+            updates.push('skip_battle_animations = ?');
+            args.push(req.body.skipBattleAnimations ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeMessages')) {
+            updates.push('inbox_badge_messages = ?');
+            args.push(req.body.inboxBadgeMessages ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeBattles')) {
+            updates.push('inbox_badge_battles = ?');
+            args.push(req.body.inboxBadgeBattles ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxBadgeMissions')) {
+            updates.push('inbox_badge_missions = ?');
+            args.push(req.body.inboxBadgeMissions ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'chatEnabled')) {
+            updates.push('chat_enabled = ?');
+            args.push(req.body.chatEnabled ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadMessages')) {
+            updates.push('inbox_autoread_messages = ?');
+            args.push(req.body.inboxAutoReadMessages ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadBattles')) {
+            updates.push('inbox_autoread_battles = ?');
+            args.push(req.body.inboxAutoReadBattles ? 1 : 0);
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxAutoReadMissions')) {
+            updates.push('inbox_autoread_missions = ?');
+            args.push(req.body.inboxAutoReadMissions ? 1 : 0);
+        }
+        if (!updates.length) {
+            return res.status(400).json({ error: 'No settings provided.' });
+        }
+
+        args.push(req.user.userId);
+        await dbRun(db, `UPDATE users SET ${updates.join(', ')} WHERE id = ?`, args);
+
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.json({ success: true });
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({ success: true, character: await buildCharacterResponse(freshChar, db) });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/achievements', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        res.json(await getCharacterAchievements(db, char));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+function normalizeSquadName(name) {
+    const n = String(name || '').trim().replace(/\s+/g, ' ');
+    if (n.length < 3) return null;
+    if (n.length > 20) return null;
+    // keep it simple: letters/numbers/spaces/hyphen/underscore
+    if (!/^[a-zA-Z0-9 _-]+$/.test(n)) return null;
+    return n;
+}
+
+function makeInviteCode() {
+    const part = () => Math.random().toString(36).slice(2, 6).toUpperCase();
+    return `${part()}${part()}`;
+}
+
+router.get('/squads/me', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.json({ squad: null, members: [] });
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
+        const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned
+            FROM squad_members sm JOIN characters c ON c.id = sm.char_id
+            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id]);
+        res.json({ squad, members });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/create', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
+        const name = normalizeSquadName(req.body?.name);
+        if (!name) return res.status(400).json({ error: 'Invalid squad name (3-20 chars, letters/numbers/spaces/-/_).' });
+
+        let code = makeInviteCode();
+        for (let i = 0; i < 5; i++) {
+            const exists = await dbGet(db, 'SELECT 1 FROM squads WHERE invite_code=? LIMIT 1', [code]);
+            if (!exists) break;
+            code = makeInviteCode();
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const ins = await dbRun(db, 'INSERT INTO squads (name, invite_code, owner_char_id, created_at) VALUES (?,?,?,?)', [name, code, char.id, now]);
+        const squadId = Number(ins.lastInsertRowid || 0);
+        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [squadId, char.id, 'leader', now]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [squadId]);
+        res.json({ success: true, squad });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/join', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
+        const code = String(req.body?.code || '').trim().toUpperCase();
+        if (!code) return res.status(400).json({ error: 'Invite code required.' });
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE invite_code=? LIMIT 1', [code]);
+        if (!squad) return res.status(404).json({ error: 'Squad not found.' });
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [squad.id, char.id, 'member', now]);
+        res.json({ success: true, squad });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/leave', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.json({ success: true });
+        await dbRun(db, 'DELETE FROM squad_members WHERE char_id=?', [char.id]);
+        // If squad is empty, delete it.
+        const left = await dbGet(db, 'SELECT COUNT(*) AS c FROM squad_members WHERE squad_id=?', [membership.squad_id]);
+        if (Number(left?.c || 0) <= 0) {
+            await dbRun(db, 'DELETE FROM squads WHERE id=?', [membership.squad_id]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/leaderboard', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        // Use lifetime total_gold_earned for "cumulative gold".
+        const rows = await dbAll(db, `
+            SELECT
+                s.id,
+                s.name,
+                COUNT(sm.char_id) AS member_count,
+                CAST(AVG(c.level) AS INTEGER) AS avg_level,
+                CAST(AVG(c.total_gold_earned) AS INTEGER) AS avg_gold_earned,
+                SUM(c.total_gold_earned) AS total_gold_earned
+            FROM squads s
+            JOIN squad_members sm ON sm.squad_id = s.id
+            JOIN characters c ON c.id = sm.char_id
+            GROUP BY s.id
+            ORDER BY total_gold_earned DESC
+            LIMIT 200
+        `, []);
+        res.json(rows.map(r => ({
+            id: Number(r.id || 0),
+            name: r.name,
+            member_count: Number(r.member_count || 0),
+            avg_level: Number(r.avg_level || 0),
+            avg_gold_earned: Number(r.avg_gold_earned || 0),
+            total_gold_earned: Number(r.total_gold_earned || 0),
+        })));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Squad Applications ──────────────────────────────────────────
+
+router.post('/squads/apply', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
+        const squadId = Number(req.body?.squad_id);
+        if (!squadId) return res.status(400).json({ error: 'Squad ID required.' });
+        const squad = await dbGet(db, 'SELECT id, name FROM squads WHERE id=?', [squadId]);
+        if (!squad) return res.status(404).json({ error: 'Squad not found.' });
+        const existingApp = await dbGet(db, "SELECT 1 FROM squad_applications WHERE squad_id=? AND char_id=? AND status='pending' LIMIT 1", [squadId, char.id]);
+        if (existingApp) return res.status(400).json({ error: 'You already have a pending application to this squad.' });
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'INSERT INTO squad_applications (squad_id, char_id, status, created_at) VALUES (?,?,?,?)', [squadId, char.id, 'pending', now]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, char.id, '📋 Squad Application Sent', `Your application to "${squad.name}" has been sent. The squad leader will review it.`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/applications', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.json({ applications: [] });
+        const apps = await dbAll(db, `SELECT sa.id, sa.char_id, sa.status, sa.created_at, c.name, c.class, c.level
+            FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
+            WHERE sa.squad_id=? AND sa.status='pending' ORDER BY sa.created_at DESC`,
+            [membership.squad_id]);
+        res.json({ applications: apps.map(a => ({
+            id: Number(a.id),
+            char_id: Number(a.char_id),
+            status: a.status,
+            created_at: Number(a.created_at),
+            name: a.name,
+            class: a.class,
+            level: Number(a.level)
+        })) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders can accept applications.' });
+        const appId = Number(req.params.appId);
+        const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
+        if (!app) return res.status(404).json({ error: 'Application not found.' });
+        const alreadyMember = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [app.char_id]);
+        if (alreadyMember) {
+            await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
+            return res.status(400).json({ error: 'Applicant is already in a squad.' });
+        }
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [membership.squad_id, app.char_id, 'member', now]);
+        await dbRun(db, "UPDATE squad_applications SET status='accepted' WHERE id=?", [appId]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '✅ Squad Application Accepted', `You have been accepted into the squad!`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders can reject applications.' });
+        const appId = Number(req.params.appId);
+        const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
+        if (!app) return res.status(404).json({ error: 'Application not found.' });
+        await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '❌ Squad Application Rejected', `Your squad application was not accepted.`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/achievements/:achievementId/claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const achievement = ACHIEVEMENTS.find(item => item.id === req.params.achievementId);
+        if (!achievement) return res.status(404).json({ error: 'Achievement not found' });
+
+        const progress = await getAchievementMetricValue(db, char, achievement);
+        if (progress < achievement.target) {
+            return res.status(400).json({ error: 'Achievement not completed yet' });
+        }
+
+        const existingClaim = await dbGet(
+            db,
+            'SELECT achievement_id FROM character_achievements WHERE char_id = ? AND achievement_id = ?',
+            [char.id, achievement.id]
+        );
+        if (existingClaim) {
+            return res.status(400).json({ error: 'Achievement already claimed' });
+        }
+
+        await grantAchievementRewards(db, char, achievement.rewards);
+        await dbRun(
+            db,
+            'INSERT INTO character_achievements (char_id, achievement_id, claimed_at) VALUES (?, ?, ?)',
+            [char.id, achievement.id, Math.floor(Date.now() / 1000)]
+        );
+
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({
+            success: true,
+            message: `Claimed ${achievement.name}!`,
+            character: await buildCharacterResponse(freshChar, db),
+            achievementId: achievement.id
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/weekly-tasks', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        res.json(await getWeeklyTasksPayload(db, char));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/weekly-tasks/:taskId/claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character found' });
+
+        const task = WEEKLY_TASKS.find((item) => item.id === req.params.taskId);
+        if (!task) return res.status(404).json({ error: 'Weekly task not found' });
+
+        const weeklyState = await ensureWeeklyTaskState(db, char);
+        const weekStart = Number(weeklyState?.week_start || getCurrentWeekStart());
+        const progress = await getWeeklyTaskProgress(db, char, weeklyState, task.metric);
+        if (progress < task.target) {
+            return res.status(400).json({ error: 'Weekly task not completed yet' });
+        }
+
+        const existingClaim = await dbGet(
+            db,
+            'SELECT task_id FROM character_weekly_claims WHERE char_id = ? AND week_start = ? AND task_id = ?',
+            [char.id, weekStart, task.id]
+        );
+        if (existingClaim) {
+            return res.status(400).json({ error: 'Weekly task already claimed' });
+        }
+
+        if (task.rewards.gold) {
+            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [task.rewards.gold, char.id]);
+        }
+        if (task.rewards.gems) {
+            await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [task.rewards.gems, task.rewards.gems, char.id]);
+        }
+        if (task.rewards.lootbox) {
+            const lootBox = LOOT_BOXES.find((box) => box.id === task.rewards.lootbox.id);
+            if (lootBox) {
+                await addStackableInventoryItem(db, char.id, 'consumable', lootBox, task.rewards.lootbox.qty || 1);
+            }
+        }
+        if (task.rewards.choose_material) {
+            const materialId = String(req.body?.materialId || '').trim();
+            const optionSet = new Set(task.rewards.choose_material.options || []);
+            if (!materialId || !optionSet.has(materialId)) {
+                return res.status(400).json({ error: 'Choose a valid material reward first' });
+            }
+            const mat = RAW_MATERIALS[materialId];
+            if (!mat) return res.status(400).json({ error: 'Material reward is unavailable' });
+            await addStackableInventoryItem(db, char.id, 'raw_mat', { id: materialId, ...mat }, task.rewards.choose_material.qty || 1);
+        }
+
+        await dbRun(
+            db,
+            'INSERT INTO character_weekly_claims (char_id, week_start, task_id, claimed_at) VALUES (?, ?, ?, ?)',
+            [char.id, weekStart, task.id, Math.floor(Date.now() / 1000)]
+        );
+        invalidateWeeklyClaimableCountCache(char.id);
+
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({
+            success: true,
+            message: `Claimed ${task.name}!`,
+            character: await buildCharacterResponse(freshChar, db),
+            weekly: await getWeeklyTasksPayload(db, freshChar)
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Upgrade (UPDATED with skill tree cost modifier) ───────────────────────
+router.post('/upgrade', auth, async (req, res) => {
+    if (_upgradeLock.has(req.user.userId)) {
+        return res.status(429).json({ error: 'Upgrade already in progress.' });
+    }
+    _upgradeLock.add(req.user.userId);
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { stat } = req.body;
+        if (!['strength','defense','agility','magic','vitality','hit_chance','crit_chance'].includes(stat))
+            return res.status(400).json({ error: 'Invalid stat' });
+        
+        // Get learned skills for this character (for skill-specific discounts)
+        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+        const learnedIds = learnedRows.map(r => r.skill_id);
+        
+        // Get base cost from upgradeCost (includes CLASS_DISCOUNTS)
+        let cost = upgradeCost(stat, char[stat] || 0, char.class);
+        
+        // Apply skill tree modifiers (class penalties/discounts from SKILL_TREES)
+        cost = applyClassUpgradeCostModifier(char.class, stat, cost, learnedIds);
+        
+        if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
+        const activePrem = getActivePremium(char);
+        if (hasPremium(activePrem, 'apprentice')) cost = Math.max(1, Math.floor(cost * 0.80));
+        
+        const result = await dbRun(db,
+            `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE id=? AND gold>=?`,
+            [cost, char.id, cost]
+        );
+        if (!result.rowsAffected && result.rowsAffected !== undefined ? true : result.changes === 0) {
+            const fresh = await dbGet(db, 'SELECT gold FROM characters WHERE id=?', [char.id]);
+            return res.status(400).json({ error: `Need ${cost} gold, have ${fresh?.gold ?? 0}.` });
+        }
+        
+        // FIX: When upgrading vitality, properly update HP
+        if (stat === 'vitality') {
+            const equippedArray = await getEquippedItemsArray(db, char.id);
+            const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+            const oldMaxHp = calcHpMax(char, equippedArray);
+            const newMaxHp = calcHpMax(updatedChar, equippedArray);
+            const hpIncrease = newMaxHp - oldMaxHp;
+            await dbRun(db, 'UPDATE characters SET hp_current = hp_current + ? WHERE id = ?', [hpIncrease, char.id]);
+        }
+        
+        const updated = await getCurrentCharacter(db, req.user.userId);
+        res.json({ message: `+1 ${stat}! Spent ${cost} gold.`, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+    finally { _upgradeLock.delete(req.user.userId); }
+});
+
+// ── Training (old stat training, keep as is) ──────────────────────────────
+router.post('/loadout', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { attackZones, blockZones } = req.body;
+        if (!Array.isArray(attackZones) || attackZones.length !== 10) return res.status(400).json({ error: 'attackZones must be array of 10' });
+        if (!Array.isArray(blockZones)  || blockZones.length  !== 10) return res.status(400).json({ error: 'blockZones must be array of 10' });
+        for (const z of attackZones) { if (!HIT_ZONES[z])   return res.status(400).json({ error: `Invalid attack zone: ${z}` }); }
+        for (const z of blockZones)  { if (!BLOCK_ZONES[z]) return res.status(400).json({ error: `Invalid block zone: ${z}` }); }
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        await dbRun(db, 'UPDATE characters SET attack_zones=?, block_zones=? WHERE id=?', [JSON.stringify(attackZones), JSON.stringify(blockZones), char.id]);
+        res.json({ message: 'Loadout saved.' });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Missions ──────────────────────────────────────────────────────────────
+router.get('/missions', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        const active = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id=?', [char.id]);
+        const currentMap = char.current_map || 'overworld';
+        const zones = getAllZones(currentMap);
+        
+        const unlockedZones = Object.entries(zones)
+            .filter(([,z]) => char.level >= z.minLevel)
+            .map(([key, z]) => ({ key, ...z }));
+        
+        res.json({ 
+            active: active ? { ...active, mat_drops: JSON.parse(active.mat_drops || '[]') } : null, 
+            unlockedZones, 
+            charLevel: char.level,
+            currentMap 
+        });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+router.post('/missions/start', auth, async (req, res) => {
+    const userId = req.user.userId;
+    if (_missionStartLock.has(userId)) {
+        return res.status(400).json({ error: 'Mission start already in progress.' });
+    }
+    _missionStartLock.add(userId);
+    try {
+        const db = await getDb();
+        const now = Math.floor(Date.now() / 1000);
+        const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
+        const character = await getCurrentCharacter(db, userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?',
+            [character.id, now]);
+        if (activeTraining) {
+            return res.status(400).json({ error: 'Cannot start missions while training skills. Complete or cancel training first.' });
+        }
+
+        // Backend-enforced PvP cooldown: prevents bypassing the client overlay.
+        const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
+        const activePrem = getActivePremium(character);
+        const effectivePvpCooldown = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
+        const lastBattleAt = Number(character.last_battle_at || 0);
+        if (lastBattleAt + effectivePvpCooldown > now) {
+            const secs = (lastBattleAt + effectivePvpCooldown) - now;
+            return res.status(400).json({ error: `Wait ${secs < 60 ? secs + 's' : Math.ceil(secs / 60) + 'm'} before starting a mission.` });
+        }
+
+        const currentMap = character.current_map || 'overworld';
+        let zone;
+
+        if (currentMap === 'abyss') {
+            zone = ABYSS_ZONES[zoneId];
+        } else {
+            zone = ZONES[zoneId];
+        }
+
+        if (!zone) return res.status(404).json({ error: 'Zone not found' });
+
+        const spot = zone.spots.find(s => s.id === spotId);
+        if (!spot) return res.status(404).json({ error: 'Spot not found' });
+
+// Tutorial Lock Check: Wins < 4 only allows Easy (unless skipped)
+const isTutorial = isTutorialCharacter(character);
+if (isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
+    return res.status(403).json({ error: 'Tutorial: You must complete 4 battles before attempting Medium or Hard missions.' });
+}
+
+// Only small missions for tutorial (first 4 wins)
+if (isTutorial && reqSize && reqSize !== 'small') {
+    return res.status(403).json({ error: 'Tutorial: Only Small missions are available until you win 4 battles.' });
+}
+
+const sizeKey = isTutorial ? 'small' : (['small', 'medium', 'large'].includes(reqSize) ? reqSize : 'small');
+const sizeConf = MISSION_SIZES[sizeKey];
+
+const todayStart = Math.floor(now / 86400) * 86400;
+const lastReset = character.daily_mp_reset_at || 0;
+let dailyMpSpent = character.daily_mp_spent || 0;
+
+if (lastReset < todayStart) {
+    dailyMpSpent = 0;
+    await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, character.id]);
+}
+
+await applyMpRegen(db, character.id);
+const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+const currentMp = freshChar.mission_points ?? 0;
+
+const difficulty = spot.difficulty;
+const [minGold, maxGold] = zone.payoutBase[difficulty];
+
+let minXp = 0, maxXp = 0;
+if (sizeKey === 'small') {
+    minXp = 0;
+    maxXp = 6;
+} else if (sizeKey === 'medium') {
+    minXp = 0;
+    maxXp = 9;
+} else {
+    minXp = 0;
+    maxXp = 12;
+}
+
+let xpReward = Math.floor(Math.random() * (maxXp - minXp + 1)) + minXp;
+xpReward = Math.max(0, xpReward);
+
+        const baseGoldRoll = (Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold);
+        const goldReward = Math.floor(baseGoldRoll * MISSION_BASE_GOLD_MULT * sizeConf.rewardMult);
+
+        const missionList = spot.missions.map(m => typeof m === 'string' ? m : m.name);
+        const missionName = (missionIdx !== undefined && missionList[missionIdx]) ? missionList[missionIdx] : missionList[Math.floor(Math.random() * missionList.length)];
+        
+        const baseDuration = sizeConf.duration;
+        let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
+        if (hasPremium(activePrem, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
+        
+        // Tutorial force duration
+        if (isTutorial) duration = 10;
+        
+        let effectiveMpCost = sizeConf.mpCost;
+        const midasFlow = PREMIUM_SYNERGIES.find(s => s.requires.includes('arcane_reservoir') && s.requires.includes('fortune_hunter'));
+        if (midasFlow && hasPremium(activePrem, 'arcane_reservoir') && hasPremium(activePrem, 'fortune_hunter')) {
+            effectiveMpCost = Math.max(0, effectiveMpCost - midasFlow.effect.mp_cost_reduction);
+        }
+        
+        if (!isTutorial && currentMp < effectiveMpCost) {
+            return res.status(400).json({ error: `Not enough MP. ${sizeConf.label} mission costs ${effectiveMpCost} MP, you have ${currentMp}.` });
+        }
+        
+        const insertResult = await dbRun(db, `
+    INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
+`, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, currentMap, sizeKey, character.id]);
+        
+        const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
+        if (!didInsert) return res.status(400).json({ error: 'You already have an active mission.' });
+        
+        if (!isTutorial) {
+            await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
+                [effectiveMpCost, effectiveMpCost, character.id]);
+            await recordTotalMpSpent(db, character.id, effectiveMpCost);
+        }
+        
+        res.json({
+            success: true,
+            mission: {
+                id: Number(insertResult.lastInsertRowid), 
+                zone: zoneId, 
+                spot: spotId, 
+                spot_name: spot.name,
+                mission_name: missionName, 
+                missionName, 
+                difficulty, 
+                size: sizeKey,
+                gold_reward: goldReward, 
+                xp_reward: xpReward,
+                started_at: now, 
+                ends_at: now + duration, 
+                duration,
+                map_type: currentMap
+            }
+        });
+    } catch (e) {
+        console.error('Mission start error:', e);
+        res.status(500).json({ error: e?.message || String(e) });
+    } finally {
+        _missionStartLock.delete(userId);
+    }
+});
+
+// ── Missions Collect (UPDATED with skill tree passive bonuses) ────────────
+router.post('/missions/collect', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        await applyHpRegen(db, character.id);
+        await applyMpRegen(db, character.id);
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
+        if (!mission) return res.status(400).json({ error: 'No active mission' });
+        let zoneLevel = 1;
+        if (mission.map_type === 'abyss') {
+            const zone = ABYSS_ZONES[mission.zone];
+            zoneLevel = zone?.minLevel || 39;
+        } else {
+            const zone = ZONES[mission.zone];
+            zoneLevel = zone?.minLevel || 1;
+        }        
+        const now = Math.floor(Date.now() / 1000);
+        if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
+        let playerStats = null;
+        if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
+            playerStats = {
+                hp_max: freshChar.hp_max,
+                strength: freshChar.strength,
+                defense: freshChar.defense,
+                agility: freshChar.agility,
+                magic: freshChar.magic,
+                hit_chance: freshChar.hit_chance,
+                crit_chance: freshChar.crit_chance
+            };
+        }
+        const isEvent = eventHas('grand_festival');
+        const activePremCollect = getActivePremium(freshChar);
+        const hasUlt = hasUltimate(activePremCollect);
+        const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+        const hpMax = calcHpMax(freshChar, equippedArray);
+        const hpCurrent = freshChar.hp_current ?? hpMax;
+        const setBonuses = getEquippedSetBonuses(equippedArray);
+        const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
+        const charActiveSkills = getActiveSkills(freshChar);
+        
+        // ── Skill tree passive bonuses ──────────────────────────────────────
+        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshChar.id]);
+        const learnedIds = learnedRows.map(r => r.skill_id);
+        const skillPassives = await computePassiveBonusesWithProgress(db, freshChar.class, learnedIds, freshChar.id);
+const skillActives  = await computeActiveCombatEffectsWithProgress(db, freshChar.class, learnedIds, freshChar.id);
+const skillMods     = await computeClassModifiersWithProgress(db, freshChar.class, learnedIds, freshChar.id);
+        
+        // Rogue no-shield agility bonus
+let noShieldAgiBonus = 0;
+if (freshChar.class === 'rogue') {
+    const equipped = await getEquippedItems(db, freshChar.id);
+    const hasShield = !!equipped.shield;
+    const shieldIsOffhand = hasShield && equipped.shield.rogueOffhand === true;
+    if (!hasShield || shieldIsOffhand) {
+        noShieldAgiBonus = Math.floor((freshChar.agility || 0) * 0.05);
+                    }
+            }
+        const playerWeapon = getEquippedWeaponData(equippedArray);
+        const playerFighter = {
+            id: freshChar.id,
+            name: freshChar.name,
+            class: freshChar.class,
+            weapon: playerWeapon,
+            hp: hpCurrent,
+            hpMax: hpMax + (skillPassiveBonus(freshChar.vitality || 0, skillPassives.vitality) * 25),
+            dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
+            dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
+            strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(freshChar.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength'),
+            agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(freshChar.agility || 0, skillPassives.agility) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
+            magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(freshChar.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic'),
+            defense: (freshChar.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(freshChar.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense'),
+            hit_chance: (freshChar.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(freshChar.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
+            crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(freshChar.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+            armor: calcArmorValue(freshChar, equippedArray) + skillPassiveBonus(calcArmorValue(freshChar, equippedArray), skillPassives.armor),
+            elem_dmg: {
+                pyro:    (calcElemDmg(equippedArray).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedArray).water   || 0) + (skillPassives.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedArray).wind    || 0) + (skillPassives.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedArray).electro || 0) + (skillPassives.electro_dmg || 0),
+            },
+            elem_resist: {
+                pyro:    (calcElemResist(freshChar, equippedArray).pyro    || 0) + (skillPassives.pyro_resist    || 0),
+                water:   (calcElemResist(freshChar, equippedArray).water   || 0) + (skillPassives.water_resist   || 0),
+                wind:    (calcElemResist(freshChar, equippedArray).wind    || 0) + (skillPassives.wind_resist    || 0),
+                electro: (calcElemResist(freshChar, equippedArray).electro || 0) + (skillPassives.electro_resist || 0),
+            },
+            skillEffects: skillActives,
+            skillMods: skillMods,
+            baseActiveSkills: charActiveSkills,
+            activeSkills: mergeActiveSkills(charActiveSkills, skillActives),
+            attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
+            blockZones: JSON.parse(freshChar.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+            dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
+        };
+        
+        // Attach elemental companion for missions
+        const missionElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [freshChar.id]);
+        if (missionElemRow) {
+            const elemStats = calcElemStats(missionElemRow);
+            playerFighter._elementalFighter = {
+                ...missionElemRow,
+                ...elemStats,
+                hp: missionElemRow.hp_current || elemStats.hpMax
+            };
+        }
+
+        const isTutorial = isTutorialCharacter(freshChar);
+
+        // Build NPC and override its name with the mission name
+        // If a player is underleveled for a zone, missions should still scale to the zone's minimum level.
+        const missionEffectiveLevel = Math.max(Number(freshChar.level || 1), Number(zoneLevel || 1));
+        const npc = buildNpc(mission.difficulty, missionEffectiveLevel, zoneLevel, playerFighter);
+        const npcName = getNPCNameFromMission(mission.mission_name);
+        npc.name = npcName;
+        npc.class = 'npc';  // Add class for mage penalty check (not a mage)
+
+        // Zone-based stat overrides — hard = gatekeeper level, medium = 75%, easy = 50%
+        if (mission.zone === 'mountains') {
+            if (mission.difficulty === 'hard') {
+                npc.magic = 80; npc.crit_chance = 70; npc.armor = 46;
+            } else if (mission.difficulty === 'medium') {
+                npc.magic = 60; npc.crit_chance = 52; npc.armor = 34;
+            } else if (mission.difficulty === 'easy') {
+                npc.magic = 40; npc.crit_chance = 35; npc.armor = 23;
+            }
+        } else if (mission.zone === 'ruins') {
+            if (mission.difficulty === 'hard') {
+                npc.dmgMin = 120; npc.dmgMax = 160; npc.agility = 120;
+                npc.magic = 150; npc.crit_chance = 120; npc.armor = 120;
+            } else if (mission.difficulty === 'medium') {
+                npc.dmgMin = 90; npc.dmgMax = 120; npc.agility = 90;
+                npc.magic = 112; npc.crit_chance = 90; npc.armor = 90;
+            } else if (mission.difficulty === 'easy') {
+                npc.dmgMin = 60; npc.dmgMax = 80; npc.agility = 60;
+                npc.magic = 75; npc.crit_chance = 60; npc.armor = 60;
+            }
+        } else if (mission.zone === 'dark_city') {
+            if (mission.difficulty === 'hard') {
+                npc.agility = 200; npc.magic = 500; npc.crit_chance = 250; npc.armor = 200;
+            } else if (mission.difficulty === 'medium') {
+                npc.agility = 150; npc.magic = 375; npc.crit_chance = 187; npc.armor = 150;
+            } else if (mission.difficulty === 'easy') {
+                npc.agility = 100; npc.magic = 250; npc.crit_chance = 125; npc.armor = 100;
+            }
+        }
+
+        // Random elemental resists for hard missions — at least 2 types, up to all 4, scales with zone
+        // Skip for abyss missions — buildNpc() already scales from player's own gear resists
+        if (mission.difficulty === 'hard' && mission.map_type !== 'abyss') {
+            const allElem = ['pyro', 'water', 'wind', 'electro'];
+            const count = Math.min(4, 2 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0));
+            const chosen = [...allElem].sort(() => Math.random() - 0.5).slice(0, count);
+            const maxR = Math.min(100, Math.floor(20 + zoneLevel * 2.5));
+            npc.elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
+            for (const el of chosen) npc.elem_resist[el] = Math.floor(Math.random() * maxR * 0.7) + Math.floor(maxR * 0.3);
+        }
+
+        // Force win for new characters (first 4 battles)
+        let forceWinnerId = null;
+        if (isTutorial) {
+            forceWinnerId = freshChar.id;
+        }
+
+        const battleStats = {
+            you: summarizeBattleStats(playerFighter),
+            enemy: summarizeBattleStats(npc),
+        };
+        
+        const battle = isTutorial
+            ? createTutorialBattleResult(playerFighter, npc)
+            : runBattle(playerFighter, npc, forceWinnerId);
+        let playerWon = battle.winnerId === freshChar.id;
+        
+        // Add tutorial note if we used forceWinnerId to flip a loss
+        if (forceWinnerId && isTutorial) {
+            if (!battle.log.some(line => line.includes('Tutorial victory'))) {
+                battle.log.push('✨ Tutorial victory - experience gained!');
+            }
+        }
+        
+        await recordMissionSpotResult(db, {
+            charId: freshChar.id,
+            mapType: mission.map_type || 'overworld',
+            zoneId: mission.zone,
+            spotId: mission.spot,
+            won: playerWon,
+            now
+        });
+        if (playerWon) {
+            await recordMonsterDefeat(db, {
+                charId: freshChar.id,
+                source: mission.map_type === 'abyss' ? 'abyss_mission' : 'mission',
+                monsterKey: npcName,
+                monsterName: npcName,
+                count: 1,
+                now
+            });
+            await recordEquipmentlessWins(db, freshChar, equippedArray);
+            await grantWeaponXP(db, freshChar.id, WEAPON_XP_PER_MISSION);
+        }
+        
+        let goldEarned;
+        let xpEarned;
+        if (isTutorial) {
+            goldEarned = 250;
+            xpEarned = 1;
+        } else {
+            goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
+            xpEarned = playerWon ? mission.xp_reward : 0;
+
+            // Add damage-based bonus
+            const sizeConf = MISSION_SIZES[mission.size || 'small'];
+            const mpMultiplier = sizeConf.mpCost / 60;
+            const damageDiff = Math.max(0, battle.totalDmgToB - battle.totalDmgToA);
+            const damageGold = Math.floor(damageDiff * mpMultiplier);
+
+            goldEarned += damageGold;
+
+            if (isEvent) {
+                goldEarned *= 2;
+                xpEarned *= 2;
+            }
+            if (hasPremium(activePremCollect, 'fortune_hunter')) {
+                goldEarned = Math.floor(goldEarned * 1.30);
+            }
+            if (hasUlt) {
+                xpEarned = Math.floor(xpEarned * 1.50);
+            }
+        }
+        
+        const gemChance = isTutorial ? 0 : (isEvent ? 0.15 : 0.05);
+        let gemsFound = 0;
+        if (playerWon && Math.random() < gemChance) gemsFound = 1;
+
+        // Tutorial Check: Don't deplete HP for the first 4 battles
+        const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+
+        let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
+        while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
+        let newWins = freshChar.wins + (playerWon ? 1 : 0);
+        let newLosses = freshChar.losses + (playerWon ? 0 : 1);
+
+        let tutorialMessage = null;
+        if (isTutorial && newWins === 4) {
+            tutorialMessage = "✨ Tutorial complete! Your character is now ready for the real challenge. Note: Further missions will now affect your HP. Check the 'Upgrade' tab to build your stats, the 'Shop' to buy items, and your 'Inventory' to manage your gear!";
+        }
+
+        // Handle level up: reset HP to full and give loot box
+        let levelUpMessage = null;
+        let finalHp = newHp;
+        if (leveledUp) {
+            const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+            const newCharWithLevel = { ...freshChar, level: newLevel };
+            const newHpMax = calcHpMax(newCharWithLevel, equippedArray);
+            finalHp = newHpMax;
+            
+            // Give a common loot box for leveling up
+            const lootBox = LOOT_BOXES.find(box => box.id === 'lootbox_common');
+            if (lootBox) {
+                await addStackableInventoryItem(db, freshChar.id, 'consumable', lootBox, 1);
+            }
+            levelUpMessage = `🎉 Level Up! You reached level ${newLevel}! HP restored to full and you received a Common Loot Box!`;
+        }
+
+        const missionClaimResult = await dbRun(
+            db,
+            'DELETE FROM active_missions WHERE character_id = ? AND started_at = ? AND ends_at = ?',
+            [freshChar.id, mission.started_at, mission.ends_at]
+        );
+        const claimedMission = missionClaimResult?.rowsAffected ?? missionClaimResult?.changes ?? 0;
+        if (!claimedMission) {
+            return res.status(409).json({ error: 'Mission rewards already collected.' });
+        }
+
+        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+? WHERE id=?`,
+            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, freshChar.id]);
+        await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
+        
+        // ── Skill tree stat tracking ───────────────────────────────────────
+        if (playerWon && mission.difficulty === 'hard') {
+            await dbRun(db, 'UPDATE characters SET hard_missions_completed = hard_missions_completed + 1 WHERE id=?', [freshChar.id]);
+        }
+        if (playerWon) {
+            await dbRun(db, 'UPDATE characters SET total_missions_completed = total_missions_completed + 1 WHERE id=?', [freshChar.id]);
+        }
+        if (playerWon) {
+            await recordDamageStyleWin(db, freshChar.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
+        }
+        
+        const drops = [];
+let matsByZone;
+if (mission.map_type === 'abyss') {
+    matsByZone = {
+        shadowfen: [
+            { id:'void_shard', emoji:'🔮', name:'Void Shard' },
+            { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+            { id:'abyss_crystal', emoji:'💎', name:'Abyss Crystal' }
+        ],
+        crimson: [
+            { id:'crimson_crystal', emoji:'🔴', name:'Crimson Crystal' },
+            { id:'fire_essence', emoji:'🔥', name:'Fire Essence' },
+            { id:'infernal_core', emoji:'💀', name:'Infernal Core' }
+        ],
+        void: [
+            { id:'void_crystal', emoji:'🔮', name:'Void Crystal' },
+            { id:'null_essence', emoji:'🌑', name:'Null Essence' },
+            { id:'abyss_fragment', emoji:'🧩', name:'Abyss Fragment' }
+        ],
+        citadel: [
+            { id:'shadowsteel', emoji:'⚙️', name:'Shadowsteel' },
+            { id:'soul_essence', emoji:'👻', name:'Soul Essence' },
+            { id:'obsidian_shard', emoji:'🪨', name:'Obsidian Shard' }
+        ],
+        eternal_dark: [
+            { id:'dark_essence', emoji:'🌑', name:'Dark Essence' },
+            { id:'primordial_shard', emoji:'✨', name:'Primordial Shard' },
+            { id:'eternal_core', emoji:'💠', name:'Eternal Core' }
+        ]
+    };
+} else {
+    matsByZone = {
+        forest: [
+            { id:'wood', emoji:'🪵', name:'Wood' },
+            { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
+            { id:'herbs', emoji:'🌿', name:'Herbs' }
+        ],
+        swamp: [
+            { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' },
+            { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
+            { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
+        ],
+        mountains: [
+            { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
+            { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
+            { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
+        ],
+        ruins: [
+            { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
+            { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' },
+            { id:'void_shard', emoji:'🌑', name:'Void Shard' }
+        ],
+        dark_city: [
+            { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+            { id:'demon_core', emoji:'👹', name:'Demon Core' }
+        ],
+    };
+}
+const mats = matsByZone[mission.zone] || (mission.map_type === 'abyss' ? matsByZone.shadowfen : matsByZone.forest);
+        const addMaterialDrop = async (mat, qty) => {
+            const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [freshChar.id, mat.id]);
+            const rarity = RAW_MATERIALS[mat.id]?.rarity || 'common';
+            if (existing) {
+                const d = JSON.parse(existing.item_data);
+                d.qty = (d.qty || 1) + qty;
+                if (!d.rarity) d.rarity = rarity;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existing.id]);
+            } else {
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)`, [freshChar.id, 'raw_mat', JSON.stringify({ ...mat, rarity, qty })]);
+            }
+            drops.push({ mat: mat.id, qty });
+        };
+
+        if (isTutorial && playerWon) {
+            const tutorialDropCount = Math.min(2, mats.length);
+            const tutorialPool = [...mats].sort(() => Math.random() - 0.5).slice(0, tutorialDropCount);
+            for (const mat of tutorialPool) {
+                await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 2));
+            }
+        } else {
+            const dropChance = playerWon ? 0.6 : 0.2;
+            for (const mat of mats) {
+                if (Math.random() < dropChance) {
+                    await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 3));
+                }
+            }
+        }
+        
+        try {
+    await dbRun(db, `INSERT INTO battles (
+        attacker_id, defender_id, winner_id, attacker_name, defender_name, log, 
+        fought_at, battle_type, xp_gained, gold_gained, total_dmg_dealt, total_dmg_taken
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, mission.mission_name, 
+         JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned, 
+         battle.totalDmgToB, battle.totalDmgToA]);
+} catch {}
+        
+        // Save elemental HP after mission
+        if (playerFighter._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]);
+        }
+
+        try {
+            const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`;
+const payload = JSON.stringify({ 
+    log: battle.log, 
+    won: playerWon, 
+    goldEarned, 
+    xpEarned, 
+    type: 'mission', 
+    npcName: npcName,  // Use the extracted NPC name here
+    npcLevel: missionEffectiveLevel,
+    missionName: mission.mission_name,
+    totalDmgDealt: battle.totalDmgToB,
+    totalDmgTaken: battle.totalDmgToA,
+    battleStats
+});
+            await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
+        } catch {}
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
+        res.json({
+            success: true, won: playerWon, battleLog: battle.log,
+            message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
+            goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
+            levelUpMessage,
+            drops, hpRemaining: finalHp,
+            tutorialMessage,
+            activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
+            character: await buildCharacterResponse(updatedChar, db),
+            totalDmgDealt: battle.totalDmgToB,
+            totalDmgTaken: battle.totalDmgToA,
+            battleStats,
+            missionName: mission.mission_name,
+            npcLevel: missionEffectiveLevel,
+        });
+    } catch (e) {
+        console.error('Mission collect error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/missions/active', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
+        res.json(mission || null);
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/battle/recover', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to recover instantly' });
+        const now = Math.floor(Date.now() / 1000);
+        const activePrem = getActivePremium(char);
+        const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+        const cooldownEnds = (char.last_battle_at || 0) + pvpCd;
+        if (cooldownEnds <= now) return res.status(400).json({ error: 'No active battle cooldown to clear' });
+        await dbRun(db, 'UPDATE characters SET last_battle_at = 0, gems = gems - 1 WHERE id = ?', [char.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({ success: true, message: '⚡ Battle cooldown cleared!', character: await buildCharacterResponse(updated, db) });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Inventory ─────────────────────────────────────────────────────────────
+router.get('/inventory', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const items = await dbAll(db, 'SELECT * FROM inventory WHERE char_id = ? ORDER BY item_type, acquired_at DESC', [char.id]);
+        const equipped = await getEquippedItems(db, char.id);
+        const equippedIds = Object.values(equipped).map(e => e.inventoryId).filter(Boolean);
+        res.json({ items: items.map(i => ({ ...i, item_data: JSON.parse(i.item_data), equipped: equippedIds.includes(i.id) })), equipped });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Elementals ────────────────────────────────────────────────────────────
+// Ensure is_equipped column exists in elementals table
+(async () => {
+    const db = await getDb();
+    try {
+        await dbRun(db, "ALTER TABLE elementals ADD COLUMN is_equipped INTEGER DEFAULT 0;");
+    } catch (e) { /* Column likely already exists */ }
+})();
+
+router.get('/elementals', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const elementals = await dbAll(db, `SELECT * FROM elementals WHERE char_id = ? ORDER BY created_at DESC`, [char.id]);
+
+        const responseElementals = elementals.map(e => {
+            const stats = calcElemStats(e);
+            return {
+                ...e,
+                ...stats,
+                item_data: { name: e.name, element: e.element, level: e.level, ...stats },
+                equipped: !!e.is_equipped,
+                xpNext: elemXpForLevel(e.level || 1)
+            };
+        });
+
+        res.json({ elementals: responseElementals });
+
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/elemental/equip/:elementalId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE id = ? AND char_id = ?', [req.params.elementalId, char.id]);
+        if (!elemental) return res.status(404).json({ error: 'Elemental not found' });
+        
+        // Unequip all other elementals first
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 0 WHERE char_id = ?', [char.id]);
+        // Equip the selected one
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 1 WHERE id = ?', [elemental.id]);
+        res.json({ success: true, message: 'Elemental equipped!' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/unequip', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        await dbRun(db, 'UPDATE elementals SET is_equipped = 0 WHERE char_id = ?', [char.id]);
+        res.json({ success: true, message: 'Elemental unequipped!' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Add item (used by dungeon loot) ──────────────────────────────────
+router.post('/inventory/add', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { item } = req.body || {};
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        if (!item || typeof item !== 'object') return res.status(400).json({ error: 'Invalid item data' });
+
+        const slugify = (s) => String(s || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+        const qty = Math.max(1, Number(item.qty || 1));
+        const dataBase = { ...item, qty };
+
+        const isConsumable = item.type === 'consumable' || item.effect || item.consumable;
+        if (isConsumable) {
+            const d = { ...dataBase };
+            d.id = d.id || slugify(d.name) || `consumable_${Date.now()}`;
+            d.effect = d.effect || item.effect;
+
+            const existing = await dbGet(
+                db,
+                `SELECT * FROM inventory WHERE char_id=? AND item_type='consumable' AND json_extract(item_data,'$.id')=?`,
+                [char.id, d.id]
+            );
+
+            if (existing) {
+                const merged = JSON.parse(existing.item_data);
+                merged.qty = (merged.qty || 1) + qty;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(merged), existing.id]);
+            } else {
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'consumable',?)`, [
+                    char.id,
+                    JSON.stringify(d)
+                ]);
+            }
+
+            return res.json({ success: true });
+        }
+
+        if (item.type === 'material') {
+            const d = { ...dataBase };
+            d.id = d.id || slugify(d.name) || `mat_${Date.now()}`;
+            d.emoji = d.emoji || d.icon;
+            d.rarity = d.rarity || 'common';
+
+            const existing = await dbGet(
+                db,
+                `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`,
+                [char.id, d.id]
+            );
+
+            if (existing) {
+                const merged = JSON.parse(existing.item_data);
+                merged.qty = (merged.qty || 1) + qty;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(merged), existing.id]);
+            } else {
+                await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'raw_mat',?)`, [
+                    char.id,
+                    JSON.stringify(d)
+                ]);
+            }
+
+            return res.json({ success: true });
+        }
+
+        await dbRun(
+            db,
+            `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?, 'equipment', ?)`,
+            [char.id, JSON.stringify(dataBase)]
+        );
+
+        return res.json({ success: true });
+    } catch (e) {
+        console.error('inventory/add error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Forge ─────────────────────────────────────────────────────────────────
+router.get('/forge/recipes', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const completedRows = await dbAll(db, 'SELECT DISTINCT zone FROM missions WHERE char_id=? AND collected=1', [char.id]);
+        const completedZones = new Set(completedRows.map(r => r.zone));
+        const mats = await getInventoryMaterials(db, char.id);
+
+        const equippedArray = await getEquippedItemsArray(db, char.id);
+        const equippedRecipeIds = new Set();
+        const equippedSetIds = new Set();
+        for (const row of equippedArray) {
+            try {
+                const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data;
+                if (d.id) equippedRecipeIds.add(d.id);
+                if (d.setId) equippedSetIds.add(d.setId);
+            } catch {}
+        }
+
+        const components = Object.entries(COMPONENTS).map(([id, comp]) => {
+            const canCraft = char.gold >= comp.goldCost && Object.entries(comp.recipe).every(([mat, qty]) => (mats[mat]?.qty || 0) >= qty);
+            return { id, ...comp, canCraft, playerMats: mats };
+        });
+        const equipment = EQUIPMENT_RECIPES.filter(rec => !rec.bannerOnly).map(rec => {
+            const zoneUnlocked = completedZones.has(rec.requiredZone) || char.level >= (ZONES[rec.requiredZone]?.minLevel || 1);
+            const scaledGoldCost = getScaledForgeGoldCost(rec.goldCost, char.level, rec.minLevel || 1);
+            const canCraft = zoneUnlocked && char.gold >= scaledGoldCost && Object.entries(rec.components).every(([comp, qty]) => (mats[comp]?.qty || 0) >= qty);
+            const scaledPreview = scaleItemToLevel(rec, char.level);
+            return {
+                ...rec,
+                ...scaledPreview,
+                goldCost: scaledGoldCost,
+                zoneUnlocked,
+                canCraft,
+                equipped: equippedRecipeIds.has(rec.id) || [...equippedRecipeIds].some(eid => eid.startsWith(rec.id + '_'))
+            };
+        });
+        // Extract equipped weapon leveling data
+        let weaponData = null;
+        for (const row of equippedArray) {
+            try {
+                const d = typeof row.item_data === 'string' ? JSON.parse(row.item_data) : row.item_data;
+                if (d.slot === 'weapon') {
+                    initWeaponData(d);
+                    const nextXP = getWeaponXPForLevel(d.wp_level);
+                    const nextFeed = getWeaponFeedForLevel(d.wp_level);
+                    weaponData = {
+                        id: d.id,
+                        name: d.name,
+                        emoji: d.emoji,
+                        wp_level: d.wp_level,
+                        wp_xp: d.wp_xp,
+                        wp_xp_target: nextXP,
+                        wp_feed: d.wp_feed,
+                        wp_feed_target: nextFeed,
+                        wp_stat_points: d.wp_stat_points,
+                        wp_stats: d.wp_stats,
+                        maxed: d.wp_level >= WEAPON_MAX_LEVEL,
+                    };
+                    break;
+                }
+            } catch {}
+        }
+        // Enrich mats with rarity data from definitions
+        for (const [id, mat] of Object.entries(mats)) {
+            const def = RAW_MATERIALS[id] || COMPONENTS[id];
+            mat.rarity = def?.rarity || mat.rarity || 'common';
+            mat.type = RAW_MATERIALS[id] ? 'raw_mat' : (COMPONENTS[id] ? 'component' : 'unknown');
+        }
+        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/forge/refine', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { componentId } = req.body;
+        const comp = COMPONENTS[componentId];
+        if (!comp) return res.status(400).json({ error: 'Unknown component' });
+        if (char.gold < comp.goldCost) return res.status(400).json({ error: `Need ${comp.goldCost} gold` });
+        const mats = await getInventoryMaterials(db, char.id);
+        for (const [mat, qty] of Object.entries(comp.recipe)) {
+            if ((mats[mat]?.qty || 0) < qty) return res.status(400).json({ error: `Need ${qty}x ${RAW_MATERIALS[mat]?.name || mat}` });
+        }
+        for (const [mat, qty] of Object.entries(comp.recipe)) {
+            const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [char.id, mat]);
+            if (inv) {
+                const d = JSON.parse(inv.item_data); d.qty = (d.qty || 1) - qty;
+                if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inv.id]);
+                else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), inv.id]);
+            }
+        }
+        const existingComp = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, componentId]);
+        if (existingComp) {
+            const d = JSON.parse(existingComp.item_data); d.qty = (d.qty || 1) + 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existingComp.id]);
+        } else {
+            await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [char.id, 'component', JSON.stringify({ id:componentId, ...comp, qty:1 })]);
+        }
+        await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [comp.goldCost, char.id]);
+        res.json({ message:`Refined: ${comp.name}!` });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/forge/craft', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { recipeId } = req.body;
+        const recipe = EQUIPMENT_RECIPES.find(r => r.id === recipeId);
+        if (!recipe) return res.status(400).json({ error: 'Unknown recipe' });
+        if (recipe.bannerOnly) return res.status(400).json({ error: 'Cannot craft banner-only items' });
+        
+        if (char.level < (recipe.minLevel || 1)) {
+            return res.status(400).json({ error: `Requires level ${recipe.minLevel} to craft this item.` });
+        }
+        
+        if (recipe.craftClass && char.class !== recipe.craftClass) {
+            return res.status(400).json({ error: `Only ${recipe.craftClass}s can craft this item.` });
+        }
+
+        const craftGoldCost = getScaledForgeGoldCost(recipe.goldCost, char.level, recipe.minLevel || 1);
+        if (char.gold < craftGoldCost) return res.status(400).json({ error: `Need ${craftGoldCost} gold` });
+        
+        const mats = await getInventoryMaterials(db, char.id);
+        for (const [comp, qty] of Object.entries(recipe.components)) {
+            if ((mats[comp]?.qty || 0) < qty) return res.status(400).json({ error: `Need ${qty}x ${COMPONENTS[comp]?.name || comp}` });
+        }
+        
+        for (const [comp, qty] of Object.entries(recipe.components)) {
+            const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
+            if (inv) {
+                const d = JSON.parse(inv.item_data);
+                d.qty = (d.qty || 1) - qty;
+                if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inv.id]);
+                else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), inv.id]);
+            }
+        }
+        
+        await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [craftGoldCost, char.id]);
+        
+        const scaledItem = scaleItemToLevel(recipe, char.level);
+        scaledItem.original_price = craftGoldCost;
+        
+        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', 
+            [char.id, 'equipment', JSON.stringify(scaledItem)]);
+        
+        res.json({ message: `⚒️ Crafted: ${recipe.name} (Level ${char.level})!` });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Weapon feed ────────────────────────────────────────────────────────────
+router.post('/forge/weapon/feed', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { inventoryId, qty: requestedQty } = req.body;
+        const feedQty = Math.max(1, Math.floor(Number(requestedQty) || 1));
+        if (!inventoryId) return res.status(400).json({ error: 'Missing material inventory ID' });
+
+        const eq = await getEquippedItemsArray(db, char.id);
+        const weaponRow = eq.find(r => {
+            try { const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data; return d.slot === 'weapon'; }
+            catch { return false; }
+        });
+        if (!weaponRow) return res.status(400).json({ error: 'No weapon equipped' });
+        const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+        initWeaponData(weaponData);
+        if (weaponData.wp_level >= WEAPON_MAX_LEVEL) return res.status(400).json({ error: 'Weapon is already max level' });
+        const curFeed = weaponData.wp_feed || 0;
+        const feedNeeded = getWeaponFeedForLevel(weaponData.wp_level);
+        if (curFeed >= feedNeeded) return res.status(400).json({ error: 'Feed bar is already full! Level up to continue feeding.' });
+
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [inventoryId, char.id]);
+        if (!item) return res.status(400).json({ error: 'Item not found' });
+        const itemData = JSON.parse(item.item_data);
+        const itemId = itemData.id;
+        if (!RAW_MATERIALS[itemId]) return res.status(400).json({ error: 'Only raw materials can be fed to weapons.' });
+        const defRarity = RAW_MATERIALS[itemId]?.rarity;
+        const rarity = defRarity || itemData.rarity || 'common';
+        const weight = WEAPON_FEED_WEIGHTS[rarity] || 1;
+        const qty = itemData.qty || 1;
+        const consumeQty = Math.min(feedQty, qty);
+        const totalWeight = weight * consumeQty;
+
+        // Check for overfeeding — warn before consuming materials
+        const feedRemaining = Math.max(0, feedNeeded - curFeed);
+        const overflow = totalWeight - feedRemaining;
+        if (overflow > 0 && !req.body.confirmOverfeed) {
+            return res.json({
+                overfeed: true,
+                overflow,
+                totalWeight,
+                feedRemaining,
+                feedNeeded,
+                curFeed,
+                consumeQty,
+                rarity,
+                message: `Feeding ${consumeQty}x ${rarity} (+${totalWeight} feed) will exceed the ${feedNeeded} target by ${overflow}. Materials will be consumed. Continue?`
+            });
+        }
+
+        // Consume units
+        if (qty > consumeQty) {
+            itemData.qty = qty - consumeQty;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), item.id]);
+        } else {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+        }
+
+        weaponData.wp_feed = Math.min(feedNeeded, (weaponData.wp_feed || 0) + totalWeight);
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
+
+        const nextFeed = getWeaponFeedForLevel(weaponData.wp_level);
+        const canLevel = weaponData.wp_xp >= getWeaponXPForLevel(weaponData.wp_level) && weaponData.wp_feed >= nextFeed;
+        res.json({ message: `Fed ${consumeQty}x ${rarity} (+${totalWeight} feed)`, wp_feed: weaponData.wp_feed, wp_feed_target: nextFeed, canLevel });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Weapon level up ────────────────────────────────────────────────────────
+router.post('/forge/weapon/levelup', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const eq = await getEquippedItemsArray(db, char.id);
+        const weaponRow = eq.find(r => {
+            try { const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data; return d.slot === 'weapon'; }
+            catch { return false; }
+        });
+        if (!weaponRow) return res.status(400).json({ error: 'No weapon equipped' });
+        const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+        initWeaponData(weaponData);
+        if (weaponData.wp_level >= WEAPON_MAX_LEVEL) return res.status(400).json({ error: 'Already max level' });
+
+        const xpNeeded = getWeaponXPForLevel(weaponData.wp_level);
+        const feedNeeded = getWeaponFeedForLevel(weaponData.wp_level);
+        if ((weaponData.wp_xp || 0) < xpNeeded) return res.status(400).json({ error: `Need ${xpNeeded} XP (have ${weaponData.wp_xp || 0})` });
+        if ((weaponData.wp_feed || 0) < feedNeeded) return res.status(400).json({ error: `Need ${feedNeeded} feed (have ${weaponData.wp_feed || 0})` });
+
+        weaponData.wp_xp -= xpNeeded;
+        weaponData.wp_feed -= feedNeeded;
+        weaponData.wp_level += 1;
+        weaponData.wp_stat_points = (weaponData.wp_stat_points || 0) + WEAPON_STAT_POINTS_PER_LEVEL;
+
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
+        res.json({ message: `⬆️ Weapon reached level ${weaponData.wp_level}!`, wp_level: weaponData.wp_level, wp_stat_points: weaponData.wp_stat_points });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Weapon stat distribution ───────────────────────────────────────────────
+router.post('/forge/weapon/stats', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const { stats } = req.body;
+        if (!stats || typeof stats !== 'object') return res.status(400).json({ error: 'Invalid stats object' });
+
+        const eq = await getEquippedItemsArray(db, char.id);
+        const weaponRow = eq.find(r => {
+            try { const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data; return d.slot === 'weapon'; }
+            catch { return false; }
+        });
+        if (!weaponRow) return res.status(400).json({ error: 'No weapon equipped' });
+        const weaponData = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+        initWeaponData(weaponData);
+
+        const totalPoints = Object.values(stats).reduce((s, v) => s + Math.max(0, Number(v) || 0), 0);
+        if (totalPoints > (weaponData.wp_stat_points || 0)) return res.status(400).json({ error: 'Not enough stat points' });
+
+        const validStats = ['dmg_min', 'dmg_max', 'strength', 'agility', 'magic', 'defense', 'vitality', 'hit_chance', 'crit_chance', 'armor', 'hp_max', 'pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg', 'pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'];
+        for (const [stat, val] of Object.entries(stats)) {
+            if (!validStats.includes(stat)) return res.status(400).json({ error: `Invalid stat: ${stat}` });
+            const v = Math.max(0, Number(val) || 0);
+            weaponData.wp_stats[stat] = (weaponData.wp_stats[stat] || 0) + v;
+        }
+        weaponData.wp_stat_points -= totalPoints;
+
+        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(weaponData), weaponRow.id]);
+        res.json({ message: 'Stats distributed!', wp_stats: weaponData.wp_stats, wp_stat_points: weaponData.wp_stat_points });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+function scaleItemToLevel(recipe, playerLevel) {
+    const level = Math.max(recipe.minLevel || 1, playerLevel);
+    const item = { ...recipe };
+    
+    const baseStats = { ...(recipe.baseStats || recipe.stats || {}) };
+    delete item.baseStats;
+    delete item.stats;
+    
+    item.level = level;
+    item.tier = Math.min(5, Math.ceil(level / 15) + 1);
+    
+    const qualityScale =
+        item.quality === 'legendary' ? 1.15 :
+        item.quality === 'epic' ? 1.0 :
+        item.quality === 'rare' ? 0.9 : 0.8;
+    
+    const scaledStats = {};
+    for (const [stat, value] of Object.entries(baseStats)) {
+        let scaledValue = value;
+
+        if (stat === 'dmg_min') {
+            scaledValue = Math.floor(value * (1 + level * 0.03 * qualityScale));
+            scaledValue = Math.min(220, scaledValue);
+        } else if (stat === 'dmg_max') {
+            scaledValue = Math.floor(value * (1 + level * 0.05 * qualityScale));
+            scaledValue = Math.min(380, scaledValue);
+        } else if (stat === 'strength' || stat === 'agility' || stat === 'magic') {
+            scaledValue = Math.floor(value + (level * 0.20 * qualityScale));
+            scaledValue = Math.min(90, scaledValue);
+        } else if (stat === 'vitality') {
+            scaledValue = Math.floor(value + (level * 0.10 * qualityScale));
+            scaledValue = Math.min(45, scaledValue);
+        } else if (stat === 'defense') {
+            scaledValue = Math.floor(value + (level * 0.68 * qualityScale));
+            scaledValue = Math.min(140, scaledValue);
+        } else if (stat === 'armor') {
+            scaledValue = Math.floor(value + (level * 0.42 * qualityScale));
+            scaledValue = Math.min(70, scaledValue);
+        } else if (stat === 'hp_max') {
+            scaledValue = Math.floor(value + (level * 2.0 * qualityScale));
+            scaledValue = Math.min(480, scaledValue);
+        } else if (stat === 'hit_chance' || stat === 'crit_chance') {
+            scaledValue = Math.floor(value + (level * 0.15 * qualityScale));
+            scaledValue = Math.min(35, scaledValue);
+        } else if (stat.includes('_dmg')) {
+            scaledValue = Math.floor(value + (level * 0.24 * qualityScale));
+            scaledValue = Math.min(70, scaledValue);
+        } else if (stat.includes('_resist')) {
+            scaledValue = Math.floor(value + (level * 0.11 * qualityScale));
+            const resistCap = item.setId === 'voidborn' && item.slot === 'weapon' ? 40 : 34;
+            scaledValue = Math.min(resistCap, scaledValue);
+        }
+        
+        if (value < 0) {
+            scaledStats[stat] = value;
+        } else if (scaledValue > 0) {
+            scaledStats[stat] = scaledValue;
+        }
+    }
+    
+    item.stats = scaledStats;
+    
+    const levelDiff = Math.max(0, level - (recipe.minLevel || 1));
+    const priceScale = 1 + (levelDiff * 0.05);
+    item.price = Math.floor(recipe.goldCost * priceScale);
+    item.goldCost = item.price;
+    item.img = item.img || getAssetImagePath(item.name);
+    
+    item.desc = recipe.desc || '';
+    
+    return item;
+}
+
+// ── Equipment ─────────────────────────────────────────────────────────────
+router.post('/equip/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!item || item.item_type !== 'equipment') return res.status(400).json({ error: 'Item not found' });
+        const data = JSON.parse(item.item_data);
+        if (!EQUIPMENT_SLOTS.includes(data.slot)) return res.status(400).json({ error: `Invalid slot: ${data.slot}` });
+        // Rogue offhand dagger: only rogues can equip it in the shield slot
+        if (data.slot === 'shield' && data.rogueOffhand && char.class !== 'rogue') {
+            return res.status(400).json({ error: 'Only rogues can wield this offhand dagger.' });
+        }
+        let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+        if (!eq) {
+            await dbRun(db, 'INSERT INTO equipment (char_id) VALUES (?)', [char.id]);
+            eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+        }
+        await dbRun(db, `UPDATE equipment SET ${data.slot}_id=? WHERE char_id=?`, [item.id, char.id]);
+        res.json({ message:`Equipped ${data.name}!` });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/unequip/:slot', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const slot = req.params.slot;
+        if (!EQUIPMENT_SLOTS.includes(slot)) return res.status(400).json({ error: 'Invalid slot' });
+        await dbRun(db, `UPDATE equipment SET ${slot}_id=NULL WHERE char_id=?`, [char.id]);
+        res.json({ message:`Unequipped ${slot}.` });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Travel ────────────────────────────────────────────────────────────────
+router.post('/travel/start', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { targetZone } = req.body;
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        const currentMap = character.current_map || 'overworld';
+        let zone;
+        let travelTime;
+        
+        // Check if target is in Abyss or Overworld
+        if (currentMap === 'abyss' && ABYSS_ZONES[targetZone]) {
+            zone = ABYSS_ZONES[targetZone];
+        } else if (ZONES[targetZone]) {
+            zone = ZONES[targetZone];
+        } else {
+            return res.status(400).json({ error: 'Invalid zone' });
+        }
+        
+        if (!zone) return res.status(400).json({ error: 'Invalid zone' });
+        if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
+        const travelUnlockSet = getTravelUnlockSet(character, currentMap);
+        const prereq = getTravelGatekeeperPrereq(currentMap, targetZone);
+        if (prereq && !travelUnlockSet.has(prereq.unlockZone)) {
+            return res.status(400).json({ error: `Please challenge "${prereq.guardianName}" first.` });
+        }
+        const now = Math.floor(Date.now() / 1000);
+        if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
+        const allowedNodes = travelUnlockSet;
+        allowedNodes.add(character.location);
+        allowedNodes.add(targetZone);
+        const route = getShortestTravel(currentMap, character.location, targetZone, allowedNodes);
+        if (!route) return res.status(400).json({ error: 'You must unlock the connecting zones first.' });
+        travelTime = route.time;
+        
+        const travelEnd = now + travelTime;
+        await dbRun(db, 'UPDATE characters SET travel_target=?,travel_end_time=?,travel_start_time=? WHERE id=?', 
+            [targetZone, travelEnd, now, character.id]);
+        
+        const unlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
+        res.json({
+            success: true,
+            message: unlocked ? `Traveling to ${zone.name}` : `Traveling to ${zone.name} — a gatekeeper may intercept you`,
+            travelEnd,
+            travelStart: now,
+            duration: travelTime,
+            requiresUnlockFight: !unlocked
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/travel/cancel', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { paid } = req.body;
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const now = Math.floor(Date.now() / 1000);
+        if (!char.travel_target || !char.travel_end_time || char.travel_end_time <= now)
+            return res.status(400).json({ error: 'Not currently traveling' });
+        const travelStart = char.travel_start_time || (char.travel_end_time - 3600);
+        const isFreeCancel = (now - travelStart) < 300;
+        if (!isFreeCancel) {
+            if (!paid) return res.status(400).json({ error: 'Cancel window expired, must pay 1 gem' });
+            if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Not enough gems' });
+            await dbRun(db, 'UPDATE characters SET gems=gems-1 WHERE id=?', [char.id]);
+        }
+        await dbRun(db, 'UPDATE characters SET travel_target=NULL,travel_end_time=0,travel_start_time=0 WHERE id=?', [char.id]);
+        res.json({ success:true, wasFree:isFreeCancel });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.get('/travel/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        const now = Math.floor(Date.now() / 1000);
+        let currentMap = character.current_map || 'overworld';
+        let encounterResult = null;
+        
+        // Check if travel completed
+        if (character.travel_target && character.travel_end_time && character.travel_end_time <= now) {
+            let targetZone = character.travel_target;
+            const zoneUnlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
+
+            if (!zoneUnlocked) {
+                await applyHpRegen(db, character.id);
+                const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+                const playerFighter = await buildCombatFighter(db, freshChar);
+                const guardian = buildTravelGuardian(targetZone, currentMap, freshChar.level, playerFighter);
+
+                if (guardian) {
+                    // Force win for new characters (first 4 battles)
+                    let forceWinnerId = null;
+                    const isTutorial = isTutorialCharacter(freshChar);
+                    if (isTutorial) {
+                        forceWinnerId = freshChar.id;
+                    }
+                    
+                    const battle = runBattle(playerFighter, guardian, forceWinnerId);
+                    let playerWon = battle.winnerId === freshChar.id;
+                    
+                    // Add tutorial note
+                    if (forceWinnerId && isTutorial) {
+                        if (!battle.log.some(line => line.includes('Tutorial victory'))) {
+                            battle.log.push('✨ Tutorial victory!');
+                        }
+                    }
+                    
+                    // Tutorial Check: Don't deplete HP for the first 4 battles
+                    const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+
+                    if (playerWon) {
+                        await unlockTravelZone(db, freshChar, targetZone, currentMap);
+                        await recordGatekeeperDefeat(db, freshChar.id, `${currentMap}:${targetZone}`);
+                        invalidateWeeklyClaimableCountCache(freshChar.id);
+                        await dbRun(db, 'UPDATE characters SET location=?, hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
+                            [targetZone, newHp, freshChar.id]);
+                        character.unlocked_zones = freshChar.unlocked_zones;
+                        character.location = targetZone;
+                    } else {
+                        await dbRun(db, 'UPDATE characters SET hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
+                            [newHp, freshChar.id]);
+                    }
+
+                    if (playerFighter._elementalFighter) {
+                        await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                            [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
+                    }
+
+                    encounterResult = {
+                        type: 'travel_guardian',
+                        won: playerWon,
+                        guardianName: guardian.name,
+                        targetZone,
+                        unlocked: playerWon,
+                        log: battle.log,
+                        totalDmgDealt: battle.totalDmgToB,
+                        totalDmgTaken: battle.totalDmgToA,
+                    };
+                } else {
+                    await unlockTravelZone(db, character, targetZone, currentMap);
+                    await dbRun(db, 'UPDATE characters SET location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
+                        [targetZone, character.id]);
+                    character.location = targetZone;
+                }
+            } else {
+                await dbRun(db, 'UPDATE characters SET location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?', 
+                    [targetZone, character.id]);
+                character.location = targetZone;
+            }
+
+            character.travel_target = null;
+            character.travel_end_time = 0;
+            character.travel_start_time = 0;
+        }
+        const responseCharacter = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+        const unlocks = parseTravelUnlocks(responseCharacter.unlocked_zones);
+        const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', responseCharacter.current_map === 'overworld' ? responseCharacter.location : null].filter(Boolean))); 
+        const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), responseCharacter.current_map === 'abyss' ? responseCharacter.location : null].filter(Boolean))); 
+        
+        res.json({
+            location: responseCharacter.location || 'forest',
+            currentMap: responseCharacter.current_map || currentMap,
+            travelTarget: responseCharacter.travel_target,
+            travelEndTime: responseCharacter.travel_end_time || 0,
+            travelStartTime: responseCharacter.travel_start_time || 0,
+            traveling: !!responseCharacter.travel_target,
+            timeRemaining: responseCharacter.travel_target ? Math.max(0, responseCharacter.travel_end_time - now) : 0,
+            unlockedZones: overworldUnlocked,
+            unlockedAbyssZones: abyssUnlocked,
+            encounterResult,
+            character: await buildCharacterResponse(responseCharacter, db),
+        });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// Helper to get zone data based on current map
+function getZoneData(zoneId, currentMap = 'overworld') {
+    if (currentMap === 'abyss' && ABYSS_ZONES[zoneId]) {
+        return ABYSS_ZONES[zoneId];
+    }
+    return ZONES[zoneId];
+}
+
+// Helper to get all zones for current map
+function getAllZones(currentMap = 'overworld') {
+    if (currentMap === 'abyss') {
+        return ABYSS_ZONES;
+    }
+    return ZONES;
+}
+
+function getSellPriceForInventoryItem(itemData, sellRate) {
+    const originalPrice = Number(itemData?.original_price || itemData?.price || 0);
+    const rawSellPrice = Math.max(1, Math.floor(originalPrice * sellRate));
+    const explicitCap = Number(itemData?.sell_price_cap || 0);
+    const fallbackCap = itemData?.source === 'banner' ? 1000 : 0;
+    const effectiveCap = explicitCap > 0 ? explicitCap : fallbackCap;
+    return effectiveCap > 0 ? Math.min(rawSellPrice, effectiveCap) : rawSellPrice;
+}
+
+// ── Sell item ─────────────────────────────────────────────────────────────
+router.post('/sell/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!item) return res.status(404).json({ error: 'Item not found' });
+        const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+        if (eq) {
+            const equippedIds = EQUIPMENT_SLOTS.map(s => eq[`${s}_id`]).filter(Boolean);
+            if (equippedIds.includes(item.id)) return res.status(400).json({ error: 'Unequip the item before selling.' });
+        }
+        const data = JSON.parse(item.item_data);
+        
+        const activePremSell = getActivePremium(char);
+        const merchantPrince = hasPremium(activePremSell, 'vault_keeper') && hasPremium(activePremSell, 'apprentice');
+        const sellRate = merchantPrince ? 0.40 : 0.30;
+        const sellPrice = getSellPriceForInventoryItem(data, sellRate);
+
+        const currentQty = Math.max(1, Number(data.qty || 1));
+        if (currentQty > 1) {
+            data.qty = currentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), item.id]);
+        } else {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+        }
+        await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [sellPrice, char.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ message: `Sold ${data.name} for ${sellPrice} gold.`, goldEarned: sellPrice, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+// ── Use consumable ────────────────────────────────────────────────────────
+router.post('/use/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!item || item.item_type !== 'consumable') return res.status(400).json({ error: 'Item not found' });
+        const data = JSON.parse(item.item_data);
+        if (!data.effect) return res.status(400).json({ error: 'No effect' });
+
+        // Block potion use during active dungeon combat
+        if (data.effect.type === 'heal' || data.effect.type === 'heal_full') {
+            const activeCombat = await dbGet(db, 'SELECT id FROM dungeon_combat_sessions WHERE char_id=? AND status=\'active\' LIMIT 1', [char.id]);
+            if (activeCombat) return res.status(400).json({ error: 'Cannot use potions during dungeon combat.' });
+        }
+        
+        const equippedArray = await getEquippedItemsArray(db, char.id);
+        const trueHpMax = calcHpMax(char, equippedArray);
+        const now = Math.floor(Date.now() / 1000);
+        
+        let message = '';
+        let updated = false;
+        const isHealthPotion = data.effect.type === 'heal' || data.effect.type === 'heal_full';
+        if (isHealthPotion) {
+            const lastUse = char.last_health_potion_at || 0;
+            const cooldownLeft = (lastUse + HEALTH_POTION_COOLDOWN) - now;
+            if (cooldownLeft > 0) {
+                return res.status(400).json({ error: `Health potions are on cooldown for ${formatDurationShort(cooldownLeft)}.` });
+            }
+        }
+        
+        if (data.effect.type === 'heal') {
+            const currentHp = char.hp_current ?? trueHpMax;
+            const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
+            await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, char.id]);
+            message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
+            updated = true;
+        } else if (data.effect.type === 'heal_full') {
+            await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [trueHpMax, now, char.id]);
+            message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
+            updated = true;
+        } else if (data.effect.type === 'temp_stat') {
+            message = `+${data.effect.value} ${data.effect.stat} for session.`;
+            updated = true;
+        } else if (data.effect.type === 'xp') {
+            let newXp = (char.xp || 0) + data.effect.value, newLevel = char.level;
+            while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; }
+            await dbRun(db, 'UPDATE characters SET xp=?,level=? WHERE id=?', [newXp, newLevel, char.id]);
+            await handleReferralLevelMilestone(db, char.user_id, char.level, newLevel);
+            message = `Gained ${data.effect.value} XP!`;
+            updated = true;
+        } else if (data.effect.type === 'mp') {
+            const activePrem = getActivePremium(char);
+            const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
+            const currentMp = char.mission_points ?? 0;
+            const newMp = Math.min(mpMax, currentMp + data.effect.value);
+            await dbRun(db, 'UPDATE characters SET mission_points=? WHERE id=?', [newMp, char.id]);
+            message = `Restored ${data.effect.value} MP. (${newMp}/${mpMax})`;
+            updated = true;
+        }
+        
+        if (updated) {
+            const d = JSON.parse(item.item_data);
+            d.qty = (d.qty || 1) - 1;
+            if (d.qty <= 0) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+            } else {
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), item.id]);
+            }
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ message, character: await buildCharacterResponse(updatedChar, db) });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Shop ──────────────────────────────────────────────────────────────────
+function getMonthlyGemsClaimWindow(now = Math.floor(Date.now() / 1000)) {
+    const nowDate = new Date(now * 1000);
+    const year = nowDate.getUTCFullYear();
+    const month = nowDate.getUTCMonth();
+    const monthStart = Math.floor(Date.UTC(year, month, 1) / 1000);
+    const nextMonthStart = Math.floor(Date.UTC(year, month + 1, 1) / 1000);
+    return { monthStart, nextMonthStart };
+}
+
+function hasClaimedMonthlyGems(claimedAt, now = Math.floor(Date.now() / 1000)) {
+    if (!claimedAt) return false;
+    const { monthStart } = getMonthlyGemsClaimWindow(now);
+    return Number(claimedAt) >= monthStart;
+}
+
+router.get('/gems/monthly-claim/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const now = Math.floor(Date.now() / 1000);
+        const claimedAt = Number(character.last_free_gems_claim_at || 0);
+        const eligible = !hasClaimedMonthlyGems(claimedAt, now);
+        const { nextMonthStart } = getMonthlyGemsClaimWindow(now);
+        res.json({
+            amount: 500,
+            eligible,
+            claimedAt,
+            nextClaimAt: eligible ? now : nextMonthStart
+        });
+    } catch (e) {
+        console.error('Monthly gems status error:', e);
+        res.status(500).json({ error: e.message || 'Failed to load monthly gems status' });
+    }
+});
+
+router.post('/gems/monthly-claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+
+        const now = Math.floor(Date.now() / 1000);
+        const claimedAt = Number(character.last_free_gems_claim_at || 0);
+        const { nextMonthStart } = getMonthlyGemsClaimWindow(now);
+        if (hasClaimedMonthlyGems(claimedAt, now)) {
+            return res.status(400).json({
+                error: 'Free gems already claimed this month.',
+                nextClaimAt: nextMonthStart
+            });
+        }
+
+        await dbRun(
+            db,
+            'UPDATE characters SET gems = gems + 500, last_free_gems_claim_at = ? WHERE id = ?',
+            [now, character.id]
+        );
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        res.json({
+            success: true,
+            amount: 500,
+            nextClaimAt: nextMonthStart,
+            character: await buildCharacterResponse(updatedChar, db),
+            message: 'Claimed 500 free gems for this month.'
+        });
+    } catch (e) {
+        console.error('Monthly gems claim error:', e);
+        res.status(500).json({ error: e.message || 'Failed to claim free gems' });
+    }
+});
+
+router.post('/shop/buy', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { item: clientItem } = req.body;
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'No character' });
+        if (!clientItem || !clientItem.id) return res.status(400).json({ error: 'Invalid item data' });
+
+        const clientItemId = String(clientItem.id || '').trim();
+        if (!clientItemId) return res.status(400).json({ error: 'Invalid item data' });
+
+        // Resolve item + price server-side (client cannot be trusted).
+        let item = null;
+        if (String(clientItem.category || '') === 'lootbox' || clientItemId.startsWith('lootbox_')) {
+            item = LOOT_BOXES.find(b => String(b.id) === clientItemId) || null;
+        } else {
+            const potions = getPotionsForLevel(character.level || 1);
+            item = potions.find(p => String(p.id) === clientItemId) || null;
+        }
+        if (!item) {
+            const row = await dbGet(
+                db,
+                `SELECT item_data FROM shop_items
+                 WHERE char_id=? AND sold=0 AND json_extract(item_data,'$.id')=?
+                 ORDER BY id DESC LIMIT 1`,
+                [character.id, clientItemId]
+            );
+            if (row?.item_data) {
+                try { item = JSON.parse(row.item_data); } catch { item = null; }
+            }
+        }
+        if (!item) return res.status(404).json({ error: 'Item not found in shop' });
+
+        const basePrice = Math.max(0, Number(item.price || 0));
+        const basePriceType = String(item.priceType || 'gold').toLowerCase() === 'gems' ? 'gems' : 'gold';
+
+        const baseGemCost = Number(item.gemCost || 0);
+        const isLegendary = String(item.quality || item.tier || item.rarity || '').toLowerCase() === 'legendary';
+        const legendaryGemFee = isLegendary ? (5 + Math.floor(Math.random() * 6)) : 0; // 5-10
+        const gemCost = baseGemCost + legendaryGemFee;
+
+        if (basePriceType === 'gems') {
+            const totalGemCost = basePrice + legendaryGemFee;
+            if ((character.gems || 0) < totalGemCost) return res.status(400).json({ error: 'Not enough gems' });
+        } else {
+            if (character.gold < basePrice) return res.status(400).json({ error: 'Not enough gold' });
+            if (gemCost > 0 && (character.gems||0) < gemCost)
+                return res.status(400).json({ error: `Not enough gems — this item also costs ${gemCost} 💎` });
+        }
+
+        if (basePriceType === 'gems') {
+            const totalGemCost = basePrice + legendaryGemFee;
+            await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [totalGemCost, totalGemCost, character.id]);
+        } else {
+            await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [basePrice, character.id]);
+            if (gemCost > 0) {
+                await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [gemCost, gemCost, character.id]);
+            }
+        }
+        if (item.consumable) {
+            const shopConsumable = (item.category === 'lootbox' || String(item.id || '').startsWith('lootbox_'))
+                ? { ...item, source: 'shop' }
+                : item;
+            await addStackableInventoryItem(db, character.id, 'consumable', shopConsumable, 1);
+        } else {
+            await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'equipment',?)`, [character.id, JSON.stringify(item)]);
+            try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND json_extract(item_data,'$.id')=?`, [character.id, item.id]); } catch {}
+        }
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        res.json({ success:true, newGold:updatedChar.gold, newGems:updatedChar.gems, character:updatedChar, message:`Purchased ${item.name}!` });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+router.get('/shop/items', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const now = Math.floor(Date.now() / 1000);
+        const charId = character.id;
+        const charLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE char_id=?', [charId]);
+        const lastDate = charLastGenRow?.last_date;
+        
+        const lootBoxes = LOOT_BOXES.map(box => ({
+            ...box,
+            alwaysAvailable: true
+        }));
+        
+        let equipmentItems = [];
+        
+        if (!lastDate || shouldResetShop(lastDate)) {
+            await dbRun(db, 'DELETE FROM shop_items WHERE char_id=?', [charId]);
+            const newItems = generateBackendInventory(character.level);
+            const equipOnly = newItems.filter(i => !i.consumable);
+            for (const item of equipOnly) {
+                await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,item_data,generation_date) VALUES (?,?,?,?)', [req.user.userId, charId, JSON.stringify(item), now]);
+            }
+            equipmentItems = equipOnly;
+        } else {
+            const rows = await dbAll(db, 'SELECT item_data,sold FROM shop_items WHERE char_id=? ORDER BY id', [charId]);
+            equipmentItems = rows.filter(r => !r.sold).map(row => JSON.parse(row.item_data));
+        }
+        
+        const potions = getPotionsForLevel(character.level);
+        
+        res.json({ 
+            items: [...potions, ...lootBoxes, ...equipmentItems], 
+            resetTime: getNextMidnight(lastDate) 
+        });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+function generateBackendInventory(playerLevel) {
+    const inventory = [];
+    const allTypes = ['weapon','armor','helmet','shield','boots','ring','amulet','accessory'];
+    for (const type of allTypes) {
+        for (let i = 0; i < 2; i++) {
+            const item = generateBackendRandomItem(playerLevel, type);
+            if (item) inventory.push(item);
+        }
+    }
+    const typeWeights = [
+        { type:'weapon',    w:0.20 },
+        { type:'armor',     w:0.15 },
+        { type:'helmet',    w:0.12 },
+        { type:'shield',    w:0.12 },
+        { type:'accessory', w:0.10 },
+        { type:'amulet',    w:0.10 },
+        { type:'ring',      w:0.10 },
+        { type:'boots',     w:0.11 },
+    ];
+    const extraCount = 16 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < extraCount; i++) {
+        const rand = Math.random();
+        let cum = 0, type = 'weapon';
+        for (const { type: t, w } of typeWeights) { cum += w; if (rand < cum) { type = t; break; } }
+        const item = generateBackendRandomItem(playerLevel, type);
+        if (item) inventory.push(item);
+    }
+    inventory.push(...getPotionsForLevel(playerLevel));
+    for (let i = 0; i < 3; i++) {
+        inventory.push({
+            id:`premium_${Date.now()}_${i}`, name:['XP Booster','Gold Booster','Legendary Crate'][i],
+            emoji:['⚡','💰','📦'][i], desc:'Premium item!', price:[200,200,500][i],
+            priceType:'gems', level:1, category:'premium', consumable:true,
+            effect:{ type:['xp_multiplier','gold_multiplier','lootbox'][i], value:2, duration:3600 }
+        });
+    }
+    return inventory.sort(() => Math.random() - 0.5);
+}
+function getNextMidnight() { const next = new Date(); next.setDate(next.getDate()+1); next.setHours(0,0,0,0); return next.getTime(); }
+function shouldResetShop(lastGenerationDate) {
+    if (!lastGenerationDate) return true;
+    const now = new Date(), lastGen = new Date(lastGenerationDate * 1000);
+    return now.getDate() !== lastGen.getDate() || now.getMonth() !== lastGen.getMonth() || now.getFullYear() !== lastGen.getFullYear();
+}
+
+// ── Matchmaking ───────────────────────────────────────────────────────────
+router.get('/matchmaking', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const me = await getCurrentCharacter(db, req.user.userId);
+        if (!me) return res.status(404).json({ error: 'No character' });
+        const direction = req.query.direction || 'similar';
+        const now = Math.floor(Date.now() / 1000);
+        const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
+
+        let candidates = await dbAll(db, `
+            SELECT c.*, u.username,
+                   (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
+            FROM characters c JOIN users u ON c.user_id=u.id
+            WHERE c.id != ?
+              AND c.user_id != ?
+              AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
+        `, [me.id, req.user.userId, now]);
+
+        await Promise.all(candidates.map(c => applyHpRegen(db, c.id)));
+
+        candidates = await dbAll(db, `
+            SELECT c.*, u.username,
+                   (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
+            FROM characters c JOIN users u ON c.user_id=u.id
+            WHERE c.id != ?
+              AND c.user_id != ?
+              AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
+              AND (c.hp_current IS NULL OR c.hp_current >= 10)
+        `, [me.id, req.user.userId, now]);
+
+        const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM character_attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
+        const myCooldowns = new Set(myCooldownRows.map(r => r.defender_id));
+        candidates = candidates.filter(c => !myCooldowns.has(c.id));
+
+        if (!candidates.length) return res.json({ active: false });
+        let target;
+        if (direction === 'weaker') target = candidates.filter(c => c.power < myPower).sort((a,b) => b.power - a.power)[0] || null;
+        else if (direction === 'stronger') target = candidates.filter(c => c.power > myPower).sort((a,b) => a.power - b.power)[0] || null;
+        else { candidates.sort((a,b) => Math.abs(a.power - myPower) - Math.abs(b.power - myPower)); target = candidates[0] || null; }
+        res.json(target || null);
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Attack skip cooldown ──────────────────────────────────────────────
+router.post('/attack/skip-cooldown', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const attacker = await getCurrentCharacter(db, req.user.userId);
+        if (!attacker) return res.status(404).json({ error: 'No character' });
+
+        const targetId = parseInt(req.body?.targetId);
+        if (!targetId) return res.status(400).json({ error: 'Missing target' });
+        const defender = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [targetId]);
+        if (!defender) return res.status(404).json({ error: 'Target not found' });
+
+        const now = Math.floor(Date.now() / 1000);
+        const crystals = attacker.crystals ?? attacker.gems ?? 0;
+        if (crystals < 1) return res.status(400).json({ error: 'Need 1 💎 to skip cooldown' });
+
+        let cleared = [];
+        const pvpCd = hasPremium(getActivePremium(attacker), 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+        const battleCdEnds = (attacker.last_battle_at || 0) + pvpCd;
+        if (battleCdEnds > now) {
+            await dbRun(db, 'UPDATE characters SET last_battle_at = 0 WHERE id = ?', [attacker.id]);
+            cleared.push('battle cooldown');
+        }
+
+        if (!cleared.length) {
+            return res.status(400).json({ error: 'No active battle cooldown to skip.' });
+        }
+
+        // Charge 1 gem
+        const gemField = (attacker.crystals !== undefined) ? 'crystals' : 'gems';
+        await dbRun(db, `UPDATE characters SET ${gemField} = ${gemField} - 1 WHERE id = ?`, [attacker.id]);
+
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [attacker.id]);
+        res.json({ success: true, message: `⚡ Skipped ${cleared.join(' & ')} for 1 💎!`, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Attack (UPDATED with skill tree passive bonuses) ─────────────────────
+router.post('/attack/:targetId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const attacker = await getCurrentCharacter(db, req.user.userId);
+        if (!attacker) return res.status(404).json({ error: 'No character' });
+        const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
+            [attacker.id, Math.floor(Date.now() / 1000)]);
+        if (activeTraining) {
+            return res.status(400).json({ error: 'Cannot attack while training skills. Complete or cancel training first.' });
+        }
+        const defender = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [req.params.targetId]);
+        if (!defender) return res.status(404).json({ error: 'Target not found' });
+        if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'You cannot attack characters on your own account.' });
+        const now = Math.floor(Date.now() / 1000);
+        const atkMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [attacker.id]);
+        if (atkMission) return res.status(400).json({ error: 'Cannot attack while on a mission.' });
+        if (attacker.travel_target && attacker.travel_end_time > now)
+            return res.status(400).json({ error: 'Cannot attack while traveling.' });
+        const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
+        const atkCooldown = attacker.last_battle_at || 0;
+        const activePremAtk = getActivePremium(attacker);
+        const effectivePvpCooldown = hasPremium(activePremAtk, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
+        if (atkCooldown + effectivePvpCooldown > now) {
+            const secs = (atkCooldown + effectivePvpCooldown) - now;
+            return res.status(400).json({ error: `Wait ${secs < 60 ? secs+'s' : Math.ceil(secs/60)+'m'} before next attack.` });
+        }
+        const perTarget = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [attacker.id, defender.id]);
+        if (perTarget && perTarget.expires_at > now) {
+            const secs = perTarget.expires_at - now;
+            return res.status(400).json({ error: `Cannot attack ${defender.name} again for ${secs < 3600 ? Math.ceil(secs/60)+'m' : Math.ceil(secs/3600)+'h'}.` });
+        }
+        const defGlobalCooldown = defender.global_cooldown_until || 0;
+        if (defGlobalCooldown > now) {
+            const mins = Math.ceil((defGlobalCooldown - now) / 60);
+            return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
+        }
+        await applyHpRegen(db, attacker.id);
+        await applyHpRegen(db, defender.id);
+        const freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
+        const freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
+        const hpA = freshA.hp_current ?? freshA.hp_max;
+        if (hpA <= 0) return res.status(400).json({ error: 'You are out of HP. Wait for regen.' });
+        const equippedD0 = await getEquippedItemsArray(db, freshD.id);
+        const hpD = freshD.hp_current ?? calcHpMax(freshD, equippedD0);
+        if (hpD < 10) return res.status(400).json({ error: `${freshD.name} has too little HP. Let them recover first.` });
+        const equippedA = await getEquippedItemsArray(db, freshA.id);
+        const equippedD = await getEquippedItemsArray(db, freshD.id);
+        const { dmgMin:dmgMinA, dmgMax:dmgMaxA } = calcBaseDamage(freshA, equippedA);
+        const { dmgMin:dmgMinD, dmgMax:dmgMaxD } = calcBaseDamage(freshD, equippedD);
+        const hpMaxA = calcHpMax(freshA, equippedA);
+        const hpMaxD = calcHpMax(freshD, equippedD);
+        const premA = getActivePremium(freshA);
+        const premD = getActivePremium(freshD);
+        const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
+        const veteranD = hasPremium(premD, 'warlord') && hasPremium(premD, 'iron_fortress');
+        const armorA = calcArmorValue(freshA, equippedA);
+        const armorD = calcArmorValue(freshD, equippedD);
+        
+        // ── Skill tree passive bonuses for attacker ─────────────────────────
+        const learnedRowsA = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshA.id]);
+        const learnedIdsA = learnedRowsA.map(r => r.skill_id);
+        const skillPassivesA = await computePassiveBonusesWithProgress(db, freshA.class, learnedIdsA, freshA.id);
+        const skillActivesA  = await computeActiveCombatEffectsWithProgress(db, freshA.class, learnedIdsA, freshA.id);
+        const skillModsA     = await computeClassModifiersWithProgress(db, freshA.class, learnedIdsA, freshA.id);
+        
+        // Rogue no-shield agility bonus for attacker
+        let noShieldAgiBonusA = 0;
+        if (freshA.class === 'rogue') {
+            const hasShield = equippedA.some(i => {
+                try { const d = JSON.parse(i.item_data); return d.slot === 'shield' && d.rogueOffhand !== true; } 
+                catch { return false; }
+            });
+            if (!hasShield) noShieldAgiBonusA = Math.floor((freshA.agility || 0) * 0.05);
+        }
+        
+        // ── Skill tree passive bonuses for defender ─────────────────────────
+        const learnedRowsD = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshD.id]);
+        const learnedIdsD = learnedRowsD.map(r => r.skill_id);
+        const skillPassivesD = await computePassiveBonusesWithProgress(db, freshD.class, learnedIdsD, freshD.id);
+        const skillActivesD  = await computeActiveCombatEffectsWithProgress(db, freshD.class, learnedIdsD, freshD.id);
+        const skillModsD     = await computeClassModifiersWithProgress(db, freshD.class, learnedIdsD, freshD.id);
+        
+        // Rogue no-shield agility bonus for defender
+        let noShieldAgiBonusD = 0;
+        if (freshD.class === 'rogue') {
+            const hasShield = equippedD.some(i => {
+                try { const d = JSON.parse(i.item_data); return d.slot === 'shield' && d.rogueOffhand !== true; } 
+                catch { return false; }
+            });
+            if (!hasShield) noShieldAgiBonusD = Math.floor((freshD.agility || 0) * 0.05);
+        }
+
+        const setBonusesA = getEquippedSetBonuses(equippedA);
+        const weaponA = getEquippedWeaponData(equippedA);
+        const fighterA = {
+            id: freshA.id, name: freshA.name, class: freshA.class, weapon: weaponA,
+            hp: hpA,
+            hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
+            dmgMin: dmgMinA + skillPassiveBonus(dmgMinA, skillPassivesA.dmg_min),
+            dmgMax: dmgMaxA + skillPassiveBonus(dmgMaxA, skillPassivesA.dmg_max),
+            strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + skillPassiveBonus(freshA.strength || 0, skillPassivesA.strength) + getEquippedStatTotal(equippedA, 'strength'),
+            agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + skillPassiveBonus(freshA.agility || 0, skillPassivesA.agility) + noShieldAgiBonusA + getEquippedStatTotal(equippedA, 'agility'),
+            magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + skillPassiveBonus(freshA.magic || 0, skillPassivesA.magic) + getEquippedStatTotal(equippedA, 'magic'),
+            defense: (freshA.defense || 0) + (setBonusesA.defense || 0) + skillPassiveBonus(freshA.defense || 0, skillPassivesA.defense) + getEquippedStatTotal(equippedA, 'defense'),
+            hit_chance: (freshA.hit_chance || 0) + (setBonusesA.hit_chance || 0) + skillPassiveBonus(freshA.hit_chance || 0, skillPassivesA.hit_chance) + getEquippedStatTotal(equippedA, 'hit_chance') + (hasPremium(premA, 'warlord') ? (freshA.hit_chance || 0) * 0.10 : 0),
+            crit_chance: (freshA.crit_chance || 0) + (setBonusesA.crit_chance || 0) + skillPassiveBonus(freshA.crit_chance || 0, skillPassivesA.crit_chance) + getEquippedStatTotal(equippedA, 'crit_chance') + (veteranA ? Math.ceil((freshA.crit_chance || 0) * 0.05) : 0),
+            armor: armorA + skillPassiveBonus(armorA, skillPassivesA.armor),
+            agility_bonus: 0,
+            dmg_bonus: (hasPremium(premA, 'warlord') ? 0.15 : 0) + (skillPassivesA.dmg_bonus || 0),
+            elem_dmg: {
+                pyro:    (calcElemDmg(equippedA).pyro    || 0) + (skillPassivesA.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedA).water   || 0) + (skillPassivesA.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedA).wind    || 0) + (skillPassivesA.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedA).electro || 0) + (skillPassivesA.electro_dmg || 0),
+            },
+            elem_resist: {
+                pyro:    (calcElemResist(freshA, equippedA).pyro    || 0) + (skillPassivesA.pyro_resist    || 0),
+                water:   (calcElemResist(freshA, equippedA).water   || 0) + (skillPassivesA.water_resist   || 0),
+                wind:    (calcElemResist(freshA, equippedA).wind    || 0) + (skillPassivesA.wind_resist    || 0),
+                electro: (calcElemResist(freshA, equippedA).electro || 0) + (skillPassivesA.electro_resist || 0),
+            },
+            skillEffects: skillActivesA,
+            skillMods: skillModsA,
+            baseActiveSkills: getActiveSkills(freshA),
+            activeSkills: mergeActiveSkills(getActiveSkills(freshA), skillActivesA),
+            attackZones: JSON.parse(freshA.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
+            blockZones: JSON.parse(freshA.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+            dualWield: freshA.class === 'rogue' && rogueHasDualWield(learnedIdsA),
+        };
+        
+        const setBonusesD = getEquippedSetBonuses(equippedD);
+        const weaponD = getEquippedWeaponData(equippedD);
+        const fighterB = {
+            id: freshD.id, name: freshD.name, class: freshD.class, weapon: weaponD,
+            hp: freshD.hp_current ?? hpMaxD,
+            hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
+            dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
+            dmgMax: dmgMaxD + skillPassiveBonus(dmgMaxD, skillPassivesD.dmg_max),
+            strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + skillPassiveBonus(freshD.strength || 0, skillPassivesD.strength) + getEquippedStatTotal(equippedD, 'strength'),
+            agility: ((freshD.agility || 0) + (setBonusesD.agility || 0) + skillPassiveBonus(freshD.agility || 0, skillPassivesD.agility) + noShieldAgiBonusD + getEquippedStatTotal(equippedD, 'agility')) * (hasPremium(premD, 'iron_fortress') ? 1.10 : 1.0),
+            magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + skillPassiveBonus(freshD.magic || 0, skillPassivesD.magic) + getEquippedStatTotal(equippedD, 'magic'),
+            defense: (freshD.defense || 0) + (setBonusesD.defense || 0) + skillPassiveBonus(freshD.defense || 0, skillPassivesD.defense) + getEquippedStatTotal(equippedD, 'defense'),
+            hit_chance: (freshD.hit_chance || 0) + (setBonusesD.hit_chance || 0) + skillPassiveBonus(freshD.hit_chance || 0, skillPassivesD.hit_chance) + getEquippedStatTotal(equippedD, 'hit_chance'),
+            crit_chance: (freshD.crit_chance || 0) + (setBonusesD.crit_chance || 0) + skillPassiveBonus(freshD.crit_chance || 0, skillPassivesD.crit_chance) + getEquippedStatTotal(equippedD, 'crit_chance') + (veteranD ? Math.ceil((freshD.crit_chance || 0) * 0.05) : 0),
+            armor: armorD + skillPassiveBonus(armorD, skillPassivesD.armor) + (hasPremium(premD, 'iron_fortress') ? Math.max(1, Math.floor(armorD * 0.15)) : 0),
+            agility_bonus: 0,
+            dmg_bonus: (skillPassivesD.dmg_bonus || 0),
+            elem_dmg: {
+                pyro:    (calcElemDmg(equippedD).pyro    || 0) + (skillPassivesD.pyro_dmg    || 0),
+                water:   (calcElemDmg(equippedD).water   || 0) + (skillPassivesD.water_dmg   || 0),
+                wind:    (calcElemDmg(equippedD).wind    || 0) + (skillPassivesD.wind_dmg    || 0),
+                electro: (calcElemDmg(equippedD).electro || 0) + (skillPassivesD.electro_dmg || 0),
+            },
+            elem_resist: {
+                pyro:    (calcElemResist(freshD, equippedD).pyro    || 0) + (skillPassivesD.pyro_resist    || 0),
+                water:   (calcElemResist(freshD, equippedD).water   || 0) + (skillPassivesD.water_resist   || 0),
+                wind:    (calcElemResist(freshD, equippedD).wind    || 0) + (skillPassivesD.wind_resist    || 0),
+                electro: (calcElemResist(freshD, equippedD).electro || 0) + (skillPassivesD.electro_resist || 0),
+            },
+            skillEffects: skillActivesD,
+            skillMods: skillModsD,
+            baseActiveSkills: getActiveSkills(freshD),
+            activeSkills: mergeActiveSkills(getActiveSkills(freshD), skillActivesD),
+            attackZones: JSON.parse(freshD.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
+            blockZones: JSON.parse(freshD.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
+            dualWield: freshD.class === 'rogue' && rogueHasDualWield(learnedIdsD),
+        };
+        
+        // Attach elemental companions
+        const elemRowA = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshA.id]);
+        if (elemRowA) {
+            const elemStats = calcElemStats(elemRowA);
+            fighterA._elementalFighter = {
+                ...elemRowA,
+                ...elemStats,
+                hp: elemRowA.hp_current || elemStats.hpMax
+            };
+        }
+        const elemRowB = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshD.id]);
+        if (elemRowB) {
+            const elemStats = calcElemStats(elemRowB);
+            fighterB._elementalFighter = {
+                ...elemRowB,
+                ...elemStats,
+                hp: elemRowB.hp_current || elemStats.hpMax
+            };
+        }
+
+        const battle = runBattle(fighterA, fighterB);
+        const attackerWon = battle.winnerId === freshA.id;
+        const isDraw = battle.winnerId === 0;
+
+        const battleStatsForAttacker = { you: summarizeBattleStats(fighterA), enemy: summarizeBattleStats(fighterB) };
+        const battleStatsForDefender = { you: summarizeBattleStats(fighterB), enemy: summarizeBattleStats(fighterA) };
+        
+        if (isDraw) {
+            // No achievements for draws
+        } else if (attackerWon) {
+            await recordEquipmentlessWins(db, freshA, equippedA);
+            await recordDamageStyleWin(db, freshA.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
+            await grantWeaponXP(db, freshA.id, WEAPON_XP_PER_PVP);
+        } else {
+            await recordEquipmentlessWins(db, freshD, equippedD);
+            await recordDamageStyleWin(db, freshD.id, battle.totalElemDmgDealtB || 0);
+            await grantWeaponXP(db, freshD.id, WEAPON_XP_PER_PVP);
+        }
+        
+        function calculateBattleXP(winnerLevel, loserLevel) {
+            const d = loserLevel - winnerLevel;
+            if (d <= -5) return -3; if (d <= -3) return -2; if (d <= -2) return -1;
+            if (d <= -1) return 0; if (d <= 0) return 1; if (d <= 1) return 1;
+            if (d <= 2) return 2; return 3;
+        }
+        const xpGained = attackerWon ? calculateBattleXP(freshA.level, freshD.level) : 0;
+        const atkGoldStake = Math.floor((freshA.gold || 0) * 0.10);
+        const defStakeRate = hasPremium(premD, 'vault_keeper') ? 0.05 : 0.10;
+        const defGoldStake = Math.floor((freshD.gold || 0) * defStakeRate);
+        const goldGained   = attackerWon ? defGoldStake  : (isDraw ? 0 : -atkGoldStake);
+        const defGoldChange = attackerWon ? -defGoldStake : (isDraw ? 0 : atkGoldStake);
+
+        const pvpCooldownA = hasPremium(premA, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
+        const newHpA = Math.max(0, battle.hpRemainingA);
+        const newHpD = Math.max(0, battle.hpRemainingB);
+        let atkXp = Math.max(0, (freshA.xp || 0) + xpGained), atkLevel = freshA.level, leveledUp = false;
+        while (atkXp >= LEVEL_XP(atkLevel)) { atkXp -= LEVEL_XP(atkLevel); atkLevel++; leveledUp = true; }
+        
+        // Handle level up: reset HP to full and give loot box
+        let atkFinalHp = newHpA;
+        let atkLevelUpMessage = null;
+        if (leveledUp) {
+            const equippedArray = await getEquippedItemsArray(db, freshA.id);
+            const newCharWithLevel = { ...freshA, level: atkLevel };
+            const newHpMax = calcHpMax(newCharWithLevel, equippedArray);
+            atkFinalHp = newHpMax;
+            
+            const lootBox = LOOT_BOXES.find(box => box.id === 'lootbox_common');
+            if (lootBox) {
+                await addStackableInventoryItem(db, freshA.id, 'consumable', lootBox, 1);
+            }
+            atkLevelUpMessage = `🎉 Level Up! You reached level ${atkLevel}! HP restored to full and you received a Common Loot Box!`;
+        }
+        
+        await ensureWeeklyTaskState(db, freshA);
+        await ensureWeeklyTaskState(db, freshD);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
+            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, freshA.id]);
+        await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
+        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+? WHERE id=?`,
+            [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, freshD.id]);
+        try {
+            await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained)]);
+        } catch (e) {
+            try { await dbRun(db, 'INSERT INTO battles (attacker_id,defender_id,winner_id,log) VALUES (?,?,?,?)', [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, JSON.stringify(battle.log)]); } catch {}
+        }
+        await dbRun(db, 'UPDATE characters SET last_battle_at=? WHERE id=?', [now, freshA.id]);
+        // Save elemental HP after battle
+        if (fighterA._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                [battle.elementalHpA, freshA.id, fighterA._elementalFighter.id]);
+        }
+        if (fighterB._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                [battle.elementalHpB, freshD.id, fighterB._elementalFighter.id]);
+        }
+        try {
+            await dbRun(
+                db,
+                'INSERT OR REPLACE INTO character_attack_cooldowns (attacker_id,defender_id,expires_at) VALUES (?,?,?)',
+                [freshA.id, freshD.id, now + 43200]
+            );
+        } catch {}
+        await dbRun(db, 'UPDATE characters SET global_cooldown_until=? WHERE id=?', [now + 3600, freshD.id]);
+        try {
+            const defSubject = isDraw ? `⚔️ ${freshA.name} attacked you — it was a draw!` : (attackerWon ? `⚔️ ${freshA.name} attacked and defeated you! (-${defGoldStake} gold)` : `🛡️ You defended against ${freshA.name} and won! (+${atkGoldStake} gold)`);
+            const defPayload = JSON.stringify({
+                log: battle.log,
+                won: !attackerWon,
+                isDraw,
+                goldEarned: defGoldChange>0?defGoldChange:0,
+                goldLost: defGoldChange<0?-defGoldChange:0,
+                xpEarned:0,
+                type:'pvp',
+                opponentName:freshA.name,
+                opponentClass:freshA.class,
+                opponentLevel:freshA.level,
+                totalDmgDealt:battle.totalDmgToA,
+                totalDmgTaken:battle.totalDmgToB,
+                battleStats: battleStatsForDefender
+            });
+            await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshD.id, defSubject, `BATTLE_REPORT:${defPayload}`]);
+        } catch (e) { console.error('Failed to send defender report:', e); }
+        try {
+            const atkSubject = isDraw ? `⚔️ You fought ${freshD.name} to a draw!` : (attackerWon ? `⚔️ You defeated ${freshD.name}! (+${defGoldStake} gold)` : `💀 You lost to ${freshD.name}. (-${atkGoldStake} gold)`);
+            const atkPayload = JSON.stringify({
+                log: battle.log,
+                won: attackerWon,
+                isDraw,
+                goldEarned: goldGained>0?goldGained:0,
+                goldLost: goldGained<0?-goldGained:0,
+                xpEarned:xpGained,
+                type:'pvp',
+                opponentName:freshD.name,
+                opponentClass:freshD.class,
+                opponentLevel:freshD.level,
+                totalDmgDealt:battle.totalDmgToB,
+                totalDmgTaken:battle.totalDmgToA,
+                battleStats: battleStatsForAttacker
+            });
+            await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshA.id, freshA.id, atkSubject, `BATTLE_REPORT:${atkPayload}`]);
+        } catch (e) { console.error('Failed to send attacker report:', e); }
+        const updatedAttacker = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [freshA.id]);
+        res.json({ 
+            won: attackerWon, isDraw, log: battle.log, xpGained, 
+            goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0, 
+            leveledUp, atkLevelUpMessage,
+            character: await buildCharacterResponse(updatedAttacker, db),
+            totalDmgDealt: battle.totalDmgToB,
+            totalDmgTaken: battle.totalDmgToA,
+            battleStats: battleStatsForAttacker,
+            opponentName: freshD.name,
+            opponentClass: freshD.class,
+            opponentLevel: freshD.level,
+        });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Leaderboard ───────────────────────────────────────────────────────────
+router.get('/leaderboard', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
+        const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,
+            (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
+            FROM characters c 
+            ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
+        const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
+        res.json(players.map((p,i) => {
+            let ids = [];
+            try {
+                const parsed = p.profile_badges ? JSON.parse(p.profile_badges) : [];
+                if (Array.isArray(parsed)) ids = parsed.slice(0, 3).map(String);
+            } catch {}
+            const badges = ids.map(id => {
+                const def = defById.get(id);
+                return def ? { id: def.id, icon: def.icon, name: def.name } : null;
+            }).filter(Boolean);
+            return { ...p, rank: i + 1, profile_badges: badges };
+        }));
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Player profile ────────────────────────────────────────────────────────
+router.get('/player/:id', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const me = await getCurrentCharacter(db, req.user.userId, 'id');
+
+        await applyHpRegen(db, req.params.id);
+
+        const player = await dbGet(db, 'SELECT c.* FROM characters c WHERE c.id=?', [req.params.id]);
+        if (!player) return res.status(404).json({ error: 'Not found' });
+
+        const now = Math.floor(Date.now() / 1000);
+        const globalCooldown = (player.global_cooldown_until || 0) > now ? player.global_cooldown_until - now : 0;
+        let perTargetCooldown = 0;
+        if (me) {
+            try {
+                const cd = await dbGet(db, 'SELECT expires_at FROM character_attack_cooldowns WHERE attacker_id=? AND defender_id=?', [me.id, player.id]);
+                if (cd && cd.expires_at > now) perTargetCooldown = cd.expires_at - now;
+            } catch {}
+        }
+        const equippedArray = await getEquippedItemsArray(db, player.id);
+        const hpMax = calcHpMax(player, equippedArray);
+        const profileSetBonuses = getEquippedSetBonuses(equippedArray);
+        const profileArmor = calcArmorValue(player, equippedArray);
+
+        const hpLow = (player.hp_current ?? hpMax) < 10;
+
+        const equipped = await getEquippedItems(db, player.id);
+        const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
+        
+        const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
+            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
+            WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
+        res.json({
+            id:player.id, user_id: player.user_id, name:player.name, class:player.class, level:player.level,
+            strength:player.strength, defense:player.defense, agility:player.agility,
+            magic:player.magic, vitality:player.vitality||10,
+            hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
+            hp_max:hpMax,
+            hp_current: player.hp_current ?? hpMax,
+            wins:player.wins, losses:player.losses, draws:player.draws||0,
+            tournament_wins: player.tournament_wins || 0,
+            dungeon_highest_floor: player.dungeon_highest_floor || 0,
+            achievements_completed: achievementCountRow?.count || 0,
+            gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
+            profile_pic: player.profile_pic || `${player.class}.png`,
+            globalCooldown, perTargetCooldown, hpLow, equipped,
+            armor_value: profileArmor,
+            equipped_set_bonuses: profileSetBonuses,
+            recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
+            elemental: await (async () => {
+                const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [player.id]).catch(() => null);
+                if (!er) return null;
+                const stats = calcElemStats(er);
+                return { ...er, ...stats };
+            })(),
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Battle history ────────────────────────────────────────────────────────
+router.get('/battles', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,a.class as attacker_class,d.name as defender_name,d.class as defender_class,w.name as winner_name
+            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
+            WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 10`, [char.id, char.id]);
+        res.json(battles.map(b => ({ ...b, log: JSON.parse(b.log) })));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Messages ──────────────────────────────────────────────────────────────
+router.get('/messages', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const messages = await dbAll(db, `SELECT m.*,COALESCE(m.sender_label, s.name, 'Arena Staff') as sender_name,r.name as receiver_name FROM messages m
+            LEFT JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
+            WHERE m.receiver_id=? ORDER BY m.sent_at DESC LIMIT 50`, [char.id]);
+        res.json(messages);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+router.get('/messages/unread-count', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.json({ count:0 });
+        const prefs = await dbGet(
+            db,
+            'SELECT inbox_badge_messages, inbox_badge_battles, inbox_badge_missions FROM users WHERE id = ?',
+            [req.user.userId]
+        );
+        const includeMessages = Number(prefs?.inbox_badge_messages ?? 1) !== 0;
+        const includeBattles = Number(prefs?.inbox_badge_battles ?? 1) !== 0;
+        const includeMissions = Number(prefs?.inbox_badge_missions ?? 1) !== 0;
+        const rows = await dbAll(db, 'SELECT body FROM messages WHERE receiver_id=? AND read=0', [char.id]);
+        let count = 0;
+        for (const row of rows) {
+            const body = String(row?.body || '');
+            if (body.startsWith('BATTLE_REPORT:')) {
+                let report = null;
+                try { report = JSON.parse(body.slice('BATTLE_REPORT:'.length)); } catch {}
+                const type = String(report?.type || '').toLowerCase();
+                if (type === 'mission') {
+                    if (includeMissions) count++;
+                } else {
+                    if (includeBattles) count++;
+                }
+            } else if (includeMessages) {
+                count++;
+            }
+        }
+        res.json({ count });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+router.post('/messages/send', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const sender = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!sender) return res.status(404).json({ error: 'No character' });
+        const { receiver_id, subject, body } = req.body;
+        if (!receiver_id || !subject || !body) return res.status(400).json({ error: 'Missing fields' });
+        if (String(receiver_id) === String(sender.id)) return res.status(400).json({ error: 'Cannot message yourself' });
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [sender.id, receiver_id, subject, body]);
+        res.json({ message:'Sent!' });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+router.get('/chat/history', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredChatMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id,name');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const sinceId = Math.max(0, Number(req.query?.since || 0));
+        let rows = [];
+        if (sinceId > 0) {
+            rows = await dbAll(
+                db,
+                `SELECT *
+                 FROM chat_messages
+                 WHERE (
+                        recipient_char_id IS NULL
+                        OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
+                    )
+                   AND id > ?
+                 ORDER BY id ASC
+                 LIMIT 80`,
+                [char.id, char.id, sinceId]
+            );
+        } else {
+            rows = await dbAll(
+                db,
+                `SELECT *
+                 FROM chat_messages
+                 WHERE
+                    recipient_char_id IS NULL
+                    OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
+                 ORDER BY id DESC
+                 LIMIT 60`,
+                [char.id, char.id]
+            );
+            rows.reverse();
+        }
+        res.json({ messages: rows.map(row => serializeChatMessage(row, char.id)) });
+    } catch (e) {
+        console.error('Chat history failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+router.get('/chat/characters', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const rawQuery = String(req.query?.q || '').trim().toLowerCase();
+        const prefixQuery = rawQuery ? `${rawQuery}%` : '';
+        const containsQuery = rawQuery ? `%${rawQuery}%` : '';
+
+        const rows = await dbAll(
+            db,
+            `SELECT id, name
+             FROM characters
+             WHERE id != ?
+               AND (
+                    ? = ''
+                    OR lower(name) LIKE ?
+                    OR lower(name) LIKE ?
+               )
+             ORDER BY
+                CASE
+                    WHEN ? != '' AND lower(name) = ? THEN 0
+                    WHEN ? != '' AND lower(name) LIKE ? THEN 1
+                    ELSE 2
+                END,
+                name COLLATE NOCASE ASC
+             LIMIT 8`,
+            [
+                char.id,
+                rawQuery,
+                prefixQuery,
+                containsQuery,
+                rawQuery,
+                rawQuery,
+                rawQuery,
+                prefixQuery
+            ]
+        );
+
+        res.json({
+            characters: rows.map(row => ({
+                id: Number(row.id),
+                name: row.name
+            }))
+        });
+    } catch (e) {
+        console.error('Chat character lookup failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+router.post('/chat/send', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredChatMessages(db);
+        const sender = await getCurrentCharacter(db, req.user.userId, 'id,name');
+        if (!sender) return res.status(404).json({ error: 'No character' });
+
+        const rawMessage = String(req.body?.message || '');
+        const messageText = sanitizeChatMessage(rawMessage);
+        if (!messageText) return res.status(400).json({ error: 'Message required.' });
+
+        const recipientInput = String(req.body?.recipientName || '').trim();
+        let recipient = null;
+        if (recipientInput) {
+            recipient = await dbGet(
+                db,
+                'SELECT id, name FROM characters WHERE lower(name) = lower(?) LIMIT 1',
+                [recipientInput]
+            );
+            if (!recipient) return res.status(404).json({ error: 'Character not found.' });
+            if (Number(recipient.id) === Number(sender.id)) {
+                return res.status(400).json({ error: 'Cannot message yourself.' });
+            }
+        }
+
+        const createdAt = Math.floor(Date.now() / 1000);
+        await dbRun(
+            db,
+            `INSERT INTO chat_messages
+                (sender_user_id, sender_char_id, sender_name, recipient_char_id, recipient_name, message_text, created_at)
+             VALUES (?,?,?,?,?,?,?)`,
+            [
+                req.user.userId,
+                sender.id,
+                sender.name,
+                recipient?.id || null,
+                recipient?.name || null,
+                messageText,
+                createdAt
+            ]
+        );
+
+const inserted = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = last_insert_rowid()');
+        res.json({
+            success: true,
+            message: serializeChatMessage(inserted, sender.id)
+        });
+    } catch (e) {
+        console.error('Chat send failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.put('/chat/edit/:id', auth, async (req, res) => {
+    console.log('[CHAT EDIT] Request received:', req.method, req.params.id, req.body);
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const messageId = req.params.id;
+        const rawMessage = String(req.body?.message || '');
+        const messageText = sanitizeChatMessage(rawMessage);
+        if (!messageText) return res.status(400).json({ error: 'Message required.' });
+
+        const existing = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+        if (!existing) return res.status(404).json({ error: 'Message not found.' });
+        if (Number(existing.sender_char_id) !== Number(char.id)) {
+            return res.status(403).json({ error: 'You can only edit your own messages.' });
+        }
+
+        const editedAt = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'UPDATE chat_messages SET message_text = ?, edited = 1, edited_at = ? WHERE id = ?', 
+            [messageText, editedAt, messageId]);
+
+        const updated = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+        res.json({
+            success: true,
+            message: serializeChatMessage(updated, char.id)
+        });
+    } catch (e) {
+        console.error('Chat edit failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.delete('/chat/:id', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const messageId = req.params.id;
+        const existing = await dbGet(db, 'SELECT * FROM chat_messages WHERE id = ?', [messageId]);
+        if (!existing) return res.status(404).json({ error: 'Message not found.' });
+        if (Number(existing.sender_char_id) !== Number(char.id)) {
+            return res.status(403).json({ error: 'You can only delete your own messages.' });
+        }
+
+        await dbRun(db, 'DELETE FROM chat_messages WHERE id = ?', [messageId]);
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Chat delete failed:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/messages/:id/read', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ ok: false });
+        await dbRun(db, 'UPDATE messages SET read=1 WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
+        res.json({ ok:true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+router.post('/messages/:id/claim-reward', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const msg = await dbGet(db, 'SELECT * FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
+        if (!msg) return res.status(404).json({ error: 'Message not found' });
+        if (Number(msg.reward_claimed || 0) !== 0) return res.status(400).json({ error: 'Reward already claimed.' });
+        if (!msg.reward_payload) return res.status(400).json({ error: 'This message has no reward.' });
+
+        let reward;
+        try { reward = JSON.parse(msg.reward_payload); } catch { reward = null; }
+        if (!reward || typeof reward !== 'object') return res.status(400).json({ error: 'Reward payload is invalid.' });
+
+        // Validate the full reward first so we never partially grant gold/gems and then fail on materials.
+        let validatedMaterialReward = null;
+        if (reward.material?.id && reward.material?.qty) {
+            const normalizedMaterialId = normalizeRewardMaterialId(reward.material.id);
+            const preferredType = reward.material.type === 'component' ? 'component' : 'raw_mat';
+            const preferredMap = preferredType === 'component' ? COMPONENTS : RAW_MATERIALS;
+            const fallbackType = preferredType === 'component' ? 'raw_mat' : 'component';
+            const fallbackMap = fallbackType === 'component' ? COMPONENTS : RAW_MATERIALS;
+            const preferredDef = preferredMap?.[normalizedMaterialId];
+            const fallbackDef = fallbackMap?.[normalizedMaterialId];
+            const resolvedType = preferredDef ? preferredType : (fallbackDef ? fallbackType : null);
+            const resolvedDef = preferredDef || fallbackDef || null;
+            if (!resolvedDef || !resolvedType) {
+                return res.status(400).json({ error: 'Reward material no longer exists.' });
+            }
+            validatedMaterialReward = {
+                type: resolvedType,
+                id: normalizedMaterialId,
+                qty: Math.max(1, Number(reward.material.qty || 1)),
+                def: resolvedDef
+            };
+        }
+
+        if (reward.gold) {
+            const gold = Math.max(0, Number(reward.gold || 0));
+            if (gold > 0) {
+                await dbRun(db, 'UPDATE characters SET gold=gold+?, total_gold_earned=total_gold_earned+? WHERE id=?', [gold, gold, char.id]);
+            }
+        }
+        if (reward.gems) {
+            const gems = Math.max(0, Number(reward.gems || 0));
+            if (gems > 0) {
+                await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, char.id]);
+            }
+        }
+        if (reward.xp) {
+            const xpGain = Math.max(0, Number(reward.xp || 0));
+            if (xpGain > 0) {
+                let newXp = (char.xp || 0) + xpGain;
+                let newLevel = char.level || 1;
+                while (newXp >= LEVEL_XP(newLevel)) {
+                    newXp -= LEVEL_XP(newLevel);
+                    newLevel += 1;
+                }
+                await dbRun(db, 'UPDATE characters SET xp=?, level=? WHERE id=?', [newXp, newLevel, char.id]);
+                await handleReferralLevelMilestone(db, char.user_id, char.level, newLevel);
+            }
+        }
+        if (reward.lootbox?.id) {
+            const lootBox = LOOT_BOXES.find(box => box.id === reward.lootbox.id);
+            if (lootBox) {
+                await addStackableInventoryItem(db, char.id, 'consumable', lootBox, reward.lootbox.qty || 1);
+            }
+        }
+        if (validatedMaterialReward) {
+            await addStackableInventoryItem(
+                db,
+                char.id,
+                validatedMaterialReward.type,
+                { id: validatedMaterialReward.id, ...validatedMaterialReward.def },
+                validatedMaterialReward.qty
+            );
+        }
+
+        await dbRun(db, 'UPDATE messages SET reward_claimed=1, read=1 WHERE id=? AND receiver_id=?', [msg.id, char.id]);
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            success: true,
+            message: `Claimed: ${describeAdminRewardPayload(reward)}.`,
+            character: await buildCharacterResponse(updatedChar, db)
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+router.delete('/messages/:id', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ ok: false });
+        await dbRun(db, 'DELETE FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
+        res.json({ ok:true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin check endpoint
+router.get('/admin/check', auth, async (req, res) => {
+    res.json({ isAdmin: !!req.user.isAdmin, username: req.user.username });
+});
+
+// JSON admin data endpoints
+// CSP violation report from client-side JS (auth — includes character context)
+router.post('/admin/csp-violation', auth, async (req, res) => {
+    try {
+        const { blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number } = req.body || {};
+        const db = await getDb();
+        let charName = null;
+        try {
+            const char = await dbGet(db, 'SELECT name FROM characters WHERE user_id = ? ORDER BY id DESC LIMIT 1', [req.user.userId]);
+            if (char) charName = char.name;
+        } catch {}
+        await db.execute({ sql: `INSERT INTO csp_violations (blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number, raw_body, user_id, character_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args: [
+            blocked_uri || '', document_uri || '', violated_directive || '', effective_directive || '', original_policy || '', source_file || '', line_number || null, column_number || null, JSON.stringify(req.body), req.user.userId, charName || req.user.username
+        ]});
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/csp-violations', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/bug-reports', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT id, report_timestamp, username, character_name, character_level, character_class, category, title, description, game_location, has_screenshot FROM bug_reports ORDER BY id DESC LIMIT 100', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/rewards', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM admin_reward_batches ORDER BY id DESC LIMIT 50', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Skip attack cooldowns with gems (per-target cooldown and/or defender global cooldown)
+router.get('/admin/action-log', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+        const actions = [];
+
+        // Battles fought
+        const battles = await db.execute({ sql: `SELECT b.id, b.fought_at AS ts, 'battle' AS type, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id, ca.name AS char_name FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id ORDER BY b.fought_at DESC LIMIT ?`, args: [limit] });
+        for (const b of battles.rows) {
+            actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id });
+        }
+
+        // Missions started
+        const missions = await db.execute({ sql: `SELECT m.id, m.started_at AS ts, 'mission_start' AS type, c.name AS char_name, m.zone, m.mission_name FROM missions m LEFT JOIN characters c ON m.char_id = c.id ORDER BY m.started_at DESC LIMIT ?`, args: [limit] });
+        for (const m of missions.rows) {
+            if (m.ts) actions.push({ ts: m.ts, type: 'mission', char_name: m.char_name || '?', label: `${m.char_name || '?'} started ${m.mission_name || '?'} (${m.zone || '?'})`, detail: '', id: m.id });
+        }
+
+        // Mission spot fights
+        const spotFights = await db.execute({ sql: `SELECT cs.char_id, cs.last_fought_at AS ts, 'spot_fight' AS type, c.name AS char_name, cs.zone_id, cs.spot_id, cs.fights, cs.wins FROM character_mission_spot_stats cs LEFT JOIN characters c ON cs.char_id = c.id WHERE cs.last_fought_at > 0 ORDER BY cs.last_fought_at DESC LIMIT ?`, args: [limit] });
+        for (const s of spotFights.rows) {
+            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id });
+        }
+
+        actions.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        res.json(actions.slice(0, limit));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/banners', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM banner_events ORDER BY id DESC LIMIT 50', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/rewards/list', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) {
+            return res.status(403).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Global Rewards - Login</title>
+                    <style>
+                        body { background:#0a0a0f; color:#e2e8f0; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; font-family: ui-sans-serif, system-ui, sans-serif; }
+                        .login-box { background:#16213e; padding:32px; border-radius:14px; border:1px solid rgba(155,89,182,0.45); width:min(420px, 92vw); box-shadow:0 18px 50px rgba(0,0,0,0.35); }
+                        h2 { margin:0 0 16px; color:#f1c40f; }
+                        p { color:#94a3b8; margin:0 0 18px; }
+                        input, button { width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:#0f172a; color:#fff; box-sizing:border-box; }
+                        button { margin-top:12px; background:linear-gradient(180deg, #9b59b6, #7d3c98); cursor:pointer; border:none; font-weight:700; }
+                    </style>
+                </head>
+                <body>
+                    <div class="login-box">
+                        <h2>🎁 Global Rewards Access</h2>
+                        <p>Enter the admin password to send thank-you letters, global messages, and reward mail.</p>
+                        <form method="GET">
+                            <input type="password" name="password" placeholder="Enter password">
+                            <button type="submit">Open Rewards Panel</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const usersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM users', []))?.count || 0);
+        const charsCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM characters', []))?.count || 0);
+        const lettersCount = Number((await dbGet(db, 'SELECT COUNT(*) AS count FROM messages WHERE system_message = 1', []))?.count || 0);
+        const batches = await dbAll(db, 'SELECT * FROM admin_reward_batches ORDER BY created_at DESC LIMIT 20', []);
+        const statusText = String(req.query?.status || '').trim();
+        const statusError = String(req.query?.error || '').trim();
+
+        const rowsHtml = batches.map(batch => {
+            let rewardText = 'Message only';
+            try { rewardText = describeAdminRewardPayload(JSON.parse(batch.reward_payload || 'null')); } catch {}
+            return `<tr>
+                <td>${batch.id}</td>
+                <td>${new Date(Number(batch.created_at || 0) * 1000).toLocaleString()}</td>
+                <td>${escapeHtml(batch.scope || '')}</td>
+                <td>${escapeHtml(batch.subject || '')}</td>
+                <td>${escapeHtml(rewardText)}</td>
+                <td>${Number(batch.recipient_count || 0).toLocaleString()}</td>
+                <td>
+                    <button data-action="previewResend" data-batch-id="${batch.id}" style="padding:5px 10px; font-size:0.72rem; background:#3498db; border:none; border-radius:6px; cursor:pointer; width:auto; font-weight:700;">Preview</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Global Rewards Admin</title>
+                <meta charset="UTF-8">
+                <style>
+                    * { box-sizing:border-box; }
+                    body { margin:0; background:#0a0a0f; color:#e2e8f0; font-family: ui-sans-serif, system-ui, sans-serif; }
+                    .wrap { max-width:1200px; margin:0 auto; padding:28px; }
+                    h1 { margin:0 0 18px; color:#f1c40f; }
+                    .stats { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+                    .stat, .panel { background:#16213e; border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px; }
+                    .stat-value { font-size:1.8rem; font-weight:800; color:#9b59b6; }
+                    .stat-label { font-size:0.8rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-top:6px; }
+                    .panel { margin-bottom:20px; }
+                    .grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+                    .full { grid-column:1 / -1; }
+                    label { display:block; font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+                    input, textarea, select, button { width:100%; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:#0f172a; color:#fff; padding:12px 14px; font:inherit; }
+                    textarea { min-height:120px; resize:vertical; }
+                    .submit-btn { background:linear-gradient(180deg, #2ecc71, #1f8b4d); border:none; font-weight:800; cursor:pointer; }
+                    .hint { color:#94a3b8; font-size:0.85rem; line-height:1.5; }
+                    .status { margin-top:14px; padding:12px 14px; border-radius:10px; background:rgba(46,204,113,0.12); border:1px solid rgba(46,204,113,0.25); display:none; }
+                    .status.error { background:rgba(231,76,60,0.12); border-color:rgba(231,76,60,0.25); }
+                    table { width:100%; border-collapse:collapse; }
+                    th, td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.08); text-align:left; font-size:0.9rem; vertical-align:top; }
+                    th { color:#94a3b8; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase; }
+                    @media (max-width: 800px) { .stats, .grid { grid-template-columns:1fr; } }
+                </style>
+            </head>
+            <body>
+                <div class="wrap">
+                    <h1>🎁 Global Rewards Admin</h1>
+                    <div class="stats">
+                        <div class="stat"><div class="stat-value">${usersCount.toLocaleString()}</div><div class="stat-label">Accounts</div></div>
+                        <div class="stat"><div class="stat-value">${charsCount.toLocaleString()}</div><div class="stat-label">Characters</div></div>
+                        <div class="stat"><div class="stat-value">${lettersCount.toLocaleString()}</div><div class="stat-label">System Letters Sent</div></div>
+                    </div>
+                    <div class="panel">
+                        <h2 style="margin-top:0">Send Reward Letter</h2>
+                        <p class="hint">Default delivery is the active character for each account, so multi-character users do not receive the same global reward four times unless you explicitly choose every character.</p>
+                        <form method="POST" action="/api/game/rewards/send?password=${encodeURIComponent(password)}">
+                            <div class="grid">
+                                <div>
+                                    <label>Delivery Scope</label>
+                                    <select name="scope">
+                                        <option value="active_per_account">Active character per account</option>
+                                        <option value="all_characters">Every character</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Subject</label>
+                                    <input type="text" name="subject" maxlength="140" placeholder="Thank you for helping test Battle Arena">
+                                </div>
+                                <div class="full">
+                                    <label>Message Body</label>
+                                    <textarea name="body" placeholder="Write the thank-you letter players will see in their inbox."></textarea>
+                                </div>
+                                <div>
+                                    <label>Gold Reward</label>
+                                    <input type="number" name="gold" min="0" step="1" placeholder="0">
+                                </div>
+                                <div>
+                                    <label>Gem Reward</label>
+                                    <input type="number" name="gems" min="0" step="1" placeholder="0">
+                                </div>
+                                <div>
+                                    <label>XP Reward</label>
+                                    <input type="number" name="xp" min="0" step="1" placeholder="0">
+                                </div>
+                                <div>
+                                    <label>Material Type</label>
+                                    <select name="materialType">
+                                        <option value="">No material</option>
+                                        <option value="raw_mat">Raw Material</option>
+                                        <option value="component">Component</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Material Id</label>
+                                    <input type="text" name="materialId" placeholder="mithril_ore or demon_alloy">
+                                </div>
+                                <div>
+                                    <label>Material Quantity</label>
+                                    <input type="number" name="materialQty" min="0" step="1" placeholder="0">
+                                </div>
+                                <div style="display:flex;align-items:end">
+                                    <button type="submit" class="submit-btn">Send Global Letter</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div class="status ${statusError ? 'error' : ''}" style="display:${statusText || statusError ? 'block' : 'none'}">
+                            ${escapeHtml(statusError || statusText || '')}
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h2 style="margin-top:0">Recent Reward Batches</h2>
+                        <table>
+                            <thead><tr><th>ID</th><th>Sent</th><th>Scope</th><th>Subject</th><th>Reward</th><th>Recipients</th><th>Action</th></tr></thead>
+                            <tbody>${rowsHtml || '<tr><td colspan="7">No reward batches sent yet.</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
+            </body>
+            <input type="hidden" id="rewards-password" value="${encodeURIComponent(password)}">
+            <div id="resend-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">
+                <div style="background:#16213e;border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:24px;max-width:680px;width:96vw;max-height:85vh;display:flex;flex-direction:column;">
+                    <h3 style="margin:0 0 4px;color:#f1c40f" id="modal-title">Resend Reward</h3>
+                    <p style="margin:0 0 12px;color:#94a3b8;font-size:0.85rem" id="modal-subject"></p>
+                    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+                        <button data-action="modalSelectAll" style="padding:5px 12px;font-size:0.75rem;background:#2ecc71;border:none;border-radius:6px;cursor:pointer;font-weight:700;color:#fff">Select All</button>
+                        <button data-action="modalDeselectAll" style="padding:5px 12px;font-size:0.75rem;background:#e74c3c;border:none;border-radius:6px;cursor:pointer;font-weight:700;color:#fff">Deselect All</button>
+                        <span style="margin-left:auto;color:#94a3b8;font-size:0.8rem;align-self:center" id="modal-count">0 of 0 selected</span>
+                    </div>
+                    <input id="modal-filter" type="text" placeholder="Filter by name..." style="padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:#0f172a;color:#fff;margin-bottom:10px;font-size:0.85rem">
+                    <div id="modal-list" style="overflow-y:auto;flex:1;min-height:0"></div>
+                    <div style="display:flex;gap:10px;margin-top:14px;justify-content:end">
+                        <button data-action="closeResendModal" style="padding:10px 18px;background:#555;border:none;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">Cancel</button>
+                        <button id="modal-send-btn" data-action="submitResend" style="padding:10px 18px;background:linear-gradient(180deg,#2ecc71,#1f8b4d);border:none;border-radius:10px;cursor:pointer;font-weight:700;color:#fff">Send to Selected</button>
+                    </div>
+                </div>
+            </div>
+            <script src="/admin/rewards.js"></script>
+            </html>
+        `);
+    } catch (error) {
+        res.status(500).send('Error: ' + error.message);
+    }
+});
+
+router.post('/rewards/send', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) {
+            const wantsHtml = String(req.headers.accept || '').includes('text/html');
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent('Forbidden')}`);
+            }
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const scope = String(req.body?.scope || 'active_per_account');
+        const subject = String(req.body?.subject || '').trim();
+        const body = String(req.body?.body || '').trim();
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (!subject || !body) {
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent('Subject and message body are required.')}`);
+            }
+            return res.status(400).json({ error: 'Subject and message body are required.' });
+        }
+
+        const rewardPayload = buildAdminRewardPayload(req.body || {});
+        const attemptedReward = adminRewardInputLooksFilled(req.body || {});
+        if (attemptedReward && !rewardPayload) {
+            const msg = 'Reward fields were filled, but the reward data is incomplete. Use gold/gems, or provide material type + material id + material quantity.';
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(msg)}`);
+            }
+            return res.status(400).json({ error: msg });
+        }
+        const recipients = scope === 'all_characters'
+            ? await dbAll(db, 'SELECT id FROM characters ORDER BY id ASC', [])
+            : await dbAll(db, `
+                SELECT c.id
+                FROM users u
+                JOIN characters c ON c.id = u.active_character_id
+                WHERE u.active_character_id IS NOT NULL
+                ORDER BY c.id ASC
+            `, []);
+
+        if (!recipients.length) {
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent('No recipients found for that scope.')}`);
+            }
+            return res.status(400).json({ error: 'No recipients found for that scope.' });
+        }
+
+        const createdAt = Math.floor(Date.now() / 1000);
+        const batch = await dbRun(
+            db,
+            'INSERT INTO admin_reward_batches (created_at, scope, subject, body, reward_payload, recipient_count) VALUES (?,?,?,?,?,?)',
+            [createdAt, scope, subject, body, rewardPayload ? JSON.stringify(rewardPayload) : null, recipients.length]
+        );
+        const batchId = Number(batch?.lastInsertRowid || 0) || null;
+
+        for (const row of recipients) {
+            await dbRun(
+                db,
+                `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message, admin_batch_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?)`,
+                [row.id, row.id, 'Arena Staff', subject, body, rewardPayload ? JSON.stringify(rewardPayload) : null, batchId]
+            );
+        }
+
+        const successMessage = `Sent ${rewardPayload ? 'reward letter' : 'global message'} to ${recipients.length.toLocaleString()} recipient${recipients.length === 1 ? '' : 's'}.`;
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&status=${encodeURIComponent(successMessage)}`);
+        }
+        res.json({
+            success: true,
+            message: successMessage,
+            batchId
+        });
+    } catch (error) {
+        const password = parseAdminPassword(req);
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(error.message || 'Failed to send rewards.')}`);
+        }
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.get('/rewards/resend-preview', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
+
+        const db = await getDb();
+        const batchId = Number(req.query?.batchId);
+        if (!batchId) return res.status(400).json({ error: 'Batch ID is required.' });
+
+        const batch = await dbGet(db, 'SELECT * FROM admin_reward_batches WHERE id = ?', [batchId]);
+        if (!batch) return res.status(404).json({ error: 'Batch not found.' });
+
+        const scope = batch.scope;
+        let recipients = [];
+        if (scope === 'all_characters') {
+            recipients = await dbAll(db, `
+                SELECT c.id, c.name, c.class, c.level
+                FROM characters c
+                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                WHERE m.id IS NULL
+                ORDER BY c.name ASC
+            `, [batchId]);
+        } else {
+            recipients = await dbAll(db, `
+                SELECT c.id, c.name, c.class, c.level
+                FROM users u
+                JOIN characters c ON c.id = u.active_character_id
+                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                WHERE u.active_character_id IS NOT NULL AND m.id IS NULL
+                ORDER BY c.name ASC
+            `, [batchId]);
+        }
+
+        res.json({ batchId, scope: batch.scope, subject: batch.subject, recipients });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+router.post('/rewards/resend', async (req, res) => {
+    try {
+        const password = parseAdminPassword(req);
+        if (password !== ADMIN_PANEL_PASSWORD) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+
+        const db = await getDb();
+        const batchId = Number(req.body?.batchId);
+        if (!batchId) return res.status(400).json({ error: 'Batch ID is required.' });
+
+        const batch = await dbGet(db, 'SELECT * FROM admin_reward_batches WHERE id = ?', [batchId]);
+        if (!batch) return res.status(404).json({ error: 'Batch not found.' });
+
+        const scope = batch.scope;
+        const subject = batch.subject;
+        const body = batch.body;
+        const rewardPayload = batch.reward_payload;
+
+        let recipients = [];
+        if (scope === 'all_characters') {
+            recipients = await dbAll(db, `
+                SELECT c.id
+                FROM characters c
+                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                WHERE m.id IS NULL
+                ORDER BY c.id ASC
+            `, [batchId]);
+        } else {
+            recipients = await dbAll(db, `
+                SELECT c.id
+                FROM users u
+                JOIN characters c ON c.id = u.active_character_id
+                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                WHERE u.active_character_id IS NOT NULL AND m.id IS NULL
+                ORDER BY c.id ASC
+            `, [batchId]);
+        }
+
+        if (!recipients.length) {
+            const msg = 'No new recipients found for this batch.';
+            const wantsHtml = String(req.headers.accept || '').includes('text/html');
+            if (wantsHtml) {
+                return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(msg)}`);
+            }
+            return res.status(400).json({ error: msg });
+        }
+
+        // Filter to selected charIds if provided
+        let selectedIds = req.body?.charIds;
+        if (selectedIds && !Array.isArray(selectedIds)) selectedIds = [selectedIds];
+        if (selectedIds && selectedIds.length) {
+            const idSet = new Set(selectedIds.map(Number));
+            recipients = recipients.filter(r => idSet.has(r.id));
+            if (!recipients.length) {
+                const msg = 'No selected recipients are eligible for this batch.';
+                const wantsHtml = String(req.headers.accept || '').includes('text/html');
+                if (wantsHtml) {
+                    return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(msg)}`);
+                }
+                return res.status(400).json({ error: msg });
+            }
+        }
+
+        for (const row of recipients) {
+            await dbRun(
+                db,
+                `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message, admin_batch_id)
+                 VALUES (?, ?, ?, ?, ?, ?, 0, 1, ?)`,
+                [row.id, row.id, 'Arena Staff', subject, body, rewardPayload, batchId]
+            );
+        }
+
+        await dbRun(db, 'UPDATE admin_reward_batches SET recipient_count = recipient_count + ? WHERE id = ?', [recipients.length, batchId]);
+
+        const successMessage = `Resent reward to ${recipients.length.toLocaleString()} additional recipient${recipients.length === 1 ? '' : 's'}.`;
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&status=${encodeURIComponent(successMessage)}`);
+        }
+        res.json({ success: true, message: successMessage });
+    } catch (error) {
+        const password = parseAdminPassword(req);
+        const wantsHtml = String(req.headers.accept || '').includes('text/html');
+        if (wantsHtml) {
+            return res.redirect(`/api/game/rewards/list?password=${encodeURIComponent(password)}&error=${encodeURIComponent(error.message || 'Failed to resend rewards.')}`);
+        }
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── Database Admin Tools ──────────────────────────────────────────────────
+router.get('/db/tables', auth, async (req, res) => {
+    // Only allow admins (e.g. check a specific field or role if you have one, 
+    // but here we just ensure they are authenticated as a game user first)
+    const db = await getDb();
+    // Assuming you have an 'isAdmin' check in your 'auth' or similar global check
+    // If not, add a helper to verify admin status
+    const user = await dbGet(db, 'SELECT is_admin FROM users WHERE id = ?', [req.user.userId]);
+    if (!user || !user.is_admin) return res.status(403).json({ error: 'Forbidden' });
+
+    const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
+    res.json(result.rows.map(r => r.name));
+});
+
+router.post('/db/query', auth, async (req, res) => {
+    const db = await getDb();
+    const user = await dbGet(db, 'SELECT is_admin FROM users WHERE id = ?', [req.user.userId]);
+    if (!user || !user.is_admin) return res.status(403).json({ error: 'Forbidden' });
+    
+    const { table } = req.body;
+    if (!table) return res.status(400).json({ error: 'Table required' });
+    try {
+        const result = await db.execute(`SELECT * FROM "${table.replace(/"/g, '')}" LIMIT 100`);
+        res.json(result.rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/db/update', auth, async (req, res) => {
+    const db = await getDb();
+    const user = await dbGet(db, 'SELECT is_admin FROM users WHERE id = ?', [req.user.userId]);
+    if (!user || !user.is_admin) return res.status(403).json({ error: 'Forbidden' });
+    
+    const { table, field, value, id } = req.body;
+    if (!table || !field || id === undefined) return res.status(400).json({ error: 'Missing parameters' });
+    
+    try {
+        await db.execute({
+            sql: `UPDATE "${table.replace(/"/g, '')}" SET "${field.replace(/"/g, '')}" = ? WHERE id = ?`,
+            args: [value, id]
+        });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Dungeon endpoints (unchanged, keep as is) ─────────────────────────────
+router.get('/dungeon/data', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    const tokens = char.dungeon_tokens || 0;
+    const floor = char.dungeon_floor || 1;
+    const highestFloor = char.dungeon_highest_floor || 1;
+    let progress = null;
+    
+    if (char.dungeon_progress) {
+      try {
+        progress = JSON.parse(char.dungeon_progress);
+      } catch(e) {}
+    }
+    
+    res.json({
+      success: true,
+      tokens,
+      floor,
+      highestFloor,
+      progress
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/dungeon/lock-check', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    // Check for active dungeon lock with expiry
+    let locked = false;
+    if (char.dungeon_session) {
+      try {
+        const sess = JSON.parse(char.dungeon_session);
+        const now = Date.now();
+        // Lock expires after 30 seconds of inactivity
+        if (sess && sess.ts && (now - sess.ts) < 30000) {
+          locked = true;
+        }
+      } catch {}
+    }
+    
+    res.json({ locked });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/lock-acquire', auth, async (req, res) => {
+  // Auth lock now handles single-device login, dungeon lock not needed
+  res.json({ success: true });
+});
+
+router.post('/dungeon/lock-release', auth, async (req, res) => {
+  res.json({ success: true });
+});
+
+router.post('/dungeon/lock-refresh', auth, async (req, res) => {
+  res.json({ success: true });
+});
+
+// Atomic room entry - prevents double reward exploits
+router.post('/dungeon/room-enter', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, roomIndex } = req.body;
+    const { userId } = req.user;
+    const ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
+
+    const char = await getCurrentCharacter(db, userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Some environments may have an older dungeon_room_instances schema. Avoid 500s by
+    // only referencing columns that actually exist.
+    let hasCreatedAt = true;
+    let hasStatus = true;
+    try {
+      const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+      const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+      hasCreatedAt = names.has('created_at');
+      hasStatus = names.has('status');
+    } catch {}
+    
+    // Do not permanently block re-entry. Only block reward re-claims inside the respawn window.
+    // (Client allows re-entering rooms freely; this endpoint just helps prevent duplicate loot.)
+    if (hasCreatedAt) {
+      const lastClear = await db.execute({
+        sql: `SELECT created_at
+              FROM dungeon_room_instances
+              WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+              ORDER BY COALESCE(created_at, 0) DESC
+              LIMIT 1`,
+        args: [char.id, floor, roomIndex]
+      });
+      if (lastClear.rows.length > 0) {
+        const clearedAt = Number(lastClear.rows[0].created_at || 0) || 0;
+        // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
+        if (clearedAt > 0 && (Date.now() - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
+          // Important: do NOT use non-2xx here; client uses a shared api() wrapper that treats
+          // non-2xx as "server error", but this is an expected gameplay state.
+          return res.json({ success: false, locked: true, cooldown: true, error: 'Room reward on cooldown' });
+        }
+      }
+    }
+
+    // Room entry itself should never block combat; the actual one-reward guarantee
+    // is enforced in /dungeon/room-clear.
+    const safeFloor = Math.max(1, Number(floor) || 1);
+    const hasElemental = await dbGet(db, 'SELECT id FROM elementals WHERE char_id = ?', [char.id]).catch(() => null);
+    const elementalAltar = safeFloor >= 5 && !hasElemental;
+    res.json({ success: true, elementalAltar });
+  } catch (e) {
+    console.error('room-enter error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Release room when escaping or dying
+router.post('/dungeon/room-exit', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, roomIndex } = req.body;
+    const now = Math.floor(Date.now() / 1000);
+    
+    await db.execute({
+      sql: `DELETE FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+      args: [req.user.userId, floor, roomIndex]
+    });
+
+    // If the player exits a room (flee/death/leave), ensure any active combat session for that room
+    // is ended so potion locks don't get "stuck" outside the dungeon.
+    await dbRun(
+      db,
+      `UPDATE dungeon_combat_sessions
+       SET status = 'ended', updated_at = ?
+       WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
+      [now, req.user.userId, floor, roomIndex]
+    );
+    
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mark room cleared and claim reward atomically
+// Only FIRST clear gets reward - reject duplicates
+// routes.js  — replace the FIRST router.post('/dungeon/room-clear', ...) block (lines 7784-7823)
+
+router.post('/dungeon/room-clear', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, roomIndex, floorRunId } = req.body;
+    const { userId } = req.user;
+    const char = await getCurrentCharacter(db, userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const runKey = String(floorRunId || `${floor}_legacy`);
+    const ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
+    const now = Date.now();
+
+    // Some environments may have an older dungeon_room_instances schema. Avoid 500s by
+    // only referencing columns that actually exist.
+    let hasSessionId = true;
+    let hasCreatedAt = true;
+    let hasStatus = true;
+    try {
+      const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+      const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+      hasSessionId = names.has('session_id');
+      hasCreatedAt = names.has('created_at');
+      hasStatus = names.has('status');
+    } catch {}
+
+    // Legacy DBs may have UNIQUE(user_id, floor_number, room_index) from older anti-exploit logic.
+    // So we treat (user_id,floor,roomIndex) as the natural key and "re-clear" by updating the
+    // existing row after cooldown rather than inserting a new one that would violate the unique index.
+    const existing = await db.execute({
+      sql: hasCreatedAt
+        ? `SELECT id, created_at
+           FROM dungeon_room_instances
+           WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+           ORDER BY COALESCE(created_at, 0) DESC
+           LIMIT 1`
+        : `SELECT id
+           FROM dungeon_room_instances
+           WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+           LIMIT 1`,
+      args: [userId, floor, roomIndex]
+    });
+
+    if (existing.rows.length > 0) {
+      if (hasCreatedAt) {
+        const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
+        // Old rows may have NULL created_at (from before we tracked cooldown). Treat as expired.
+        if (clearedAt > 0 && (now - clearedAt) < ROOM_CLEAR_COOLDOWN_MS) {
+          // Important: return 200 with a flag; client uses res.cleared to decide "no loot".
+          return res.json({ success: true, cleared: true });
+        }
+      }
+
+      // Cooldown elapsed — refresh timestamp so the next claim is gated again.
+      if (hasCreatedAt && hasSessionId) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
+        });
+      } else if (hasCreatedAt) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
+        });
+      } else {
+        // No created_at column: treat as always re-clearable, but keep row present.
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET char_id = ?, floor_number = ?, room_index = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [char.id, floor, roomIndex, userId, floor, roomIndex]
+        });
+      }
+
+      return res.json({ success: true, recleared: true });
+    }
+
+    // No existing row for this (user,floor,room) — insert. If a legacy UNIQUE constraint still
+    // trips (races/old ids), fall back to an UPDATE by the natural key.
+    const newId = `${char.id}_${floor}_${roomIndex}_cleared`;
+    try {
+      if (hasSessionId && hasCreatedAt) {
+        await db.execute({
+          sql: `INSERT INTO dungeon_room_instances
+                  (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+                VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+          args: [newId, userId, char.id, floor, roomIndex, runKey, now]
+        });
+      } else if (hasCreatedAt) {
+        await db.execute({
+          sql: `INSERT INTO dungeon_room_instances
+                  (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+                VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
+          args: [newId, userId, char.id, floor, roomIndex, now]
+        });
+      } else {
+        await db.execute({
+          sql: `INSERT INTO dungeon_room_instances
+                  (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+                VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
+          args: [newId, userId, char.id, floor, roomIndex]
+        });
+      }
+    } catch (insertErr) {
+      const msg = String(insertErr?.message || '');
+      if (msg.includes('UNIQUE') || msg.includes('constraint')) {
+        if (hasCreatedAt && hasSessionId) {
+          await db.execute({
+            sql: `UPDATE dungeon_room_instances
+                  SET created_at = ?, char_id = ?, session_id = ?
+                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [now, char.id, runKey, userId, floor, roomIndex]
+          });
+        } else if (hasCreatedAt) {
+          await db.execute({
+            sql: `UPDATE dungeon_room_instances
+                  SET created_at = ?, char_id = ?
+                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [now, char.id, userId, floor, roomIndex]
+          });
+        } else {
+          await db.execute({
+            sql: `UPDATE dungeon_room_instances
+                  SET char_id = ?
+                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [char.id, userId, floor, roomIndex]
+          });
+        }
+      } else {
+        throw insertErr;
+      }
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('room-clear error:', e);
+    // Avoid hard-failing the client with a generic "server error confirming room clear" popup.
+    // Returning 200 with cleared:true ensures the client does not grant loot on uncertainty.
+    res.json({ success: true, cleared: true, serverError: true, error: String(e?.message || e) });
+  }
+});
+
+router.post('/dungeon/lock-release', auth, async (req, res) => {
+  res.json({ success: true });
+});
+
+router.post('/dungeon/lock-refresh', auth, async (req, res) => {
+  res.json({ success: true });
+});
+
+router.post('/dungeon/tokens', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { tokens } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    await dbRun(db, 'UPDATE characters SET dungeon_tokens = ? WHERE id = ?', [tokens, char.id]);
+    res.json({ success: true, tokens });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/progress', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { floor, highestFloor, progress, activeDungeon, combat } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Leaving the dungeon should clear any active dungeon combat session so consumables aren't locked.
+    // The client typically sets `activeDungeon` to null/falsey when exiting.
+    if (!activeDungeon) {
+      const now = Math.floor(Date.now() / 1000);
+      await dbRun(
+        db,
+        `UPDATE dungeon_combat_sessions
+         SET status = 'ended', updated_at = ?
+         WHERE char_id = ? AND status = 'active'`,
+        [now, char.id]
+      );
+    }
+    
+    const progressData = {
+      activeDungeon: activeDungeon || null,
+      floor: floor || 1,
+      rooms: progress?.rooms || [],
+      playerPos: progress?.playerPos || 0,
+      exploredRooms: progress?.exploredRooms || [],
+      combat: combat || null
+    };
+    
+    await dbRun(db, `UPDATE characters SET 
+      dungeon_floor = ?,
+      dungeon_highest_floor = ?,
+      dungeon_progress = ?
+      WHERE id = ?`,
+      [floor, highestFloor, JSON.stringify(progressData), char.id]
+    );
+    
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/claim-room', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { roomId, floor } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    let savedProgress = { rooms: [], exploredRooms: [] };
+    if (char.dungeon_progress) {
+      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
+    }
+    
+    const room = savedProgress.rooms?.find(r => r.id === roomId);
+    if (!room) return res.status(404).json({ error: 'Room not found' });
+    
+    // Already cleared
+    if (room.monstersCleared) {
+      return res.json({ cleared: true });
+    }
+    
+    // Already claimed by another (older claim)
+    if (room.inCombat && room.inCombat < Date.now() - 300000) {
+      room.inCombat = null;
+    }
+    if (room.inCombat && room.inCombat !== req.user.userId) {
+      return res.json({ claimed: true });
+    }
+    
+    // Lock the room for this player (5 min timeout)
+    room.inCombat = req.user.userId;
+    
+    await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
+      [JSON.stringify(savedProgress), char.id]
+    );
+    
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/release-room', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { roomId, cleared } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    
+    let savedProgress = { rooms: [], exploredRooms: [] };
+    if (char.dungeon_progress) {
+      try { savedProgress = JSON.parse(char.dungeon_progress); } catch {}
+    }
+    
+    const room = savedProgress.rooms?.find(r => r.id === roomId);
+    if (room) {
+      if (cleared) {
+        room.monstersCleared = Date.now();
+      }
+      room.inCombat = null;
+      
+      await dbRun(db, `UPDATE characters SET dungeon_progress = ? WHERE id = ?`,
+        [JSON.stringify(savedProgress), char.id]
+      );
+    }
+    
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/mp-spent', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { mpSpent } = req.body;
+    const tokensEarned = Math.floor(mpSpent / 20);
+    
+    if (tokensEarned > 0) {
+      const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_tokens');
+      if (!char) return res.status(404).json({ error: 'Character not found' });
+      const result = await dbRun(db, `
+        UPDATE characters 
+        SET dungeon_tokens = dungeon_tokens + ?
+        WHERE id = ?
+        RETURNING dungeon_tokens
+      `, [tokensEarned, char.id]);
+      
+      const updatedChar = await getCurrentCharacter(db, req.user.userId, 'dungeon_tokens');
+      res.json({ success: true, tokensEarned, totalTokens: updatedChar.dungeon_tokens });
+    } else {
+      res.json({ success: true, tokensEarned: 0, totalTokens: null });
+    }
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/add-gold', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { amount } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Legacy endpoint (client-side loot). Dungeon loot is now granted server-side via combat sessions.
+    // Keep it for backwards compatibility, but clamp aggressively to reduce exploit value.
+    const safeAmount = Math.max(0, Math.min(250, Number(amount || 0)));
+    if (safeAmount <= 0) return res.json({ success: true });
+
+    await dbRun(db, 'UPDATE characters SET dungeon_gold = COALESCE(dungeon_gold, 0) + ? WHERE id = ?', 
+      [safeAmount, char.id]);
+    res.json({ success: true, amount: safeAmount });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/update-health', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { hp } = req.body;
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, hp_current, hp_max');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Legacy endpoint (client-side combat). Combat is now server-authoritative; we disallow healing via this API.
+    const maxHp = Math.max(1, Number(char.hp_max || 1));
+    const currentHp = Math.max(0, Number(char.hp_current || 0));
+    let safeHp = Math.max(0, Math.min(maxHp, Number(hp ?? currentHp)));
+    // Never allow increasing HP through this sync endpoint.
+    if (safeHp > currentHp) safeHp = currentHp;
+
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [safeHp, char.id]);
+    res.json({ success: true, hp: safeHp });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function mulberry32Next(state) {
+  // Deterministic PRNG step (unsigned 32-bit state).
+  let t = (state + 0x6D2B79F5) >>> 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  return { state: t >>> 0, value };
+}
+
+function rngIntInclusive(rngState, min, max) {
+  const lo = Math.min(min, max);
+  const hi = Math.max(min, max);
+  const next = mulberry32Next(rngState >>> 0);
+  const span = (hi - lo) + 1;
+  const n = lo + Math.floor(next.value * span);
+  return { rngState: next.state, n };
+}
+
+function buildDungeonBossStatsForFloor(floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const BOSS_POOL = [
+    { name: 'Death Knight Malachar', baseHp: 600, baseAtk: 45, baseDef: 20, lore:'The Death Knight is the remnant of a forgotten warrior bound in undeath to oppose all who enter his final abode.' },
+    { name: 'Ignarath the Eternal', baseHp: 700, baseAtk: 55, baseDef: 25, lore:'Ignarath is a fusion of demonic and necrotic energy warped to resemble a human abomination. Win quickly or be forever lost to corruption\'s touch.' },
+    { name: 'Nyxaroth the Devourer', baseHp: 800, baseAtk: 65, baseDef: 30, lore:'Nyxaroth is a mindless predator of unequal quickness and fury. Few survive to whisper tales of the calamity that follows her wake.' },
+    { name: 'Vizorax the Unholy', baseHp: 850, baseAtk: 60, baseDef: 35, lore:'Vizorax the Unholy, a Demon from the depths who adds a piece of each defeated opponent to his living armor. Said to be so magically potent reality bends to his whims.' },
+    { name: 'The Hollow King', baseHp: 900, baseAtk: 70, baseDef: 35 },
+    { name: 'Voidborn Colossus', baseHp: 1000, baseAtk: 80, baseDef: 40 },
+    { name: 'The Undying Empress', baseHp: 1100, baseAtk: 90, baseDef: 45, lore:'The Undying Empress is rumored to have sacrificed an entire civilization to fuel her immortality, pure speculation as none exist to bear witness to the truths of her existence.' },
+    { name: 'Abyssal Sovereign', baseHp: 1200, baseAtk: 95, baseDef: 50, lore:'An abomination that crawled out of the void, the Abyssal Sovereign desecrates reality with his presence as he seeks to consume all to fuel his existence.' },
+  ];
+  const idx = (safeFloor - 1) % BOSS_POOL.length;
+  const tier = Math.floor((safeFloor - 1) / BOSS_POOL.length);
+  const base = BOSS_POOL[idx];
+  const scale = 1 + (safeFloor - 1) * 0.18 + tier * 0.5;
+  return {
+    name: base.name,
+    hp: Math.round(base.baseHp * scale),
+    atk: Math.round(base.baseAtk * scale),
+    def: Math.round(base.baseDef * scale),
+    lore: base.lore,
+  };
+}
+
+function buildCrawlerStatsForFloor(floor) {
+  const boss = buildDungeonBossStatsForFloor(floor);
+  // Must match client tuning in public/js/dungeon.js
+  const hpMult = 5.8;   // 2.9 * 2
+  const atkMult = 2.7;  // 1.35 * 2
+  const defMult = 5.0;  // 2.5 * 2
+  const maxHp = Math.round(boss.hp * hpMult);
+  return {
+    id: 'the_crawler',
+    name: 'The Crawler',
+    icon: '🕷️',
+    image: '/images/dungeon/crawler.jpg',
+    hp: maxHp,
+    maxHp,
+    currentHp: maxHp,
+    atk: Math.round(boss.atk * atkMult),
+    def: Math.round(boss.def * defMult),
+    isCrawler: true,
+    lore: 'The Crawler is Doom manifest. A being of endless growth, it mimics the strength of its next meal to provide entertainment. Nothing escapes its hunt.',
+  };
+}
+
+async function calcDungeonEquipStats(db, charId) {
+  const equippedArray = await getEquippedItemsArray(db, charId);
+  const bonuses = { strength:0, defense:0, agility:0, magic:0, hit_chance:0, crit_chance:0, dmg_min:0, dmg_max:0, armor:0 };
+  for (const item of equippedArray) {
+    try {
+      const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+      const s = d?.stats || {};
+      for (const k of ['strength','defense','agility','magic','hit_chance','crit_chance','dmg_min','dmg_max','armor']) {
+        if (s[k]) bonuses[k] += Number(s[k]);
+        if (d?.wp_stats?.[k]) bonuses[k] += Number(d.wp_stats[k]);
+      }
+    } catch {}
+  }
+  return bonuses;
+}
+
+function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null, equipStats = null) {
+  const cClass = String(char.class || '').toLowerCase();
+  const strength = Number(char.strength || 10) + (equipStats?.strength || 0);
+  const defense = Number(char.defense || 5) + (equipStats?.defense || 0);
+  const agility = Number(char.agility || 10) + (equipStats?.agility || 0);
+  const magic = Number(char.magic || 10) + (equipStats?.magic || 0);
+  let atk = 0;
+  let def = 0;
+  if (cClass === 'mage') {
+    atk = magic * 2.2 + strength * 0.2;
+    def = defense * 0.4 + magic * 0.2;
+  } else if (cClass === 'rogue') {
+    atk = agility * 1.7 + strength * 0.5;
+    def = defense * 0.5 + agility * 0.3;
+  } else if (cClass === 'paladin') {
+    atk = strength * 1.2 + magic * 1.0;
+    def = defense * 1.2 + magic * 0.3;
+  } else {
+    // warrior/default
+    atk = strength * 2 + agility * 0.5;
+    def = defense + strength * 0.3;
+  }
+  const maxHp = Math.max(1, Number(hpMaxOverride ?? char.hp_max ?? 100));
+  const hp = Number(char.hp_current ?? maxHp);
+  const weaponDmg = Math.floor(((equipStats?.dmg_min || 0) + (equipStats?.dmg_max || 0)) / 2);
+  return { atk: Math.floor(atk) + weaponDmg, def: Math.floor(def) + (equipStats?.armor || 0), hp, maxHp };
+}
+
+async function getTrueHpMaxForChar(db, char) {
+  const equippedArray = await getEquippedItemsArray(db, char.id);
+  return Math.max(1, Number(calcHpMax(char, equippedArray) || char.hp_max || 100));
+}
+
+async function upsertCrawlerStat(db, charId, event) {
+  const now = Math.floor(Date.now() / 1000);
+  await dbRun(db, `INSERT INTO character_crawler_stats (char_id, encounters, defeats, deaths)
+    VALUES (?, 0, 0, 0)
+    ON CONFLICT(char_id) DO NOTHING`, [charId]);
+  if (event === 'defeat') {
+    await dbRun(db, `UPDATE character_crawler_stats SET defeats = defeats + 1, last_defeat_at = ? WHERE char_id = ?`, [now, charId]);
+  } else if (event === 'death') {
+    await dbRun(db, `UPDATE character_crawler_stats SET deaths = deaths + 1, last_death_at = ? WHERE char_id = ?`, [now, charId]);
+  } else if (event === 'encounter') {
+    await dbRun(db, `UPDATE character_crawler_stats SET encounters = encounters + 1, last_encounter_at = ? WHERE char_id = ?`, [now, charId]);
+  }
+  invalidateWeeklyClaimableCountCache(charId);
+}
+
+// ---------------- Dungeon Combat (Server-Authoritative) ----------------
+// Step 2: extend server-authoritative combat to all dungeon mobs.
+// This does NOT yet make dungeon map generation server-authoritative; it hardens battle math + loot grants.
+
+const DUNGEON_RUN_ESCAPE_CHANCE = 0.75;
+const DUNGEON_STEAL_CHANCE = 0.18; // currently unused in server sim (reserved)
+const DUNGEON_ROOM_CLEAR_COOLDOWN_MS = 48 * 3600 * 1000;
+const DUNGEON_BOSS_TOKEN_COST = 50;
+
+const DUNGEON_MONSTER_POOL = [
+  { id:'skeleton',    name:'Skeleton Warrior', hp:80,  atk:12, def:5,  steal:true,  minFloor:1,  lore:'Skeleton Warriors are basic dungeon fodder. Easy to put down, hard to keep down.' },
+  { id:'ghost',       name:'Wailing Ghost',    hp:60,  atk:18, def:2,  steal:false, minFloor:1,  lore:'Wailing Ghosts are psychic entities, attacking the mind instead of the body.' },
+  { id:'zombie',      name:'Rotting Zombie',   hp:120, atk:8,  def:8,  steal:true,  minFloor:1,  lore:'Rotting Zombies are the direct refusal of the dungeon to waste perfectly good corrupted adventurers. Fight the remains of those before you!' },
+  { id:'lich',        name:'Lich Apprentice',  hp:70,  atk:22, def:3,  steal:false, minFloor:3,  lore:'The Lich apprentice is weak but threatens with the power of the unholy arcane arts.' },
+  { id:'fire_imp',    name:'Fire Imp',         hp:90,  atk:20, def:6,  steal:false, minFloor:3,  lore:'Fire Imps are infernal manifestations of demonic influence. Holy water is highly recommended.' },
+  { id:'lava_golem',  name:'Lava Golem',       hp:180, atk:14, def:22, steal:false, minFloor:5,  lore:'Lava Golems are Magma given form. Cooling them exposes just how brittle a foundation they have.' },
+  { id:'salamander',  name:'Fire Salamander',  hp:110, atk:25, def:8,  steal:true,  minFloor:5,  lore:'Fire Salamanders exist in the underground around lava pools. Peaceful until disturbed.' },
+  { id:'pyromancer',  name:'Pyromancer Shade', hp:85,  atk:32, def:4,  steal:false, minFloor:7,  lore:'Pyromancer Shade is an after image of a long forgotten pyromancer from history. The stories forget, the powers do not.' },
+  { id:'void_wraith', name:'Void Wraith',      hp:130, atk:38, def:10, steal:true,  minFloor:8,  lore:'Void Wraiths are weak beings that exist on the after images of mana. Even a slight scent of mana will cause them to swarm.' },
+  { id:'abyssal_eye', name:'Abyssal Eye',      hp:100, atk:45, def:5,  steal:false, minFloor:10, lore:'Abyssal Eye is a manifestation of local corruption exposing reality to the watchful eye of the Abyss.' },
+  { id:'shadow_lord', name:'Shadow Lord',      hp:200, atk:30, def:28, steal:true,  minFloor:12, lore:'Shadow Lords are weak imitations of what lurks in the darkness. Intangible made corporeal.' },
+  { id:'void_titan',  name:'Void Titan',       hp:250, atk:42, def:35, steal:true,  minFloor:15 },
+  { id:'dread_knight',name:'Dread Knight',     hp:300, atk:50, def:40, steal:true,  minFloor:20 },
+  { id:'elder_lich',  name:'Elder Lich',       hp:220, atk:60, def:20, steal:false, minFloor:25 },
+  // Mini-bosses can also appear as regular spawns in the current client generator.
+  { id:'shadow_stalker', name:'Shadow Stalker', hp:400, atk:55, def:25, steal:true,  minFloor:10, isMiniBoss:true, lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
+  { id:'crystal_golem',  name:'Crystal Golem',  hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss:true },
+  { id:'flame_revenant', name:'Flame Revenant', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss:true },
+  { id:'frost_wyrmling', name:'Frost Wyrmling', hp:450, atk:60, def:30, steal:true,  minFloor:25, isMiniBoss:true },
+  { id:'void_stalker',   name:'Void Stalker',   hp:500, atk:75, def:28, steal:true,  minFloor:30, isMiniBoss:true },
+  { id:'doom_knight',    name:'Doom Knight',    hp:700, atk:65, def:50, steal:true,  minFloor:35, isMiniBoss:true },
+];
+
+const DUNGEON_MINI_BOSS_POOL = [
+  { id:'shadow_stalker', name:'Shadow Stalker', baseHp:400, baseAtk:55, baseDef:25, minFloor:5,  image:'/images/dungeon/miniboss1.jpg', lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
+  { id:'crystal_golem',  name:'Crystal Golem',  baseHp:600, baseAtk:40, baseDef:45, minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
+  { id:'flame_revenant', name:'Flame Revenant', baseHp:350, baseAtk:70, baseDef:20, minFloor:20, image:'/images/dungeon/miniboss3.jpg' },
+  { id:'frost_wyrmling', name:'Frost Wyrmling', baseHp:450, baseAtk:60, baseDef:30, minFloor:25, image:'/images/dungeon/miniboss4.jpg' },
+  { id:'void_stalker',   name:'Void Stalker',   baseHp:500, baseAtk:75, baseDef:28, minFloor:30, image:'/images/dungeon/miniboss5.jpg' },
+  { id:'doom_knight',    name:'Doom Knight',    baseHp:700, baseAtk:65, baseDef:50, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
+];
+
+// Element-aligned dungeon materials for spirit beast feeding
+const DUNGEON_ELEM_COMMON = [
+  { id:'dgn_pyro_cinder',     name:'Pyro Cinder',     emoji:'🔥', element:'pyro',    rarity:'common',    type:'raw_mat' },
+  { id:'dgn_water_droplet',   name:'Water Droplet',   emoji:'💧', element:'water',   rarity:'common',    type:'raw_mat' },
+  { id:'dgn_electro_spark',   name:'Electro Spark',   emoji:'⚡', element:'electro', rarity:'common',    type:'raw_mat' },
+  { id:'dgn_wind_feather',    name:'Wind Feather',    emoji:'🌪️', element:'wind',    rarity:'common',    type:'raw_mat' },
+];
+
+const DUNGEON_ELEM_RARE = [
+  { id:'dgn_pyro_ember',      name:'Pyro Ember',      emoji:'🔥', element:'pyro',    rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_water_crystal',   name:'Water Crystal',   emoji:'💧', element:'water',   rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_electro_shard',   name:'Electro Shard',   emoji:'⚡', element:'electro', rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_wind_whisper',    name:'Wind Whisper',    emoji:'🌪️', element:'wind',    rarity:'uncommon',  minFloor:10, type:'raw_mat' },
+  { id:'dgn_pyro_core',       name:'Pyro Core',       emoji:'🔥', element:'pyro',    rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_water_core',      name:'Water Core',      emoji:'💧', element:'water',   rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_electro_core',    name:'Electro Core',    emoji:'⚡', element:'electro', rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_wind_core',       name:'Wind Core',       emoji:'🌪️', element:'wind',    rarity:'rare',      minFloor:20, type:'raw_mat' },
+  { id:'dgn_pyro_essence',    name:'Pyro Essence',    emoji:'🔥', element:'pyro',    rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_water_essence',   name:'Water Essence',   emoji:'💧', element:'water',   rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_electro_essence', name:'Electro Essence', emoji:'⚡', element:'electro', rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_wind_essence',    name:'Wind Essence',    emoji:'🌪️', element:'wind',    rarity:'epic',      minFloor:35, type:'raw_mat' },
+  { id:'dgn_pyro_primordial', name:'Pyro Primordial', emoji:'🔥', element:'pyro',    rarity:'legendary', minFloor:55, type:'raw_mat' },
+  { id:'dgn_water_primordial',name:'Water Primordial',emoji:'💧', element:'water',   rarity:'legendary', minFloor:55, type:'raw_mat' },
+  { id:'dgn_electro_primordial',name:'Electro Primordial',emoji:'⚡', element:'electro', rarity:'legendary', minFloor:55, type:'raw_mat' },
+  { id:'dgn_wind_primordial', name:'Wind Primordial', emoji:'🌪️', element:'wind',    rarity:'legendary', minFloor:55, type:'raw_mat' },
+];
+
+function buildRegularMonsterForFloor(monsterId, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const base = DUNGEON_MONSTER_POOL.find(m => m.id === monsterId);
+  if (!base) return null;
+
+  // Match client generator:
+  // 1) availableMonsters = getMonstersForFloor(floor) => linear scaling
+  // 2) per-room monster scaling uses floor^exponent bump (see public/js/dungeon.js generateFloor)
+  const availableHp  = Math.round(base.hp  + safeFloor * 8);
+  const availableAtk = Math.round(base.atk + safeFloor * 2.5);
+  const availableDef = Math.round(base.def + safeFloor * 1.2);
+  const isMB = !!base.isMiniBoss;
+  const scaledHp  = Math.floor(availableHp  + (Math.pow(safeFloor, 1.3) * (isMB ? 15 : 12)));
+  const scaledAtk = Math.floor(availableAtk + (Math.pow(safeFloor, 1.2) * (isMB ? 4 : 3)));
+  const scaledDef = Math.floor(availableDef + (Math.pow(safeFloor, 1.1) * (isMB ? 2 : 1.5)));
+
+  return {
+    id: base.id,
+    name: base.name,
+    icon: isMB ? '💀' : '👾',
+    hp: scaledHp,
+    atk: scaledAtk,
+    def: scaledDef,
+    steal: !!base.steal,
+    isMiniBoss: isMB,
+    tokenCost: 0,
+    maxHp: scaledHp,
+    currentHp: scaledHp,
+    lore: base.lore,
+  };
+}
+
+function buildMiniBossForFloor(miniBossKey, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const template = DUNGEON_MINI_BOSS_POOL.find(m => m.id === miniBossKey || m.name === miniBossKey);
+  if (!template) return null;
+  const scale = 1
+    + Math.max(0, safeFloor - template.minFloor) * 0.12
+    + Math.max(0, safeFloor - 1) * 0.035;
+  const maxHp = Math.round(template.baseHp * scale * 2);
+  return {
+    id: template.id,
+    name: template.name,
+    icon: '💀',
+    image: template.image,
+    hp: maxHp,
+    maxHp,
+    currentHp: maxHp,
+    atk: Math.round(template.baseAtk * scale),
+    def: Math.round(template.baseDef * scale * 2),
+    steal: false,
+    isMiniBoss: true,
+    tokenCost: 0,
+    lore: template.lore,
+  };
+}
+
+function getHealthPotionDropForFloorServer(floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  if (safeFloor >= 25) return { id:'hp_potion_major', name:'Major Health Potion', heal:500, emoji:'🧪' };
+  if (safeFloor >= 12) return { id:'hp_potion_greater', name:'Greater Health Potion', heal:200, emoji:'🧪' };
+  return { id:'hp_potion_small', name:'Small Health Potion', heal:100, emoji:'🧪' };
+}
+
+function rollMinorLootServer(rngState, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  // Add rare material weight on higher floors
+  const rareWeight = Math.min(16, 4 + Math.floor(safeFloor / 5));
+  const table = [
+    { type:'gold', weight: Math.max(60, 76 - rareWeight) },
+    { type:'potion_hp', weight:4 },
+    { type:'potion_mp', weight:1 },
+    { type:'item_common', weight:10 },
+    { type:'item_rare', weight: rareWeight },
+  ];
+  const total = table.reduce((s, e) => s + e.weight, 0);
+  const r1 = rngIntInclusive(rngState, 0, total - 1);
+  rngState = r1.rngState;
+  let r = r1.n;
+  let chosen = table[0];
+  for (const entry of table) {
+    r -= entry.weight;
+    if (r < 0) { chosen = entry; break; }
+  }
+  if (chosen.type === 'gold') {
+    const g = rngIntInclusive(rngState, 12 + safeFloor, 70 + safeFloor * 2);
+    return { rngState: g.rngState, loot: { type:'gold', amount: g.n } };
+  }
+  if (chosen.type === 'potion_hp') {
+    return { rngState, loot: { type:'potion_hp', ...getHealthPotionDropForFloorServer(floor) } };
+  }
+  if (chosen.type === 'potion_mp') {
+    return { rngState, loot: { type:'potion_mp', id:'mp_potion_small', name:'Mana Potion', mp:30, emoji:'💧' } };
+  }
+  if (chosen.type === 'item_rare') {
+    const available = DUNGEON_ELEM_RARE.filter(i => safeFloor >= i.minFloor);
+    if (available.length > 0) {
+      const pick = rngIntInclusive(rngState, 0, available.length - 1);
+      const item = available[pick.n] || available[0];
+      return { rngState: pick.rngState, loot: { type:'item_rare', item } };
+    }
+    // fallback to common
+    const pick = rngIntInclusive(rngState, 0, DUNGEON_ELEM_COMMON.length - 1);
+    const item = DUNGEON_ELEM_COMMON[pick.n] || DUNGEON_ELEM_COMMON[0];
+    return { rngState: pick.rngState, loot: { type:'item_common', item } };
+  }
+  const pick = rngIntInclusive(rngState, 0, DUNGEON_ELEM_COMMON.length - 1);
+  const item = DUNGEON_ELEM_COMMON[pick.n] || DUNGEON_ELEM_COMMON[0];
+  return { rngState: pick.rngState, loot: { type:'item_common', item } };
+}
+
+async function grantDungeonMinorLoot(db, charId, floor, monsterCount, rngState) {
+  let totalGold = 0;
+  const granted = [];
+  for (let i = 0; i < monsterCount; i++) {
+    const rolled = rollMinorLootServer(rngState, floor);
+    rngState = rolled.rngState;
+    const loot = rolled.loot;
+    if (loot.type === 'gold') {
+      totalGold += Number(loot.amount || 0);
+      continue;
+    }
+    if (loot.type === 'potion_hp') {
+      const itemData = {
+        id: loot.id,
+        name: loot.name,
+        emoji: loot.emoji || '🧪',
+        desc: `Restores ${loot.heal} HP.`,
+        effect: { type: 'heal', value: loot.heal },
+        consumable: true,
+        category: 'consumable',
+      };
+      await addStackableInventoryItem(db, charId, 'consumable', itemData, 1);
+      granted.push({ type:'consumable', id: itemData.id, name: itemData.name, qty: 1 });
+      continue;
+    }
+    if (loot.type === 'potion_mp') {
+      const itemData = {
+        id: loot.id,
+        name: loot.name,
+        emoji: loot.emoji || '💧',
+        desc: `Restores ${loot.mp} MP.`,
+        effect: { type: 'mp', value: loot.mp },
+        consumable: true,
+        category: 'consumable',
+      };
+      await addStackableInventoryItem(db, charId, 'consumable', itemData, 1);
+      granted.push({ type:'consumable', id: itemData.id, name: itemData.name, qty: 1 });
+      continue;
+    }
+    if (loot.type === 'item_common' || loot.type === 'item_rare') {
+      const mat = loot.item;
+      await addStackableInventoryItem(db, charId, 'raw_mat', { id: mat.id, name: mat.name, emoji: mat.emoji, rarity: mat.rarity, type: 'raw_mat' }, 1);
+      granted.push({ type:'material', id: mat.id, name: mat.name, qty: 1 });
+      continue;
+    }
+  }
+  if (totalGold > 0) {
+    await dbRun(db, 'UPDATE characters SET dungeon_gold = COALESCE(dungeon_gold, 0) + ? WHERE id = ?', [totalGold, charId]);
+    granted.push({ type:'dungeon_gold', amount: totalGold });
+  }
+  return { rngState, granted };
+}
+
+async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex, floorRunId) {
+  const runKey = String(floorRunId || `${floor}_legacy`);
+  const now = Date.now();
+
+  let hasSessionId = true;
+  let hasCreatedAt = true;
+  let hasStatus = true;
+  try {
+    const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+    const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+    hasSessionId = names.has('session_id');
+    hasCreatedAt = names.has('created_at');
+    hasStatus = names.has('status');
+  } catch {}
+
+  const existing = await db.execute({
+    sql: hasCreatedAt
+      ? `SELECT id, created_at
+         FROM dungeon_room_instances
+         WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+         ORDER BY COALESCE(created_at, 0) DESC
+         LIMIT 1`
+      : `SELECT id
+         FROM dungeon_room_instances
+         WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+         LIMIT 1`,
+    args: [userId, floor, roomIndex]
+  });
+
+  if (existing.rows.length > 0) {
+    if (hasCreatedAt) {
+      const clearedAt = Number(existing.rows[0].created_at || 0) || 0;
+      if (clearedAt > 0 && (now - clearedAt) < DUNGEON_ROOM_CLEAR_COOLDOWN_MS) {
+        return { cleared: true };
+      }
+    }
+
+    // cooldown elapsed (or unknown timestamp): refresh timestamp
+    if (hasCreatedAt && hasSessionId) {
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+        args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
+      });
+    } else if (hasCreatedAt) {
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
+              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+        args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
+      });
+    } else {
+      await db.execute({
+        sql: `UPDATE dungeon_room_instances
+              SET char_id = ?, floor_number = ?, room_index = ?
+              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+        args: [char.id, floor, roomIndex, userId, floor, roomIndex]
+      });
+    }
+    return { cleared: false, recleared: true };
+  }
+
+  const newId = `${char.id}_${floor}_${roomIndex}_cleared`;
+  try {
+    if (hasSessionId && hasCreatedAt) {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+        args: [newId, userId, char.id, floor, roomIndex, runKey, now]
+      });
+    } else if (hasCreatedAt) {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+              VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
+        args: [newId, userId, char.id, floor, roomIndex, now]
+      });
+    } else {
+      await db.execute({
+        sql: `INSERT INTO dungeon_room_instances
+                (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+              VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
+        args: [newId, userId, char.id, floor, roomIndex]
+      });
+    }
+  } catch (insertErr) {
+    const msg = String(insertErr?.message || '');
+    if (msg.includes('UNIQUE') || msg.includes('constraint')) {
+      if (hasCreatedAt && hasSessionId) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?, session_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, runKey, userId, floor, roomIndex]
+        });
+      } else if (hasCreatedAt) {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET created_at = ?, char_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [now, char.id, userId, floor, roomIndex]
+        });
+      } else {
+        await db.execute({
+          sql: `UPDATE dungeon_room_instances
+                SET char_id = ?
+                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+          args: [char.id, userId, floor, roomIndex]
+        });
+      }
+      return { cleared: false, recleared: true };
+    }
+    throw insertErr;
+  }
+
+  return { cleared: false, recleared: false };
+}
+
+function rollBossLootServer(rngState, floor) {
+  const safeFloor = Math.max(1, Number(floor) || 1);
+  const goldMin = 100 + safeFloor * 30;
+  const goldMax = 300 + safeFloor * 80;
+  let gemMin = Math.max(1, safeFloor);
+  let gemMax = Math.max(2, safeFloor * 2);
+  gemMin = Math.min(15, gemMin);
+  gemMax = Math.min(15, gemMax);
+
+  const goldRoll = rngIntInclusive(rngState, goldMin, goldMax);
+  rngState = goldRoll.rngState;
+  const gemRoll = rngIntInclusive(rngState, gemMin, gemMax);
+  rngState = gemRoll.rngState;
+
+  const featureIds = Array.isArray(PREMIUM_FEATURE_IDS) ? PREMIUM_FEATURE_IDS : [];
+  const fPick = rngIntInclusive(rngState, 0, Math.max(0, featureIds.length - 1));
+  rngState = fPick.rngState;
+  const featureId = featureIds[fPick.n] || featureIds[0] || null;
+
+  const daysRange = safeFloor <= 5 ? [5, 10] : safeFloor <= 15 ? [7, 14] : [10, 30];
+  const dayRoll = rngIntInclusive(rngState, daysRange[0], daysRange[1]);
+  rngState = dayRoll.rngState;
+
+  const feature = featureId ? PREMIUM_FEATURES?.[featureId] : null;
+  const premium = featureId && feature ? {
+    id: featureId,
+    name: feature.name,
+    emoji: feature.emoji,
+    days: dayRoll.n,
+    seconds: dayRoll.n * 24 * 3600,
+    desc: feature.desc,
+  } : null;
+
+  return {
+    rngState,
+    loot: { gold: goldRoll.n, gems: gemRoll.n, premium }
+  };
+}
+
+// Server-authoritative Crawler combat (step 1 of anti-cheat hardening).
+router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const floor = Math.max(1, Number(req.body?.floor || 1));
+    const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const existing = await dbGet(
+      db,
+      `SELECT id, seed, rng_state, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE char_id = ? AND floor_number = ? AND combat_type = 'crawler' AND status = 'active'
+       LIMIT 1`,
+      [char.id, floor]
+    );
+
+    if (existing?.id) {
+      const state = JSON.parse(existing.state_json || '{}');
+      return res.json({
+        success: true,
+        combatId: existing.id,
+        turnNonce: Number(existing.turn_nonce || 0),
+        player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+        monster: state.monster,
+        round: state.round || 1,
+        log: [{ actor: 'monster', text: 'The Crawler is already on you!' }],
+      });
+    }
+
+    const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
+    const crawler = buildCrawlerStatsForFloor(floor);
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
+    const now = Math.floor(Date.now() / 1000);
+    const combatId = `crawl_${char.id}_${floor}_${seed}_${now}`;
+
+    const state = {
+      floor,
+      roomIndex,
+      round: 1,
+      playerHp: Math.max(0, pStats.hp),
+      playerMaxHp: Math.max(1, pStats.maxHp),
+      monster: crawler,
+    };
+
+    await dbRun(
+      db,
+      `INSERT INTO dungeon_combat_sessions
+        (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
+      [combatId, char.user_id, char.id, floor, roomIndex, 'crawler', 'active', seed, seed, 0, JSON.stringify(state), now, now]
+    );
+
+    // Count encounter server-side too (best-effort; client also pings it).
+    await upsertCrawlerStat(db, char.id, 'encounter');
+
+    return res.json({
+      success: true,
+      combatId,
+      turnNonce: 0,
+      player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+      monster: state.monster,
+      round: state.round,
+      log: [{ actor: 'monster', text: 'The Crawler drops from the dark and pins your escape route!' }],
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const combatId = String(req.body?.combatId || '');
+    const action = String(req.body?.action || '').toLowerCase();
+    const clientNonce = Number(req.body?.turnNonce ?? -1);
+    if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
+    if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
+
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const row = await dbGet(
+      db,
+      `SELECT id, rng_state, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE id = ? AND char_id = ? AND combat_type = 'crawler' AND status = 'active'
+       LIMIT 1`,
+      [combatId, char.id]
+    );
+    if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
+
+    const serverNonce = Number(row.turn_nonce || 0);
+    if (clientNonce !== serverNonce) {
+      return res.status(409).json({ error: 'Out-of-sync action (double-submit or stale state).', turnNonce: serverNonce });
+    }
+
+    const state = JSON.parse(row.state_json || '{}');
+    const monster = state.monster || null;
+    if (!monster || !monster.isCrawler) {
+      return res.status(400).json({ error: 'Invalid combat state.' });
+    }
+
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax);
+    let playerHp = Math.max(0, Number(state.playerHp ?? pStats.hp));
+    const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? pStats.maxHp));
+    let rngState = Number(row.rng_state || 0) >>> 0;
+    const log = [];
+
+    // Clear stale escape state — only a successful flee in this action can set it.
+    state.escapeReady = false;
+
+    if (action === 'run') {
+      // Mirror client "75% flee" but server-authoritative.
+      const r = mulberry32Next(rngState);
+      rngState = r.state;
+      const escaped = r.value < 0.75;
+      log.push({ actor: 'player', text: '💨 You attempt to flee...' });
+      if (escaped) {
+        log.push({ actor: 'player', text: '✅ Escape successful. You can leave now, or keep fighting.' });
+        state.escapeReady = true;
+      } else {
+        log.push({ actor: 'monster', text: '⚠️ Escape failed! The Crawler strikes!' });
+        const dmgRoll = rngIntInclusive(rngState, -2, 2);
+        rngState = dmgRoll.rngState;
+        const mDmg = Math.max(1, Math.floor(monster.atk - pStats.def * 0.5 + dmgRoll.n));
+        playerHp = Math.max(0, playerHp - mDmg);
+        log.push({ actor: 'monster', text: `💥 ${monster.name} hits you for ${mDmg}!`, dmg: mDmg });
+        log.push({ actor: 'player', text: `🛡️ You take ${mDmg} damage.` });
+      }
+    } else {
+      // fight
+      const pRoll = rngIntInclusive(rngState, -3, 3);
+      rngState = pRoll.rngState;
+      const pDmg = Math.max(1, Math.floor(pStats.atk - monster.def * 0.5 + pRoll.n));
+      monster.currentHp = Math.max(0, Number(monster.currentHp || monster.maxHp || monster.hp) - pDmg);
+      log.push({ actor: 'player', text: `You strike ${monster.name} for ${pDmg} damage!`, dmg: pDmg });
+
+      if (monster.currentHp > 0) {
+        const mRoll = rngIntInclusive(rngState, -2, 2);
+        rngState = mRoll.rngState;
+        const mDmg = Math.max(1, Math.floor(monster.atk - pStats.def * 0.5 + mRoll.n));
+        playerHp = Math.max(0, playerHp - mDmg);
+        log.push({ actor: 'monster', text: `${monster.name} hits you for ${mDmg}!`, dmg: mDmg });
+      } else {
+        log.push({ actor: 'player', text: `🏆 Against all odds, you bring down The Crawler!` });
+      }
+    }
+
+    // Persist server-authoritative HP.
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [playerHp, char.id]);
+
+    state.playerHp = playerHp;
+    state.playerMaxHp = playerMaxHp;
+    state.monster = monster;
+    state.round = Math.max(1, Number(state.round || 1) + 1);
+
+    let ended = false;
+    let outcome = null;
+    if (playerHp <= 0) {
+      ended = true;
+      outcome = 'player_dead';
+      await upsertCrawlerStat(db, char.id, 'death');
+    } else if (monster.currentHp <= 0) {
+      ended = true;
+      outcome = 'crawler_defeated';
+      await upsertCrawlerStat(db, char.id, 'defeat');
+    }
+
+    const nextNonce = serverNonce + 1;
+    const now = Math.floor(Date.now() / 1000);
+    await dbRun(
+      db,
+      `UPDATE dungeon_combat_sessions
+       SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
+       WHERE id = ?`,
+      [rngState, nextNonce, JSON.stringify(state), now, combatId]
+    );
+
+    if (ended) {
+      await dbRun(db, `UPDATE dungeon_combat_sessions SET status = 'ended', updated_at = ? WHERE id = ?`, [now, combatId]);
+    }
+
+    res.json({
+      success: true,
+      turnNonce: nextNonce,
+      player: { hp: playerHp, maxHp: playerMaxHp },
+      monster,
+      escapeReady: !!state.escapeReady,
+      ended,
+      outcome,
+      log,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Server-authoritative combat for all dungeon mobs (regular rooms + bosses).
+router.post('/dungeon/combat/start', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const floor = Math.max(1, Number(req.body?.floor || 1));
+    const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
+    const kind = String(req.body?.kind || 'room').toLowerCase(); // room | boss
+    const floorRunId = req.body?.floorRunId || null;
+
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max, dungeon_tokens, dungeon_floor, dungeon_highest_floor, dungeon_progress, premium_features');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const existing = await dbGet(
+      db,
+      `SELECT id, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE char_id = ? AND floor_number = ? AND room_index = ? AND combat_type = ? AND status = 'active'
+       LIMIT 1`,
+      [char.id, floor, roomIndex, kind]
+    );
+    if (existing?.id) {
+      // IMPORTANT: Do not resume stale combat snapshots.
+      // If the player fled and later regenerated HP, resuming `state_json.playerHp` would show outdated HP.
+      // Also, resuming monster HP makes "run away and heal" a trivial exploit. Treat re-entry as a fresh fight.
+      const now = Math.floor(Date.now() / 1000);
+      await dbRun(
+        db,
+        `UPDATE dungeon_combat_sessions
+         SET status = 'ended', updated_at = ?
+         WHERE id = ?`,
+        [now, existing.id]
+      );
+    }
+
+    const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
+    const now = Math.floor(Date.now() / 1000);
+    const combatId = `dng_${kind}_${char.id}_${floor}_${roomIndex}_${seed}_${now}`;
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const equipStats = await calcDungeonEquipStats(db, char.id);
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax, equipStats);
+    // Don't "auto-heal" 0 HP characters. If you're dead, you must regen/heal outside the dungeon.
+    const hpCurRaw = Number(char.hp_current);
+    if (Number.isFinite(hpCurRaw) && hpCurRaw <= 0) {
+      return res.status(400).json({ error: 'You are at 0 HP. Leave the dungeon to recover before fighting again.' });
+    }
+
+    // Never let combat start with a stale/incorrect HP snapshot.
+    // If hp_current is unset/invalid, fall back to hp_max; otherwise trust hp_current (including small values).
+    const safeStartHp = (() => {
+      const hpCur = Number(char.hp_current);
+      const hpMax = Math.max(1, Number(trueHpMax || 1));
+      if (!Number.isFinite(hpCur)) return hpMax;
+      return Math.min(hpMax, Math.max(0, hpCur));
+    })();
+
+    let monsters = [];
+    if (kind === 'boss') {
+      const boss = buildDungeonBossStatsForFloor(floor);
+      monsters = [{
+        id: `boss_floor_${floor}`,
+        name: boss.name,
+        icon: '⚠️',
+        hp: boss.hp,
+        maxHp: boss.hp,
+        currentHp: boss.hp,
+        atk: boss.atk,
+        def: boss.def,
+        steal: false,
+        isBoss: true,
+      }];
+
+      // Token gate is server-side now (prevents client bypass).
+      const tokens = Number(char.dungeon_tokens || 0);
+      if (tokens < DUNGEON_BOSS_TOKEN_COST) {
+        return res.status(400).json({ error: `Need ${DUNGEON_BOSS_TOKEN_COST} tokens to challenge the boss. You have ${tokens}.` });
+      }
+      await dbRun(db, 'UPDATE characters SET dungeon_tokens = dungeon_tokens - ? WHERE id = ?', [DUNGEON_BOSS_TOKEN_COST, char.id]);
+    } else {
+      let progress = null;
+      try { progress = char.dungeon_progress ? JSON.parse(char.dungeon_progress) : null; } catch {}
+      const rooms = Array.isArray(progress?.rooms) ? progress.rooms : [];
+      const room = rooms[roomIndex];
+      const roomMonsters = Array.isArray(room?.monsters) ? room.monsters : [];
+      if (!room || roomMonsters.length === 0) return res.status(400).json({ error: 'No enemies in this room.' });
+
+      monsters = roomMonsters.map(m => {
+        const id = String(m.id || '').trim();
+        const isMiniBoss = !!m.isMiniBoss || String(room.type || '') === 'miniboss';
+        const built = isMiniBoss ? (buildMiniBossForFloor(id || m.name, floor)) : buildRegularMonsterForFloor(id, floor);
+        if (!built) {
+          // Fallback: clamp to something safe if unknown.
+          const hp = Math.max(1, Number(m.maxHp || m.hp || 100));
+          return { id: id || 'unknown', name: String(m.name || id || 'Unknown'), icon: String(m.icon || '👾'), hp, maxHp: hp, currentHp: hp, atk: Math.max(1, Number(m.atk || 10)), def: Math.max(0, Number(m.def || 0)), steal: !!m.steal };
+        }
+        // Preserve lastKilled state semantics: if dead, keep at 0 HP.
+        const currentHp = m.lastKilled ? 0 : built.currentHp;
+        return { ...built, currentHp, maxHp: built.maxHp || built.hp };
+      });
+    }
+
+    const state = {
+      floor,
+      roomIndex,
+      kind,
+      floorRunId: String(floorRunId || `${floor}_legacy`),
+      round: 1,
+      playerHp: Math.max(0, safeStartHp),
+      playerMaxHp: Math.max(1, trueHpMax),
+      monsters,
+      currentMonsterIndex: 0,
+      escapeReady: false,
+    };
+
+    await dbRun(
+      db,
+      `INSERT INTO dungeon_combat_sessions
+        (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
+      [combatId, char.user_id, char.id, floor, roomIndex, kind, 'active', seed, seed, 0, JSON.stringify(state), now, now]
+    );
+
+    // Return updated token count for boss starts.
+    const refreshed = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE id = ?', [char.id]);
+
+    res.json({
+      success: true,
+      combatId,
+      turnNonce: 0,
+      kind,
+      player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+      monsters: state.monsters,
+      currentMonsterIndex: 0,
+      escapeReady: false,
+      tokens: Number(refreshed?.dungeon_tokens ?? char.dungeon_tokens ?? 0),
+      debug: {
+        hp_current_db: Number(char.hp_current ?? null),
+        hp_max_db: Number(char.hp_max ?? null),
+        hp_max_true: Number(trueHpMax ?? null),
+        hp_start: Number(state.playerHp ?? null),
+      },
+      log: kind === 'boss'
+        ? [{ actor: 'monster', text: '⚠️ Boss battle begins!' }]
+        : [{ actor: 'monster', text: 'Enemies close in...' }],
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/combat/act', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const combatId = String(req.body?.combatId || '');
+    const action = String(req.body?.action || '').toLowerCase(); // fight | run
+    const clientNonce = Number(req.body?.turnNonce ?? -1);
+    if (!combatId) return res.status(400).json({ error: 'Missing combatId.' });
+    if (!['fight', 'run'].includes(action)) return res.status(400).json({ error: 'Invalid action.' });
+
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max, dungeon_floor, dungeon_highest_floor, premium_features');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const row = await dbGet(
+      db,
+      `SELECT id, combat_type, rng_state, turn_nonce, state_json
+       FROM dungeon_combat_sessions
+       WHERE id = ? AND char_id = ? AND status = 'active'
+       LIMIT 1`,
+      [combatId, char.id]
+    );
+    if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
+
+    const serverNonce = Number(row.turn_nonce || 0);
+    if (clientNonce !== serverNonce) {
+      return res.status(409).json({ error: 'Out-of-sync action (double-submit or stale state).', turnNonce: serverNonce });
+    }
+
+    const state = JSON.parse(row.state_json || '{}');
+    const kind = String(row.combat_type || state.kind || 'room').toLowerCase();
+    const trueHpMax = await getTrueHpMaxForChar(db, char);
+    const equipStats = kind !== 'crawler' ? await calcDungeonEquipStats(db, char.id) : null;
+    const pStats = calcDungeonPlayerStatsFromChar(char, trueHpMax, equipStats);
+    const dbHpCur = Number(char.hp_current);
+    const fallbackHp = (Number.isFinite(dbHpCur) && dbHpCur >= 0) ? dbHpCur : pStats.hp;
+    const playerHpBefore = Math.max(0, Number(state.playerHp ?? fallbackHp));
+    let playerHp = playerHpBefore;
+    const playerMaxHp = Math.max(1, Number(state.playerMaxHp ?? trueHpMax));
+    let rngState = Number(row.rng_state || 0) >>> 0;
+
+    // Clear stale escape state — only a successful flee in this action can set it.
+    state.escapeReady = false;
+
+    const monsters = Array.isArray(state.monsters) ? state.monsters : [];
+    let currentMonsterIndex = Math.max(0, Number(state.currentMonsterIndex || 0));
+    const log = [];
+    const lootGranted = [];
+
+    const aliveMonsters = () => monsters.filter(m => Number(m.currentHp || 0) > 0);
+    let escaped = false;
+
+    if (action === 'run') {
+      const r = mulberry32Next(rngState);
+      rngState = r.state;
+      escaped = r.value < DUNGEON_RUN_ESCAPE_CHANCE;
+      log.push({ actor: 'player', text: '💨 You attempt to flee...' });
+      if (escaped) {
+        log.push({ actor: 'player', text: '✅ Escape successful.' });
+        state.escapeReady = true;
+      } else {
+        log.push({ actor: 'monster', text: '⚠️ Escape failed! The enemies strike!' });
+        let total = 0;
+        for (const m of aliveMonsters()) {
+          const roll = rngIntInclusive(rngState, -2, 2);
+          rngState = roll.rngState;
+          const mDmg = Math.max(1, Math.floor(Number(m.atk || 1) - pStats.def * 0.5 + roll.n));
+          total += mDmg;
+          log.push({ actor: 'monster', text: `💥 ${m.name} hits you for ${mDmg}!`, dmg: mDmg });
+        }
+        playerHp = Math.max(0, playerHp - total);
+        if (total > 0) log.push({ actor: 'player', text: `🛡️ You take ${total} damage.` });
+      }
+    } else {
+      const target = monsters[currentMonsterIndex];
+      if (!target || Number(target.currentHp || 0) <= 0) {
+        // Find next alive
+        const idx = monsters.findIndex(m => Number(m.currentHp || 0) > 0);
+        if (idx >= 0) currentMonsterIndex = idx;
+      }
+
+      const cur = monsters[currentMonsterIndex];
+      if (!cur) return res.status(400).json({ error: 'No target.' });
+
+      const pRoll = rngIntInclusive(rngState, -3, 3);
+      rngState = pRoll.rngState;
+      const pDmg = Math.max(1, Math.floor(pStats.atk - Number(cur.def || 0) * 0.5 + pRoll.n));
+      cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
+      log.push({ actor: 'player', text: `You strike ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
+
+      // All alive monsters attack back
+      let totalPlayerDmg = 0;
+      for (const m of aliveMonsters()) {
+        const roll = rngIntInclusive(rngState, -2, 2);
+        rngState = roll.rngState;
+        const mDmg = Math.max(1, Math.floor(Number(m.atk || 1) - pStats.def * 0.5 + roll.n));
+        totalPlayerDmg += mDmg;
+        log.push({ actor: 'monster', text: `${m.name} hits you for ${mDmg}!`, dmg: mDmg });
+      }
+      playerHp = Math.max(0, playerHp - totalPlayerDmg);
+
+      if (cur.currentHp <= 0) {
+        log.push({ actor: 'player', text: `✅ ${cur.name} defeated!` });
+      }
+    }
+
+    // Persist server-authoritative player HP every action.
+    // Clamp against true HP max (includes gear/set bonuses), otherwise full-elixir can appear to "reset" HP.
+    const clampedHp = Math.max(0, Math.min(playerMaxHp, playerHp));
+    playerHp = clampedHp;
+    await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [clampedHp, char.id]);
+
+    let ended = false;
+    let outcome = null;
+    let cleared = false;
+    let bossLoot = null;
+    let newFloor = null;
+    let highestFloor = null;
+    let tokens = null;
+
+    if (playerHp <= 0) {
+      ended = true;
+      outcome = 'player_dead';
+    } else if (escaped) {
+      outcome = 'escaped';
+    } else if (aliveMonsters().length === 0) {
+      ended = true;
+      if (kind === 'boss') {
+        outcome = 'boss_defeated';
+        const rolled = rollBossLootServer(rngState, state.floor || 1);
+        rngState = rolled.rngState;
+        bossLoot = rolled.loot;
+
+        if (bossLoot?.gold) {
+          await dbRun(db, 'UPDATE characters SET gold = gold + ?, total_gold_earned = COALESCE(total_gold_earned,0) + ? WHERE id = ?', [bossLoot.gold, bossLoot.gold, char.id]);
+        }
+        if (bossLoot?.gems) {
+          const g = Math.min(15, bossLoot.gems);
+          await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned,0) + ? WHERE id = ?', [g, g, char.id]);
+          bossLoot.gems = g;
+        }
+        if (bossLoot?.premium?.id) {
+          const refreshed = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+          const activePrem = applyPremiumFeatureToCharacter(refreshed, bossLoot.premium.id, bossLoot.premium.days * 24 * 3600);
+          await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', [JSON.stringify(activePrem), char.id]);
+        }
+
+        // Advance floor server-side.
+        const currentFloor = Math.max(1, Number(state.floor || char.dungeon_floor || 1));
+        newFloor = currentFloor + 1;
+        highestFloor = Math.max(Number(char.dungeon_highest_floor || 1), newFloor);
+        await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?', [newFloor, highestFloor, char.id]);
+
+        // Boss kill stat
+        await recordMonsterDefeat(db, {
+          charId: char.id,
+          source: 'dungeon_boss',
+          monsterKey: `floor_${currentFloor}_boss`,
+          monsterName: String(state.monsters?.[0]?.name || `Floor ${currentFloor} Boss`),
+          count: 1,
+          now: Math.floor(Date.now() / 1000)
+        });
+
+        const tRow = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE id = ?', [char.id]);
+        tokens = Number(tRow?.dungeon_tokens || 0);
+      } else {
+        outcome = 'room_cleared';
+        const claim = await claimDungeonRoomClearInternal(db, char.user_id, char, state.floor || 1, state.roomIndex || 0, state.floorRunId || null);
+        cleared = !!claim.cleared;
+        if (!cleared) {
+          const { granted, rngState: nextRng } = await grantDungeonMinorLoot(db, char.id, state.floor || 1, Math.max(1, monsters.length), rngState);
+          rngState = nextRng;
+          lootGranted.push(...granted);
+
+          // Record monster defeat counts for achievements/bounties.
+          const now = Math.floor(Date.now() / 1000);
+          const byKey = new Map();
+          for (const m of monsters) {
+            const key = normalizeMonsterKey(m.id || m.name);
+            const name = String(m.name || m.id || 'Unknown Monster');
+            byKey.set(key, { key, name, count: (byKey.get(key)?.count || 0) + 1 });
+          }
+          for (const entry of byKey.values()) {
+            await recordMonsterDefeat(db, { charId: char.id, source: 'dungeon', monsterKey: entry.key, monsterName: entry.name, count: entry.count, now });
+          }
+        }
+      }
+    }
+
+    state.playerHp = playerHp;
+    state.playerMaxHp = playerMaxHp;
+    state.monsters = monsters;
+    state.currentMonsterIndex = currentMonsterIndex;
+    state.round = Math.max(1, Number(state.round || 1) + 1);
+
+    const nextNonce = serverNonce + 1;
+    const now = Math.floor(Date.now() / 1000);
+    await dbRun(
+      db,
+      `UPDATE dungeon_combat_sessions
+       SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
+       WHERE id = ?`,
+      [rngState, nextNonce, JSON.stringify(state), now, combatId]
+    );
+
+    if (ended) {
+      await dbRun(db, `UPDATE dungeon_combat_sessions SET status = 'ended', updated_at = ? WHERE id = ?`, [now, combatId]);
+    }
+
+    res.json({
+      success: true,
+      turnNonce: nextNonce,
+      kind,
+      player: { hp: playerHp, maxHp: playerMaxHp },
+      monsters,
+      currentMonsterIndex,
+      escapeReady: !!state.escapeReady,
+      ended,
+      outcome,
+      cleared,
+      lootGranted,
+      bossLoot,
+      newFloor,
+      highestFloor,
+      tokens,
+      debug: {
+        hp_current_db: Number(char.hp_current ?? null),
+        hp_max_db: Number(char.hp_max ?? null),
+        hp_max_true: Number(trueHpMax ?? null),
+        hp_before: Number(playerHpBefore ?? null),
+        hp_after: Number(playerHp ?? null),
+      },
+      log,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/monster-defeated', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const monsters = Array.isArray(req.body?.monsters) ? req.body.monsters : [];
+    const now = Math.floor(Date.now() / 1000);
+    for (const monster of monsters) {
+      const count = Math.max(1, Number(monster?.count) || 1);
+      const monsterKey = normalizeMonsterKey(monster?.id || monster?.name);
+      const monsterName = String(monster?.name || monster?.id || 'Unknown Monster');
+      await recordMonsterDefeat(db, {
+        charId: char.id,
+        source: 'dungeon',
+        monsterKey,
+        monsterName,
+        count,
+        now
+      });
+    }
+
+    const bounty = await ensureActiveGuildBounty(db, char.id);
+    res.json({ success: true, bounty });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/boss-defeated', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { loot, newFloor, highestFloor, bossName, bossId, combatId } = req.body || {};
+
+    const char = await getCurrentCharacter(db, req.user.userId);
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    // Hardening: boss rewards are now granted by server-authoritative combat sessions.
+    // Require a valid ended boss combat session to prevent arbitrary client reward injection.
+    if (!combatId) {
+      return res.status(400).json({ error: 'Boss rewards are granted by server combat. (missing combatId)' });
+    }
+    const recent = await dbGet(
+      db,
+      `SELECT id FROM dungeon_combat_sessions
+       WHERE id = ? AND char_id = ? AND combat_type = 'boss' AND status = 'ended'
+       LIMIT 1`,
+      [String(combatId), char.id]
+    );
+    if (!recent?.id) {
+      return res.status(403).json({ error: 'Invalid boss combat session.' });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    await recordMonsterDefeat(db, {
+      charId: char.id,
+      source: 'dungeon_boss',
+      monsterKey: bossId || bossName || `floor_${newFloor || char.dungeon_floor || 1}_boss`,
+      monsterName: bossName || `Floor ${newFloor || char.dungeon_floor || 1} Boss`,
+      count: 1,
+      now
+    });
+
+    let message = '';
+    
+    if (loot && typeof loot === 'object') {
+      if (loot.gold) {
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', 
+          [loot.gold, char.id]);
+        message += `💰 +${loot.gold} gold! `;
+      }
+      
+      if (loot.gems) {
+        const cappedGems = Math.min(15, loot.gems);
+        await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', 
+          [cappedGems, char.id]);
+        message += `💎 +${cappedGems} gems! `;
+      }
+      
+      if (loot.premium) {
+        const now = Math.floor(Date.now() / 1000);
+        let activePrem = {};
+        
+        try {
+          if (char.premium_features) {
+            activePrem = JSON.parse(char.premium_features);
+          }
+        } catch {}
+        
+        const currentExpiry = activePrem[loot.premium.id] || 0;
+        const newExpiry = Math.max(currentExpiry, now) + (loot.premium.days * 24 * 3600);
+        activePrem[loot.premium.id] = newExpiry;
+        
+        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', 
+          [JSON.stringify(activePrem), char.id]);
+        
+        message += `✨ ${loot.premium.emoji} ${loot.premium.name} activated for ${loot.premium.days} days! `;
+      }
+    }
+
+    if (newFloor) {
+      const hf = highestFloor || newFloor;
+      await dbRun(
+        db,
+        'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?',
+        [newFloor, hf, char.id]
+      );
+    }
+    
+    if (loot?.premium) {
+      try {
+        const subject = `🎉 Dungeon Boss Defeated - Premium Reward!`;
+        const body = `You defeated the boss on floor ${newFloor} and received ${loot.premium.emoji} ${loot.premium.name} for ${loot.premium.days} days! Check the Premium tab to see your new feature.\n\n${loot.premium.desc}`;
+        await dbRun(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body) VALUES (?, ?, ?, ?)',
+          [char.id, char.id, subject, body]);
+      } catch (e) { console.error('Failed to send premium notification:', e); }
+    }
+
+    const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+    
+    res.json({ 
+      success: true, 
+      message: message.trim(),
+      character: await buildCharacterResponse(updatedChar, db)
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/dungeon/gold', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold');
+    res.json({ success: true, dungeonGold: char?.dungeon_gold || 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/dungeon/guild', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, dungeon_gold, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const bounty = await ensureActiveGuildBounty(db, char.id);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ 
+      success: true, 
+      dungeonGold: char?.dungeon_gold || 0,
+      guildReputation: char?.guild_reputation || 0,
+      highestFloor: Number(char?.dungeon_highest_floor || 1),
+      raidCooldownUntil: Number(char?.raid_cooldown_until || 0),
+      bounty,
+      raids
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const busy = await getCharacterBusyState(db, char);
+    if (busy.busy) return res.status(400).json({ error: busy.reason });
+    if (Number(char.guild_reputation || 0) < GUILD_RAID_CREATE_REPUTATION) {
+      return res.status(403).json({ error: 'Apprentice rank required to create raids.' });
+    }
+    const existingLead = await getOpenRaidForLeader(db, char.id);
+    if (existingLead) return res.status(400).json({ error: 'You already lead an active forming raid.' });
+    const existingMember = await getActiveRaidMembershipForChar(db, char.id);
+    if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
+
+    const requestedFloor = Math.max(1, Number(req.body?.floor || 1));
+    const maxFloor = Math.max(1, Number(char.dungeon_highest_floor || 1));
+    if (requestedFloor > maxFloor) {
+      return res.status(400).json({ error: `You can only create raids up to floor ${maxFloor}.` });
+    }
+
+    const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
+    const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
+
+    const boss = getGuildRaidBossForFloor(requestedFloor);
+    const mercenaryPool = generateRaidMercenaryPool(requestedFloor, 10);
+    const created = await dbRun(db, `INSERT INTO guild_raids
+      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at, mercenary_pool)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?, ?)`,
+      [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now, JSON.stringify(mercenaryPool)]
+    );
+    const raidId = Number(created.lastInsertRowid);
+    await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
+      VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
+    await tryStartGuildRaidIfReady(db, raidId);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({
+      success: true,
+      message: requestedAutoStartPlayers === 1
+        ? `Solo raid launched for Floor ${requestedFloor}. Check your inbox for the report.`
+        : `Raid created for Floor ${requestedFloor}.`,
+      raids
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can change raid settings.' });
+    }
+    const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
+    const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
+    const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ? WHERE id = ? AND status = ?', [autoStartMode, raidId, 'forming']);
+    const updated = updateResult?.rowsAffected ?? updateResult?.changes ?? 0;
+    if (!updated) return res.status(409).json({ error: 'Raid already started before settings could be updated.' });
+    await tryStartGuildRaidIfReady(db, raidId);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid start settings updated.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, raid_cooldown_until');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const busy = await getCharacterBusyState(db, char);
+    if (busy.busy) return res.status(400).json({ error: busy.reason });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    const existingMember = await getActiveRaidMembershipForChar(db, char.id);
+    if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
+    const members = await getGuildRaidMembers(db, raidId);
+    if (members.some(member => String(member.user_id) === String(req.user.userId))) {
+      return res.status(400).json({ error: 'Your account is already in this raid.' });
+    }
+    if (members.length >= GUILD_RAID_MAX_MEMBERS) return res.status(400).json({ error: 'Raid is already full.' });
+    const joinResult = await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
+      SELECT ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
+      [raidId, char.id, req.user.userId, now, raidId]
+    );
+    const joined = joinResult?.rowsAffected ?? joinResult?.changes ?? 0;
+    if (!joined) return res.status(409).json({ error: 'Raid started before you could join.' });
+    await tryStartGuildRaidIfReady(db, raidId);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Joined the raid party.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Track crawler achievements (encounters/defeats/deaths).
+router.post('/dungeon/crawler-event', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const event = String(req.body?.event || '').toLowerCase();
+    const now = Math.floor(Date.now() / 1000);
+
+    if (!['encounter', 'defeat', 'death'].includes(event)) {
+      return res.status(400).json({ error: 'Invalid crawler event.' });
+    }
+
+    await dbRun(db, `INSERT INTO character_crawler_stats (char_id, encounters, defeats, deaths)
+      VALUES (?, 0, 0, 0)
+      ON CONFLICT(char_id) DO NOTHING`, [char.id]);
+
+    if (event === 'encounter') {
+      await dbRun(db, `UPDATE character_crawler_stats
+        SET encounters = encounters + 1, last_encounter_at = ?
+        WHERE char_id = ?`, [now, char.id]);
+    } else if (event === 'defeat') {
+      await dbRun(db, `UPDATE character_crawler_stats
+        SET defeats = defeats + 1, last_defeat_at = ?
+        WHERE char_id = ?`, [now, char.id]);
+    } else if (event === 'death') {
+      await dbRun(db, `UPDATE character_crawler_stats
+        SET deaths = deaths + 1, last_death_at = ?
+        WHERE char_id = ?`, [now, char.id]);
+    }
+
+    // New stats can affect achievements; refresh weekly claimable badge count.
+    try { invalidateWeeklyClaimableCountCache(char.id); } catch {}
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Leave a forming raid (character-scoped). Leaders must delete instead.
+router.post('/dungeon/guild/raid/leave', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    if (!raidId) return res.status(400).json({ error: 'Missing raidId.' });
+
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) === String(char.id)) {
+      return res.status(400).json({ error: 'Raid leader must delete the raid instead of leaving.' });
+    }
+
+    await dbRun(db, 'DELETE FROM guild_raid_members WHERE raid_id = ? AND char_id = ?', [raidId, char.id]);
+
+    // If no members remain (unlikely because leader can't leave), clean up.
+    const remaining = await dbGet(db, 'SELECT COUNT(*) AS c FROM guild_raid_members WHERE raid_id = ?', [raidId]);
+    if (Number(remaining?.c || 0) <= 0) {
+      await dbRun(db, 'DELETE FROM guild_raids WHERE id = ?', [raidId]);
+    }
+
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Left the raid.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete a forming raid (leader only).
+router.post('/dungeon/guild/raid/delete', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    if (!raidId) return res.status(400).json({ error: 'Missing raidId.' });
+
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can delete this raid.' });
+    }
+
+    await dbRun(db, 'DELETE FROM guild_raid_members WHERE raid_id = ?', [raidId]);
+    await dbRun(db, 'DELETE FROM guild_raids WHERE id = ?', [raidId]);
+
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid deleted.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/recruit', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const now = Math.floor(Date.now() / 1000);
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, gems');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const recruitId = String(req.body?.recruitId || '');
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can recruit mercenaries.' });
+    }
+    const members = await getGuildRaidMembers(db, raidId);
+    if (members.length >= GUILD_RAID_MAX_MEMBERS) return res.status(400).json({ error: 'Raid is already full.' });
+    let pool = [];
+    try { pool = JSON.parse(raid.mercenary_pool || '[]') || []; } catch {}
+    const recruit = pool.find(entry => String(entry.id) === recruitId);
+    if (!recruit) return res.status(404).json({ error: 'Mercenary offer not found.' });
+    if (recruit.recruited) return res.status(400).json({ error: 'That mercenary has already been recruited.' });
+    if ((char.gems || 0) < GUILD_RAID_MERCENARY_COST_GEMS) return res.status(400).json({ error: `Need ${GUILD_RAID_MERCENARY_COST_GEMS} gem to recruit.` });
+
+    recruit.recruited = true;
+    recruit.recruitedAt = now;
+    recruit.recruitedByCharId = char.id;
+    const poolUpdate = await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ? AND status = ?', [JSON.stringify(pool), raidId, 'forming']);
+    const poolUpdated = poolUpdate?.rowsAffected ?? poolUpdate?.changes ?? 0;
+    if (!poolUpdated) return res.status(409).json({ error: 'Raid started before the mercenary could be recruited.' });
+    await dbRun(db, 'UPDATE characters SET gems = gems - ? WHERE id = ?', [GUILD_RAID_MERCENARY_COST_GEMS, char.id]);
+
+    const npcCharId = -((raidId * 1000) + (Number(recruit.slotIndex || 0) + 1));
+    const recruitInsert = await dbRun(db, `INSERT INTO guild_raid_members
+      (raid_id, char_id, user_id, joined_at, is_npc, member_name, member_class, member_level, member_payload)
+      SELECT ?, ?, 0, ?, 1, ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
+      [raidId, npcCharId, now, recruit.name, recruit.fighter.class || 'mercenary', Number(recruit.level || raid.floor || 1), JSON.stringify(recruit), raidId]
+    );
+    const inserted = recruitInsert?.rowsAffected ?? recruitInsert?.changes ?? 0;
+    if (!inserted) {
+      recruit.recruited = false;
+      delete recruit.recruitedAt;
+      delete recruit.recruitedByCharId;
+      await dbRun(db, 'UPDATE guild_raids SET mercenary_pool = ? WHERE id = ?', [JSON.stringify(pool), raidId]);
+      await dbRun(db, 'UPDATE characters SET gems = gems + ? WHERE id = ?', [GUILD_RAID_MERCENARY_COST_GEMS, char.id]);
+      return res.status(409).json({ error: 'Raid started before the mercenary could join.' });
+    }
+
+    await tryStartGuildRaidIfReady(db, raidId);
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'gems');
+    res.json({ success: true, message: `${recruit.name} joined the raid.`, gems: updated?.gems || 0, raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/start', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+    if (String(raid.leader_char_id) !== String(char.id)) {
+      return res.status(403).json({ error: 'Only the raid leader can start this raid.' });
+    }
+    await tryStartGuildRaidIfReady(db, raid.id, { forceStart: true });
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid battle resolved.', raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, gold, gems');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+    const raidId = Number(req.body?.raidId || 0);
+    const raid = await getGuildRaidById(db, raidId);
+    if (!raid || raid.status !== 'completed') return res.status(404).json({ error: 'Raid rewards are not ready.' });
+    const member = await dbGet(db, 'SELECT * FROM guild_raid_members WHERE raid_id = ? AND char_id = ?', [raidId, char.id]);
+    if (!member) return res.status(404).json({ error: 'You are not a member of this raid.' });
+    if (Number(member.claimed_at || 0) > 0) return res.status(400).json({ error: 'Raid reward already claimed.' });
+    let payload = null;
+    try { payload = member.reward_payload ? JSON.parse(member.reward_payload) : null; } catch {}
+    if (!payload) return res.status(400).json({ error: 'This raid did not grant a reward.' });
+
+    if (payload.gold) {
+      await dbRun(db, 'UPDATE characters SET gold = gold + ?, total_gold_earned = total_gold_earned + ? WHERE id = ?', [payload.gold, payload.gold, char.id]);
+    }
+    if (payload.gems) {
+      await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [payload.gems, payload.gems, char.id]);
+    }
+    if (payload.lootbox?.id) {
+      const lootBox = LOOT_BOXES.find(box => box.id === payload.lootbox.id);
+      if (lootBox) {
+        await addStackableInventoryItem(db, char.id, 'consumable', lootBox, payload.lootbox.qty || 1);
+      }
+    } else if (
+      payload.item?.itemType === 'consumable' &&
+      String(payload.item?.itemData?.name || '').trim().toLowerCase() === 'rare item chest'
+    ) {
+      // Backward-compatibility for already-sent raid reports before loot boxes were wired correctly.
+      const lootBox = LOOT_BOXES.find(box => box.id === 'lootbox_rare');
+      if (lootBox) {
+        await addStackableInventoryItem(db, char.id, 'consumable', lootBox, 1);
+      }
+    }
+    const legacyRaidChest =
+      payload.item?.itemType === 'consumable' &&
+      String(payload.item?.itemData?.name || '').trim().toLowerCase() === 'rare item chest';
+    if (payload.item?.itemType && payload.item?.itemData && !legacyRaidChest) {
+      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [char.id, payload.item.itemType, JSON.stringify(payload.item.itemData)]);
+    }
+    await dbRun(db, 'UPDATE guild_raid_members SET claimed_at = ? WHERE raid_id = ? AND char_id = ?', [Math.floor(Date.now() / 1000), raidId, char.id]);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'gold, gems');
+    const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    res.json({ success: true, message: 'Raid reward claimed.', gold: updated?.gold || 0, gems: updated?.gems || 0, raids });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/exchange', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const { exchangeId } = req.body;
+    const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
+    if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
+    
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
+    
+    // Atomic cost deduction to prevent rapid-click races driving dungeon_gold below 0.
+    if (exchange.cost.dungeonGold) {
+      const cost = Number(exchange.cost.dungeonGold || 0);
+      if (cost <= 0) return res.status(400).json({ error: 'Invalid exchange cost' });
+      const deduct = await db.execute({
+        sql: `UPDATE characters
+              SET dungeon_gold = dungeon_gold - ?
+              WHERE id = ? AND COALESCE(dungeon_gold, 0) >= ?
+              RETURNING dungeon_gold`,
+        args: [cost, char.id, cost]
+      });
+      if (!deduct?.rows || deduct.rows.length === 0) {
+        return res.status(400).json({ error: `Need ${cost} dungeon gold` });
+      }
+    }
+    
+    if (exchange.reward.gold) {
+      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', 
+        [exchange.reward.gold, char.id]);
+    }
+    
+    if (exchange.reward.reputation) {
+      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE id = ?', 
+        [exchange.reward.reputation, char.id]);
+    }
+    
+    if (exchange.reward.item) {
+      const item = { 
+        name: exchange.reward.item, 
+        type: 'chest', 
+        quality: exchange.id.includes('legendary') ? 'legendary' : 'rare',
+        qty: 1 
+      };
+      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
+        [char.id, 'consumable', JSON.stringify(item)]);
+    }
+    
+    const updated = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold, guild_reputation');
+    
+    res.json({ 
+      success: true, 
+      message: `Exchanged for ${exchange.reward.gold ? exchange.reward.gold + ' gold' : ''}${exchange.reward.reputation ? ' + ' + exchange.reward.reputation + ' reputation' : ''}!`,
+      dungeonGold: updated.dungeon_gold,
+      guildReputation: updated.guild_reputation
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/dungeon/guild/bounty/claim', auth, async (req, res) => {
+  try {
+    const db = await getDb();
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, guild_reputation, gold');
+    if (!char) return res.status(404).json({ error: 'Character not found' });
+
+    const bounty = await ensureActiveGuildBounty(db, char.id);
+    if (!bounty) return res.status(404).json({ error: 'No active bounty found' });
+    if ((bounty.progress || 0) < (bounty.target_count || 0)) {
+      return res.status(400).json({ error: `Bounty incomplete: ${bounty.progress || 0}/${bounty.target_count || 0}` });
+    }
+    if (bounty.claimed_at) {
+      return res.status(400).json({ error: 'This bounty was already claimed' });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    await dbRun(
+      db,
+      'UPDATE characters SET gold = gold + ?, guild_reputation = guild_reputation + ? WHERE id = ?',
+      [bounty.reward_gold || 0, bounty.reward_reputation || 0, char.id]
+    );
+    await dbRun(db, 'UPDATE character_guild_bounties SET claimed_at = ? WHERE char_id = ?', [now, char.id]);
+    const nextBounty = await ensureActiveGuildBounty(db, char.id);
+    const updated = await getCurrentCharacter(db, req.user.userId, 'gold, guild_reputation');
+
+    res.json({
+      success: true,
+      message: `Bounty complete! +${bounty.reward_gold || 0} gold and +${bounty.reward_reputation || 0} reputation.`,
+      gold: updated?.gold || 0,
+      guildReputation: updated?.guild_reputation || 0,
+      bounty: nextBounty
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Class Skills (the old 5h skills, keep as is) ─────────────────────────
+router.post('/skills/activate', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        await applyMpRegen(db, char.id);
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        const { skillId } = req.body;
+        const classSkills = CLASS_SKILLS[freshChar.class] || [];
+        const skill = classSkills.find(s => s.id === skillId);
+        if (!skill) return res.status(400).json({ error: 'Invalid skill for your class' });
+        const now = Math.floor(Date.now() / 1000);
+        const todayStart = Math.floor(now / 86400) * 86400;
+        if ((freshChar.daily_mp_reset_at || 0) < todayStart) {
+            await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, freshChar.id]);
+            freshChar.daily_mp_spent = 0;
+        }
+        const dailyMpSpent = freshChar.daily_mp_spent || 0;
+        if (dailyMpSpent < MP_SKILL_UNLOCK) {
+            const needed = MP_SKILL_UNLOCK - dailyMpSpent;
+            return res.status(400).json({ error: `Skills unlock by spending 60 MP on missions today. Spend ${needed} more MP!` });
+        }
+        const lastUsed = freshChar.skill_last_used ? (() => { try { return JSON.parse(freshChar.skill_last_used); } catch { return {}; } })() : {};
+        const usedToday = Object.entries(lastUsed).find(([, t]) => t >= todayStart);
+        if (usedToday) {
+            const usedDef = classSkills.find(s => s.id === usedToday[0]);
+            const hoursLeft = Math.ceil((todayStart + 86400 - now) / 3600);
+            return res.status(400).json({ error: `Already activated ${usedDef?.name || 'a skill'} today. Resets in ${hoursLeft}h.` });
+        }
+        const activeSkills = freshChar.active_skills ? (() => { try { return JSON.parse(freshChar.active_skills); } catch { return {}; } })() : {};
+        if (activeSkills[skillId] && activeSkills[skillId] > now) {
+            const rem = activeSkills[skillId] - now;
+            return res.status(400).json({ error: `${skill.name} is already active (${Math.floor(rem/3600)}h ${Math.ceil((rem%3600)/60)}m left).` });
+        }
+        activeSkills[skillId] = now + SKILL_DURATION;
+        lastUsed[skillId] = now;
+        await dbRun(db, 'UPDATE characters SET active_skills=?, skill_last_used=? WHERE id=?', [JSON.stringify(activeSkills), JSON.stringify(lastUsed), freshChar.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
+        res.json({ message:`✨ ${skill.emoji} ${skill.name} activated for 5 hours!`, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
+});
+
+// ── Global event status ───────────────────────────────────────────────────
+router.get('/events/active', auth, async (req, res) => {
+    try {
+        const ev = getActiveEvent();
+        if (!ev) return res.json({ active: false });
+        const def = GLOBAL_EVENTS.find(e => e.key === ev.event_key);
+        res.json({ ...def, ends_at: ev.ends_at });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Premium Features ──────────────────────────────────────────────────────
+router.get('/premium/features', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const active = getActivePremium(char);
+        const synergies = getActiveSynergies(active);
+        const ultimate = hasUltimate(active);
+        const now = Math.floor(Date.now() / 1000);
+        res.json({
+            features: Object.values(PREMIUM_FEATURES).map(f => ({
+                ...f,
+                active: !!active[f.id],
+                expiresAt: active[f.id] || 0,
+                expiresIn: active[f.id] ? Math.max(0, active[f.id] - now) : 0,
+            })),
+            synergies,
+            ultimate,
+            gems: char.gems || 0,
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/premium/activate', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const { featureId } = req.body;
+        const feature = PREMIUM_FEATURES[featureId];
+        if (!feature) return res.status(400).json({ error: 'Unknown feature' });
+        if ((char.gems || 0) < feature.cost) return res.status(400).json({ error: `Need ${feature.cost} 💎 gems` });
+        const now = Math.floor(Date.now() / 1000);
+        const current = getActivePremium(char);
+        const base = (current[featureId] && current[featureId] > now) ? current[featureId] : now;
+        current[featureId] = base + PREMIUM_DURATION;
+        await dbRun(db, 'UPDATE characters SET premium_features=?, gems=gems-? WHERE id=?',
+            [JSON.stringify(current), feature.cost, char.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ message: `${feature.emoji} ${feature.name} activated for 30 days!`, character: await buildCharacterResponse(updated, db) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Shop reroll ────────────────────────────────────────────────────────────
+router.post('/shop/reroll', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to reroll the shop' });
+        await dbRun(db, 'UPDATE characters SET gems=gems-1 WHERE id=?', [char.id]);
+        await dbRun(db, 'DELETE FROM shop_items WHERE char_id=?', [char.id]);
+        const now = Math.floor(Date.now() / 1000);
+        const newItems = generateBackendInventory(char.level);
+        const equipOnly = newItems.filter(i => !i.consumable);
+        for (const item of equipOnly) {
+            await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,item_data,generation_date) VALUES (?,?,?,?)',
+                [req.user.userId, char.id, JSON.stringify(item), now]);
+        }
+        const potions = getPotionsForLevel(char.level);
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            items: [...potions, ...equipOnly],
+            newGems: updatedChar.gems,
+            message: '🎲 Shop rerolled!',
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+const fs = require('fs');
+const path = require('path');
+
+// ── Bug Report to Database with Images ────────────────────────────────────
+router.post('/bug-report', async (req, res) => {
+    try {
+        const db = await getDb();
+        const report = req.body;
+        const timestamp = new Date().toISOString();
+        if (!report?.report?.category || !report?.report?.title || !report?.report?.description) {
+            return res.status(400).json({ success: false, error: 'Missing required bug report fields' });
+        }
+        
+        const result = await dbRun(db, `
+            INSERT INTO bug_reports (
+                report_timestamp, username, character_name, character_level, character_class,
+                category, title, description, steps_to_reproduce, browser,
+                game_location, game_hp, game_gold, game_level,
+                has_screenshot
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+            timestamp,
+            report.user?.username || 'guest',
+            report.user?.character_name || 'unknown',
+            report.user?.character_level || 0,
+            report.user?.character_class || 'unknown',
+            report.report.category, report.report.title, report.report.description, 
+            report.report.steps_to_reproduce || null, report.report.browser || null,
+            report.game_state?.location || 'unknown',
+            report.game_state?.hp || 0,
+            report.game_state?.gold || 0,
+            report.game_state?.level || 0,
+            report.screenshot ? 1 : 0
+        ]);
+        
+        const bugReportId = result.lastInsertRowid;
+        
+        if (report.screenshot) {
+            const mimeMatch = report.screenshot.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,/);
+            const base64Data = report.screenshot.split(',')[1];
+            if (!base64Data) {
+                return res.status(400).json({ success: false, error: 'Invalid screenshot payload' });
+            }
+            const mimeType = mimeMatch ? `image/${mimeMatch[1]}` : 'image/png';
+            const ext = (mimeMatch?.[1] || 'png').replace(/[^a-zA-Z0-9]/g, '');
+            const screenshotBuffer = Buffer.from(base64Data, 'base64');
+            const filename = `bug_${bugReportId}.${ext}`;
+            
+            await dbRun(db, `
+                INSERT INTO bug_screenshots (bug_report_id, filename, image_data, mime_type)
+                VALUES (?, ?, ?, ?)
+            `, [bugReportId, filename, screenshotBuffer, mimeType]);
+        }
+        
+        console.log(`Bug report #${bugReportId} saved from ${report.user?.username || 'guest'}`);
+        
+        res.json({ 
+            success: true, 
+            id: bugReportId,
+            message: 'Report submitted successfully!'
+        });
+    } catch (error) {
+        console.error('Bug report error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.get('/bug-report/screenshot/:bugReportId', async (req, res) => {
+    try {
+        const db = await getDb();
+        const screenshot = await dbGet(db, `
+            SELECT image_data, mime_type FROM bug_screenshots WHERE bug_report_id = ?
+        `, [req.params.bugReportId]);
+        
+        if (screenshot && screenshot.image_data) {
+            res.setHeader('Content-Type', screenshot.mime_type);
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.send(Buffer.from(screenshot.image_data));
+        } else {
+            res.status(404).send('Screenshot not found');
+        }
+    } catch (error) {
+        console.error('Error loading screenshot:', error);
+        res.status(500).send('Error loading screenshot');
+    }
+});
+
+router.get('/bug-reports/list', async (req, res) => {
+    try {
+        const db = await getDb();
+        
+        const password = req.query.password;
+        if (password !== 'baisbetterthanbk') {
+            return res.status(403).send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Bug Reports - Login</title>
+                    <style>
+                        body { background: #1a1a2e; color: #eee; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: monospace; }
+                        .login-box { background: #16213e; padding: 30px; border-radius: 10px; border: 1px solid #9b59b6; }
+                        input, button { padding: 10px; margin: 10px 0; background: #0f0f1a; border: 1px solid #333; color: #eee; border-radius: 5px; }
+                        button { background: #9b59b6; cursor: pointer; }
+                    </style>
+                </head>
+                <body>
+                    <div class="login-box">
+                        <h2>🔒 Bug Reports Access</h2>
+                        <form method="GET">
+                            <input type="password" name="password" placeholder="Enter password" style="width: 100%">
+                            <button type="submit">View Reports</button>
+                        </form>
+                    </div>
+                </body>
+                </html>
+            `);
+        }
+        
+        const reports = await dbAll(db, `
+            SELECT id, report_timestamp as timestamp, username, character_name, character_level, 
+                   character_class, category, title, description, steps_to_reproduce, browser,
+                   game_location, game_hp, game_gold, game_level, has_screenshot
+            FROM bug_reports 
+            ORDER BY id DESC 
+            LIMIT 200
+        `, []);
+        
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Bug Reports - Admin</title>
+                <meta charset="UTF-8">
+                <style>
+                    * { box-sizing: border-box; }
+                    body { 
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; 
+                        background: #0a0a0f; 
+                        color: #e2e8f0; 
+                        padding: 20px; 
+                        margin: 0;
+                    }
+                    .container { max-width: 1200px; margin: 0 auto; }
+                    h1 { color: #f1c40f; border-bottom: 2px solid #9b59b6; padding-bottom: 10px; display: inline-block; }
+                    .stats { background: #16213e; padding: 15px; border-radius: 8px; margin: 20px 0; display: flex; gap: 20px; }
+                    .stat { flex: 1; text-align: center; }
+                    .stat-number { font-size: 28px; font-weight: bold; color: #9b59b6; }
+                    .stat-label { font-size: 12px; color: #94a3b8; }
+                    .report { 
+                        border: 1px solid #2d2d3a; 
+                        margin: 20px 0; 
+                        padding: 20px; 
+                        border-radius: 12px; 
+                        background: #16213e;
+                        transition: transform 0.2s;
+                    }
+                    .report:hover { transform: translateX(5px); border-color: #9b59b6; }
+                    .header { 
+                        color: #f1c40f; 
+                        font-size: 14px; 
+                        margin-bottom: 15px; 
+                        border-bottom: 1px solid #2d2d3a; 
+                        padding-bottom: 8px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .report-id { font-size: 18px; font-weight: bold; color: #9b59b6; }
+                    .timestamp { color: #64748b; font-size: 12px; }
+                    .field { margin: 12px 0; }
+                    .label { 
+                        color: #9b59b6; 
+                        font-weight: bold; 
+                        display: inline-block; 
+                        min-width: 130px;
+                        font-size: 13px;
+                    }
+                    .value { color: #e2e8f0; word-break: break-word; }
+                    pre { 
+                        background: #0f0f1a; 
+                        padding: 12px; 
+                        border-radius: 8px; 
+                        overflow-x: auto; 
+                        white-space: pre-wrap;
+                        font-family: monospace;
+                        font-size: 13px;
+                        margin: 5px 0;
+                        border-left: 3px solid #9b59b6;
+                    }
+                    .screenshot-link {
+                        display: inline-block;
+                        background: #9b59b6;
+                        color: white;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        text-decoration: none;
+                        font-size: 13px;
+                        margin-top: 10px;
+                        transition: background 0.2s;
+                    }
+                    .screenshot-link:hover { background: #8e44ad; }
+                    .badge {
+                        display: inline-block;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        font-size: 11px;
+                        font-weight: bold;
+                        margin-left: 10px;
+                    }
+                    .badge-bug { background: #e74c3c; color: white; }
+                    .badge-ui { background: #3498db; color: white; }
+                    .badge-mission { background: #2ecc71; color: white; }
+                    .badge-dungeon { background: #9b59b6; color: white; }
+                    .badge-other { background: #95a5a6; color: white; }
+                    .game-state {
+                        background: #0f0f1a;
+                        padding: 10px;
+                        border-radius: 6px;
+                        margin-top: 10px;
+                        font-family: monospace;
+                        font-size: 12px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1>🐛 Bug Reports</h1>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-number">${reports.length}</div>
+                            <div class="stat-label">Total Reports</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">${reports.filter(r => r.has_screenshot).length}</div>
+                            <div class="stat-label">With Screenshots</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-number">${new Set(reports.map(r => r.username)).size}</div>
+                            <div class="stat-label">Unique Reporters</div>
+                        </div>
+                    </div>
+        `;
+        
+        for (const r of reports) {
+            const categoryBadge = {
+                combat: 'badge-bug',
+                ui: 'badge-ui',
+                mission: 'badge-mission',
+                dungeon: 'badge-dungeon',
+                other: 'badge-other'
+            }[r.category] || 'badge-other';
+            
+            html += `
+                <div class="report">
+                    <div class="header">
+                        <div>
+                            <span class="report-id">#${r.id}</span>
+                            <span class="badge ${categoryBadge}">${r.category}</span>
+                        </div>
+                        <div class="timestamp">${new Date(r.timestamp).toLocaleString()}</div>
+                    </div>
+                    
+                    <div class="field">
+                        <span class="label">👤 From:</span>
+                        <span class="value">${escapeHtml(r.username || 'guest')} (${r.character_name}, Lv.${r.character_level} ${r.character_class})</span>
+                    </div>
+                    
+                    <div class="field">
+                        <span class="label">📝 Title:</span>
+                        <span class="value"><strong>${escapeHtml(r.title)}</strong></span>
+                    </div>
+                    
+                    <div class="field">
+                        <span class="label">📄 Description:</span>
+                        <pre>${escapeHtml(r.description)}</pre>
+                    </div>
+                    
+                    ${r.steps_to_reproduce ? `
+                    <div class="field">
+                        <span class="label">🔁 Steps to Reproduce:</span>
+                        <pre>${escapeHtml(r.steps_to_reproduce)}</pre>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="field">
+                        <span class="label">🎮 Game State:</span>
+                        <div class="game-state">
+                            Location: ${r.game_location || 'unknown'} | 
+                            HP: ${r.game_hp} | 
+                            Gold: ${r.game_gold} | 
+                            Level: ${r.game_level}
+                        </div>
+                    </div>
+                    
+                    ${r.browser ? `
+                    <div class="field">
+                        <span class="label">🌐 Browser:</span>
+                        <span class="value">${escapeHtml(r.browser)}</span>
+                    </div>
+                    ` : ''}
+                    
+                    ${r.has_screenshot ? `
+                    <div class="field">
+                        <a class="screenshot-link" href="/api/game/bug-report/screenshot/${r.id}" target="_blank">
+                            📸 View Screenshot
+                        </a>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        html += `
+                </div>
+            </body>
+            </html>
+        `;
+        
+        res.send(html);
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        res.status(500).send('Error: ' + error.message);
+    }
+});
+
+router.get('/bug-report/screenshot/:reportId', async (req, res) => {
+    try {
+        const db = await getDb();
+        const screenshot = await dbGet(db, `
+            SELECT image_data, mime_type FROM bug_screenshots WHERE report_id = ?
+        `, [req.params.reportId]);
+        
+        if (screenshot && screenshot.image_data) {
+            res.setHeader('Content-Type', screenshot.mime_type);
+            res.setHeader('Content-Disposition', 'inline');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.send(Buffer.from(screenshot.image_data));
+        } else {
+            res.status(404).send(`
+                <html>
+                <body style="background: #1a1a2e; color: white; text-align: center; padding: 50px; font-family: monospace;">
+                    <h1>📸 Screenshot Not Found</h1>
+                    <p>No screenshot was attached to this report.</p>
+                    <a href="/api/game/bug-reports/list?password=your-secret-password" style="color: #9b59b6;">← Back to Reports</a>
+                </body>
+                </html>
+            `);
+        }
+    } catch (error) {
+        console.error('Error loading screenshot:', error);
+        res.status(500).send('Error loading screenshot');
+    }
+});
+
+// ── Convert MP to Special Mana Potion ─────────────────────────────────────
+router.post('/convert-mp-to-potion', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        await applyMpRegen(db, character.id);
+        
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        const currentMp = freshChar.mission_points ?? 0;
+        const activePrem = getActivePremium(freshChar);
+        const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
+        
+        if (currentMp < 60) {
+            return res.status(400).json({ error: `Need 60 MP to create a potion. You have ${currentMp}/${mpMax} MP.` });
+        }
+        
+        const existingPotions = await dbAll(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? 
+            AND item_type = 'consumable' 
+            AND json_extract(item_data, '$.id') = 'special_mana_potion'
+        `, [freshChar.id]);
+        
+        let totalPotionQty = 0;
+        for (const potion of existingPotions) {
+            const data = JSON.parse(potion.item_data);
+            totalPotionQty += data.qty || 1;
+        }
+        
+        if (totalPotionQty >= 5) {
+            return res.status(400).json({ error: `You already have ${totalPotionQty}/5 Special Mana Potions. Use some before creating more.` });
+        }
+        
+        await dbRun(db, 'UPDATE characters SET mission_points = mission_points - 60 WHERE id = ?', [freshChar.id]);
+        await recordTotalMpSpent(db, freshChar.id, 60);
+        
+        const potionData = {
+            id: 'special_mana_potion',
+            name: 'Special Mana Potion',
+            emoji: '💎',
+            desc: 'Restores 60 MP. Crafted from your own MP reserve.',
+            effect: { type: 'mp', value: 60 },
+            consumable: true,
+            category: 'consumable',
+            qty: 1
+        };
+        
+        if (existingPotions.length > 0) {
+            const existing = existingPotions[0];
+            const data = JSON.parse(existing.item_data);
+            data.qty = (data.qty || 1) + 1;
+            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [JSON.stringify(data), existing.id]);
+        } else {
+            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', 
+                [freshChar.id, 'consumable', JSON.stringify(potionData)]);
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
+        const newTotalPotions = totalPotionQty + 1;
+        
+        res.json({
+            success: true,
+            message: `✨ Converted 60 MP into a Special Mana Potion! (${newTotalPotions}/5)`,
+            character: await buildCharacterResponse(updatedChar, db),
+            potionCount: newTotalPotions
+        });
+    } catch (e) {
+        console.error('MP to Potion conversion error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Open Loot Box ─────────────────────────────────────────────────────────
+router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const inventoryItem = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!inventoryItem) return res.status(404).json({ error: 'Item not found' });
+        
+        const itemData = JSON.parse(inventoryItem.item_data);
+        
+        if (itemData.category !== 'lootbox') {
+            return res.status(400).json({ error: 'This item is not a loot box!' });
+        }
+        
+        const currentQty = itemData.qty || 1;
+        if (currentQty < 1) {
+            return res.status(400).json({ error: 'You don\'t have any of this loot box!' });
+        }
+        
+        const loot = generateLootFromBox(itemData.lootType, char.level);
+        
+        if (currentQty <= 1) {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inventoryItem.id]);
+        } else {
+            itemData.qty = currentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), inventoryItem.id]);
+        }
+        
+        const addedItems = [];
+        for (const lootItem of loot.items) {
+            if (lootItem.stackable) {
+                const existing = await dbGet(db, `
+                    SELECT * FROM inventory 
+                    WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?
+                `, [char.id, lootItem.type, lootItem.id]);
+                
+                if (existing) {
+                    const existingData = JSON.parse(existing.item_data);
+                    existingData.qty = (existingData.qty || 1) + lootItem.qty;
+                    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(existingData), existing.id]);
+                } else {
+                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
+                        [char.id, lootItem.type, JSON.stringify(lootItem)]);
+                }
+            } else {
+                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
+                    [char.id, lootItem.type, JSON.stringify(lootItem)]);
+            }
+            addedItems.push(lootItem);
+        }
+        
+        let gemsFound = 0;
+        if (loot.gems > 0) {
+            gemsFound = loot.gems;
+            await dbRun(db, 'UPDATE characters SET gems=gems+? WHERE id=?', [gemsFound, char.id]);
+        }
+        
+        let goldFound = 0;
+        if (loot.gold > 0) {
+            goldFound = loot.gold;
+            await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [goldFound, char.id]);
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        
+        res.json({
+            success: true,
+            message: `🎁 Opened ${itemData.name}!`,
+            loot: addedItems,
+            gemsFound,
+            goldFound,
+            character: await buildCharacterResponse(updatedChar, db)
+        });
+        
+    } catch (e) {
+        console.error('Loot box error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+function generateLootFromBox(boxType, playerLevel) {
+    const result = {
+        items: [],
+        gems: 0,
+        gold: 0
+    };
+    
+    const drops = {
+        common: {
+            itemsCount: 5,
+            materials: [
+                { id: 'wood', name: 'Wood', emoji: '🪵', weight: 30, qty: [1, 3] },
+                { id: 'iron_ore', name: 'Iron Ore', emoji: '⛏️', weight: 25, qty: [1, 2] },
+                { id: 'wolf_pelt', name: 'Wolf Pelt', emoji: '🐺', weight: 20, qty: [1, 2] },
+                { id: 'herbs', name: 'Herbs', emoji: '🌿', weight: 25, qty: [1, 3] }
+            ],
+            gear: [
+                { quality: 'common', chance: 0.15, level: playerLevel },
+                { quality: 'rare', chance: 0.03, level: playerLevel }
+            ],
+            goldRange: [50, 200],
+            gemChance: 0.01,
+            gemRange: [1, 1]
+        },
+        novice: {
+            itemsCount: 5,
+            materials: [
+                { id: 'iron_ore', name: 'Iron Ore', emoji: '⛏️', weight: 25, qty: [2, 4] },
+                { id: 'mithril_ore', name: 'Mithril Ore', emoji: '✨', weight: 15, qty: [1, 2] },
+                { id: 'poison_gland', name: 'Poison Gland', emoji: '🧪', weight: 20, qty: [1, 2] },
+                { id: 'swamp_crystal', name: 'Swamp Crystal', emoji: '💎', weight: 15, qty: [1, 2] },
+                { id: 'frost_essence', name: 'Frost Essence', emoji: '❄️', weight: 10, qty: [1, 2] }
+            ],
+            gear: [
+                { quality: 'common', chance: 0.20, level: playerLevel },
+                { quality: 'rare', chance: 0.08, level: playerLevel },
+                { quality: 'epic', chance: 0.02, level: playerLevel }
+            ],
+            goldRange: [200, 500],
+            gemChance: 0.03,
+            gemRange: [1, 2]
+        },
+        rare: {
+            itemsCount: 5,
+            materials: [
+                { id: 'mithril_ore', name: 'Mithril Ore', emoji: '✨', weight: 25, qty: [2, 4] },
+                { id: 'dragon_scale_shard', name: 'Dragon Scale Shard', emoji: '🐉', weight: 20, qty: [1, 2] },
+                { id: 'arcane_dust', name: 'Arcane Dust', emoji: '🌟', weight: 20, qty: [2, 4] },
+                { id: 'void_shard', name: 'Void Shard', emoji: '🔮', weight: 15, qty: [1, 2] },
+                { id: 'shadow_essence', name: 'Shadow Essence', emoji: '👁️', weight: 10, qty: [1, 2] }
+            ],
+            gear: [
+                { quality: 'rare', chance: 0.30, level: playerLevel },
+                { quality: 'epic', chance: 0.10, level: playerLevel },
+                { quality: 'legendary', chance: 0.02, level: playerLevel }
+            ],
+            goldRange: [500, 1500],
+            gemChance: 0.05,
+            gemRange: [1, 3]
+        },
+        epic: {
+            itemsCount: 5,
+            materials: [
+                { id: 'void_shard', name: 'Void Shard', emoji: '🔮', weight: 30, qty: [2, 4] },
+                { id: 'shadow_essence', name: 'Shadow Essence', emoji: '👁️', weight: 25, qty: [2, 4] },
+                { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 20, qty: [1, 2] },
+                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 15, qty: [1, 2] }
+            ],
+            gear: [
+                { quality: 'epic', chance: 0.40, level: playerLevel },
+                { quality: 'legendary', chance: 0.08, level: playerLevel }
+            ],
+            goldRange: [1000, 3000],
+            gemChance: 0.10,
+            gemRange: [1, 5]
+        },
+        legendary: {
+            itemsCount: 5,
+            materials: [
+                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 50, qty: [2, 5] },
+                { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 30, qty: [2, 4] }
+            ],
+            gear: [
+                { quality: 'epic', chance: 0.50, level: playerLevel },
+                { quality: 'legendary', chance: 0.50, level: playerLevel }
+            ],
+            goldRange: [2000, 5000],
+            gemChance: 0.25,
+            gemRange: [2, 10]
+        }
+    };
+    
+    const boxDrops = drops[boxType];
+    const createMaterialDrop = () => {
+        const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
+        let roll = Math.random() * totalWeight;
+        let selected = boxDrops.materials[0];
+        for (const mat of boxDrops.materials) {
+            if (roll < mat.weight) {
+                selected = mat;
+                break;
+            }
+            roll -= mat.weight;
+        }
+
+        const qty = Math.floor(Math.random() * (selected.qty[1] - selected.qty[0] + 1) + selected.qty[0]);
+        return {
+            id: selected.id,
+            name: selected.name,
+            emoji: selected.emoji,
+            type: 'raw_mat',
+            qty: qty,
+            stackable: true,
+            rarity: 'common'
+        };
+    };
+    
+    if (Math.random() < 0.6) {
+        const goldAmount = Math.floor(Math.random() * (boxDrops.goldRange[1] - boxDrops.goldRange[0] + 1) + boxDrops.goldRange[0]);
+        result.gold = goldAmount;
+    }
+    
+    if (Math.random() < boxDrops.gemChance) {
+        const gemAmount = Math.floor(Math.random() * (boxDrops.gemRange[1] - boxDrops.gemRange[0] + 1) + boxDrops.gemRange[0]);
+        result.gems = gemAmount;
+    }
+    
+    for (let i = 0; i < boxDrops.itemsCount; i++) {
+        const isMaterial = Math.random() < 0.6;
+        
+        if (isMaterial) {
+            result.items.push(createMaterialDrop());
+        } else {
+            let roll = Math.random();
+            let selectedQuality = null;
+            for (const gear of boxDrops.gear) {
+                if (roll < gear.chance) {
+                    selectedQuality = gear.quality;
+                    break;
+                }
+                roll -= gear.chance;
+            }
+            
+            if (selectedQuality) {
+                const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+                const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                const item = generateBackendRandomItem(playerLevel, randomType);
+                item.quality = selectedQuality;
+                item.desc = `✨ ${item.desc}`;
+                result.items.push({
+                    ...item,
+                    type: 'equipment',
+                    source: 'lootbox',
+                    sell_price_cap: 1000,
+                    stackable: false,
+                    qty: 1
+                });
+            } else {
+                result.items.push(createMaterialDrop());
+            }
+        }
+    }
+    
+    if (boxType === 'legendary') {
+        const hasLegendary = result.items.some(item => item.quality === 'legendary');
+        if (!hasLegendary) {
+            const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            const legendaryItem = generateBackendRandomItem(playerLevel, randomType);
+            legendaryItem.quality = 'legendary';
+            legendaryItem.desc = `👑 ${legendaryItem.desc}`;
+            
+            const index = result.items.findIndex(i => i.quality !== 'legendary');
+            if (index !== -1) {
+                result.items[index] = {
+                    ...legendaryItem,
+                    type: 'equipment',
+                    source: 'lootbox',
+                    sell_price_cap: 1000,
+                    stackable: false,
+                    qty: 1
+                };
+            }
+        }
+    }
+    
+    const craftChance = boxType === 'legendary' ? 0.20 : boxType === 'epic' ? 0.10 : boxType === 'rare' ? 0.05 : boxType === 'novice' ? 0.01 : 0;
+    if (Math.random() < craftChance) {
+        const craftable = EQUIPMENT_RECIPES.filter(r => !r.bannerOnly);
+        const recipe = craftable[Math.floor(Math.random() * craftable.length)];
+        if (recipe) {
+            const scaled = scaleItemToLevel(recipe, playerLevel);
+            result.items.push({
+                ...scaled,
+                id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+                type: 'equipment',
+                source: 'crafted_drop',
+                sell_price_cap: 1000,
+                stackable: false,
+                qty: 1,
+                img: null,
+                desc: `🏭 ${scaled.desc || recipe.desc || ''}`
+            });
+        }
+    }
+    
+    return result;
+}
+
+router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { componentId, expectedUpgradeLevel } = req.body;
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [req.params.inventoryId, char.id]);
+        if (!item) return res.status(404).json({ error: 'Item not found' });
+        
+        const itemData = JSON.parse(item.item_data);
+        
+        if (item.item_type !== 'equipment') {
+            return res.status(400).json({ error: 'Only equipment can be upgraded!' });
+        }
+        
+        const currentUpgrade = item.upgrade_level || 0;
+        const normalizedExpectedUpgrade = Number.isFinite(Number(expectedUpgradeLevel))
+            ? Number(expectedUpgradeLevel)
+            : currentUpgrade;
+        const quality = itemData.quality || 'common';
+        let maxUpgrade = 3;
+        if (quality === 'legendary') maxUpgrade = 5;
+        else if (quality === 'epic' || quality === 'rare') maxUpgrade = 4;
+
+        if (normalizedExpectedUpgrade !== currentUpgrade) {
+            return res.status(409).json({ error: 'This upgrade view is outdated. Reopen the item and try again.' });
+        }
+
+        if (currentUpgrade >= maxUpgrade) {
+            return res.status(400).json({ error: `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!` });
+        }
+        
+        const component = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id=? AND item_type='component' 
+            AND json_extract(item_data, '$.id')=?
+        `, [char.id, componentId]);
+        
+        if (!component) {
+            return res.status(400).json({ error: `You don't have this component!` });
+        }
+        
+        const componentData = JSON.parse(component.item_data);
+        const componentQty = componentData.qty || 1;
+        
+        if (componentQty < 1) {
+            return res.status(400).json({ error: `You don't have this component!` });
+        }
+        
+        const upgradeValue = COMPONENT_UPGRADE_VALUES[componentId];
+        if (!upgradeValue) {
+            return res.status(400).json({ error: 'This component cannot be used for upgrading!' });
+        }
+        
+        const upgradedStats = { ...itemData.stats };
+        const bonusValue = upgradeValue.bonus;
+        
+        let upgradedStatsList = [];
+        
+        if (upgradeValue.statPick) {
+            // Crimson Alloy: player picks 2 stats
+            const { selectedStats } = req.body;
+            if (!Array.isArray(selectedStats) || selectedStats.length !== 2) {
+                return res.status(400).json({ error: 'Select exactly 2 stats to upgrade' });
+            }
+            for (const s of selectedStats) {
+                if (!POSSIBLE_STATS.includes(s)) {
+                    return res.status(400).json({ error: `Invalid stat: ${s}` });
+                }
+            }
+            const alloyUsed = itemData.crimsonAlloyUsed || 0;
+            if (alloyUsed >= 2) {
+                return res.status(400).json({ error: 'Crimson Alloy can only be used twice on each item' });
+            }
+            upgradedStatsList = selectedStats;
+        }
+        
+        if (!upgradedStatsList.length) {
+            let statPool = [...POSSIBLE_STATS];
+            for (let i = statPool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [statPool[i], statPool[j]] = [statPool[j], statPool[i]];
+            }
+            upgradedStatsList = statPool.slice(0, 2);
+        }
+        
+        for (const stat of upgradedStatsList) {
+            const currentValue = upgradedStats[stat] || 0;
+            upgradedStats[stat] = currentValue + bonusValue;
+        }
+        
+        const nextUpgrade = currentUpgrade + 1;
+        const baseItemName = String(itemData.name || '').replace(/\s\+\d+$/, '').trim();
+        const baseItemDesc = String(itemData.desc || '')
+            .replace(/^undefined\s*/i, '')
+            .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
+            .trim();
+        const previousUpgradeHistory = Array.isArray(itemData.upgradeHistory)
+            ? itemData.upgradeHistory
+            : (Array.isArray(itemData.upgrade_history) ? itemData.upgrade_history : []);
+        const nextUpgradeHistory = [
+            ...previousUpgradeHistory,
+            {
+                level: nextUpgrade,
+                component: componentData.name,
+                bonus: bonusValue,
+                stats: upgradedStatsList
+            }
+        ];
+
+        const upgradedItemData = {
+            ...itemData,
+            name: baseItemName || itemData.name || '',
+            stats: upgradedStats,
+            upgradedStats: upgradedStatsList,
+            upgradeLevel: nextUpgrade,
+            upgradeHistory: nextUpgradeHistory
+        };
+        if (upgradeValue.statPick) {
+            upgradedItemData.crimsonAlloyUsed = (itemData.crimsonAlloyUsed || 0) + 1;
+        }
+        if (baseItemDesc) upgradedItemData.desc = baseItemDesc;
+        else delete upgradedItemData.desc;
+        
+        const itemUpdateResult = await dbRun(db,
+            'UPDATE inventory SET item_data=?, upgrade_level=? WHERE id=? AND char_id=? AND upgrade_level=?',
+            [JSON.stringify(upgradedItemData), nextUpgrade, item.id, char.id, normalizedExpectedUpgrade]
+        );
+
+        if (!itemUpdateResult.rowsAffected && itemUpdateResult.rowsAffected !== undefined ? true : itemUpdateResult.changes === 0) {
+            return res.status(409).json({ error: 'Upgrade already in progress. Please wait for the current upgrade to finish.' });
+        }
+
+        if (componentQty <= 1) {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [component.id]);
+        } else {
+            componentData.qty = componentQty - 1;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(componentData), component.id]);
+        }
+        
+        const statsLabel = upgradeValue.statPick
+            ? upgradedStatsList.map(s => s.replace(/_/g, ' ')).join(', ')
+            : `${upgradedStatsList.length} stats`;
+        const message = upgradeValue.statPick
+            ? `✨ ${itemData.name} reinforced with ${componentData.name}! (+${bonusValue} to ${statsLabel})`
+            : `✨ ${itemData.name} upgraded to +${nextUpgrade} using ${componentData.name}! (+${bonusValue} to ${statsLabel})`;
+        res.json({
+            success: true,
+            message,
+            newUpgradeLevel: nextUpgrade,
+            upgradedStats: upgradedStatsList.map(stat => ({
+                stat,
+                oldValue: itemData.stats?.[stat] || 0,
+                newValue: upgradedStats[stat],
+                increase: bonusValue
+            })),
+            componentUsed: componentData.name,
+            character: await buildCharacterResponse(char, db)
+        });
+        
+    } catch (e) {
+        console.error('Upgrade error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Exchange Legendary Fragments for Materials ─────────────────────────────
+const MATERIAL_EXCHANGES = {
+    // Common materials (tier 1)
+    wood: { name: 'Wood', emoji: '🪵', rarity: 1, fragmentCost: 5 },
+    iron_ore: { name: 'Iron Ore', emoji: '⛏️', rarity: 1, fragmentCost: 5 },
+    wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', rarity: 1, fragmentCost: 5 },
+    herbs: { name: 'Herbs', emoji: '🌿', rarity: 1, fragmentCost: 5 },
+    
+    // Uncommon materials (tier 2)
+    poison_gland: { name: 'Poison Gland', emoji: '🧪', rarity: 2, fragmentCost: 10 },
+    swamp_crystal: { name: 'Swamp Crystal', emoji: '💎', rarity: 2, fragmentCost: 10 },
+    frost_essence: { name: 'Frost Essence', emoji: '❄️', rarity: 2, fragmentCost: 10 },
+    mithril_ore: { name: 'Mithril Ore', emoji: '✨', rarity: 2, fragmentCost: 10 },
+    
+    // Rare materials (tier 3)
+    dragon_scale_shard: { name: 'Dragon Scale Shard', emoji: '🐉', rarity: 3, fragmentCost: 15 },
+    arcane_dust: { name: 'Arcane Dust', emoji: '🌟', rarity: 3, fragmentCost: 15 },
+    rune_fragment: { name: 'Rune Fragment', emoji: '🔮', rarity: 3, fragmentCost: 15 },
+    void_shard: { name: 'Void Shard', emoji: '🌑', rarity: 3, fragmentCost: 15 },
+    
+    // Epic materials (tier 4)
+    shadow_essence: { name: 'Shadow Essence', emoji: '👁️', rarity: 4, fragmentCost: 20 },
+    demon_core: { name: 'Demon Core', emoji: '💀', rarity: 4, fragmentCost: 20 },
+    legendary_fragment: { name: 'Legendary Fragment', emoji: '⭐', rarity: 4, fragmentCost: 20 }, // Exchange fragments for more fragments? No, skip this
+    
+    // Legendary materials (tier 5)
+    void_crystal: { name: 'Void Crystal', emoji: '🔮', rarity: 5, fragmentCost: 25 },
+    shadow_weave: { name: 'Shadow Weave', emoji: '🌙', rarity: 5, fragmentCost: 25 },
+    demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', rarity: 5, fragmentCost: 25 },
+    abyss_weave: { name: 'Abyss Weave', emoji: '🕸️', rarity: 5, fragmentCost: 35 },
+    eternal_essence: { name: 'Eternal Essence', emoji: '💠', rarity: 5, fragmentCost: 40 },
+    shadowsteel_bar: { name: 'Shadowsteel Bar', emoji: '⚙️', rarity: 5, fragmentCost: 45 },
+    crimson_alloy: { name: 'Crimson Alloy', emoji: '⚡', rarity: 5, fragmentCost: 50 },
+    void_plate: { name: 'Void Plate', emoji: '🛡️', rarity: 5, fragmentCost: 55 },
+    abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', rarity: 4, fragmentCost: 20 },
+    abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', rarity: 5, fragmentCost: 30 },
+};
+
+router.post('/exchange/fragments', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { materialId, quantity = 1 } = req.body;
+        
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const exchange = MATERIAL_EXCHANGES[materialId];
+        if (!exchange) return res.status(400).json({ error: 'Invalid material for exchange' });
+        
+        // Calculate total fragment cost
+        const totalFragmentsNeeded = exchange.fragmentCost * quantity;
+        
+        // Check if player has enough legendary fragments
+const fragmentItem = await dbGet(db, `
+    SELECT * FROM inventory 
+    WHERE char_id = ? 
+    AND item_type IN ('raw_mat', 'component')
+    AND json_extract(item_data, '$.id') = 'legendary_fragment'
+`, [char.id]);
+        
+        let availableFragments = 0;
+        if (fragmentItem) {
+            const fragmentData = JSON.parse(fragmentItem.item_data);
+            availableFragments = fragmentData.qty || 1;
+        }
+        
+        if (availableFragments < totalFragmentsNeeded) {
+            return res.status(400).json({ 
+                error: `Need ${totalFragmentsNeeded} Legendary Fragments, you have ${availableFragments}` 
+            });
+        }
+        
+        // Deduct legendary fragments
+        if (fragmentItem) {
+            const fragmentData = JSON.parse(fragmentItem.item_data);
+            const newQty = (fragmentData.qty || 1) - totalFragmentsNeeded;
+            
+            if (newQty <= 0) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [fragmentItem.id]);
+            } else {
+                fragmentData.qty = newQty;
+                await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', 
+                    [JSON.stringify(fragmentData), fragmentItem.id]);
+            }
+        }
+        
+        // Add the requested material/component.
+        // Some exchange targets are real components (for example demon_alloy),
+        // so we must preserve their proper inventory type and metadata.
+        const targetType = COMPONENTS[materialId] ? 'component' : 'raw_mat';
+        const targetDef = COMPONENTS[materialId] || RAW_MATERIALS[materialId];
+        if (!targetDef) {
+            return res.status(400).json({ error: 'Unknown exchange target' });
+        }
+
+        // Repair older bugged rows too: if this item was previously inserted as the
+        // wrong type, merge all quantities into one correctly typed row.
+        const existingRows = await dbAll(db, `
+            SELECT * FROM inventory
+            WHERE char_id = ?
+            AND item_type IN ('raw_mat', 'component')
+            AND json_extract(item_data, '$.id') = ?
+        `, [char.id, materialId]);
+
+        const totalExistingQty = existingRows.reduce((sum, row) => {
+            const data = JSON.parse(row.item_data);
+            return sum + (data.qty || 1);
+        }, 0);
+
+        const desiredData = {
+            id: materialId,
+            ...targetDef,
+            qty: totalExistingQty + quantity
+        };
+
+        const correctRow = existingRows.find(row => row.item_type === targetType) || null;
+
+        if (correctRow) {
+            await dbRun(db, 'UPDATE inventory SET item_data = ? WHERE id = ?', [
+                JSON.stringify(desiredData),
+                correctRow.id
+            ]);
+
+            for (const row of existingRows) {
+                if (row.id !== correctRow.id) {
+                    await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [row.id]);
+                }
+            }
+        } else {
+            for (const row of existingRows) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id = ?', [row.id]);
+            }
+            await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [
+                char.id,
+                targetType,
+                JSON.stringify(desiredData)
+            ]);
+        }
+        
+        const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        
+        res.json({
+            success: true,
+            message: `Exchanged ${totalFragmentsNeeded} Legendary Fragments for ${quantity}x ${exchange.name}!`,
+            character: await buildCharacterResponse(updatedChar, db),
+            materialId,
+            quantity,
+            fragmentsSpent: totalFragmentsNeeded
+        });
+        
+    } catch (e) {
+        console.error('Exchange error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Helper function to extract NPC name from mission name
+function getNPCNameFromMission(missionName) {
+    // Define patterns for different mission types
+    const patterns = [
+        // "Slay the Bog Witch" -> "Bog Witch"
+        { regex: /Slay the (.+)/i, transform: (match) => match[1] },
+        // "Hunt the Wolves" -> "Wolves"
+        { regex: /Hunt the (.+)/i, transform: (match) => match[1] },
+        // "Clear the Bandits" -> "Bandits"
+        { regex: /Clear the (.+)/i, transform: (match) => match[1] },
+        // "Defeat the Forest Guardian" -> "Forest Guardian"
+        { regex: /Defeat the (.+)/i, transform: (match) => match[1] },
+        // "Face the Swamp Horror" -> "Swamp Horror"
+        { regex: /Face the (.+)/i, transform: (match) => match[1] },
+        // "Destroy the Corrupted Heart" -> "Corrupted Heart"
+        { regex: /Destroy the (.+)/i, transform: (match) => match[1] },
+        // "Purify the Waters" -> "Waters Guardian"
+        { regex: /Purify the (.+)/i, transform: (match) => `${match[1]} Guardian` },
+        // "Confront the Shadow Lord" -> "Shadow Lord"
+        { regex: /Confront the (.+)/i, transform: (match) => match[1] },
+        // "Slay the Ice Drake" -> "Ice Drake"
+        { regex: /Slay the (.+)/i, transform: (match) => match[1] },
+        // "Awaken the Frozen Giant" -> "Frozen Giant"
+        { regex: /Awaken the (.+)/i, transform: (match) => match[1] },
+        // "Banish the Wraith Lord" -> "Wraith Lord"
+        { regex: /Banish the (.+)/i, transform: (match) => match[1] },
+    ];
+    
+    for (const pattern of patterns) {
+        const match = missionName.match(pattern.regex);
+        if (match) {
+            let npcName = pattern.transform(match);
+            // Remove "the " if present at the start
+            npcName = npcName.replace(/^the\s+/i, '');
+            return npcName;
+        }
+    }
+    
+    // Default: return the mission name as-is, but remove common prefixes
+    let defaultName = missionName
+        .replace(/^(Slay|Hunt|Clear|Defeat|Face|Destroy|Purify|Confront|Banish|Awaken)\s+/i, '')
+        .replace(/^the\s+/i, '');
+    return defaultName;
+}
+
+// Get available exchanges
+router.get('/exchange/fragments/list', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        // Get player's legendary fragment count
+        const fragmentItem = await dbGet(db, `
+            SELECT * FROM inventory 
+            WHERE char_id = ? AND item_type = 'component' 
+            AND json_extract(item_data, '$.id') = 'legendary_fragment'
+        `, [char.id]);
+        
+        let fragmentCount = 0;
+        if (fragmentItem) {
+            const fragmentData = JSON.parse(fragmentItem.item_data);
+            fragmentCount = fragmentData.qty || 1;
+        }
+        
+        // Group materials by rarity
+        const exchanges = {};
+        for (const [id, data] of Object.entries(MATERIAL_EXCHANGES)) {
+            if (id === 'legendary_fragment') continue; // Skip self-exchange
+            const rarity = data.rarity;
+            if (!exchanges[rarity]) exchanges[rarity] = [];
+            exchanges[rarity].push({
+                id,
+                name: data.name,
+                emoji: data.emoji,
+                fragmentCost: data.fragmentCost,
+                canAfford: fragmentCount >= data.fragmentCost
+            });
+        }
+        
+        res.json({
+            success: true,
+            fragmentCount,
+            exchanges
+        });
+    } catch (e) {
+        console.error('Exchange list error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/travel/abyss/enter', auth, async (req, res) => { 
+    try { 
+        const db = await getDb(); 
+        const character = await getCurrentCharacter(db, req.user.userId); 
+        if (!character) return res.status(404).json({ error: 'Character not found' }); 
+         
+        // Check level requirement 
+        if (character.level < 39) { 
+            return res.status(400).json({ error: 'Requires level 39 to enter the Abyss' }); 
+        } 
+
+        // Abyss Gate unlock requirement (must have Dark City unlocked)
+        const overworldUnlocks = getTravelUnlockSet(character, 'overworld');
+        if (!overworldUnlocks.has('dark_city')) {
+            return res.status(400).json({ error: 'Unlock Dark City to access the Abyss Gate' });
+        }
+         
+        // Check if already in Abyss 
+        if (character.current_map === 'abyss') { 
+            return res.status(400).json({ error: 'Already in the Abyss' }); 
+        } 
+
+        // Gatekeeper: Shadowfen must be unlocked before doing Abyss missions.
+        const abyssUnlocks = getTravelUnlockSet(character, 'abyss');
+        const shadowfenUnlocked = abyssUnlocks.has('shadowfen');
+
+        if (!shadowfenUnlocked) {
+            const confirmChallenge = !!req.body?.confirmChallenge;
+            if (!confirmChallenge) {
+                return res.status(400).json({
+                    error: 'A gatekeeper blocks entry to Shadowfen Depths.',
+                    requiresChallenge: true,
+                    guardianName: 'Abyss Gatekeeper',
+                    targetZone: 'shadowfen',
+                });
+            }
+            await applyHpRegen(db, character.id);
+            const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
+            const playerFighter = await buildCombatFighter(db, freshChar);
+            const guardian = buildTravelGuardian('shadowfen', 'abyss', freshChar.level, playerFighter);
+
+            if (!guardian) {
+                return res.status(500).json({ error: 'Abyss gatekeeper missing' });
+            }
+
+            let forceWinnerId = null;
+            const isTutorial = isTutorialCharacter(freshChar);
+            if (isTutorial) forceWinnerId = freshChar.id;
+
+            const battle = runBattle(playerFighter, guardian, forceWinnerId);
+            const playerWon = battle.winnerId === freshChar.id;
+
+            if (forceWinnerId && isTutorial) {
+                if (!battle.log.some(line => line.includes('Tutorial victory'))) {
+                    battle.log.push('✨ Tutorial victory!');
+                }
+            }
+
+            if (playerFighter._elementalFighter) {
+                await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
+                    [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
+            }
+
+            const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+
+            if (!playerWon) {
+                await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, freshChar.id]);
+                return res.status(400).json({
+                    error: 'Defeated by the Abyss Gatekeeper',
+                    battleLog: battle.log,
+                    won: false,
+                    guardianName: guardian.name,
+                });
+            }
+
+            await unlockTravelZone(db, freshChar, 'shadowfen', 'abyss');
+            await recordGatekeeperDefeat(db, freshChar.id, `abyss:shadowfen`);
+            invalidateWeeklyClaimableCountCache(freshChar.id);
+            await dbRun(db, 'UPDATE characters SET current_map=?, location=?, hp_current=? WHERE id=?', ['abyss', 'shadowfen', newHp, freshChar.id]);
+
+            return res.json({
+                success: true,
+                location: 'shadowfen',
+                message: 'You enter the Abyss...',
+                encounterResult: {
+                    type: 'travel_guardian',
+                    won: true,
+                    guardianName: guardian.name,
+                    targetZone: 'shadowfen',
+                    unlocked: true,
+                    log: battle.log,
+                    totalDmgDealt: battle.totalDmgToB,
+                    totalDmgTaken: battle.totalDmgToA,
+                }
+            });
+        }
+
+        // Teleport to Shadowfen Depths (already unlocked)
+        await dbRun(db, 'UPDATE characters SET current_map = ?, location = ? WHERE id = ?',
+            ['abyss', 'shadowfen', character.id]);
+
+        res.json({
+            success: true,
+            location: 'shadowfen',
+            message: 'You enter the Abyss...'
+        });
+    } catch (e) { 
+        console.error(e); 
+        res.status(500).json({ error: e.message }); 
+    } 
+}); 
+
+router.post('/travel/abyss/exit', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        
+        // Check if in Abyss at the entrance zone
+        if (character.current_map !== 'abyss') {
+            return res.status(400).json({ error: 'Not in the Abyss' });
+        }
+        if (character.location !== 'shadowfen') {
+            return res.status(400).json({ error: 'You can only return to Dark City from Shadowfen Depths — travel there first.' });
+        }
+        
+        // Return to Dark City
+        await dbRun(db, 'UPDATE characters SET current_map = ?, location = ? WHERE id = ?', 
+            ['overworld', 'dark_city', character.id]);
+        
+        res.json({ 
+            success: true, 
+            location: 'dark_city',
+            message: 'You return from the Abyss.'
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/abyss/data', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'current_map, level');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        res.json({
+            success: true,
+            zones: ABYSS_ZONES,
+            routes: ABYSS_ROUTES,
+            currentMap: char.current_map || 'overworld',
+            playerLevel: char.level
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/assistant/suggestions', auth, async (req, res) => {
+    try {
+        console.log('📋 Assistant suggestions requested, userId:', req.user.userId);
+        const db = await getDb();
+        const userId = req.user.userId;
+
+        const userSettings = await dbGet(db, 'SELECT assistant_enabled FROM users WHERE id = ?', [userId]);
+        const assistantEnabled = Number(userSettings?.assistant_enabled ?? 1) !== 0;
+        console.log('User assistant enabled:', assistantEnabled);
+
+        if (!assistantEnabled) {
+            console.log('Assistant disabled by user preference');
+            return res.json({ suggestions: [], enabled: false });
+        }
+        
+        const char = await getCurrentCharacter(db, userId);
+        if (!char) {
+            console.log('No character found');
+            return res.json({ suggestions: [], enabled: true });
+        }
+        
+        console.log('Character wins:', char.wins, 'level:', char.level);
+        const suggestions = [];
+        
+        const charResponse = await buildCharacterResponse(char, db);
+        
+        // Check training - safe query
+        let hasUnclaimedTrain = false;
+        try {
+            hasUnclaimedTrain = char.training_ends_at && char.training_ends_at <= Math.floor(Date.now() / 1000);
+        } catch (e) { /* ignore */ }
+        
+        // Check active missions - use correct table name
+        let hasActiveMission = false;
+        let hasAvailableMission = false;
+        try {
+            const missionsResult = await db.execute({
+                sql: 'SELECT * FROM active_missions WHERE character_id = ? LIMIT 1',
+                args: [char.id]
+            });
+            hasActiveMission = missionsResult.rows?.length > 0;
+            hasAvailableMission = !hasActiveMission;
+        } catch (e) {
+            console.log('Assistant: active_missions table not available');
+            hasAvailableMission = true; // Assume available if table missing
+        }
+        
+        // Check unclaimed rewards - may fail if table doesn't exist
+        let hasUnclaimedRewards = false;
+        try {
+            const unclaimedResult = await db.execute({
+                sql: 'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND body LIKE "BATTLE_REPORT:%" AND read = 0',
+                args: [char.id]
+            });
+            hasUnclaimedRewards = Number(unclaimedResult.rows?.[0]?.count || 0) > 0;
+        } catch (e) {
+            console.log('Assistant: messages table query failed');
+        }
+        
+        const canUpgradeStats = (charResponse.strength < 20 * char.level) || 
+                               (charResponse.defense < 15 * char.level) ||
+                               (charResponse.agility < 18 * char.level) ||
+                               (charResponse.magic < 12 * char.level);
+        
+        if (hasUnclaimedTrain) {
+            suggestions.push({
+                type: 'training',
+                message: 'Training complete! Collect your stat bonus.',
+                action: 'train',
+                tab: 'upgrade'
+            });
+        }
+        
+        if (hasAvailableMission) {
+            suggestions.push({
+                type: 'mission',
+                message: 'You have an available mission! Start it to earn rewards.',
+                action: 'missions',
+                tab: 'missions'
+            });
+        }
+        
+        if (hasUnclaimedRewards) {
+            suggestions.push({
+                type: 'rewards',
+                message: 'You have unclaimed battle rewards in your inbox.',
+                action: 'inbox',
+                tab: 'inbox'
+            });
+        }
+        
+        // Tutorial phase - show guidance
+        const firstFourWins = isTutorialCharacter(char);
+        if (firstFourWins) {
+            suggestions.push({
+                type: 'newbie',
+                message: 'Complete battles to level up and unlock more features!',
+                action: 'missions',
+                tab: 'missions'
+            });
+            suggestions.push({
+                type: 'guide',
+                message: '💡 Tip: Visit the Upgrade tab to build your stats!',
+                action: 'train',
+                tab: 'upgrade'
+            });
+        } else {
+            // Post-tutorial guidance
+            suggestions.push({
+                type: 'guide_stats',
+                message: '💡 Level up faster: Train your stats at the Trainer.',
+                action: 'train',
+                tab: 'upgrade'
+            });
+            suggestions.push({
+                type: 'guide_gear',
+                message: '💡 Get better gear from the Shop or by crafting at the Forge.',
+                action: 'shop',
+                tab: 'shop'
+            });
+            suggestions.push({
+                type: 'guide_upgrade',
+                message: '💡 You can upgrade your equipment in the Inventory tab.',
+                action: 'inventory',
+                tab: 'inventory'
+            });
+        }
+        
+        res.json({ 
+            suggestions, 
+            enabled: assistantEnabled,
+            highlightTabs: []
+        });
+    } catch (e) {
+        console.error('Assistant error:', e);
+        res.json({ suggestions: [], enabled: true, highlightTabs: [] });
+    }
+});
+
+// Tab-specific assistant messages endpoint
+router.get('/assistant/tab-help/:tab', auth, async (req, res) => {
+    const db = await getDb();
+    const { tab } = req.params;
+    const char = await getCurrentCharacter(db, req.user.userId);
+    const userSettings = await dbGet(db, 'SELECT assistant_enabled FROM users WHERE id = ?', [req.user.userId]);
+    if (Number(userSettings?.assistant_enabled ?? 1) === 0) {
+        return res.json({ message: '', enabled: false });
+    }
+    const wins = char?.wins || 0;
+    
+    const tabHelp = {
+        missions: {
+            message: '💡 Missions are the main way to earn gold! Complete missions to earn gold, XP, and loot. Start with Easy missions - Medium and Hard will be available after you complete more battles.',
+            showAfter: 0
+        },
+        upgrade: {
+            message: '💡 Here you can spend gold to upgrade your character stats: Strength, Defense, Agility, and Magic. Higher stats mean more damage and better survivability!',
+            showAfter: 0
+        },
+        loadout: {
+            message: '💡 In Loadout you can set your attack and defense zones. Choose wisely - each zone has different bonuses!',
+            showAfter: 0
+        },
+        skills: {
+            message: '💡 Skills are class-specific abilities that can turn the tide of battle. Activate skills that match your playstyle - offensive for damage, defensive for survival.',
+            showAfter: 0
+        },
+        train: {
+            message: '💡 Training lets you learn new skills from the skill tree. Each class has unique skills - choose wisely to build your character, starter skill unlocks more branches.',
+            showAfter: 0
+        },
+        forge: {
+            message: '💡 The Forge is where you refine raw materials and craft powerful gear. Higher quality materials create better equipment!',
+            showAfter: 2
+        },
+        inventory: {
+            message: '💡 Manage your gear here. Click on items to equip them, or use the Upgrade button to enhance equipment with crafting materials.',
+            showAfter: 0
+        },
+        shop: {
+            message: '💡 Buy new weapons, armor, and accessories here. Check back regularly - the inventory changes every day! Save gold for better gear.',
+            showAfter: 0
+        },
+        dungeon: {
+            message: '💡 The Dungeon is an endless labyrinth adventure! Explore rooms, fight monsters, find treasure. Be careful - strong monsters can deplete your health fast. You can run from combat by clicking "Run" to live another day!',
+            showAfter: 0
+        },
+        inbox: {
+            message: '💡 Your inbox contains battle reports and messages. Check battle reports to see how you performed!',
+            showAfter: 0
+        },
+        leaderboard: {
+            message: '💡 See how you rank against other players! Compete for the top spots in gold earned, wins, and level.',
+            showAfter: 0
+        }
+    };
+    
+    const help = tabHelp[tab];
+    if (!help) {
+        return res.json({ message: null });
+    }
+    
+    // Check if should show based on wins
+    if (wins < help.showAfter) {
+        return res.json({ message: null });
+    }
+    
+    res.json({ message: help.message });
+});
+
+// ── Elemental Spirit Beast ───────────────────────────────────────────────
+const ELEM_XP_TABLE = [100, 250, 500, 800, 1200, 1700, 2300, 3000, 3800, 5000];
+function elemXpForLevel(lvl) {
+    if (lvl <= 10) return ELEM_XP_TABLE[lvl - 1] || 5000;
+    return 5000 + (lvl - 10) * 1000;
+}
+
+function calcElemStats(elem) {
+    const lvl = elem.level || 1;
+    const str = (elem.strength || 5) + (elem.stat_str || 0) * 2;
+    const def = (elem.defense || 5) + (elem.stat_def || 0) * 2;
+    const mag = (elem.magic || 5) + (elem.stat_mag || 0) * 2;
+    const vit = (elem.vitality || 5) + (elem.stat_vit || 0) * 2;
+    const hpMax = 30 + vit * 4 + lvl * 8;
+    const dmgMin = 2 + Math.floor(str * 0.3) + Math.floor(mag * 0.2) + Math.floor(lvl * 0.5);
+    const dmgMax = 5 + Math.floor(str * 0.4) + Math.floor(mag * 0.3) + Math.floor(lvl * 0.8);
+    return { str, def, mag, vit, hpMax, dmgMin, dmgMax };
+}
+
+function calcElemAttackValue(elem, computedStats) {
+    const elemLvl = elem.element_level || 1;
+    const str = computedStats.str || 0;
+    const mag = computedStats.mag || 0;
+    const fromStr = Math.floor(str * 0.4);
+    const fromMag = Math.floor(mag * 0.3);
+    const base = Math.max(1, 2 + fromStr + fromMag + Math.floor(elemLvl * 2));
+    const variance = Math.max(1, Math.floor(base * 0.2));
+    return Math.max(1, base + Math.floor(Math.random() * variance) - Math.floor(variance / 2));
+}
+
+function calcElemHealValue(elem, computedStats) {
+    const elemLvl = elem.element_level || 1;
+    const vit = computedStats.vit;
+    const def = computedStats.def;
+    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + Math.floor(vit * 0.0375) + Math.floor(def * 0.0125)));
+    const variance = Math.floor(base * 0.2);
+    return Math.max(1, Math.floor((base + Math.floor(Math.random() * variance) - Math.floor(variance / 2)) / 8));
+}
+
+async function ensureElemental(db, charId) {
+    let elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [charId]);
+    if (!elem) return null;
+    const stats = calcElemStats(elem);
+    const newHpMax = stats.hpMax;
+    if (elem.hp_max !== newHpMax) {
+        await dbRun(db, 'UPDATE elementals SET hp_max = ? WHERE id = ?', [newHpMax, elem.id]);
+        elem.hp_max = newHpMax;
+    }
+    if (elem.hp_current > newHpMax) {
+        await dbRun(db, 'UPDATE elementals SET hp_current = ? WHERE id = ?', [newHpMax, elem.id]);
+        elem.hp_current = newHpMax;
+    }
+    // HP regen: 10% of max HP per hour
+    const now = Math.floor(Date.now() / 1000);
+    const lastRegen = elem.hp_regen_at || 0;
+    if (lastRegen > 0 && elem.hp_current < newHpMax) {
+        const hoursElapsed = Math.floor((now - lastRegen) / 3600);
+        if (hoursElapsed >= 1) {
+            const healAmount = Math.floor(newHpMax * 0.1 * hoursElapsed);
+            const newHp = Math.min(newHpMax, elem.hp_current + healAmount);
+            await dbRun(db, 'UPDATE elementals SET hp_current = ?, hp_regen_at = ? WHERE id = ?', [newHp, now, elem.id]);
+            elem.hp_current = newHp;
+            elem.hp_regen_at = now;
+        }
+    } else if (lastRegen === 0) {
+        await dbRun(db, 'UPDATE elementals SET hp_regen_at = ? WHERE id = ?', [now, elem.id]);
+        elem.hp_regen_at = now;
+    }
+    return elem;
+}
+
+async function levelUpElemental(db, elem) {
+    let newLevel = elem.level;
+    let xp = elem.xp;
+    while (newLevel < 90 && xp >= elemXpForLevel(newLevel)) {
+        xp -= elemXpForLevel(newLevel);
+        newLevel++;
+    }
+    if (newLevel !== elem.level) {
+        const gains = {
+            stat_points: (elem.stat_points || 0) + (newLevel - elem.level) * 3,
+            xp,
+        };
+        await dbRun(db, `UPDATE elementals SET level=?, stat_points=?, xp=? WHERE id=?`,
+            [newLevel, gains.stat_points, gains.xp, elem.id]);
+        elem.level = newLevel;
+        elem.stat_points = gains.stat_points;
+        elem.xp = gains.xp;
+    } else {
+        await dbRun(db, 'UPDATE elementals SET xp=? WHERE id=?', [xp, elem.id]);
+        elem.xp = xp;
+    }
+    return elem;
+}
+
+// Material feed values: each entry = { xp, element }
+const ELEM_FEED_VALUES = {
+    dgn_pyro_cinder:     { xp: 3,  element:'pyro'    },
+    dgn_water_droplet:   { xp: 3,  element:'water'   },
+    dgn_electro_spark:   { xp: 3,  element:'electro' },
+    dgn_wind_feather:    { xp: 3,  element:'wind'    },
+    dgn_pyro_ember:      { xp: 8,  element:'pyro'    },
+    dgn_water_crystal:   { xp: 8,  element:'water'   },
+    dgn_electro_shard:   { xp: 8,  element:'electro' },
+    dgn_wind_whisper:    { xp: 8,  element:'wind'    },
+    dgn_pyro_core:       { xp: 15, element:'pyro'    },
+    dgn_water_core:      { xp: 15, element:'water'   },
+    dgn_electro_core:    { xp: 15, element:'electro' },
+    dgn_wind_core:       { xp: 15, element:'wind'    },
+    dgn_pyro_essence:    { xp: 25, element:'pyro'    },
+    dgn_water_essence:   { xp: 25, element:'water'   },
+    dgn_electro_essence: { xp: 25, element:'electro' },
+    dgn_wind_essence:    { xp: 25, element:'wind'    },
+    dgn_pyro_primordial: { xp: 45, element:'pyro'    },
+    dgn_water_primordial:{ xp: 45, element:'water'   },
+    dgn_electro_primordial:{xp: 45, element:'electro' },
+    dgn_wind_primordial: { xp: 45, element:'wind'    },
+};
+
+router.get('/elemental', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.json({ elemental: null });
+        const stats = calcElemStats(elem);
+        const xpNext = elemXpForLevel(elem.level);
+        res.json({ elemental: { ...elem, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/discover', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const existing = await dbGet(db, 'SELECT id FROM elementals WHERE char_id = ?', [char.id]);
+        if (existing) {
+            console.log('[ElemDiscover] Already has elemental, char_id:', char.id);
+            return res.status(400).json({ error: 'You already have an elemental' });
+        }
+        const maxFloor = char.dungeon_floor || 0;
+        if (maxFloor < 5) {
+            console.log('[ElemDiscover] Floor too low:', maxFloor, 'for char:', char.id);
+            return res.status(400).json({ error: 'Reach dungeon floor 5 to discover an elemental' });
+        }
+        const name = (req.body?.name || '').trim().slice(0, 24) || 'Elemental';
+        const ins = await dbRun(db, `INSERT INTO elementals (char_id, name, stat_points) VALUES (?, ?, ?)`, [char.id, name, 5]);
+        console.log('[ElemDiscover] INSERT result:', JSON.stringify(ins), 'char_id:', char.id, 'name:', name);
+        const elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [char.id]);
+        if (!elem) {
+            console.error('[ElemDiscover] Elemental not found after INSERT for char_id:', char.id);
+            return res.status(500).json({ error: 'Elemental not found after creation' });
+        }
+        const stats = calcElemStats(elem);
+        console.log('[ElemDiscover] Success, elemental id:', elem.id, 'name:', name);
+        res.json({ message: `✨ You discovered ${name} the Spirit Beast!`, elemental: { ...elem, ...stats } });
+    } catch (e) {
+        console.error('[ElemDiscover] Error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/elemental/feed', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.status(400).json({ error: 'No elemental. Discover one first.' });
+        const { inventory_id, qty } = req.body;
+        if (!inventory_id) return res.status(400).json({ error: 'inventory_id required' });
+        const invItem = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [inventory_id, char.id]);
+        if (!invItem) return res.status(404).json({ error: 'Item not found' });
+        const data = typeof invItem.item_data === 'string' ? JSON.parse(invItem.item_data) : invItem.item_data;
+        if (data.type !== 'raw_mat' && data.category !== 'material') {
+            return res.status(400).json({ error: 'Can only feed raw materials' });
+        }
+        const feedInfo = ELEM_FEED_VALUES[data.id];
+        if (!feedInfo) {
+            return res.status(400).json({ error: 'This material cannot be fed to the spirit beast' });
+        }
+        const feedQty = Math.min(qty || 1, data.qty || 1);
+        const xpPerUnit = feedInfo.xp;
+        const element = feedInfo.element;
+        const totalXp = xpPerUnit * feedQty;
+        if (data.qty !== undefined) {
+            data.qty -= feedQty;
+            if (data.qty <= 0) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invItem.id]);
+            } else {
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), invItem.id]);
+            }
+        } else {
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invItem.id]);
+        }
+        const elemXp = (elem.elemental_xp || 0) + totalXp;
+        const newElemLevel = 1 + Math.floor(elemXp / 100);
+        const affinityField = `${element}_affinity`;
+        elem.xp = (elem.xp || 0) + totalXp;
+        await dbRun(db, `UPDATE elementals SET xp=?, elemental_xp=?, element_level=?, ${affinityField} = COALESCE(${affinityField},0)+? WHERE id=?`,
+            [elem.xp, elemXp, newElemLevel, totalXp, elem.id]);
+        // Auto-switch element if the fed element's affinity becomes the highest
+        const updatedElem = await dbGet(db, 'SELECT * FROM elementals WHERE id=?', [elem.id]);
+        if (updatedElem) {
+            const affs = [
+                { el:'pyro',    val: Number(updatedElem.pyro_affinity || 0) },
+                { el:'water',   val: Number(updatedElem.water_affinity || 0) },
+                { el:'electro', val: Number(updatedElem.electro_affinity || 0) },
+                { el:'wind',    val: Number(updatedElem.wind_affinity || 0) },
+            ];
+            const top = affs.reduce((a, b) => a.val >= b.val ? a : b);
+            if (top.el !== updatedElem.element && top.val > 0) {
+                await dbRun(db, 'UPDATE elementals SET element=? WHERE id=?', [top.el, updatedElem.id]);
+                updatedElem.element = top.el;
+            }
+            elem = updatedElem;
+        }
+        const xpNext = elemXpForLevel(elem.level);
+        const stats = calcElemStats(elem);
+        const leveled = await levelUpElemental(db, elem);
+        res.json({ message: `🍽️ Fed ${feedQty}x ${data.name || 'material'} (+${totalXp} XP)`, elemental: { ...leveled, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/set-element', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.status(400).json({ error: 'No elemental' });
+        const { element } = req.body;
+        if (!['pyro', 'water', 'wind', 'electro'].includes(element)) {
+            return res.status(400).json({ error: 'Invalid element. Choose: pyro, water, wind, electro' });
+        }
+        const changeCost = 5000;
+        if ((char.gold || 0) < changeCost) return res.status(400).json({ error: `Need ${changeCost} gold to change element` });
+        await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [changeCost, char.id]);
+        // Set element, reset element_level/xp, and reset affinities (chosen gets 1 so it sticks)
+        await dbRun(db, `UPDATE elementals SET element=?, element_level=1, elemental_xp=0,
+            pyro_affinity=0, water_affinity=0, electro_affinity=0, wind_affinity=0
+            WHERE id=?`, [element, elem.id]);
+        res.json({ message: `⚡ Elemental's element changed to ${element}!`, gold: Math.max(0, (char.gold || 0) - changeCost) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/elemental/assign-stats', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        let elem = await ensureElemental(db, char.id);
+        if (!elem) return res.status(400).json({ error: 'No elemental' });
+        const { str, def, agi, mag, vit } = req.body;
+        const total = (str || 0) + (def || 0) + (agi || 0) + (mag || 0) + (vit || 0);
+        if (total > (elem.stat_points || 0)) {
+            return res.status(400).json({ error: 'Not enough stat points' });
+        }
+        await dbRun(db, `UPDATE elementals SET stat_str=stat_str+?, stat_def=stat_def+?, stat_agi=stat_agi+?, stat_mag=stat_mag+?, stat_vit=stat_vit+?, stat_points=stat_points-? WHERE id=?`,
+            [str||0, def||0, agi||0, mag||0, vit||0, total, elem.id]);
+        const updated = await ensureElemental(db, char.id);
+        const stats = calcElemStats(updated);
+        const xpNext = elemXpForLevel(updated.level);
+        res.json({ message: 'Stats assigned!', elemental: { ...updated, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Elemental combat helpers ────────────────────────────────────────────
+function buildElementalFighter(elem, playerLevel) {
+    if (!elem) return null;
+    const stats = calcElemStats(elem);
+    const elemLvl = elem.element_level || 1;
+    // Elemental damage from affinities — higher affinity = more elemental damage
+    const affPyro = Number(elem.pyro_affinity || 0);
+    const affWater = Number(elem.water_affinity || 0);
+    const affElectro = Number(elem.electro_affinity || 0);
+    const affWind = Number(elem.wind_affinity || 0);
+    const totalAff = affPyro + affWater + affElectro + affWind;
+    let elems;
+    if (totalAff === 0) {
+        // Fresh elemental — use base element at full value
+        elems = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        elems[elem.element || 'pyro'] = 1;
+    } else {
+        const maxAff = Math.max(affPyro, affWater, affElectro, affWind);
+        elems = {
+            pyro:    affPyro / maxAff,
+            water:   affWater / maxAff,
+            wind:    affWind / maxAff,
+            electro: affElectro / maxAff,
+        };
+    }
+    return {
+        id: `elem_${elem.id}`,
+        name: elem.name || 'Elemental',
+        class: 'elemental',
+        level: elem.level,
+        hp: elem.hp_current || stats.hpMax,
+        hpMax: stats.hpMax,
+        dmgMin: stats.dmgMin,
+        dmgMax: stats.dmgMax,
+        strength: stats.str,
+        magic: stats.mag,
+        defense: stats.def,
+        armor: Math.floor(stats.def / 3),
+        hit_chance: 0,
+        crit_chance: 0,
+        dmg_bonus: 0,
+        elem_dmg: elems,
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        skillEffects: [],
+        skillMods: [],
+        baseActiveSkills: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        isElemental: true,
+    };
+}
+
+function applyElementalCombat(elemFighter, defender, log, round) {
+    if (!elemFighter || elemFighter.hp <= 0) return { dmg: 0, logLine: '' };
+    const atkZone = (elemFighter.attackZones || DEFAULT_ATTACK_ZONES)[(round - 1) % 10] || 'chest';
+    const blkZone = (defender.blockZones || DEFAULT_BLOCK_ZONES)[(round - 1) % 10] || 'cross_guard';
+    const res = simulateRound(round, elemFighter, defender, atkZone, blkZone, false,
+        { active: false, value: 0, remaining: 0 }, { active: false, value: 0, remaining: 0 });
+    defender.hp = Math.max(0, defender.hp - res.damageDealt);
+    if (res.damageDealt > 0) {
+        log.push(`🔥 ${elemFighter.name} attacks ${defender.name} for ${res.damageDealt} damage!`);
+    }
+    return { dmg: res.damageDealt, logLine: res.logLine };
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Helper to check if character is currently training
+async function isCharacterTraining(db, characterId) {
+    const training = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?', 
+        [characterId, Math.floor(Date.now() / 1000)]);
+    return !!training;
+}
+
+// Export battle engine for use by tournament module
+module.exports = {
+  router, parseAdminPassword, dbGet, getDb,
+  simulateRound, runBattle, calculateMagicShield,
+  calcHpMax, calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
+  calcElemAttackValue, calcElemHealValue,
+  getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
+  hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
+   getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
+  DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
+};const express = require('express');
+const { getDb } = require('./db');
+const auth = require('./middleware');
+const skillsModule = require('./skills');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+const crypto = require('crypto');
+
+// ── Weapon leveling constants ──────────────────────────────────────────────
+const WEAPON_XP_PER_MISSION = 1;
+const WEAPON_XP_PER_PVP = 3;
+const WEAPON_MAX_LEVEL = 5;
+const WEAPON_FEED_WEIGHTS = { common:1, uncommon:3, rare:8, epic:20, legendary:50 };
+const WEAPON_STAT_POINTS_PER_LEVEL = 10;
+const getWeaponXPForLevel = (lvl) => 50;
+const getWeaponFeedForLevel = (lvl) => 500;
+
+function initWeaponData(itemData) {
+    if (!itemData.wp_level) itemData.wp_level = 1;
+    if (!itemData.wp_xp) itemData.wp_xp = 0;
+    if (!itemData.wp_feed) itemData.wp_feed = 0;
+    if (!itemData.wp_stats) itemData.wp_stats = {};
+    if (itemData.wp_stat_points == null) itemData.wp_stat_points = 0;
+    return itemData;
+}
+
+async function grantWeaponXP(db, charId, xpAmount) {
+    const eq = await getEquippedItemsArray(db, charId);
+    const weaponRow = eq.find(r => { try {
+        const d = typeof r.item_data === 'string' ? JSON.parse(r.item_data) : r.item_data;
+        return d.slot === 'weapon';
+    } catch { return false; }});
+    if (!weaponRow) return;
+    const data = typeof weaponRow.item_data === 'string' ? JSON.parse(weaponRow.item_data) : weaponRow.item_data;
+    initWeaponData(data);
+    data.wp_xp = (data.wp_xp || 0) + xpAmount;
+    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), weaponRow.id]);
+}
+
+// Import skill tree functions
+const { 
+    applyClassUpgradeCostModifier, 
+    computePassiveBonuses, 
+    computeActiveCombatEffects, 
+    computeClassModifiers, 
+    rogueHasDualWield,
+    // NEW progressive functions
+    computePassiveBonusesWithProgress,
+    computeActiveCombatEffectsWithProgress,
+    computeClassModifiersWithProgress
+} = require('./skills');
+
+BigInt.prototype.toJSON = function() { return Number(this); };
+
+const router = express.Router();
+const _missionStartLock = new Set();
+const _upgradeLock = new Set();
+const _weeklyClaimableCountCache = new Map();
+
+function invalidateWeeklyClaimableCountCache(charId) {
+    const prefix = `${charId}:`;
+    for (const key of _weeklyClaimableCountCache.keys()) {
+        if (key.startsWith(prefix)) {
+            _weeklyClaimableCountCache.delete(key);
+        }
+    }
+}
+
+function normalizeReferralCode(value) {
+    return String(value || '').trim().replace(/^@+/, '').toLowerCase();
+}
+
+function normalizeRewardMaterialId(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
+const MESSAGE_RETENTION_SECONDS = 14 * 24 * 60 * 60;
+const CHAT_RETENTION_SECONDS = 12 * 60 * 60;
+const CHAT_MESSAGE_MAX_LENGTH = 280;
+const CHAT_PROFANITY_WORDS = [
+    'asshole',
+    'bitch',
+    'bullshit',
+    'cunt',
+    'dick',
+    'fuck',
+    'fucker',
+    'fucking',
+    'motherfucker',
+    'nigga',
+    'nigger',
+    'pussy',
+    'shit',
+    'slut',
+    'whore'
+];
+
+function parseAdminPassword(req) {
+    return String(req.query?.password || req.body?.password || '').trim();
+}
+
+function escapeRegex(text) {
+    return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function maskProfanityWord(word) {
+    const clean = String(word || '');
+    if (clean.length <= 2) return '*'.repeat(clean.length || 1);
+    return `${clean[0]}${'*'.repeat(Math.max(1, clean.length - 2))}${clean[clean.length - 1]}`;
+}
+
+function sanitizeChatMessage(input) {
+    let text = String(input || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    if (text.length > CHAT_MESSAGE_MAX_LENGTH) {
+        text = text.slice(0, CHAT_MESSAGE_MAX_LENGTH).trim();
+    }
+    for (const bannedWord of CHAT_PROFANITY_WORDS) {
+        const re = new RegExp(`\\b${escapeRegex(bannedWord)}\\b`, 'gi');
+        text = text.replace(re, (match) => maskProfanityWord(match));
+    }
+    return text;
+}
+
+function normalizeCharacterName(input) {
+    return String(input || '').replace(/\s+/g, ' ').trim();
+}
+
+function containsProfanity(input) {
+    const text = String(input || '');
+    if (!text) return false;
+    for (const bannedWord of CHAT_PROFANITY_WORDS) {
+        const re = new RegExp(`\\b${escapeRegex(bannedWord)}\\b`, 'i');
+        if (re.test(text)) return true;
+    }
+    return false;
+}
+
+function isTutorialCharacter(char) {
+    if (!char) return false;
+    return Number(char.wins || 0) < 4 && !Number(char.tutorial_skipped || 0);
+}
+
+function serializeChatMessage(row, currentCharId) {
+    return {
+        id: Number(row.id || 0),
+        sender_char_id: Number(row.sender_char_id || 0),
+        sender_name: row.sender_name || 'Unknown',
+        recipient_char_id: row.recipient_char_id ? Number(row.recipient_char_id) : null,
+        recipient_name: row.recipient_name || null,
+        message_text: row.message_text || '',
+        created_at: Number(row.created_at || 0),
+        edited: !!row.edited,
+        edited_at: row.edited_at ? Number(row.edited_at) : null,
+        is_private: !!row.recipient_char_id,
+        is_outgoing: Number(row.sender_char_id || 0) === Number(currentCharId || 0)
+    };
+}
+
+function buildAdminRewardPayload(input = {}) {
+    const gold = Math.max(0, Number(input.gold || 0));
+    const gems = Math.max(0, Number(input.gems || 0));
+    const xp = Math.max(0, Number(input.xp || 0));
+    const materialType = String(input.materialType || '').trim().toLowerCase();
+    const materialId = normalizeRewardMaterialId(input.materialId);
+    const materialQty = Math.max(0, Number(input.materialQty || 0));
+    const payload = {};
+    if (gold > 0) payload.gold = gold;
+    if (gems > 0) payload.gems = gems;
+    if (xp > 0) payload.xp = xp;
+    if (materialId && materialQty > 0 && (materialType === 'raw_mat' || materialType === 'component')) {
+        payload.material = { type: materialType, id: materialId, qty: materialQty };
+    }
+    return Object.keys(payload).length ? payload : null;
+}
+
+function adminRewardInputLooksFilled(input = {}) {
+    const values = [
+        input.gold,
+        input.gems,
+        input.xp,
+        input.materialType,
+        input.materialId,
+        input.materialQty
+    ];
+    return values.some(v => String(v ?? '').trim() !== '' && String(v ?? '').trim() !== '0');
+}
+
+function describeAdminRewardPayload(payload) {
+    if (!payload || typeof payload !== 'object') return 'Message only';
+    const parts = [];
+    if (payload.gold) parts.push(`${Number(payload.gold).toLocaleString()} gold`);
+    if (payload.gems) parts.push(`${Number(payload.gems).toLocaleString()} gems`);
+    if (payload.xp) parts.push(`${Number(payload.xp).toLocaleString()} XP`);
+    if (payload.material?.id && payload.material?.qty) parts.push(`${Number(payload.material.qty).toLocaleString()}x ${payload.material.id}`);
+    return parts.length ? parts.join(' + ') : 'Message only';
+}
+
+async function purgeExpiredMessages(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - MESSAGE_RETENTION_SECONDS;
+    await dbRun(db, 'DELETE FROM messages WHERE sent_at < ?', [cutoff]);
+}
+
+async function purgeExpiredChatMessages(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - CHAT_RETENTION_SECONDS;
+    await dbRun(db, 'DELETE FROM chat_messages WHERE created_at < ?', [cutoff]);
+}
+
+async function queueReferralRewards(db, userId, rewards = {}) {
+    if (!userId) return;
+    const gold = Math.max(0, Number(rewards.gold || 0));
+    const gems = Math.max(0, Number(rewards.gems || 0));
+    const registered = Math.max(0, Number(rewards.registered || 0));
+    const level5 = Math.max(0, Number(rewards.level5 || 0));
+    await dbRun(
+        db,
+        `UPDATE users
+         SET pending_referral_gold = COALESCE(pending_referral_gold, 0) + ?,
+             pending_referral_gems = COALESCE(pending_referral_gems, 0) + ?,
+             referrals_registered = COALESCE(referrals_registered, 0) + ?,
+             referrals_level5 = COALESCE(referrals_level5, 0) + ?
+         WHERE id = ?`,
+        [gold, gems, registered, level5, userId]
+    );
+}
+
+async function handleReferralLevelMilestone(db, userId, previousLevel, newLevel) {
+    if (!userId || Number(previousLevel || 0) >= 5 || Number(newLevel || 0) < 5) return;
+    const user = await dbGet(db, 'SELECT id, referred_by_user_id, referral_level5_rewarded FROM users WHERE id = ?', [userId]);
+    if (!user || !user.referred_by_user_id || Number(user.referral_level5_rewarded || 0) !== 0) return;
+    await queueReferralRewards(db, user.referred_by_user_id, { gems: 5, level5: 1 });
+    await dbRun(db, 'UPDATE users SET referral_level5_rewarded = 1 WHERE id = ?', [user.id]);
+}
+
+function getScaledForgeGoldCost(baseGoldCost, playerLevel, minLevel = 1) {
+    const base = Math.max(0, Number(baseGoldCost || 0));
+    const lvl = Math.max(1, Number(playerLevel || 1));
+    const minLvl = Math.max(1, Number(minLevel || 1));
+    const levelDiff = Math.max(0, lvl - minLvl);
+    const scale = 1 + (levelDiff * 0.20);
+    return Math.max(0, Math.floor(base * scale));
+}
+
+// Define ELEMENTS array (was missing!)
+const ELEMENTS = ['pyro', 'water', 'wind', 'electro'];
+
+// ── Adventurer's Guild Exchanges ─────────────────────────────────────
+const GUILD_EXCHANGES = [
+    { id: 'exchange_gold', name: 'Exchange Dungeon Gold', cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 } },
+    { id: 'exchange_materials', name: 'Material Bounty', cost: { crypt_dust: 10, void_shard: 5 }, reward: { gold: 200, reputation: 2 } },
+    { id: 'exchange_rare', name: 'Rare Material Bounty', cost: { dragon_scale: 3, soul_essence: 2 }, reward: { gold: 500, reputation: 5, item: 'Rare Item Chest' } },
+    { id: 'exchange_legendary', name: 'Legendary Exchange', cost: { abyssal_core: 2, titan_heart: 1 }, reward: { gold: 2000, reputation: 20, item: 'Legendary Item Chest' } },
+];
+
+const DUNGEON_GUILD_BOUNTY_POOL = [
+    { id: 'bounty_skeleton', monsterKey: 'skeleton', monsterName: 'Skeleton Warrior', minCount: 5, maxCount: 9, rewardGold: 450, rewardReputation: 3 },
+    { id: 'bounty_ghost', monsterKey: 'ghost', monsterName: 'Wailing Ghost', minCount: 5, maxCount: 8, rewardGold: 480, rewardReputation: 3 },
+    { id: 'bounty_zombie', monsterKey: 'zombie', monsterName: 'Rotting Zombie', minCount: 5, maxCount: 8, rewardGold: 500, rewardReputation: 3 },
+    { id: 'bounty_fire_imp', monsterKey: 'fire_imp', monsterName: 'Fire Imp', minCount: 4, maxCount: 7, rewardGold: 600, rewardReputation: 4 },
+    { id: 'bounty_void_wraith', monsterKey: 'void_wraith', monsterName: 'Void Wraith', minCount: 4, maxCount: 6, rewardGold: 720, rewardReputation: 5 },
+    { id: 'bounty_abyssal_eye', monsterKey: 'abyssal_eye', monsterName: 'Abyssal Eye', minCount: 3, maxCount: 5, rewardGold: 850, rewardReputation: 6 },
+    { id: 'bounty_shadow_lord', monsterKey: 'shadow_lord', monsterName: 'Shadow Lord', minCount: 2, maxCount: 4, rewardGold: 1100, rewardReputation: 8 },
+    { id: 'bounty_dread_knight', monsterKey: 'dread_knight', monsterName: 'Dread Knight', minCount: 2, maxCount: 4, rewardGold: 1400, rewardReputation: 10 },
+];
+
+const GUILD_RAID_CREATE_REPUTATION = 10;
+const GUILD_RAID_MAX_MEMBERS = 6;
+const GUILD_RAID_GLOBAL_COOLDOWN = 20 * 60 * 60;
+const GUILD_RAID_MERCENARY_COST_GEMS = 1;
+const GUILD_RAID_BOSS_POOL = [
     { name: 'Death Knight Malachar', image: '/images/boss/malachar.jpg', baseHp: 600, baseAtk: 45, baseDef: 20 },
     { name: 'Ignarath the Eternal', image: '/images/boss/ignarath.jpg', baseHp: 700, baseAtk: 55, baseDef: 25 },
     { name: 'Nyxaroth the Devourer', image: '/images/boss/nyxaroth.jpg', baseHp: 800, baseAtk: 65, baseDef: 30 },
