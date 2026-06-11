@@ -2861,6 +2861,17 @@ function buildExtendedAchievements() {
             rewards: { gold: 350000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
         },
         {
+            id: 'nightmare_missions_100',
+            chain: 'nightmare_missions_completed',
+            category: 'missions',
+            name: 'Abyss Conqueror',
+            desc: 'Complete 100 nightmare missions.',
+            icon: '🌑',
+            metric: 'nightmare_missions_completed',
+            target: 100,
+            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
             id: 'elemental_kills_10',
             chain: 'elemental_kills',
             category: 'combat',
@@ -3787,7 +3798,7 @@ function buildExtendedAchievements() {
         rewards: { gold: 2500000, gems: 25, premium: { id: 'fortune_hunter', days: 21 } },
     });
 
-    const nightmareMissionBase = ACHIEVEMENTS.find((a) => a.id === 'nightmare_missions_100');
+    const nightmareMissionBase = extras.find((a) => a.id === 'nightmare_missions_100');
     if (nightmareMissionBase) {
         addFromBase(nightmareMissionBase, {
             id: 'nightmare_missions_150',
@@ -3988,7 +3999,6 @@ ACHIEVEMENTS.push(
     // Nightmare missions
     { id: 'nightmare_missions_5', category: 'missions', name: 'Night Treader', desc: 'Complete 5 nightmare missions.', icon: '🌑', metric: 'nightmare_missions_completed', target: 5, rewards: { gold: 25000 } },
     { id: 'nightmare_missions_25', category: 'missions', name: 'Void Walker', desc: 'Complete 25 nightmare missions.', icon: '🌑', metric: 'nightmare_missions_completed', target: 25, rewards: { gold: 100000, gems: 15 } },
-    { id: 'nightmare_missions_100', category: 'missions', name: 'Abyss Conqueror', desc: 'Complete 100 nightmare missions.', icon: '🌑', metric: 'nightmare_missions_completed', target: 100, rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 
     // ── Stat upgrade achievements ─────────────────────────────────────────
 
