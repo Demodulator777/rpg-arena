@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
 /* ════════════════════════════════════════════════════════════════════════
    RPG ARENA — Premium Dark Fantasy Skin
    ════════════════════════════════════════════════════════════════════════ */
@@ -6728,43 +6730,68 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @keyframes spin-cw  { to { transform: rotate( 360deg); } }
 @keyframes spin-ccw { to { transform: rotate(-360deg); } }
 .loading-text {
-    margin-top: 28px;
-    font-size: 1.05rem;
-    letter-spacing: 5px;
-    text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
-    text-align: center;
+    margin-top: 32px;
     position: relative;
     z-index: 9;
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    justify-content: center;
+    width: 340px;
 }
 .loading-title-shimmer {
+    font-family: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 10px;
+    text-transform: uppercase;
     background: linear-gradient(
         90deg,
-        rgba(255,255,255,0.35) 0%,
-        rgba(255,255,255,0.35) 30%,
-        rgba(220,200,255,0.9)  50%,
-        rgba(255,255,255,0.35) 70%,
-        rgba(255,255,255,0.35) 100%
+        rgba(180,150,255,0.5)  0%,
+        rgba(140,100,255,0.5) 20%,
+        rgba(255,255,255,0.95) 50%,
+        rgba(140,100,255,0.5) 80%,
+        rgba(180,150,255,0.5) 100%
     );
-    background-size: 200% auto;
+    background-size: 250% auto;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: shimmer-sweep 3s linear infinite;
+    animation: shimmer-sweep 3.5s linear infinite;
+    filter: drop-shadow(0 0 8px rgba(168,130,255,0.6)) drop-shadow(0 0 20px rgba(139,92,246,0.35));
+    white-space: nowrap;
+    padding-right: 10px;
 }
 @keyframes shimmer-sweep {
-    from { background-position: 200% center; }
+    from { background-position: 250% center; }
     to   { background-position:   0% center; }
 }
 #loading-dots {
     display: inline-block;
-    width: 1.8em;
+    width: 1.6rem;
     text-align: left;
-    -webkit-text-fill-color: rgba(255,255,255,0.35);
-    color: rgba(255,255,255,0.35);
+    font-family: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
+    font-size: 1.35rem;
+    letter-spacing: 4px;
+    color: rgba(168,130,255,0.6);
+    -webkit-text-fill-color: rgba(168,130,255,0.6);
+    flex-shrink: 0;
 }
+.loading-text::before,
+.loading-text::after {
+    content: '⟡';
+    font-size: 0.65rem;
+    color: rgba(168,130,255,0.5);
+    flex-shrink: 0;
+    animation: rune-flicker 2.8s ease-in-out infinite;
+}
+.loading-text::after {
+    animation-delay: 1.4s;
+}
+@keyframes rune-flicker {
+    0%, 100% { opacity: 0.3; transform: scale(0.9); }
+    50%       { opacity: 0.9; transform: scale(1.2); }
+}
+
 @media (max-width: 680px) {
     .loading-rings, .ring-layer, .loading-ring {
         width: min(363px, 85vw);
@@ -6773,7 +6800,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .tendril-1 { width: 90vw;  height: 90vw;  }
     .tendril-2 { width: 72vw;  height: 72vw;  }
     .tendril-3 { width: 108vw; height: 108vw; }
-    .loading-text { font-size: 0.95rem; letter-spacing: 3px; }
+    .loading-text { width: 280px; }
+    .loading-title-shimmer { font-size: 1.1rem; letter-spacing: 7px; }
     .loading-filigree { width: 80px; height: 80px; }
 }
 @media (max-width: 480px) {
@@ -6781,6 +6809,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: min(363px, 92vw);
         height: min(361px, calc(92vw * 361 / 363));
     }
-    .loading-text { font-size: 0.8rem; letter-spacing: 3px; }
+    .loading-text { width: 240px; }
+    .loading-title-shimmer { font-size: 0.95rem; letter-spacing: 5px; }
     .loading-filigree { width: 60px; height: 60px; }
 }
