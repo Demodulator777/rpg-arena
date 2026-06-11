@@ -4,7 +4,7 @@
     // ── Dots ──────────────────────────────────────────────────────────────
     var dots = document.getElementById('loading-dots');
     if (dots) {
-        var frames = ['', '.', '..', '...'];
+        var frames = ['\u00A0', '.', '..', '...'];
         var di = 0;
         setInterval(function() { di = (di + 1) % frames.length; dots.textContent = frames[di]; }, 400);
     }
