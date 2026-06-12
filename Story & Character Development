@@ -18,3 +18,23 @@ Abyssal Eye is a manifestation of local coruption exposing reality to the watchf
 Rotting Zombies are the direct refusal of the dungeon to waste perfectly good corrupted adventures. Fight the remains of those before you!
 Fire Imps are infernal manifestaions of demonic influence. Holy water is highly recomended.
 The Crawler is Doom manifest. A being of endless growth, it mimics the strength of it's next meal to provide entertainment. Nothing escapes it's hunt.
+Void Titans are gigantic void touched titans from the netherrealm. Caution is advised.
+Dread Knights are fear incarnate. Survivors are often mentally broken from the experence.
+Elder Lich is a long dead Mage that forsook life and turned to undeath in their greed.
+Crystal Golems are Hard as Diamond and hit with the force of the mountain.
+
+
+  // Mini-bosses can also appear as regular spawns in the current client generator.
+  { id:'flame_revenant', name:'Flame Revenant', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss:true },
+  { id:'frost_wyrmling', name:'Frost Wyrmling', hp:450, atk:60, def:30, steal:true, minFloor:25, isMiniBoss:true },
+  { id:'void_stalker', name:'Void Stalker', hp:500, atk:75, def:28, steal:true, minFloor:30, isMiniBoss:true },
+  { id:'doom_knight', name:'Doom Knight', hp:700, atk:65, def:50, steal:true, minFloor:35, isMiniBoss:true },
+];
+
+const DUNGEON_MINI_BOSS_POOL = [
+  { id:'shadow_stalker', name:'Shadow Stalker', baseHp:400, baseAtk:55, baseDef:25, minFloor:5, image:'/images/dungeon/miniboss1.jpg', lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
+  { id:'crystal_golem', name:'Crystal Golem', baseHp:600, baseAtk:40, baseDef:45, minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
+  { id:'flame_revenant', name:'Flame Revenant', baseHp:350, baseAtk:70, baseDef:20, minFloor:20, image:'/images/dungeon/miniboss3.jpg' },
+  { id:'frost_wyrmling', name:'Frost Wyrmling', baseHp:450, baseAtk:60, baseDef:30, minFloor:25, image:'/images/dungeon/miniboss4.jpg' },
+  { id:'void_stalker', name:'Void Stalker', baseHp:500, baseAtk:75, baseDef:28, minFloor:30, image:'/images/dungeon/miniboss5.jpg' },
+  { id:'doom_knight', name:'Doom Knight', baseHp:700, baseAtk:65, baseDef:50, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
