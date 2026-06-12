@@ -5153,14 +5153,23 @@ function hasSlotEquipped(items, slot) {
 async function recordEquipmentlessWins(db, char, equippedItems) {
     if (!char?.id) return;
     const items = equippedItems || [];
-    if (!hasShieldEquipped(items)) await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
-    if (!hasSlotEquipped(items, 'weapon')) await dbRun(db, 'UPDATE characters SET wins_without_weapon = wins_without_weapon + 1 WHERE id=?', [char.id]);
-    if (!hasSlotEquipped(items, 'helmet')) await dbRun(db, 'UPDATE characters SET wins_without_helmet = wins_without_helmet + 1 WHERE id=?', [char.id]);
-    if (!hasSlotEquipped(items, 'armor')) await dbRun(db, 'UPDATE characters SET wins_without_armor = wins_without_armor + 1 WHERE id=?', [char.id]);
-    if (!hasSlotEquipped(items, 'boots')) await dbRun(db, 'UPDATE characters SET wins_without_boots = wins_without_boots + 1 WHERE id=?', [char.id]);
     const essentialSlots = ['weapon', 'helmet', 'armor', 'boots', 'shield'];
-    if (essentialSlots.every(s => !hasSlotEquipped(items, s))) {
+    const missing = essentialSlots.filter(s => !hasSlotEquipped(items, s));
+
+    if (missing.length === 0) return;
+
+    if (missing.length === 5) {
         await dbRun(db, 'UPDATE characters SET wins_without_equipment = wins_without_equipment + 1 WHERE id=?', [char.id]);
+        return;
+    }
+
+    if (missing.length === 1) {
+        const s = missing[0];
+        if (s === 'shield') await dbRun(db, 'UPDATE characters SET wins_without_shield = wins_without_shield + 1 WHERE id=?', [char.id]);
+        if (s === 'weapon') await dbRun(db, 'UPDATE characters SET wins_without_weapon = wins_without_weapon + 1 WHERE id=?', [char.id]);
+        if (s === 'helmet') await dbRun(db, 'UPDATE characters SET wins_without_helmet = wins_without_helmet + 1 WHERE id=?', [char.id]);
+        if (s === 'armor') await dbRun(db, 'UPDATE characters SET wins_without_armor = wins_without_armor + 1 WHERE id=?', [char.id]);
+        if (s === 'boots') await dbRun(db, 'UPDATE characters SET wins_without_boots = wins_without_boots + 1 WHERE id=?', [char.id]);
     }
 }
 
