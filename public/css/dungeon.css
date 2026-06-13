@@ -1112,6 +1112,60 @@
   }
 }
 
+/* ── Full-screen dungeon combat ─────────────────────────────── */
+body.combat-lock .topbar,
+body.combat-lock .sidebar {
+  display: none !important;
+}
+body.combat-lock #tab-content-area {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+body.combat-lock .dungeon-game-screen {
+  height: 100dvh;
+}
+
+.dungeon-overlay:has(.dungeon-combat-panel) {
+  top: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.dungeon-combat-panel {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dungeon-combat-panel .combat-header {
+  flex-shrink: 0;
+}
+
+.dungeon-combat-panel .combat-fighters {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: 45vh;
+}
+
+.dungeon-combat-panel .combat-log {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  min-height: 60px !important;
+  max-height: none !important;
+  margin-bottom: 0;
+}
+
+.dungeon-combat-panel .combat-actions {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  background: var(--dungeon-surface);
+  padding: 12px 0 0;
+  margin-top: auto;
+}
+
 /* ── Topbar ── */
 .dungeon-topbar {
   display: flex;
