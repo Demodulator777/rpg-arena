@@ -322,7 +322,13 @@
 }
 
 .combat-monster-entry.defeated {
-  display: none;
+  flex: 0 0 0;
+  height: 0;
+  overflow: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .combat-monster-entry .fighter-hp-bar-wrap {
@@ -1112,17 +1118,9 @@
 }
 
 /* ── Full-screen dungeon combat ─────────────────────────────── */
-body.combat-lock .topbar,
-body.combat-lock .sidebar {
-  display: none !important;
-}
 body.combat-lock #tab-content-area {
   padding-top: 0;
   padding-bottom: 0;
-}
-body.combat-lock .dungeon-game-screen {
-  height: 100dvh;
-  overflow-y: auto;
 }
 
 .dungeon-overlay:has(.dungeon-combat-panel) {
