@@ -2964,6 +2964,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     if (!area) return;
     if (!_cachedElemental && getChar()?.elemental) fetchElemental();
     document.body.classList.add('modal-lock');
+    document.body.classList.add('combat-lock');
 
     const _oldOverlay = document.getElementById('dungeon-overlay');
     if (_oldOverlay) _oldOverlay.innerHTML = '';
