@@ -1122,10 +1122,6 @@ body.combat-lock #tab-content-area {
   padding-top: 0;
   padding-bottom: 0;
 }
-body.combat-lock .dungeon-game-screen {
-  height: 100dvh;
-  min-height: 100dvh;
-}
 
 .dungeon-overlay:has(.dungeon-combat-panel) {
   top: 0 !important;
