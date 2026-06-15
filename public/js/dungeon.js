@@ -54,22 +54,56 @@
 
   // ── Adventurer's Guild ─────────────────────────────────────────
 const GUILD_EXCHANGES = [
-  { id: 'exchange_gold', name: 'Exchange Dungeon Gold', icon: '💰', 
+  { id: 'exchange_gold', name: 'Exchange Dungeon Gold', icon: '💰',
     cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 },
-    desc: 'Convert 100 dungeon gold into 80 real gold + 1 reputation point' },
-  
-  { id: 'exchange_materials', name: 'Material Bounty', icon: '📦', 
-    cost: { crypt_dust: 10, void_shard: 5 }, reward: { gold: 200, reputation: 2 },
-    desc: 'Trade 10 Crypt Dust and 5 Void Shards for 200 gold' },
-  
-  { id: 'exchange_rare', name: 'Rare Material Bounty', icon: '✨', 
-    cost: { dragon_scale: 3, soul_essence: 2 }, reward: { gold: 500, reputation: 5, item: 'Rare Item Chest' },
-    desc: 'Trade rare materials for a Rare Item Chest + reputation' },
-  
-  { id: 'exchange_legendary', name: 'Legendary Exchange', icon: '👑', 
-    cost: { abyssal_core: 2, titan_heart: 1 }, reward: { gold: 2000, reputation: 20, item: 'Legendary Item Chest' },
-    desc: 'Trade legendary materials for a Legendary Item Chest + major reputation' },
+    desc: 'Convert 100 dungeon gold into 80 real gold + 1 reputation point', minRep: 0 },
+  { id: 'buy_elem_common', name: 'Buy Common Element', icon: '🔥',
+    cost: { dungeonGold: 40 }, reward: { elemTier: 'common' },
+    desc: 'Purchase 1 random common elemental material (3 XP)', minRep: 0 },
+  { id: 'buy_elem_uncommon', name: 'Buy Uncommon Element', icon: '💧',
+    cost: { dungeonGold: 100 }, reward: { elemTier: 'uncommon' },
+    desc: 'Purchase 1 random uncommon elemental material (8 XP)', minRep: 10 },
+  { id: 'buy_elem_rare', name: 'Buy Rare Element', icon: '⚡',
+    cost: { dungeonGold: 180 }, reward: { elemTier: 'rare' },
+    desc: 'Purchase 1 random rare elemental material (15 XP)', minRep: 50 },
+  { id: 'buy_elem_epic', name: 'Buy Epic Element', icon: '🌪️',
+    cost: { dungeonGold: 300 }, reward: { elemTier: 'epic' },
+    desc: 'Purchase 1 random epic elemental material (25 XP)', minRep: 200 },
+  { id: 'buy_elem_legendary', name: 'Buy Legendary Element', icon: '👑',
+    cost: { dungeonGold: 500 }, reward: { elemTier: 'legendary' },
+    desc: 'Purchase 1 random legendary elemental material (45 XP)', minRep: 500 },
+  { id: 'swap_elem_common', name: 'Swap Common Elements', icon: '🔄',
+    cost: { tier_common: 2 }, reward: { elemTier: 'common' },
+    desc: 'Trade 2 common elemental materials for 1 random common', minRep: 0 },
+  { id: 'swap_elem_uncommon', name: 'Swap Uncommon Elements', icon: '🔄',
+    cost: { tier_uncommon: 2 }, reward: { elemTier: 'uncommon' },
+    desc: 'Trade 2 uncommon elemental materials for 1 random uncommon', minRep: 10 },
+  { id: 'swap_elem_rare', name: 'Swap Rare Elements', icon: '🔄',
+    cost: { tier_rare: 2 }, reward: { elemTier: 'rare' },
+    desc: 'Trade 2 rare elemental materials for 1 random rare', minRep: 50 },
+  { id: 'swap_elem_epic', name: 'Swap Epic Elements', icon: '🔄',
+    cost: { tier_epic: 2 }, reward: { elemTier: 'epic' },
+    desc: 'Trade 2 epic elemental materials for 1 random epic', minRep: 200 },
+  { id: 'swap_elem_legendary', name: 'Swap Legendary Elements', icon: '🔄',
+    cost: { tier_legendary: 2 }, reward: { elemTier: 'legendary' },
+    desc: 'Trade 2 legendary elemental materials for 1 random legendary', minRep: 500 },
 ];
+
+const ELEM_TIER_INFO = {
+  common: { name: 'Common', xp: 3, cost: 40, elements: ['pyro', 'water', 'electro', 'wind'] },
+  uncommon: { name: 'Uncommon', xp: 8, cost: 100, elements: ['pyro', 'water', 'electro', 'wind'] },
+  rare: { name: 'Rare', xp: 15, cost: 180, elements: ['pyro', 'water', 'electro', 'wind'] },
+  epic: { name: 'Epic', xp: 25, cost: 300, elements: ['pyro', 'water', 'electro', 'wind'] },
+  legendary: { name: 'Legendary', xp: 45, cost: 500, elements: ['pyro', 'water', 'electro', 'wind'] },
+};
+
+const ELEM_TIER_ITEMS = {
+  common: ['dgn_pyro_cinder', 'dgn_water_droplet', 'dgn_electro_spark', 'dgn_wind_feather'],
+  uncommon: ['dgn_pyro_ember', 'dgn_water_crystal', 'dgn_electro_shard', 'dgn_wind_whisper'],
+  rare: ['dgn_pyro_core', 'dgn_water_core', 'dgn_electro_core', 'dgn_wind_core'],
+  epic: ['dgn_pyro_essence', 'dgn_water_essence', 'dgn_electro_essence', 'dgn_wind_essence'],
+  legendary: ['dgn_pyro_primordial', 'dgn_water_primordial', 'dgn_electro_primordial', 'dgn_wind_primordial'],
+};
 
 // Guild reputation levels
 const GUILD_RANKS = [
@@ -3607,15 +3641,18 @@ function closeDungeonVictory() {
   const overlay = document.getElementById('dungeon-overlay');
   const area = document.getElementById('dungeon-main-area');
   if (!overlay && !area) return;
-  
-  // Make sure D.dungeonInventory exists
-  if (!D.dungeonInventory) D.dungeonInventory = [];
-  
+
+  D.dungeonGold = D.dungeonGold || 0;
+
   apiFetch('GET', '/game/dungeon/guild').then(guildData => {
     const reputation = guildData.guildReputation || 0;
     const dungeonGold = guildData.dungeonGold || 0;
     const bounty = guildData.bounty || null;
-    
+    const elemInv = guildData.elemInventory || {};
+
+    D.dungeonGold = dungeonGold;
+    D._elemInv = elemInv;
+
     // Calculate current rank
     let currentRank = GUILD_RANKS[0];
     for (let i = GUILD_RANKS.length - 1; i >= 0; i--) {
@@ -3624,12 +3661,12 @@ function closeDungeonVictory() {
         break;
       }
     }
-    
+
     const nextRank = GUILD_RANKS[Math.min(currentRank.rank + 1, GUILD_RANKS.length - 1)];
     const repNeeded = nextRank.rank > currentRank.rank ? nextRank.reputationNeeded - reputation : 0;
     const repProgress = nextRank.rank > currentRank.rank ? (reputation / nextRank.reputationNeeded) * 100 : 100;
     const bountyProgress = bounty ? Math.min(100, Math.round(((bounty.progress || 0) / Math.max(1, bounty.target_count || 1)) * 100)) : 0;
-    
+
     const guildHtml = `
       <div class="guild-container">
         <div class="guild-header">
@@ -3640,7 +3677,7 @@ function closeDungeonVictory() {
           </div>
 <button class="dungeon-btn dungeon-btn-exit" ${actionAttrs('closeGuild')}>← Back to Dungeon</button>
         </div>
-        
+
         <div class="guild-stats">
           <div class="guild-stat-card">
             <div class="guild-stat-icon">💰</div>
@@ -3658,7 +3695,7 @@ function closeDungeonVictory() {
             </div>
           </div>
         </div>
-        
+
         <div class="guild-reputation-bar">
           <div class="rep-bar-label">Progress to ${nextRank.name}</div>
           <div class="rep-bar-track">
@@ -3666,7 +3703,7 @@ function closeDungeonVictory() {
           </div>
           <div class="rep-bar-text">${repNeeded > 0 ? repNeeded + ' reputation needed' : 'MAX RANK'}</div>
         </div>
-        
+
         ${bounty ? `
         <div class="guild-exchanges" style="margin-top:18px">
           <div class="guild-section-title">🎯 Active Bounty</div>
@@ -3691,86 +3728,96 @@ function closeDungeonVictory() {
             </div>
           </div>
         </div>` : ''}
-        
+
         <div class="guild-exchanges">
           <div class="guild-section-title">📜 Available Exchanges</div>
           <div class="exchanges-grid">
             ${GUILD_EXCHANGES.map(exchange => {
-              // Check if player can afford this exchange
               let canExchange = true;
               let missingReason = '';
-              
-              if (exchange.cost.dungeonGold && dungeonGold < exchange.cost.dungeonGold) {
+              let isLocked = false;
+
+              // Reputation check
+              if (exchange.minRep > 0 && reputation < exchange.minRep) {
+                isLocked = true;
                 canExchange = false;
-                missingReason = `Need ${exchange.cost.dungeonGold} dungeon gold`;
+                missingReason = '🔒 Unlocks at ' + exchange.minRep + ' reputation';
               }
-              
-              // Check material costs
-              if (exchange.cost.crypt_dust) {
-                const have = D.dungeonInventory.find(i => i.id === 'crypt_dust')?.qty || 0;
-                if (have < exchange.cost.crypt_dust) {
-                  canExchange = false;
-                  missingReason = `Need ${exchange.cost.crypt_dust - have} more Crypt Dust`;
+
+              // Dungeon gold check
+              if (canExchange && exchange.cost.dungeonGold && dungeonGold < exchange.cost.dungeonGold) {
+                canExchange = false;
+                missingReason = 'Need ' + exchange.cost.dungeonGold + ' dungeon gold';
+              }
+
+              // Tier material check (swap exchanges)
+              let tierCostKey = null, tierCostQty = 0;
+              for (const [key, qty] of Object.entries(exchange.cost)) {
+                if (key.startsWith('tier_')) {
+                  tierCostKey = key.replace('tier_', '');
+                  tierCostQty = qty;
+                  break;
                 }
               }
-              if (exchange.cost.void_shard) {
-                const have = D.dungeonInventory.find(i => i.id === 'void_shard')?.qty || 0;
-                if (have < exchange.cost.void_shard) {
+              let totalTierMats = 0;
+              if (tierCostKey && canExchange) {
+                const tierItems = ELEM_TIER_ITEMS ? ELEM_TIER_ITEMS[tierCostKey] : [];
+                for (const id of (tierItems || [])) {
+                  totalTierMats += elemInv[id] || 0;
+                }
+                if (totalTierMats < tierCostQty) {
                   canExchange = false;
-                  missingReason = `Need ${exchange.cost.void_shard - have} more Void Shards`;
+                  missingReason = 'Need ' + tierCostQty + ' ' + tierCostKey + ' materials (have ' + totalTierMats + ')';
                 }
               }
-              if (exchange.cost.dragon_scale) {
-                const have = D.dungeonInventory.find(i => i.id === 'dragon_scale')?.qty || 0;
-                if (have < exchange.cost.dragon_scale) canExchange = false;
-              }
-              if (exchange.cost.soul_essence) {
-                const have = D.dungeonInventory.find(i => i.id === 'soul_essence')?.qty || 0;
-                if (have < exchange.cost.soul_essence) canExchange = false;
-              }
-              if (exchange.cost.abyssal_core) {
-                const have = D.dungeonInventory.find(i => i.id === 'abyssal_core')?.qty || 0;
-                if (have < exchange.cost.abyssal_core) canExchange = false;
-              }
-              if (exchange.cost.titan_heart) {
-                const have = D.dungeonInventory.find(i => i.id === 'titan_heart')?.qty || 0;
-                if (have < exchange.cost.titan_heart) canExchange = false;
-              }
-              
+
               const discount = currentRank.discount / 100;
               const discountedGold = exchange.reward.gold ? Math.floor(exchange.reward.gold * (1 + discount)) : exchange.reward.gold;
-              
-              return `
-                <div class="exchange-card ${canExchange ? 'exchange-available' : 'exchange-unavailable'}">
-                  <div class="exchange-icon">${exchange.icon}</div>
-                  <div class="exchange-info">
-                    <div class="exchange-name">${exchange.name}</div>
-                    <div class="exchange-desc">${exchange.desc}</div>
-                    <div class="exchange-cost">
-                      ${exchange.cost.dungeonGold ? `<span class="cost-item">💰 ${exchange.cost.dungeonGold} Dungeon Gold</span>` : ''}
-                      ${exchange.cost.crypt_dust ? `<span class="cost-item">💀 ${exchange.cost.crypt_dust}x Crypt Dust</span>` : ''}
-                      ${exchange.cost.void_shard ? `<span class="cost-item">🔮 ${exchange.cost.void_shard}x Void Shard</span>` : ''}
-                      ${exchange.cost.dragon_scale ? `<span class="cost-item">🐉 ${exchange.cost.dragon_scale}x Dragon Scale</span>` : ''}
-                      ${exchange.cost.soul_essence ? `<span class="cost-item">✨ ${exchange.cost.soul_essence}x Soul Essence</span>` : ''}
-                      ${exchange.cost.abyssal_core ? `<span class="cost-item">🌑 ${exchange.cost.abyssal_core}x Abyssal Core</span>` : ''}
-                      ${exchange.cost.titan_heart ? `<span class="cost-item">💠 ${exchange.cost.titan_heart}x Titan Heart</span>` : ''}
-                    </div>
-                    <div class="exchange-reward">
-                      <span class="reward-gold">💰 ${discountedGold.toLocaleString()} Gold</span>
-                      ${exchange.reward.reputation ? `<span class="reward-rep">⭐ +${exchange.reward.reputation} Reputation</span>` : ''}
-                      ${exchange.reward.item ? `<span class="reward-item">📦 ${exchange.reward.item}</span>` : ''}
-                      ${currentRank.discount > 0 ? `<span class="reward-discount">✨ +${currentRank.discount}% Gold Bonus (${currentRank.name})</span>` : ''}
-                    </div>
-<button class="exchange-btn" ${actionAttrs('exchangeAtGuild', exchange.id)} ${(!canExchange || D._guildExchangeInFlight) ? 'disabled' : ''}>
-                      ${canExchange ? 'Exchange' : missingReason || 'Missing Requirements'}
-                    </button>
-                  </div>
-                </div>
-              `;
+
+              // Build cost display
+              let costHtml = '';
+              if (exchange.cost.dungeonGold) {
+                costHtml += '<span class="cost-item">💰 ' + exchange.cost.dungeonGold + ' Dungeon Gold</span>';
+              }
+              if (tierCostKey) {
+                costHtml += '<span class="cost-item">📦 ' + tierCostQty + 'x ' + capitalize(tierCostKey) + '</span>';
+              }
+
+              // Build reward display
+              let rewardHtml = '';
+              if (discountedGold) {
+                rewardHtml += '<span class="reward-gold">💰 ' + discountedGold.toLocaleString() + ' Gold</span>';
+              }
+              if (exchange.reward.reputation) {
+                rewardHtml += '<span class="reward-rep">⭐ +' + exchange.reward.reputation + ' Reputation</span>';
+              }
+              if (exchange.reward.elemTier) {
+                const ti = ELEM_TIER_INFO[exchange.reward.elemTier];
+                rewardHtml += '<span class="reward-item">📦 1x ' + (ti ? ti.name : capitalize(exchange.reward.elemTier)) + ' Element</span>';
+              }
+              if (exchange.reward.item) {
+                rewardHtml += '<span class="reward-item">📦 ' + exchange.reward.item + '</span>';
+              }
+              if (currentRank.discount > 0 && discountedGold > 0) {
+                rewardHtml += '<span class="reward-discount">✨ +' + currentRank.discount + '% Gold Bonus (' + currentRank.name + ')</span>';
+              }
+
+              return '<div class="exchange-card ' + (isLocked ? 'exchange-unavailable' : canExchange ? 'exchange-available' : 'exchange-unavailable') + '">' +
+                '<div class="exchange-icon">' + exchange.icon + '</div>' +
+                '<div class="exchange-info">' +
+                  '<div class="exchange-name">' + exchange.name + '</div>' +
+                  '<div class="exchange-desc">' + exchange.desc + '</div>' +
+                  '<div class="exchange-cost">' + costHtml + '</div>' +
+                  '<div class="exchange-reward">' + rewardHtml + '</div>' +
+                  '<button class="exchange-btn" ' + actionAttrs('exchangeAtGuild', exchange.id) + ' ' + ((!canExchange || D._guildExchangeInFlight) ? 'disabled' : '') + '>' +
+                    (isLocked ? '🔒 Locked' : canExchange ? 'Exchange' : missingReason || 'Missing Requirements') +
+                  '</button>' +
+                '</div>' +
+              '</div>';
             }).join('')}
           </div>
         </div>
-        
+
 <button class="dungeon-btn" ${actionAttrs('closeGuild')} style="width:100%;margin-top:20px">Continue Exploring</button>
       </div>
     `;
@@ -3783,7 +3830,7 @@ function closeDungeonVictory() {
           ${guildHtml}
         </div>
       `;
-      
+
       // Force scroll to top when opening
       setTimeout(() => {
         const container = overlay.querySelector('.guild-container');
