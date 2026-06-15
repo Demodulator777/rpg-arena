@@ -14385,19 +14385,22 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
     }
 
     // Apply element material reward
+    let grantedItem = null;
     if (exchange.reward.elemTier) {
       const tier = exchange.reward.elemTier;
       const tierItems = ELEM_TIER_ITEMS[tier];
       if (tierItems && tierItems.length > 0) {
         const chosen = tierItems[Math.floor(Math.random() * tierItems.length)];
         const def = [...DUNGEON_ELEM_COMMON, ...DUNGEON_ELEM_RARE].find(d => d.id === chosen);
-        await addStackableInventoryItem(db, char.id, 'raw_mat', {
+        const item = {
           id: chosen,
           name: def ? def.name : chosen,
           emoji: def ? def.emoji : '📦',
           rarity: tier,
           type: 'raw_mat'
-        }, 1);
+        };
+        await addStackableInventoryItem(db, char.id, 'raw_mat', item, 1);
+        grantedItem = item;
       }
     }
 
@@ -14407,7 +14410,8 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
       success: true,
       message: `Exchange complete!`,
       dungeonGold: updated.dungeon_gold,
-      guildReputation: updated.guild_reputation
+      guildReputation: updated.guild_reputation,
+      grantedItem
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
