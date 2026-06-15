@@ -3888,16 +3888,21 @@ function exchangeAtGuild(exchangeId) {
 function showExchangeRewardModal(item) {
   const overlay = document.getElementById('dungeon-overlay');
   if (!overlay) return;
-  const html = `
-<div class="dungeon-overlay-backdrop" data-action="closeExchangeRewardModal"></div>
-<div class="dungeon-overlay-card" style="position:relative;z-index:20000;width:min(360px,90vw);margin:auto;padding:24px;text-align:center;background:var(--dungeon-surface);border:1px solid rgba(255,255,255,0.10);border-radius:16px">
+  // Remove any old reward modal
+  const old = overlay.querySelector('.exchange-reward-modal');
+  if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.className = 'exchange-reward-modal';
+  modal.innerHTML = `
+<div style="text-align:center;padding:20px 24px">
   <div style="font-size:2.5rem;margin-bottom:8px">${item.emoji || '📦'}</div>
-  <div style="font-size:1.1rem;margin-bottom:6px">You obtained:</div>
-  <div style="font-size:1.3rem;font-weight:bold;color:var(--accent,#ffcc00);margin-bottom:4px">${item.name}</div>
-  <div style="font-size:0.85rem;opacity:0.6;text-transform:capitalize">${item.rarity} Elemental Material</div>
-<button class="dungeon-btn" style="margin-top:16px;width:100%" data-action="closeExchangeRewardModal">OK</button>
+  <div style="font-size:1.1rem;margin-bottom:6px;color:#fff">You obtained:</div>
+  <div style="font-size:1.3rem;font-weight:bold;color:#ffcc00;margin-bottom:4px">${item.name}</div>
+  <div style="font-size:0.85rem;opacity:0.6;text-transform:capitalize;color:#aaa">${item.rarity} Elemental Material</div>
+<button class="dungeon-btn" style="margin-top:16px;width:100%;cursor:pointer" data-action="closeExchangeRewardModal">OK</button>
 </div>`;
-  overlay.innerHTML = html;
+  modal.setAttribute('data-action', 'closeExchangeRewardModal');
+  overlay.appendChild(modal);
   overlay.style.display = 'flex';
 }
 
@@ -4230,8 +4235,8 @@ global.debugDungeonDetails = function() {
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
 global.closeExchangeRewardModal = function() {
-  const overlay = document.getElementById('dungeon-overlay');
-  if (overlay) overlay.style.display = 'none';
+  const modal = document.querySelector('.exchange-reward-modal');
+  if (modal) modal.remove();
   D._pendingExchangeModal = false;
   renderGuild();
 };
