@@ -250,11 +250,26 @@ const ELEMENTS = ['pyro', 'water', 'wind', 'electro'];
 
 // ── Adventurer's Guild Exchanges ─────────────────────────────────────
 const GUILD_EXCHANGES = [
-    { id: 'exchange_gold', name: 'Exchange Dungeon Gold', cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 } },
-    { id: 'exchange_materials', name: 'Material Bounty', cost: { crypt_dust: 10, void_shard: 5 }, reward: { gold: 200, reputation: 2 } },
-    { id: 'exchange_rare', name: 'Rare Material Bounty', cost: { dragon_scale: 3, soul_essence: 2 }, reward: { gold: 500, reputation: 5, item: 'Rare Item Chest' } },
-    { id: 'exchange_legendary', name: 'Legendary Exchange', cost: { abyssal_core: 2, titan_heart: 1 }, reward: { gold: 2000, reputation: 20, item: 'Legendary Item Chest' } },
+    { id: 'exchange_gold', name: 'Exchange Dungeon Gold', cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 }, minRep: 0 },
+    { id: 'buy_elem_common', name: 'Buy Common Element', cost: { dungeonGold: 40 }, reward: { elemTier: 'common' }, minRep: 0 },
+    { id: 'buy_elem_uncommon', name: 'Buy Uncommon Element', cost: { dungeonGold: 100 }, reward: { elemTier: 'uncommon' }, minRep: 10 },
+    { id: 'buy_elem_rare', name: 'Buy Rare Element', cost: { dungeonGold: 180 }, reward: { elemTier: 'rare' }, minRep: 50 },
+    { id: 'buy_elem_epic', name: 'Buy Epic Element', cost: { dungeonGold: 300 }, reward: { elemTier: 'epic' }, minRep: 200 },
+    { id: 'buy_elem_legendary', name: 'Buy Legendary Element', cost: { dungeonGold: 500 }, reward: { elemTier: 'legendary' }, minRep: 500 },
+    { id: 'swap_elem_common', name: 'Swap Common Elements', cost: { tier_common: 2 }, reward: { elemTier: 'common' }, minRep: 0 },
+    { id: 'swap_elem_uncommon', name: 'Swap Uncommon Elements', cost: { tier_uncommon: 2 }, reward: { elemTier: 'uncommon' }, minRep: 10 },
+    { id: 'swap_elem_rare', name: 'Swap Rare Elements', cost: { tier_rare: 2 }, reward: { elemTier: 'rare' }, minRep: 50 },
+    { id: 'swap_elem_epic', name: 'Swap Epic Elements', cost: { tier_epic: 2 }, reward: { elemTier: 'epic' }, minRep: 200 },
+    { id: 'swap_elem_legendary', name: 'Swap Legendary Elements', cost: { tier_legendary: 2 }, reward: { elemTier: 'legendary' }, minRep: 500 },
 ];
+
+const ELEM_TIER_ITEMS = {
+    common: ['dgn_pyro_cinder', 'dgn_water_droplet', 'dgn_electro_spark', 'dgn_wind_feather'],
+    uncommon: ['dgn_pyro_ember', 'dgn_water_crystal', 'dgn_electro_shard', 'dgn_wind_whisper'],
+    rare: ['dgn_pyro_core', 'dgn_water_core', 'dgn_electro_core', 'dgn_wind_core'],
+    epic: ['dgn_pyro_essence', 'dgn_water_essence', 'dgn_electro_essence', 'dgn_wind_essence'],
+    legendary: ['dgn_pyro_primordial', 'dgn_water_primordial', 'dgn_electro_primordial', 'dgn_wind_primordial'],
+};
 
 const DUNGEON_GUILD_BOUNTY_POOL = [
     { id: 'bounty_skeleton', monsterKey: 'skeleton', monsterName: 'Skeleton Warrior', minCount: 5, maxCount: 9, rewardGold: 450, rewardReputation: 3 },
@@ -13935,6 +13950,13 @@ router.get('/dungeon/guild', auth, async (req, res) => {
     if (!char) return res.status(404).json({ error: 'Character not found' });
     const bounty = await ensureActiveGuildBounty(db, char.id);
     const raids = await getGuildRaidList(db, char.id, req.user.userId);
+    const mats = await getInventoryMaterials(db, char.id);
+    const elemInv = {};
+    for (const [tier, items] of Object.entries(ELEM_TIER_ITEMS)) {
+      for (const id of items) {
+        if (mats[id]) elemInv[id] = mats[id].qty || 0;
+      }
+    }
     res.json({ 
       success: true, 
       dungeonGold: char?.dungeon_gold || 0,
@@ -13942,7 +13964,8 @@ router.get('/dungeon/guild', auth, async (req, res) => {
       highestFloor: Number(char?.dungeon_highest_floor || 1),
       raidCooldownUntil: Number(char?.raid_cooldown_until || 0),
       bounty,
-      raids
+      raids,
+      elemInventory: elemInv
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -14282,51 +14305,107 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
     const { exchangeId } = req.body;
     const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
     if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
-    
+
     const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
-    
-    // Atomic cost deduction to prevent rapid-click races driving dungeon_gold below 0.
+
+    // Reputation gate
+    if (exchange.minRep > 0 && (char.guild_reputation || 0) < exchange.minRep) {
+      return res.status(400).json({ error: 'Need higher reputation rank' });
+    }
+
+    // Atomic dungeonGold deduction
     if (exchange.cost.dungeonGold) {
       const cost = Number(exchange.cost.dungeonGold || 0);
       if (cost <= 0) return res.status(400).json({ error: 'Invalid exchange cost' });
       const deduct = await db.execute({
-        sql: `UPDATE characters
-              SET dungeon_gold = dungeon_gold - ?
-              WHERE id = ? AND COALESCE(dungeon_gold, 0) >= ?
-              RETURNING dungeon_gold`,
+        sql: `UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE id = ? AND COALESCE(dungeon_gold, 0) >= ? RETURNING dungeon_gold`,
         args: [cost, char.id, cost]
       });
       if (!deduct?.rows || deduct.rows.length === 0) {
         return res.status(400).json({ error: `Need ${cost} dungeon gold` });
       }
     }
-    
+
+    // Tier material cost (swap exchanges)
+    let tierCostKey = null, tierCostQty = 0;
+    for (const [key, qty] of Object.entries(exchange.cost)) {
+      if (key.startsWith('tier_')) {
+        tierCostKey = key.replace('tier_', '');
+        tierCostQty = qty;
+        break;
+      }
+    }
+    if (tierCostKey) {
+      const tierItems = ELEM_TIER_ITEMS[tierCostKey];
+      if (!tierItems) return res.status(400).json({ error: 'Invalid tier' });
+      const mats = await getInventoryMaterials(db, char.id);
+      let totalHave = 0;
+      for (const id of tierItems) {
+        if (mats[id]) totalHave += mats[id].qty || 0;
+      }
+      if (totalHave < tierCostQty) {
+        return res.status(400).json({ error: `Need ${tierCostQty} ${tierCostKey} materials (have ${totalHave})` });
+      }
+      // Deduct tierCostQty items, oldest first by inventory ID
+      let toDeduct = tierCostQty;
+      const sorted = tierItems.map(id => mats[id]).filter(Boolean).sort((a, b) => a.invId - b.invId);
+      for (const mat of sorted) {
+        if (toDeduct <= 0) break;
+        const take = Math.min(toDeduct, mat.qty);
+        const invRow = await dbGet(db, `SELECT * FROM inventory WHERE id=?`, [mat.invId]);
+        if (invRow) {
+          const d = JSON.parse(invRow.item_data);
+          d.qty = (d.qty || 1) - take;
+          if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [mat.invId]);
+          else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), mat.invId]);
+        }
+        toDeduct -= take;
+      }
+    }
+
+    // Apply gold reward
     if (exchange.reward.gold) {
-      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', 
-        [exchange.reward.gold, char.id]);
+      await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [exchange.reward.gold, char.id]);
     }
-    
+
+    // Apply reputation reward
     if (exchange.reward.reputation) {
-      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE id = ?', 
-        [exchange.reward.reputation, char.id]);
+      await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE id = ?', [exchange.reward.reputation, char.id]);
     }
-    
+
+    // Apply item chest reward
     if (exchange.reward.item) {
-      const item = { 
-        name: exchange.reward.item, 
-        type: 'chest', 
+      const item = {
+        name: exchange.reward.item,
+        type: 'chest',
         quality: exchange.id.includes('legendary') ? 'legendary' : 'rare',
-        qty: 1 
+        qty: 1
       };
-      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)',
-        [char.id, 'consumable', JSON.stringify(item)]);
+      await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [char.id, 'consumable', JSON.stringify(item)]);
     }
-    
+
+    // Apply element material reward
+    if (exchange.reward.elemTier) {
+      const tier = exchange.reward.elemTier;
+      const tierItems = ELEM_TIER_ITEMS[tier];
+      if (tierItems && tierItems.length > 0) {
+        const chosen = tierItems[Math.floor(Math.random() * tierItems.length)];
+        const def = [...DUNGEON_ELEM_COMMON, ...DUNGEON_ELEM_RARE].find(d => d.id === chosen);
+        await addStackableInventoryItem(db, char.id, 'raw_mat', {
+          id: chosen,
+          name: def ? def.name : chosen,
+          emoji: def ? def.emoji : '📦',
+          rarity: tier,
+          type: 'raw_mat'
+        }, 1);
+      }
+    }
+
     const updated = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold, guild_reputation');
-    
-    res.json({ 
-      success: true, 
-      message: `Exchanged for ${exchange.reward.gold ? exchange.reward.gold + ' gold' : ''}${exchange.reward.reputation ? ' + ' + exchange.reward.reputation + ' reputation' : ''}!`,
+
+    res.json({
+      success: true,
+      message: `Exchange complete!`,
       dungeonGold: updated.dungeon_gold,
       guildReputation: updated.guild_reputation
     });
