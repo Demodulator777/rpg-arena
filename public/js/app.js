@@ -5580,6 +5580,7 @@ function renderInventory(data) {
                 <div class="inv-consumable-desc">${d.desc || ''}</div>
                 <div class="inv-consumable-actions">
                     <button class="btn-sm inv-consumable-btn inv-consumable-use" ${actionAttrs('useItem', i.id, d.name || '')}>Use</button>
+                    ${(d.effect?.type === 'heal' || d.effect?.type === 'heal_full') && character?.elemental ? `<button class="btn-sm inv-consumable-btn" ${actionAttrs('useItemOnBeast', i.id, d.name || '')}>Use on Beast</button>` : ''}
                     <button class="btn-sm danger inv-consumable-btn" ${actionAttrs('sellItem', i.id, d.name || '', sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
@@ -6883,6 +6884,28 @@ async function useItem(invId, name) {
         if (/^Health potions are on cooldown\b/i.test(msg)) {
             await openGameNoticeDialog({
                 title: 'Potion Cooldown',
+                message: msg,
+                confirmLabel: 'Close'
+            });
+            return;
+        }
+        showMsg('inv-msg', msg, true);
+    }
+}
+async function useItemOnBeast(invId, name) {
+    try {
+        const d=await api('POST',`/game/use/${invId}`, { target: 'elemental' });
+        character=d.character;
+        renderTopBar();
+        renderCharacter();
+        loadInventory();
+        showMsg('inv-msg', d.message);
+    }
+    catch(e) {
+        const msg = e?.message || 'Could not use this item on your beast.';
+        if (/Beast potion cooldown/i.test(msg)) {
+            await openGameNoticeDialog({
+                title: 'Beast Potion Cooldown',
                 message: msg,
                 confirmLabel: 'Close'
             });
