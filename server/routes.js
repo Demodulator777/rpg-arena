@@ -492,6 +492,7 @@ const WEEKLY_TASKS = [
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
+            'ALTER TABLE elementals ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN user_session TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
@@ -10481,46 +10482,74 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         const equippedArray = await getEquippedItemsArray(db, char.id);
         const trueHpMax = calcHpMax(char, equippedArray);
         const now = Math.floor(Date.now() / 1000);
+        const target = req.body?.target || 'character';
         
         let message = '';
         let updated = false;
         const isHealthPotion = data.effect.type === 'heal' || data.effect.type === 'heal_full';
-        if (isHealthPotion) {
-            const lastUse = char.last_health_potion_at || 0;
-            const cooldownLeft = (lastUse + HEALTH_POTION_COOLDOWN) - now;
-            if (cooldownLeft > 0) {
-                return res.status(400).json({ error: `Health potions are on cooldown for ${formatDurationShort(cooldownLeft)}.` });
-            }
-        }
         
-        if (data.effect.type === 'heal') {
-            const currentHp = char.hp_current || trueHpMax;
-            const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
-            await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, char.id]);
-            message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
-            updated = true;
-        } else if (data.effect.type === 'heal_full') {
-            await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [trueHpMax, now, char.id]);
-            message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
-            updated = true;
-        } else if (data.effect.type === 'temp_stat') {
-            message = `+${data.effect.value} ${data.effect.stat} for session.`;
-            updated = true;
-        } else if (data.effect.type === 'xp') {
-            let newXp = (char.xp || 0) + data.effect.value, newLevel = char.level;
-            while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; }
-            await dbRun(db, 'UPDATE characters SET xp=?,level=? WHERE id=?', [newXp, newLevel, char.id]);
-            await handleReferralLevelMilestone(db, char.user_id, char.level, newLevel);
-            message = `Gained ${data.effect.value} XP!`;
-            updated = true;
-        } else if (data.effect.type === 'mp') {
-            const activePrem = getActivePremium(char);
-            const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
-            const currentMp = char.mission_points ?? 0;
-            const newMp = Math.min(mpMax, currentMp + data.effect.value);
-            await dbRun(db, 'UPDATE characters SET mission_points=? WHERE id=?', [newMp, char.id]);
-            message = `Restored ${data.effect.value} MP. (${newMp}/${mpMax})`;
-            updated = true;
+        if (target === 'elemental') {
+            // Heal elemental instead of character
+            const elem = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]);
+            if (!elem) return res.status(400).json({ error: 'You don\'t have an elemental companion.' });
+            if (isHealthPotion) {
+                const lastUse = elem.last_health_potion_at || 0;
+                const cooldownLeft = (lastUse + HEALTH_POTION_COOLDOWN) - now;
+                if (cooldownLeft > 0) {
+                    return res.status(400).json({ error: `Beast potion cooldown: ${formatDurationShort(cooldownLeft)} remaining.` });
+                }
+            }
+            const elemStats = calcElemStats(elem);
+            const elemHpMax = elemStats.hpMax;
+            if (data.effect.type === 'heal') {
+                const newHp = Math.min(elemHpMax, (elem.hp_current || elemHpMax) + data.effect.value);
+                await dbRun(db, 'UPDATE elementals SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, elem.id]);
+                message = `Beast restored ${data.effect.value} HP. (${newHp}/${elemHpMax})`;
+                updated = true;
+            } else if (data.effect.type === 'heal_full') {
+                await dbRun(db, 'UPDATE elementals SET hp_current=?, last_health_potion_at=? WHERE id=?', [elemHpMax, now, elem.id]);
+                message = `Beast fully restored! (${elemHpMax}/${elemHpMax})`;
+                updated = true;
+            }
+        } else {
+            // Heal character (existing behavior)
+            if (isHealthPotion) {
+                const lastUse = char.last_health_potion_at || 0;
+                const cooldownLeft = (lastUse + HEALTH_POTION_COOLDOWN) - now;
+                if (cooldownLeft > 0) {
+                    return res.status(400).json({ error: `Health potions are on cooldown for ${formatDurationShort(cooldownLeft)}.` });
+                }
+            }
+            
+            if (data.effect.type === 'heal') {
+                const currentHp = char.hp_current || trueHpMax;
+                const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
+                await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, char.id]);
+                message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
+                updated = true;
+            } else if (data.effect.type === 'heal_full') {
+                await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [trueHpMax, now, char.id]);
+                message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
+                updated = true;
+            } else if (data.effect.type === 'temp_stat') {
+                message = `+${data.effect.value} ${data.effect.stat} for session.`;
+                updated = true;
+            } else if (data.effect.type === 'xp') {
+                let newXp = (char.xp || 0) + data.effect.value, newLevel = char.level;
+                while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; }
+                await dbRun(db, 'UPDATE characters SET xp=?,level=? WHERE id=?', [newXp, newLevel, char.id]);
+                await handleReferralLevelMilestone(db, char.user_id, char.level, newLevel);
+                message = `Gained ${data.effect.value} XP!`;
+                updated = true;
+            } else if (data.effect.type === 'mp') {
+                const activePrem = getActivePremium(char);
+                const mpMax = hasPremium(activePrem, 'arcane_reservoir') ? MP_MAX * 2 : MP_MAX;
+                const currentMp = char.mission_points ?? 0;
+                const newMp = Math.min(mpMax, currentMp + data.effect.value);
+                await dbRun(db, 'UPDATE characters SET mission_points=? WHERE id=?', [newMp, char.id]);
+                message = `Restored ${data.effect.value} MP. (${newMp}/${mpMax})`;
+                updated = true;
+            }
         }
         
         if (updated) {
