@@ -3864,18 +3864,16 @@ function closeGuild() {
 function exchangeAtGuild(exchangeId) {
   if (D._guildExchangeInFlight) return;
   D._guildExchangeInFlight = true;
-  renderGuild(); // re-render so buttons disable immediately
+  D._pendingExchangeModal = false;
   apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId })
     .then(response => {
       if (response.success) {
         log(response.message, 'log-success');
-        // Refresh dungeon gold and reputation
         const goldEl = document.getElementById('dungeon-gold-count');
         if (goldEl) goldEl.textContent = response.dungeonGold;
-        renderGuild(); // Refresh guild view
-        refreshCharacter(); // Refresh main character
-        // Show reward modal for element material grants
+        refreshCharacter();
         if (response.grantedItem) {
+          D._pendingExchangeModal = true;
           showExchangeRewardModal(response.grantedItem);
         }
       }
@@ -3883,8 +3881,7 @@ function exchangeAtGuild(exchangeId) {
     .catch(e => console.error('Exchange failed:', e))
     .finally(() => {
       D._guildExchangeInFlight = false;
-      // ensure buttons re-enable even if request failed
-      renderGuild();
+      if (!D._pendingExchangeModal) renderGuild();
     });
 }
 
@@ -3892,13 +3889,13 @@ function showExchangeRewardModal(item) {
   const overlay = document.getElementById('dungeon-overlay');
   if (!overlay) return;
   const html = `
-<div class="dungeon-overlay-backdrop" ${actionAttrs('closeExchangeRewardModal')}></div>
-<div class="dungeon-overlay-card" style="position:relative;z-index:20001;width:min(360px,90vw);margin:auto;padding:24px;text-align:center;background:var(--dungeon-surface);border:1px solid rgba(255,255,255,0.10);border-radius:16px">
-  <div style="font-size:3rem;margin-bottom:8px">${item.emoji || '📦'}</div>
-  <div style="font-size:1.2rem;font-weight:bold;margin-bottom:4px">You obtained:</div>
-  <div style="font-size:1.1rem;color:var(--accent)">${item.name}</div>
-  <div style="font-size:0.8rem;margin-top:4px;opacity:0.6;text-transform:capitalize">${item.rarity} Material</div>
-<button class="dungeon-btn" style="margin-top:16px;width:100%" ${actionAttrs('closeExchangeRewardModal')}>OK</button>
+<div class="dungeon-overlay-backdrop" data-action="closeExchangeRewardModal"></div>
+<div class="dungeon-overlay-card" style="position:relative;z-index:20000;width:min(360px,90vw);margin:auto;padding:24px;text-align:center;background:var(--dungeon-surface);border:1px solid rgba(255,255,255,0.10);border-radius:16px">
+  <div style="font-size:2.5rem;margin-bottom:8px">${item.emoji || '📦'}</div>
+  <div style="font-size:1.1rem;margin-bottom:6px">You obtained:</div>
+  <div style="font-size:1.3rem;font-weight:bold;color:var(--accent,#ffcc00);margin-bottom:4px">${item.name}</div>
+  <div style="font-size:0.85rem;opacity:0.6;text-transform:capitalize">${item.rarity} Elemental Material</div>
+<button class="dungeon-btn" style="margin-top:16px;width:100%" data-action="closeExchangeRewardModal">OK</button>
 </div>`;
   overlay.innerHTML = html;
   overlay.style.display = 'flex';
@@ -4235,6 +4232,7 @@ global.exchangeAtGuild = exchangeAtGuild;
 global.closeExchangeRewardModal = function() {
   const overlay = document.getElementById('dungeon-overlay');
   if (overlay) overlay.style.display = 'none';
+  D._pendingExchangeModal = false;
   renderGuild();
 };
 global.claimGuildBounty = claimGuildBounty;
