@@ -3874,6 +3874,10 @@ function exchangeAtGuild(exchangeId) {
         if (goldEl) goldEl.textContent = response.dungeonGold;
         renderGuild(); // Refresh guild view
         refreshCharacter(); // Refresh main character
+        // Show reward modal for element material grants
+        if (response.grantedItem) {
+          showExchangeRewardModal(response.grantedItem);
+        }
       }
     })
     .catch(e => console.error('Exchange failed:', e))
@@ -3882,6 +3886,22 @@ function exchangeAtGuild(exchangeId) {
       // ensure buttons re-enable even if request failed
       renderGuild();
     });
+}
+
+function showExchangeRewardModal(item) {
+  const overlay = document.getElementById('dungeon-overlay');
+  if (!overlay) return;
+  const html = `
+<div class="dungeon-overlay-backdrop" ${actionAttrs('closeExchangeRewardModal')}></div>
+<div class="dungeon-overlay-card" style="position:relative;z-index:20001;width:min(360px,90vw);margin:auto;padding:24px;text-align:center;background:var(--dungeon-surface);border:1px solid rgba(255,255,255,0.10);border-radius:16px">
+  <div style="font-size:3rem;margin-bottom:8px">${item.emoji || '📦'}</div>
+  <div style="font-size:1.2rem;font-weight:bold;margin-bottom:4px">You obtained:</div>
+  <div style="font-size:1.1rem;color:var(--accent)">${item.name}</div>
+  <div style="font-size:0.8rem;margin-top:4px;opacity:0.6;text-transform:capitalize">${item.rarity} Material</div>
+<button class="dungeon-btn" style="margin-top:16px;width:100%" ${actionAttrs('closeExchangeRewardModal')}>OK</button>
+</div>`;
+  overlay.innerHTML = html;
+  overlay.style.display = 'flex';
 }
 
 function claimGuildBounty() {
@@ -4212,6 +4232,11 @@ global.debugDungeonDetails = function() {
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
+global.closeExchangeRewardModal = function() {
+  const overlay = document.getElementById('dungeon-overlay');
+  if (overlay) overlay.style.display = 'none';
+  renderGuild();
+};
 global.claimGuildBounty = claimGuildBounty;
   global.createGuildRaid    = createGuildRaid;
   global.joinGuildRaid      = joinGuildRaid;
