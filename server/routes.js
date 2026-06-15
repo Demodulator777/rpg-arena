@@ -5307,7 +5307,7 @@ async function applyHpRegen(db, characterId) {
     if (hoursElapsed < 1) return;
     const equippedArray = await getEquippedItemsArray(db, characterId);
     const trueHpMax = calcHpMax(char, equippedArray);
-    const currentHp = char.hp_current ?? trueHpMax;
+    const currentHp = char.hp_current || trueHpMax;
     if (currentHp >= trueHpMax) {
         await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, characterId]);
         return;
@@ -6336,20 +6336,21 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         // Elemental companion action (before main combat)
         // Role determined by dominant stat: str > def → attack, def >= str → heal
         let elemDmgToB = 0, elemDmgToA = 0;
+        let elemALog = '', elemBLog = '';
         if (elemA && elemAHp > 0) {
             const statsA = calcElemStats(elemA);
             const elemEl = elemA.element || 'pyro';
             if ((statsA.def || 0) >= (statsA.str || 0)) {
                 const healAmt = Math.round(calcElemHealValue(elemA, statsA));
                 hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
-                log.push(`🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`);
+                elemALog = `🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`;
             } else {
                 const raw = calcElemAttackValue(elemA, statsA);
                 const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
                 const mResB = Math.floor((fighterB.magic || 0) * 0.05);
                 elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
                 hpB = Math.max(0, hpB - elemDmgToB);
-                log.push(`🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`);
+                elemALog = `🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`;
             }
         }
         if (elemB && elemBHp > 0) {
@@ -6358,20 +6359,22 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             if ((statsB.def || 0) >= (statsB.str || 0)) {
                 const healAmt = Math.round(calcElemHealValue(elemB, statsB));
                 hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
-                log.push(`🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`);
+                elemBLog = `🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`;
             } else {
                 const raw = calcElemAttackValue(elemB, statsB);
                 const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
                 const mResA = Math.floor((fighterA.magic || 0) * 0.05);
                 elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
                 hpA = Math.max(0, hpA - elemDmgToA);
-                log.push(`🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`);
+                elemBLog = `🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`;
             }
         }
-        if (elemDmgToB > 0 || elemDmgToA > 0) log.push('~');
 
         const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
         const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+
+        if (elemALog) resA.logLine += ` | ${elemALog}`;
+        if (elemBLog) resB.logLine += ` | ${elemBLog}`;
         
         const dmgToB = resA.damageDealt + resB.damageCounter;
         const dmgToA = resB.damageDealt + resA.damageCounter;
@@ -6388,16 +6391,16 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
         hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
         
-        // Elemental split damage (20% of dmg dealt to player goes to elemental)
+        // Elemental split damage (5% of dmg dealt to player goes to elemental)
         if (elemA && elemAHp > 0 && dmgToA > 0) {
-            const splitDmg = Math.max(1, Math.floor(dmgToA * 0.2));
+            const splitDmg = Math.max(1, Math.floor(dmgToA * 0.05));
             elemAHp = Math.max(0, elemAHp - splitDmg);
-            if (elemAHp <= 0) log.push(`🐉 ${elemA.name} is knocked out!`);
+            if (elemAHp <= 0) { resA.logLine += ` 🐉 ${elemA.name} is knocked out!`; }
         }
         if (elemB && elemBHp > 0 && dmgToB > 0) {
-            const splitDmg = Math.max(1, Math.floor(dmgToB * 0.2));
+            const splitDmg = Math.max(1, Math.floor(dmgToB * 0.05));
             elemBHp = Math.max(0, elemBHp - splitDmg);
-            if (elemBHp <= 0) log.push(`🐉 ${elemB.name} is knocked out!`);
+            if (elemBHp <= 0) { resB.logLine += ` 🐉 ${elemB.name} is knocked out!`; }
         }
 
         // Apply burn_dot damage to both fighters
@@ -6926,7 +6929,7 @@ async function buildCombatFighter(db, char) {
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const hpMax = calcHpMax(char, equippedArray);
-    const hpCurrent = char.hp_current ?? hpMax;
+    const hpCurrent = char.hp_current || hpMax;
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -7009,7 +7012,7 @@ async function buildCombatFighter(db, char) {
             const bm = (er.magic || 5) + (er.stat_mag || 0) * 2;
             const bv = (er.vitality || 5) + (er.stat_vit || 0) * 2;
             const eHp = 30 + bv * 4 + er.level * 8;
-            return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current || eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8) };
+            return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current ?? eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8) };
         })(),
     };
 }
@@ -8105,7 +8108,7 @@ const userSettings = char.user_id
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
-    const hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
+    const hpCurrent = Math.min(char.hp_current || hpMax, hpMax);
     const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent });
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
@@ -8161,7 +8164,7 @@ const userSettings = char.user_id
     // Spirit Beast flat stat bonuses
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
     let beastRole = null;
-    if (elemental) {
+    if (elemental && (elemental.hp_current ?? 0) > 0) {
         const beastStats = calcElemStats(elemental);
         if ((beastStats.str || 0) > (beastStats.def || 0)) {
             beastRole = 'attack';
@@ -8173,6 +8176,8 @@ const userSettings = char.user_id
             beastVitBonus = beastStats.vit || 0;
         }
         console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, role: ${beastRole}`);
+    } else if (elemental) {
+        console.log(`[DEBUG] buildCharacterResponse: Elemental ${elemental.id} has 0 HP, no stat bonus`);
     } else {
         console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
     }
@@ -9219,7 +9224,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         const hasUlt = hasUltimate(activePremCollect);
         const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax = calcHpMax(freshChar, equippedArray);
-        const hpCurrent = freshChar.hp_current ?? hpMax;
+        const hpCurrent = freshChar.hp_current || hpMax;
         const setBonuses = getEquippedSetBonuses(equippedArray);
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
@@ -9286,7 +9291,7 @@ if (freshChar.class === 'rogue') {
             playerFighter._elementalFighter = {
                 ...missionElemRow,
                 ...elemStats,
-                hp: missionElemRow.hp_current || elemStats.hpMax
+                hp: missionElemRow.hp_current ?? elemStats.hpMax
             };
         }
 
@@ -9419,7 +9424,7 @@ if (freshChar.class === 'rogue') {
         if (playerWon && Math.random() < gemChance) gemsFound = 1;
 
         // Tutorial Check: Don't deplete HP for the first 4 battles
-        const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+        const newHp = isTutorial ? (freshChar.hp_current || playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
@@ -10325,7 +10330,7 @@ router.get('/travel/status', auth, async (req, res) => {
                     }
                     
                     // Tutorial Check: Don't deplete HP for the first 4 battles
-                    const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+                    const newHp = isTutorial ? (freshChar.hp_current || playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
                     if (playerWon) {
                         await unlockTravelZone(db, freshChar, targetZone, currentMap);
@@ -10489,7 +10494,7 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
         }
         
         if (data.effect.type === 'heal') {
-            const currentHp = char.hp_current ?? trueHpMax;
+            const currentHp = char.hp_current || trueHpMax;
             const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
             await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, char.id]);
             message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
@@ -10887,10 +10892,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await applyHpRegen(db, defender.id);
         const freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
         const freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
-        const hpA = freshA.hp_current ?? freshA.hp_max;
+        const hpA = freshA.hp_current || freshA.hp_max;
         if (hpA <= 0) return res.status(400).json({ error: 'You are out of HP. Wait for regen.' });
         const equippedD0 = await getEquippedItemsArray(db, freshD.id);
-        const hpD = freshD.hp_current ?? calcHpMax(freshD, equippedD0);
+        const hpD = freshD.hp_current || calcHpMax(freshD, equippedD0);
         if (hpD < 10) return res.status(400).json({ error: `${freshD.name} has too little HP. Let them recover first.` });
         const equippedA = await getEquippedItemsArray(db, freshA.id);
         const equippedD = await getEquippedItemsArray(db, freshD.id);
@@ -10981,7 +10986,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const weaponD = getEquippedWeaponData(equippedD);
         const fighterB = {
             id: freshD.id, name: freshD.name, class: freshD.class, weapon: weaponD,
-            hp: freshD.hp_current ?? hpMaxD,
+            hp: freshD.hp_current || hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
             dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
             dmgMax: dmgMaxD + skillPassiveBonus(dmgMaxD, skillPassivesD.dmg_max),
@@ -11022,7 +11027,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             fighterA._elementalFighter = {
                 ...elemRowA,
                 ...elemStats,
-                hp: elemRowA.hp_current || elemStats.hpMax
+                hp: elemRowA.hp_current ?? elemStats.hpMax
             };
         }
         const elemRowB = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshD.id]);
@@ -11031,7 +11036,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             fighterB._elementalFighter = {
                 ...elemRowB,
                 ...elemStats,
-                hp: elemRowB.hp_current || elemStats.hpMax
+                hp: elemRowB.hp_current ?? elemStats.hpMax
             };
         }
 
@@ -11225,7 +11230,7 @@ router.get('/player/:id', auth, async (req, res) => {
         const profileSetBonuses = getEquippedSetBonuses(equippedArray);
         const profileArmor = calcArmorValue(player, equippedArray);
 
-        const hpLow = (player.hp_current ?? hpMax) < 10;
+        const hpLow = (player.hp_current || hpMax) < 10;
 
         const equipped = await getEquippedItems(db, player.id);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
@@ -11239,7 +11244,7 @@ router.get('/player/:id', auth, async (req, res) => {
             magic:player.magic, vitality:player.vitality||10,
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
             hp_max:hpMax,
-            hp_current: player.hp_current ?? hpMax,
+            hp_current: player.hp_current || hpMax,
             wins:player.wins, losses:player.losses, draws:player.draws||0,
             tournament_wins: player.tournament_wins || 0,
             dungeon_highest_floor: player.dungeon_highest_floor || 0,
@@ -12682,7 +12687,7 @@ router.post('/dungeon/update-health', auth, async (req, res) => {
 
     // Legacy endpoint (client-side combat). Combat is now server-authoritative; we disallow healing via this API.
     const maxHp = Math.max(1, Number(char.hp_max || 1));
-    const currentHp = Math.max(0, Number(char.hp_current || 0));
+    const currentHp = Math.max(0, Number(char.hp_current ?? 0));
     let safeHp = Math.max(0, Math.min(maxHp, Number(hp ?? currentHp)));
     // Never allow increasing HP through this sync endpoint.
     if (safeHp > currentHp) safeHp = currentHp;
@@ -12798,7 +12803,7 @@ function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null, equipStats =
     def = defense + strength * 0.3;
   }
   const maxHp = Math.max(1, Number(hpMaxOverride ?? char.hp_max ?? 100));
-  const hp = Number(char.hp_current ?? maxHp);
+  const hp = Number(char.hp_current || maxHp);
   const weaponDmg = Math.floor(((equipStats?.dmg_min || 0) + (equipStats?.dmg_max || 0)) / 2);
   return { atk: Math.floor(atk) + weaponDmg, def: Math.floor(def) + (equipStats?.armor || 0), hp, maxHp };
 }
@@ -15775,7 +15780,7 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
                     [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
             }
 
-            const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+            const newHp = isTutorial ? (freshChar.hp_current || playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
             if (!playerWon) {
                 await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, freshChar.id]);
@@ -16381,7 +16386,7 @@ function buildElementalFighter(elem, playerLevel) {
         name: elem.name || 'Elemental',
         class: 'elemental',
         level: elem.level,
-        hp: elem.hp_current || stats.hpMax,
+        hp: elem.hp_current ?? stats.hpMax,
         hpMax: stats.hpMax,
         dmgMin: stats.dmgMin,
         dmgMax: stats.dmgMax,
