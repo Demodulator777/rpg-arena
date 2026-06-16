@@ -9212,17 +9212,17 @@ router.post('/missions/collect', auth, async (req, res) => {
         if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
             const glvl = (freshChar.level || 1) * 2;
             const r = () => 0.85 + Math.random() * 0.30;
-            const gearStr  = Math.floor((5 + glvl * 0.4) * r());
-            const gearAgi  = Math.floor((5 + glvl * 0.4) * r());
-            const gearMag  = Math.floor((5 + glvl * 0.4) * r());
-            const gearDef  = Math.floor((10 + glvl * 1.2) * r());
-            const gearArmor = Math.floor((20 + glvl * 2.5) * r());
-            const gearVit  = Math.floor((5 + glvl * 0.6) * r());
-            const gearHit  = Math.floor((5 + glvl * 0.4) * r());
-            const gearCrit = Math.floor((5 + glvl * 0.4) * r());
-            const gearHp   = Math.floor((40 + glvl * 3.0) * r());
-            const gearDmgMin = Math.floor((8 + glvl * 1.2) * r());
-            const gearDmgMax = Math.floor((16 + glvl * 2.5) * r());
+            const gearStr  = Math.floor((10 + glvl * 0.8) * r());
+            const gearAgi  = Math.floor((10 + glvl * 0.8) * r());
+            const gearMag  = Math.floor((10 + glvl * 0.8) * r());
+            const gearDef  = Math.floor((15 + glvl * 2.0) * r());
+            const gearArmor = Math.floor((30 + glvl * 3.5) * r());
+            const gearVit  = Math.floor((8 + glvl * 0.8) * r());
+            const gearHit  = Math.floor((8 + glvl * 0.5) * r());
+            const gearCrit = Math.floor((8 + glvl * 0.5) * r());
+            const gearHp   = Math.floor((50 + glvl * 4.0) * r());
+            const gearDmgMin = Math.floor((10 + glvl * 2.0) * r());
+            const gearDmgMax = Math.floor((20 + glvl * 4.0) * r());
 
             const baseStr  = Number(freshChar.strength || 0);
             const baseAgi  = Number(freshChar.agility || 0);
