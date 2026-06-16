@@ -7150,7 +7150,7 @@ function renderFreeGemsModalContent() {
         : `Already claimed. Refreshes on ${formatFreeGemsRefreshTime(monthlyFreeGemsStatus.nextClaimAt)}.`;
     el.innerHTML = `
         <div class="free-gems-hero">
-            <div class="free-gems-amount">💎 ${monthlyFreeGemsStatus.amount || 500}</div>
+            <div class="free-gems-amount">💎 ${monthlyFreeGemsStatus.amount || 30}</div>
             <div class="free-gems-copy">Claim a free gem pack once each month for this character.</div>
         </div>
         <div class="free-gems-status ${eligible ? 'ready' : 'locked'}">${claimedText}</div>
