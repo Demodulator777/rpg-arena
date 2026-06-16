@@ -214,9 +214,113 @@ class BotAccount {
     }
   }
 
+  // ── Premium ──────────────────────────────────────────────────────────────
+  async activatePremium() {
+    if (this.character.premiumActive) return;
+    const gems = this.character.gems || 0;
+    const priority = ['fortune_hunter', 'warlord', 'iron_fortress', 'apprentice', 'vault_keeper', 'arcane_reservoir'];
+    for (const id of priority) {
+      try {
+        const features = await api('GET', '/premium/features', null, this.token);
+        const feat = features.features?.find(f => f.id === id);
+        if (!feat || feat.active || gems < feat.cost) continue;
+        await api('POST', '/premium/activate', { featureId: id }, this.token);
+        log(this.name, `Activated premium: ${id}`);
+        await sleep(500);
+      } catch {}
+    }
+  }
+
+  // ── Gear Shopping ────────────────────────────────────────────────────────
+  async shopGear() {
+    try {
+      const shop = await api('GET', '/shop/items', null, this.token);
+      if (!shop.items) return;
+      const gold = this.character.gold || 0;
+      const gemCost = this.character.gems || 0;
+      const slotPriority = { weapon: 1, armor: 2, helmet: 3, boots: 4, ring: 5, shield: 6, amulet: 7, accessory: 8 };
+      const inventory = await api('GET', '/inventory', null, this.token);
+      const equipped = inventory.equipped || {};
+      const buyable = shop.items.filter(i => i.priceType !== 'gems' && i.price <= gold && i.slot && slotPriority[i.slot]);
+      const bought = [];
+      for (const item of buyable.sort((a, b) => (slotPriority[a.slot] || 99) - (slotPriority[b.slot] || 99))) {
+        if (bought.includes(item.slot)) continue;
+        const current = equipped[item.slot];
+        if (current && current.name === item.name) continue;
+        try {
+          await api('POST', '/shop/buy', { item: { id: item.id, category: item.slot } }, this.token);
+          log(this.name, `Bought ${item.name} (${item.slot})`);
+          bought.push(item.slot);
+          await sleep(300);
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // ── Equip Best Gear ──────────────────────────────────────────────────────
+  async equipBest() {
+    try {
+      const inventory = await api('GET', '/inventory', null, this.token);
+      const items = inventory.items || [];
+      const equipped = inventory.equipped || {};
+      const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+      for (const slot of slots) {
+        const candidates = items.filter(i => {
+          try {
+            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+            return d.slot === slot && !i.equipped;
+          } catch { return false; }
+        });
+        if (candidates.length === 0) continue;
+        // Pick the one with highest stat sum
+        let best = null, bestSum = -1;
+        for (const c of candidates) {
+          try {
+            const d = typeof c.item_data === 'string' ? JSON.parse(c.item_data) : c.item_data;
+            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
+                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
+            if (sum > bestSum) { best = c; bestSum = sum; }
+          } catch {}
+        }
+        if (best) {
+          try {
+            await api('POST', `/equip/${best.id}`, null, this.token);
+            log(this.name, `Equipped ${slot} (stat sum: ${bestSum})`);
+            await sleep(200);
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  // ── Gear Upgrades ────────────────────────────────────────────────────────
+  async upgradeGear() {
+    try {
+      const inventory = await api('GET', '/inventory', null, this.token);
+      const items = inventory.items || [];
+      const gold = this.character.gold || 0;
+      if (gold < 5000) return;
+      // Find equipped items that can be upgraded
+      for (const item of items) {
+        if (!item.equipped) continue;
+        try {
+          const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+          const upLvl = d.upgradeLevel || 0;
+          const maxLvl = d.quality === 'legendary' ? 5 : d.quality === 'rare' ? 4 : 3;
+          if (upLvl >= maxLvl) continue;
+          // Try iron_ingot first (cheapest component)
+          await api('POST', `/equipment/upgrade/${item.id}`, { componentId: 'iron_ingot', expectedUpgradeLevel: upLvl }, this.token);
+          log(this.name, `Upgraded ${d.name} to +${upLvl + 1}`);
+          await sleep(500);
+        } catch (e) {
+          if (e.message.includes('component') || e.message.includes('material')) continue;
+        }
+      }
+    } catch {}
+  }
+
   // ── Upgrades ─────────────────────────────────────────────────────────────
   async upgradeStats() {
-    const stats = ['strength', 'defense', 'agility', 'magic', 'vitality', 'hit_chance', 'crit_chance'];
     const classFocus = {
       warrior: ['strength', 'vitality', 'defense'],
       mage: ['magic', 'vitality', 'agility'],
@@ -251,16 +355,22 @@ class BotAccount {
 
     // Check tournaments at 21:25-21:35 daily
     const now = new Date();
-    const hour = now.getUTCHours() + 1; // Approximate offset
+    const hour = now.getUTCHours() + 1;
     const min = now.getMinutes();
     if (hour === 21 && min >= 25 && min <= 35 && !this.tournamentJoined) {
       await this.joinTournament();
     }
-    if (hour === 22) this.tournamentJoined = false; // Reset for next day
+    if (hour === 22) this.tournamentJoined = false;
 
     await this.collectMission();
     await this.doMission();
     await this.doPvp();
+    await this.activatePremium();
+    if ((this.character.gold || 0) > 5000) {
+      await this.shopGear();
+      await this.equipBest();
+      await this.upgradeGear();
+    }
     await this.upgradeStats();
     await this.setLoadout();
     await this.refreshCharacter();
