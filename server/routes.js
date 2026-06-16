@@ -9216,11 +9216,11 @@ router.post('/missions/collect', auth, async (req, res) => {
             const gearAgi  = Math.floor((5 + glvl * 0.4) * r());
             const gearMag  = Math.floor((5 + glvl * 0.4) * r());
             const gearDef  = Math.floor((10 + glvl * 1.2) * r());
-            const gearArmor = Math.floor((8 + glvl * 1.0) * r());
-            const gearVit  = Math.floor((3 + glvl * 0.35) * r());
-            const gearHit  = Math.floor((5 + glvl * 0.35) * r());
-            const gearCrit = Math.floor((5 + glvl * 0.35) * r());
-            const gearHp   = Math.floor((40 + glvl * 2.5) * r());
+            const gearArmor = Math.floor((20 + glvl * 2.5) * r());
+            const gearVit  = Math.floor((5 + glvl * 0.6) * r());
+            const gearHit  = Math.floor((5 + glvl * 0.4) * r());
+            const gearCrit = Math.floor((5 + glvl * 0.4) * r());
+            const gearHp   = Math.floor((40 + glvl * 3.0) * r());
             const gearDmgMin = Math.floor((8 + glvl * 1.2) * r());
             const gearDmgMax = Math.floor((16 + glvl * 2.5) * r());
 
