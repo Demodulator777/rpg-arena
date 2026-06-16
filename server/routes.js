@@ -11125,10 +11125,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         
         await ensureWeeklyTaskState(db, freshA);
         await ensureWeeklyTaskState(db, freshD);
-        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=GREATEST(top_damage_dealt, ?) WHERE id=?`,
+        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
             [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshA.id]);
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
-        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=GREATEST(top_damage_dealt, ?) WHERE id=?`,
+        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, freshD.id]);
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
