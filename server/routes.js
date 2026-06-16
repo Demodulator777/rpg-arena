@@ -9210,14 +9210,58 @@ router.post('/missions/collect', auth, async (req, res) => {
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         let playerStats = null;
         if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
+            const glvl = freshChar.level || 1;
+            const r = () => 0.85 + Math.random() * 0.30;
+            const gearStr  = Math.floor((5 + glvl * 0.4) * r());
+            const gearAgi  = Math.floor((5 + glvl * 0.4) * r());
+            const gearMag  = Math.floor((5 + glvl * 0.4) * r());
+            const gearDef  = Math.floor((10 + glvl * 1.2) * r());
+            const gearHit  = Math.floor((3 + glvl * 0.2) * r());
+            const gearCrit = Math.floor((3 + glvl * 0.25) * r());
+            const gearHp   = Math.floor((30 + glvl * 1.5) * r());
+            const gearDmgMin = Math.floor((8 + glvl * 1.2) * r());
+            const gearDmgMax = Math.floor((16 + glvl * 2.5) * r());
+
+            const baseStr  = Number(freshChar.strength || 0);
+            const baseAgi  = Number(freshChar.agility || 0);
+            const baseMag  = Number(freshChar.magic || 0);
+            const baseDef  = Number(freshChar.defense || 0);
+            const baseVit  = Number(freshChar.vitality || 10);
+            const baseHit  = Number(freshChar.hit_chance || 0);
+            const baseCrit = Number(freshChar.crit_chance || 3);
+
+            const totalStr  = baseStr + gearStr;
+            const totalAgi  = baseAgi + gearAgi;
+            const totalMag  = baseMag + gearMag;
+            const totalDef  = baseDef + gearDef;
+            const totalHit  = baseHit + gearHit;
+            const totalCrit = baseCrit + gearCrit;
+
+            const baseHpMax = 50 + baseVit * 25 + baseDef * 2;
+            const totalHpMax = baseHpMax + gearHp;
+            const baseDmgMin = 5 + Math.floor(baseStr * 0.5);
+            const baseDmgMax = 15 + Math.floor(baseStr * 1.2);
+            const totalDmgMin = baseDmgMin + gearDmgMin;
+            const totalDmgMax = baseDmgMax + gearDmgMax;
+
             playerStats = {
-                hp_max: freshChar.hp_max,
-                strength: freshChar.strength,
-                defense: freshChar.defense,
-                agility: freshChar.agility,
-                magic: freshChar.magic,
-                hit_chance: freshChar.hit_chance,
-                crit_chance: freshChar.crit_chance
+                hpMax: totalHpMax,
+                hp_max: totalHpMax,
+                strength: totalStr,
+                agility: totalAgi,
+                magic: totalMag,
+                defense: totalDef,
+                hit_chance: totalHit,
+                hitChance: totalHit,
+                crit_chance: totalCrit,
+                critChance: totalCrit,
+                dmgMin: totalDmgMin,
+                dmg_min: totalDmgMin,
+                dmgMax: totalDmgMax,
+                dmg_max: totalDmgMax,
+                armor: Math.floor(totalDef * 0.25),
+                elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+                elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
             };
         }
         const isEvent = eventHas('grand_festival');
@@ -9301,7 +9345,7 @@ if (freshChar.class === 'rogue') {
         // Build NPC and override its name with the mission name
         // If a player is underleveled for a zone, missions should still scale to the zone's minimum level.
         const missionEffectiveLevel = Math.max(Number(freshChar.level || 1), Number(zoneLevel || 1));
-        const npc = buildNpc(mission.difficulty, missionEffectiveLevel, zoneLevel, playerFighter);
+        const npc = buildNpc(mission.difficulty, missionEffectiveLevel, zoneLevel, mission.map_type === 'abyss' && playerStats ? playerStats : playerFighter);
         const npcName = getNPCNameFromMission(mission.mission_name);
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
