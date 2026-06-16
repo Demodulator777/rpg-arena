@@ -9210,7 +9210,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         let playerStats = null;
         if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
-            const glvl = freshChar.level || 1;
+            const glvl = (freshChar.level || 1) * 2;
             const r = () => 0.85 + Math.random() * 0.30;
             const gearStr  = Math.floor((5 + glvl * 0.4) * r());
             const gearAgi  = Math.floor((5 + glvl * 0.4) * r());
