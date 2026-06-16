@@ -10637,7 +10637,7 @@ router.get('/gems/monthly-claim/status', auth, async (req, res) => {
         const eligible = !hasClaimedMonthlyGems(claimedAt, now);
         const { nextMonthStart } = getMonthlyGemsClaimWindow(now);
         res.json({
-            amount: 500,
+            amount: 30,
             eligible,
             claimedAt,
             nextClaimAt: eligible ? now : nextMonthStart
@@ -10666,16 +10666,16 @@ router.post('/gems/monthly-claim', auth, async (req, res) => {
 
         await dbRun(
             db,
-            'UPDATE characters SET gems = gems + 500, last_free_gems_claim_at = ? WHERE id = ?',
+            'UPDATE characters SET gems = gems + 30, last_free_gems_claim_at = ? WHERE id = ?',
             [now, character.id]
         );
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         res.json({
             success: true,
-            amount: 500,
+            amount: 30,
             nextClaimAt: nextMonthStart,
             character: await buildCharacterResponse(updatedChar, db),
-            message: 'Claimed 500 free gems for this month.'
+            message: 'Claimed 30 free gems for this month.'
         });
     } catch (e) {
         console.error('Monthly gems claim error:', e);
