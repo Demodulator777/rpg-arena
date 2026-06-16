@@ -7122,7 +7122,7 @@ function updateFreeGemsCta() {
         return;
     }
     if (monthlyFreeGemsStatus.eligible) {
-        btn.textContent = 'Claim 500 Free Gems';
+        btn.textContent = 'Claim 30 Free Gems';
         btn.disabled = false;
         return;
     }
