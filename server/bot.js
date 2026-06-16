@@ -328,15 +328,22 @@ class BotAccount {
       paladin: ['strength', 'defense', 'magic'],
     };
     const focus = classFocus[this.cfg.class] || ['strength', 'vitality'];
-    const gold = this.character.gold || 0;
-    if (gold < 100) return;
+    let gold = this.character.gold || 0;
+    if (gold < 50) return;
 
-    for (const stat of focus) {
-      try {
-        await api('POST', '/game/upgrade', { stat }, this.token);
-        log(this.name, `Upgraded ${stat}`);
-        await sleep(200);
-      } catch {}
+    for (let round = 0; round < 5; round++) {
+      for (const stat of focus) {
+        if (gold < 50) return;
+        try {
+          const result = await api('POST', '/game/upgrade', { stat }, this.token);
+          log(this.name, `Upgraded ${stat}`);
+          if (result.character) {
+            gold = result.character.gold ?? (this.character.gold || 0);
+            this.character = result.character;
+          }
+          await sleep(300);
+        } catch { return; }
+      }
     }
   }
 
