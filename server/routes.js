@@ -2089,7 +2089,7 @@ function buildExtendedAchievements() {
         name: 'Nether Ascendant',
         desc: 'Reach dungeon floor 75.',
         target: 75,
-        rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        rewards: { gold: 125000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     });
     addFromBase(floorBase, {
         id: 'floor_100',
