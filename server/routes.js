@@ -9247,6 +9247,13 @@ router.post('/missions/collect', auth, async (req, res) => {
             const totalDmgMin = baseDmgMin + gearDmgMin;
             const totalDmgMax = baseDmgMax + gearDmgMax;
 
+            const elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
+            const elem_resist = { pyro: 0, water: 0, wind: 0, electro: 0 };
+            for (const el of ['pyro', 'water', 'wind', 'electro']) {
+                elem_dmg[el] = 20 + Math.floor(Math.random() * 181);
+                elem_resist[el] = 100 + Math.floor(Math.random() * 201);
+            }
+
             playerStats = {
                 hpMax: totalHpMax,
                 hp_max: totalHpMax,
@@ -9264,8 +9271,8 @@ router.post('/missions/collect', auth, async (req, res) => {
                 dmgMax: totalDmgMax,
                 dmg_max: totalDmgMax,
                 armor: gearArmor,
-                elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
-                elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+                elem_dmg,
+                elem_resist,
             };
         }
         const isEvent = eventHas('grand_festival');
