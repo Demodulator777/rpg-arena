@@ -6852,7 +6852,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const diffProfile = ({
             easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitMult:0.6,  critRange:[0.2,0.4] },
             normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitMult:0.8,  critRange:[0.3,0.6] },
-            hard:       { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] },
+            hard:       { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.8,1.5] },
             nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitMult:1.0,  critRange:[1.0,2.0] },
         })[difficulty] || { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] };
         // Scale profile up by zone tier so deeper zones are tougher
