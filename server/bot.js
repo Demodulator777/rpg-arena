@@ -299,15 +299,21 @@ class BotAccount {
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
-      const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
-      for (const slot of slots) {
-        // Consider ALL items for this slot (equipped + unequipped), pick the best
+      const slotGroups = [
+        { name: 'weapon',    slots: ['weapon'] },
+        { name: 'armor',     slots: ['armor'] },
+        { name: 'helmet',    slots: ['helmet'] },
+        { name: 'shield',    slots: ['shield'] },
+        { name: 'boots',     slots: ['boots'] },
+        { name: 'jewelry',   slots: ['ring', 'amulet'] },
+        { name: 'accessory', slots: ['accessory'] },
+      ];
+      for (const group of slotGroups) {
         let best = null, bestLvl = -1, bestSum = -1, isBestEquipped = false;
         for (const item of items) {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (d.slot !== slot) continue;
-            // Check both JSON field (upgradeLevel) and DB column (upgrade_level)
+            if (!group.slots.includes(d.slot)) continue;
             const lvl = d.upgradeLevel || item.upgrade_level || 0;
             const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
                         (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
@@ -316,11 +322,10 @@ class BotAccount {
             }
           } catch {}
         }
-        // Only equip if best item is not already equipped
         if (best && !isBestEquipped) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${slot} +${bestLvl}`);
+            log(this.name, `Equipped ${group.name} +${bestLvl}`);
             await sleep(200);
           } catch {}
         }
