@@ -10253,6 +10253,12 @@ router.post('/equip/:inventoryId', auth, async (req, res) => {
             eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
         }
         await dbRun(db, `UPDATE equipment SET ${data.slot}_id=? WHERE char_id=?`, [item.id, char.id]);
+        // Ring and amulet share one jewelry slot — clear the other column
+        if (data.slot === 'ring') {
+            await dbRun(db, 'UPDATE equipment SET amulet_id=NULL WHERE char_id=?', [char.id]);
+        } else if (data.slot === 'amulet') {
+            await dbRun(db, 'UPDATE equipment SET ring_id=NULL WHERE char_id=?', [char.id]);
+        }
         res.json({ message:`Equipped ${data.name}!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
