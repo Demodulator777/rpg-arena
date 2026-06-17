@@ -50,6 +50,7 @@ class BotAccount {
     this.cooldowns = { pvp: 0, perTarget: {} };
     this.missionEnd = 0;
     this.tournamentJoined = false;
+    this._gearSetup = false;
   }
 
   async ensureAuth() {
@@ -298,16 +299,27 @@ class BotAccount {
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
+      const equipped = inventory.equipped || {};
       const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
       for (const slot of slots) {
+        // Check current equipped item's upgrade level
+        const current = equipped[slot];
+        let currentLvl = -1;
+        if (current && current.item_data) {
+          try {
+            const d = typeof current.item_data === 'string' ? JSON.parse(current.item_data) : current.item_data;
+            currentLvl = d.upgradeLevel || -1;
+          } catch {}
+        }
         const candidates = items.filter(i => {
           try {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-            return d.slot === slot && !i.equipped;
+            const lvl = d.upgradeLevel || 0;
+            return d.slot === slot && !i.equipped && lvl > currentLvl;
           } catch { return false; }
         });
         if (candidates.length === 0) continue;
-        // Pick highest upgrade level, then stat sum as tiebreaker
+        // Among better items, pick highest upgrade level, then stat sum
         let best = null, bestLvl = -1, bestSum = -1;
         for (const c of candidates) {
           try {
@@ -321,7 +333,7 @@ class BotAccount {
         if (best) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${slot} (+${bestLvl})`);
+            log(this.name, `Equipped ${slot} +${bestLvl} (was +${Math.max(0, currentLvl)})`);
             await sleep(200);
           } catch {}
         }
@@ -410,10 +422,13 @@ class BotAccount {
     await this.doMission();
     await this.doPvp();
     await this.activatePremium();
-    if ((this.character.gold || 0) > 5000) {
-      await this.shopGear();
-      await this.equipBest();
-      await this.upgradeGear();
+    if (!this._gearSetup) {
+      if ((this.character.gold || 0) > 5000) {
+        await this.shopGear();
+        await this.equipBest();
+        await this.upgradeGear();
+        this._gearSetup = true;
+      }
     }
     await this.upgradeStats();
     await this.setLoadout();
