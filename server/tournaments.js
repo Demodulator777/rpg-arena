@@ -840,8 +840,16 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   }
   // Track damage totals for damage-based modes
   if (mode === 'damage' || mode === 'least_damage') {
-    await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP2, dmgToP1, p1.id]);
-    await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP1, dmgToP2, p2.id]);
+    let extraP1 = 0, extraP2 = 0;
+    if (mode === 'least_damage' && result.winnerId !== null && result.winnerId !== 0) {
+      const earlyDeath = result.log.some(line => /^Round (\d+):/.test(line) && parseInt(line.match(/^Round (\d+):/)[1]) < 10 && line.includes('has fallen'));
+      if (earlyDeath) {
+        const loserPid = result.winnerId === f1.id ? p2.id : p1.id;
+        if (loserPid === p1.id) extraP1 = 1000; else extraP2 = 1000;
+      }
+    }
+    await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP2, dmgToP1 + extraP1, p1.id]);
+    await dbRun_t(db, 'UPDATE tournament_participants SET total_damage_dealt = COALESCE(total_damage_dealt, 0) + ?, total_damage_taken = COALESCE(total_damage_taken, 0) + ? WHERE id = ?', [dmgToP1, dmgToP2 + extraP2, p2.id]);
   }
   // Save elemental HP
   if (result.elementalHpA !== undefined && f1._elementalFighter) {
@@ -904,8 +912,11 @@ async function finalizeTournament(db, tournamentId) {
     pointsField = 'points';
   }
   let standings;
+  let notClassified = [];
   if (mode === 'least_damage') {
     standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? AND hp_start > 0 ORDER BY ${orderSQL}`, [tournamentId]);
+    notClassified = standings.filter(p => (p.total_damage_dealt || 0) < (p.total_damage_taken || 0));
+    standings = standings.filter(p => (p.total_damage_dealt || 0) >= (p.total_damage_taken || 0));
   } else {
     standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
   }
@@ -955,6 +966,16 @@ async function finalizeTournament(db, tournamentId) {
     await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10, gold = COALESCE(gold, 0) + 5000 WHERE id = ?', [winner.char_id]);
   }
   const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [tournamentId]);
+  // Notify not classified players (least_damage mode only)
+  for (const p of notClassified) {
+    if (p.is_npc || !p.char_id) continue;
+    const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
+    const subject = `🏟️ Tournament #${tournamentId} — Not Classified`;
+    const body = `You fought ${pMatches.length} match(es) (dealt ${p.total_damage_dealt || 0} dmg, took ${p.total_damage_taken || 0} dmg). You dealt less damage than you took and were not classified.`;
+    await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
+      [p.char_id, p.char_id, subject, body]);
+  }
+
   for (let i = 0; i < standings.length; i++) {
     const p = standings[i];
     if (p.is_npc || !p.char_id) continue;
