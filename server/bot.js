@@ -94,7 +94,7 @@ class BotAccount {
     const mp = this.character.mission_points || 0;
     if (mp >= 20) return;
     try {
-      const inventory = await api('GET', '/inventory', null, this.token);
+      const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
       const manaPot = items.find(i => {
         if (i.item_type !== 'consumable') return false;
@@ -104,7 +104,7 @@ class BotAccount {
         } catch { return false; }
       });
       if (!manaPot) return;
-      const result = await api('POST', `/use/${manaPot.id}`, null, this.token);
+      const result = await api('POST', `/game/use/${manaPot.id}`, null, this.token);
       log(this.name, `Used mana potion (MP restored)`);
       if (result.character) this.character = result.character;
     } catch {}
@@ -267,7 +267,7 @@ class BotAccount {
       const gold = this.character.gold || 0;
       const gemCost = this.character.gems || 0;
       const slotPriority = { weapon: 1, armor: 2, helmet: 3, boots: 4, ring: 5, shield: 6, amulet: 7, accessory: 8 };
-      const inventory = await api('GET', '/inventory', null, this.token);
+      const inventory = await api('GET', '/game/inventory', null, this.token);
       const equipped = inventory.equipped || {};
       const buyable = shop.items.filter(i => i.priceType !== 'gems' && i.price <= gold && i.slot && slotPriority[i.slot]);
       const bought = [];
@@ -288,7 +288,7 @@ class BotAccount {
   // ── Equip Best Gear ──────────────────────────────────────────────────────
   async equipBest() {
     try {
-      const inventory = await api('GET', '/inventory', null, this.token);
+      const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
       const equipped = inventory.equipped || {};
       const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
@@ -312,7 +312,7 @@ class BotAccount {
         }
         if (best) {
           try {
-            await api('POST', `/equip/${best.id}`, null, this.token);
+            await api('POST', `/game/equip/${best.id}`, null, this.token);
             log(this.name, `Equipped ${slot} (stat sum: ${bestSum})`);
             await sleep(200);
           } catch {}
@@ -324,7 +324,7 @@ class BotAccount {
   // ── Gear Upgrades ────────────────────────────────────────────────────────
   async upgradeGear() {
     try {
-      const inventory = await api('GET', '/inventory', null, this.token);
+      const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
       const gold = this.character.gold || 0;
       if (gold < 5000) return;
@@ -337,7 +337,7 @@ class BotAccount {
           const maxLvl = d.quality === 'legendary' ? 5 : d.quality === 'rare' ? 4 : 3;
           if (upLvl >= maxLvl) continue;
           // Try iron_ingot first (cheapest component)
-          await api('POST', `/equipment/upgrade/${item.id}`, { componentId: 'iron_ingot', expectedUpgradeLevel: upLvl }, this.token);
+          await api('POST', `/game/equipment/upgrade/${item.id}`, { componentId: 'iron_ingot', expectedUpgradeLevel: upLvl }, this.token);
           log(this.name, `Upgraded ${d.name} to +${upLvl + 1}`);
           await sleep(500);
         } catch (e) {
