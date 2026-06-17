@@ -302,15 +302,9 @@ class BotAccount {
       const equipped = inventory.equipped || {};
       const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
       for (const slot of slots) {
-        // Check current equipped item's upgrade level
+        // Equipped items have item_data spread at top level (from getEquippedItems)
         const current = equipped[slot];
-        let currentLvl = -1;
-        if (current && current.item_data) {
-          try {
-            const d = typeof current.item_data === 'string' ? JSON.parse(current.item_data) : current.item_data;
-            currentLvl = d.upgradeLevel || -1;
-          } catch {}
-        }
+        const currentLvl = current?.upgradeLevel ?? -1;
         const candidates = items.filter(i => {
           try {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
