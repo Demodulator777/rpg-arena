@@ -309,7 +309,7 @@ class BotAccount {
         { name: 'accessory', slots: ['accessory'] },
       ];
       for (const group of slotGroups) {
-        let best = null, bestLvl = -1, bestSum = -1, isBestEquipped = false;
+        let best = null, bestLvl = -1, bestSum = -1;
         for (const item of items) {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -318,11 +318,13 @@ class BotAccount {
             const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
                         (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
             if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) {
-              best = item; bestLvl = lvl; bestSum = sum; isBestEquipped = item.equipped;
+              best = item; bestLvl = lvl; bestSum = sum;
             }
           } catch {}
         }
-        if (best && !isBestEquipped) {
+        // Jewelry slot: always re-equip best (ring/amulet share one slot with separate DB columns)
+        const skipEquip = group.name !== 'jewelry' && best && best.equipped;
+        if (best && !skipEquip) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
             log(this.name, `Equipped ${group.name} +${bestLvl}`);
