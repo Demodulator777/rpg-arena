@@ -5529,6 +5529,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const defSkills = defender.activeSkills || {};
     const ignoreDefenderZones = !!attacker.ignoreDefenderZones;
 
+    const weapon = attacker.weapon || null;
+    const isWpn = (name) => weapon && (weapon.name?.toLowerCase().includes(name) || weapon.type === name || weapon.weaponType === name);
+
     let rogueWeaponPenalty = 1.0;
     let offHandDmgPct = 0;
     if (attacker.class === 'rogue') {
@@ -5537,14 +5540,24 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (dualWield) {
             offHandDmgPct = dualWieldDmg ? dualWieldDmg.off_hand_dmg_pct : dualWield.off_hand_dmg_pct;
         } else {
-            const weapon = attacker.weapon || null;
-            const isDagger = weapon && (weapon.name?.toLowerCase().includes('dagger') || weapon.type === 'dagger' || weapon.weaponType === 'dagger');
-            if (!isDagger && weapon) rogueWeaponPenalty = 0.60;
+            const exempt = isWpn('dagger') || isWpn('bow') || isWpn('scythe');
+            if (!exempt && weapon) rogueWeaponPenalty = 0.60;
         }
     }
 
     let physicalDamagePenalty = 1.0;
-    if (attacker.class === 'mage') physicalDamagePenalty = 0.40;
+    if (attacker.class === 'mage') {
+        const ok = isWpn('scythe') || isWpn('staff');
+        if (!ok) physicalDamagePenalty = 0.40;
+    }
+    if (attacker.class === 'paladin') {
+        const heavy = isWpn('mace') || isWpn('hammer') || isWpn('staff') || isWpn('axe') || isWpn('blade') || isWpn('spear') || isWpn('scythe') || isWpn('sword');
+        if (!heavy && weapon) physicalDamagePenalty = 0.60;
+    }
+    if (attacker.class === 'warrior') {
+        const bad = isWpn('staff') || isWpn('dagger');
+        if (bad) physicalDamagePenalty = 0.60;
+    }
 
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
