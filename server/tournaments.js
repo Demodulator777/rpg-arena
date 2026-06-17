@@ -1235,6 +1235,21 @@ router.post('/tournaments/restart/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/tournaments/finalize/:id', auth, async (req, res) => {
+  try {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+    const db = await getDb();
+    const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
+    if (!t) return res.status(404).json({ error: 'Tournament not found' });
+    if (t.status !== 'active') return res.status(400).json({ error: `Tournament is ${t.status}, not active` });
+    // Fix hp_start for participants that joined before the bug was fixed
+    await dbRun_t(db, "UPDATE tournament_participants SET hp_start = hp_max WHERE tournament_id = ? AND (hp_start IS NULL OR hp_start = 0)", [t.id]);
+    await finalizeTournament(db, t.id);
+    const updated = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [t.id]);
+    res.json({ message: `Tournament #${t.id} finalized`, status: updated.status, winner_char_id: updated.winner_char_id, winner_is_npc: updated.winner_is_npc });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 function startScheduler() {
   scheduleDailyTournamentStart();
   setInterval(async () => {
