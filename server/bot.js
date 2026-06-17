@@ -89,6 +89,27 @@ class BotAccount {
     } catch { log(this.name, 'Failed to refresh character'); }
   }
 
+  // ── Mana Potions ────────────────────────────────────────────────────────
+  async useManaPotion() {
+    const mp = this.character.mission_points || 0;
+    if (mp >= 20) return;
+    try {
+      const inventory = await api('GET', '/inventory', null, this.token);
+      const items = inventory.items || [];
+      const manaPot = items.find(i => {
+        if (i.item_type !== 'consumable') return false;
+        try {
+          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+          return d.effect?.type === 'mp' && (d.qty || 1) > 0;
+        } catch { return false; }
+      });
+      if (!manaPot) return;
+      const result = await api('POST', `/use/${manaPot.id}`, null, this.token);
+      log(this.name, `Used mana potion (MP restored)`);
+      if (result.character) this.character = result.character;
+    } catch {}
+  }
+
   // ── Missions ────────────────────────────────────────────────────────────
   getBestMissionZone() {
     const lvl = this.character.level || 1;
@@ -377,6 +398,7 @@ class BotAccount {
     if (hour === 22) this.tournamentJoined = false;
 
     await this.collectMission();
+    if ((this.character.mission_points || 0) < 20) await this.useManaPotion();
     await this.doMission();
     await this.doPvp();
     await this.activatePremium();
