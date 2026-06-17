@@ -92,7 +92,7 @@ class BotAccount {
   // ── Mana Potions ────────────────────────────────────────────────────────
   async useManaPotion() {
     const mp = this.character.mission_points || 0;
-    if (mp >= 20) return;
+    if (mp >= 40) return;
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
@@ -100,14 +100,19 @@ class BotAccount {
         if (i.item_type !== 'consumable') return false;
         try {
           const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-          return d.effect?.type === 'mp' && (d.qty || 1) > 0;
+          return d.effect?.type === 'mp' && (Number(d.qty) || 1) > 0;
         } catch { return false; }
       });
-      if (!manaPot) return;
+      if (!manaPot) {
+        log(this.name, `No mana potions (MP: ${mp})`);
+        return;
+      }
       const result = await api('POST', `/game/use/${manaPot.id}`, null, this.token);
       log(this.name, `Used mana potion (MP restored)`);
       if (result.character) this.character = result.character;
-    } catch {}
+    } catch (e) {
+      log(this.name, `Mana potion failed: ${e.message}`);
+    }
   }
 
   // ── Missions ────────────────────────────────────────────────────────────
@@ -157,8 +162,11 @@ class BotAccount {
 
       const size = 'small';
 
-      await api('POST', '/game/missions/start', { zoneId: zone.key, spotId, size }, this.token);
+      const result = await api('POST', '/game/missions/start', { zoneId: zone.key, spotId, size }, this.token);
       this.missionEnd = now + (size === 'large' ? 1800 : size === 'medium' ? 1200 : 600);
+      // Update mission_points locally if API doesn't return full character
+      if (result.character) this.character = result.character;
+      else if (this.character) this.character.mission_points = (this.character.mission_points || 0) - (size === 'large' ? 60 : size === 'medium' ? 40 : 20);
       log(this.name, `Started ${size} ${difficulty} mission in ${zone.key} (ends in ${size === 'large' ? 30 : size === 'medium' ? 20 : 10}m)`);
       return true;
     } catch (e) {
@@ -290,7 +298,6 @@ class BotAccount {
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
-      const equipped = inventory.equipped || {};
       const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
       for (const slot of slots) {
         const candidates = items.filter(i => {
@@ -300,20 +307,29 @@ class BotAccount {
           } catch { return false; }
         });
         if (candidates.length === 0) continue;
-        // Pick the one with highest stat sum
-        let best = null, bestSum = -1;
+        // Pick the best item: weight hit_chance/crit_chance, count upgrades
+        let best = null, bestScore = -1;
         for (const c of candidates) {
           try {
             const d = typeof c.item_data === 'string' ? JSON.parse(c.item_data) : c.item_data;
-            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
-                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
-            if (sum > bestSum) { best = c; bestSum = sum; }
+            const stats = { ...(d.stats || {}), ...(d.wp_stats || {}) };
+            let score = 0;
+            let hit = 0, crit = 0;
+            for (const [k, v] of Object.entries(stats)) {
+              const val = Number(v) || 0;
+              if (k === 'hit_chance') { hit = val; score += val * 3; }
+              else if (k === 'crit_chance') { crit = val; score += val * 3; }
+              else score += val;
+            }
+            // Factor in upgrade level — each level adds significant stat value
+            score += (d.upgradeLevel || 0) * 30;
+            if (score > bestScore) { best = c; bestScore = score; }
           } catch {}
         }
         if (best) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${slot} (stat sum: ${bestSum})`);
+            log(this.name, `Equipped ${slot} (score: ${bestScore})`);
             await sleep(200);
           } catch {}
         }
@@ -398,7 +414,7 @@ class BotAccount {
     if (hour === 22) this.tournamentJoined = false;
 
     await this.collectMission();
-    if ((this.character.mission_points || 0) < 20) await this.useManaPotion();
+    await this.useManaPotion();
     await this.doMission();
     await this.doPvp();
     await this.activatePremium();
