@@ -5674,6 +5674,20 @@ function renderInventory(data) {
         `;
     }
 }
+// ── Weapon class suitability ──────────────────────────────────────────────
+function isWeaponSuitedForClass(weapon, cls) {
+  if (!weapon || !cls || weapon.slot !== 'weapon') return true;
+  const name = (weapon.name || '').toLowerCase();
+  const wpnType = weapon.type || weapon.weaponType || '';
+  const is = (s) => name.includes(s) || wpnType === s;
+  if (cls === 'rogue')   return is('dagger') || is('bow') || is('scythe');
+  if (cls === 'mage')    return is('scythe') || is('staff');
+  if (cls === 'paladin') return is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword');
+  if (cls === 'warrior') return !(is('staff') || is('dagger'));
+  return true;
+}
+const CLASS_WARN_HTML = '<div style="color:#e74c3c;font-size:0.72rem;margin-top:4px;padding:4px 6px;background:rgba(231,76,60,0.1);border-radius:4px">⚠️ This weapon is not suited for your class</div>';
+
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
@@ -5714,6 +5728,7 @@ function showItemTooltip(event, itemId) {
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
+    const classWarn = !isWeaponSuitedForClass(d, character?.class) ? CLASS_WARN_HTML : '';
     const sp = getInventorySellPrice(d);
     const sn = (d.name||'').replace(/'/g,"\\'");
 
@@ -5729,6 +5744,7 @@ function showItemTooltip(event, itemId) {
             <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            ${classWarn}
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
         </div>
         <div class="tt-actions">
@@ -5868,6 +5884,7 @@ function showItemTooltip(event, itemId) {
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
+    const classWarn = !isWeaponSuitedForClass(d, character?.class) ? CLASS_WARN_HTML : '';
     // Calculate sell price with premium discounts
     const activePrem = character?.premium_features || {};
     const hasVaultKeeper = !!activePrem.vault_keeper;
@@ -5888,6 +5905,7 @@ function showItemTooltip(event, itemId) {
             <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            ${classWarn}
             ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
         </div>
         <div class="tt-actions">
@@ -5920,6 +5938,7 @@ function showEqTooltip(event, itemJson) {
     const displayName = getDisplayItemName(item, item.upgrade_level || 0);
     const displayDesc = getDisplayItemDesc(item);
 
+    const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
     let statsHtml = Object.entries(item.stats||{})
         .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
         .filter(([,v]) => typeof v === 'number' && v !== 0)
@@ -5938,6 +5957,7 @@ function showEqTooltip(event, itemJson) {
             <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+            ${classWarn}
         </div>`;
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
@@ -10336,6 +10356,8 @@ function showShopItemTooltip(event, itemJson) {
         }
     }
 
+    const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
+
     // Build compared stat list like inventory tooltip
     let statsHtml = '';
     const allStats = new Set([
@@ -10406,6 +10428,7 @@ function showShopItemTooltip(event, itemJson) {
                 ${statsHtml || `<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}
                 ${effectHtml}
             </div>
+            ${classWarn}
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
             <div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">
                 Buy: ${priceIcon} ${buyPrice.toLocaleString()}
