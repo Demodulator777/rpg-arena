@@ -396,6 +396,25 @@ class BotAccount {
     } catch {}
   }
 
+  // ── One-time gear setup at startup ──────────────────────────────────────
+  async setupGear() {
+    try {
+      await this.refreshCharacter();
+      const gold = this.character.gold || 0;
+      if (gold < 5000) {
+        log(this.name, `Skipping gear setup — only ${gold} gold`);
+        return;
+      }
+      await this.shopGear();
+      await this.equipBest();
+      await this.upgradeGear();
+      this._gearSetup = true;
+      log(this.name, `Gear setup complete`);
+    } catch (e) {
+      log(this.name, `Gear setup failed: ${e.message}`);
+    }
+  }
+
   // ── Main loop ────────────────────────────────────────────────────────────
   async tick() {
     if (!this.token) await this.ensureAuth();
@@ -414,14 +433,6 @@ class BotAccount {
     await this.doMission();
     await this.doPvp();
     await this.activatePremium();
-    if (!this._gearSetup) {
-      if ((this.character.gold || 0) > 5000) {
-        await this.shopGear();
-        await this.equipBest();
-        await this.upgradeGear();
-        this._gearSetup = true;
-      }
-    }
     await this.upgradeStats();
     await this.setLoadout();
     await this.refreshCharacter();
@@ -436,9 +447,12 @@ async function main() {
 
   const bots = ACCOUNTS.map(cfg => new BotAccount(cfg));
 
-  // Initial auth for all bots
+  // Initial auth + gear setup for all bots
   for (const bot of bots) {
-    try { await bot.ensureAuth(); } catch (e) { log(bot.name, `Init failed: ${e.message}`); }
+    try {
+      await bot.ensureAuth();
+      await bot.setupGear();
+    } catch (e) { log(bot.name, `Init failed: ${e.message}`); }
   }
 
   // Main loop
