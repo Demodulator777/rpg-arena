@@ -307,29 +307,21 @@ class BotAccount {
           } catch { return false; }
         });
         if (candidates.length === 0) continue;
-        // Pick the best item: weight hit_chance/crit_chance, count upgrades
-        let best = null, bestScore = -1;
+        // Pick highest upgrade level, then stat sum as tiebreaker
+        let best = null, bestLvl = -1, bestSum = -1;
         for (const c of candidates) {
           try {
             const d = typeof c.item_data === 'string' ? JSON.parse(c.item_data) : c.item_data;
-            const stats = { ...(d.stats || {}), ...(d.wp_stats || {}) };
-            let score = 0;
-            let hit = 0, crit = 0;
-            for (const [k, v] of Object.entries(stats)) {
-              const val = Number(v) || 0;
-              if (k === 'hit_chance') { hit = val; score += val * 3; }
-              else if (k === 'crit_chance') { crit = val; score += val * 3; }
-              else score += val;
-            }
-            // Factor in upgrade level — each level adds significant stat value
-            score += (d.upgradeLevel || 0) * 30;
-            if (score > bestScore) { best = c; bestScore = score; }
+            const lvl = d.upgradeLevel || 0;
+            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
+                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
+            if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) { best = c; bestLvl = lvl; bestSum = sum; }
           } catch {}
         }
         if (best) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${slot} (score: ${bestScore})`);
+            log(this.name, `Equipped ${slot} (+${bestLvl})`);
             await sleep(200);
           } catch {}
         }
