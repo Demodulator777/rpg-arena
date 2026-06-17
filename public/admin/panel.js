@@ -476,6 +476,7 @@ function loadTournaments() {
                   '<span class="val">' + t.status + ' — ' + (t.mode || 'deathmatch') + ' — started ' + (t.started_at || 'not yet') + '</span>' +
                   '<span>' +
                     (isActive ? '<button class="db-btn db-btn-cancel" data-action="cancel-tournament" data-id="' + t.id + '" style="margin-right:4px">✕ Cancel</button>' : '') +
+                    (isActive ? '<button class="db-btn db-btn-apply" data-action="finalize-tournament" data-id="' + t.id + '" style="margin-right:4px">✓ Finalize</button>' : '') +
                     '<button class="db-btn db-btn-edit" data-action="restart-tournament" data-id="' + t.id + '">⟳ Restart</button>' +
                   '</span></div>';
             });
@@ -527,6 +528,20 @@ function loadTournaments() {
                 if (!confirm('Restart tournament #' + id + '? This will clear match results.')) return;
                 this.textContent = '...';
                 adminApi('POST', '/tournaments/restart/' + id).then(function(r) {
+                    loadTournaments();
+                }).catch(function(e) {
+                    alert('Error: ' + e.message);
+                    loadTournaments();
+                });
+            });
+        });
+        document.querySelectorAll('[data-action="finalize-tournament"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var id = this.dataset.id;
+                if (!confirm('Finalize tournament #' + id + '? Computes standings and completes it.')) return;
+                this.textContent = '...';
+                adminApi('POST', '/tournaments/finalize/' + id).then(function(r) {
+                    alert('✅ Tournament #' + id + ' finalized: ' + r.status + (r.winner_char_id ? ' (winner char #' + r.winner_char_id + ')' : ''));
                     loadTournaments();
                 }).catch(function(e) {
                     alert('Error: ' + e.message);
