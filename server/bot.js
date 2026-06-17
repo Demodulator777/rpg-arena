@@ -1,5 +1,6 @@
 const BASE = 'http://localhost:3009';
 const TOKEN_FILE = './.bot_tokens.json';
+const MEMORY_FILE = './.bot_memory.json';
 const fs = require('fs');
 const path = require('path');
 
@@ -38,6 +39,32 @@ function loadTokens() {
 }
 function saveTokens(tokens) {
   fs.writeFileSync(path.join(__dirname, TOKEN_FILE), JSON.stringify(tokens, null, 2));
+}
+
+// ── Bot memory persistence (shared defeat tracking) ──────────────────────
+function loadMemory() {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, MEMORY_FILE), 'utf8')); }
+  catch { return {}; }
+}
+function saveMemory(mem) {
+  fs.writeFileSync(path.join(__dirname, MEMORY_FILE), JSON.stringify(mem, null, 2));
+}
+function getDefeats(botName) {
+  const mem = loadMemory();
+  return mem[botName] || [];
+}
+function recordDefeat(botName, opponentId, opponentName, botLevel) {
+  const mem = loadMemory();
+  if (!mem[botName]) mem[botName] = [];
+  const existing = mem[botName].find(e => e.opponentId === opponentId);
+  if (existing) {
+    existing.lostAt = Date.now();
+    existing.botLevel = botLevel;
+    existing.losses = (existing.losses || 1) + 1;
+  } else {
+    mem[botName].push({ opponentId, opponentName, lostAt: Date.now(), botLevel, losses: 1 });
+  }
+  saveMemory(mem);
 }
 
 // ── Bot account class ──────────────────────────────────────────────────────
@@ -193,16 +220,93 @@ class BotAccount {
     }
   }
 
+  // ── Health Potion ──────────────────────────────────────────────────────
+  async healIfLow() {
+    const hp = this.character.hp_current || 0;
+    const maxHp = this.character.hp_max || 100;
+    if (hp >= maxHp * 0.3) return false;
+    log(this.name, `HP ${hp}/${maxHp} — below 30%, using potion`);
+    try {
+      const inventory = await api('GET', '/game/inventory', null, this.token);
+      const items = inventory.items || [];
+      // Find best heal potion (heal_full > heal value)
+      const healPots = items.filter(i => {
+        if (i.item_type !== 'consumable') return false;
+        try {
+          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+          return d.effect?.type === 'heal' || d.effect?.type === 'heal_full';
+        } catch { return false; }
+      });
+      // Sort by heal value descending
+      healPots.sort((a, b) => {
+        const da = typeof a.item_data === 'string' ? JSON.parse(a.item_data) : a.item_data;
+        const db = typeof b.item_data === 'string' ? JSON.parse(b.item_data) : b.item_data;
+        const va = da.effect?.type === 'heal_full' ? 99999 : (da.effect?.value || 0);
+        const vb = db.effect?.type === 'heal_full' ? 99999 : (db.effect?.value || 0);
+        return vb - va;
+      });
+      if (healPots.length > 0) {
+        const result = await api('POST', `/game/use/${healPots[0].id}`, null, this.token);
+        if (result.character) this.character = result.character;
+        log(this.name, `Used health potion (HP restored)`);
+        return true;
+      }
+      // No potions — try to buy one from shop
+      const shop = await api('GET', '/shop/items', null, this.token);
+      const pots = (shop.items || []).filter(i =>
+        i.priceType === 'gold' && i.price <= (this.character.gold || 0) &&
+        i.effect?.type === 'heal' && i.level <= (this.character.level || 1)
+      );
+      pots.sort((a, b) => (b.effect?.value || 0) - (a.effect?.value || 0));
+      if (pots.length > 0) {
+        const buyResult = await api('POST', '/shop/buy', { item: { id: pots[0].id, category: 'consumable' } }, this.token);
+        if (buyResult.character) this.character = buyResult.character;
+        log(this.name, `Bought ${pots[0].name} for ${pots[0].price}g`);
+        // Use it
+        await sleep(300);
+        const inv2 = await api('GET', '/game/inventory', null, this.token);
+        const pot = (inv2.items || []).find(i => {
+          if (i.item_type !== 'consumable') return false;
+          try {
+            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+            return d.id === pots[0].id;
+          } catch { return false; }
+        });
+        if (pot) {
+          const r = await api('POST', `/game/use/${pot.id}`, null, this.token);
+          if (r.character) this.character = r.character;
+          log(this.name, `Used ${pots[0].name}`);
+        }
+        return true;
+      }
+      log(this.name, `No health potions available`);
+      return false;
+    } catch (e) {
+      log(this.name, `Health potion failed: ${e.message}`);
+      return false;
+    }
+  }
+
   // ── PvP ─────────────────────────────────────────────────────────────────
   async doPvp() {
     try {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.cooldowns.pvp) return false;
 
-      // Check HP
-      if ((this.character.hp_current || 0) <= 0) {
+      // Check + heal if low HP
+      const hp = this.character.hp_current || 0;
+      const maxHp = this.character.hp_max || 100;
+      if (hp <= 0) {
         log(this.name, 'HP too low for PvP');
         return false;
+      }
+      if (hp < maxHp * 0.3) {
+        await this.healIfLow();
+        // Re-check after heal attempt
+        if ((this.character.hp_current || 0) < maxHp * 0.3) {
+          log(this.name, 'Still low HP after heal — skipping PvP');
+          return false;
+        }
       }
 
       const target = await api('GET', '/game/matchmaking?direction=similar', null, this.token);
@@ -211,22 +315,39 @@ class BotAccount {
         return false;
       }
 
+      const targetId = target.id;
       const myLevel = this.character.level || 1;
       const tgtLevel = target.level || 1;
+
+      // Level gap check
       if (tgtLevel < myLevel - 10) {
         log(this.name, `Skipping ${target.name} (level ${tgtLevel}) — too far below (I'm ${myLevel})`);
         return false;
       }
 
-      const targetId = target.id;
-      // Check per-target cooldown
+      // Per-target cooldown (once per 24h)
       if (this.cooldowns.perTarget[targetId] && now < this.cooldowns.perTarget[targetId]) return false;
+
+      // Defeat memory: skip if we've lost to this player before and aren't much stronger now
+      const defeats = getDefeats(this.name);
+      const prev = defeats.find(e => e.opponentId === targetId);
+      if (prev) {
+        const myPower = (this.character.strength || 0) + (this.character.agility || 0) + (this.character.magic || 0) + (this.character.defense || 0) + myLevel * 5;
+        const tgtPower = (target.strength || 0) + (target.agility || 0) + (target.magic || 0) + (target.defense || 0) + tgtLevel * 5;
+        if (tgtPower >= myPower * 0.9) {
+          log(this.name, `Skipping ${target.name} — lost ${prev.losses}x before and not significantly stronger`);
+          return false;
+        }
+      }
 
       const result = await api('POST', `/game/attack/${targetId}`, null, this.token);
       this.cooldowns.pvp = now + 600;
-      this.cooldowns.perTarget[targetId] = now + 43200;
+      this.cooldowns.perTarget[targetId] = now + 86400;
       const won = result.won || result.isDraw === false;
       log(this.name, `PvP vs ${target.name || targetId}: ${result.won ? 'WON' : result.isDraw ? 'DRAW' : 'LOST'} | gold:${result.goldGained || 0}`);
+      if (!won && !result.isDraw) {
+        recordDefeat(this.name, targetId, target.name || 'unknown', myLevel);
+      }
       if (result.character) this.character = result.character;
       return true;
     } catch (e) {
