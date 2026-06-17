@@ -307,7 +307,8 @@ class BotAccount {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (d.slot !== slot) continue;
-            const lvl = d.upgradeLevel || 0;
+            // Check both JSON field (upgradeLevel) and DB column (upgrade_level)
+            const lvl = d.upgradeLevel || item.upgrade_level || 0;
             const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
                         (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
             if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) {
