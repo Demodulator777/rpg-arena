@@ -74,9 +74,9 @@ async function ensureMinPlayers(db, t) {
   if (npcsNeeded > 0) {
     for (let i = 0; i < npcsNeeded; i++) {
       const npc = generateNpc(participants.length + i);
-      await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, is_npc, npc_data, name, class, level, strength, defense, agility, magic, vitality, hp_max)
-        VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [t.id, JSON.stringify(npc), npc.name, npc.class, npc.level, npc.strength, npc.defense, npc.agility, npc.magic, npc.vitality, npc.hp_max]);
+      await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, is_npc, npc_data, name, class, level, strength, defense, agility, magic, vitality, hp_max, hp_start)
+        VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [t.id, JSON.stringify(npc), npc.name, npc.class, npc.level, npc.strength, npc.defense, npc.agility, npc.magic, npc.vitality, npc.hp_max, npc.hp_max]);
     }
     participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
     console.log(`   Added ${npcsNeeded} NPCs, total: ${participants.length}`);
@@ -1088,9 +1088,9 @@ router.post('/tournaments/join', auth, async (req, res) => {
     if (existing) return res.status(400).json({ error: 'Already joined' });
     if (char.gold < TOURNAMENT_COST) return res.status(400).json({ error: `Need ${TOURNAMENT_COST} gold to join` });
     await dbRun_t(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [TOURNAMENT_COST, char.id]);
-    await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current]);
+    await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max, hp_start)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current, char.hp_current]);
     res.json({ message: 'Joined tournament!', cost: TOURNAMENT_COST });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
