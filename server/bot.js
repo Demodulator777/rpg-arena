@@ -299,34 +299,27 @@ class BotAccount {
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
-      const equipped = inventory.equipped || {};
       const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
       for (const slot of slots) {
-        const current = equipped[slot];
-        const hasCurrent = !!current;
-        const currentLvl = hasCurrent ? (current.upgradeLevel ?? 0) : -1;
-        const candidates = items.filter(i => {
+        // Consider ALL items for this slot (equipped + unequipped), pick the best
+        let best = null, bestLvl = -1, bestSum = -1, isBestEquipped = false;
+        for (const item of items) {
           try {
-            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-            const lvl = d.upgradeLevel || 0;
-            return d.slot === slot && !i.equipped && lvl > currentLvl;
-          } catch { return false; }
-        });
-        if (candidates.length === 0) continue;
-        let best = null, bestLvl = -1, bestSum = -1;
-        for (const c of candidates) {
-          try {
-            const d = typeof c.item_data === 'string' ? JSON.parse(c.item_data) : c.item_data;
+            const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (d.slot !== slot) continue;
             const lvl = d.upgradeLevel || 0;
             const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
                         (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
-            if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) { best = c; bestLvl = lvl; bestSum = sum; }
+            if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) {
+              best = item; bestLvl = lvl; bestSum = sum; isBestEquipped = item.equipped;
+            }
           } catch {}
         }
-        if (best) {
+        // Only equip if best item is not already equipped
+        if (best && !isBestEquipped) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${slot} +${bestLvl} (was +${Math.max(0, currentLvl)})`);
+            log(this.name, `Equipped ${slot} +${bestLvl}`);
             await sleep(200);
           } catch {}
         }
