@@ -130,11 +130,11 @@ class BotAccount {
       const tutorial = wins < 4;
 
       const zone = this.getBestMissionZone();
-      const difficulty = tutorial ? 'easy' : (this.character.level >= (zone.minLvl + 5) ? 'hard' : (this.character.level >= zone.minLvl + 2 ? 'medium' : 'easy'));
+      const difficulty = tutorial ? 'easy' : 'hard';
       const spotId = this.getSpotForDifficulty(zone.key, difficulty);
       if (!spotId) return false;
 
-      const size = tutorial ? 'small' : ((this.character.mission_points || 0) >= 60 ? 'large' : (this.character.mission_points || 0) >= 40 ? 'medium' : 'small');
+      const size = 'small';
 
       await api('POST', '/game/missions/start', { zoneId: zone.key, spotId, size }, this.token);
       this.missionEnd = now + (size === 'large' ? 1800 : size === 'medium' ? 1200 : 600);
