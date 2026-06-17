@@ -181,6 +181,13 @@ class BotAccount {
         return false;
       }
 
+      const myLevel = this.character.level || 1;
+      const tgtLevel = target.level || 1;
+      if (tgtLevel < myLevel - 10) {
+        log(this.name, `Skipping ${target.name} (level ${tgtLevel}) — too far below (I'm ${myLevel})`);
+        return false;
+      }
+
       const targetId = target.id;
       // Check per-target cooldown
       if (this.cooldowns.perTarget[targetId] && now < this.cooldowns.perTarget[targetId]) return false;
