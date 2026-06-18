@@ -176,16 +176,14 @@ class BotAccount {
   async ensureTravelTarget(zoneKey) {
     try {
       await this.refreshCharacter();
+      const now = Math.floor(Date.now() / 1000);
       const loc = this.character.location;
       if (loc === zoneKey) return true;
       if (this.character.travel_target) {
-        // Already traveling; check if arrived
-        const status = await api('GET', '/travel/status', null, this.token);
-        if (status && (status.location === zoneKey || this.character.location === zoneKey)) return true;
-        log(this.name, `Currently traveling to ${this.character.travel_target} — waiting`);
-        return false;
+        const status = await api('GET', '/game/travel/status', null, this.token);
+        if (status && status.travelEnd && status.travelEnd > now) return false;
       }
-      const result = await api('POST', '/travel/start', { targetZone: zoneKey }, this.token);
+      const result = await api('POST', '/game/travel/start', { targetZone: zoneKey }, this.token);
       log(this.name, `Traveling to ${zoneKey} (${result.duration || '?'}s)`);
       return false;
     } catch (e) {
@@ -418,10 +416,10 @@ class BotAccount {
     const priority = ['fortune_hunter', 'warlord', 'iron_fortress', 'apprentice', 'vault_keeper', 'arcane_reservoir'];
     for (const id of priority) {
       try {
-        const features = await api('GET', '/premium/features', null, this.token);
+        const features = await api('GET', '/game/premium/features', null, this.token);
         const feat = features.features?.find(f => f.id === id);
         if (!feat || feat.active || gems < feat.cost) continue;
-        await api('POST', '/premium/activate', { featureId: id }, this.token);
+        await api('POST', '/game/premium/activate', { featureId: id }, this.token);
         log(this.name, `Activated premium: ${id}`);
         await sleep(500);
       } catch {}
@@ -466,26 +464,29 @@ class BotAccount {
         { name: 'accessory', slots: ['accessory'] },
       ];
       for (const group of slotGroups) {
-        let equippedLvl = -1;
-        let best = null, bestLvl = -1;
+        let equippedId = null, equippedScore = -1;
+        let best = null, bestScore = -1;
         for (const item of items) {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!group.slots.includes(d.slot)) continue;
             const lvl = d.upgradeLevel || item.upgrade_level || 0;
-            if (item.equipped) equippedLvl = lvl;
-            if (lvl > bestLvl) {
-              best = item; bestLvl = lvl;
+            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
+                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
+            const score = lvl * 10000 + sum;
+            if (item.equipped) { equippedId = item.id; equippedScore = score; }
+            if (score > bestScore) {
+              best = item; bestScore = score;
             }
           } catch {}
         }
-        // Never downgrade — require strictly higher upgrade level to equip
-        if (!best || bestLvl <= equippedLvl) continue;
+        // Only equip if best has strictly higher score than currently equipped
+        if (!best || bestScore <= equippedScore) continue;
         // Jewelry: always re-equip best (ring/amulet share one slot with separate DB columns)
         if (group.name === 'jewelry' || !best.equipped) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${group.name} +${bestLvl}`);
+            log(this.name, `Equipped ${group.name} (score ${bestScore})`);
             await sleep(200);
           } catch (e) {
             log(this.name, `Equip ${group.name} failed: ${e.message}`);
