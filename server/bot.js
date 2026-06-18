@@ -10,6 +10,10 @@ const ACCOUNTS = [
   { username: 'bot_mage',    password: 'botpass123', class: 'mage' },
   { username: 'bot_rogue',   password: 'botpass123', class: 'rogue' },
   { username: 'bot_paladin', password: 'botpass123', class: 'paladin' },
+  { username: 'bot_ranger',  password: 'botpass123', class: 'paladin' },
+  { username: 'bot_knight',  password: 'botpass123', class: 'warrior' },
+  { username: 'bot_warlock', password: 'botpass123', class: 'mage' },
+  { username: 'bot_shadow',  password: 'botpass123', class: 'rogue' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
