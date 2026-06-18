@@ -168,35 +168,30 @@ class BotAccount {
   }
 
   // ── Missions ────────────────────────────────────────────────────────────
-  getBestMissionZone() {
-    const lvl = this.character.level || 1;
-    const zones = [
-      { key: 'forest',  minLvl: 1 },
-      { key: 'swamp',   minLvl: 5 },
-      { key: 'mountains', minLvl: 10 },
-      { key: 'ruins',   minLvl: 20 },
-      { key: 'dark_city', minLvl: 35 },
-    ];
-    let best = zones[0];
-    for (const z of zones) {
-      if (lvl >= z.minLvl) best = z;
-    }
-    return best;
+  getMissionSpot() {
+    const spots = { easy: 'city_outskirts', medium: 'city_cathedral', hard: 'city_palace' };
+    return spots;
   }
 
-  getSpotForDifficulty(zoneKey, difficulty) {
-    const zones = {
-      forest:    { spots:['forest_camp','forest_bandits','forest_ruins'], diffs:['easy','medium','hard'] },
-      swamp:     { spots:['swamp_edge','swamp_village','swamp_heart'], diffs:['easy','medium','hard'] },
-      mountains: { spots:['mountain_base','mountain_peak','ice_cavern'], diffs:['easy','medium','hard'] },
-      ruins:     { spots:['ruins_perimeter','ruins_temple','ruins_crypt'], diffs:['easy','medium','hard'] },
-      dark_city: { spots:['city_outskirts','city_cathedral','city_palace'], diffs:['easy','medium','hard'] },
-    };
-    const zone = zones[zoneKey];
-    if (!zone) return null;
-    const idx = zone.diffs.indexOf(difficulty);
-    if (idx === -1) return null;
-    return zone.spots[idx];
+  async ensureTravelTarget(zoneKey) {
+    try {
+      await this.refreshCharacter();
+      const loc = this.character.location;
+      if (loc === zoneKey) return true;
+      if (this.character.travel_target) {
+        // Already traveling; check if arrived
+        const status = await api('GET', '/travel/status', null, this.token);
+        if (status && (status.location === zoneKey || this.character.location === zoneKey)) return true;
+        log(this.name, `Currently traveling to ${this.character.travel_target} — waiting`);
+        return false;
+      }
+      const result = await api('POST', '/travel/start', { targetZone: zoneKey }, this.token);
+      log(this.name, `Traveling to ${zoneKey} (${result.duration || '?'}s)`);
+      return false;
+    } catch (e) {
+      log(this.name, `Travel to ${zoneKey} failed: ${e.message}`);
+      return false;
+    }
   }
 
   async doMission() {
@@ -204,22 +199,21 @@ class BotAccount {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.missionEnd) return false;
 
-      const wins = this.character.wins || 0;
-      const tutorial = wins < 4;
+      const spots = this.getMissionSpot();
+      const spotId = spots.hard;
+      const zoneKey = 'dark_city';
 
-      const zone = this.getBestMissionZone();
-      const difficulty = tutorial ? 'easy' : 'hard';
-      const spotId = this.getSpotForDifficulty(zone.key, difficulty);
-      if (!spotId) return false;
+      // Travel to dark_city if not there
+      if (!(await this.ensureTravelTarget(zoneKey))) return false;
 
       const size = 'small';
 
-      const result = await api('POST', '/game/missions/start', { zoneId: zone.key, spotId, size }, this.token);
+      const result = await api('POST', '/game/missions/start', { zoneId: zoneKey, spotId, size }, this.token);
       this.missionEnd = now + (size === 'large' ? 1800 : size === 'medium' ? 1200 : 600);
       // Update mission_points locally if API doesn't return full character
       if (result.character) this.character = result.character;
       else if (this.character) this.character.mission_points = (this.character.mission_points || 0) - (size === 'large' ? 60 : size === 'medium' ? 40 : 20);
-      log(this.name, `Started ${size} ${difficulty} mission in ${zone.key} (ends in ${size === 'large' ? 30 : size === 'medium' ? 20 : 10}m)`);
+      log(this.name, `Started small hard mission in ${zoneKey} (10m)`);
       return true;
     } catch (e) {
       log(this.name, `Mission start failed: ${e.message}`);
