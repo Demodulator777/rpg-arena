@@ -328,9 +328,23 @@ class BotAccount {
       const myLevel = this.character.level || 1;
       const tgtLevel = target.level || 1;
 
+      // Don't risk gold on PvP if holding >10k
+      if ((this.character.gold || 0) > 10000) {
+        log(this.name, `Skipping PvP — holding ${this.character.gold} gold (limit 10k)`);
+        return false;
+      }
+
       // Level gap check
       if (tgtLevel < myLevel - 10) {
         log(this.name, `Skipping ${target.name} (level ${tgtLevel}) — too far below (I'm ${myLevel})`);
+        return false;
+      }
+
+      // Power check: skip if target is significantly stronger
+      const myPower = (this.character.strength || 0) + (this.character.agility || 0) + (this.character.magic || 0) + (this.character.defense || 0) + myLevel * 5;
+      const tgtPower = (target.strength || 0) + (target.agility || 0) + (target.magic || 0) + (target.defense || 0) + tgtLevel * 5;
+      if (tgtPower > myPower * 1.3) {
+        log(this.name, `Skipping ${target.name} (power ${tgtPower}) — too strong (I'm ${myPower})`);
         return false;
       }
 
@@ -341,8 +355,6 @@ class BotAccount {
       const defeats = getDefeats(this.name);
       const prev = defeats.find(e => e.opponentId === targetId);
       if (prev) {
-        const myPower = (this.character.strength || 0) + (this.character.agility || 0) + (this.character.magic || 0) + (this.character.defense || 0) + myLevel * 5;
-        const tgtPower = (target.strength || 0) + (target.agility || 0) + (target.magic || 0) + (target.defense || 0) + tgtLevel * 5;
         if (tgtPower >= myPower * 0.9) {
           log(this.name, `Skipping ${target.name} — lost ${prev.losses}x before and not significantly stronger`);
           return false;
