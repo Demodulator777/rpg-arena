@@ -2464,7 +2464,7 @@ function renderCharacter() {
         let bonusHtml = bonus !== 0
             ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
             : '';
-        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+</button>` : '';
+        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" data-cost="${cost}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+</button>` : '';
         return `<div class="stat-row ${beastClass}">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
@@ -2672,6 +2672,20 @@ const eqGrid = `
     loadAchievements();
     refreshInlineBadgeChips();
     charSheet.querySelectorAll('.stat-upgrade-btn').forEach(btn => {
+        // Mobile: long press shows cost info, tap upgrades
+        if ('ontouchstart' in window) {
+            let longPressTimer, longPressed = false;
+            btn.addEventListener('touchstart', () => {
+                longPressed = false;
+                longPressTimer = setTimeout(() => { longPressed = true; showStatUpgradeInfo(btn); }, 500);
+            }, { passive: true });
+            btn.addEventListener('touchmove', () => clearTimeout(longPressTimer), { passive: true });
+            btn.addEventListener('touchend', (e) => {
+                clearTimeout(longPressTimer);
+                if (!longPressed) upgradestat(btn.dataset.stat);
+                longPressed = false;
+            });
+        }
         btn.addEventListener('click', () => upgradestat(btn.dataset.stat));
     });
     // Elemental stat assignment +/- buttons
@@ -3692,6 +3706,27 @@ function renderUpgrade() {
 }
 
 let _upgradingStats = {};
+function showStatUpgradeInfo(btn) {
+    const stat = btn.dataset.stat;
+    const cost = parseInt(btn.dataset.cost);
+    const statNames = { strength:'Strength', defense:'Defense', agility:'Agility', magic:'Magic', vitality:'Vitality', hit_chance:'Hit Chance', crit_chance:'Crit Chance' };
+    const name = statNames[stat] || stat;
+    let tt = document.getElementById('item-tooltip');
+    if (!tt) { tt = document.createElement('div'); tt.id = 'item-tooltip'; tt.className = 'item-tooltip hidden'; document.body.appendChild(tt); }
+    const fmt = (n) => (n || 0).toLocaleString();
+    tt.innerHTML = `<div style="padding:10px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px">${name}</div>💰 Upgrade Cost: <strong>${fmt(cost)}</strong> gold<br><small style="opacity:0.6">Tap to upgrade · Long press for cost</small></div>`;
+    tt.style.height = ''; tt.style.width = 'auto';
+    tt.classList.remove('hidden');
+    const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 90;
+    const r = btn.getBoundingClientRect();
+    let left = r.right + 12, top = r.top;
+    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
+    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+    tt.style.left = Math.max(8, left) + 'px';
+    tt.style.top = Math.max(8, top) + 'px';
+    setTimeout(() => tt.classList.add('hidden'), 3000);
+}
+
 async function upgradestat(stat) {
     if (_upgradingStats[stat]) return;
     _upgradingStats[stat] = true;
@@ -5985,6 +6020,8 @@ function showForgeItemTooltip(event, itemJson) {
     const qColor = {legendary:'#ffd700',rare:'#9b59b6',epic:'#3498db',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
     const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
 
+    const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
+
     let equippedItem = null;
     if (character?.equipped) {
         if (item.slot === 'ring' || item.slot === 'amulet') equippedItem = character.equipped.ring || character.equipped.amulet || null;
@@ -6021,6 +6058,7 @@ function showForgeItemTooltip(event, itemJson) {
             <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
             ${item.desc?`<div class="tt-desc">${item.desc}</div>`:''}
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+            ${classWarn}
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
             ${compText ? `<div class="tt-vs">Components: <strong>${compText}</strong></div>` : ''}
             ${item.goldCost ? `<div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">Craft Cost: 💰 ${Number(item.goldCost).toLocaleString()}</div>` : ''}
