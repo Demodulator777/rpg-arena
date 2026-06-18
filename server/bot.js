@@ -438,11 +438,14 @@ class BotAccount {
         try {
           await api('POST', '/game/shop/buy', { item: { id: item.id, category: item.slot } }, this.token);
           log(this.name, `Bought ${item.name} (${item.slot})`);
-          bought.push(item.slot);
           await sleep(300);
-        } catch {}
+        } catch (e) {
+          log(this.name, `Buy ${item.name} failed: ${e.message}`);
+        }
       }
-    } catch {}
+    } catch (e) {
+      log(this.name, `shopGear error: ${e.message}`);
+    }
   }
 
   // ── Equip Best Gear ──────────────────────────────────────────────────────
