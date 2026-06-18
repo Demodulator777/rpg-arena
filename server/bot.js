@@ -82,6 +82,7 @@ class BotAccount {
     this.missionEnd = 0;
     this.tournamentJoined = false;
     this._gearSetup = false;
+    this._lootboxSetup = false;
   }
 
   async ensureAuth() {
@@ -548,12 +549,51 @@ class BotAccount {
         return;
       }
       await this.shopGear();
+      await this.buyAndOpenLootboxes();
       await this.equipBest();
       await this.upgradeGear();
       this._gearSetup = true;
       log(this.name, `Gear setup complete`);
     } catch (e) {
       log(this.name, `Gear setup failed: ${e.message}`);
+    }
+  }
+
+  // ── One-time lootbox opening at startup ─────────────────────────────────
+  async buyAndOpenLootboxes() {
+    if (this._lootboxSetup) return;
+    try {
+      await this.refreshCharacter();
+      const gems = this.character.gems || 0;
+      const canBuy = Math.min(50, Math.floor(gems / 5));
+      if (canBuy < 1) {
+        log(this.name, `Skipping lootboxes — only ${gems} gems (need 5 each)`);
+        return;
+      }
+      log(this.name, `Buying ${canBuy} epic lootboxes (${canBuy * 5}💎)`);
+      for (let i = 0; i < canBuy; i++) {
+        await api('POST', '/game/shop/buy', { item: { id: 'lootbox_epic', category: 'lootbox' } }, this.token);
+      }
+      await sleep(500);
+      const inv = await api('GET', '/game/inventory', null, this.token);
+      const box = (inv.items || []).find(i => {
+        if (i.item_type !== 'consumable') return false;
+        try {
+          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+          return d.id === 'lootbox_epic';
+        } catch { return false; }
+      });
+      if (!box) { log(this.name, `Lootbox not found in inventory`); return; }
+      const qty = box.quantity || 1;
+      log(this.name, `Opening ${qty} epic lootboxes...`);
+      for (let i = 0; i < qty; i++) {
+        await api('POST', `/game/lootbox/open/${box.id}`, null, this.token);
+        await sleep(200);
+      }
+      this._lootboxSetup = true;
+      log(this.name, `Epic lootboxes done`);
+    } catch (e) {
+      log(this.name, `Lootbox setup failed: ${e.message}`);
     }
   }
 
