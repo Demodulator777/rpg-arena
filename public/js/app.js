@@ -2464,7 +2464,7 @@ function renderCharacter() {
         let bonusHtml = bonus !== 0
             ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
             : '';
-        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" data-cost="${cost}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} title="Upgrade (${cost} gold)">+</button>` : '';
+        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" data-cost="${cost}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} aria-label="Upgrade ${statKey} (${cost} gold)">+</button>` : '';
         return `<div class="stat-row ${beastClass}">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
@@ -2672,7 +2672,10 @@ const eqGrid = `
     loadAchievements();
     refreshInlineBadgeChips();
     charSheet.querySelectorAll('.stat-upgrade-btn').forEach(btn => {
-        // Mobile: long press shows cost info, tap upgrades
+        // Desktop: hover shows cost popup, click upgrades
+        btn.addEventListener('mouseenter', () => showStatUpgradeInfo(btn, true));
+        btn.addEventListener('mouseleave', hideTooltip);
+        // Mobile: long press shows cost popup, tap upgrades
         if ('ontouchstart' in window) {
             let longPressTimer, longPressed = false;
             btn.addEventListener('touchstart', () => {
@@ -2680,7 +2683,7 @@ const eqGrid = `
                 longPressTimer = setTimeout(() => { longPressed = true; showStatUpgradeInfo(btn); }, 500);
             }, { passive: true });
             btn.addEventListener('touchmove', () => clearTimeout(longPressTimer), { passive: true });
-            btn.addEventListener('touchend', (e) => {
+            btn.addEventListener('touchend', () => {
                 clearTimeout(longPressTimer);
                 if (!longPressed) upgradestat(btn.dataset.stat);
                 longPressed = false;
@@ -3706,7 +3709,7 @@ function renderUpgrade() {
 }
 
 let _upgradingStats = {};
-function showStatUpgradeInfo(btn) {
+function showStatUpgradeInfo(btn, noAutoHide) {
     const stat = btn.dataset.stat;
     const cost = parseInt(btn.dataset.cost);
     const statNames = { strength:'Strength', defense:'Defense', agility:'Agility', magic:'Magic', vitality:'Vitality', hit_chance:'Hit Chance', crit_chance:'Crit Chance' };
@@ -3714,17 +3717,22 @@ function showStatUpgradeInfo(btn) {
     let tt = document.getElementById('item-tooltip');
     if (!tt) { tt = document.createElement('div'); tt.id = 'item-tooltip'; tt.className = 'item-tooltip hidden'; document.body.appendChild(tt); }
     const fmt = (n) => (n || 0).toLocaleString();
-    tt.innerHTML = `<div style="padding:10px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px">${name}</div>💰 Upgrade Cost: <strong>${fmt(cost)}</strong> gold<br><small style="opacity:0.6">Tap to upgrade · Long press for cost</small></div>`;
+    tt.innerHTML = `<div style="padding:12px 14px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px;font-size:14px">${name}</div><div style="font-size:13px">💰 Upgrade Cost: <strong>${fmt(cost)}</strong> gold</div></div>`;
     tt.style.height = ''; tt.style.width = 'auto';
     tt.classList.remove('hidden');
-    const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 90;
+    const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 80;
     const r = btn.getBoundingClientRect();
     let left = r.right + 12, top = r.top;
     if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
     if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
     tt.style.left = Math.max(8, left) + 'px';
     tt.style.top = Math.max(8, top) + 'px';
-    setTimeout(() => tt.classList.add('hidden'), 3000);
+    clearTimeout(tt._hideTimer);
+    if (!noAutoHide) tt._hideTimer = setTimeout(() => tt.classList.add('hidden'), 3000);
+}
+function hideTooltip() {
+    const tt = document.getElementById('item-tooltip');
+    if (tt) { clearTimeout(tt._hideTimer); tt.classList.add('hidden'); }
 }
 
 async function upgradestat(stat) {
