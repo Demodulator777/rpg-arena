@@ -57,6 +57,16 @@ function getDefeats(botName) {
   const mem = loadMemory();
   return mem[botName] || [];
 }
+function isLootboxDone(botName) {
+  const mem = loadMemory();
+  return mem._lootboxDone && mem._lootboxDone[botName] === true;
+}
+function markLootboxDone(botName) {
+  const mem = loadMemory();
+  if (!mem._lootboxDone) mem._lootboxDone = {};
+  mem._lootboxDone[botName] = true;
+  saveMemory(mem);
+}
 function recordDefeat(botName, opponentId, opponentName, botLevel) {
   const mem = loadMemory();
   if (!mem[botName]) mem[botName] = [];
@@ -470,10 +480,14 @@ class BotAccount {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
             log(this.name, `Equipped ${group.name} +${bestLvl}`);
             await sleep(200);
-          } catch {}
+          } catch (e) {
+            log(this.name, `Equip ${group.name} failed: ${e.message}`);
+          }
         }
       }
-    } catch {}
+    } catch (e) {
+      log(this.name, `equipBest error: ${e.message}`);
+    }
   }
 
   // ── Gear Upgrades ────────────────────────────────────────────────────────
@@ -562,6 +576,7 @@ class BotAccount {
   // ── One-time lootbox opening at startup ─────────────────────────────────
   async buyAndOpenLootboxes() {
     if (this._lootboxSetup) return;
+    if (isLootboxDone(this.name)) { this._lootboxSetup = true; return; }
     try {
       await this.refreshCharacter();
       const gems = this.character.gems || 0;
@@ -591,6 +606,7 @@ class BotAccount {
         await sleep(200);
       }
       this._lootboxSetup = true;
+      markLootboxDone(this.name);
       log(this.name, `Epic lootboxes done`);
     } catch (e) {
       log(this.name, `Lootbox setup failed: ${e.message}`);
@@ -613,6 +629,7 @@ class BotAccount {
     await this.collectMission();
     await this.useManaPotion();
     await this.doMission();
+    await this.equipBest();
     await this.doPvp();
     await this.activatePremium();
     await this.upgradeStats();
