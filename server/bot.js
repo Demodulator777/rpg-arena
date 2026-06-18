@@ -179,12 +179,28 @@ class BotAccount {
       const now = Math.floor(Date.now() / 1000);
       const loc = this.character.location;
       if (loc === zoneKey) return true;
+      // Check if currently traveling
       if (this.character.travel_target) {
         const status = await api('GET', '/game/travel/status', null, this.token);
         if (status && status.travelEnd && status.travelEnd > now) return false;
       }
-      const result = await api('POST', '/game/travel/start', { targetZone: zoneKey }, this.token);
-      log(this.name, `Traveling to ${zoneKey} (${result.duration || '?'}s)`);
+      // Try target zone first; if blocked by gatekeeper, step backward through the chain
+      const zonePath = ['swamp', 'mountains', 'ruins', 'dark_city'];
+      const candidates = [zoneKey, ...zonePath.slice(0, zonePath.indexOf(zoneKey)).reverse()];
+      for (const z of candidates) {
+        if (z === loc) continue;
+        try {
+          const result = await api('POST', '/game/travel/start', { targetZone: z }, this.token);
+          log(this.name, `Traveling to ${z} (${result.duration || '?'}s)`);
+          return false;
+        } catch (e2) {
+          // Gatekeeper / prereq error — try the previous zone in the chain
+          if (e2.message.includes('challenge') || e2.message.includes('unlock')) continue;
+          log(this.name, `Travel to ${z} failed: ${e2.message}`);
+          return false;
+        }
+      }
+      log(this.name, `No reachable zone toward ${zoneKey}`);
       return false;
     } catch (e) {
       log(this.name, `Travel to ${zoneKey} failed: ${e.message}`);
