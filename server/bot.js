@@ -466,22 +466,23 @@ class BotAccount {
         { name: 'accessory', slots: ['accessory'] },
       ];
       for (const group of slotGroups) {
-        let best = null, bestLvl = -1, bestSum = -1;
+        let equippedLvl = -1;
+        let best = null, bestLvl = -1;
         for (const item of items) {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!group.slots.includes(d.slot)) continue;
             const lvl = d.upgradeLevel || item.upgrade_level || 0;
-            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
-                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
-            if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) {
-              best = item; bestLvl = lvl; bestSum = sum;
+            if (item.equipped) equippedLvl = lvl;
+            if (lvl > bestLvl) {
+              best = item; bestLvl = lvl;
             }
           } catch {}
         }
-        // Jewelry slot: always re-equip best (ring/amulet share one slot with separate DB columns)
-        const skipEquip = group.name !== 'jewelry' && best && best.equipped;
-        if (best && !skipEquip) {
+        // Never downgrade — require strictly higher upgrade level to equip
+        if (!best || bestLvl <= equippedLvl) continue;
+        // Jewelry: always re-equip best (ring/amulet share one slot with separate DB columns)
+        if (group.name === 'jewelry' || !best.equipped) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
             log(this.name, `Equipped ${group.name} +${bestLvl}`);
