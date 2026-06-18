@@ -1,594 +1,1054 @@
-const BASE = 'http://localhost:3009';
-const TOKEN_FILE = './.bot_tokens.json';
-const MEMORY_FILE = './.bot_memory.json';
-const fs = require('fs');
-const path = require('path');
+// ==UserScript==
+// @name         DragonMission
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Auto travel to Dragon's location and perform large mission with selectable karma (Light/Good or Dark/Evil).
+// @author       You
+// @match        https://s*.battleknight.gameforge.com/world/location*
+// @match        https://s*.battleknight.gameforge.com/world/travel
+// @match        https://s*.battleknight.gameforge.com/*
+// @grant        GM_addStyle
+// ==/UserScript==
 
-// ── Configuration ──────────────────────────────────────────────────────────
-const ACCOUNTS = [
-  { username: 'bot_warrior', password: 'botpass123', class: 'warrior' },
-  { username: 'bot_mage',    password: 'botpass123', class: 'mage' },
-  { username: 'bot_rogue',   password: 'botpass123', class: 'rogue' },
-  { username: 'bot_paladin', password: 'botpass123', class: 'paladin' },
-];
+(function () {
+    'use strict';
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function api(method, path, body, token) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  if (token) opts.headers['Authorization'] = `Bearer ${token}`;
-  const url = path.startsWith('/skills') ? `${BASE}${path}` : `${BASE}/api${path}`;
-  return fetch(url, opts).then(async r => {
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-    return data;
-  });
-}
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-function log(name, msg) {
-  const t = new Date().toISOString().slice(11, 19);
-  console.log(`[${t}][${name}] ${msg}`);
-}
-
-// ── Token persistence ──────────────────────────────────────────────────────
-function loadTokens() {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, TOKEN_FILE), 'utf8')); }
-  catch { return {}; }
-}
-function saveTokens(tokens) {
-  fs.writeFileSync(path.join(__dirname, TOKEN_FILE), JSON.stringify(tokens, null, 2));
-}
-
-// ── Bot memory persistence (shared defeat tracking) ──────────────────────
-function loadMemory() {
-  try { return JSON.parse(fs.readFileSync(path.join(__dirname, MEMORY_FILE), 'utf8')); }
-  catch { return {}; }
-}
-function saveMemory(mem) {
-  fs.writeFileSync(path.join(__dirname, MEMORY_FILE), JSON.stringify(mem, null, 2));
-}
-function getDefeats(botName) {
-  const mem = loadMemory();
-  return mem[botName] || [];
-}
-function recordDefeat(botName, opponentId, opponentName, botLevel) {
-  const mem = loadMemory();
-  if (!mem[botName]) mem[botName] = [];
-  const existing = mem[botName].find(e => e.opponentId === opponentId);
-  if (existing) {
-    existing.lostAt = Date.now();
-    existing.botLevel = botLevel;
-    existing.losses = (existing.losses || 1) + 1;
-  } else {
-    mem[botName].push({ opponentId, opponentName, lostAt: Date.now(), botLevel, losses: 1 });
-  }
-  saveMemory(mem);
-}
-
-// ── Bot account class ──────────────────────────────────────────────────────
-class BotAccount {
-  constructor(cfg) {
-    this.cfg = cfg;
-    this.token = null;
-    this.character = null;
-    this.name = cfg.username;
-    this.cooldowns = { pvp: 0, perTarget: {} };
-    this.missionEnd = 0;
-    this.tournamentJoined = false;
-    this._gearSetup = false;
-  }
-
-  async ensureAuth() {
-    const tokens = loadTokens();
-    if (tokens[this.cfg.username]) {
-      this.token = tokens[this.cfg.username];
-      try {
-        const char = await api('GET', '/game/character', null, this.token);
-        if (char && char.id) {
-          this.character = char;
-          log(this.name, `Authenticated (level ${char.level} ${char.class})`);
-          return;
+    GM_addStyle(`
+        .bk-auto-travel-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 14px;
+            border-left: 5px solid #4CAF50;
+            max-width: 350px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
         }
-      } catch { this.token = null; }
-    }
-    // Register or login
-    try {
-      const reg = await api('POST', '/auth/register', { username: this.cfg.username, password: this.cfg.password });
-      this.token = reg.token;
-      log(this.name, 'Registered');
-    } catch {
-      const login = await api('POST', '/auth/login', { username: this.cfg.username, password: this.cfg.password });
-      this.token = login.token;
-      log(this.name, 'Logged in');
-    }
-    tokens[this.cfg.username] = this.token;
-    saveTokens(tokens);
-    // Create character
-    const char = await api('POST', '/game/character', { class: this.cfg.class, name: this.cfg.username }, this.token);
-    this.character = char;
-    log(this.name, `Created ${this.cfg.class} character`);
-  }
+        .bk-auto-travel-status.error {
+            border-left-color: #f44336;
+            background: rgba(0, 0, 0, 0.95);
+        }
+        .bk-auto-travel-status.warning {
+            border-left-color: #ff9800;
+        }
+        .bk-auto-travel-status.info {
+            border-left-color: #2196F3;
+        }
+        .bk-auto-travel-status.success {
+            border-left-color: #4CAF50;
+        }
+        .bk-status-header {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bk-status-header::before {
+            content: "🐉";
+        }
+        .bk-status-section {
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        .bk-status-label {
+            font-weight: bold;
+            color: #90CAF9;
+            margin-right: 5px;
+        }
+        .bk-status-value {
+            color: #fff;
+        }
+        .bk-status-value.current {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .bk-status-value.target {
+            color: #FF9800;
+            font-weight: bold;
+        }
+        .bk-status-value.next {
+            color: #2196F3;
+            font-weight: bold;
+        }
+        .bk-status-value.dragon {
+            color: #E91E63;
+            font-weight: bold;
+        }
+        .bk-path-display {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+        .bk-path-step {
+            display: inline-block;
+            margin: 0 5px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .bk-path-step.current {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4CAF50;
+        }
+        .bk-path-step.next {
+            background: rgba(33, 150, 243, 0.3);
+            border: 1px solid #2196F3;
+        }
+        .bk-path-step.future {
+            opacity: 0.6;
+        }
+        .bk-path-arrow {
+            color: #888;
+            margin: 0 5px;
+        }
+        .bk-start-button {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+            width: 100%;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .bk-start-button:hover {
+            background: linear-gradient(135deg, #45a049, #4CAF50);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .bk-progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .bk-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #2196F3);
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 3px;
+        }
+        .bk-timer {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+            text-align: right;
+        }
+        .bk-traveling-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .bk-traveling-message {
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+            border: 2px solid #4CAF50;
+        }
+        .bk-traveling-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(76, 175, 80, 0.3);
+            border-top: 5px solid #4CAF50;
+            border-radius: 50%;
+            animation: bk-spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes bk-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .bk-karma-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        .bk-karma-label {
+            font-weight: bold;
+            color: #90CAF9;
+        }
+        .bk-karma-btn {
+            padding: 5px 15px;
+            border: 2px solid;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: transparent;
+            font-size: 13px;
+        }
+        .bk-karma-btn.light {
+            border-color: #FFD700;
+            color: #FFD700;
+        }
+        .bk-karma-btn.light.active {
+            background: #FFD700;
+            color: #000;
+        }
+        .bk-karma-btn.dark {
+            border-color: #9C27B0;
+            color: #9C27B0;
+        }
+        .bk-karma-btn.dark.active {
+            background: #9C27B0;
+            color: #fff;
+        }
+        .bk-ruby-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        .bk-ruby-label {
+            font-weight: bold;
+            color: #90CAF9;
+        }
+        .bk-ruby-btn {
+            padding: 5px 15px;
+            border: 2px solid;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: transparent;
+            font-size: 13px;
+        }
+        .bk-ruby-btn.off {
+            border-color: #f44336;
+            color: #f44336;
+        }
+        .bk-ruby-btn.off.active {
+            background: #f44336;
+            color: #fff;
+        }
+        .bk-ruby-btn.on {
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+        .bk-ruby-btn.on.active {
+            background: #4CAF50;
+            color: #fff;
+        }
+        .bk-stop-button {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+            width: 100%;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .bk-stop-button:hover {
+            background: linear-gradient(135deg, #d32f2f, #b71c1c);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+    `);
 
-  async refreshCharacter() {
-    try {
-      this.character = await api('GET', '/game/character', null, this.token);
-    } catch { log(this.name, 'Failed to refresh character'); }
-  }
+    // Detect server from current URL (e.g. s27-pt, s34-us)
+    const SERVER = window.location.hostname;
 
-  // ── Mana Potions ────────────────────────────────────────────────────────
-  async useManaPotion() {
-    const mp = this.character.mission_points || 0;
-    if (mp >= 40) return;
-    try {
-      const inventory = await api('GET', '/game/inventory', null, this.token);
-      const items = inventory.items || [];
-      const manaPot = items.find(i => {
-        if (i.item_type !== 'consumable') return false;
-        try {
-          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-          return d.effect?.type === 'mp' && (Number(d.qty) || 1) > 0;
-        } catch { return false; }
-      });
-      if (!manaPot) {
-        log(this.name, `No mana potions (MP: ${mp})`);
-        return;
-      }
-      const result = await api('POST', `/game/use/${manaPot.id}`, null, this.token);
-      log(this.name, `Used mana potion (MP restored)`);
-      if (result.character) this.character = result.character;
-    } catch (e) {
-      log(this.name, `Mana potion failed: ${e.message}`);
-    }
-  }
-
-  // ── Missions ────────────────────────────────────────────────────────────
-  getBestMissionZone() {
-    const lvl = this.character.level || 1;
-    const zones = [
-      { key: 'forest',  minLvl: 1 },
-      { key: 'swamp',   minLvl: 5 },
-      { key: 'mountains', minLvl: 10 },
-      { key: 'ruins',   minLvl: 20 },
-      { key: 'dark_city', minLvl: 35 },
-    ];
-    let best = zones[0];
-    for (const z of zones) {
-      if (lvl >= z.minLvl) best = z;
-    }
-    return best;
-  }
-
-  getSpotForDifficulty(zoneKey, difficulty) {
-    const zones = {
-      forest:    { spots:['forest_camp','forest_bandits','forest_ruins'], diffs:['easy','medium','hard'] },
-      swamp:     { spots:['swamp_edge','swamp_village','swamp_heart'], diffs:['easy','medium','hard'] },
-      mountains: { spots:['mountain_base','mountain_peak','ice_cavern'], diffs:['easy','medium','hard'] },
-      ruins:     { spots:['ruins_perimeter','ruins_temple','ruins_crypt'], diffs:['easy','medium','hard'] },
-      dark_city: { spots:['city_outskirts','city_cathedral','city_palace'], diffs:['easy','medium','hard'] },
+    const URLS = {
+        LOCATION: `https://${SERVER}/world/location`,
+        TRAVEL: `https://${SERVER}/world/travel`
     };
-    const zone = zones[zoneKey];
-    if (!zone) return null;
-    const idx = zone.diffs.indexOf(difficulty);
-    if (idx === -1) return null;
-    return zone.spots[idx];
-  }
 
-  async doMission() {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      if (now < this.missionEnd) return false;
+    const SELECTORS = {
+        CITY_ELEMENT: '#contentTitle h1',
+        DRAGON_ICON: '#DragonIcon',
+        TRAVEL_BUTTON: 'a.button[onclick*="startTravel"]',
+        SPECIAL_TRAVEL_BUTTON_ALVAN: 'a.button.boxed.tooltip[onclick*="startTravel(\'HarbourTwo\'"]',
+        SPECIAL_TRAVEL_BUTTON_WAILE: 'a.button.boxed.tooltip[onclick*="startTravel(\'HarbourOne\'"]',
+        TRAVEL_TIMER: '#progressbarEnds span',
+        DRAGON_EVENT: '#DragonEventGreatDragon',
+        DRAGON_MISSION_BUTTON: 'a.devLarge.specialButton'
+    };
 
-      const wins = this.character.wins || 0;
-      const tutorial = wins < 4;
+    // Mappings for the city names (displayed name -> button name)
+    const cityMappings = new Map([
+        ["Sedwich", "HarbourThree"],
+        ["Grand", "TradingPostOne"],
+        ["Tarant", "VillageOne"],
+        ["Endalain", "CapitalCity"],
+        ["Asgal", "CoastalFortressOne"],
+        ["Talfour", "GhostTown"],
+        ["Alcran", "CityOne"],
+        ["Gastain", "CoastalFortressTwo"],
+        ["Hatwig", "VillageTwo"],
+        ["Talmet", "TradingPostTwo"],
+        ["Waile", "HarbourOne"],
+        ["Ramstill", "VillageThree"],
+        ["Brant", "TradingPostThree"],
+        ["Thulgar", "FortressOne"],
+        ["Alvan", "HarbourTwo"],
+        ["Milley", "TradingPostFour"],
+        ["Jarow", "VillageFour"],
+        ["Segur", "FortressTwo"]
+    ]);
 
-      const zone = this.getBestMissionZone();
-      const difficulty = tutorial ? 'easy' : 'hard';
-      const spotId = this.getSpotForDifficulty(zone.key, difficulty);
-      if (!spotId) return false;
-
-      const size = 'small';
-
-      const result = await api('POST', '/game/missions/start', { zoneId: zone.key, spotId, size }, this.token);
-      this.missionEnd = now + (size === 'large' ? 1800 : size === 'medium' ? 1200 : 600);
-      // Update mission_points locally if API doesn't return full character
-      if (result.character) this.character = result.character;
-      else if (this.character) this.character.mission_points = (this.character.mission_points || 0) - (size === 'large' ? 60 : size === 'medium' ? 40 : 20);
-      log(this.name, `Started ${size} ${difficulty} mission in ${zone.key} (ends in ${size === 'large' ? 30 : size === 'medium' ? 20 : 10}m)`);
-      return true;
-    } catch (e) {
-      log(this.name, `Mission start failed: ${e.message}`);
-      return false;
+    // Create a reverse lookup map (button name -> displayed name)
+    const reverseCityMappings = new Map();
+    for (const [displayName, buttonName] of cityMappings) {
+        reverseCityMappings.set(buttonName, displayName);
     }
-  }
 
-  async collectMission() {
-    try {
-      const result = await api('POST', '/game/missions/collect', null, this.token);
-      const won = result.won || result.playerWon;
-      log(this.name, `Mission collect: ${won ? 'WON' : 'LOST'} | gold:${result.goldEarned || 0} xp:${result.xpEarned || 0}`);
-      if (result.character) this.character = result.character;
-      return true;
-    } catch (e) {
-      if (e.message.includes('No active mission') || e.message.includes('Mission rewards already collected')) {
-        this.missionEnd = 0;
-        return true;
-      }
-      log(this.name, `Mission collect failed: ${e.message}`);
-      return false;
+    // Define the travel paths (using displayed names)
+    const travelPaths = new Map([
+        ["Gastain", ["Alcran"]],
+        ["Alcran", ["Gastain", "Talfour"]],
+        ["Talfour", ["Alcran", "Grand"]],
+        ["Grand", ["Talfour", "Tarant", "Sedwich", "Endalain"]],
+        ["Tarant", ["Grand"]],
+        ["Sedwich", ["Grand"]],
+        ["Endalain", ["Grand", "Asgal", "Talmet"]],
+        ["Asgal", ["Endalain"]],
+        ["Talmet", ["Endalain", "Hatwig", "Waile"]],
+        ["Hatwig", ["Talmet"]],
+        ["Waile", ["Talmet", "Brant", "Alvan"]],
+        ["Brant", ["Waile", "Ramstill", "Thulgar"]],
+        ["Ramstill", ["Brant"]],
+        ["Thulgar", ["Brant"]],
+        ["Alvan", ["Waile", "Milley"]],
+        ["Milley", ["Alvan", "Jarow", "Segur"]],
+        ["Jarow", ["Milley"]],
+        ["Segur", ["Milley"]]
+    ]);
+
+    // State management
+    let isTraveling = false;
+    let travelInitiated = false;
+    let currentDragonLocation = null;
+    let travelDestination = null;
+
+    // Get stored karma preference (default: 'Good')
+    function getKarma() {
+        return localStorage.getItem('dragonKarma') || 'Good';
     }
-  }
 
-  // ── Health Potion ──────────────────────────────────────────────────────
-  async healIfLow() {
-    const hp = this.character.hp_current || 0;
-    const maxHp = this.character.hp_max || 100;
-    if (hp >= maxHp * 0.3) return false;
-    log(this.name, `HP ${hp}/${maxHp} — below 30%, using potion`);
-    try {
-      const inventory = await api('GET', '/game/inventory', null, this.token);
-      const items = inventory.items || [];
-      // Find best heal potion (heal_full > heal value)
-      const healPots = items.filter(i => {
-        if (i.item_type !== 'consumable') return false;
-        try {
-          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-          return d.effect?.type === 'heal' || d.effect?.type === 'heal_full';
-        } catch { return false; }
-      });
-      // Sort by heal value descending
-      healPots.sort((a, b) => {
-        const da = typeof a.item_data === 'string' ? JSON.parse(a.item_data) : a.item_data;
-        const db = typeof b.item_data === 'string' ? JSON.parse(b.item_data) : b.item_data;
-        const va = da.effect?.type === 'heal_full' ? 99999 : (da.effect?.value || 0);
-        const vb = db.effect?.type === 'heal_full' ? 99999 : (db.effect?.value || 0);
-        return vb - va;
-      });
-      if (healPots.length > 0) {
-        const result = await api('POST', `/game/use/${healPots[0].id}`, null, this.token);
-        if (result.character) this.character = result.character;
-        log(this.name, `Used health potion (HP restored)`);
-        return true;
-      }
-      // No potions — try to buy one from shop
-      const shop = await api('GET', '/shop/items', null, this.token);
-      const pots = (shop.items || []).filter(i =>
-        i.priceType === 'gold' && i.price <= (this.character.gold || 0) &&
-        i.effect?.type === 'heal' && i.level <= (this.character.level || 1)
-      );
-      pots.sort((a, b) => (b.effect?.value || 0) - (a.effect?.value || 0));
-      if (pots.length > 0) {
-        const buyResult = await api('POST', '/shop/buy', { item: { id: pots[0].id, category: 'consumable' } }, this.token);
-        if (buyResult.character) this.character = buyResult.character;
-        log(this.name, `Bought ${pots[0].name} for ${pots[0].price}g`);
-        // Use it
-        await sleep(300);
-        const inv2 = await api('GET', '/game/inventory', null, this.token);
-        const pot = (inv2.items || []).find(i => {
-          if (i.item_type !== 'consumable') return false;
-          try {
-            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-            return d.id === pots[0].id;
-          } catch { return false; }
-        });
-        if (pot) {
-          const r = await api('POST', `/game/use/${pot.id}`, null, this.token);
-          if (r.character) this.character = r.character;
-          log(this.name, `Used ${pots[0].name}`);
-        }
-        return true;
-      }
-      log(this.name, `No health potions available`);
-      return false;
-    } catch (e) {
-      log(this.name, `Health potion failed: ${e.message}`);
-      return false;
+    function setKarma(value) {
+        localStorage.setItem('dragonKarma', value);
     }
-  }
 
-  // ── PvP ─────────────────────────────────────────────────────────────────
-  async doPvp() {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      if (now < this.cooldowns.pvp) return false;
-
-      // Check + heal if low HP
-      const hp = this.character.hp_current || 0;
-      const maxHp = this.character.hp_max || 100;
-      if (hp <= 0) {
-        log(this.name, 'HP too low for PvP');
-        return false;
-      }
-      if (hp < maxHp * 0.3) {
-        await this.healIfLow();
-        // Re-check after heal attempt
-        if ((this.character.hp_current || 0) < maxHp * 0.3) {
-          log(this.name, 'Still low HP after heal — skipping PvP');
-          return false;
-        }
-      }
-
-      const target = await api('GET', '/game/matchmaking?direction=similar', null, this.token);
-      if (!target || !target.id) {
-        log(this.name, 'No PvP targets found');
-        return false;
-      }
-
-      const targetId = target.id;
-      const myLevel = this.character.level || 1;
-      const tgtLevel = target.level || 1;
-
-      // Level gap check
-      if (tgtLevel < myLevel - 10) {
-        log(this.name, `Skipping ${target.name} (level ${tgtLevel}) — too far below (I'm ${myLevel})`);
-        return false;
-      }
-
-      // Per-target cooldown (once per 24h)
-      if (this.cooldowns.perTarget[targetId] && now < this.cooldowns.perTarget[targetId]) return false;
-
-      // Defeat memory: skip if we've lost to this player before and aren't much stronger now
-      const defeats = getDefeats(this.name);
-      const prev = defeats.find(e => e.opponentId === targetId);
-      if (prev) {
-        const myPower = (this.character.strength || 0) + (this.character.agility || 0) + (this.character.magic || 0) + (this.character.defense || 0) + myLevel * 5;
-        const tgtPower = (target.strength || 0) + (target.agility || 0) + (target.magic || 0) + (target.defense || 0) + tgtLevel * 5;
-        if (tgtPower >= myPower * 0.9) {
-          log(this.name, `Skipping ${target.name} — lost ${prev.losses}x before and not significantly stronger`);
-          return false;
-        }
-      }
-
-      const result = await api('POST', `/game/attack/${targetId}`, null, this.token);
-      this.cooldowns.pvp = now + 600;
-      this.cooldowns.perTarget[targetId] = now + 86400;
-      const won = result.won || result.isDraw === false;
-      log(this.name, `PvP vs ${target.name || targetId}: ${result.won ? 'WON' : result.isDraw ? 'DRAW' : 'LOST'} | gold:${result.goldGained || 0}`);
-      if (!won && !result.isDraw) {
-        recordDefeat(this.name, targetId, target.name || 'unknown', myLevel);
-      }
-      if (result.character) this.character = result.character;
-      return true;
-    } catch (e) {
-      if (e.message.includes('cooldown') || e.message.includes('Cooldown')) {
-        this.cooldowns.pvp = Math.floor(Date.now() / 1000) + 600;
-      }
-      log(this.name, `PvP failed: ${e.message}`);
-      return false;
+    function getUseRubies() {
+        return localStorage.getItem('useRubiesFallback') === 'true';
     }
-  }
 
-  // ── Tournaments ──────────────────────────────────────────────────────────
-  async joinTournament() {
-    try {
-      await api('POST', '/tournaments/join', null, this.token);
-      this.tournamentJoined = true;
-      log(this.name, 'Joined tournament');
-      return true;
-    } catch (e) {
-      log(this.name, `Tournament join failed: ${e.message}`);
-      return false;
+    function setUseRubies(value) {
+        localStorage.setItem('useRubiesFallback', value ? 'true' : 'false');
     }
-  }
 
-  // ── Premium ──────────────────────────────────────────────────────────────
-  async activatePremium() {
-    if (this.character.premiumActive) return;
-    const gems = this.character.gems || 0;
-    const priority = ['fortune_hunter', 'warlord', 'iron_fortress', 'apprentice', 'vault_keeper', 'arcane_reservoir'];
-    for (const id of priority) {
-      try {
-        const features = await api('GET', '/premium/features', null, this.token);
-        const feat = features.features?.find(f => f.id === id);
-        if (!feat || feat.active || gems < feat.cost) continue;
-        await api('POST', '/premium/activate', { featureId: id }, this.token);
-        log(this.name, `Activated premium: ${id}`);
-        await sleep(500);
-      } catch {}
+    // Helper functions
+    function log(message, level = 'info') {
+        const validLevels = ['log', 'info', 'warn', 'error', 'debug'];
+        const logLevel = validLevels.includes(level) ? level : 'log';
+        console[logLevel](`[${new Date().toISOString()}] ${message}`);
     }
-  }
 
-  // ── Gear Shopping ────────────────────────────────────────────────────────
-  async shopGear() {
-    try {
-      const shop = await api('GET', '/shop/items', null, this.token);
-      if (!shop.items) return;
-      const gold = this.character.gold || 0;
-      const gemCost = this.character.gems || 0;
-      const slotPriority = { weapon: 1, armor: 2, helmet: 3, boots: 4, ring: 5, shield: 6, amulet: 7, accessory: 8 };
-      const inventory = await api('GET', '/game/inventory', null, this.token);
-      const equipped = inventory.equipped || {};
-      const buyable = shop.items.filter(i => i.priceType !== 'gems' && i.price <= gold && i.slot && slotPriority[i.slot]);
-      const bought = [];
-      for (const item of buyable.sort((a, b) => (slotPriority[a.slot] || 99) - (slotPriority[b.slot] || 99))) {
-        if (bought.includes(item.slot)) continue;
-        const current = equipped[item.slot];
-        if (current && current.name === item.name) continue;
-        try {
-          await api('POST', '/shop/buy', { item: { id: item.id, category: item.slot } }, this.token);
-          log(this.name, `Bought ${item.name} (${item.slot})`);
-          bought.push(item.slot);
-          await sleep(300);
-        } catch {}
-      }
-    } catch {}
-  }
-
-  // ── Equip Best Gear ──────────────────────────────────────────────────────
-  async equipBest() {
-    try {
-      const inventory = await api('GET', '/game/inventory', null, this.token);
-      const items = inventory.items || [];
-      const slotGroups = [
-        { name: 'weapon',    slots: ['weapon'] },
-        { name: 'armor',     slots: ['armor'] },
-        { name: 'helmet',    slots: ['helmet'] },
-        { name: 'shield',    slots: ['shield'] },
-        { name: 'boots',     slots: ['boots'] },
-        { name: 'jewelry',   slots: ['ring', 'amulet'] },
-        { name: 'accessory', slots: ['accessory'] },
-      ];
-      for (const group of slotGroups) {
-        let best = null, bestLvl = -1, bestSum = -1;
-        for (const item of items) {
-          try {
-            const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (!group.slots.includes(d.slot)) continue;
-            const lvl = d.upgradeLevel || item.upgrade_level || 0;
-            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
-                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
-            if (lvl > bestLvl || (lvl === bestLvl && sum > bestSum)) {
-              best = item; bestLvl = lvl; bestSum = sum;
+    function isTravelTimerActive() {
+        const timerElement = document.querySelector(SELECTORS.TRAVEL_TIMER);
+        if (timerElement) {
+            const timerText = timerElement.textContent.trim();
+            const timePattern = /^\d{2}:\d{2}:\d{2}$/;
+            if (timePattern.test(timerText)) {
+                log(`Travel timer active: ${timerText}`);
+                return true;
             }
-          } catch {}
         }
-        // Jewelry slot: always re-equip best (ring/amulet share one slot with separate DB columns)
-        const skipEquip = group.name !== 'jewelry' && best && best.equipped;
-        if (best && !skipEquip) {
-          try {
-            await api('POST', `/game/equip/${best.id}`, null, this.token);
-            log(this.name, `Equipped ${group.name} +${bestLvl}`);
-            await sleep(200);
-          } catch {}
-        }
-      }
-    } catch {}
-  }
+        return false;
+    }
 
-  // ── Gear Upgrades ────────────────────────────────────────────────────────
-  async upgradeGear() {
-    try {
-      const inventory = await api('GET', '/game/inventory', null, this.token);
-      const items = inventory.items || [];
-      const gold = this.character.gold || 0;
-      if (gold < 5000) return;
-      // Find equipped items that can be upgraded
-      for (const item of items) {
-        if (!item.equipped) continue;
+    function updateStatus(message, level = 'info', data = {}) {
+        if (isTraveling) return;
+
+        const oldStatus = document.querySelector('.bk-auto-travel-status');
+        if (oldStatus) oldStatus.remove();
+
+        const statusDiv = document.createElement('div');
+        statusDiv.className = `bk-auto-travel-status ${level}`;
+
+        let statusHTML = `<div class="bk-status-header">Dragon Mission Status</div>`;
+
+        if (data.currentCity) {
+            statusHTML += `
+                <div class="bk-status-section">
+                    <span class="bk-status-label">Current City:</span>
+                    <span class="bk-status-value current">${data.currentCity}</span>
+                </div>
+            `;
+        }
+
+        if (data.targetCity) {
+            statusHTML += `
+                <div class="bk-status-section">
+                    <span class="bk-status-label">Dragon at:</span>
+                    <span class="bk-status-value dragon">${data.targetCity}</span>
+                </div>
+            `;
+        }
+
+        if (data.nextCity) {
+            statusHTML += `
+                <div class="bk-status-section">
+                    <span class="bk-status-label">Traveling to:</span>
+                    <span class="bk-status-value next">${data.nextCity}</span>
+                </div>
+            `;
+        }
+
+        if (data.path && data.path.length > 0) {
+            let pathHTML = '<div class="bk-path-display">';
+            pathHTML += '<span class="bk-status-label">Path:</span> ';
+
+            data.path.forEach((city, index) => {
+                const isCurrent = city === data.currentCity;
+                const isNext = city === data.nextCity;
+                const isFuture = index > data.path.indexOf(data.currentCity);
+
+                let stepClass = 'bk-path-step';
+                if (isCurrent) stepClass += ' current';
+                if (isNext) stepClass += ' next';
+                if (isFuture) stepClass += ' future';
+
+                pathHTML += `<span class="${stepClass}">${city}</span>`;
+
+                if (index < data.path.length - 1) {
+                    pathHTML += '<span class="bk-path-arrow">→</span>';
+                }
+            });
+
+            pathHTML += '</div>';
+            statusHTML += pathHTML;
+        }
+
+        if (data.progress) {
+            statusHTML += `
+                <div class="bk-progress-bar">
+                    <div class="bk-progress-fill" style="width: ${data.progress}%"></div>
+                </div>
+            `;
+        }
+
+        if (data.timer) {
+            statusHTML += `<div class="bk-timer">${data.timer}</div>`;
+        }
+
+        if (isTravelTimerActive() && travelDestination) {
+            statusHTML += `
+                <div class="bk-status-section" style="background: rgba(255, 193, 7, 0.2); border-left: 3px solid #FFC107;">
+                    <span class="bk-status-label">Traveling to:</span>
+                    <span class="bk-status-value next">${travelDestination}</span>
+                    <br>
+                    <small>Waiting for travel to complete...</small>
+                </div>
+            `;
+        }
+
+        // Karma toggle
+        const currentKarma = getKarma();
+        statusHTML += `
+            <div class="bk-karma-toggle">
+                <span class="bk-karma-label">Karma:</span>
+                <button class="bk-karma-btn light ${currentKarma === 'Good' ? 'active' : ''}" data-karma="Good">Light</button>
+                <button class="bk-karma-btn dark ${currentKarma === 'Evil' ? 'active' : ''}" data-karma="Evil">Dark</button>
+            </div>
+        `;
+
+        // Ruby fallback toggle
+        const useRubies = getUseRubies();
+        statusHTML += `
+            <div class="bk-ruby-toggle">
+                <span class="bk-ruby-label">Use Rubies:</span>
+                <button class="bk-ruby-btn off ${!useRubies ? 'active' : ''}" data-ruby="false">Off</button>
+                <button class="bk-ruby-btn on ${useRubies ? 'active' : ''}" data-ruby="true">On</button>
+            </div>
+        `;
+
+        statusHTML += `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1)">${message}</div>`;
+
+        if (localStorage.getItem("autoTravelStarted") && !isTraveling) {
+            statusHTML += `<button class="bk-stop-button">Stop Auto-Travel</button>`;
+        } else if (window.location.href.includes("world/location") && !isTraveling) {
+            statusHTML += `<button class="bk-start-button">Start Dragon Auto-Travel</button>`;
+        }
+
+        statusDiv.innerHTML = statusHTML;
+
+        // Karma toggle click handlers
+        const karmaButtons = statusDiv.querySelectorAll('.bk-karma-btn');
+        karmaButtons.forEach(btn => {
+            btn.onclick = function() {
+                const karma = this.getAttribute('data-karma');
+                setKarma(karma);
+                const currentCity = data.currentCity || localStorage.getItem('currentCity') || '';
+                const targetCity = data.targetCity || localStorage.getItem('dragonLocation') || '';
+                updateStatus(`Karma set to ${karma === 'Good' ? 'Light' : 'Dark'}`, 'info', {
+                    currentCity: currentCity,
+                    targetCity: targetCity
+                });
+            };
+        });
+
+        // Ruby toggle click handlers
+        const rubyButtons = statusDiv.querySelectorAll('.bk-ruby-btn');
+        rubyButtons.forEach(btn => {
+            btn.onclick = function() {
+                const value = this.getAttribute('data-ruby') === 'true';
+                setUseRubies(value);
+                const currentCity = data.currentCity || localStorage.getItem('currentCity') || '';
+                const targetCity = data.targetCity || localStorage.getItem('dragonLocation') || '';
+                updateStatus(`Use rubies set to ${value ? 'On' : 'Off'}`, 'info', {
+                    currentCity: currentCity,
+                    targetCity: targetCity
+                });
+            };
+        });
+
+        const startButton = statusDiv.querySelector('.bk-start-button');
+        if (startButton) {
+            startButton.onclick = function() {
+                localStorage.setItem("autoTravelStarted", "true");
+                updateStatus("Manual start triggered. Going to travel page...", 'info', data);
+                setTimeout(() => {
+                    window.location.href = URLS.TRAVEL;
+                }, 1000);
+            };
+        }
+
+        const stopButton = statusDiv.querySelector('.bk-stop-button');
+        if (stopButton) {
+            stopButton.onclick = function() {
+                localStorage.removeItem("autoTravelStarted");
+                isTraveling = false;
+                travelInitiated = false;
+                travelDestination = null;
+                updateStatus("Auto-travel stopped by user.", 'error', data);
+                if (document.querySelector('.bk-traveling-overlay')) {
+                    document.querySelector('.bk-traveling-overlay').remove();
+                }
+            };
+        }
+
+        document.body.appendChild(statusDiv);
+
+        if (level === 'success' || message.includes('completed') || message.includes('purchased')) {
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.style.opacity = '0';
+                    statusDiv.style.transition = 'opacity 0.5s ease';
+                    setTimeout(() => {
+                        if (statusDiv.parentNode) statusDiv.remove();
+                    }, 500);
+                }
+            }, 3000);
+        }
+    }
+
+    function showTravelingOverlay(fromCity, toCity) {
+        const oldOverlay = document.querySelector('.bk-traveling-overlay');
+        if (oldOverlay) oldOverlay.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'bk-traveling-overlay';
+        overlay.innerHTML = `
+            <div class="bk-traveling-message">
+                <div class="bk-traveling-spinner"></div>
+                <h3>Traveling...</h3>
+                <p>From <strong style="color: #4CAF50">${fromCity}</strong> to <strong style="color: #2196F3">${toCity}</strong></p>
+                <p>Please wait while travel completes...</p>
+                <p style="font-size: 12px; color: #aaa; margin-top: 20px;">Page will reload automatically</p>
+                <button class="bk-stop-button" style="margin-top: 15px; background: linear-gradient(135deg, #f44336, #d32f2f); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%;">Stop Auto-Travel</button>
+            </div>
+        `;
+
+        const overlayStopBtn = overlay.querySelector('.bk-stop-button');
+        if (overlayStopBtn) {
+            overlayStopBtn.onclick = function() {
+                localStorage.removeItem("autoTravelStarted");
+                isTraveling = false;
+                travelInitiated = false;
+                travelDestination = null;
+                overlay.remove();
+                updateStatus("Auto-travel stopped by user.", 'error', {});
+            };
+        }
+
+        document.body.appendChild(overlay);
+        isTraveling = true;
+    }
+
+    function removeTravelingOverlay() {
+        const overlay = document.querySelector('.bk-traveling-overlay');
+        if (overlay) overlay.remove();
+        isTraveling = false;
+    }
+
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Main functions
+    function getCurrentLocation() {
         try {
-          const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-          const upLvl = d.upgradeLevel || 0;
-          const maxLvl = d.quality === 'legendary' ? 5 : d.quality === 'rare' ? 4 : 3;
-          if (upLvl >= maxLvl) continue;
-          // Try iron_ingot first (cheapest component)
-          await api('POST', `/game/equipment/upgrade/${item.id}`, { componentId: 'iron_ingot', expectedUpgradeLevel: upLvl }, this.token);
-          log(this.name, `Upgraded ${d.name} to +${upLvl + 1}`);
-          await sleep(500);
-        } catch (e) {
-          if (e.message.includes('component') || e.message.includes('material')) continue;
+            const cityElement = document.querySelector(SELECTORS.CITY_ELEMENT);
+            if (cityElement) {
+                const currentLocation = cityElement.textContent.trim();
+                log("Current location: " + currentLocation);
+                return currentLocation;
+            }
+            throw new Error("Current city element not found.");
+        } catch (error) {
+            log(error.message, 'error');
+            return null;
         }
-      }
-    } catch {}
-  }
-
-  // ── Upgrades ─────────────────────────────────────────────────────────────
-  async upgradeStats() {
-    const classFocus = {
-      warrior: ['strength', 'vitality', 'defense'],
-      mage: ['magic', 'vitality', 'agility'],
-      rogue: ['agility', 'strength', 'crit_chance'],
-      paladin: ['strength', 'defense', 'magic'],
-    };
-    const focus = classFocus[this.cfg.class] || ['strength', 'vitality'];
-    let gold = this.character.gold || 0;
-    if (gold < 50) return;
-
-    for (let round = 0; round < 5; round++) {
-      for (const stat of focus) {
-        if (gold < 50) return;
-        try {
-          const result = await api('POST', '/game/upgrade', { stat }, this.token);
-          log(this.name, `Upgraded ${stat}`);
-          if (result.character) {
-            gold = result.character.gold ?? (this.character.gold || 0);
-            this.character = result.character;
-          }
-          await sleep(300);
-        } catch { return; }
-      }
     }
-  }
 
-  // ── Loadout ──────────────────────────────────────────────────────────────
-  async setLoadout() {
-    try {
-      const attackZones = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
-      const blockZones = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
-      await api('POST', '/game/loadout', { attackZones, blockZones }, this.token);
-    } catch {}
-  }
+    function getDragonLocation() {
+        if (isTravelTimerActive()) {
+            log("Travel timer active, returning cached Dragon location");
+            return currentDragonLocation;
+        }
 
-  // ── One-time gear setup at startup ──────────────────────────────────────
-  async setupGear() {
-    try {
-      await this.refreshCharacter();
-      const gold = this.character.gold || 0;
-      if (gold < 5000) {
-        log(this.name, `Skipping gear setup — only ${gold} gold`);
-        return;
-      }
-      await this.shopGear();
-      await this.equipBest();
-      await this.upgradeGear();
-      this._gearSetup = true;
-      log(this.name, `Gear setup complete`);
-    } catch (e) {
-      log(this.name, `Gear setup failed: ${e.message}`);
+        const dragonIcon = document.querySelector(SELECTORS.DRAGON_ICON);
+        if (dragonIcon) {
+            const targetCityClass = dragonIcon.className;
+
+            if (reverseCityMappings.has(targetCityClass)) {
+                const cityName = reverseCityMappings.get(targetCityClass);
+                log("Dragon's location: " + cityName);
+                currentDragonLocation = cityName;
+                localStorage.setItem('dragonLocation', cityName);
+                return cityName;
+            }
+
+            const classList = dragonIcon.classList;
+            for (const className of classList) {
+                if (reverseCityMappings.has(className)) {
+                    const cityName = reverseCityMappings.get(className);
+                    log("Dragon's location: " + cityName);
+                    currentDragonLocation = cityName;
+                    localStorage.setItem('dragonLocation', cityName);
+                    return cityName;
+                }
+            }
+
+            log(`Warning: Could not map class "${targetCityClass}" to any city.`, 'warn');
+        } else {
+            log("Dragon icon not found on page.", 'error');
+        }
+
+        const cachedLocation = localStorage.getItem('dragonLocation');
+        if (cachedLocation) {
+            log("Using cached Dragon location from localStorage: " + cachedLocation);
+            currentDragonLocation = cachedLocation;
+            return cachedLocation;
+        }
+
+        return currentDragonLocation;
     }
-  }
 
-  // ── Main loop ────────────────────────────────────────────────────────────
-  async tick() {
-    if (!this.token) await this.ensureAuth();
+    // Breadth-First Search (BFS) to find the shortest path to Dragon's location
+    function findShortestPath(startCity, targetCity) {
+        const queue = [[startCity]];
+        const visited = new Set();
 
-    // Check tournaments at 21:25-21:35 daily
-    const now = new Date();
-    const hour = now.getUTCHours() + 1;
-    const min = now.getMinutes();
-    if (hour === 21 && min >= 25 && min <= 35 && !this.tournamentJoined) {
-      await this.joinTournament();
+        while (queue.length > 0) {
+            const path = queue.shift();
+            const currentCity = path[path.length - 1];
+
+            if (currentCity === targetCity) {
+                return path;
+            }
+
+            if (!visited.has(currentCity)) {
+                visited.add(currentCity);
+
+                const neighbors = travelPaths.get(currentCity) || [];
+                for (const neighbor of neighbors) {
+                    queue.push([...path, neighbor]);
+                }
+            }
+        }
+
+        log(`No path found from ${startCity} to ${targetCity}`, 'error');
+        return null;
     }
-    if (hour === 22) this.tournamentJoined = false;
 
-    await this.collectMission();
-    await this.useManaPotion();
-    await this.doMission();
-    await this.doPvp();
-    await this.activatePremium();
-    await this.upgradeStats();
-    await this.setLoadout();
-    await this.refreshCharacter();
-  }
-}
-
-// ── Runner ─────────────────────────────────────────────────────────────────
-async function main() {
-  console.log('╔══════════════════════════════════════╗');
-  console.log('║     RPG Arena Bot Runner v1.0        ║');
-  console.log('╚══════════════════════════════════════╝');
-
-  const bots = ACCOUNTS.map(cfg => new BotAccount(cfg));
-
-  // Initial auth + gear setup for all bots
-  for (const bot of bots) {
-    try {
-      await bot.ensureAuth();
-      await bot.setupGear();
-    } catch (e) { log(bot.name, `Init failed: ${e.message}`); }
-  }
-
-  // Main loop
-  while (true) {
-    const startTime = Date.now();
-    for (const bot of bots) {
-      try { await bot.tick(); } catch (e) { log(bot.name, `Tick error: ${e.message}`); }
-      await sleep(1000);
+    function getNextCity(currentCity, targetCity) {
+        const shortestPath = findShortestPath(currentCity, targetCity);
+        if (shortestPath && shortestPath.length > 1) {
+            return shortestPath[1];
+        }
+        log(`No available travel paths from ${currentCity}`, 'error');
+        return null;
     }
-    const elapsed = Date.now() - startTime;
-    const wait = Math.max(10000, 30000 - elapsed);
-    await sleep(wait);
-  }
-}
 
-main().catch(console.error);
+    async function travelTo(targetCity, currentCity, fullPath) {
+        travelInitiated = true;
+        travelDestination = targetCity;
+
+        log(`Searching for the travel button for ${targetCity}...`);
+
+        showTravelingOverlay(currentCity, targetCity);
+
+        const statusDiv = document.querySelector('.bk-auto-travel-status');
+        if (statusDiv) statusDiv.remove();
+
+        const buttonName = cityMappings.get(targetCity);
+        if (!buttonName) {
+            log(`No button name found for city: ${targetCity}`, 'error');
+            travelInitiated = false;
+            travelDestination = null;
+            removeTravelingOverlay();
+            return;
+        }
+
+        if (targetCity === "Alvan" || targetCity === "Waile") {
+            let specialButton = null;
+            const allButtons = document.querySelectorAll('a.button');
+
+            for (const button of allButtons) {
+                const onclick = button.getAttribute('onclick');
+                if (onclick) {
+                    if (targetCity === "Alvan" && onclick.includes("startTravel('HarbourTwo'")) {
+                        specialButton = button;
+                        break;
+                    } else if (targetCity === "Waile" && onclick.includes("startTravel('HarbourOne'")) {
+                        specialButton = button;
+                        break;
+                    }
+                }
+            }
+
+            if (specialButton) {
+                log(`Clicking special travel button for ${targetCity}...`);
+                specialButton.click();
+
+                localStorage.setItem("currentCity", targetCity);
+
+                setTimeout(() => {
+                    travelInitiated = false;
+                    travelDestination = null;
+                    window.location.href = URLS.LOCATION;
+                }, 3000);
+                return;
+            }
+        }
+
+        const travelButtons = document.querySelectorAll(SELECTORS.TRAVEL_BUTTON);
+        let targetButton = null;
+
+        for (const button of travelButtons) {
+            const onclickAttribute = button.getAttribute('onclick');
+            if (onclickAttribute && onclickAttribute.includes(`startTravel('${buttonName}'`) && !onclickAttribute.includes(", true")) {
+                targetButton = button;
+                break;
+            }
+        }
+
+        if (targetButton) {
+            log(`Traveling to ${targetCity}...`);
+            targetButton.click();
+            localStorage.setItem("currentCity", targetCity);
+
+            setTimeout(() => {
+                travelInitiated = false;
+                travelDestination = null;
+                window.location.href = URLS.LOCATION;
+            }, 3000);
+        } else {
+            log(`Already at ${targetCity} or cannot find button.`, 'info');
+            travelInitiated = false;
+            travelDestination = null;
+            removeTravelingOverlay();
+            window.location.href = URLS.LOCATION;
+        }
+    }
+
+    // Perform the dragon large mission
+    function performDragonMission() {
+        const dragonEvent = document.querySelector(SELECTORS.DRAGON_EVENT);
+        if (!dragonEvent) {
+            log("Dragon event not found on this page.", 'warn');
+            return false;
+        }
+
+        const karma = getKarma();
+        const useRubies = getUseRubies();
+        log(`Looking for ${karma} karma mission button...`);
+
+        function isVisible(el) {
+            return el.offsetParent !== null;
+        }
+
+        // Collect all possible mission buttons
+        const allCandidates = document.querySelectorAll('a[onclick*="chooseMission"]');
+        let freeBtn = null;
+        let rubyBtn = null;
+
+        for (const btn of allCandidates) {
+            const onclick = btn.getAttribute('onclick');
+            if (!onclick || !onclick.includes(`chooseMission('large', 'DragonEventGreatDragon', '${karma}'`)) continue;
+
+            const isRuby = /,\s*'\d'\)/.test(onclick);
+            if (!isRuby && !freeBtn) freeBtn = btn;
+            if (isRuby && !rubyBtn) rubyBtn = btn;
+        }
+
+        // Try free button first if visible
+        if (freeBtn && isVisible(freeBtn)) {
+            log(`Clicking ${karma} (${karma === 'Good' ? 'Light' : 'Dark'}) karma mission (free)!`);
+            freeBtn.click();
+            return true;
+        }
+
+        // Fallback to ruby button if enabled and visible
+        if (useRubies && rubyBtn && isVisible(rubyBtn)) {
+            const match = rubyBtn.getAttribute('onclick').match(/,\s*'(\d)'\)/);
+            const cost = match ? match[1] : '?';
+            log(`Clicking ${karma} (${karma === 'Good' ? 'Light' : 'Dark'}) karma mission (${cost} ruby)!`);
+            rubyBtn.click();
+            return true;
+        }
+
+        // Nothing visible — report what was found
+        if (freeBtn) log("Free button exists but is not visible.", 'warn');
+        if (rubyBtn) log("Ruby button exists but is not visible.", 'warn');
+        if (!freeBtn && !rubyBtn) log(`No ${karma} karma mission button found on page.`, 'warn');
+        if (!useRubies && rubyBtn) log("Ruby fallback is disabled. Toggle 'Use Rubies' on to try it.", 'info');
+
+        return false;
+    }
+
+    // Entry point for the location page
+    async function handleLocationPage() {
+        log("On location page...");
+
+        isTraveling = false;
+        travelInitiated = false;
+        travelDestination = null;
+
+        const currentCity = getCurrentLocation();
+        if (!currentCity) {
+            updateStatus("Cannot determine current location.", 'error');
+            return;
+        }
+
+        // Check if auto travel has been started
+        if (!localStorage.getItem("autoTravelStarted")) {
+            updateStatus("Ready to start. Click the button below!", 'info', {
+                currentCity: currentCity
+            });
+            return;
+        }
+
+        // Check if we're at the dragon's city and dragon event is present
+        const dragonCity = localStorage.getItem('dragonLocation');
+        if (dragonCity === currentCity) {
+            const dragonEvent = document.querySelector(SELECTORS.DRAGON_EVENT);
+            if (dragonEvent) {
+                updateStatus("At dragon's city! Performing mission...", 'success', {
+                    currentCity: currentCity,
+                    targetCity: dragonCity
+                });
+
+                await delay(2000);
+
+                const missionClicked = performDragonMission();
+                if (missionClicked) {
+                    updateStatus("Mission started! Waiting for completion...", 'success', {
+                        currentCity: currentCity,
+                        targetCity: dragonCity
+                    });
+
+            // After mission, wait then hard refresh the page to clear report screen
+                    await delay(10000);
+                    updateStatus("Mission done! Refreshing to continue loop...", 'success', {
+                        currentCity: currentCity,
+                        targetCity: dragonCity
+                    });
+                    location.reload();
+                } else {
+                    updateStatus("Failed to start mission. Clearing stale location and retrying...", 'warning', {
+                        currentCity: currentCity,
+                        targetCity: dragonCity
+                    });
+                    localStorage.removeItem('dragonLocation');
+                    await delay(5000);
+                    window.location.href = URLS.TRAVEL;
+                }
+                return;
+            } else {
+                // Dragon event not found at cached city — location is stale
+                log("Dragon event not found at " + dragonCity + ", clearing stale location.", 'warn');
+                localStorage.removeItem('dragonLocation');
+            }
+        }
+
+        updateStatus("Updating location information...", 'info', {
+            currentCity: currentCity
+        });
+
+        localStorage.setItem("currentCity", currentCity);
+
+        await delay(2000);
+        updateStatus("Going to travel page to check Dragon location...", 'info', {
+            currentCity: currentCity
+        });
+        window.location.href = URLS.TRAVEL;
+    }
+
+    // Entry point for the travel page
+    async function handleTravelPage() {
+        log("On travel page...");
+
+        isTraveling = false;
+        travelInitiated = false;
+        travelDestination = null;
+
+        if (isTravelTimerActive()) {
+            const cachedDragonLocation = localStorage.getItem('dragonLocation');
+            const currentCity = localStorage.getItem("currentCity") || getCurrentLocation();
+
+            updateStatus("Travel in progress...", 'info', {
+                currentCity: currentCity,
+                targetCity: cachedDragonLocation || "Unknown",
+                timer: "Waiting for travel to complete"
+            });
+
+            return;
+        }
+
+        if (!localStorage.getItem("autoTravelStarted")) {
+            localStorage.setItem("autoTravelStarted", "true");
+        }
+
+        await delay(3000);
+
+        let currentCity = localStorage.getItem("currentCity");
+
+        if (!currentCity) {
+            currentCity = getCurrentLocation();
+            if (currentCity) {
+                localStorage.setItem("currentCity", currentCity);
+            } else {
+                updateStatus("Cannot determine current city. Going back to location page.", 'error');
+                setTimeout(() => {
+                    window.location.href = URLS.LOCATION;
+                }, 3000);
+                return;
+            }
+        }
+
+        const targetCity = getDragonLocation();
+        if (!targetCity) {
+            if (!isTravelTimerActive()) {
+                updateStatus("Cannot find Dragon location. Refreshing page...", 'warning', {
+                    currentCity: currentCity
+                });
+                setTimeout(() => {
+                    location.reload();
+                }, 5000);
+            } else {
+                updateStatus("Travel in progress... Can't check Dragon while traveling.", 'info', {
+                    currentCity: currentCity,
+                    timer: "Waiting for travel to complete"
+                });
+            }
+            return;
+        }
+
+        localStorage.setItem('dragonLocation', targetCity);
+
+        if (currentCity === targetCity) {
+            updateStatus("Already at Dragon's city! Going to location page...", 'success', {
+                currentCity: currentCity,
+                targetCity: targetCity
+            });
+            setTimeout(() => {
+                window.location.href = URLS.LOCATION;
+            }, 2000);
+            return;
+        }
+
+        const path = findShortestPath(currentCity, targetCity);
+        if (!path || path.length < 2) {
+            updateStatus("Cannot find path to Dragon. Trying direct approach...", 'warning', {
+                currentCity: currentCity,
+                targetCity: targetCity
+            });
+            setTimeout(() => {
+                window.location.href = URLS.LOCATION;
+            }, 3000);
+            return;
+        }
+
+        const nextCity = path[1];
+
+        updateStatus("Planning route to Dragon...", 'info', {
+            currentCity: currentCity,
+            targetCity: targetCity,
+            nextCity: nextCity,
+            path: path
+        });
+
+        await delay(2000);
+        await travelTo(nextCity, currentCity, path);
+    }
+
+    // Main entry point
+    if (window.location.href.includes("world/location")) {
+        handleLocationPage();
+    } else if (window.location.href.includes("world/travel")) {
+        handleTravelPage();
+    } else if (localStorage.getItem("autoTravelStarted")) {
+        // On a report/mission result page - redirect back to location to continue loop
+        log("On unknown page (likely report screen), redirecting to location...");
+        setTimeout(() => {
+            window.location.href = URLS.LOCATION;
+        }, 3000);
+    }
+})();
