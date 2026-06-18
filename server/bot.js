@@ -120,6 +120,15 @@ class BotAccount {
     }
     tokens[this.cfg.username] = this.token;
     saveTokens(tokens);
+    // Check if account already has a character
+    try {
+      const existing = await api('GET', '/game/character', null, this.token);
+      if (existing && existing.id) {
+        this.character = existing;
+        log(this.name, `Using existing ${existing.class} character (level ${existing.level})`);
+        return;
+      }
+    } catch {}
     // Create character
     const char = await api('POST', '/game/character', { class: this.cfg.class, name: this.cfg.username }, this.token);
     this.character = char;
