@@ -675,14 +675,17 @@ class BotAccount {
   async tick() {
     if (!this.token) await this.ensureAuth();
 
-    // Check tournaments at 21:25-21:35 daily
+    // Check tournaments 2h before (19:30) to 2h after (23:30)
     const now = new Date();
     const hour = now.getUTCHours() + 1;
     const min = now.getMinutes();
-    if (hour === 21 && min >= 25 && min <= 35 && !this.tournamentJoined) {
-      await this.joinTournament();
+    if (!this.tournamentJoined) {
+      const inWindow = (hour === 19 && min >= 30) || (hour >= 20 && hour <= 22) || (hour === 23 && min <= 30);
+      if (inWindow) {
+        await this.joinTournament();
+      }
     }
-    if (hour === 22) this.tournamentJoined = false;
+    if (hour >= 0 && hour < 6) this.tournamentJoined = false;
 
     await this.collectMission();
     await this.useManaPotion();
