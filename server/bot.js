@@ -560,15 +560,16 @@ class BotAccount {
   async setupGear() {
     try {
       await this.refreshCharacter();
-      const gold = this.character.gold || 0;
-      if (gold < 5000) {
-        log(this.name, `Skipping gear setup — only ${gold} gold`);
-        return;
-      }
-      await this.shopGear();
       await this.buyAndOpenLootboxes();
       await this.equipBest();
-      await this.upgradeGear();
+      const gold = this.character.gold || 0;
+      if (gold >= 5000) {
+        await this.shopGear();
+        await this.equipBest();
+        await this.upgradeGear();
+      } else {
+        log(this.name, `Skipping shop/upgrades — only ${gold} gold`);
+      }
       this._gearSetup = true;
       log(this.name, `Gear setup complete`);
     } catch (e) {
@@ -577,40 +578,75 @@ class BotAccount {
   }
 
   // ── One-time lootbox opening at startup ─────────────────────────────────
+  async hasEmptySlots() {
+    try {
+      const inv = await api('GET', '/game/inventory', null, this.token);
+      const equipped = (inv.items || []).filter(i => i.equipped);
+      const filled = new Set();
+      for (const item of equipped) {
+        try {
+          const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+          if (d.slot) filled.add(d.slot);
+        } catch {}
+      }
+      const required = ['weapon', 'armor', 'helmet', 'boots'];
+      return required.some(s => !filled.has(s));
+    } catch { return false; }
+  }
+
   async buyAndOpenLootboxes() {
     if (this._lootboxSetup) return;
     if (isLootboxDone(this.name)) { this._lootboxSetup = true; return; }
     try {
-      await this.refreshCharacter();
-      const gems = this.character.gems || 0;
-      const canBuy = Math.min(50, Math.floor(gems / 5));
-      if (canBuy < 1) {
-        log(this.name, `Skipping lootboxes — only ${gems} gems (need 5 each)`);
+      // Check if all slots are already filled before spending gems
+      if (!(await this.hasEmptySlots())) {
+        log(this.name, `All gear slots already filled — skipping lootboxes`);
+        this._lootboxSetup = true;
+        markLootboxDone(this.name);
         return;
       }
-      log(this.name, `Buying ${canBuy} epic lootboxes (${canBuy * 5}💎)`);
-      for (let i = 0; i < canBuy; i++) {
-        await api('POST', '/game/shop/buy', { item: { id: 'lootbox_epic', category: 'lootbox' } }, this.token);
-      }
-      await sleep(500);
-      const inv = await api('GET', '/game/inventory', null, this.token);
-      const box = (inv.items || []).find(i => {
-        if (i.item_type !== 'consumable') return false;
-        try {
-          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-          return d.id === 'lootbox_epic';
-        } catch { return false; }
-      });
-      if (!box) { log(this.name, `Lootbox not found in inventory`); return; }
-      const qty = box.quantity || 1;
-      log(this.name, `Opening ${qty} epic lootboxes...`);
-      for (let i = 0; i < qty; i++) {
-        await api('POST', `/game/lootbox/open/${box.id}`, null, this.token);
-        await sleep(200);
+      let boughtAny = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await this.refreshCharacter();
+        const gems = this.character.gems || 0;
+        const canBuy = Math.min(50, Math.floor(gems / 5));
+        if (canBuy < 1) {
+          if (!boughtAny) log(this.name, `No gems for lootboxes (${gems})`);
+          break;
+        }
+        boughtAny = true;
+        log(this.name, `Buying ${canBuy} epic lootboxes (${canBuy * 5}💎) — attempt ${attempt + 1}`);
+        for (let i = 0; i < canBuy; i++) {
+          await api('POST', '/game/shop/buy', { item: { id: 'lootbox_epic', category: 'lootbox' } }, this.token);
+        }
+        await sleep(500);
+        // Open ALL lootboxes in inventory
+        const inv = await api('GET', '/game/inventory', null, this.token);
+        const lootboxes = (inv.items || []).filter(i => {
+          if (i.item_type !== 'consumable') return false;
+          try {
+            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+            return d.category === 'lootbox';
+          } catch { return false; }
+        });
+        for (const box of lootboxes) {
+          const total = box.quantity || 1;
+          log(this.name, `Opening ${total}x ${box.name || box.id}...`);
+          for (let i = 0; i < total; i++) {
+            await api('POST', `/game/lootbox/open/${box.id}`, null, this.token);
+            await sleep(200);
+          }
+        }
+        await this.equipBest();
+        if (!(await this.hasEmptySlots())) {
+          log(this.name, `All gear slots filled`);
+          break;
+        }
+        log(this.name, `Still missing gear — buying more...`);
       }
       this._lootboxSetup = true;
-      markLootboxDone(this.name);
-      log(this.name, `Epic lootboxes done`);
+      if (boughtAny) markLootboxDone(this.name);
+      log(this.name, `Lootboxes done`);
     } catch (e) {
       log(this.name, `Lootbox setup failed: ${e.message}`);
     }
