@@ -487,10 +487,7 @@ function deathmatchBattle(fighterA, fighterB) {
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         elemALog = `🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`;
       } else {
-        const raw = calcElemAttackValue(elemA, elemA);
-        const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
-        const mResB = Math.floor((fighterB.magic || 0) * 0.05);
-        elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
+        elemDmgToB = calcElemAttackValue(elemA, elemA, fighterA.elem_dmg, elemEl);
         hpB = Math.max(0, hpB - elemDmgToB);
         elemALog = `🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`;
       }
@@ -502,10 +499,7 @@ function deathmatchBattle(fighterA, fighterB) {
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         elemBLog = `🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`;
       } else {
-        const raw = calcElemAttackValue(elemB, elemB);
-        const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
-        const mResA = Math.floor((fighterA.magic || 0) * 0.05);
-        elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
+        elemDmgToA = calcElemAttackValue(elemB, elemB, fighterB.elem_dmg, elemEl);
         hpA = Math.max(0, hpA - elemDmgToA);
         elemBLog = `🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`;
       }
@@ -656,10 +650,7 @@ function normalBattle(fighterA, fighterB) {
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         elemALog = `🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`;
       } else {
-        const raw = calcElemAttackValue(elemA, elemA);
-        const eResB = (fighterB.elem_resist || {})[elemEl] || 0;
-        const mResB = Math.floor((fighterB.magic || 0) * 0.05);
-        elemDmgToB = Math.max(1, Math.round(raw - eResB - mResB));
+        elemDmgToB = calcElemAttackValue(elemA, elemA, fighterA.elem_dmg, elemEl);
         hpB = Math.max(0, hpB - elemDmgToB);
         elemALog = `🐉 ${elemA.name} attacks ${fighterB.name} for ${elemDmgToB} ${elemEl.toUpperCase()} damage!`;
       }
@@ -671,10 +662,7 @@ function normalBattle(fighterA, fighterB) {
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         elemBLog = `🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`;
       } else {
-        const raw = calcElemAttackValue(elemB, elemB);
-        const eResA = (fighterA.elem_resist || {})[elemEl] || 0;
-        const mResA = Math.floor((fighterA.magic || 0) * 0.05);
-        elemDmgToA = Math.max(1, Math.round(raw - eResA - mResA));
+        elemDmgToA = calcElemAttackValue(elemB, elemB, fighterB.elem_dmg, elemEl);
         hpA = Math.max(0, hpA - elemDmgToA);
         elemBLog = `🐉 ${elemB.name} attacks ${fighterA.name} for ${elemDmgToA} ${elemEl.toUpperCase()} damage!`;
       }
@@ -912,13 +900,17 @@ async function finalizeTournament(db, tournamentId) {
     pointsField = 'points';
   }
   let standings;
-  let notClassified = [];
   if (mode === 'least_damage') {
     standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? AND hp_start > 0 ORDER BY ${orderSQL}`, [tournamentId]);
-    notClassified = standings.filter(p => (p.total_damage_dealt || 0) < (p.total_damage_taken || 0));
-    standings = standings.filter(p => (p.total_damage_dealt || 0) >= (p.total_damage_taken || 0));
+    await dbRun_t(db, 'UPDATE tournament_participants SET dsq = 0 WHERE tournament_id = ?', [tournamentId]);
+    for (const p of standings) {
+      const dsq = (p.total_damage_dealt || 0) < (p.total_damage_taken || 0);
+      p._dsq = dsq;
+      if (dsq) await dbRun_t(db, 'UPDATE tournament_participants SET dsq = 1 WHERE id = ?', [p.id]);
+    }
   } else {
     standings = await dbAll_t(db, `SELECT * FROM tournament_participants WHERE tournament_id = ? ORDER BY ${orderSQL}`, [tournamentId]);
+    for (const p of standings) p._dsq = false;
   }
 
   // Head-to-head tiebreaker for points-based modes
@@ -957,7 +949,7 @@ async function finalizeTournament(db, tournamentId) {
     standings = sorted;
   }
 
-  const winner = standings[0];
+  const winner = standings.find(p => !p._dsq);
   if (!winner) return;
   const winnerIsNpc = !!winner.is_npc;
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, ended_at = datetime(\'now\'), winner_char_id = ?, winner_is_npc = ? WHERE id = ?',
@@ -966,34 +958,33 @@ async function finalizeTournament(db, tournamentId) {
     await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10, gold = COALESCE(gold, 0) + 5000 WHERE id = ?', [winner.char_id]);
   }
   const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [tournamentId]);
-  // Notify not classified players (least_damage mode only)
-  for (const p of notClassified) {
-    if (p.is_npc || !p.char_id) continue;
-    const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
-    const subject = `🏟️ Tournament #${tournamentId} — Not Classified`;
-    const body = `You fought ${pMatches.length} match(es) (dealt ${p.total_damage_dealt || 0} dmg, took ${p.total_damage_taken || 0} dmg). You dealt less damage than you took and were not classified.`;
-    await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
-      [p.char_id, p.char_id, subject, body]);
-  }
-
+  let rank = 0;
+  const totalNonDsq = standings.filter(p => !p._dsq).length;
   for (let i = 0; i < standings.length; i++) {
     const p = standings[i];
     if (p.is_npc || !p.char_id) continue;
-    const rank = i + 1;
     const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
-    const statLine = mode === 'damage' ? `dealt ${p.total_damage_dealt || 0} total damage`
-      : mode === 'least_damage' ? `took ${p.total_damage_taken || 0} total damage`
-      : mode === 'all_vs_all' ? `eliminated #${p.eliminated_round || '—'} of ${standings.length}`
-      : mode === 'elimination' ? `${p.wins || 0} wins, ${p.losses || 0} losses`
-      : `${p.wins} wins, ${p.losses} losses, ${p.draws} draws`;
-    let rewardLine = '';
-    if (rank === 1 && !p.is_npc && !winnerIsNpc) {
-      rewardLine = ' 🏆 Prize: 5000g + 10💎';
+    if (p._dsq) {
+      const subject = `🏟️ Tournament #${tournamentId} — DSQ`;
+      const body = `You fought ${pMatches.length} match(es) (dealt ${p.total_damage_dealt || 0} dmg, took ${p.total_damage_taken || 0} dmg). You dealt less damage than you took and were disqualified (DSQ).`;
+      await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
+        [p.char_id, p.char_id, subject, body]);
+    } else {
+      rank++;
+      const statLine = mode === 'damage' ? `dealt ${p.total_damage_dealt || 0} total damage`
+        : mode === 'least_damage' ? `took ${p.total_damage_taken || 0} total damage`
+        : mode === 'all_vs_all' ? `eliminated #${p.eliminated_round || '—'} of ${totalNonDsq}`
+        : mode === 'elimination' ? `${p.wins || 0} wins, ${p.losses || 0} losses`
+        : `${p.wins} wins, ${p.losses} losses, ${p.draws} draws`;
+      let rewardLine = '';
+      if (rank === 1 && !p.is_npc && !winnerIsNpc) {
+        rewardLine = ' 🏆 Prize: 5000g + 10💎';
+      }
+      const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${totalNonDsq}!${rewardLine}`;
+      const body = `You fought ${pMatches.length} match(es) with ${statLine}.`;
+      await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
+        [p.char_id, p.char_id, subject, body]);
     }
-    const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${standings.length}!${rewardLine}`;
-    const body = `You fought ${pMatches.length} match(es) with ${statLine}.`;
-    await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
-      [p.char_id, p.char_id, subject, body]);
   }
   console.log(`🏆 Tournament #${tournamentId} complete! Winner: ${winner.name}${winnerIsNpc ? ' (NPC)' : ''}`);
 }
@@ -1179,6 +1170,7 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN eliminated_id INTEGER"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated_round INTEGER"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN dsq INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
 }
 
