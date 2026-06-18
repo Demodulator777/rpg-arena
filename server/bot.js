@@ -603,13 +603,39 @@ class BotAccount {
     } catch { return false; }
   }
 
+  async openAllLootboxes() {
+    try {
+      const inv = await api('GET', '/game/inventory', null, this.token);
+      const lootboxes = (inv.items || []).filter(i => {
+        if (i.item_type !== 'consumable') return false;
+        try {
+          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+          return d.category === 'lootbox';
+        } catch { return false; }
+      });
+      for (const box of lootboxes) {
+        const total = box.quantity || 1;
+        log(this.name, `Opening ${total}x ${box.name || box.id}...`);
+        for (let i = 0; i < total; i++) {
+          await api('POST', `/game/lootbox/open/${box.id}`, null, this.token);
+          await sleep(200);
+        }
+      }
+      return lootboxes.length > 0;
+    } catch { return false; }
+  }
+
   async buyAndOpenLootboxes() {
     if (this._lootboxSetup) return;
     if (isLootboxDone(this.name)) { this._lootboxSetup = true; return; }
     try {
-      // Check if all slots are already filled before spending gems
+      // Always open any existing lootboxes first
+      await this.openAllLootboxes();
+      await this.equipBest();
+
+      // Then buy more if slots are empty
       if (!(await this.hasEmptySlots())) {
-        log(this.name, `All gear slots already filled — skipping lootboxes`);
+        log(this.name, `All gear slots filled — skipping lootbox buying`);
         this._lootboxSetup = true;
         markLootboxDone(this.name);
         return;
@@ -629,23 +655,7 @@ class BotAccount {
           await api('POST', '/game/shop/buy', { item: { id: 'lootbox_epic', category: 'lootbox' } }, this.token);
         }
         await sleep(500);
-        // Open ALL lootboxes in inventory
-        const inv = await api('GET', '/game/inventory', null, this.token);
-        const lootboxes = (inv.items || []).filter(i => {
-          if (i.item_type !== 'consumable') return false;
-          try {
-            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-            return d.category === 'lootbox';
-          } catch { return false; }
-        });
-        for (const box of lootboxes) {
-          const total = box.quantity || 1;
-          log(this.name, `Opening ${total}x ${box.name || box.id}...`);
-          for (let i = 0; i < total; i++) {
-            await api('POST', `/game/lootbox/open/${box.id}`, null, this.token);
-            await sleep(200);
-          }
-        }
+        await this.openAllLootboxes();
         await this.equipBest();
         if (!(await this.hasEmptySlots())) {
           log(this.name, `All gear slots filled`);
@@ -677,6 +687,7 @@ class BotAccount {
     await this.collectMission();
     await this.useManaPotion();
     await this.doMission();
+    await this.openAllLootboxes();
     await this.equipBest();
     await this.doPvp();
     await this.activatePremium();
