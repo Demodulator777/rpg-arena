@@ -253,15 +253,24 @@ class BotAccount {
       }
       // No potions — try to buy one from shop
       const shop = await api('GET', '/game/shop/items', null, this.token);
-      const pots = (shop.items || []).filter(i =>
-        i.priceType === 'gold' && i.price <= (this.character.gold || 0) &&
-        i.effect?.type === 'heal' && i.level <= (this.character.level || 1)
+      const shopItems = shop.items || [];
+      // Prefer full HP potion (gem-based)
+      const fullPots = shopItems.filter(i =>
+        i.priceType === 'gems' && (this.character.gems || 0) >= i.price &&
+        i.effect?.type === 'heal_full'
       );
-      pots.sort((a, b) => (b.effect?.value || 0) - (a.effect?.value || 0));
-      if (pots.length > 0) {
-        const buyResult = await api('POST', '/game/shop/buy', { item: { id: pots[0].id, category: 'consumable' } }, this.token);
+      fullPots.sort((a, b) => (a.price || 0) - (b.price || 0));
+      const goldPots = shopItems.filter(i =>
+        i.priceType === 'gold' && i.price <= (this.character.gold || 0) &&
+        (i.effect?.type === 'heal' || i.effect?.type === 'heal_full') && i.level <= (this.character.level || 1)
+      );
+      goldPots.sort((a, b) => (b.effect?.value || 0) - (a.effect?.value || 0));
+      const bestPot = fullPots.length > 0 ? fullPots[0] : (goldPots.length > 0 ? goldPots[0] : null);
+      if (bestPot) {
+        const priceLabel = bestPot.priceType === 'gems' ? `${bestPot.price}💎` : `${bestPot.price}g`;
+        const buyResult = await api('POST', '/game/shop/buy', { item: { id: bestPot.id, category: 'consumable' } }, this.token);
         if (buyResult.character) this.character = buyResult.character;
-        log(this.name, `Bought ${pots[0].name} for ${pots[0].price}g`);
+        log(this.name, `Bought ${bestPot.name} for ${priceLabel}`);
         // Use it
         await sleep(300);
         const inv2 = await api('GET', '/game/inventory', null, this.token);
@@ -269,13 +278,13 @@ class BotAccount {
           if (i.item_type !== 'consumable') return false;
           try {
             const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-            return d.id === pots[0].id;
+            return d.id === bestPot.id;
           } catch { return false; }
         });
         if (pot) {
           const r = await api('POST', `/game/use/${pot.id}`, null, this.token);
           if (r.character) this.character = r.character;
-          log(this.name, `Used ${pots[0].name}`);
+          log(this.name, `Used ${bestPot.name}`);
         }
         return true;
       }
