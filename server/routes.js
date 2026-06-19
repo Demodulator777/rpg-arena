@@ -6355,7 +6355,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             const statsA = calcElemStats(elemA);
             const elemEl = elemA.element || 'pyro';
             if ((statsA.def || 0) >= (statsA.str || 0)) {
-                const healAmt = Math.round(calcElemHealValue(elemA, statsA));
+                const healAmt = Math.round(calcElemHealValue(elemA, statsA, fighterA.elem_dmg, elemEl));
                 hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
                 elemALog = `🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`;
             } else {
@@ -6368,7 +6368,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             const statsB = calcElemStats(elemB);
             const elemEl = elemB.element || 'pyro';
             if ((statsB.def || 0) >= (statsB.str || 0)) {
-                const healAmt = Math.round(calcElemHealValue(elemB, statsB));
+                const healAmt = Math.round(calcElemHealValue(elemB, statsB, fighterB.elem_dmg, elemEl));
                 hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
                 elemBLog = `🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`;
             } else {
@@ -16203,21 +16203,26 @@ function calcElemStats(elem) {
     return { str, def, mag, vit, hpMax, dmgMin, dmgMax };
 }
 
-function calcElemAttackValue(elem, computedStats, playerElemDmg, element) {
-    const elemLvl = elem.element_level || 1;
-    const ceiling = (playerElemDmg || {})[element || 'pyro'] || 0;
-    // At element_level 10, deals 100% of player's flat elem dmg; pierces all resist
-    const scaling = Math.min(1, elemLvl / 10);
-    return Math.max(1, Math.floor(ceiling * scaling));
+function calcElemAttackValue(elem, _computedStats, playerElemDmg, element) {
+    const strPts = Number(elem.stat_str || 0);
+    const magPts = Number(elem.stat_mag || 0);
+    const totalPts = strPts + magPts + Number(elem.stat_def || 0) + Number(elem.stat_agi || 0) + Number(elem.stat_vit || 0);
+    const offenseRatio = totalPts > 0 ? (strPts + magPts) / totalPts : 0;
+    const lvl = Number(elem.level || 1);
+    const levelScale = Math.min(1, lvl / 90);
+    const ceiling = Math.max(100, (playerElemDmg || {})[element || 'pyro'] || 0);
+    return Math.max(1, Math.floor(ceiling * levelScale * offenseRatio));
 }
 
-function calcElemHealValue(elem, computedStats) {
-    const elemLvl = elem.element_level || 1;
-    const vit = computedStats.vit;
-    const def = computedStats.def;
-    const base = Math.max(1, Math.floor((1 + elemLvl * 0.5) + Math.floor(vit * 0.0375) + Math.floor(def * 0.0125)));
-    const variance = Math.floor(base * 0.2);
-    return Math.max(1, Math.floor((base + Math.floor(Math.random() * variance) - Math.floor(variance / 2)) / 8));
+function calcElemHealValue(elem, _computedStats, playerElemDmg, element) {
+    const defPts = Number(elem.stat_def || 0);
+    const vitPts = Number(elem.stat_vit || 0);
+    const totalPts = defPts + vitPts + Number(elem.stat_str || 0) + Number(elem.stat_agi || 0) + Number(elem.stat_mag || 0);
+    const defenseRatio = totalPts > 0 ? (defPts + vitPts) / totalPts : 0;
+    const lvl = Number(elem.level || 1);
+    const levelScale = Math.min(1, lvl / 90);
+    const ceiling = Math.floor(Math.max(100, (playerElemDmg || {})[element || 'pyro'] || 0) / 3);
+    return Math.max(1, Math.floor(ceiling * levelScale * defenseRatio));
 }
 
 async function ensureElemental(db, charId) {
