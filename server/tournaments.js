@@ -483,7 +483,7 @@ function deathmatchBattle(fighterA, fighterB) {
     if (elemA && elemAHp > 0) {
       const elemEl = elemA.element || 'pyro';
       if ((elemA.defense || 0) >= (elemA.strength || 0)) {
-        const healAmt = Math.round(calcElemHealValue(elemA, elemA));
+        const healAmt = Math.round(calcElemHealValue(elemA, elemA, fighterA.elem_dmg, elemEl));
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         elemALog = `🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`;
       } else {
@@ -495,7 +495,7 @@ function deathmatchBattle(fighterA, fighterB) {
     if (elemB && elemBHp > 0) {
       const elemEl = elemB.element || 'pyro';
       if ((elemB.defense || 0) >= (elemB.strength || 0)) {
-        const healAmt = Math.round(calcElemHealValue(elemB, elemB));
+        const healAmt = Math.round(calcElemHealValue(elemB, elemB, fighterB.elem_dmg, elemEl));
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         elemBLog = `🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`;
       } else {
@@ -646,7 +646,7 @@ function normalBattle(fighterA, fighterB) {
     if (elemA && elemAHp > 0) {
       const elemEl = elemA.element || 'pyro';
       if ((elemA.defense || 0) >= (elemA.strength || 0)) {
-        const healAmt = Math.round(calcElemHealValue(elemA, elemA));
+        const healAmt = Math.round(calcElemHealValue(elemA, elemA, fighterA.elem_dmg, elemEl));
         hpA = Math.min(fighterA.hpMax || 9999, hpA + healAmt);
         elemALog = `🐉 ${elemA.name} heals ${fighterA.name} for ${healAmt} HP!`;
       } else {
@@ -658,7 +658,7 @@ function normalBattle(fighterA, fighterB) {
     if (elemB && elemBHp > 0) {
       const elemEl = elemB.element || 'pyro';
       if ((elemB.defense || 0) >= (elemB.strength || 0)) {
-        const healAmt = Math.round(calcElemHealValue(elemB, elemB));
+        const healAmt = Math.round(calcElemHealValue(elemB, elemB, fighterB.elem_dmg, elemEl));
         hpB = Math.min(fighterB.hpMax || 9999, hpB + healAmt);
         elemBLog = `🐉 ${elemB.name} heals ${fighterB.name} for ${healAmt} HP!`;
       } else {
