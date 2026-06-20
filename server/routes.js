@@ -5308,7 +5308,7 @@ async function applyHpRegen(db, characterId) {
     if (hoursElapsed < 1) return;
     const equippedArray = await getEquippedItemsArray(db, characterId);
     const trueHpMax = calcHpMax(char, equippedArray);
-    const currentHp = char.hp_current || trueHpMax;
+    const currentHp = char.hp_current ?? trueHpMax;
     if (currentHp >= trueHpMax) {
         await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, characterId]);
         return;
@@ -6937,7 +6937,7 @@ async function buildCombatFighter(db, char) {
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const hpMax = calcHpMax(char, equippedArray);
-    const hpCurrent = char.hp_current || hpMax;
+    const hpCurrent = char.hp_current ?? hpMax;
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -8116,7 +8116,7 @@ async function buildCharacterResponse(char, db) {
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
-    const hpCurrent = Math.min(char.hp_current || hpMax, hpMax);
+    const hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
     const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent });
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
@@ -9287,7 +9287,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         const hasUlt = hasUltimate(activePremCollect);
         const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax = calcHpMax(freshChar, equippedArray);
-        const hpCurrent = freshChar.hp_current || hpMax;
+        const hpCurrent = freshChar.hp_current ?? hpMax;
         const setBonuses = getEquippedSetBonuses(equippedArray);
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
@@ -9487,7 +9487,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         if (playerWon && Math.random() < gemChance) gemsFound = 1;
 
         // Tutorial Check: Don't deplete HP for the first 4 battles
-        const newHp = isTutorial ? (freshChar.hp_current || playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+        const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
@@ -10399,7 +10399,7 @@ router.get('/travel/status', auth, async (req, res) => {
                     }
 
                     // Tutorial Check: Don't deplete HP for the first 4 battles
-                    const newHp = isTutorial ? (freshChar.hp_current || playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+                    const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
                     if (playerWon) {
                         await unlockTravelZone(db, freshChar, targetZone, currentMap);
@@ -10570,7 +10570,7 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
             const elemStats = calcElemStats(elem);
             const elemHpMax = elemStats.hpMax;
             if (data.effect.type === 'heal') {
-                const newHp = Math.min(elemHpMax, (elem.hp_current || elemHpMax) + data.effect.value);
+                const newHp = Math.min(elemHpMax, (elem.hp_current ?? elemHpMax) + data.effect.value);
                 await dbRun(db, 'UPDATE elementals SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, elem.id]);
                 message = `Beast restored ${data.effect.value} HP. (${newHp}/${elemHpMax})`;
                 updated = true;
@@ -10590,7 +10590,7 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
             }
 
             if (data.effect.type === 'heal') {
-                const currentHp = char.hp_current || trueHpMax;
+                const currentHp = char.hp_current ?? trueHpMax;
                 const newHp = Math.min(trueHpMax, currentHp + data.effect.value);
                 await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, char.id]);
                 message = `Restored ${data.effect.value} HP. (${newHp}/${trueHpMax})`;
@@ -10989,10 +10989,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await applyHpRegen(db, defender.id);
         const freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
         const freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
-        const hpA = freshA.hp_current || freshA.hp_max;
+        const hpA = freshA.hp_current ?? freshA.hp_max;
         if (hpA <= 0) return res.status(400).json({ error: 'You are out of HP. Wait for regen.' });
         const equippedD0 = await getEquippedItemsArray(db, freshD.id);
-        const hpD = freshD.hp_current || calcHpMax(freshD, equippedD0);
+        const hpD = freshD.hp_current ?? calcHpMax(freshD, equippedD0);
         if (hpD < 10) return res.status(400).json({ error: `${freshD.name} has too little HP. Let them recover first.` });
         const equippedA = await getEquippedItemsArray(db, freshA.id);
         const equippedD = await getEquippedItemsArray(db, freshD.id);
@@ -11083,7 +11083,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const weaponD = getEquippedWeaponData(equippedD);
         const fighterB = {
             id: freshD.id, name: freshD.name, class: freshD.class, weapon: weaponD,
-            hp: freshD.hp_current || hpMaxD,
+            hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
             dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
             dmgMax: dmgMaxD + skillPassiveBonus(dmgMaxD, skillPassivesD.dmg_max),
@@ -11327,7 +11327,7 @@ router.get('/player/:id', auth, async (req, res) => {
         const profileSetBonuses = getEquippedSetBonuses(equippedArray);
         const profileArmor = calcArmorValue(player, equippedArray);
 
-        const hpLow = (player.hp_current || hpMax) < 10;
+        const hpLow = (player.hp_current ?? hpMax) < 10;
 
         const equipped = await getEquippedItems(db, player.id);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
@@ -11341,7 +11341,7 @@ router.get('/player/:id', auth, async (req, res) => {
             magic:player.magic, vitality:player.vitality||10,
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
             hp_max:hpMax,
-            hp_current: player.hp_current || hpMax,
+            hp_current: player.hp_current ?? hpMax,
             wins:player.wins, losses:player.losses, draws:player.draws||0,
             tournament_wins: player.tournament_wins || 0,
             dungeon_highest_floor: player.dungeon_highest_floor || 0,
@@ -12900,7 +12900,7 @@ function calcDungeonPlayerStatsFromChar(char, hpMaxOverride = null, equipStats =
         def = defense + strength * 0.3;
     }
     const maxHp = Math.max(1, Number(hpMaxOverride ?? char.hp_max ?? 100));
-    const hp = Number(char.hp_current || maxHp);
+    const hp = Number(char.hp_current ?? maxHp);
     const weaponDmg = Math.floor(((equipStats?.dmg_min || 0) + (equipStats?.dmg_max || 0)) / 2);
     return { atk: Math.floor(atk) + weaponDmg, def: Math.floor(def) + (equipStats?.armor || 0), hp, maxHp };
 }
@@ -15877,7 +15877,7 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
                     [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
             }
 
-            const newHp = isTutorial ? (freshChar.hp_current || playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+            const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
             if (!playerWon) {
                 await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, freshChar.id]);
