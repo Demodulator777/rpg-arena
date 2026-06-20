@@ -35,6 +35,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
+const { runHourlyHpRegen } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -65,6 +66,15 @@ getDb().then(async (db) => {
   await tournamentModule.initTournamentTables();
   await tournamentModule.ensureCurrentTournament();
   tournamentModule.startScheduler();
+
+  // Hourly HP regen — fire at each :00
+  const msUntilHour = (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000;
+  setTimeout(() => {
+    runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
+    setInterval(() => {
+      runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
+    }, 3600000);
+  }, msUntilHour);
   
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
