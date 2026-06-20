@@ -4942,7 +4942,6 @@ async function finalizeGuildRaid(db, raid, members) {
         }
         const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [member.char_id]);
         if (!char) continue;
-        await applyHpRegen(db, char.id);
         const refreshed = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         if (!refreshed) continue;
         memberChars.push(refreshed);
@@ -5300,22 +5299,26 @@ function skillPassiveBonus(baseValue, passiveValue) {
 }
 
 // ── HP Regen ──────────────────────────────────────────────────────────────
-async function applyHpRegen(db, characterId) {
-    const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [characterId]);
-    if (!char) return;
+async function runHourlyHpRegen(db) {
+    const rows = await dbAll(db, 'SELECT id FROM characters');
     const now = Math.floor(Date.now() / 1000);
-    const hoursElapsed = Math.floor((now - (char.last_regen_at || 0)) / HP_REGEN_INTERVAL);
-    if (hoursElapsed < 1) return;
-    const equippedArray = await getEquippedItemsArray(db, characterId);
-    const trueHpMax = calcHpMax(char, equippedArray);
-    const currentHp = char.hp_current ?? trueHpMax;
-    if (currentHp >= trueHpMax) {
-        await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, characterId]);
-        return;
+    for (const r of rows) {
+        try {
+            const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [r.id]);
+            if (!char) continue;
+            const equipped = await getEquippedItemsArray(db, r.id);
+            const trueHpMax = calcHpMax(char, equipped);
+            const cur = char.hp_current ?? trueHpMax;
+            if (cur >= trueHpMax) {
+                await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, r.id]);
+            } else {
+                const regen = Math.max(1, Math.floor(trueHpMax * HP_REGEN_RATE));
+                await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [Math.min(trueHpMax, cur + regen), now, r.id]);
+            }
+        } catch (e) {
+            console.error(`Hourly HP regen failed for char ${r.id}: ${e.message}`);
+        }
     }
-    const regenAmount = Math.floor(trueHpMax * HP_REGEN_RATE * hoursElapsed);
-    const newHp = Math.min(trueHpMax, currentHp + regenAmount);
-    await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [newHp, now, characterId]);
 }
 
 function calcHpMax(char, equippedItems) {
@@ -8411,7 +8414,6 @@ router.get('/character', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
-        await applyHpRegen(db, char.id);
         await applyMpRegen(db, char.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json(await buildCharacterResponse(freshChar, db));
@@ -9200,7 +9202,6 @@ router.post('/missions/collect', auth, async (req, res) => {
         const db = await getDb();
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
-        await applyHpRegen(db, character.id);
         await applyMpRegen(db, character.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
@@ -10375,7 +10376,6 @@ router.get('/travel/status', auth, async (req, res) => {
             const zoneUnlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
 
             if (!zoneUnlocked) {
-                await applyHpRegen(db, character.id);
                 const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
                 const playerFighter = await buildCombatFighter(db, freshChar);
                 const guardian = buildTravelGuardian(targetZone, currentMap, freshChar.level, playerFighter);
@@ -10886,8 +10886,6 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
         `, [me.id, req.user.userId, now]);
 
-        await Promise.all(candidates.map(c => applyHpRegen(db, c.id)));
-
         candidates = await dbAll(db, `
             SELECT c.*, u.username,
                    (c.strength + c.defense + c.agility + c.magic + c.level*5) as power
@@ -10985,8 +10983,6 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             const mins = Math.ceil((defGlobalCooldown - now) / 60);
             return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
         }
-        await applyHpRegen(db, attacker.id);
-        await applyHpRegen(db, defender.id);
         const freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
         const freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
         const hpA = freshA.hp_current ?? freshA.hp_max;
@@ -11307,8 +11303,6 @@ router.get('/player/:id', auth, async (req, res) => {
     try {
         const db = await getDb();
         const me = await getCurrentCharacter(db, req.user.userId, 'id');
-
-        await applyHpRegen(db, req.params.id);
 
         const player = await dbGet(db, 'SELECT c.* FROM characters c WHERE c.id=?', [req.params.id]);
         if (!player) return res.status(404).json({ error: 'Not found' });
@@ -15850,7 +15844,6 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
                     targetZone: 'shadowfen',
                 });
             }
-            await applyHpRegen(db, character.id);
             const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
             const playerFighter = await buildCombatFighter(db, freshChar);
             const guardian = buildTravelGuardian('shadowfen', 'abyss', freshChar.level, playerFighter);
@@ -16547,5 +16540,6 @@ module.exports = {
     getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
-    DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
+    DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
+    runHourlyHpRegen
 };
