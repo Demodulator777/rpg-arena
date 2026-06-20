@@ -331,21 +331,13 @@ class BotAccount {
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
-      // Find best heal potion (heal_full > heal value)
+      // Only use full HP potions
       const healPots = items.filter(i => {
         if (i.item_type !== 'consumable') return false;
         try {
           const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-          return d.effect?.type === 'heal' || d.effect?.type === 'heal_full';
+          return d.effect?.type === 'heal_full';
         } catch { return false; }
-      });
-      // Sort by heal value descending
-      healPots.sort((a, b) => {
-        const da = typeof a.item_data === 'string' ? JSON.parse(a.item_data) : a.item_data;
-        const db = typeof b.item_data === 'string' ? JSON.parse(b.item_data) : b.item_data;
-        const va = da.effect?.type === 'heal_full' ? 99999 : (da.effect?.value || 0);
-        const vb = db.effect?.type === 'heal_full' ? 99999 : (db.effect?.value || 0);
-        return vb - va;
       });
       if (healPots.length > 0) {
         const result = await api('POST', `/game/use/${healPots[0].id}`, null, this.token);
@@ -353,21 +345,16 @@ class BotAccount {
         log(this.name, `Used health potion (HP restored)`);
         return true;
       }
-      // No potions — try to buy one from shop
+      // No potions — try to buy full HP potion from shop
       const shop = await api('GET', '/game/shop/items', null, this.token);
       const shopItems = shop.items || [];
-      // Prefer full HP potion (gem-based)
       const fullPots = shopItems.filter(i =>
-        i.priceType === 'gems' && (this.character.gems || 0) >= i.price &&
-        i.effect?.type === 'heal_full'
+        (i.priceType === 'gems' || i.priceType === 'gold') &&
+        i.price <= ((i.priceType === 'gems' ? this.character.gems : this.character.gold) || 0) &&
+        i.effect?.type === 'heal_full' && i.level <= (this.character.level || 1)
       );
       fullPots.sort((a, b) => (a.price || 0) - (b.price || 0));
-      const goldPots = shopItems.filter(i =>
-        i.priceType === 'gold' && i.price <= (this.character.gold || 0) &&
-        (i.effect?.type === 'heal' || i.effect?.type === 'heal_full') && i.level <= (this.character.level || 1)
-      );
-      goldPots.sort((a, b) => (b.effect?.value || 0) - (a.effect?.value || 0));
-      const bestPot = fullPots.length > 0 ? fullPots[0] : (goldPots.length > 0 ? goldPots[0] : null);
+      const bestPot = fullPots.length > 0 ? fullPots[0] : null;
       if (bestPot) {
         const priceLabel = bestPot.priceType === 'gems' ? `${bestPot.price}💎` : `${bestPot.price}g`;
         const buyResult = await api('POST', '/game/shop/buy', { item: { id: bestPot.id, category: 'consumable' } }, this.token);
@@ -919,6 +906,7 @@ class BotAccount {
     }
     if (hour >= 0 && hour < 6) this.tournamentJoined = false;
 
+    await this.healIfLow();
     await this.collectMission();
     await this.useManaPotion();
     await this.doMission();
