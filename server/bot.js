@@ -67,32 +67,40 @@ function loadAdaptiveState(name) {
   return {
     cycle: s.cycle || 0,
     battlesInCycle: s.battlesInCycle || 0,
-    attackStats: s.attackStats || {},
-    blockStats: s.blockStats || {},
+    atkPerRound: s.atkPerRound || {},
+    blkPerRound: s.blkPerRound || {},
+    atkPerZone: s.atkPerZone || {},
+    blkPerZone: s.blkPerZone || {},
     attackZones: s.attackZones || null,
     blockZones: s.blockZones || null,
     seedIds: s.seedIds || [],
   };
 }
+
 function saveAdaptiveState(name, state) {
   const mem = loadMemory();
   if (!mem._adaptive) mem._adaptive = {};
   mem._adaptive[name] = {
     cycle: state.cycle,
     battlesInCycle: state.battlesInCycle,
-    attackStats: state.attackStats,
-    blockStats: state.blockStats,
+    atkPerRound: state.atkPerRound,
+    blkPerRound: state.blkPerRound,
+    atkPerZone: state.atkPerZone,
+    blkPerZone: state.blkPerZone,
     attackZones: state.attackZones,
     blockZones: state.blockZones,
     seedIds: state.seedIds || [],
   };
   saveMemory(mem);
 }
+
 function clearAdaptiveCycle(name) {
   const mem = loadMemory();
   if (mem._adaptive?.[name]) {
-    mem._adaptive[name].attackStats = {};
-    mem._adaptive[name].blockStats = {};
+    mem._adaptive[name].atkPerRound = {};
+    mem._adaptive[name].blkPerRound = {};
+    mem._adaptive[name].atkPerZone = {};
+    mem._adaptive[name].blkPerZone = {};
     mem._adaptive[name].battlesInCycle = 0;
     mem._adaptive[name].seedIds = [];
     saveMemory(mem);
@@ -156,16 +164,20 @@ class BotAccount {
       this._blkZones = [...as.blockZones];
       this._cycle = as.cycle;
       this._battlesInCycle = as.battlesInCycle;
-      this._atkStats = { ...(as.attackStats || {}) };
-      this._blkStats = { ...(as.blockStats || {}) };
+      this._atkPerRound = { ...(as.atkPerRound || {}) };
+      this._blkPerRound = { ...(as.blkPerRound || {}) };
+      this._atkPerZone = { ...(as.atkPerZone || {}) };
+      this._blkPerZone = { ...(as.blkPerZone || {}) };
       this._seedIds = as.seedIds || [];
     } else {
       this._atkZones = [...DEFAULT_ATTACK];
       this._blkZones = [...DEFAULT_BLOCK];
       this._cycle = 0;
       this._battlesInCycle = 0;
-      this._atkStats = {};
-      this._blkStats = {};
+      this._atkPerRound = {};
+      this._blkPerRound = {};
+      this._atkPerZone = {};
+      this._blkPerZone = {};
       this._seedIds = [];
     }
   }
@@ -687,23 +699,30 @@ class BotAccount {
       const myRound = (i / 2);
       const myAtk = this._atkZones[myRound % 10];
       const myBlk = this._blkZones[myRound % 10];
+      const roundKey = String(myRound % 10);
       // Bot's attack outcome
       const myOutcome = classifyCombatLine(myLine);
-      if (myOutcome === 'hit') {
-        if (!this._atkStats[myAtk]) this._atkStats[myAtk] = { hits: 0, blocks: 0 };
-        this._atkStats[myAtk].hits++;
-      } else if (myOutcome === 'blocked') {
-        if (!this._atkStats[myAtk]) this._atkStats[myAtk] = { hits: 0, blocks: 0 };
-        this._atkStats[myAtk].blocks++;
+      if (myOutcome === 'hit' || myOutcome === 'blocked') {
+        // Per-round tracking
+        if (!this._atkPerRound[roundKey]) this._atkPerRound[roundKey] = { zone: myAtk, hits: 0, blocks: 0 };
+        if (myOutcome === 'hit') this._atkPerRound[roundKey].hits++;
+        else this._atkPerRound[roundKey].blocks++;
+        // Per-zone aggregate
+        if (!this._atkPerZone[myAtk]) this._atkPerZone[myAtk] = { hits: 0, blocks: 0 };
+        if (myOutcome === 'hit') this._atkPerZone[myAtk].hits++;
+        else this._atkPerZone[myAtk].blocks++;
       }
       // Enemy's attack outcome (bot's defense)
       const enemyOutcome = classifyCombatLine(enemyLine);
-      if (enemyOutcome === 'hit') {
-        if (!this._blkStats[myBlk]) this._blkStats[myBlk] = { blocks: 0, hits: 0 };
-        this._blkStats[myBlk].hits++;
-      } else if (enemyOutcome === 'blocked') {
-        if (!this._blkStats[myBlk]) this._blkStats[myBlk] = { blocks: 0, hits: 0 };
-        this._blkStats[myBlk].blocks++;
+      if (enemyOutcome === 'hit' || enemyOutcome === 'blocked') {
+        // Per-round tracking
+        if (!this._blkPerRound[roundKey]) this._blkPerRound[roundKey] = { zone: myBlk, blocks: 0, hits: 0 };
+        if (enemyOutcome === 'blocked') this._blkPerRound[roundKey].blocks++;
+        else this._blkPerRound[roundKey].hits++;
+        // Per-zone aggregate
+        if (!this._blkPerZone[myBlk]) this._blkPerZone[myBlk] = { blocks: 0, hits: 0 };
+        if (enemyOutcome === 'blocked') this._blkPerZone[myBlk].blocks++;
+        else this._blkPerZone[myBlk].hits++;
       }
     }
     this._battlesInCycle++;
@@ -742,7 +761,7 @@ class BotAccount {
         this._seedIds.push(battle.id);
       }
       this._persistAdaptive();
-      log(this.name, `Seeded ${fresh.length} battles — ${Object.keys(this._atkStats).length} atk zones, ${Object.keys(this._blkStats).length} blk zones`);
+      log(this.name, `Seeded ${fresh.length} battles — ${Object.keys(this._atkPerZone).length} atk zones, ${Object.keys(this._blkPerZone).length} blk zones`);
       if (this._battlesInCycle >= 10) {
         this._analyzeAndAdapt();
       }
@@ -753,60 +772,105 @@ class BotAccount {
 
   _analyzeAndAdapt() {
     log(this.name, `Analyzing zone performance (cycle ${this._cycle}, ${this._battlesInCycle} battles)...`);
-    // Score attack zones: lower block rate = better
-    const atkEntries = Object.entries(this._atkStats).map(([zone, s]) => {
-      const total = s.hits + s.blocks;
-      const blockRate = total > 0 ? s.blocks / total : 0;
-      return { zone, blockRate, hits: s.hits, blocks: s.blocks };
-    });
-    atkEntries.sort((a, b) => a.blockRate - b.blockRate);
-    const bestAtk = atkEntries.length > 0 ? atkEntries.slice(0, Math.min(3, atkEntries.length)) : [{ zone: 'chest', blockRate: 0 }];
-    log(this.name, `Best attack zones: ${bestAtk.map(e => `${e.zone}(${(e.blockRate*100).toFixed(0)}% blocked)`).join(', ')}`);
 
-    // Score block zones: lower hit rate = better (blocks more)
-    const blkEntries = Object.entries(this._blkStats).map(([zone, s]) => {
-      const total = s.blocks + s.hits;
-      const hitRate = total > 0 ? s.hits / total : 0;
-      return { zone, hitRate, blocks: s.blocks, hits: s.hits };
-    });
-    blkEntries.sort((a, b) => a.hitRate - b.hitRate);
-    const bestBlk = blkEntries.length > 0 ? blkEntries.slice(0, Math.min(3, blkEntries.length)) : [{ zone: 'cross_guard', hitRate: 0 }];
-    log(this.name, `Best block zones: ${bestBlk.map(e => `${e.zone}(${(e.hitRate*100).toFixed(0)}% hit)`).join(', ')}`);
+    // ── Per-position attack analysis ──
+    // For each round position, decide whether to keep or replace
+    const atkThreshold = 0.30; // replace if blocked >= 30%
+    const atkPositions = [];
+    for (let r = 0; r < 10; r++) {
+      const s = this._atkPerRound[String(r)];
+      if (s) {
+        const total = s.hits + s.blocks;
+        const blockRate = total > 0 ? s.blocks / total : 0;
+        atkPositions.push({ round: r, zone: s.zone, blockRate, hits: s.hits, blocks: s.blocks });
+      } else {
+        atkPositions.push({ round: r, zone: this._atkZones[r], blockRate: 0, hits: 0, blocks: 0 });
+      }
+    }
 
-    // Build new 10-round loadout from best zones
-    // Distribute proportionally: better zones get more slots
-    const totalAtkWeight = bestAtk.reduce((s, e) => s + (1 - e.blockRate), 0);
+    // Per-zone aggregate (for picking replacements)
+    const atkZoneScores = Object.entries(this._atkPerZone).map(([zone, st]) => {
+      const total = st.hits + st.blocks;
+      return { zone, blockRate: total > 0 ? st.blocks / total : 0, hits: st.hits, blocks: st.blocks };
+    });
+    atkZoneScores.sort((a, b) => a.blockRate - b.blockRate);
+    const bestAtkZones = atkZoneScores.filter(z => z.blockRate < atkThreshold);
+    const fallbackAtk = bestAtkZones.length > 0 ? bestAtkZones : atkZoneScores.slice(0, Math.max(1, Math.ceil(atkZoneScores.length / 2)));
+
     const newAtk = [];
-    for (let r = 0; r < 10; r++) {
-      let pick = 0;
-      let acc = 0;
-      const roll = Math.random() * totalAtkWeight;
-      for (let j = 0; j < bestAtk.length; j++) {
-        acc += (1 - bestAtk[j].blockRate);
-        if (roll <= acc) { pick = j; break; }
+    for (const pos of atkPositions) {
+      const total = pos.hits + pos.blocks;
+      if (total > 0 && pos.blockRate >= atkThreshold) {
+        // This position needs a new zone — pick from best-performing zones
+        const pick = fallbackAtk[Math.floor(Math.random() * fallbackAtk.length)];
+        newAtk.push(pick.zone);
+      } else {
+        // Keep the current zone
+        newAtk.push(pos.zone);
       }
-      newAtk.push(bestAtk[pick].zone);
     }
 
-    const totalBlkWeight = bestBlk.reduce((s, e) => s + (1 - e.hitRate), 0);
-    const newBlk = [];
+    // ── Per-position block analysis ──
+    const blkThreshold = 0.30; // replace if hit-through >= 30%
+    const blkPositions = [];
     for (let r = 0; r < 10; r++) {
-      let pick = 0;
-      let acc = 0;
-      const roll = Math.random() * totalBlkWeight;
-      for (let j = 0; j < bestBlk.length; j++) {
-        acc += (1 - bestBlk[j].hitRate);
-        if (roll <= acc) { pick = j; break; }
+      const s = this._blkPerRound[String(r)];
+      if (s) {
+        const total = s.blocks + s.hits;
+        const hitRate = total > 0 ? s.hits / total : 0;
+        blkPositions.push({ round: r, zone: s.zone, hitRate, blocks: s.blocks, hits: s.hits });
+      } else {
+        blkPositions.push({ round: r, zone: this._blkZones[r], hitRate: 0, blocks: 0, hits: 0 });
       }
-      newBlk.push(bestBlk[pick].zone);
     }
+
+    const blkZoneScores = Object.entries(this._blkPerZone).map(([zone, st]) => {
+      const total = st.blocks + st.hits;
+      return { zone, hitRate: total > 0 ? st.hits / total : 0, blocks: st.blocks, hits: st.hits };
+    });
+    blkZoneScores.sort((a, b) => a.hitRate - b.hitRate);
+    const bestBlkZones = blkZoneScores.filter(z => z.hitRate < blkThreshold);
+    const fallbackBlk = bestBlkZones.length > 0 ? bestBlkZones : blkZoneScores.slice(0, Math.max(1, Math.ceil(blkZoneScores.length / 2)));
+
+    const newBlk = [];
+    for (const pos of blkPositions) {
+      const total = pos.blocks + pos.hits;
+      if (total > 0 && pos.hitRate >= blkThreshold) {
+        const pick = fallbackBlk[Math.floor(Math.random() * fallbackBlk.length)];
+        newBlk.push(pick.zone);
+      } else {
+        newBlk.push(pos.zone);
+      }
+    }
+
+    // Log per-position detail
+    for (const pos of atkPositions) {
+      if (pos.hits + pos.blocks > 0) {
+        const pct = (pos.blockRate * 100).toFixed(0);
+        const flag = pos.blockRate >= atkThreshold ? ' ⚠️ CHANGE' : ' ✓';
+        log(this.name, `  Atk round ${pos.round+1} [${pos.zone}]: ${pos.hits} hits / ${pos.blocks} blocked (${pct}%)${flag}`);
+      }
+    }
+    for (const pos of blkPositions) {
+      if (pos.blocks + pos.hits > 0) {
+        const pct = (pos.hitRate * 100).toFixed(0);
+        const flag = pos.hitRate >= blkThreshold ? ' ⚠️ CHANGE' : ' ✓';
+        log(this.name, `  Blk round ${pos.round+1} [${pos.zone}]: ${pos.blocks} blocks / ${pos.hits} hit through (${pct}%)${flag}`);
+      }
+    }
+
+    const changedAtk = atkPositions.filter((p) => p.hits + p.blocks > 0 && p.blockRate >= atkThreshold).length;
+    const changedBlk = blkPositions.filter((p) => p.blocks + p.hits > 0 && p.hitRate >= blkThreshold).length;
+    log(this.name, `Changed ${changedAtk} attack positions, ${changedBlk} block positions`);
 
     this._atkZones = newAtk;
     this._blkZones = newBlk;
     this._cycle++;
     this._battlesInCycle = 0;
-    this._atkStats = {};
-    this._blkStats = {};
+    this._atkPerRound = {};
+    this._blkPerRound = {};
+    this._atkPerZone = {};
+    this._blkPerZone = {};
     this._seedIds = [];
     log(this.name, `🔄 New loadout cycle ${this._cycle}: atk=[${newAtk.join(',')}] blk=[${newBlk.join(',')}]`);
     this._persistAdaptive();
@@ -818,8 +882,10 @@ class BotAccount {
     saveAdaptiveState(this.name, {
       cycle: this._cycle,
       battlesInCycle: this._battlesInCycle,
-      attackStats: this._atkStats,
-      blockStats: this._blkStats,
+      atkPerRound: this._atkPerRound,
+      blkPerRound: this._blkPerRound,
+      atkPerZone: this._atkPerZone,
+      blkPerZone: this._blkPerZone,
       attackZones: this._atkZones,
       blockZones: this._blkZones,
       seedIds: this._seedIds,
