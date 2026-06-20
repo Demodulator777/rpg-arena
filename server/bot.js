@@ -53,6 +53,59 @@ function loadMemory() {
 function saveMemory(mem) {
   fs.writeFileSync(path.join(__dirname, MEMORY_FILE), JSON.stringify(mem, null, 2));
 }
+
+// ── Adaptive zone helpers ──────────────────────────────────────────────────
+const DEFAULT_ATTACK = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
+const DEFAULT_BLOCK  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
+const ALL_ATTACK_ZONES = ['head','throat','chest','heart','solar_plexus','stomach','left_arm','right_arm','left_leg','right_leg'];
+const ALL_BLOCK_ZONES  = ['high_guard','cross_guard','mid_guard','left_guard','right_guard','full_turtle','weave_left','weave_right','counter_stance','no_block'];
+
+function loadAdaptiveState(name) {
+  const mem = loadMemory();
+  const s = mem._adaptive?.[name];
+  if (!s) return null;
+  return {
+    cycle: s.cycle || 0,
+    battlesInCycle: s.battlesInCycle || 0,
+    attackStats: s.attackStats || {},
+    blockStats: s.blockStats || {},
+    attackZones: s.attackZones || null,
+    blockZones: s.blockZones || null,
+  };
+}
+function saveAdaptiveState(name, state) {
+  const mem = loadMemory();
+  if (!mem._adaptive) mem._adaptive = {};
+  mem._adaptive[name] = {
+    cycle: state.cycle,
+    battlesInCycle: state.battlesInCycle,
+    attackStats: state.attackStats,
+    blockStats: state.blockStats,
+    attackZones: state.attackZones,
+    blockZones: state.blockZones,
+  };
+  saveMemory(mem);
+}
+function clearAdaptiveCycle(name) {
+  const mem = loadMemory();
+  if (mem._adaptive?.[name]) {
+    mem._adaptive[name].attackStats = {};
+    mem._adaptive[name].blockStats = {};
+    mem._adaptive[name].battlesInCycle = 0;
+    saveMemory(mem);
+  }
+}
+
+function classifyCombatLine(line) {
+  if (!line) return 'unknown';
+  if (/\bBLOCKED\b/.test(line) && !/BLOCK PENETRATION/.test(line)) return 'blocked';
+  if (/lands a hit|lands a glancing blow|glances off|BACKSTAB|RAGING BLOW|BLOCK PENETRATION/.test(line)) return 'hit';
+  if (/uses |unleashes |casts |summons /.test(line)) return 'hit';
+  if (/attacks —/.test(line) && /FORCE FIELD/.test(line)) return 'hit';
+  if (/DIVINE SHIELD absorbed/.test(line)) return 'skipped';
+  if (/swings — MISS|swings — DODGED/.test(line)) return 'skipped';
+  return 'unknown';
+}
 function getDefeats(botName) {
   const mem = loadMemory();
   return mem[botName] || [];
@@ -93,6 +146,23 @@ class BotAccount {
     this.tournamentJoined = false;
     this._gearSetup = false;
     this._lootboxSetup = false;
+    // Adaptive loadout state
+    const as = loadAdaptiveState(this.name);
+    if (as && as.attackZones) {
+      this._atkZones = [...as.attackZones];
+      this._blkZones = [...as.blockZones];
+      this._cycle = as.cycle;
+      this._battlesInCycle = as.battlesInCycle;
+      this._atkStats = { ...(as.attackStats || {}) };
+      this._blkStats = { ...(as.blockStats || {}) };
+    } else {
+      this._atkZones = [...DEFAULT_ATTACK];
+      this._blkZones = [...DEFAULT_BLOCK];
+      this._cycle = 0;
+      this._battlesInCycle = 0;
+      this._atkStats = {};
+      this._blkStats = {};
+    }
   }
 
   async ensureAuth() {
@@ -402,6 +472,8 @@ class BotAccount {
         recordDefeat(this.name, targetId, target.name || 'unknown', myLevel);
       }
       if (result.character) this.character = result.character;
+      // Track zone performance from battle log
+      if (result.log) this._trackPvpOutcome(result.log, target.name || targetId);
       return true;
     } catch (e) {
       if (e.message.includes('cooldown') || e.message.includes('Cooldown')) {
@@ -568,12 +640,160 @@ class BotAccount {
     }
   }
 
+  // ── Elemental Companion ──────────────────────────────────────────────────
+  async feedElemental() {
+    try {
+      const elemData = await api('GET', '/game/elemental', null, this.token);
+      if (!elemData || !elemData.elemental) return;
+      // Scan inventory for feedable materials
+      const inv = await api('GET', '/game/inventory', null, this.token);
+      const feedable = (inv.items || []).filter(i => {
+        try {
+          const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+          if (d.type !== 'raw_mat' && d.category !== 'material') return false;
+          // Must be in ELEM_FEED_VALUES which includes: dgn_* (cinders, droplets, sparks, feathers, etc.)
+          return d.id && (d.id.includes('dgn_') || d.id.includes('crystal') || d.id.includes('essence'));
+        } catch { return false; }
+      });
+      if (feedable.length === 0) return;
+      // Feed the highest-XP materials first (essences > cores > embers > cinders)
+      feedable.sort((a, b) => {
+        const da = typeof a.item_data === 'string' ? JSON.parse(a.item_data) : a.item_data;
+        const db = typeof b.item_data === 'string' ? JSON.parse(b.item_data) : b.item_data;
+        const va = da.value || da.xp || 0;
+        const vb = db.value || db.xp || 0;
+        return vb - va;
+      });
+      // Feed top 5 items each tick to spread load
+      const batch = feedable.slice(0, 5);
+      for (const item of batch) {
+        await api('POST', '/game/elemental/feed', { inventory_id: item.id, qty: (item.quantity || 1) }, this.token);
+        await sleep(200);
+      }
+      log(this.name, `Fed ${batch.length} materials to elemental`);
+    } catch (e) {
+      // Elemental not discovered yet — that's fine
+      if (e.message.includes('No elemental')) return;
+      log(this.name, `Feed elemental failed: ${e.message}`);
+    }
+  }
+
+  // ── Adaptive Zone Tracking ───────────────────────────────────────────────
+  _trackPvpOutcome(logLines, opponentName) {
+    const myName = this.character?.name || this.name;
+    // Gather combat lines in order — first is bot's attack, second is enemy's attack, per round
+    const combatLines = logLines.filter(l => /^Round \d+:/.test(l));
+    for (let i = 0; i + 1 < combatLines.length; i += 2) {
+      const myLine = combatLines[i];
+      const enemyLine = combatLines[i + 1];
+      const myRound = (i / 2);
+      const myAtk = this._atkZones[myRound % 10];
+      const myBlk = this._blkZones[myRound % 10];
+      // Bot's attack outcome
+      const myOutcome = classifyCombatLine(myLine);
+      if (myOutcome === 'hit') {
+        if (!this._atkStats[myAtk]) this._atkStats[myAtk] = { hits: 0, blocks: 0 };
+        this._atkStats[myAtk].hits++;
+      } else if (myOutcome === 'blocked') {
+        if (!this._atkStats[myAtk]) this._atkStats[myAtk] = { hits: 0, blocks: 0 };
+        this._atkStats[myAtk].blocks++;
+      }
+      // Enemy's attack outcome (bot's defense)
+      const enemyOutcome = classifyCombatLine(enemyLine);
+      if (enemyOutcome === 'hit') {
+        if (!this._blkStats[myBlk]) this._blkStats[myBlk] = { blocks: 0, hits: 0 };
+        this._blkStats[myBlk].hits++;
+      } else if (enemyOutcome === 'blocked') {
+        if (!this._blkStats[myBlk]) this._blkStats[myBlk] = { blocks: 0, hits: 0 };
+        this._blkStats[myBlk].blocks++;
+      }
+    }
+    this._battlesInCycle++;
+    log(this.name, `Adaptive cycle ${this._cycle}: battle ${this._battlesInCycle}/10 tracked (${opponentName})`);
+    this._persistAdaptive();
+    // Check if it's time to adapt
+    if (this._battlesInCycle >= 10) {
+      this._analyzeAndAdapt();
+    }
+  }
+
+  _analyzeAndAdapt() {
+    log(this.name, `Analyzing zone performance (cycle ${this._cycle}, ${this._battlesInCycle} battles)...`);
+    // Score attack zones: lower block rate = better
+    const atkEntries = Object.entries(this._atkStats).map(([zone, s]) => {
+      const total = s.hits + s.blocks;
+      const blockRate = total > 0 ? s.blocks / total : 0;
+      return { zone, blockRate, hits: s.hits, blocks: s.blocks };
+    });
+    atkEntries.sort((a, b) => a.blockRate - b.blockRate);
+    const bestAtk = atkEntries.length > 0 ? atkEntries.slice(0, Math.min(3, atkEntries.length)) : [{ zone: 'chest', blockRate: 0 }];
+    log(this.name, `Best attack zones: ${bestAtk.map(e => `${e.zone}(${(e.blockRate*100).toFixed(0)}% blocked)`).join(', ')}`);
+
+    // Score block zones: lower hit rate = better (blocks more)
+    const blkEntries = Object.entries(this._blkStats).map(([zone, s]) => {
+      const total = s.blocks + s.hits;
+      const hitRate = total > 0 ? s.hits / total : 0;
+      return { zone, hitRate, blocks: s.blocks, hits: s.hits };
+    });
+    blkEntries.sort((a, b) => a.hitRate - b.hitRate);
+    const bestBlk = blkEntries.length > 0 ? blkEntries.slice(0, Math.min(3, blkEntries.length)) : [{ zone: 'cross_guard', hitRate: 0 }];
+    log(this.name, `Best block zones: ${bestBlk.map(e => `${e.zone}(${(e.hitRate*100).toFixed(0)}% hit)`).join(', ')}`);
+
+    // Build new 10-round loadout from best zones
+    // Distribute proportionally: better zones get more slots
+    const totalAtkWeight = bestAtk.reduce((s, e) => s + (1 - e.blockRate), 0);
+    const newAtk = [];
+    for (let r = 0; r < 10; r++) {
+      let pick = 0;
+      let acc = 0;
+      const roll = Math.random() * totalAtkWeight;
+      for (let j = 0; j < bestAtk.length; j++) {
+        acc += (1 - bestAtk[j].blockRate);
+        if (roll <= acc) { pick = j; break; }
+      }
+      newAtk.push(bestAtk[pick].zone);
+    }
+
+    const totalBlkWeight = bestBlk.reduce((s, e) => s + (1 - e.hitRate), 0);
+    const newBlk = [];
+    for (let r = 0; r < 10; r++) {
+      let pick = 0;
+      let acc = 0;
+      const roll = Math.random() * totalBlkWeight;
+      for (let j = 0; j < bestBlk.length; j++) {
+        acc += (1 - bestBlk[j].hitRate);
+        if (roll <= acc) { pick = j; break; }
+      }
+      newBlk.push(bestBlk[pick].zone);
+    }
+
+    this._atkZones = newAtk;
+    this._blkZones = newBlk;
+    this._cycle++;
+    this._battlesInCycle = 0;
+    this._atkStats = {};
+    this._blkStats = {};
+    log(this.name, `🔄 New loadout cycle ${this._cycle}: atk=[${newAtk.join(',')}] blk=[${newBlk.join(',')}]`);
+    this._persistAdaptive();
+    // Apply new loadout on the server
+    this.setLoadout().catch(() => {});
+  }
+
+  _persistAdaptive() {
+    saveAdaptiveState(this.name, {
+      cycle: this._cycle,
+      battlesInCycle: this._battlesInCycle,
+      attackStats: this._atkStats,
+      blockStats: this._blkStats,
+      attackZones: this._atkZones,
+      blockZones: this._blkZones,
+    });
+  }
+
   // ── Loadout ──────────────────────────────────────────────────────────────
   async setLoadout() {
     try {
-      const attackZones = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
-      const blockZones = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
-      await api('POST', '/game/loadout', { attackZones, blockZones }, this.token);
+      await api('POST', '/game/loadout', { attackZones: this._atkZones, blockZones: this._blkZones }, this.token);
     } catch {}
   }
 
@@ -704,6 +924,7 @@ class BotAccount {
     await this.doMission();
     await this.openAllLootboxes();
     await this.equipBest();
+    await this.feedElemental();
     await this.doPvp();
     await this.activatePremium();
     await this.upgradeStats();
