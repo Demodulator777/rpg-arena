@@ -413,6 +413,12 @@ class BotAccount {
         return false;
       }
 
+      // Skip if target is another bot (username starts with bot_)
+      if (target.username && target.username.startsWith('bot_')) {
+        log(this.name, `Skipping ${target.name} (bot)`);
+        return false;
+      }
+
       const targetId = target.id;
       const myLevel = this.character.level || 1;
       const tgtLevel = target.level || 1;
@@ -666,7 +672,7 @@ class BotAccount {
   }
 
   // ── Adaptive Zone Tracking ───────────────────────────────────────────────
-  _trackPvpOutcome(logLines, opponentName) {
+  _trackPvpOutcome(logLines, opponentName, silent = false) {
     const myName = this.character?.name || this.name;
     // Gather combat lines in order — first is bot's attack, second is enemy's attack, per round
     const combatLines = logLines.filter(l => /^Round \d+:/.test(l));
@@ -696,11 +702,38 @@ class BotAccount {
       }
     }
     this._battlesInCycle++;
-    log(this.name, `Adaptive cycle ${this._cycle}: battle ${this._battlesInCycle}/10 tracked (${opponentName})`);
+    if (!silent) log(this.name, `Adaptive cycle ${this._cycle}: battle ${this._battlesInCycle}/10 tracked (${opponentName})`);
     this._persistAdaptive();
     // Check if it's time to adapt
     if (this._battlesInCycle >= 10) {
       this._analyzeAndAdapt();
+    }
+  }
+
+  async seedAdaptiveFromHistory() {
+    // Fetch last 10 PvP battles and seed zone stats so the bot has initial data
+    if (this._battlesInCycle > 0 || this._cycle > 0) return; // already seeded
+    try {
+      const battles = await api('GET', '/game/battles', null, this.token);
+      if (!Array.isArray(battles) || battles.length === 0) return;
+      const myName = this.character?.name;
+      if (!myName) return;
+      // Only battles where this bot was the attacker (log is from attacker perspective)
+      const myBattles = battles.filter(b => b.attacker_name === myName);
+      if (myBattles.length === 0) return;
+      log(this.name, `Seeding adaptive stats from ${myBattles.length} recent PvP battle(s)...`);
+      // Process oldest first so tracking increments forward
+      for (const battle of myBattles.reverse()) {
+        if (Array.isArray(battle.log)) {
+          this._trackPvpOutcome(battle.log, battle.defender_name || 'history', true);
+        }
+      }
+      log(this.name, `Seeded ${this._battlesInCycle} battles — ${Object.keys(this._atkStats).length} atk zones, ${Object.keys(this._blkStats).length} blk zones`);
+      if (this._battlesInCycle >= 10) {
+        this._analyzeAndAdapt();
+      }
+    } catch (e) {
+      log(this.name, `Seed adaptive from history failed: ${e.message}`);
     }
   }
 
@@ -800,6 +833,7 @@ class BotAccount {
       }
       this._gearSetup = true;
       log(this.name, `Gear setup complete`);
+      await this.seedAdaptiveFromHistory();
     } catch (e) {
       log(this.name, `Gear setup failed: ${e.message}`);
     }
@@ -913,10 +947,10 @@ class BotAccount {
     await this.openAllLootboxes();
     await this.equipBest();
     await this.feedElemental();
+    await this.setLoadout();
     await this.doPvp();
     await this.activatePremium();
     await this.upgradeStats();
-    await this.setLoadout();
     await this.refreshCharacter();
   }
 }
