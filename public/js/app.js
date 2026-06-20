@@ -3718,7 +3718,8 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     if (!tt) { tt = document.createElement('div'); tt.id = 'item-tooltip'; tt.className = 'item-tooltip hidden'; document.body.appendChild(tt); }
     const fmt = (n) => (n || 0).toLocaleString();
     tt.innerHTML = `<div style="padding:12px 14px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px;font-size:14px">${name}</div><div style="font-size:13px">💰 Upgrade Cost: <strong>${fmt(cost)}</strong> gold</div></div>`;
-    tt.style.height = ''; tt.style.width = 'auto';
+    tt.style.height = '';
+    tt.style.width = '';
     tt.classList.remove('hidden');
     const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 80;
     const r = btn.getBoundingClientRect();
