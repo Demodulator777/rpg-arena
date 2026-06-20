@@ -71,6 +71,7 @@ function loadAdaptiveState(name) {
     blockStats: s.blockStats || {},
     attackZones: s.attackZones || null,
     blockZones: s.blockZones || null,
+    seedIds: s.seedIds || [],
   };
 }
 function saveAdaptiveState(name, state) {
@@ -83,6 +84,7 @@ function saveAdaptiveState(name, state) {
     blockStats: state.blockStats,
     attackZones: state.attackZones,
     blockZones: state.blockZones,
+    seedIds: state.seedIds || [],
   };
   saveMemory(mem);
 }
@@ -92,6 +94,7 @@ function clearAdaptiveCycle(name) {
     mem._adaptive[name].attackStats = {};
     mem._adaptive[name].blockStats = {};
     mem._adaptive[name].battlesInCycle = 0;
+    mem._adaptive[name].seedIds = [];
     saveMemory(mem);
   }
 }
@@ -155,6 +158,7 @@ class BotAccount {
       this._battlesInCycle = as.battlesInCycle;
       this._atkStats = { ...(as.attackStats || {}) };
       this._blkStats = { ...(as.blockStats || {}) };
+      this._seedIds = as.seedIds || [];
     } else {
       this._atkZones = [...DEFAULT_ATTACK];
       this._blkZones = [...DEFAULT_BLOCK];
@@ -162,6 +166,7 @@ class BotAccount {
       this._battlesInCycle = 0;
       this._atkStats = {};
       this._blkStats = {};
+      this._seedIds = [];
     }
   }
 
@@ -711,24 +716,33 @@ class BotAccount {
   }
 
   async seedAdaptiveFromHistory() {
-    // Fetch last 10 PvP battles and seed zone stats so the bot has initial data
-    if (this._battlesInCycle > 0 || this._cycle > 0) return; // already seeded
+    // Fetch last 10 PvP battles and add their zone data to current stats.
+    // Only seeds battles the bot initiated (attacker), and only battles not already tracked.
+    const maxSeed = Math.max(0, 10 - this._battlesInCycle);
+    if (maxSeed === 0) return;
     try {
       const battles = await api('GET', '/game/battles', null, this.token);
       if (!Array.isArray(battles) || battles.length === 0) return;
       const myName = this.character?.name;
       if (!myName) return;
-      // Only battles where this bot was the attacker (log is from attacker perspective)
       const myBattles = battles.filter(b => b.attacker_name === myName);
       if (myBattles.length === 0) return;
-      log(this.name, `Seeding adaptive stats from ${myBattles.length} recent PvP battle(s)...`);
-      // Process oldest first so tracking increments forward
-      for (const battle of myBattles.reverse()) {
+      // Deduplicate using battle IDs already tracked
+      const seenIds = new Set(this._seedIds || []);
+      const fresh = myBattles.filter(b => !seenIds.has(b.id));
+      if (fresh.length === 0) return;
+      if (fresh.length > maxSeed) fresh.length = maxSeed;
+      log(this.name, `Seeding ${fresh.length} battle(s) from history (${this._battlesInCycle}/10 → ${this._battlesInCycle + fresh.length}/10)...`);
+      if (!this._seedIds) this._seedIds = [];
+      // Process oldest first
+      for (const battle of fresh.reverse()) {
         if (Array.isArray(battle.log)) {
           this._trackPvpOutcome(battle.log, battle.defender_name || 'history', true);
         }
+        this._seedIds.push(battle.id);
       }
-      log(this.name, `Seeded ${this._battlesInCycle} battles — ${Object.keys(this._atkStats).length} atk zones, ${Object.keys(this._blkStats).length} blk zones`);
+      this._persistAdaptive();
+      log(this.name, `Seeded ${fresh.length} battles — ${Object.keys(this._atkStats).length} atk zones, ${Object.keys(this._blkStats).length} blk zones`);
       if (this._battlesInCycle >= 10) {
         this._analyzeAndAdapt();
       }
@@ -793,6 +807,7 @@ class BotAccount {
     this._battlesInCycle = 0;
     this._atkStats = {};
     this._blkStats = {};
+    this._seedIds = [];
     log(this.name, `🔄 New loadout cycle ${this._cycle}: atk=[${newAtk.join(',')}] blk=[${newBlk.join(',')}]`);
     this._persistAdaptive();
     // Apply new loadout on the server
@@ -807,6 +822,7 @@ class BotAccount {
       blockStats: this._blkStats,
       attackZones: this._atkZones,
       blockZones: this._blkZones,
+      seedIds: this._seedIds,
     });
   }
 
