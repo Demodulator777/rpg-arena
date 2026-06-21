@@ -1026,12 +1026,12 @@ class BotAccount {
 
   // ── Dungeon ───────────────────────────────────────────────────────────────
   async convertMpToTokens(mpAmount) {
-    try { await api('POST', '/dungeon/mp-spent', { mpSpent: mpAmount }, this.token); }
+    try { await api('POST', '/game/dungeon/mp-spent', { mpSpent: mpAmount }, this.token); }
     catch { /* non-critical */ }
   }
 
   async _getDungeonData() {
-    try { return await api('GET', '/dungeon/data', null, this.token); }
+    try { return await api('GET', '/game/dungeon/data', null, this.token); }
     catch { return null; }
   }
 
@@ -1058,14 +1058,14 @@ class BotAccount {
     }
     const floorRunId = `floor_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const progress = { rooms, playerPos: 0, exploredRooms: [0], crawler: null, floorRunId };
-    await api('POST', '/dungeon/progress', { floor, highestFloor: floor, progress, activeDungeon: 'tower', combat: null }, this.token);
+    await api('POST', '/game/dungeon/progress', { floor, highestFloor: floor, progress, activeDungeon: 'tower', combat: null }, this.token);
     return { rooms, floorRunId };
   }
 
   async _doDungeonCombat(combatId, turnNonce) {
     let nonce = turnNonce;
     while (true) {
-      const result = await api('POST', '/dungeon/combat/act', { combatId, action: 'fight', turnNonce: nonce }, this.token);
+      const result = await api('POST', '/game/dungeon/combat/act', { combatId, action: 'fight', turnNonce: nonce }, this.token);
       nonce = result.turnNonce;
       if (result.ended) return result;
       await sleep(500);
@@ -1096,7 +1096,7 @@ class BotAccount {
       // Clear rooms in order
       for (let i = 0; i < bossIndex; i++) {
         try {
-          const start = await api('POST', '/dungeon/combat/start', { floor, roomIndex: i, kind: 'room', floorRunId: gen.floorRunId }, this.token);
+          const start = await api('POST', '/game/dungeon/combat/start', { floor, roomIndex: i, kind: 'room', floorRunId: gen.floorRunId }, this.token);
           if (!start.success) continue;
           const result = await this._doDungeonCombat(start.combatId, start.turnNonce);
           if (result.outcome === 'player_dead') { log(this.name, `Died in room ${i}`); return false; }
@@ -1107,7 +1107,7 @@ class BotAccount {
 
       // Boss fight
       try {
-        const bossStart = await api('POST', '/dungeon/combat/start', { floor, roomIndex: bossIndex, kind: 'boss', floorRunId: gen.floorRunId }, this.token);
+        const bossStart = await api('POST', '/game/dungeon/combat/start', { floor, roomIndex: bossIndex, kind: 'boss', floorRunId: gen.floorRunId }, this.token);
         if (!bossStart.success) { log(this.name, `Boss start failed: ${bossStart.error}`); return false; }
         const result = await this._doDungeonCombat(bossStart.combatId, bossStart.turnNonce);
         if (result.outcome === 'boss_defeated') {
@@ -1119,7 +1119,7 @@ class BotAccount {
 
       // Claim bounty
       try {
-        const bounty = await api('POST', '/dungeon/guild/bounty/claim', {}, this.token);
+        const bounty = await api('POST', '/game/dungeon/guild/bounty/claim', {}, this.token);
         if (bounty.success) log(this.name, `Bounty claimed: ${bounty.message || 'ok'}`);
       } catch { /* bounty not available */ }
 
