@@ -962,7 +962,7 @@ const SKILL_TREES = {
                 isStarter: true,
                 skills: {
                     basic_training: {
-                        id: 'rogue_basic', tier: 1, name: 'Basic Training', emoji: '🗡️',
+                        id: 'basic_training', tier: 1, name: 'Basic Training', emoji: '🗡️',
                         type: 'progressive',
                         desc: '+8% Agility and +5% Crit Chance.',
                         effects: [
@@ -983,14 +983,14 @@ const SKILL_TREES = {
                 name: 'Assassin',
                 emoji: '🗡️',
                 description: 'Lethal precision. High crit damage and finishing blows.',
-                requires: { skill: 'rogue_basic', minProgress: 10 },
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     backstab: {
                         id: 'backstab', tier: 2, name: 'Backstab', emoji: '🔪',
                         type: 'progressive',
                         desc: 'Round 1: +80% damage, cannot be blocked.',
                         effects: [{ type: 'active_combat', id: 'backstab', round: 1, dmg_bonus: 0.80, pierce_block: true }],
-                        requires: ['rogue_basic'],
+                        requires: ['basic_training'],
                         unlockCondition: null,
                         thresholds: ROGUE_THRESHOLDS.tier2,
                     },
@@ -1089,14 +1089,14 @@ const SKILL_TREES = {
                 name: 'Trickster',
                 emoji: '🃏',
                 description: 'Unpredictable and evasive. High dodge and misdirection.',
-                requires: { skill: 'rogue_basic', minProgress: 10 },
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     feint: {
                         id: 'feint', tier: 2, name: 'Feint', emoji: '💨',
                         type: 'progressive',
                         desc: '+10% Agility.',
                         effects: [{ type: 'passive_pct', stat: 'agility', value: 0.10 }],
-                        requires: ['rogue_basic'],
+                        requires: ['basic_training'],
                         unlockCondition: null,
                         thresholds: ROGUE_THRESHOLDS.tier2,
                     },
@@ -1152,14 +1152,14 @@ const SKILL_TREES = {
                 name: 'Shadowblade',
                 emoji: '🌑',
                 description: 'Strike from darkness. Shadow-infused blades deal bonus elemental damage.',
-                requires: { skill: 'rogue_basic', minProgress: 10 },
+                requires: { skill: 'basic_training', minProgress: 10 },
                 skills: {
                     shadow_coat: {
                         id: 'shadow_coat', tier: 2, name: 'Shadow Coat', emoji: '🌑',
                         type: 'progressive',
                         desc: '+12% Wind Damage.',
                         effects: [{ type: 'passive_pct', stat: 'wind_dmg', value: 0.12 }],
-                        requires: ['rogue_basic'],
+                        requires: ['basic_training'],
                         unlockCondition: null,
                         thresholds: ROGUE_THRESHOLDS.tier2,
                     },
@@ -1221,14 +1221,14 @@ const SKILL_TREES = {
                 emoji: '⚔️⚔️',
                 description: 'Secret path. Drop the shield, double the blades.',
                 hidden: true,
-                requires: { skill: 'rogue_basic', minProgress: 50, condition: 'kills_no_shield' },
+                requires: { skill: 'basic_training', minProgress: 50, condition: 'kills_no_shield' },
                 skills: {
                     off_hand_training: {
                         id: 'off_hand_training', tier: 3, name: 'Off-Hand Training', emoji: '🤜',
                         type: 'progressive',
                         desc: 'Equip second weapon in shield slot. Off-hand deals 60% damage.',
                         effects: [{ type: 'class_modifier', id: 'dual_wield_unlock', off_hand_dmg_pct: 0.60 }],
-                        requires: ['rogue_basic'],
+                        requires: ['basic_training'],
                         unlockCondition: 'kills_no_shield',
                         thresholds: ROGUE_THRESHOLDS.tier3,
                     },
