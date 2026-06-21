@@ -34,6 +34,28 @@ function roll(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// ── Level Group Helpers ───────────────────────────────────────────────────
+function getLevelGroup(level) {
+  if (level >= 501) return '501+';
+  const g = Math.ceil(level / 10);
+  return `${(g-1)*10+1}-${g*10}`;
+}
+
+function getAllLevelGroups() {
+  const groups = [];
+  for (let i = 1; i <= 500; i += 10) {
+    groups.push(`${i}-${Math.min(i+9, 500)}`);
+  }
+  groups.push('501+');
+  return groups;
+}
+
+function getLevelRange(groupLabel) {
+  if (groupLabel === '501+') return { min: 501, max: 1000 };
+  const [min, max] = groupLabel.split('-').map(Number);
+  return { min, max };
+}
+
 function scheduleDailyTournamentStart() {
   const now = Date.now();
   const next = new Date();
@@ -72,8 +94,9 @@ async function ensureMinPlayers(db, t) {
   }
   const npcsNeeded = targetSize - participants.length;
   if (npcsNeeded > 0) {
+    const levelGroup = t.level_group || '1-10';
     for (let i = 0; i < npcsNeeded; i++) {
-      const npc = generateNpc(participants.length + i);
+      const npc = generateNpc(participants.length + i, levelGroup);
       await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, is_npc, npc_data, name, class, level, strength, defense, agility, magic, vitality, hp_max, hp_start)
         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [t.id, JSON.stringify(npc), npc.name, npc.class, npc.level, npc.strength, npc.defense, npc.agility, npc.magic, npc.vitality, npc.hp_max, npc.hp_max]);
@@ -274,7 +297,8 @@ async function runTournament(db, t, fast) {
   await finalizeTournament(db, t.id);
 }
 
-function generateNpc(seed) {
+function generateNpc(seed, levelGroup) {
+  const range = getLevelRange(levelGroup);
   const classes = ['warrior', 'mage', 'rogue', 'paladin', 'ranger'];
   const names = [
     'Aldric', 'Borin', 'Cedra', 'Dorn', 'Elara', 'Fenric', 'Greta', 'Haldor',
@@ -284,7 +308,7 @@ function generateNpc(seed) {
   ];
   const cls = classes[seed % classes.length];
   const name = names[seed % names.length];
-  const level = 30 + (seed % 30);
+  const level = range.min + ((seed * 7 + seed * seed) % Math.max(1, range.max - range.min + 1));
   const statTotal = 60 + level * 4 + roll(1, 40);
   const base = Math.floor(statTotal / 4);
   const hpMax = 80 + 10 * 8 + level * 5 + roll(1, 50);
@@ -991,21 +1015,21 @@ async function finalizeTournament(db, tournamentId) {
 
 async function ensureCurrentTournament() {
   const db = await getDb();
-  let current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
-  if (!current) {
-    const now = new Date();
-    const nextStart = new Date();
-    nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
-    
-    // If today's tournament time has already passed, the new registration is for tomorrow's mode
-    if (now >= nextStart) {
-      nextStart.setDate(nextStart.getDate() + 1);
-    }
-    
-    const mode = todayMode(nextStart);
-    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
-    current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
+  const now = new Date();
+  const nextStart = new Date();
+  nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
+  if (now >= nextStart) {
+    nextStart.setDate(nextStart.getDate() + 1);
   }
+  const mode = todayMode(nextStart);
+  const groups = getAllLevelGroups();
+  for (const group of groups) {
+    const existing = await dbGet_t(db, "SELECT id FROM tournaments WHERE status IN ('pending','active') AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
+    if (!existing) {
+      await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
+    }
+  }
+  const current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
   return current;
 }
 
@@ -1033,8 +1057,11 @@ router.get('/tournaments', auth, async (req, res) => {
       SELECT t.*, p.name AS winner_name
       FROM tournaments t
       LEFT JOIN tournament_participants p ON p.tournament_id = t.id AND p.char_id = t.winner_char_id AND t.winner_is_npc = 0
-      ORDER BY t.id DESC LIMIT 20
+      ORDER BY t.id DESC LIMIT 40
     `);
+    for (const t of list) {
+      t.level_group = t.level_group || '1-10';
+    }
     res.json(list);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1050,10 +1077,14 @@ function getNextTournamentTime() {
 router.get('/tournaments/current', auth, async (req, res) => {
   try {
     const db = await getDb();
-    const t = await dbGet_t(db, "SELECT * FROM tournaments ORDER BY id DESC LIMIT 1");
-    
-    // Always provide the next scheduled time for the countdown
     const nextTournamentTime = getNextTournamentTime();
+
+    // Determine user's level group
+    const char = await dbGet_t(db, 'SELECT level FROM characters WHERE id = (SELECT active_character_id FROM users WHERE id = ?)', [req.user.userId]);
+    const group = char ? getLevelGroup(char.level) : null;
+    const t = group
+      ? await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') AND level_group = ? ORDER BY id DESC LIMIT 1", [group])
+      : await dbGet_t(db, "SELECT * FROM tournaments ORDER BY id DESC LIMIT 1");
 
     if (!t) return res.json({ tournament: null, nextTournamentTime });
 
@@ -1064,7 +1095,7 @@ router.get('/tournaments/current', auth, async (req, res) => {
         try { m.battle_log = JSON.parse(m.battle_log); } catch {}
       }
     }
-    res.json({ tournament: t, participants, matches, nextTournamentTime });
+    res.json({ tournament: { ...t, level_group: t.level_group || '1-10' }, participants, matches, nextTournamentTime });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1073,7 +1104,18 @@ router.post('/tournaments/join', auth, async (req, res) => {
     const db = await getDb();
     const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = (SELECT active_character_id FROM users WHERE id = ?)', [req.user.userId]);
     if (!char) return res.status(400).json({ error: 'No active character' });
-    const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+    const group = getLevelGroup(char.level);
+    let t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
+    if (!t) {
+      // Create tournament for this level group if none exists
+      const now = new Date();
+      const nextStart = new Date();
+      nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
+      if (now >= nextStart) nextStart.setDate(nextStart.getDate() + 1);
+      const mode = todayMode(nextStart);
+      await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
+      t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
+    }
     if (!t) return res.status(400).json({ error: 'No upcoming tournament' });
     const existing = await dbGet_t(db, 'SELECT id FROM tournament_participants WHERE tournament_id = ? AND char_id = ?', [t.id, char.id]);
     if (existing) return res.status(400).json({ error: 'Already joined' });
@@ -1082,7 +1124,7 @@ router.post('/tournaments/join', auth, async (req, res) => {
     await dbRun_t(db, `INSERT INTO tournament_participants (tournament_id, char_id, name, class, level, strength, defense, agility, magic, vitality, hp_max, hp_start)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [t.id, char.id, char.name, char.class, char.level, char.strength, char.defense, char.agility, char.magic, char.vitality || 10, char.hp_current, char.hp_current]);
-    res.json({ message: 'Joined tournament!', cost: TOURNAMENT_COST });
+    res.json({ message: `Joined ${group} tournament!`, cost: TOURNAMENT_COST, level_group: group });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1091,9 +1133,10 @@ router.post('/tournaments/create', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
     const db = await getDb();
     const mode = req.body?.mode || req.query?.mode || todayMode();
-    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode) VALUES ('pending', datetime('now'), ?)", [mode]);
+    const group = req.body?.level_group || req.query?.level_group || getAllLevelGroups()[0];
+    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
     const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
-    res.json({ message: 'Tournament created', tournament: t });
+    res.json({ message: 'Tournament created', tournament: { ...t, level_group: t.level_group || group } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1126,7 +1169,7 @@ router.get('/tournaments/:id', auth, async (req, res) => {
         try { m.battle_log = JSON.parse(m.battle_log); } catch {}
       }
     }
-    res.json({ tournament: t, participants, matches });
+    res.json({ tournament: { ...t, level_group: t.level_group || '1-10' }, participants, matches });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1172,6 +1215,7 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated_round INTEGER"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN dsq INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN level_group TEXT NOT NULL DEFAULT '1-10'"); } catch {}
 }
 
 router.post('/tournaments/add-player/:id', auth, async (req, res) => {
@@ -1180,6 +1224,15 @@ router.post('/tournaments/add-player/:id', auth, async (req, res) => {
     const db = await getDb();
     const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
     if (!t) return res.status(404).json({ error: 'Tournament not found' });
+    // Check level group compatibility
+    const addChar = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [req.body?.char_id]);
+    if (addChar) {
+      const charGroup = getLevelGroup(addChar.level);
+      const tourneyGroup = t.level_group || '1-10';
+      if (charGroup !== tourneyGroup) {
+        return res.status(400).json({ error: `Character level ${addChar.level} (group ${charGroup}) doesn't match tournament group ${tourneyGroup}` });
+      }
+    }
     const charId = req.body?.char_id;
     if (!charId) return res.status(400).json({ error: 'char_id required' });
     const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [charId]);
@@ -1251,4 +1304,4 @@ function startScheduler() {
   }, 5 * 60 * 1000);
 }
 
-module.exports = { router, initTournamentTables, startScheduler, ensureCurrentTournament, TOURNAMENT_COST };
+module.exports = { router, initTournamentTables, startScheduler, ensureCurrentTournament, ensureMinPlayers, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
