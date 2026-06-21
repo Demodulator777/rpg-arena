@@ -1056,6 +1056,13 @@ class BotAccount {
     } catch { /* stale session cleaned up even if combat fails */ }
   }
 
+  // Clean up after death in dungeon: kill active combat session and heal
+  async _handleDungeonDeath() {
+    await this._cleanupDungeonSession();
+    await this.healIfLow();
+    log(this.name, 'Dungeon death handled: session cleaned and HP restored');
+  }
+
   async convertMpToTokens(mpAmount) {
     try { await api('POST', '/game/dungeon/mp-spent', { mpSpent: mpAmount }, this.token); }
     catch { /* non-critical */ }
@@ -1133,7 +1140,11 @@ class BotAccount {
           const start = await api('POST', '/game/dungeon/combat/start', { floor, roomIndex: i, kind: 'room', floorRunId: gen.floorRunId }, this.token);
           if (!start.success) continue;
           const result = await this._doDungeonCombat(start.combatId, start.turnNonce);
-          if (result.outcome === 'player_dead') { log(this.name, `Died in room ${i}`); return false; }
+          if (result.outcome === 'player_dead') {
+            log(this.name, `Died in room ${i}`);
+            await this._handleDungeonDeath();
+            return false;
+          }
           if ((i + 1) % 10 === 0 || i === bossIndex - 1) log(this.name, `Cleared room ${i + 1}/${bossIndex}`);
         } catch { /* skip if combat fails */ }
         await sleep(300);
@@ -1147,7 +1158,11 @@ class BotAccount {
         if (result.outcome === 'boss_defeated') {
           log(this.name, `Boss defeated on floor ${floor}!`);
           if (result.newFloor) log(this.name, `Advancing to floor ${result.newFloor}`);
-        } else if (result.outcome === 'player_dead') { log(this.name, `Died on boss floor ${floor}`); return false; }
+        } else if (result.outcome === 'player_dead') {
+          log(this.name, `Died on boss floor ${floor}`);
+          await this._handleDungeonDeath();
+          return false;
+        }
         else { log(this.name, `Boss ended: ${result.outcome}`); return false; }
       } catch (e) { log(this.name, `Boss combat error: ${e.message}`); return false; }
 
