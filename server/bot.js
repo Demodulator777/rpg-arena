@@ -1036,7 +1036,7 @@ class BotAccount {
   }
 
   async _generateDungeonFloor(floor) {
-    const roomCount = 10;
+    const roomCount = 100;
     const rooms = [];
     for (let i = 0; i < roomCount; i++) {
       const isBoss = i === roomCount - 1;
@@ -1100,7 +1100,7 @@ class BotAccount {
           if (!start.success) continue;
           const result = await this._doDungeonCombat(start.combatId, start.turnNonce);
           if (result.outcome === 'player_dead') { log(this.name, `Died in room ${i}`); return false; }
-          log(this.name, `Cleared room ${i + 1}/${bossIndex}`);
+          if ((i + 1) % 10 === 0 || i === bossIndex - 1) log(this.name, `Cleared room ${i + 1}/${bossIndex}`);
         } catch { /* skip if combat fails */ }
         await sleep(300);
       }
