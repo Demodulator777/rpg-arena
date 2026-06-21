@@ -1134,9 +1134,12 @@ router.post('/tournaments/create', auth, async (req, res) => {
     const db = await getDb();
     const mode = req.body?.mode || req.query?.mode || todayMode();
     const group = req.body?.level_group || req.query?.level_group || getAllLevelGroups()[0];
+    // Ensure we don't create a duplicate pending tournament for the same group
+    const existing = await dbGet_t(db, "SELECT id FROM tournaments WHERE status = 'pending' AND level_group = ?", [group]);
+    if (existing) return res.status(400).json({ error: `Pending tournament already exists for level group ${group}` });
     await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
-    const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
-    res.json({ message: 'Tournament created', tournament: { ...t, level_group: t.level_group || group } });
+    const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
+    res.json({ message: `Tournament created for ${group}`, tournament: { ...t, level_group: t.level_group || group } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1144,16 +1147,22 @@ router.post('/tournaments/start-test', auth, async (req, res) => {
   try {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
     const db = await getDb();
-    let pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
-    if (!pending.length) return res.status(400).json({ error: 'No pending tournament' });
+    const levelGroup = req.body?.level_group || req.query?.level_group || null;
+    let pending;
+    if (levelGroup) {
+      pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [levelGroup]);
+      if (!pending.length) return res.status(400).json({ error: `No pending tournament for level group ${levelGroup}` });
+    } else {
+      pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+      if (!pending.length) return res.status(400).json({ error: 'No pending tournament' });
+    }
     const mode = req.body?.mode || req.query?.mode;
     if (mode) {
       await dbRun_t(db, 'UPDATE tournaments SET mode = ? WHERE id = ?', [mode, pending[0].id]);
-      // Re-fetch to get the updated row
-      pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' ORDER BY id DESC LIMIT 1");
+      pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND id = ? ORDER BY id DESC LIMIT 1", [pending[0].id]);
     }
     runTournament(db, pending[0], true).catch(e => console.error('test run error:', e));
-    res.json({ message: 'Tournament starting instantly with NPCs if needed' });
+    res.json({ message: `Tournament #${pending[0].id} (${pending[0].level_group || '1-10'}) starting instantly with NPCs if needed` });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
