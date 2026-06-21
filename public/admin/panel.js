@@ -457,7 +457,8 @@ function adminApi(method, path, body) {
 function loadTournaments() {
     var el = document.getElementById('tab-tournaments');
     adminApi('GET', '/tournaments').then(function(list) {
-        var current = list.filter(function(t) { return t.status === 'pending' || t.status === 'active'; });
+        // Only show tournaments that have participants (skip empty auto-created ones)
+        var current = list.filter(function(t) { return (t.status === 'pending' || t.status === 'active') && (t.real_participants > 0 || t.status === 'active'); });
         const modes = ['deathmatch','normal','damage','least_damage','elimination','no_equip','all_vs_all'];
         var modeOpts = modes.map(function(m) { return '<option value="' + m + '">' + m.replace(/_/g,' ').replace(/^./,function(c){return c.toUpperCase()}) + '</option>'; }).join('');
         // Build level group options
@@ -479,12 +480,13 @@ function loadTournaments() {
             html += '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Group</th><th>Mode</th><th>Status</th><th>Fighters</th><th>Actions</th></tr></thead><tbody>';
             current.forEach(function(t) {
                 var isActive = t.status === 'active';
+                var fighters = t.status === 'pending' ? (t.real_participants || 0) : (t.participant_count || t.real_participants || 0);
                 html += '<tr>' +
                   '<td>#' + t.id + '</td>' +
                   '<td>' + (t.level_group || '1-10') + '</td>' +
                   '<td>' + (t.mode || 'deathmatch') + '</td>' +
                   '<td>' + t.status + '</td>' +
-                  '<td>' + (t.participant_count || '?') + '</td>' +
+                  '<td>' + fighters + '</td>' +
                   '<td>' +
                     (isActive ? '<button class="db-btn db-btn-cancel" data-action="cancel-tournament" data-id="' + t.id + '" style="margin-right:4px;padding:2px 6px;font-size:11px">✕ Cancel</button>' : '') +
                     (isActive ? '<button class="db-btn db-btn-apply" data-action="finalize-tournament" data-id="' + t.id + '" style="margin-right:4px;padding:2px 6px;font-size:11px">✓ Finalize</button>' : '') +
@@ -591,6 +593,10 @@ function loadTournaments() {
                 var charId = resultSelect.value;
                 var group = document.getElementById('admin-add-player-group').value;
                 var pendingForGroup = list.filter(function(t) { return t.status === 'pending' && (t.level_group || '1-10') === group; });
+                // If first join, also show tournament with 0 participants
+                if (!pendingForGroup.length) {
+                    pendingForGroup = list.filter(function(t) { return t.status === 'pending' && (t.level_group || '1-10') === group; });
+                }
                 if (!pendingForGroup.length) { alert('No pending tournament for group ' + group); return; }
                 var tid = pendingForGroup[pendingForGroup.length - 1].id;
                 addBtn.textContent = 'Adding...';
