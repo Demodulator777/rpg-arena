@@ -460,55 +460,72 @@ function loadTournaments() {
         var current = list.filter(function(t) { return t.status === 'pending' || t.status === 'active'; });
         const modes = ['deathmatch','normal','damage','least_damage','elimination','no_equip','all_vs_all'];
         var modeOpts = modes.map(function(m) { return '<option value="' + m + '">' + m.replace(/_/g,' ').replace(/^./,function(c){return c.toUpperCase()}) + '</option>'; }).join('');
+        // Build level group options
+        var levelGroups = [];
+        for (var lg = 1; lg <= 500; lg += 10) levelGroups.push(lg + '-' + Math.min(lg + 9, 500));
+        levelGroups.push('501+');
+        var groupOpts = levelGroups.map(function(g) { return '<option value="' + g + '">' + g + '</option>'; }).join('');
         var html = '<div class="card-compact"><div class="row"><span class="lbl">Mode</span>' +
           '<select id="admin-tournament-mode" style="background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px">' + modeOpts + '</select></div>' +
+          '<div class="row" style="margin-top:6px"><span class="lbl">Level Group</span>' +
+          '<select id="admin-tournament-group" style="background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px">' + groupOpts + '</select></div>' +
           '<div class="row" style="margin-top:6px"><span class="lbl">Create Tournament</span>' +
           '<button class="db-btn db-btn-apply" id="btn-create-tournament">➕ Create</button></div>' +
           '<div class="row" style="margin-top:6px"><span class="lbl">Manual Start</span>' +
           '<button class="db-btn db-btn-apply" id="btn-start-tournament">⚔️ Start Now (Test)</button></div>' +
-          '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Fills NPCs if &lt;8 players. Runs instantly.</div></div>';
+          '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Creates/starts tournament for the selected level group. Fills NPCs if &lt;8 players.</div></div>';
         if (current.length) {
-            html += '<div class="card-compact" style="margin-top:8px">';
+            html += '<div class="card-compact" style="margin-top:8px"><h2>Current Tournaments</h2>';
+            html += '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Group</th><th>Mode</th><th>Status</th><th>Fighters</th><th>Actions</th></tr></thead><tbody>';
             current.forEach(function(t) {
                 var isActive = t.status === 'active';
-                html += '<div class="row">' +
-                  '<span class="lbl">#' + t.id + '</span>' +
-                  '<span class="val">' + t.status + ' — ' + (t.mode || 'deathmatch') + ' — started ' + (t.started_at || 'not yet') + '</span>' +
-                  '<span>' +
-                    (isActive ? '<button class="db-btn db-btn-cancel" data-action="cancel-tournament" data-id="' + t.id + '" style="margin-right:4px">✕ Cancel</button>' : '') +
-                    (isActive ? '<button class="db-btn db-btn-apply" data-action="finalize-tournament" data-id="' + t.id + '" style="margin-right:4px">✓ Finalize</button>' : '') +
-                    '<button class="db-btn db-btn-edit" data-action="restart-tournament" data-id="' + t.id + '">⟳ Restart</button>' +
-                  '</span></div>';
+                html += '<tr>' +
+                  '<td>#' + t.id + '</td>' +
+                  '<td>' + (t.level_group || '1-10') + '</td>' +
+                  '<td>' + (t.mode || 'deathmatch') + '</td>' +
+                  '<td>' + t.status + '</td>' +
+                  '<td>' + (t.participant_count || '?') + '</td>' +
+                  '<td>' +
+                    (isActive ? '<button class="db-btn db-btn-cancel" data-action="cancel-tournament" data-id="' + t.id + '" style="margin-right:4px;padding:2px 6px;font-size:11px">✕ Cancel</button>' : '') +
+                    (isActive ? '<button class="db-btn db-btn-apply" data-action="finalize-tournament" data-id="' + t.id + '" style="margin-right:4px;padding:2px 6px;font-size:11px">✓ Finalize</button>' : '') +
+                    '<button class="db-btn db-btn-edit" data-action="restart-tournament" data-id="' + t.id + '" style="padding:2px 6px;font-size:11px">⟳ Restart</button>' +
+                  '</td></tr>';
             });
-            html += '</div>';
+            html += '</tbody></table></div></div>';
             html += '<div class="card-compact" style="margin-top:8px">' +
               '<div class="row"><span class="lbl">Add Player</span>' +
-              '<input id="admin-player-search" type="text" placeholder="Search character name..." style="flex:1;background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px">' +
+              '<select id="admin-add-player-group" style="background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px">' + groupOpts + '</select>' +
+              '<input id="admin-player-search" type="text" placeholder="Search character..." style="flex:1;background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px">' +
               '<select id="admin-player-result" style="flex:1;background:#2a2a30;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:4px 8px;display:none"></select>' +
               '<button class="db-btn db-btn-apply" id="btn-add-player" disabled>Add</button></div>' +
-              '<div style="font-size:11px;color:#6a6a70;margin-top:4px">Adds player to the latest pending tournament</div></div>';
+              '<div style="font-size:11px;color:#6a6a70;margin-top:4px">Adds player to the pending tournament for the selected group</div></div>';
         }
         html += '<h2>Past Tournaments</h2>';
         var completedList = list.filter(function(t) { return t.status === 'complete'; });
         if (completedList.length === 0) {
             html += '<p style="color:#6a6a70;text-align:center;padding:20px">No completed tournaments yet</p>';
         } else {
-            html += '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Mode</th><th>Participants</th><th>Winner</th></tr></thead><tbody>';
+            html += '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Group</th><th>Mode</th><th>Participants</th><th>Winner</th></tr></thead><tbody>';
             completedList.forEach(function(t) {
                 var date = t.ended_at ? new Date(t.ended_at + 'Z').toLocaleDateString() : '?';
-                html += '<tr><td>' + t.id + '</td><td>' + date + '</td><td>' + (t.mode || 'deathmatch') + '</td><td>' + (t.participant_count || '?') + '</td><td>' + (t.winner_is_npc ? '<span style="color:#6a6a70">NPC</span>' : '<span style="color:#60e060">Player #' + t.winner_char_id + '</span>') + '</td></tr>';
+                html += '<tr><td>' + t.id + '</td><td>' + date + '</td><td>' + (t.level_group || '1-10') + '</td><td>' + (t.mode || 'deathmatch') + '</td><td>' + (t.participant_count || '?') + '</td><td>' + (t.winner_is_npc ? '<span style="color:#6a6a70">NPC</span>' : '<span style="color:#60e060">Player #' + t.winner_char_id + '</span>') + '</td></tr>';
             });
             html += '</tbody></table></div>';
         }
         el.innerHTML = html;
         // Set dropdown to match existing pending tournament's mode
-        var pendingMode = current.length && current[0].mode;
-        if (pendingMode) {
+        var firstPending = current.length ? current[0] : null;
+        if (firstPending) {
             var sel = document.getElementById('admin-tournament-mode');
             for (var i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === pendingMode) { sel.selectedIndex = i; break; }
+                if (sel.options[i].value === (firstPending.mode || 'deathmatch')) { sel.selectedIndex = i; break; }
+            }
+            var gSel = document.getElementById('admin-tournament-group');
+            for (var i = 0; i < gSel.options.length; i++) {
+                if (gSel.options[i].value === (firstPending.level_group || '1-10')) { gSel.selectedIndex = i; break; }
             }
         }
+        // ── Cancel ──
         document.querySelectorAll('[data-action="cancel-tournament"]').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var id = this.dataset.id;
@@ -522,6 +539,7 @@ function loadTournaments() {
                 });
             });
         });
+        // ── Restart ──
         document.querySelectorAll('[data-action="restart-tournament"]').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var id = this.dataset.id;
@@ -535,6 +553,7 @@ function loadTournaments() {
                 });
             });
         });
+        // ── Finalize ──
         document.querySelectorAll('[data-action="finalize-tournament"]').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 var id = this.dataset.id;
@@ -549,6 +568,7 @@ function loadTournaments() {
                 });
             });
         });
+        // ── Add Player ──
         var searchInput = document.getElementById('admin-player-search');
         var resultSelect = document.getElementById('admin-player-result');
         var addBtn = document.getElementById('btn-add-player');
@@ -569,9 +589,10 @@ function loadTournaments() {
             });
             addBtn.addEventListener('click', function() {
                 var charId = resultSelect.value;
-                var pending = list.filter(function(t) { return t.status === 'pending'; });
-                if (!pending.length) { alert('No pending tournament'); return; }
-                var tid = pending[pending.length - 1].id;
+                var group = document.getElementById('admin-add-player-group').value;
+                var pendingForGroup = list.filter(function(t) { return t.status === 'pending' && (t.level_group || '1-10') === group; });
+                if (!pendingForGroup.length) { alert('No pending tournament for group ' + group); return; }
+                var tid = pendingForGroup[pendingForGroup.length - 1].id;
                 addBtn.textContent = 'Adding...';
                 addBtn.disabled = true;
                 adminApi('POST', '/tournaments/add-player/' + tid, { char_id: Number(charId) }).then(function(r) {
@@ -583,12 +604,14 @@ function loadTournaments() {
                 });
             });
         }
+        // ── Create ──
         document.getElementById('btn-create-tournament').addEventListener('click', function() {
             var btn = this;
             var mode = document.getElementById('admin-tournament-mode').value;
+            var group = document.getElementById('admin-tournament-group').value;
             btn.textContent = 'Creating...';
             btn.disabled = true;
-            adminApi('POST', '/tournaments/create?mode=' + encodeURIComponent(mode), { mode: mode }).then(function(r) {
+            adminApi('POST', '/tournaments/create', { mode: mode, level_group: group }).then(function(r) {
                 btn.textContent = '✅ Created';
                 setTimeout(function() { loadTournaments(); }, 1500);
             }).catch(function(e) {
@@ -596,12 +619,14 @@ function loadTournaments() {
                 setTimeout(function() { loadTournaments(); }, 3000);
             });
         });
+        // ── Start ──
         document.getElementById('btn-start-tournament').addEventListener('click', function() {
             var btn = this;
             var mode = document.getElementById('admin-tournament-mode').value;
+            var group = document.getElementById('admin-tournament-group').value;
             btn.textContent = 'Starting...';
             btn.disabled = true;
-            adminApi('POST', '/tournaments/start-test?mode=' + encodeURIComponent(mode), { mode: mode }).then(function(r) {
+            adminApi('POST', '/tournaments/start-test', { mode: mode, level_group: group }).then(function(r) {
                 btn.textContent = '✅ Started';
                 setTimeout(function() { loadTournaments(); }, 2000);
             }).catch(function(e) {
