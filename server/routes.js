@@ -263,6 +263,15 @@ const GUILD_EXCHANGES = [
     { id: 'swap_elem_legendary', name: 'Swap Legendary Elements', cost: { tier_legendary: 2 }, reward: { elemTier: 'legendary' }, minRep: 500 },
 ];
 
+const GUILD_RANKS = [
+    { rank: 0, name: 'Novice', repNeeded: 0, discount: 0 },
+    { rank: 1, name: 'Apprentice', repNeeded: 10, discount: 5 },
+    { rank: 2, name: 'Journeyman', repNeeded: 50, discount: 10 },
+    { rank: 3, name: 'Expert', repNeeded: 200, discount: 15 },
+    { rank: 4, name: 'Master', repNeeded: 500, discount: 20 },
+    { rank: 5, name: 'Grand Master', repNeeded: 1000, discount: 25 },
+];
+
 const ELEM_TIER_ITEMS = {
     common: ['dgn_pyro_cinder', 'dgn_water_droplet', 'dgn_electro_spark', 'dgn_wind_feather'],
     uncommon: ['dgn_pyro_ember', 'dgn_water_crystal', 'dgn_electro_shard', 'dgn_wind_whisper'],
@@ -14459,9 +14468,21 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
             }
         }
 
-        // Apply gold reward
+        // Apply gold reward (with rank-based bonus)
+        let finalGold = 0;
+        let rankDiscount = 0;
         if (exchange.reward.gold) {
-            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [exchange.reward.gold, char.id]);
+            let currentRank = GUILD_RANKS[0];
+            for (let i = GUILD_RANKS.length - 1; i >= 0; i--) {
+                if ((char.guild_reputation || 0) >= GUILD_RANKS[i].repNeeded) {
+                    currentRank = GUILD_RANKS[i];
+                    break;
+                }
+            }
+            rankDiscount = currentRank.discount;
+            const bonus = 1 + (rankDiscount / 100);
+            finalGold = Math.floor(exchange.reward.gold * bonus);
+            await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [finalGold, char.id]);
         }
 
         // Apply reputation reward
@@ -14507,6 +14528,8 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
             message: `Exchange complete!`,
             dungeonGold: updated.dungeon_gold,
             guildReputation: updated.guild_reputation,
+            goldGained: finalGold,
+            rankBonus: rankDiscount,
             grantedItem
         });
     } catch (e) {
