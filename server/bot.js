@@ -54,6 +54,21 @@ function saveMemory(mem) {
   fs.writeFileSync(path.join(__dirname, MEMORY_FILE), JSON.stringify(mem, null, 2));
 }
 
+// ── Dungeon monster pool ───────────────────────────────────────────────────
+const DUNGEON_MONSTERS = [
+  { id: 'skeleton', name: 'Skeleton Warrior' },
+  { id: 'ghost', name: 'Ghost' },
+  { id: 'zombie', name: 'Zombie' },
+  { id: 'lich', name: 'Lich' },
+  { id: 'fire_imp', name: 'Fire Imp' },
+  { id: 'lava_golem', name: 'Lava Golem' },
+  { id: 'salamander', name: 'Salamander' },
+  { id: 'pyromancer', name: 'Pyromancer' },
+  { id: 'void_wraith', name: 'Void Wraith' },
+  { id: 'frost_troll', name: 'Frost Troll' },
+  { id: 'shadow_assassin', name: 'Shadow Assassin' },
+];
+
 // ── Adaptive zone helpers ──────────────────────────────────────────────────
 const DEFAULT_ATTACK = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
 const DEFAULT_BLOCK  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
@@ -307,14 +322,17 @@ class BotAccount {
       // Travel to dark_city if not there
       if (!(await this.ensureTravelTarget(zoneKey))) return false;
 
+      const mpCost = 20;
       const size = 'small';
 
       const result = await api('POST', '/game/missions/start', { zoneId: zoneKey, spotId, size }, this.token);
-      this.missionEnd = now + (size === 'large' ? 1800 : size === 'medium' ? 1200 : 600);
+      this.missionEnd = now + 600;
       // Update mission_points locally if API doesn't return full character
       if (result.character) this.character = result.character;
-      else if (this.character) this.character.mission_points = (this.character.mission_points || 0) - (size === 'large' ? 60 : size === 'medium' ? 40 : 20);
+      else if (this.character) this.character.mission_points = (this.character.mission_points || 0) - mpCost;
       log(this.name, `Started small hard mission in ${zoneKey} (10m)`);
+      // Convert MP to dungeon tokens
+      await this.convertMpToTokens(mpCost);
       return true;
     } catch (e) {
       log(this.name, `Mission start failed: ${e.message}`);
@@ -1006,6 +1024,109 @@ class BotAccount {
     }
   }
 
+  // ── Dungeon ───────────────────────────────────────────────────────────────
+  async convertMpToTokens(mpAmount) {
+    try { await api('POST', '/dungeon/mp-spent', { mpSpent: mpAmount }, this.token); }
+    catch { /* non-critical */ }
+  }
+
+  async _getDungeonData() {
+    try { return await api('GET', '/dungeon/data', null, this.token); }
+    catch { return null; }
+  }
+
+  async _generateDungeonFloor(floor) {
+    const roomCount = 10;
+    const rooms = [];
+    for (let i = 0; i < roomCount; i++) {
+      const isBoss = i === roomCount - 1;
+      const isStart = i === 0;
+      const m = DUNGEON_MONSTERS[Math.floor(Math.random() * DUNGEON_MONSTERS.length)];
+      const y = 23 - Math.floor(i * 23 / roomCount);
+      rooms.push({
+        id: i, x: 11, y,
+        isStart, isBoss,
+        isMiniBoss: false, isArea: false,
+        connections: isStart ? [i + 1] : (isBoss ? [i - 1] : [i - 1, i + 1]),
+        monsters: isBoss ? [] : [
+          { id: m.id, name: m.name, icon: '👾', hp: 80, atk: 10, def: 5, steal: false, isMiniBoss: false, tokenCost: 0, currentHp: 80, maxHp: 80, lastKilled: null, stolenItems: [] }
+        ],
+        looted: false,
+        type: isBoss ? 'boss' : isStart ? 'start' : 'corridor',
+        visual: { color: '#4a4a4a' }
+      });
+    }
+    const floorRunId = `floor_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const progress = { rooms, playerPos: 0, exploredRooms: [0], crawler: null, floorRunId };
+    await api('POST', '/dungeon/progress', { floor, highestFloor: floor, progress, activeDungeon: 'tower', combat: null }, this.token);
+    return { rooms, floorRunId };
+  }
+
+  async _doDungeonCombat(combatId, turnNonce) {
+    let nonce = turnNonce;
+    while (true) {
+      const result = await api('POST', '/dungeon/combat/act', { combatId, action: 'fight', turnNonce: nonce }, this.token);
+      nonce = result.turnNonce;
+      if (result.ended) return result;
+      await sleep(500);
+    }
+  }
+
+  async doDungeonRun() {
+    try {
+      const data = await this._getDungeonData();
+      if (!data) return false;
+
+      const floor = data.floor || 1;
+      const tokens = data.tokens || 0;
+      if (tokens < 50) {
+        log(this.name, `Not enough tokens for boss (${tokens}/50)`);
+        return false;
+      }
+
+      // Generate fresh floor layout
+      const gen = await this._generateDungeonFloor(floor);
+      const bossIndex = gen.rooms.length - 1;
+
+      // Heal before entering
+      const hp = this.character.hp_current ?? 0;
+      const maxHp = this.character.hp_max || 100;
+      if (hp < maxHp * 0.5) await this.healIfLow();
+
+      // Clear rooms in order
+      for (let i = 0; i < bossIndex; i++) {
+        try {
+          const start = await api('POST', '/dungeon/combat/start', { floor, roomIndex: i, kind: 'room', floorRunId: gen.floorRunId }, this.token);
+          if (!start.success) continue;
+          const result = await this._doDungeonCombat(start.combatId, start.turnNonce);
+          if (result.outcome === 'player_dead') { log(this.name, `Died in room ${i}`); return false; }
+          log(this.name, `Cleared room ${i + 1}/${bossIndex}`);
+        } catch { /* skip if combat fails */ }
+        await sleep(300);
+      }
+
+      // Boss fight
+      try {
+        const bossStart = await api('POST', '/dungeon/combat/start', { floor, roomIndex: bossIndex, kind: 'boss', floorRunId: gen.floorRunId }, this.token);
+        if (!bossStart.success) { log(this.name, `Boss start failed: ${bossStart.error}`); return false; }
+        const result = await this._doDungeonCombat(bossStart.combatId, bossStart.turnNonce);
+        if (result.outcome === 'boss_defeated') {
+          log(this.name, `Boss defeated on floor ${floor}!`);
+          if (result.newFloor) log(this.name, `Advancing to floor ${result.newFloor}`);
+        } else if (result.outcome === 'player_dead') { log(this.name, `Died on boss floor ${floor}`); return false; }
+        else { log(this.name, `Boss ended: ${result.outcome}`); return false; }
+      } catch (e) { log(this.name, `Boss combat error: ${e.message}`); return false; }
+
+      // Claim bounty
+      try {
+        const bounty = await api('POST', '/dungeon/guild/bounty/claim', {}, this.token);
+        if (bounty.success) log(this.name, `Bounty claimed: ${bounty.message || 'ok'}`);
+      } catch { /* bounty not available */ }
+
+      return true;
+    } catch (e) { log(this.name, `Dungeon run failed: ${e.message}`); return false; }
+  }
+
   // ── Main loop ────────────────────────────────────────────────────────────
   async tick() {
     if (!this.token) await this.ensureAuth();
@@ -1033,6 +1154,7 @@ class BotAccount {
     await this.doPvp();
     await this.activatePremium();
     await this.upgradeStats();
+    await this.doDungeonRun();
     await this.refreshCharacter();
   }
 }
