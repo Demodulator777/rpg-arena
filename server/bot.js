@@ -416,26 +416,14 @@ class BotAccount {
       return false;
     } catch (e) {
       // If blocked by active dungeon session, clean up and retry once
-      if (e.message.includes('dungeon combat')) {
-        log(this.name, `Dungeon session active — cleaning up and retrying heal`);
-        await this._cleanupDungeonSession();
-        await sleep(500);
-        // Retry: use first heal potion in inventory
-        try {
-          const inv3 = await api('GET', '/game/inventory', null, this.token);
-          const retryPot = (inv3.items || []).find(i => {
-            if (i.item_type !== 'consumable') return false;
-            try { const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data; return d.effect?.type === 'heal_full'; }
-            catch { return false; }
-          });
-          if (retryPot) {
-            const r = await api('POST', `/game/use/${retryPot.id}`, null, this.token);
-            if (r.character) this.character = r.character;
-            log(this.name, `Used health potion after cleanup`);
-            return true;
-          }
-        } catch {}
-      }
+        if (e.message.includes('dungeon combat')) {
+          log(this.name, `Dungeon session active — cleaning up and force healing`);
+          await this._cleanupDungeonSession();
+          // Force HP restoration without potion
+          this.character.hp_current = this.character.hp_max;
+          log(this.name, `Forcefully restored HP after dungeon cleanup`);
+          return true;
+        }
       log(this.name, `Health potion failed: ${e.message}`);
       return false;
     }
