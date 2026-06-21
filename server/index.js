@@ -64,7 +64,7 @@ getDb().then(async (db) => {
   
   // Init tournament tables and scheduler
   await tournamentModule.initTournamentTables();
-  await tournamentModule.ensureCurrentTournament();
+  await tournamentModule.startTournament();
   tournamentModule.startScheduler();
 
   // Hourly HP regen — fire at each :00
