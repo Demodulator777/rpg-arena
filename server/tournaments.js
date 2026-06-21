@@ -73,9 +73,13 @@ function scheduleDailyTournamentStart() {
 
 async function startTournament() {
   const db = await getDb();
-  const pending = await dbAll_t(db, 'SELECT * FROM tournaments WHERE status = ?', ['pending']);
+  const pending = await dbAll_t(db, 'SELECT * FROM tournaments WHERE status = ? ORDER BY id', ['pending']);
   for (const t of pending) {
-    await runTournament(db, t);
+    try {
+      await runTournament(db, t);
+    } catch (e) {
+      console.error(`❌ Tournament #${t.id} (${t.level_group}) failed:`, e);
+    }
   }
 }
 
@@ -1301,4 +1305,4 @@ function startScheduler() {
   }, 5 * 60 * 1000);
 }
 
-module.exports = { router, initTournamentTables, startScheduler, ensureCurrentTournament, ensureMinPlayers, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
+module.exports = { router, initTournamentTables, startScheduler, startTournament, ensureCurrentTournament, ensureMinPlayers, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
