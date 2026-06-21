@@ -11,7 +11,7 @@ const db = createClient({ url, authToken: isLocal ? undefined : process.env.TURS
 
 async function main() {
   const result = await db.execute({
-    sql: "UPDATE characters SET dungeon_tokens = COALESCE(dungeon_tokens, 0) + 1000 WHERE id BETWEEN 51 AND 58",
+    sql: "UPDATE characters SET dungeon_tokens = COALESCE(dungeon_tokens, 0) + 9000 WHERE id BETWEEN 51 AND 58",
     args: []
   });
   console.log(`Updated ${result.rowsAffected} row(s)`);
