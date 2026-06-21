@@ -1049,6 +1049,7 @@ class BotAccount {
   async _handleDungeonDeath() {
     await this._cleanupDungeonSession();
     await this.healIfLow();
+    this._skipDungeon = true; // skip further dungeon attempts this tick
     log(this.name, 'Dungeon death handled: session cleaned and HP restored');
   }
 
