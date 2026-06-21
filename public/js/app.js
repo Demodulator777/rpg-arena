@@ -5863,7 +5863,6 @@ function hoverElemTooltip(el, event) {
                 <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.defense}</span><span class="tt-stat-val">${d.def}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.magic}</span><span class="tt-stat-val">${d.mag}</span></div>
                 <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.vitality}</span><span class="tt-stat-val">${d.vit}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">⚔️ Dmg</span><span class="tt-stat-val">${d.dmgMin}-${d.dmgMax}</span></div>
             </div>
         </div>`;
     tooltip.classList.remove('hidden');
