@@ -172,6 +172,7 @@ class BotAccount {
     this.tournamentJoined = false;
     this._gearSetup = false;
     this._lootboxSetup = false;
+    this._skipDungeon = false; // flag to skip dungeon after forced heal
     // Adaptive loadout state
     const as = loadAdaptiveState(this.name);
     if (as && as.attackZones) {
