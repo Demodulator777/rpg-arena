@@ -3868,7 +3868,8 @@ function exchangeAtGuild(exchangeId) {
   apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId })
     .then(response => {
       if (response.success) {
-        log(response.message, 'log-success');
+        const msg = response.goldGained ? `Exchanged dungeon gold → ${response.goldGained} gold${response.rankBonus > 0 ? ` (${response.rankBonus}% rank bonus)` : ''}` : response.message;
+        log(msg, 'log-success');
         const goldEl = document.getElementById('dungeon-gold-count');
         if (goldEl) goldEl.textContent = response.dungeonGold;
         refreshCharacter();
