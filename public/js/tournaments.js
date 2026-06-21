@@ -3,6 +3,12 @@ let myCharId = null;
 let countdownInterval = null;
 let liveLogPollTimeout = null;
 
+function clientLevelGroup(level) {
+  if (level >= 501) return '501+';
+  const g = Math.ceil(level / 10);
+  return `${(g-1)*10+1}-${g*10}`;
+}
+
 function _tContainer() {
   return document.getElementById('tab-tournament') || document.getElementById('main-content');
 }
@@ -56,6 +62,7 @@ function render(char, data) {
       <div class="no-tournament">
         <span id="tournament-countdown">--:--:--</span>
         <p style="font-size:0.82rem; color:#8890a0; font-family:'IM Fell English',serif; font-style:italic;">until next tournament registration opens</p>
+        <p style="font-size:0.75rem; color:#6a7080; margin-top:4px;">Level group: ${char.level ? clientLevelGroup(char.level) : '...'}</p>
       </div>`;
     startCountdown(data.nextTournamentTime);
     return;
@@ -111,25 +118,26 @@ function render(char, data) {
     if (t.mode === 'elimination') return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>W</th><th>L</th>';
     return '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Pts</th><th>W</th><th>L</th><th>D</th>';
   }
-  function standingsRow(p, i) {
-    const rankCls = i < 3 ? ` rank-${i+1}` : '';
+  function standingsRow(p, rank, dsq) {
+    const rankStr = dsq ? '<span style="color:#e74c3c;font-weight:700">DSQ</span>' : rank;
+    const rankCls = dsq ? '' : (rank <= 3 ? ` rank-${rank}` : '');
     const pName = esc(p.name);
     const badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
     const cls = `style="font-size:0.72rem;color:#8890a0"`;
     if (t.mode === 'damage') {
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#e74c3c">${p.total_damage_dealt||0}</td><td style="color:#f39c12">${p.total_damage_taken||0}</td></tr>`;
+      return `<tr class="${rankCls}"><td>${rankStr}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#e74c3c">${p.total_damage_dealt||0}</td><td style="color:#f39c12">${p.total_damage_taken||0}</td></tr>`;
     }
     if (t.mode === 'least_damage') {
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#2ecc71">${p.total_damage_taken||0}</td><td style="color:#8890a0">${p.total_damage_dealt||0}</td></tr>`;
+      return `<tr class="${rankCls}"><td>${rankStr}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:#2ecc71">${p.total_damage_taken||0}</td><td style="color:#8890a0">${p.total_damage_dealt||0}</td></tr>`;
     }
     if (t.mode === 'all_vs_all') {
       const elim = p.eliminated_round ? `#${p.eliminated_round}` : '🏆';
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.eliminated_round ? '#e74c3c' : '#f1c40f'}">${elim}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td></tr>`;
+      return `<tr class="${rankCls}"><td>${rankStr}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.eliminated_round ? '#e74c3c' : '#f1c40f'}">${elim}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td></tr>`;
     }
     if (t.mode === 'elimination') {
-      return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="color:#2ecc71">${p.wins||0}</td><td style="color:#e74c3c">${p.losses||0}</td></tr>`;
+      return `<tr class="${rankCls}"><td>${rankStr}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="color:#2ecc71">${p.wins||0}</td><td style="color:#e74c3c">${p.losses||0}</td></tr>`;
     }
-    return `<tr class="${rankCls}"><td>${i+1}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0'}">${p.points}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td><td style="color:#f1c40f">${p.draws}</td></tr>`;
+    return `<tr class="${rankCls}"><td>${rankStr}</td><td>${pName}${badges}</td><td ${cls}>${capitalize(p.class)}</td><td>${p.level}</td><td style="font-weight:700;color:${p.points >= 6 ? '#2ecc71' : p.points >= 3 ? '#f1c40f' : '#c8d0e0'}">${p.points}</td><td style="color:#2ecc71">${p.wins}</td><td style="color:#e74c3c">${p.losses}</td><td style="color:#f1c40f">${p.draws}</td></tr>`;
   }
 
   const c = _tContainer();
@@ -141,6 +149,7 @@ function render(char, data) {
     </div>
     <div class="t-header-row">
       <span class="tournament-status ${statusClass}">${statusLabel}</span>
+      <span>🎯 ${t.level_group || '1-10'}</span>
       <span>${participants.length} fighters</span>
     </div>
     <div class="t-divider">⟡</div>
@@ -166,7 +175,14 @@ function render(char, data) {
           ? `<div style="color:#8890a0;font-family:'IM Fell English',serif;font-style:italic">🤖 An NPC claimed victory — no player receives the tournament prize</div>`
           : `<div style="font-size:0.72rem;color:var(--t-gold-dim);font-family:'Cinzel',serif;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:6px">Champion</div>
              <div class="t-winner-name">🏆 ${esc((participants.find(p => p.char_id === t.winner_char_id))?.name || 'Unknown')}</div>`}
-        ${myEntry ? `<div class="t-your-rank">Your rank: #${participants.indexOf(myEntry) + 1} of ${participants.length}</div>` : ''}
+        ${myEntry ? (() => {
+          let myRank = 0;
+          for (const p of participants) { if (p.dsq) continue; myRank++; if (p.char_id === myCharId) break; }
+          const totalRanked = participants.filter(p => !p.dsq).length;
+          return myEntry.dsq
+            ? '<div class="t-your-rank" style="color:#e74c3c">Your rank: DSQ (dealt less damage than taken)</div>'
+            : `<div class="t-your-rank">Your rank: #${myRank} of ${totalRanked}</div>`;
+        })() : ''}
       </div>` : ''}
     <div class="tabs">
       <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
@@ -177,9 +193,10 @@ function render(char, data) {
       <div class="standings-wrap">
         <table class="standings-table">
           <thead><tr>${standingsHeaders()}</tr></thead>
-          <tbody>${participants.map((p,i) => standingsRow(p,i)).join('')}</tbody>
+          <tbody>${(() => { let r = 0; return participants.map(p => { const d = p.dsq; if (!d) r++; return standingsRow(p, r, d); }).join(''); })()}</tbody>
         </table>
       </div>
+      ${t.mode === 'least_damage' && participants.some(p => p.dsq) ? '<div style="margin-top:10px;font-size:0.72rem;color:#e74c3c;text-align:center;font-style:italic">⚠ DSQ = dealt less damage than taken — excluded from rankings</div>' : ''}
     </div>
     <div id="tab-matches" style="display:none">
       ${rounds.length === 0
@@ -291,6 +308,7 @@ async function tournamentLoadHistory() {
       return `<div class="history-item" data-action="tournamentViewHistory" data-args='[${t.id}]'>
         <span class="h-date">${date}</span>
         <span>${modeIcon}</span>
+        <span>🎯 ${t.level_group || '1-10'}</span>
         <span>${t.participant_count || '?'} fighters</span>
         <span>${t.winner_is_npc ? '<span class="h-npc">NPC win</span>' : winner}</span>
       </div>`;
@@ -335,7 +353,14 @@ async function tournamentViewHistory(tournamentId) {
       html += '<span style="color:#e040ff;font-weight:700">🏆 Winner: ' + winnerName2 + '</span>';
     }
     if (myEntry) {
-      html += ' · <span style="color:#c8d0e0">Your rank: #' + (participants.indexOf(myEntry) + 1) + ' of ' + participants.length + '</span>';
+      var myRank = 0;
+      for (var ri = 0; ri < participants.length; ri++) { if (participants[ri].dsq) continue; myRank++; if (participants[ri].char_id === myCharId) break; }
+      var totalRanked = participants.filter(function(p) { return !p.dsq; }).length;
+      if (myEntry.dsq) {
+        html += ' · <span style="color:#e74c3c">Your rank: DSQ (dealt less damage than taken)</span>';
+      } else {
+        html += ' · <span style="color:#c8d0e0">Your rank: #' + myRank + ' of ' + totalRanked + '</span>';
+      }
     }
     html += '</div>';
     if (isDamageMode) {
@@ -343,16 +368,24 @@ async function tournamentViewHistory(tournamentId) {
         ? '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Dealt</th><th>Taken</th>'
         : '<th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Taken</th><th>Dealt</th>';
       html += '<div class="standings-wrap"><table class="standings-table"><thead><tr>' + dmgHdr + '</tr></thead><tbody>';
-      participants.forEach(function(p, i) {
+      var hRank = 0;
+      participants.forEach(function(p) {
+        var dsq = p.dsq;
+        if (!dsq) hRank++;
         var pName = esc(p.name);
         var badges = (p.is_npc ? ' <span class="npc-badge">NPC</span>' : '') + (p.char_id === myCharId ? ' <span class="me-badge">YOU</span>' : '');
+        var rankStr = dsq ? '<span style="color:#e74c3c;font-weight:700">DSQ</span>' : hRank;
+        var rCls = dsq ? '' : (hRank <= 3 ? ' rank-' + hRank : '');
         if (t.mode === 'damage') {
-          html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#e74c3c">' + (p.total_damage_dealt || 0) + '</td><td style="color:#f39c12">' + (p.total_damage_taken || 0) + '</td></tr>';
+          html += '<tr class="' + rCls + '"><td>' + rankStr + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#e74c3c">' + (p.total_damage_dealt || 0) + '</td><td style="color:#f39c12">' + (p.total_damage_taken || 0) + '</td></tr>';
         } else {
-          html += '<tr class="rank-' + (i < 3 ? i + 1 : '') + '"><td>' + (i + 1) + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#2ecc71">' + (p.total_damage_taken || 0) + '</td><td style="color:#8890a0">' + (p.total_damage_dealt || 0) + '</td></tr>';
+          html += '<tr class="' + rCls + '"><td>' + rankStr + '</td><td>' + pName + badges + '</td><td style="font-size:0.72rem;color:#8890a0">' + capitalize(p.class) + '</td><td>' + p.level + '</td><td style="font-weight:700;color:#2ecc71">' + (p.total_damage_taken || 0) + '</td><td style="color:#8890a0">' + (p.total_damage_dealt || 0) + '</td></tr>';
         }
       });
       html += '</tbody></table></div>';
+      if (t.mode === 'least_damage' && participants.some(function(p) { return p.dsq; })) {
+        html += '<div style="margin-top:10px;font-size:0.72rem;color:#e74c3c;text-align:center;font-style:italic">⚠ DSQ = dealt less damage than taken — excluded from rankings</div>';
+      }
     } else if (isAllVsAll) {
       html += '<div class="standings-wrap"><table class="standings-table"><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Lvl</th><th>Elim.</th><th>W</th><th>L</th></tr></thead><tbody>';
       participants.forEach(function(p, i) {
