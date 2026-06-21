@@ -415,6 +415,27 @@ class BotAccount {
       log(this.name, `No health potions available`);
       return false;
     } catch (e) {
+      // If blocked by active dungeon session, clean up and retry once
+      if (e.message.includes('dungeon combat')) {
+        log(this.name, `Dungeon session active — cleaning up and retrying heal`);
+        await this._cleanupDungeonSession();
+        await sleep(500);
+        // Retry: use first heal potion in inventory
+        try {
+          const inv3 = await api('GET', '/game/inventory', null, this.token);
+          const retryPot = (inv3.items || []).find(i => {
+            if (i.item_type !== 'consumable') return false;
+            try { const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data; return d.effect?.type === 'heal_full'; }
+            catch { return false; }
+          });
+          if (retryPot) {
+            const r = await api('POST', `/game/use/${retryPot.id}`, null, this.token);
+            if (r.character) this.character = r.character;
+            log(this.name, `Used health potion after cleanup`);
+            return true;
+          }
+        } catch {}
+      }
       log(this.name, `Health potion failed: ${e.message}`);
       return false;
     }
@@ -1025,6 +1046,16 @@ class BotAccount {
   }
 
   // ── Dungeon ───────────────────────────────────────────────────────────────
+  async _cleanupDungeonSession() {
+    try {
+      const data = await this._getDungeonData();
+      if (!data) return;
+      // Starting combat with a non-existent room kills any stale active session
+      // (server cleans up old session first, then fails on missing room — we catch that)
+      await api('POST', '/game/dungeon/combat/start', { floor: data.floor || 1, roomIndex: -1, kind: 'room', floorRunId: 'cleanup_' + Date.now() }, this.token);
+    } catch { /* stale session cleaned up even if combat fails */ }
+  }
+
   async convertMpToTokens(mpAmount) {
     try { await api('POST', '/game/dungeon/mp-spent', { mpSpent: mpAmount }, this.token); }
     catch { /* non-critical */ }
@@ -1074,6 +1105,9 @@ class BotAccount {
 
   async doDungeonRun() {
     try {
+      // Clean up any stale session from a previous run
+      await this._cleanupDungeonSession();
+
       const data = await this._getDungeonData();
       if (!data) return false;
 
