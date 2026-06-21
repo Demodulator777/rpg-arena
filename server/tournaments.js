@@ -1014,23 +1014,10 @@ async function finalizeTournament(db, tournamentId) {
 }
 
 async function ensureCurrentTournament() {
-  const db = await getDb();
-  const now = new Date();
-  const nextStart = new Date();
-  nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
-  if (now >= nextStart) {
-    nextStart.setDate(nextStart.getDate() + 1);
-  }
-  const mode = todayMode(nextStart);
-  const groups = getAllLevelGroups();
-  for (const group of groups) {
-    const existing = await dbGet_t(db, "SELECT id FROM tournaments WHERE status IN ('pending','active') AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
-    if (!existing) {
-      await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
-    }
-  }
-  const current = await dbGet_t(db, "SELECT * FROM tournaments WHERE status IN ('pending','active') ORDER BY id DESC LIMIT 1");
-  return current;
+  // No-op: tournaments are created on-demand when a player joins.
+  // The scheduler will run any pending tournaments at the scheduled time.
+  // Only create them if there's something to run — prevents empty group tournaments.
+  return null;
 }
 
 function generateRandomNpcStats(level) {
@@ -1054,10 +1041,11 @@ router.get('/tournaments', auth, async (req, res) => {
   try {
     const db = await getDb();
     const list = await dbAll_t(db, `
-      SELECT t.*, p.name AS winner_name
+      SELECT t.*, p.name AS winner_name,
+        (SELECT COUNT(*) FROM tournament_participants WHERE tournament_id = t.id) AS real_participants
       FROM tournaments t
       LEFT JOIN tournament_participants p ON p.tournament_id = t.id AND p.char_id = t.winner_char_id AND t.winner_is_npc = 0
-      ORDER BY t.id DESC LIMIT 40
+      ORDER BY t.id DESC LIMIT 200
     `);
     for (const t of list) {
       t.level_group = t.level_group || '1-10';
