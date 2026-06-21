@@ -4346,6 +4346,26 @@ ACHIEVEMENTS.push(
     { id: 'tournament_wins_800', chain: 'tournament_wins', category: 'victories', name: 'Tournament Unchained', desc: 'Win 800 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 800, rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 2 } } },
     { id: 'tournament_wins_900', chain: 'tournament_wins', category: 'victories', name: 'Tournament Absolute', desc: 'Win 900 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 900, rewards: { gold: 900000, gems: 25, premium: { id: 'iron_fortress', days: 14 } } },
     { id: 'tournament_wins_1000', chain: 'tournament_wins', category: 'victories', name: 'Tournament Messiah', desc: 'Win 1000 tournaments.', icon: '🏆', metric: 'tournament_wins', target: 1000, rewards: { gold: 1000000, gems: 25, premium: { id: 'fortune_hunter', days: 30 } } },
+
+    // ── Weapon Elemental Damage achievements ──────────────────────────────
+    { id: 'weapon_elem_dmg_25', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Spark', desc: 'Reach 25 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 25, rewards: { gold: 5000 } },
+    { id: 'weapon_elem_dmg_50', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Glow', desc: 'Reach 50 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 50, rewards: { gold: 15000, gems: 5 } },
+    { id: 'weapon_elem_dmg_75', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Surge', desc: 'Reach 75 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'weapon_elem_dmg_100', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Wrath', desc: 'Reach 100 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'weapon_elem_dmg_125', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Storm', desc: 'Reach 125 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 125, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'weapon_elem_dmg_150', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Fury', desc: 'Reach 150 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 150, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'weapon_elem_dmg_175', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Devastation', desc: 'Reach 175 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 175, rewards: { gold: 320000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'weapon_elem_dmg_200', chain: 'weapon_elem_dmg', category: 'progression', name: 'Elemental Cataclysm', desc: 'Reach 200 of a single elemental damage on your weapon.', icon: '⚡', metric: 'weapon_elem_dmg_max', target: 200, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+
+    // ── Elemental Resistance achievements ─────────────────────────────────
+    { id: 'elem_resist_25', chain: 'elem_resist', category: 'progression', name: 'Resistant', desc: 'Reach 25 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 25, rewards: { gold: 5000 } },
+    { id: 'elem_resist_50', chain: 'elem_resist', category: 'progression', name: 'Elemental Ward', desc: 'Reach 50 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 50, rewards: { gold: 15000, gems: 5 } },
+    { id: 'elem_resist_75', chain: 'elem_resist', category: 'progression', name: 'Elemental Barrier', desc: 'Reach 75 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 75, rewards: { gold: 40000, gems: 15, lootbox: { id: 'lootbox_common', qty: 1 } } },
+    { id: 'elem_resist_100', chain: 'elem_resist', category: 'progression', name: 'Elemental Shield', desc: 'Reach 100 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 100, rewards: { gold: 80000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'elem_resist_125', chain: 'elem_resist', category: 'progression', name: 'Elemental Fortress', desc: 'Reach 125 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 125, rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+    { id: 'elem_resist_150', chain: 'elem_resist', category: 'progression', name: 'Elemental Aegis', desc: 'Reach 150 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 150, rewards: { gold: 250000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'elem_resist_175', chain: 'elem_resist', category: 'progression', name: 'Elemental Bulwark', desc: 'Reach 175 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 175, rewards: { gold: 320000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    { id: 'elem_resist_200', chain: 'elem_resist', category: 'progression', name: 'Elemental Immunity', desc: 'Reach 200 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 200, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 );
 
 console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
@@ -4489,6 +4509,44 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'stat_hit_chance') return Number(char.hit_chance) || 0;
     if (metric === 'stat_crit_chance') return Number(char.crit_chance) || 0;
     if (metric === 'tournament_wins') return Number(char.tournament_wins) || 0;
+
+    // Elemental damage/resistance achievements
+    if (metric === 'weapon_elem_dmg_max') {
+        const equipped = await getEquippedItemsArray(db, char.id);
+        const elemDmgKeys = ['pyro_dmg', 'water_dmg', 'wind_dmg', 'electro_dmg'];
+        let maxVal = 0;
+        for (const item of equipped) {
+            try {
+                const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+                if (data?.slot !== 'weapon') continue;
+                const stats = data?.stats || {};
+                const wpStats = data?.wp_stats || {};
+                for (const k of elemDmgKeys) {
+                    const v = Number(stats[k] || 0) + Number(wpStats[k] || 0);
+                    if (v > maxVal) maxVal = v;
+                }
+            } catch {}
+        }
+        return maxVal;
+    }
+
+    if (metric === 'elem_resist_max') {
+        const equipped = await getEquippedItemsArray(db, char.id);
+        const elemResistKeys = ['pyro_resist', 'water_resist', 'wind_resist', 'electro_resist'];
+        let maxVal = 0;
+        for (const item of equipped) {
+            try {
+                const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+                const stats = data?.stats || {};
+                const wpStats = data?.wp_stats || {};
+                for (const k of elemResistKeys) {
+                    const v = Number(stats[k] || 0) + Number(wpStats[k] || 0);
+                    if (v > maxVal) maxVal = v;
+                }
+            } catch {}
+        }
+        return maxVal;
+    }
 
     if (metric === 'mission_wins_total') return metrics.missionTotals.wins;
     if (metric === 'mission_fights_total') return metrics.missionTotals.fights;
