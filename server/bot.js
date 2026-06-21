@@ -1047,10 +1047,14 @@ class BotAccount {
 
   // Clean up after death in dungeon: kill active combat session and heal
   async _handleDungeonDeath() {
+    // Start a dummy combat to ensure we are in a session (cleans up stale state)
     await this._cleanupDungeonSession();
+    // Exit the dungeon to clear any lingering state
+    try { await api('POST', '/game/dungeon/room-exit', {}, this.token); } catch {}
+    // Now heal
     await this.healIfLow();
     this._skipDungeon = true; // skip further dungeon attempts this tick
-    log(this.name, 'Dungeon death handled: session cleaned and HP restored');
+    log(this.name, 'Dungeon death handled: entered, exited, and HP restored');
   }
 
   async convertMpToTokens(mpAmount) {
@@ -1193,7 +1197,7 @@ class BotAccount {
     await this.doPvp();
     await this.activatePremium();
     await this.upgradeStats();
-    await this.doDungeonRun();
+    if (this._skipDungeon) { this._skipDungeon = false; log(this.name, 'Skipping dungeon this tick after death'); } else { await this.doDungeonRun(); }
     await this.refreshCharacter();
   }
 }
