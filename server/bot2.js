@@ -9,7 +9,7 @@ const ACCOUNTS = [
   { username: 'b2_mage',    password: 'botpass123', class: 'mage' },
   { username: 'b2_rogue',   password: 'botpass123', class: 'rogue' },
   { username: 'b2_paladin', password: 'botpass123', class: 'paladin' },
-  { username: 'b2_ranger',  password: 'botpass123', class: 'ranger' },
+  { username: 'b2_ranger',  password: 'botpass123', class: 'paladin' },
   { username: 'b2_knight',  password: 'botpass123', class: 'warrior' },
   { username: 'b2_warlock', password: 'botpass123', class: 'mage' },
   { username: 'b2_shadow',  password: 'botpass123', class: 'rogue' },
@@ -36,11 +36,6 @@ const BUILDS = {
     { name: 'holy_guard',   focus: ['strength', 'defense', 'magic'],    gear: ['strength', 'defense'] },
     { name: 'crusader',     focus: ['strength', 'magic', 'vitality'],   gear: ['strength', 'magic'] },
     { name: 'templar',      focus: ['defense', 'vitality', 'strength'], gear: ['defense', 'vitality'] },
-  ],
-  ranger: [
-    { name: 'sniper',  focus: ['agility', 'strength', 'vitality'], gear: ['agility', 'strength'] },
-    { name: 'hunter',  focus: ['strength', 'agility', 'defense'],  gear: ['strength', 'agility'] },
-    { name: 'survivor',focus: ['vitality', 'agility', 'defense'],  gear: ['defense', 'agility'] },
   ],
 };
 
