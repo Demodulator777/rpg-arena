@@ -9472,7 +9472,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         // HP stays close to base, hit/crit can vary widely, others moderate
         if (mission.map_type !== 'abyss') {
             const ranges = {
-                hp:         [0.9, 1.1],
+                hp:         [0.7, 1.4],
                 dmgMin:     [0.7, 1.3],
                 dmgMax:     [0.7, 1.3],
                 agility:    [0.7, 1.3],
