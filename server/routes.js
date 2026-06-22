@@ -9479,7 +9479,7 @@ router.post('/missions/collect', auth, async (req, res) => {
                 magic:      [0.7, 1.3],
                 hit_chance: [0.5, 4.0],
                 crit_chance:[0.5, 3.5],
-                armor:      [0.7, 1.3],
+                armor:      [0.5, 2.5],
                 vitality:   [0.7, 1.3],
             };
             for (const [k, [lo, hi]] of Object.entries(ranges)) {
