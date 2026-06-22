@@ -39,6 +39,15 @@ const BUILDS = {
   ],
 };
 
+const ZONE_PROGRESSION = [
+  { zone: 'forest',     spots: ['forest_camp', 'forest_bandits', 'forest_ruins'],     guardian: null },
+  { zone: 'swamp',      spots: ['swamp_edge', 'swamp_village', 'swamp_heart'],        guardian: 'swamp' },
+  { zone: 'mountains',  spots: ['mountain_base', 'mountain_peak', 'ice_cavern'],       guardian: 'mountains' },
+  { zone: 'ruins',      spots: ['ruins_perimeter', 'ruins_temple', 'ruins_crypt'],     guardian: 'ruins' },
+  { zone: 'dark_city',  spots: ['city_outskirts', 'city_cathedral', 'city_palace'],    guardian: 'dark_city' },
+];
+const DIFF_LABELS = ['easy', 'medium', 'hard'];
+
 function api(method, path, body, token) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
@@ -132,6 +141,25 @@ class TestBot {
 
     this._atkZones = [...DEFAULT_ATTACK];
     this._blkZones = [...DEFAULT_BLOCK];
+
+    // Progression system
+    const prog = mem._progression?.[this.name];
+    this._zoneIndex = prog?.zoneIndex ?? 0;
+    this._diffTier = prog?.diffTier ?? 0;
+    this._tutorialDone = prog?.tutorialDone ?? false;
+    this._tierStats = prog?.tierStats ?? {};
+  }
+
+  _persistProgression() {
+    const mem = loadMemory();
+    if (!mem._progression) mem._progression = {};
+    mem._progression[this.name] = {
+      zoneIndex: this._zoneIndex,
+      diffTier: this._diffTier,
+      tutorialDone: this._tutorialDone,
+      tierStats: this._tierStats,
+    };
+    saveMemory(mem);
   }
 
   _persistBuildState() {
@@ -490,22 +518,20 @@ class TestBot {
     try {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.missionEnd) return false;
-      // Start in forest (easy zone), scale up as we level
-      const zoneMap = [
-        { maxLvl: 3,  zone: 'forest', spot: 'city_outskirts' },
-        { maxLvl: 7,  zone: 'forest', spot: 'city_palace' },
-        { maxLvl: 15, zone: 'swamp',  spot: 'swamp_village' },
-        { maxLvl: 25, zone: 'mountains', spot: 'mountain_peak' },
-        { maxLvl: 40, zone: 'ruins',  spot: 'ruins_temple' },
-      ];
-      const lvl = this.character.level || 1;
-      const tier = zoneMap.find(t => lvl <= t.maxLvl) || zoneMap[zoneMap.length - 1];
-      if (!(await this.ensureTravelTarget(tier.zone))) return false;
-      const difficulty = lvl <= 5 ? 'easy' : lvl <= 15 ? 'medium' : 'hard';
-      const result = await api('POST', '/game/missions/start', { zoneId: tier.zone, spotId: tier.spot, size: 'small', difficulty }, this.token);
+
+      const zoneData = ZONE_PROGRESSION[this._zoneIndex];
+      if (!zoneData) return false;
+
+      const spotId = zoneData.spots[this._diffTier];
+      if (!spotId) return false;
+
+      if (!(await this.ensureTravelTarget(zoneData.zone))) return false;
+
+      const result = await api('POST', '/game/missions/start', { zoneId: zoneData.zone, spotId, size: 'small' }, this.token);
       this.missionEnd = now + 600;
       if (result.character) this.character = result.character;
-      log(this.name, `Started ${difficulty} mission in ${tier.zone}`);
+
+      log(this.name, `Started ${DIFF_LABELS[this._diffTier]} mission in ${zoneData.zone} (${spotId})`);
       return true;
     } catch (e) {
       if (e.message.includes('cooldown')) { this.missionEnd = Date.now() / 1000 + 300; return false; }
@@ -516,7 +542,10 @@ class TestBot {
   async collectMission() {
     try {
       const result = await api('POST', '/game/missions/collect', null, this.token);
-      if (result.character) this.character = result.character;
+      if (result) {
+        if (result.character) this.character = result.character;
+        this._handleMissionResult(result);
+      }
       return true;
     } catch (e) {
       if (e.message.includes('No active mission') || e.message.includes('already collected')) {
@@ -524,6 +553,61 @@ class TestBot {
         return true;
       }
       return false;
+    }
+  }
+
+  _handleMissionResult(result) {
+    if (!result || result.won === undefined) return;
+
+    const key = `${this._zoneIndex}_${this._diffTier}`;
+    if (!this._tierStats[key]) this._tierStats[key] = { wins: 0, losses: 0, draws: 0, battles: 0 };
+
+    if (result.won) this._tierStats[key].wins++;
+    else if (result.isDraw) this._tierStats[key].draws++;
+    else this._tierStats[key].losses++;
+    this._tierStats[key].battles++;
+
+    // Tutorial auto-advance to medium after 4 forced wins
+    if (!this._tutorialDone && this.character && (this.character.wins || 0) >= 4) {
+      this._tutorialDone = true;
+      if (this._diffTier === 0) {
+        this._diffTier = 1;
+        this._tierStats[`${this._zoneIndex}_0`] = { wins: 0, losses: 0, draws: 0, battles: 0 };
+      }
+      log(this.name, 'Tutorial complete — advancing to medium difficulty');
+    }
+
+    this._evaluateMissionProgression();
+    this._persistProgression();
+  }
+
+  _evaluateMissionProgression() {
+    const key = `${this._zoneIndex}_${this._diffTier}`;
+    const stats = this._tierStats[key];
+    if (!stats || stats.battles < 10) return;
+
+    const winRate = stats.battles > 0 ? stats.wins / stats.battles : 0;
+    const zoneData = ZONE_PROGRESSION[this._zoneIndex];
+
+    if (winRate >= 0.7 && stats.battles >= 10) {
+      if (this._diffTier < 2) {
+        const oldDiff = DIFF_LABELS[this._diffTier];
+        this._diffTier++;
+        log(this.name, `Advancing ${oldDiff} → ${DIFF_LABELS[this._diffTier]} in ${zoneData.zone} (${stats.wins}W/${stats.losses}L)`);
+        this._tierStats[key] = { wins: 0, losses: 0, draws: 0, battles: 0 };
+      } else if (this._zoneIndex < ZONE_PROGRESSION.length - 1) {
+        log(this.name, `Hard mastered in ${zoneData.zone} (${stats.wins}W/${stats.losses}L) — moving to ${ZONE_PROGRESSION[this._zoneIndex + 1].zone}`);
+        this._zoneIndex++;
+        this._diffTier = 0;
+        // Don't reset tierStats for previous zone — keep for history
+        this._tierStats[`${this._zoneIndex}_0`] = { wins: 0, losses: 0, draws: 0, battles: 0 };
+        // Will attempt travel on next doMission()
+      }
+    } else if (winRate < 0.3 && this._diffTier > 0 && stats.battles >= 10) {
+      const oldDiff = DIFF_LABELS[this._diffTier];
+      this._diffTier--;
+      log(this.name, `Struggling in ${oldDiff} — dropping to ${DIFF_LABELS[this._diffTier]} in ${zoneData.zone} (${stats.wins}W/${stats.losses}L)`);
+      this._tierStats[key] = { wins: 0, losses: 0, draws: 0, battles: 0 };
     }
   }
 
@@ -746,10 +830,16 @@ class TestBot {
     await this.doUpgradeCycle();
     await this.refreshCharacter();
 
-    // Report build status periodically
+    // Report progression status periodically
+    const zoneData = ZONE_PROGRESSION[this._zoneIndex];
+    const key = `${this._zoneIndex}_${this._diffTier}`;
+    const stats = this._tierStats[key];
+    const s = stats ? `${stats.wins}W/${stats.losses}L/${stats.draws}D` : 'no data';
+    const progInfo = `${zoneData?.zone || '?'} ${DIFF_LABELS[this._diffTier]} [${s}]`;
+
     if (this._totalBattles > 0 && this._totalBattles % 10 === 0) {
       const wr = this._buildBattles > 0 ? Math.round(this._buildWins / this._buildBattles * 100) : 0;
-      log(this.name, `[Stats] Build: ${this._currentBuild.name} | ${this._buildWins}W/${this._buildLosses}L (${wr}%) | Total battles: ${this._totalBattles}`);
+      log(this.name, `[Stats] Build: ${this._currentBuild.name} | ${this._buildWins}W/${this._buildLosses}L (${wr}%) | Total battles: ${this._totalBattles} | Progress: ${progInfo}`);
     }
   }
 }
