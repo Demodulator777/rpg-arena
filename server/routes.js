@@ -9520,6 +9520,7 @@ router.post('/missions/collect', auth, async (req, res) => {
             ? createTutorialBattleResult(playerFighter, npc)
             : runBattle(playerFighter, npc, forceWinnerId);
         let playerWon = battle.winnerId === freshChar.id;
+        const isDraw = battle.winnerId === 0;
 
         // Add tutorial note if we used forceWinnerId to flip a loss
         if (forceWinnerId && isTutorial) {
@@ -9555,8 +9556,8 @@ router.post('/missions/collect', auth, async (req, res) => {
             goldEarned = 250;
             xpEarned = 1;
         } else {
-            goldEarned = playerWon ? mission.gold_reward : Math.floor(mission.gold_reward * 0.10);
-            xpEarned = playerWon ? mission.xp_reward : 0;
+            goldEarned = playerWon ? mission.gold_reward : (isDraw ? Math.floor(mission.gold_reward * 0.50) : Math.floor(mission.gold_reward * 0.10));
+            xpEarned = playerWon ? mission.xp_reward : (isDraw ? Math.floor(mission.xp_reward * 0.50) : 0);
 
             // Add damage-based bonus
             const sizeConf = MISSION_SIZES[mission.size || 'small'];
@@ -9588,7 +9589,8 @@ router.post('/missions/collect', auth, async (req, res) => {
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
         let newWins = freshChar.wins + (playerWon ? 1 : 0);
-        let newLosses = freshChar.losses + (playerWon ? 0 : 1);
+        let newLosses = freshChar.losses + (playerWon ? 0 : (isDraw ? 0 : 1));
+        let newDraws = freshChar.draws + (isDraw ? 1 : 0);
 
         let tutorialMessage = null;
         if (isTutorial && newWins === 4) {
@@ -9622,8 +9624,8 @@ router.post('/missions/collect', auth, async (req, res) => {
             return res.status(409).json({ error: 'Mission rewards already collected.' });
         }
 
-        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
-            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshChar.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
+            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, isDraw ? 1 : 0, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshChar.id]);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
 
         // ── Skill tree stat tracking ───────────────────────────────────────
@@ -9720,7 +9722,7 @@ router.post('/missions/collect', auth, async (req, res) => {
                 await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 2));
             }
         } else {
-            const dropChance = playerWon ? 0.6 : 0.2;
+            const dropChance = playerWon ? 0.6 : (isDraw ? 0.4 : 0.2);
             for (const mat of mats) {
                 if (Math.random() < dropChance) {
                     await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 3));
@@ -9733,7 +9735,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         attacker_id, defender_id, winner_id, attacker_name, defender_name, log, 
         fought_at, battle_type, xp_gained, gold_gained, total_dmg_dealt, total_dmg_taken
     ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-                [freshChar.id, -1, playerWon ? freshChar.id : -1, freshChar.name, mission.mission_name,
+                [freshChar.id, -1, playerWon ? freshChar.id : (isDraw ? 0 : -1), freshChar.name, mission.mission_name,
                     JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned,
                     battle.totalDmgToB, battle.totalDmgToA]);
         } catch {}
@@ -9745,7 +9747,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         }
 
         try {
-            const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`;
+            const subject = playerWon ? `✅ Mission Report: ${mission.mission_name}` : (isDraw ? `🤝 Mission Draw: ${mission.mission_name}` : `💀 Mission Failed: ${mission.mission_name}`);
             const payload = JSON.stringify({
                 log: battle.log,
                 won: playerWon,
@@ -9765,7 +9767,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
         res.json({
             success: true, won: playerWon, battleLog: battle.log,
-            message: `${playerWon ? 'Victory' : 'Defeated'} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
+            message: `${playerWon ? 'Victory' : (isDraw ? 'Draw' : 'Defeated')} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
             goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
             levelUpMessage,
             drops, hpRemaining: finalHp,
