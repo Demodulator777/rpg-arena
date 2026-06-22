@@ -64,6 +64,7 @@ getDb().then(async (db) => {
   
   // Init tournament tables and scheduler
   await tournamentModule.initTournamentTables();
+  await tournamentModule.createRelevantBrackets();
   tournamentModule.startTournament();
   tournamentModule.startScheduler();
 
