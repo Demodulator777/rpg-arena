@@ -9485,7 +9485,7 @@ router.post('/missions/collect', auth, async (req, res) => {
             for (const [k, [lo, hi]] of Object.entries(ranges)) {
                 const mult = lo + Math.random() * (hi - lo);
                 let val = Math.floor((npc[k] || 0) * mult);
-                if (k === 'hp') npc[k] = Math.max(10, val);
+                if (k === 'hp') { npc[k] = Math.max(10, val); npc.hpMax = npc.hp; }
                 else if (k === 'dmgMin') npc[k] = Math.max(1, val);
                 else if (k === 'dmgMax') npc[k] = Math.max(Math.max(2, (npc.dmgMin || 0) + 1), val);
                 else if (k === 'agility' || k === 'vitality') npc[k] = Math.max(1, val);
