@@ -18,24 +18,24 @@ const ACCOUNTS = [
 // Each class has multiple build strategies to test
 const BUILDS = {
   warrior: [
-    { name: 'heavy_str', focus: ['strength', 'vitality', 'defense'], gear: ['strength', 'vitality'] },
-    { name: 'tank',      focus: ['vitality', 'defense', 'strength'], gear: ['defense', 'vitality'] },
-    { name: 'balanced',  focus: ['strength', 'defense', 'agility'],  gear: ['strength', 'defense'] },
+    { name: 'heavy_str', focus: ['strength', 'hit_chance', 'crit_chance'],     gear: ['strength', 'hit_chance', 'crit_chance'] },
+    { name: 'tank',      focus: ['vitality', 'defense', 'hit_chance'],         gear: ['defense', 'vitality', 'hit_chance'] },
+    { name: 'balanced',  focus: ['strength', 'defense', 'hit_chance','crit_chance'], gear: ['strength', 'defense', 'hit_chance', 'crit_chance'] },
   ],
   mage: [
-    { name: 'glass_cannon', focus: ['magic', 'agility', 'vitality'],     gear: ['magic', 'crit_chance'] },
-    { name: 'battlemage',    focus: ['magic', 'strength', 'defense'],    gear: ['magic', 'defense'] },
-    { name: 'swift_mage',    focus: ['agility', 'magic', 'vitality'],    gear: ['magic', 'agility'] },
+    { name: 'glass_cannon', focus: ['magic', 'crit_chance', 'hit_chance'],     gear: ['magic', 'crit_chance', 'hit_chance'] },
+    { name: 'battlemage',   focus: ['magic', 'defense', 'hit_chance'],         gear: ['magic', 'defense', 'hit_chance'] },
+    { name: 'swift_mage',   focus: ['agility', 'magic', 'crit_chance'],        gear: ['magic', 'agility', 'crit_chance'] },
   ],
   rogue: [
-    { name: 'shadow_blade', focus: ['agility', 'strength', 'crit_chance'], gear: ['agility', 'crit_chance'] },
-    { name: 'assassin',     focus: ['strength', 'agility', 'crit_chance'], gear: ['strength', 'agility'] },
-    { name: 'dancer',       focus: ['agility', 'vitality', 'strength'],    gear: ['agility', 'defense'] },
+    { name: 'shadow_blade', focus: ['agility', 'crit_chance', 'hit_chance'],   gear: ['agility', 'crit_chance', 'hit_chance'] },
+    { name: 'assassin',     focus: ['strength', 'agility', 'crit_chance'],     gear: ['strength', 'agility', 'crit_chance'] },
+    { name: 'dancer',       focus: ['agility', 'vitality', 'hit_chance'],      gear: ['agility', 'hit_chance', 'crit_chance'] },
   ],
   paladin: [
-    { name: 'holy_guard',   focus: ['strength', 'defense', 'magic'],    gear: ['strength', 'defense'] },
-    { name: 'crusader',     focus: ['strength', 'magic', 'vitality'],   gear: ['strength', 'magic'] },
-    { name: 'templar',      focus: ['defense', 'vitality', 'strength'], gear: ['defense', 'vitality'] },
+    { name: 'holy_guard',   focus: ['strength', 'defense', 'crit_chance'],     gear: ['strength', 'defense', 'crit_chance'] },
+    { name: 'crusader',     focus: ['strength', 'magic', 'hit_chance'],        gear: ['strength', 'magic', 'hit_chance'] },
+    { name: 'templar',      focus: ['defense', 'vitality', 'hit_chance'],      gear: ['defense', 'vitality', 'hit_chance'] },
   ],
 };
 
@@ -337,14 +337,13 @@ class TestBot {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
       const slotGroups = [
-        { name: 'weapon',  slots: ['weapon'] },
-        { name: 'armor',   slots: ['armor'] },
-        { name: 'helmet',  slots: ['helmet'] },
-        { name: 'shield',  slots: ['shield'] },
-        { name: 'boots',   slots: ['boots'] },
-        { name: 'jewelry', slots: ['ring', 'amulet'] },
-        { name: 'gloves',  slots: ['gloves'] },
-        { name: 'belt',    slots: ['belt'] },
+        { name: 'weapon',     slots: ['weapon'] },
+        { name: 'armor',      slots: ['armor'] },
+        { name: 'helmet',     slots: ['helmet'] },
+        { name: 'shield',     slots: ['shield'] },
+        { name: 'boots',      slots: ['boots'] },
+        { name: 'jewelry',    slots: ['ring', 'amulet'] },
+        { name: 'accessory',  slots: ['gloves', 'belt'] },
       ];
       const buildPref = this._currentBuild.gear || [];
       for (const group of slotGroups) {
@@ -365,7 +364,7 @@ class TestBot {
           } catch {}
         }
         if (!best || bestScore <= equippedScore) continue;
-        if (group.name === 'jewelry' || !best.equipped) {
+        if (group.name === 'jewelry' || group.name === 'accessory' || !best.equipped) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
             await sleep(150);
