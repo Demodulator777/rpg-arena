@@ -274,7 +274,7 @@ class TestBot {
           if (d.slot) filled.add(d.slot);
         } catch {}
       }
-      return !['weapon', 'armor', 'helmet', 'boots', 'shield', 'ring', 'amulet', 'belt', 'gloves'].every(s => filled.has(s));
+      return !['weapon', 'armor', 'helmet', 'boots', 'shield', 'ring', 'amulet', 'accessory'].every(s => filled.has(s));
     } catch { return true; }
   }
 
@@ -337,15 +337,14 @@ class TestBot {
       const inventory = await api('GET', '/game/inventory', null, this.token);
       const items = inventory.items || [];
       const slotGroups = [
-        { name: 'weapon',     slots: ['weapon'] },
-        { name: 'armor',      slots: ['armor'] },
-        { name: 'helmet',     slots: ['helmet'] },
-        { name: 'shield',     slots: ['shield'] },
-        { name: 'boots',      slots: ['boots'] },
-        { name: 'jewelry',    slots: ['ring', 'amulet'] },
-        { name: 'accessory',  slots: ['gloves', 'belt'] },
+        { name: 'weapon',    slots: ['weapon'] },
+        { name: 'armor',     slots: ['armor'] },
+        { name: 'helmet',    slots: ['helmet'] },
+        { name: 'shield',    slots: ['shield'] },
+        { name: 'boots',     slots: ['boots'] },
+        { name: 'jewelry',   slots: ['ring', 'amulet'] },
+        { name: 'accessory', slots: ['accessory'] },
       ];
-      const buildPref = this._currentBuild.gear || [];
       for (const group of slotGroups) {
         let equippedId = null, equippedScore = -1;
         let best = null, bestScore = -1;
@@ -353,25 +352,23 @@ class TestBot {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!group.slots.includes(d.slot)) continue;
-            const stats = d.stats || d.wp_stats || {};
-            let score = (d.upgradeLevel || 0) * 10000;
-            for (const [stat, val] of Object.entries(stats)) {
-              const multiplier = buildPref.includes(stat) ? 3 : 1;
-              score += Number(val) * multiplier;
-            }
+            const lvl = d.upgradeLevel || item.upgrade_level || 0;
+            const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
+                        (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
+            const score = lvl * 10000 + sum;
             if (item.equipped) { equippedId = item.id; equippedScore = score; }
             if (score > bestScore) { best = item; bestScore = score; }
           } catch {}
         }
         if (!best || bestScore <= equippedScore) continue;
-        if (group.name === 'jewelry' || group.name === 'accessory' || !best.equipped) {
+        if (group.name === 'jewelry' || !best.equipped) {
           try {
             await api('POST', `/game/equip/${best.id}`, null, this.token);
-            await sleep(150);
-          } catch {}
+            await sleep(200);
+          } catch (e) {}
         }
       }
-    } catch {}
+    } catch (e) {}
   }
 
   // ── Shop Gear (buy missing slots from shop) ────────────────────────────
@@ -380,7 +377,7 @@ class TestBot {
       const shop = await api('GET', '/game/shop/items', null, this.token);
       const gear = (shop.items || []).filter(i =>
         i.priceType === 'gold' && i.price <= this.character.gold &&
-        ['weapon', 'helm', 'armor', 'gloves', 'boots', 'ring', 'amulet', 'belt', 'shield'].includes(i.slot) &&
+        ['weapon', 'helm', 'armor', 'accessory', 'boots', 'ring', 'amulet', 'shield'].includes(i.slot) &&
         i.level <= this.character.level
       );
       for (const item of gear) {
