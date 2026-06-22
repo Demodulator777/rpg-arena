@@ -9468,6 +9468,32 @@ router.post('/missions/collect', auth, async (req, res) => {
             }
         }
 
+        // Stat variance pass — different ranges per stat for better variety
+        // HP stays close to base, hit/crit can vary widely, others moderate
+        if (mission.map_type !== 'abyss') {
+            const ranges = {
+                hp:         [0.9, 1.1],
+                dmgMin:     [0.7, 1.3],
+                dmgMax:     [0.7, 1.3],
+                agility:    [0.7, 1.3],
+                magic:      [0.7, 1.3],
+                hit_chance: [0.5, 4.0],
+                crit_chance:[0.5, 3.5],
+                armor:      [0.7, 1.3],
+                vitality:   [0.7, 1.3],
+            };
+            for (const [k, [lo, hi]] of Object.entries(ranges)) {
+                const mult = lo + Math.random() * (hi - lo);
+                let val = Math.floor((npc[k] || 0) * mult);
+                if (k === 'hp') npc[k] = Math.max(10, val);
+                else if (k === 'dmgMin') npc[k] = Math.max(1, val);
+                else if (k === 'dmgMax') npc[k] = Math.max(Math.max(2, (npc.dmgMin || 0) + 1), val);
+                else if (k === 'agility' || k === 'vitality') npc[k] = Math.max(1, val);
+                else if (k === 'hit_chance') npc[k] = Math.max(10, val);
+                else if (k === 'crit_chance' || k === 'magic' || k === 'armor') npc[k] = Math.max(0, val);
+            }
+        }
+
         // Random elemental resists for hard missions — at least 2 types, up to all 4, scales with zone
         // Skip for abyss missions — buildNpc() already scales from player's own gear resists
         if (mission.difficulty === 'hard' && mission.map_type !== 'abyss') {
