@@ -222,13 +222,13 @@ class TestBot {
   // ── Achievements ───────────────────────────────────────────────────────
   async claimAchievements() {
     try {
-      const data = await api('GET', '/achievements', null, this.token);
+      const data = await api('GET', '/game/achievements', null, this.token);
       if (!data || !data.items) return;
       const claimable = data.items.filter(a => a.claimable);
       if (claimable.length === 0) return;
       for (const a of claimable) {
         try {
-          const result = await api('POST', `/achievements/${a.id}/claim`, null, this.token);
+          const result = await api('POST', `/game/achievements/${a.id}/claim`, null, this.token);
           if (result.character) this.character = result.character;
           log(this.name, `Claimed achievement: ${a.name} (${a.reward_summary || 'rewards'})`);
           await sleep(200);
