@@ -56,6 +56,11 @@ function getLevelRange(groupLabel) {
   return { min, max };
 }
 
+function formatDate(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+}
+
 function scheduleDailyTournamentStart() {
   const now = Date.now();
   const next = new Date();
@@ -73,9 +78,18 @@ function scheduleDailyTournamentStart() {
 
 async function startTournament() {
   const db = await getDb();
-  const pending = await dbAll_t(db, 'SELECT * FROM tournaments WHERE status = ? ORDER BY id', ['pending']);
+  const now = new Date();
+  const nowStr = formatDate(now);
+  const pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND (scheduled_at IS NULL OR scheduled_at <= ?) ORDER BY id", [nowStr]);
   for (const t of pending) {
     try {
+      const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
+      const realCount = participants.filter(p => !p.is_npc).length;
+      if (realCount === 0) {
+        await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
+        console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — no real players joined`);
+        continue;
+      }
       await runTournament(db, t);
     } catch (e) {
       console.error(`❌ Tournament #${t.id} (${t.level_group}) failed:`, e);
@@ -87,6 +101,11 @@ async function ensureMinPlayers(db, t) {
   let participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
   const realCount = participants.filter(p => !p.is_npc).length;
   console.log(`🏟️ Tournament #${t.id}: ${participants.length} participants (${realCount} real)`);
+  if (realCount === 0) {
+    await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
+    console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — no real players`);
+    return [];
+  }
   const mode = t.mode || 'deathmatch';
   let targetSize;
   if (mode === 'elimination') {
@@ -111,6 +130,7 @@ async function ensureMinPlayers(db, t) {
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, started_at = datetime(\'now\'), participant_count = ? WHERE id = ?', ['active', participants.length, t.id]);
   return participants;
 }
+
 
 async function runRoundRobin(db, t, participants, mode, fast) {
   const schedule = generateRoundRobin(participants.map(p => p.id));
@@ -294,6 +314,7 @@ async function runAllVsAll(db, t, participants, fast) {
 
 async function runTournament(db, t, fast) {
   const participants = await ensureMinPlayers(db, t);
+  if (!participants || participants.length === 0) return; // cancelled — no real players
   const mode = t.mode || 'deathmatch';
   if (mode === 'elimination') await runElimination(db, t, participants, fast);
   else if (mode === 'all_vs_all') await runAllVsAll(db, t, participants, fast);
@@ -1024,6 +1045,48 @@ async function ensureCurrentTournament() {
   return null;
 }
 
+// Create brackets only for level groups that have active players on the server,
+// plus the next bracket up (to allow level-ups during the day).
+async function createRelevantBrackets() {
+  const db = await getDb();
+  const rows = await dbAll_t(db, 'SELECT DISTINCT level FROM characters');
+  const levels = rows.map(r => r.level);
+  if (levels.length === 0) {
+    console.log('🏟️ No characters found — skipping bracket creation');
+    return;
+  }
+
+  const maxLevel = Math.max(...levels);
+  const maxGroup = getLevelGroup(maxLevel);
+  const maxGroupStart = parseInt(maxGroup.split('-')[0], 10);
+
+  // Collect all level groups that cover current players
+  const groupsToCreate = new Set();
+  for (const lvl of levels) {
+    groupsToCreate.add(getLevelGroup(lvl));
+  }
+  // Add the next bracket up (e.g. if max is 81-90, also create 91-100)
+  const nextMin = maxGroupStart + 10;
+  if (nextMin <= 500) {
+    groupsToCreate.add(`${nextMin}-${Math.min(nextMin + 9, 500)}`);
+  }
+
+  const now = new Date();
+  const nextStart = new Date();
+  nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
+  if (now >= nextStart) nextStart.setDate(nextStart.getDate() + 1);
+  const mode = todayMode(nextStart);
+  const scheduledAt = formatDate(nextStart);
+
+  for (const group of groupsToCreate) {
+    const existing = await dbGet_t(db, "SELECT id FROM tournaments WHERE status = 'pending' AND level_group = ?", [group]);
+    if (existing) continue;
+    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, scheduled_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?, ?)",
+      [scheduledAt, mode, group]);
+    console.log(`🏟️ Created bracket ${group} scheduled at ${scheduledAt}`);
+  }
+}
+
 function generateRandomNpcStats(level) {
   return {
     level,
@@ -1105,7 +1168,8 @@ router.post('/tournaments/join', auth, async (req, res) => {
       nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
       if (now >= nextStart) nextStart.setDate(nextStart.getDate() + 1);
       const mode = todayMode(nextStart);
-      await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
+      const scheduledAt = formatDate(nextStart);
+      await dbRun_t(db, "INSERT INTO tournaments (status, created_at, scheduled_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?, ?)", [scheduledAt, mode, group]);
       t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
     }
     if (!t) return res.status(400).json({ error: 'No upcoming tournament' });
@@ -1129,7 +1193,12 @@ router.post('/tournaments/create', auth, async (req, res) => {
     // Ensure we don't create a duplicate pending tournament for the same group
     const existing = await dbGet_t(db, "SELECT id FROM tournaments WHERE status = 'pending' AND level_group = ?", [group]);
     if (existing) return res.status(400).json({ error: `Pending tournament already exists for level group ${group}` });
-    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?)", [mode, group]);
+    const now = new Date();
+    const nextStart = new Date();
+    nextStart.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
+    if (now >= nextStart) nextStart.setDate(nextStart.getDate() + 1);
+    const scheduledAt = formatDate(nextStart);
+    await dbRun_t(db, "INSERT INTO tournaments (status, created_at, scheduled_at, mode, level_group) VALUES ('pending', datetime('now'), ?, ?, ?)", [scheduledAt, mode, group]);
     const t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
     res.json({ message: `Tournament created for ${group}`, tournament: { ...t, level_group: t.level_group || group } });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1217,6 +1286,7 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN dsq INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN level_group TEXT NOT NULL DEFAULT '1-10'"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN scheduled_at TEXT"); } catch {}
 }
 
 router.post('/tournaments/add-player/:id', auth, async (req, res) => {
@@ -1301,8 +1371,9 @@ function startScheduler() {
   setInterval(async () => {
     try {
       await ensureCurrentTournament();
+      await createRelevantBrackets();
     } catch (e) { console.error('Tournament ensure error:', e); }
   }, 5 * 60 * 1000);
 }
 
-module.exports = { router, initTournamentTables, startScheduler, startTournament, ensureCurrentTournament, ensureMinPlayers, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
+module.exports = { router, initTournamentTables, startScheduler, startTournament, ensureCurrentTournament, ensureMinPlayers, createRelevantBrackets, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
