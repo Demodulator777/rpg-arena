@@ -588,6 +588,17 @@ class TestBot {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.missionEnd) return false;
 
+      const hp = this.character.hp_current || 0;
+      const maxHp = this.character.hp_max || 100;
+      if (hp <= 0) {
+        log(this.name, `HP 0 — skipping mission`);
+        return false;
+      }
+      if (hp < maxHp * 0.3) {
+        log(this.name, `HP ${hp}/${maxHp} — waiting for heal`);
+        return false;
+      }
+
       const zoneData = ZONE_PROGRESSION[this._zoneIndex];
       if (!zoneData) return false;
 
@@ -696,15 +707,20 @@ class TestBot {
         } catch { return false; }
       });
       if (healPots.length > 0) {
-        const result = await api('POST', `/game/use/${healPots[0].id}`, null, this.token);
-        if (result.character) this.character = result.character;
-        log(this.name, 'Used health potion');
-        return true;
+        try {
+          const result = await api('POST', `/game/use/${healPots[0].id}`, null, this.token);
+          if (result.character) this.character = result.character;
+          log(this.name, 'Used health potion');
+          return true;
+        } catch (e) {
+          log(this.name, `Heal potion use failed: ${e.message}`);
+        }
       }
       // Buy full elixir from shop (5💎)
       if ((this.character.gems || 0) >= 5) {
         try {
-          await api('POST', '/game/shop/buy', { item: { id: 'potion_full_elixir', category: 'consumable' } }, this.token);
+          const buyResult = await api('POST', '/game/shop/buy', { item: { id: 'potion_full_elixir', category: 'consumable' } }, this.token);
+          if (buyResult.character) this.character = buyResult.character;
           await sleep(200);
           const inv2 = await api('GET', '/game/inventory', null, this.token);
           const pot = (inv2.items || []).find(i => {
@@ -714,15 +730,99 @@ class TestBot {
             } catch { return false; }
           });
           if (pot) {
-            await api('POST', `/game/use/${pot.id}`, null, this.token);
-            log(this.name, 'Bought and used Full Elixir (5💎)');
-            return true;
+            try {
+              await api('POST', `/game/use/${pot.id}`, null, this.token);
+              log(this.name, 'Bought and used Full Elixir (5💎)');
+              return true;
+            } catch (e) {
+              log(this.name, `Full Elixir use failed (cooldown?): ${e.message}`);
+            }
           }
-        } catch {}
+        } catch (e) {
+          log(this.name, `Buy Full Elixir failed: ${e.message}`);
+        }
       }
       log(this.name, 'No health potions');
       return false;
-    } catch { return false; }
+    } catch (e) {
+      log(this.name, `healIfLow error: ${e.message}`);
+      return false;
+    }
+  }
+
+  // ── Skill Training ──────────────────────────────────────────────────────
+  async trainSkills() {
+    try {
+      // Check if already training
+      const status = await api('GET', '/skills/training/status', null, this.token);
+      if (status.active) return false;
+
+      // Fetch skill tree
+      const tree = await api('GET', '/skills/tree', null, this.token);
+      const branches = tree.tree?.branches;
+      if (!branches) return false;
+
+      // Find starter branch (isStarter flag)
+      const starterEntry = Object.entries(branches).find(([, b]) => b.isStarter);
+      if (!starterEntry) return false;
+      const [starterKey, starterBranch] = starterEntry;
+      const starterSkill = Object.values(starterBranch.skills)[0];
+
+      // Train basic training if not learned and trainable
+      if (!starterSkill.learned && starterSkill.trainable) {
+        log(this.name, `Starting training: ${starterSkill.name}`);
+        await api('POST', '/skills/train/start', { skillId: starterSkill.id, branchId: starterKey, hours: 8, doubleSpeed: false }, this.token);
+        return true;
+      }
+
+      // Basic training done or in progress — pick a specialization branch
+      const preferredBranches = {
+        warrior:  ['berserker', 'iron_guard', 'battle_commander', 'gladiator'],
+        mage:     ['pyromancer', 'stormcaller', 'cryomancer', 'shadow_path'],
+        rogue:    ['assassin', 'shadowblade', 'trickster'],
+        paladin:  ['divine_warrior', 'protector', 'inquisitor', 'crusader'],
+        shadow:   ['shadow_path', 'pyromancer', 'stormcaller', 'cryomancer'],
+      };
+      const charClass = (this.character.class || 'warrior').toLowerCase();
+      const prefOrder = preferredBranches[charClass] || Object.keys(branches);
+
+      for (const prefKey of prefOrder) {
+        const branch = branches[prefKey];
+        if (!branch || branch.isStarter) continue;
+
+        // Check if branch requires a skill we haven't learned
+        if (branch.requires?.skill) {
+          const needed = branch.requires.skill;
+          const treeLearned = tree.learned || [];
+          // Also check progress-based unlock (minProgress)
+          if (!treeLearned.includes(needed)) {
+            const progressNeeded = branch.requires.minProgress || 100;
+            const currentProgress = tree.progressMap?.[needed] || 0;
+            if (currentProgress < progressNeeded) continue;
+          }
+        }
+
+        // Find first unlearned, trainable skill in this branch
+        const skillEntry = Object.entries(branch.skills).find(([, s]) => {
+          if (s.learned) return false;
+          if (!s.trainable) return false;
+          if (s.locked) return false;
+          return true;
+        });
+
+        if (skillEntry) {
+          const [skillKey, skill] = skillEntry;
+          log(this.name, `Starting training: ${skill.name} (${branch.name})`);
+          await api('POST', '/skills/train/start', { skillId: skill.id, branchId: prefKey, hours: 8, doubleSpeed: false }, this.token);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      log(this.name, `trainSkills: ${e.message}`);
+      return false;
+    }
   }
 
   // ── PvP ───────────────────────────────────────────────────────────────
@@ -884,18 +984,24 @@ class TestBot {
     if (hour >= 0 && hour < 6) this.tournamentJoined = false;
 
     await this.healIfLow();
-    await this.collectMission();
-    await this.useManaPotion();
-    await this.doMission();
-    await this.claimAchievements();
-    await this.buyAndOpenLootboxes();
-    await this.openAllLootboxes();
-    await this.equipBest();
-    await this.sellWorstGear();
-    await this.feedElemental();
-    await this.doPvp();
-    await this.activateAllPremium();
-    await this.doUpgradeCycle();
+    await this.trainSkills();
+    const isDead = (this.character.hp_current || 0) <= 0;
+    if (isDead) {
+      log(this.name, `HP 0 — skipping combat activities this tick`);
+    } else {
+      await this.collectMission();
+      await this.useManaPotion();
+      await this.doMission();
+      await this.claimAchievements();
+      await this.buyAndOpenLootboxes();
+      await this.openAllLootboxes();
+      await this.equipBest();
+      await this.sellWorstGear();
+      await this.feedElemental();
+      await this.doPvp();
+      await this.activateAllPremium();
+      await this.doUpgradeCycle();
+    }
     await this.refreshCharacter();
 
     // Report progression status periodically
