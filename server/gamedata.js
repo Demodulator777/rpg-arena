@@ -500,7 +500,7 @@ const EQUIPMENT_RECIPES = [
     {
         id:'spiteforged_weapon', setId:'spiteforged', setPiece:'weapon',
         name:'Spiteforged Trident', emoji:'🔱', quality:'legendary',
-        slot:'weapon',
+        slot:'weapon', weaponType:'scythe',
         desc:'Three bladed vows of hatred, quenched in black surf and driven to pierce pride, plate, and prayer alike.',
         stats:{ dmg_min:24, dmg_max:49, strength:14, crit_chance:12, hit_chance:8, agility:3,
                 pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10 },
@@ -699,7 +699,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
     {
         id:'wyrmflame_weapon', setId:'wyrmflame', setPiece:'weapon',
         name:'Fang of the Worldpyre', emoji:'⚔️', quality:'legendary',
-        slot:'weapon',
+        slot:'weapon', weaponType:'scythe',
         desc:'Its edge was quenched in dragonfire and sharpened upon the bones of kings.',
         stats:{ dmg_min:42, dmg_max:47, strength:52, hit_chance:25, agility:-28, crit_chance:2,
                 pyro_dmg:15, pyro_resist:20, electro_dmg:5, electro_resist:8, water_resist:-19, wind_resist:-9 },
