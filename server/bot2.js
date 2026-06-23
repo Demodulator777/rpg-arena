@@ -332,6 +332,25 @@ class TestBot {
   }
 
   // ── Equip Best Gear ────────────────────────────────────────────────────
+  _weaponOk(d) {
+    const name = (d.name || '').toLowerCase();
+    const isWpn = (kw) => name.includes(kw) || (d.weaponType || '').includes(kw);
+    const cls = this.cfg.class;
+    if (cls === 'paladin') {
+      return isWpn('mace') || isWpn('hammer') || isWpn('staff') || isWpn('axe') || isWpn('blade') || isWpn('spear') || isWpn('scythe') || isWpn('sword');
+    }
+    if (cls === 'warrior') {
+      return !isWpn('staff') && !isWpn('dagger');
+    }
+    if (cls === 'mage') {
+      return isWpn('scythe') || isWpn('staff');
+    }
+    if (cls === 'rogue') {
+      return isWpn('dagger') || isWpn('bow') || isWpn('scythe');
+    }
+    return true;
+  }
+
   async equipBest() {
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
@@ -352,6 +371,7 @@ class TestBot {
           try {
             const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!group.slots.includes(d.slot)) continue;
+            if (group.name === 'weapon' && !this._weaponOk(d)) continue;
             const lvl = d.upgradeLevel || item.upgrade_level || 0;
             const sum = (d.stats ? Object.values(d.stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0) +
                         (d.wp_stats ? Object.values(d.wp_stats).reduce((a, b) => a + (Number(b) || 0), 0) : 0);
@@ -378,7 +398,8 @@ class TestBot {
       const gear = (shop.items || []).filter(i =>
         i.priceType === 'gold' && i.price <= this.character.gold &&
         ['weapon', 'helm', 'armor', 'accessory', 'boots', 'ring', 'amulet', 'shield'].includes(i.slot) &&
-        i.level <= this.character.level
+        i.level <= this.character.level &&
+        (i.slot !== 'weapon' || this._weaponOk(i))
       );
       for (const item of gear) {
         try {
@@ -470,13 +491,27 @@ class TestBot {
     if (mp >= 40) return;
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
-      const manaPot = (inventory.items || []).find(i => {
+      let manaPot = (inventory.items || []).find(i => {
         if (i.item_type !== 'consumable') return false;
         try {
           const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
           return d.effect?.type === 'mp' && (Number(d.qty) || 1) > 0;
         } catch { return false; }
       });
+      // Buy from shop if none in inventory
+      if (!manaPot && (this.character.gems || 0) >= 5) {
+        await api('POST', '/game/shop/buy', { item: { id: 'potion_mana', category: 'consumable' } }, this.token);
+        await sleep(200);
+        const inv2 = await api('GET', '/game/inventory', null, this.token);
+        manaPot = (inv2.items || []).find(i => {
+          if (i.item_type !== 'consumable') return false;
+          try {
+            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+            return d.effect?.type === 'mp';
+          } catch { return false; }
+        });
+        if (manaPot) log(this.name, 'Bought mana potion (5💎)');
+      }
       if (!manaPot) return;
       const result = await api('POST', `/game/use/${manaPot.id}`, null, this.token);
       if (result.character) this.character = result.character;
@@ -662,6 +697,8 @@ class TestBot {
     try {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.cooldowns.pvp) return false;
+      // Skip PvP while holding more than 10k gold to avoid losing it
+      if ((this.character.gold || 0) > 10000) return false;
       const hp = this.character.hp_current || 0;
       if (hp <= 0) return false;
       if (hp < (this.character.hp_max || 100) * 0.3) await this.healIfLow();
