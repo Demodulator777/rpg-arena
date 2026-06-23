@@ -692,10 +692,23 @@ class TestBot {
   }
 
   // ── Health ─────────────────────────────────────────────────────────────
+  _setPotionCooldown(message) {
+    const match = message.match(/cooldown for (\d+)m\s*(\d+)s/);
+    if (match) {
+      const remaining = parseInt(match[1]) * 60 + parseInt(match[2]);
+      this._potionCooldownUntil = Math.floor(Date.now() / 1000) + remaining;
+    }
+  }
+
   async healIfLow() {
     const hp = this.character.hp_current || 0;
     const maxHp = this.character.hp_max || 100;
     if (hp >= maxHp * 0.3) return false;
+    const now = Math.floor(Date.now() / 1000);
+    if (this._potionCooldownUntil && now < this._potionCooldownUntil) {
+      log(this.name, `Potion cooldown: ${Math.round((this._potionCooldownUntil - now) / 60)}m remaining`);
+      return false;
+    }
     log(this.name, `HP ${hp}/${maxHp} — healing`);
     try {
       const inventory = await api('GET', '/game/inventory', null, this.token);
@@ -714,6 +727,8 @@ class TestBot {
           return true;
         } catch (e) {
           log(this.name, `Heal potion use failed: ${e.message}`);
+          this._setPotionCooldown(e.message);
+          return false;
         }
       }
       // Buy full elixir from shop (5💎)
@@ -735,7 +750,8 @@ class TestBot {
               log(this.name, 'Bought and used Full Elixir (5💎)');
               return true;
             } catch (e) {
-              log(this.name, `Full Elixir use failed (cooldown?): ${e.message}`);
+              log(this.name, `Full Elixir use failed (cooldown): ${e.message}`);
+              this._setPotionCooldown(e.message);
             }
           }
         } catch (e) {
@@ -984,12 +1000,11 @@ class TestBot {
     if (hour >= 0 && hour < 6) this.tournamentJoined = false;
 
     await this.healIfLow();
-    await this.trainSkills();
+    await this.collectMission();
     const isDead = (this.character.hp_current || 0) <= 0;
     if (isDead) {
       log(this.name, `HP 0 — skipping combat activities this tick`);
     } else {
-      await this.collectMission();
       await this.useManaPotion();
       await this.doMission();
       await this.claimAchievements();
@@ -1002,6 +1017,7 @@ class TestBot {
       await this.activateAllPremium();
       await this.doUpgradeCycle();
     }
+    await this.trainSkills();
     await this.refreshCharacter();
 
     // Report progression status periodically
