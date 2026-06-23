@@ -148,6 +148,8 @@ class TestBot {
     this._diffTier = prog?.diffTier ?? 0;
     this._tutorialDone = prog?.tutorialDone ?? false;
     this._tierStats = prog?.tierStats ?? {};
+    this._lastLootboxLevel = prog?.lastLootboxLevel ?? 0;
+    this._lootboxSetup = this._lastLootboxLevel > 0;
   }
 
   _persistProgression() {
@@ -158,6 +160,7 @@ class TestBot {
       diffTier: this._diffTier,
       tutorialDone: this._tutorialDone,
       tierStats: this._tierStats,
+      lastLootboxLevel: this._lastLootboxLevel,
     };
     saveMemory(mem);
   }
@@ -298,19 +301,23 @@ class TestBot {
   }
 
   async buyAndOpenLootboxes() {
-    if (this._lootboxSetup) return;
+    const lvl = this.character?.level || 1;
+    if (this._lootboxSetup && (lvl - this._lastLootboxLevel) < 5) return;
     try {
       await this.openAllLootboxes();
       await this.equipBest();
       if (!(await this.hasEmptySlots())) {
         log(this.name, 'All gear slots filled');
         this._lootboxSetup = true;
+        this._lastLootboxLevel = lvl;
+        this._persistProgression();
         return;
       }
       for (let attempt = 0; attempt < 5; attempt++) {
         await this.refreshCharacter();
         const gems = this.character.gems || 0;
-        const canBuy = Math.min(30, Math.floor(gems / 5));
+        const reserved = 5;
+        const canBuy = Math.min(30, Math.floor(Math.max(0, gems - reserved) / 5));
         if (canBuy < 1) { break; }
         log(this.name, `Buying ${canBuy} epic lootboxes (${canBuy * 5}💎)`);
         for (let i = 0; i < canBuy; i++) {
@@ -325,7 +332,9 @@ class TestBot {
         }
       }
       this._lootboxSetup = true;
-      log(this.name, 'Lootbox setup done');
+      this._lastLootboxLevel = lvl;
+      this._persistProgression();
+      log(this.name, `Lootbox setup done (next check at level ${lvl + 5})`);
     } catch (e) {
       log(this.name, `Lootbox setup failed: ${e.message}`);
     }
@@ -389,6 +398,34 @@ class TestBot {
         }
       }
     } catch (e) {}
+  }
+
+  async sellWorstGear() {
+    try {
+      const inventory = await api('GET', '/game/inventory', null, this.token);
+      const items = inventory.items || [];
+      const equipped = items.filter(i => i.equipped);
+      const equippedSlots = new Set();
+      for (const eq of equipped) {
+        try {
+          const d = typeof eq.item_data === 'string' ? JSON.parse(eq.item_data) : eq.item_data;
+          if (d.slot) equippedSlots.add(d.slot);
+        } catch {}
+      }
+      let sold = 0;
+      for (const item of items) {
+        if (item.equipped) continue;
+        if (item.item_type !== 'equipment') continue;
+        try {
+          const d = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+          if (!d.slot || !equippedSlots.has(d.slot)) continue;
+          await api('POST', `/game/sell/${item.id}`, null, this.token);
+          sold++;
+          await sleep(100);
+        } catch {}
+      }
+      if (sold > 0) log(this.name, `Sold ${sold} weaker gear items`);
+    } catch {}
   }
 
   // ── Shop Gear (buy missing slots from shop) ────────────────────────────
@@ -464,6 +501,7 @@ class TestBot {
     // 2. Open any existing lootboxes + buy more
     await this.buyAndOpenLootboxes();
     await this.equipBest();
+    await this.sellWorstGear();
 
     // 3. Claim any available achievements for gold
     await this.claimAchievements();
@@ -663,29 +701,24 @@ class TestBot {
         log(this.name, 'Used health potion');
         return true;
       }
-      // Buy from shop
-      const shop = await api('GET', '/game/shop/items', null, this.token);
-      const fullPots = (shop.items || []).filter(i =>
-        i.effect?.type === 'heal_full' && i.price <= ((i.priceType === 'gems' ? this.character.gems : this.character.gold) || 0)
-      );
-      fullPots.sort((a, b) => (a.price || 0) - (b.price || 0));
-      if (fullPots.length > 0) {
-        const bestPot = fullPots[0];
-        const buyResult = await api('POST', '/game/shop/buy', { item: { id: bestPot.id, category: 'consumable' } }, this.token);
-        if (buyResult.character) this.character = buyResult.character;
-        await sleep(200);
-        const inv2 = await api('GET', '/game/inventory', null, this.token);
-        const pot = (inv2.items || []).find(i => {
-          try {
-            const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
-            return d.id === bestPot.id;
-          } catch { return false; }
-        });
-        if (pot) {
-          await api('POST', `/game/use/${pot.id}`, null, this.token);
-          log(this.name, `Bought and used ${bestPot.name}`);
-        }
-        return true;
+      // Buy full elixir from shop (5💎)
+      if ((this.character.gems || 0) >= 5) {
+        try {
+          await api('POST', '/game/shop/buy', { item: { id: 'potion_full_elixir', category: 'consumable' } }, this.token);
+          await sleep(200);
+          const inv2 = await api('GET', '/game/inventory', null, this.token);
+          const pot = (inv2.items || []).find(i => {
+            try {
+              const d = typeof i.item_data === 'string' ? JSON.parse(i.item_data) : i.item_data;
+              return d.effect?.type === 'heal_full';
+            } catch { return false; }
+          });
+          if (pot) {
+            await api('POST', `/game/use/${pot.id}`, null, this.token);
+            log(this.name, 'Bought and used Full Elixir (5💎)');
+            return true;
+          }
+        } catch {}
       }
       log(this.name, 'No health potions');
       return false;
@@ -855,8 +888,10 @@ class TestBot {
     await this.useManaPotion();
     await this.doMission();
     await this.claimAchievements();
+    await this.buyAndOpenLootboxes();
     await this.openAllLootboxes();
     await this.equipBest();
+    await this.sellWorstGear();
     await this.feedElemental();
     await this.doPvp();
     await this.activateAllPremium();
