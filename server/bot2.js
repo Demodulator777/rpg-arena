@@ -603,15 +603,18 @@ class TestBot {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.missionEnd) return false;
 
-      const hp = this.character.hp_current || 0;
-      const maxHp = this.character.hp_max || 100;
-      if (hp <= 0) {
-        log(this.name, `HP 0 — skipping mission`);
-        return false;
-      }
-      if (hp < maxHp * 0.3) {
-        log(this.name, `HP ${hp}/${maxHp} — waiting for heal`);
-        return false;
+      const isTutorial = (this.character.wins || 0) < 4;
+      if (!isTutorial) {
+        const hp = this.character.hp_current || 0;
+        const maxHp = this.character.hp_max || 100;
+        if (hp <= 0) {
+          log(this.name, `HP 0 — skipping mission`);
+          return false;
+        }
+        if (hp < maxHp * 0.3) {
+          log(this.name, `HP ${hp}/${maxHp} — waiting for heal`);
+          return false;
+        }
       }
 
       const zoneData = ZONE_PROGRESSION[this._zoneIndex];
@@ -861,6 +864,8 @@ class TestBot {
     try {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.cooldowns.pvp) return false;
+      // Complete tutorial (4 forced wins) before PvP
+      if ((this.character.wins || 0) < 4) return false;
       // Skip PvP while holding more than 10k gold to avoid losing it
       if ((this.character.gold || 0) > 10000) return false;
       const hp = this.character.hp_current || 0;
