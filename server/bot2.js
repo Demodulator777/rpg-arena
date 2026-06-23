@@ -15,16 +15,16 @@ const ACCOUNTS = [
   { username: 'b2_warlock', password: 'botpass123', class: 'mage' },
   { username: 'b2_shadow',  password: 'botpass123', class: 'rogue' },
   // Epic-name bots
-  { username: 'xX_Sh4d0w_Xx',  password: 'botpass123', class: 'rogue',   startBuild: 3 },
-  { username: 'Cr1ms0n_R34p3r', password: 'botpass123', class: 'warrior' },
-  { username: 'VoïdWalker',    password: 'botpass123', class: 'mage'    },
-  { username: 'Lùnar_Tiger',   password: 'botpass123', class: 'rogue',   startBuild: 3 },
-  { username: 'Blaze_Fury',    password: 'botpass123', class: 'warrior', startBuild: 3 },
-  { username: 'Ragnarök',      password: 'botpass123', class: 'warrior' },
-  { username: 'N3cr0m4nc3r',   password: 'botpass123', class: 'mage',    startBuild: 3 },
-  { username: 'NïghtHawk42',   password: 'botpass123', class: 'paladin' },
-  { username: 'Shadow_Sp1r1t', password: 'botpass123', class: 'rogue'   },
-  { username: 'Ärc4nus',       password: 'botpass123', class: 'mage'    },
+  { username: 'xX_Sh4d0w_Xx',  password: 'botpass123', class: 'rogue',   startBuild: 3, skipPvp: true },
+  { username: 'Cr1ms0n_R34p3r', password: 'botpass123', class: 'warrior', skipPvp: true },
+  { username: 'VoïdWalker',    password: 'botpass123', class: 'mage',    skipPvp: true },
+  { username: 'Lùnar_Tiger',   password: 'botpass123', class: 'rogue',   startBuild: 3, skipPvp: true },
+  { username: 'Blaze_Fury',    password: 'botpass123', class: 'warrior', startBuild: 3, skipPvp: true },
+  { username: 'Ragnarök',      password: 'botpass123', class: 'warrior', skipPvp: true },
+  { username: 'N3cr0m4nc3r',   password: 'botpass123', class: 'mage',    startBuild: 3, skipPvp: true },
+  { username: 'NïghtHawk42',   password: 'botpass123', class: 'paladin', skipPvp: true },
+  { username: 'Shadow_Sp1r1t', password: 'botpass123', class: 'rogue',   skipPvp: true },
+  { username: 'Ärc4nus',       password: 'botpass123', class: 'mage',    skipPvp: true },
 ];
 
 // Each class has multiple build strategies to test
@@ -131,6 +131,7 @@ class TestBot {
     this.tournamentJoined = false;
     this._lootboxSetup = false;
     this._skipDungeon = false;
+    this._skipPvp = cfg.skipPvp ?? false;
 
     // Build system
     const classBuilds = BUILDS[cfg.class] || BUILDS.warrior;
@@ -864,6 +865,8 @@ class TestBot {
     try {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.cooldowns.pvp) return false;
+      // Skip PvP if configured to skip
+      if (this._skipPvp) return false;
       // Complete tutorial (4 forced wins) before PvP
       if ((this.character.wins || 0) < 4) return false;
       // Skip PvP while holding more than 10k gold to avoid losing it
