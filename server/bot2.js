@@ -132,6 +132,7 @@ class TestBot {
     this._lootboxSetup = false;
     this._skipDungeon = false;
     this._skipPvp = cfg.skipPvp ?? false;
+    this._guardianWinThreshold = {};
 
     // Build system
     const classBuilds = BUILDS[cfg.class] || BUILDS.warrior;
@@ -578,14 +579,38 @@ class TestBot {
       await this.refreshCharacter();
       const loc = this.character.location;
       if (loc === zoneKey) return true;
+      const now = Math.floor(Date.now() / 1000);
+
+      // Check travel status — may trigger gatekeeper fight
       if (this.character.travel_target) {
         const status = await api('GET', '/game/travel/status', null, this.token);
-        if (status && status.travelEnd && status.travelEnd > Math.floor(Date.now() / 1000)) return false;
+        if (status.encounterResult && status.encounterResult.won === false) {
+          const lostZone = status.encounterResult.targetZone;
+          // Revert zone progression — stay in current zone, do hard missions
+          const curLoc = status.character?.location || loc;
+          const curIdx = ZONE_PROGRESSION.findIndex(z => z.zone === curLoc);
+          if (curIdx >= 0 && this._zoneIndex !== curIdx) {
+            this._zoneIndex = curIdx;
+            this._diffTier = 2;
+            this._tierStats[`${curIdx}_2`] = { wins: 0, losses: 0, draws: 0, battles: 0 };
+            this._persistProgression();
+            log(this.name, `Guardian loss — reverted to ${curLoc} hard`);
+          }
+          // Need 15 more wins before retrying this zone
+          this._guardianWinThreshold[lostZone] = (this.character.wins || 0) + 15;
+          if (status.character) this.character = status.character;
+          log(this.name, `Lost to ${status.encounterResult.guardianName} — need 15 more wins before retrying ${lostZone}`);
+        }
+        if (status && status.travelEnd && status.travelEnd > now) return false;
       }
+
+      // Build candidates, skip zones with guardian win threshold
       const zonePath = ['swamp', 'mountains', 'ruins', 'dark_city'];
       const candidates = [zoneKey, ...zonePath.slice(0, zonePath.indexOf(zoneKey)).reverse()];
       for (const z of candidates) {
         if (z === loc) continue;
+        const threshold = this._guardianWinThreshold[z];
+        if (threshold && (this.character.wins || 0) < threshold) continue;
         try {
           await api('POST', '/game/travel/start', { targetZone: z }, this.token);
           log(this.name, `Traveling to ${z}`);
@@ -695,12 +720,16 @@ class TestBot {
         log(this.name, `Advancing ${oldDiff} → ${DIFF_LABELS[this._diffTier]} in ${zoneData.zone} (${stats.wins}W/${stats.losses}L)`);
         this._tierStats[key] = { wins: 0, losses: 0, draws: 0, battles: 0 };
       } else if (this._zoneIndex < ZONE_PROGRESSION.length - 1) {
-        log(this.name, `Hard mastered in ${zoneData.zone} (${stats.wins}W/${stats.losses}L) — moving to ${ZONE_PROGRESSION[this._zoneIndex + 1].zone}`);
-        this._zoneIndex++;
-        this._diffTier = 0;
-        // Don't reset tierStats for previous zone — keep for history
-        this._tierStats[`${this._zoneIndex}_0`] = { wins: 0, losses: 0, draws: 0, battles: 0 };
-        // Will attempt travel on next doMission()
+        const nextZone = ZONE_PROGRESSION[this._zoneIndex + 1].zone;
+        const threshold = this._guardianWinThreshold[nextZone];
+        if (threshold && (this.character.wins || 0) < threshold) {
+          log(this.name, `Hard mastered but guardian blocks ${nextZone} — need ${threshold - (this.character.wins || 0)} more wins`);
+        } else {
+          log(this.name, `Hard mastered in ${zoneData.zone} (${stats.wins}W/${stats.losses}L) — moving to ${nextZone}`);
+          this._zoneIndex++;
+          this._diffTier = 0;
+          this._tierStats[`${this._zoneIndex}_0`] = { wins: 0, losses: 0, draws: 0, battles: 0 };
+        }
       }
     } else if (winRate < 0.3 && this._diffTier > 0 && stats.battles >= 10) {
       const oldDiff = DIFF_LABELS[this._diffTier];
