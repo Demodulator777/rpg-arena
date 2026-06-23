@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const ACCOUNTS = [
+  // Original test bots
   { username: 'b2_warrior', password: 'botpass123', class: 'warrior' },
   { username: 'b2_mage',    password: 'botpass123', class: 'mage' },
   { username: 'b2_rogue',   password: 'botpass123', class: 'rogue' },
@@ -13,29 +14,43 @@ const ACCOUNTS = [
   { username: 'b2_knight',  password: 'botpass123', class: 'warrior' },
   { username: 'b2_warlock', password: 'botpass123', class: 'mage' },
   { username: 'b2_shadow',  password: 'botpass123', class: 'rogue' },
+  // Epic-name bots
+  { username: 'xX_Sh4d0w_Xx',  password: 'botpass123', class: 'rogue',   startBuild: 3 },
+  { username: 'Cr1ms0n_R34p3r', password: 'botpass123', class: 'warrior' },
+  { username: 'VoïdWalker',    password: 'botpass123', class: 'mage'    },
+  { username: 'Lùnar_Tiger',   password: 'botpass123', class: 'rogue',   startBuild: 3 },
+  { username: 'Blaze_Fury',    password: 'botpass123', class: 'warrior', startBuild: 3 },
+  { username: 'Ragnarök',      password: 'botpass123', class: 'warrior' },
+  { username: 'N3cr0m4nc3r',   password: 'botpass123', class: 'mage',    startBuild: 3 },
+  { username: 'NïghtHawk42',   password: 'botpass123', class: 'paladin' },
+  { username: 'Shadow_Sp1r1t', password: 'botpass123', class: 'rogue'   },
+  { username: 'Ärc4nus',       password: 'botpass123', class: 'mage'    },
 ];
 
 // Each class has multiple build strategies to test
 const BUILDS = {
   warrior: [
-    { name: 'heavy_str', focus: ['strength', 'hit_chance', 'crit_chance'],     gear: ['strength', 'hit_chance', 'crit_chance'] },
-    { name: 'tank',      focus: ['vitality', 'defense', 'hit_chance'],         gear: ['defense', 'vitality', 'hit_chance'] },
-    { name: 'balanced',  focus: ['strength', 'defense', 'hit_chance','crit_chance'], gear: ['strength', 'defense', 'hit_chance', 'crit_chance'] },
+    { name: 'heavy_str',   focus: ['strength', 'hit_chance', 'crit_chance'],                    gear: ['strength', 'hit_chance', 'crit_chance'] },
+    { name: 'tank',        focus: ['vitality', 'defense', 'hit_chance'],                        gear: ['defense', 'vitality', 'hit_chance'] },
+    { name: 'balanced',    focus: ['strength', 'defense', 'hit_chance','crit_chance'],           gear: ['strength', 'defense', 'hit_chance', 'crit_chance'] },
+    { name: 'crit_meta',   focus: ['crit_chance', 'hit_chance', 'crit_chance', 'hit_chance', 'strength'], gear: ['crit_chance', 'hit_chance', 'strength', 'agility'] },
   ],
   mage: [
-    { name: 'glass_cannon', focus: ['magic', 'crit_chance', 'hit_chance'],     gear: ['magic', 'crit_chance', 'hit_chance'] },
-    { name: 'battlemage',   focus: ['magic', 'defense', 'hit_chance'],         gear: ['magic', 'defense', 'hit_chance'] },
-    { name: 'swift_mage',   focus: ['agility', 'magic', 'crit_chance'],        gear: ['magic', 'agility', 'crit_chance'] },
+    { name: 'glass_cannon', focus: ['magic', 'crit_chance', 'hit_chance'],                      gear: ['magic', 'crit_chance', 'hit_chance'] },
+    { name: 'battlemage',   focus: ['magic', 'defense', 'hit_chance'],                          gear: ['magic', 'defense', 'hit_chance'] },
+    { name: 'swift_mage',   focus: ['agility', 'magic', 'crit_chance'],                         gear: ['magic', 'agility', 'crit_chance'] },
+    { name: 'glass_meta',   focus: ['crit_chance', 'hit_chance', 'crit_chance', 'hit_chance', 'magic'], gear: ['crit_chance', 'hit_chance', 'magic', 'agility'] },
   ],
   rogue: [
-    { name: 'shadow_blade', focus: ['agility', 'crit_chance', 'hit_chance'],   gear: ['agility', 'crit_chance', 'hit_chance'] },
-    { name: 'assassin',     focus: ['strength', 'agility', 'crit_chance'],     gear: ['strength', 'agility', 'crit_chance'] },
-    { name: 'dancer',       focus: ['agility', 'vitality', 'hit_chance'],      gear: ['agility', 'hit_chance', 'crit_chance'] },
+    { name: 'shadow_blade', focus: ['agility', 'crit_chance', 'hit_chance'],                    gear: ['agility', 'crit_chance', 'hit_chance'] },
+    { name: 'assassin',     focus: ['strength', 'agility', 'crit_chance'],                      gear: ['strength', 'agility', 'crit_chance'] },
+    { name: 'dancer',       focus: ['agility', 'vitality', 'hit_chance'],                       gear: ['agility', 'hit_chance', 'crit_chance'] },
+    { name: 'shadow_meta',  focus: ['crit_chance', 'hit_chance', 'crit_chance', 'hit_chance', 'agility'], gear: ['crit_chance', 'hit_chance', 'agility', 'strength'] },
   ],
   paladin: [
-    { name: 'holy_guard',   focus: ['strength', 'defense', 'crit_chance'],     gear: ['strength', 'defense', 'crit_chance'] },
-    { name: 'crusader',     focus: ['strength', 'magic', 'hit_chance'],        gear: ['strength', 'magic', 'hit_chance'] },
-    { name: 'templar',      focus: ['defense', 'vitality', 'hit_chance'],      gear: ['defense', 'vitality', 'hit_chance'] },
+    { name: 'holy_guard',   focus: ['strength', 'defense', 'crit_chance'],                      gear: ['strength', 'defense', 'crit_chance'] },
+    { name: 'crusader',     focus: ['strength', 'magic', 'hit_chance'],                         gear: ['strength', 'magic', 'hit_chance'] },
+    { name: 'templar',      focus: ['defense', 'vitality', 'hit_chance'],                       gear: ['defense', 'vitality', 'hit_chance'] },
   ],
 };
 
@@ -129,7 +144,7 @@ class TestBot {
       this._consecutiveLosses = state.consecutiveLosses || 0;
       this._totalBattles = state.totalBattles || 0;
     } else {
-      this._buildIndex = 0;
+      this._buildIndex = cfg.startBuild ?? 0;
       this._buildWins = 0;
       this._buildLosses = 0;
       this._buildBattles = 0;
