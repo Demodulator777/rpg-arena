@@ -7,7 +7,7 @@ const path = require('path');
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 async function main() {
-  const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(PROJECT_ROOT, 'data', 'rpg-arena.db')}`;
+  const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(PROJECT_ROOT, 'data', 'game.db')}`;
   const db = createClient({ url: dbUrl });
 
   // 1. Ensure column exists
