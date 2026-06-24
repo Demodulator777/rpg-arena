@@ -1176,6 +1176,9 @@ class BotAccount {
   // ── Main loop ────────────────────────────────────────────────────────────
   async tick() {
     if (!this.token) await this.ensureAuth();
+    if (typeof this._tickCount === 'undefined') this._tickCount = 0;
+    this._tickCount++;
+    if (this._tickCount === 1 || this._tickCount % 4 === 0) log(this.name, `Tick #${this._tickCount} start`);
 
     // Check tournaments 2h before (19:30) to 2h after (23:30)
     const now = new Date();
@@ -1209,6 +1212,7 @@ class BotAccount {
       await this.doDungeonRun();
     }
     await this.refreshCharacter();
+    if (this._tickCount % 4 === 0) log(this.name, `Tick #${this._tickCount} complete`);
   }
 }
 
