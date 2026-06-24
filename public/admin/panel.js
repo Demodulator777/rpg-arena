@@ -312,13 +312,13 @@ function loadCsp() {
     API('/admin/csp-violations').then(function(data) {
         if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No violations reported</p>'; return; }
         el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'id\')">#</th>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'reported_at\')">Reported</th>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'character_name\')">Character</th>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'user_id\')">User ID</th>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'blocked_uri\')">Blocked URI</th>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'violated_directive\')">Directive</th>' +
-            '<th class="sortable" onclick="sortTable(\'csp\',\'document_uri\')">Document</th>' +
+            '<th class="sortable" data-tab="csp" data-col="id">#</th>' +
+            '<th class="sortable" data-tab="csp" data-col="reported_at">Reported</th>' +
+            '<th class="sortable" data-tab="csp" data-col="character_name">Character</th>' +
+            '<th class="sortable" data-tab="csp" data-col="user_id">User ID</th>' +
+            '<th class="sortable" data-tab="csp" data-col="blocked_uri">Blocked URI</th>' +
+            '<th class="sortable" data-tab="csp" data-col="violated_directive">Directive</th>' +
+            '<th class="sortable" data-tab="csp" data-col="document_uri">Document</th>' +
         '</tr></thead><tbody id="csp-tbody"></tbody></table></div>';
         window._cspData = data;
         renderCspTable(data);
@@ -337,12 +337,12 @@ function loadBugs() {
     API('/admin/bug-reports').then(function(data) {
         if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No bug reports</p>'; return; }
         el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
-            '<th class="sortable" onclick="sortTable(\'bugs\',\'id\')">#</th>' +
-            '<th class="sortable" onclick="sortTable(\'bugs\',\'report_timestamp\')">Date</th>' +
-            '<th class="sortable" onclick="sortTable(\'bugs\',\'username\')">User</th>' +
-            '<th class="sortable" onclick="sortTable(\'bugs\',\'character_name\')">Character</th>' +
-            '<th class="sortable" onclick="sortTable(\'bugs\',\'category\')">Category</th>' +
-            '<th class="sortable" onclick="sortTable(\'bugs\',\'title\')">Title</th>' +
+            '<th class="sortable" data-tab="bugs" data-col="id">#</th>' +
+            '<th class="sortable" data-tab="bugs" data-col="report_timestamp">Date</th>' +
+            '<th class="sortable" data-tab="bugs" data-col="username">User</th>' +
+            '<th class="sortable" data-tab="bugs" data-col="character_name">Character</th>' +
+            '<th class="sortable" data-tab="bugs" data-col="category">Category</th>' +
+            '<th class="sortable" data-tab="bugs" data-col="title">Title</th>' +
             '<th>Screenshot</th>' +
         '</tr></thead><tbody id="bugs-tbody"></tbody></table></div>';
         window._bugsData = data;
@@ -413,11 +413,11 @@ function loadActions() {
         if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No actions recorded</p>'; return; }
         var filterHtml = '<div style="margin-bottom:10px"><input id="actions-filter" type="text" placeholder="Filter by player name..." style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #2a2a35;background:#14141e;color:#e0dcd0;font-size:13px;outline:none"></div>';
         el.innerHTML = filterHtml + '<div class="table-wrap"><table><thead><tr>' +
-            '<th class="sortable" onclick="sortTable(\'actions\',\'ts\')">Time</th>' +
-            '<th class="sortable" onclick="sortTable(\'actions\',\'type\')">Type</th>' +
-            '<th class="sortable" onclick="sortTable(\'actions\',\'char_name\')">Player</th>' +
-            '<th class="sortable" onclick="sortTable(\'actions\',\'label\')">Action</th>' +
-            '<th class="sortable" onclick="sortTable(\'actions\',\'detail\')">Detail</th>' +
+            '<th class="sortable" data-tab="actions" data-col="ts">Time</th>' +
+            '<th class="sortable" data-tab="actions" data-col="type">Type</th>' +
+            '<th class="sortable" data-tab="actions" data-col="char_name">Player</th>' +
+            '<th class="sortable" data-tab="actions" data-col="label">Action</th>' +
+            '<th class="sortable" data-tab="actions" data-col="detail">Detail</th>' +
         '</tr></thead><tbody id="actions-tbody"></tbody></table></div>';
         window._actionsData = data;
         renderActionsTable(data);
@@ -447,6 +447,13 @@ function renderActionsTable(data) {
     }).join('');
 }
 
+
+// CSP-safe sortable header delegation (replaces inline onclick)
+document.addEventListener('click', function(e) {
+    var th = e.target.closest('.sortable[data-tab][data-col]');
+    if (!th) return;
+    sortTable(th.getAttribute('data-tab'), th.getAttribute('data-col'));
+});
 
 function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -661,7 +668,6 @@ function loadBots() {
             var hp = b.hpMax > 0 ? (b.hp || 0) + '/' + b.hpMax : '-';
             var toggleLabel = b.enabled ? 'Stop' : 'Start';
             var verLabel = b.script_version === 'bot2' ? 'v2' : 'v1';
-            var dungeonIcon = b.dungeonEnabled ? '⛰️' : '🚫';
             var dungeonLabel = b.dungeonEnabled ? 'On' : 'Off';
             return '<tr>' +
                 '<td style="padding:6px 12px">' + esc(b.username) + '</td>' +
@@ -672,15 +678,27 @@ function loadBots() {
                 '<td style="padding:6px 12px">' + hp + '</td>' +
                 '<td style="padding:6px 12px">' + (b.gold || 0) + '</td>' +
                 '<td style="padding:6px 12px;white-space:nowrap">' +
-                    '<button class="db-btn" onclick="toggleBot(' + b.id + ')">' + toggleLabel + '</button> ' +
-                    '<button class="db-btn" onclick="switchBotVersion(' + b.id + ')">→ v' + (b.script_version === 'bot2' ? '1' : '2') + '</button> ' +
-                    '<button class="db-btn" onclick="toggleBotDungeon(' + b.id + ')">' + dungeonIcon + ' ' + dungeonLabel + '</button> ' +
-                    '<button class="db-btn db-btn-del" onclick="deleteBot(' + b.id + ')">✕</button>' +
+                    '<button class="db-btn" data-bot-id="' + b.id + '" data-action="toggle">' + toggleLabel + '</button> ' +
+                    '<button class="db-btn" data-bot-id="' + b.id + '" data-action="switch-version">→v' + (b.script_version === 'bot2' ? '1' : '2') + '</button> ' +
+                    '<button class="db-btn" data-bot-id="' + b.id + '" data-action="dungeon-toggle">DNG ' + dungeonLabel + '</button> ' +
+                    '<button class="db-btn db-btn-del" data-bot-id="' + b.id + '" data-action="delete">X</button>' +
                 '</td></tr>';
         }).join('');
         el.innerHTML = '<div class="table-wrap"><table class="sortable"><thead><tr>' +
             '<th>Username</th><th>Class</th><th>Ver</th><th>Status</th><th>Lv</th><th>HP</th><th>Gold</th><th>Actions</th>' +
-            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+            '</tr></thead><tbody id="bots-tbody">' + rows + '</tbody></table></div>';
+
+        // Event delegation for CSP-safe bot actions (no inline onclick)
+        document.getElementById('bots-tbody').addEventListener('click', function(e) {
+            var btn = e.target.closest('[data-bot-id]');
+            if (!btn) return;
+            var id = parseInt(btn.getAttribute('data-bot-id'));
+            var action = btn.getAttribute('data-action');
+            if (action === 'toggle') toggleBot(id);
+            else if (action === 'switch-version') switchBotVersion(id);
+            else if (action === 'dungeon-toggle') toggleBotDungeon(id);
+            else if (action === 'delete') deleteBot(id);
+        });
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
 }
 
