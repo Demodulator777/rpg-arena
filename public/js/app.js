@@ -5741,11 +5741,13 @@ function isWeaponSuitedForClass(weapon, cls) {
   const name = (weapon.name || '').toLowerCase();
   const wpnType = weapon.type || weapon.weaponType || weapon.weapon_type || '';
   const is = (s) => name.includes(s) || wpnType === s;
-  if (cls === 'rogue')   return is('dagger') || is('bow') || is('scythe');
-  if (cls === 'mage')    return is('scythe') || is('staff');
-  if (cls === 'paladin') return is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword');
-  if (cls === 'warrior') return !(is('staff') || is('dagger'));
-  return true;
+  let result = true;
+  if (cls === 'rogue')   result = is('dagger') || is('bow') || is('scythe');
+  else if (cls === 'mage')    result = is('scythe') || is('staff');
+  else if (cls === 'paladin') result = is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword');
+  else if (cls === 'warrior') result = !(is('staff') || is('dagger'));
+  if (!result) console.log('[WPNDEBUG]', weapon.name, 'type='+weapon.type, 'weaponType='+weapon.weaponType, 'weapon_type='+weapon.weapon_type, 'wpnType='+wpnType, 'name='+name, 'cls='+cls);
+  return result;
 }
 const CLASS_WARN_HTML = '<div style="color:#e74c3c;font-size:0.72rem;margin-top:4px;padding:4px 6px;background:rgba(231,76,60,0.1);border-radius:4px">⚠️ This weapon is not suited for your class</div>';
 
