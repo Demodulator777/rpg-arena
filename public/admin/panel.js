@@ -31,6 +31,7 @@ function renderLayout() {
             '<button class="tab-btn" data-tab="db">Database</button>' +
             '<button class="tab-btn" data-tab="tournaments">Tournaments</button>' +
             '<button class="tab-btn" data-tab="actions">Action Log</button>' +
+            '<button class="tab-btn" data-tab="bots">Bots</button>' +
         '</div>' +
         '<div id="tab-csp" class="tab-content active"><div class="loading">Loading CSP violations...</div></div>' +
         '<div id="tab-bugs" class="tab-content"><div class="loading">Loading bug reports...</div></div>' +
@@ -38,7 +39,8 @@ function renderLayout() {
         '<div id="tab-rewards" class="tab-content"><div class="loading">Loading rewards...</div></div>' +
         '<div id="tab-db" class="tab-content"><div class="loading">Loading database...</div></div>' +
         '<div id="tab-tournaments" class="tab-content"><div class="loading">Loading tournaments...</div></div>' +
-        '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>';
+        '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>' +
+        '<div id="tab-bots" class="tab-content"><div class="loading">Loading bots...</div></div>';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -61,6 +63,7 @@ function loadTab(name) {
     else if (name === 'db') loadDbAdmin();
     else if (name === 'tournaments') loadTournaments();
     else if (name === 'actions') loadActions();
+    else if (name === 'bots') loadBots();
 }
 
 function loadDbAdmin() {
@@ -643,6 +646,72 @@ function loadTournaments() {
     }).catch(function(e) {
         el.innerHTML = '<p class="error">' + e.message + '</p>';
     });
+}
+
+function loadBots() {
+    var el = document.getElementById('tab-bots');
+    el.innerHTML = '<div class="loading">Loading bots...</div>';
+    API('/admin/bots').then(function(data) {
+        if (!data.length) {
+            el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No bot configs. Add one via the Database tab (bot_configs table).</p>';
+            return;
+        }
+        var rows = data.map(function(b) {
+            var running = b.running ? '<span style="color:#4ade80">● Running</span>' : '<span style="color:#6a6a70">● Stopped</span>';
+            var hp = b.hpMax > 0 ? (b.hp || 0) + '/' + b.hpMax : '-';
+            var toggleLabel = b.enabled ? 'Stop' : 'Start';
+            var verLabel = b.script_version === 'bot2' ? 'v2' : 'v1';
+            var dungeonIcon = b.dungeonEnabled ? '⛰️' : '🚫';
+            var dungeonLabel = b.dungeonEnabled ? 'On' : 'Off';
+            return '<tr>' +
+                '<td style="padding:6px 12px">' + esc(b.username) + '</td>' +
+                '<td style="padding:6px 12px">' + esc(b.class) + '</td>' +
+                '<td style="padding:6px 12px">' + verLabel + '</td>' +
+                '<td style="padding:6px 12px">' + running + '</td>' +
+                '<td style="padding:6px 12px">' + (b.level || 0) + '</td>' +
+                '<td style="padding:6px 12px">' + hp + '</td>' +
+                '<td style="padding:6px 12px">' + (b.gold || 0) + '</td>' +
+                '<td style="padding:6px 12px;white-space:nowrap">' +
+                    '<button class="db-btn" onclick="toggleBot(' + b.id + ')">' + toggleLabel + '</button> ' +
+                    '<button class="db-btn" onclick="switchBotVersion(' + b.id + ')">→ v' + (b.script_version === 'bot2' ? '1' : '2') + '</button> ' +
+                    '<button class="db-btn" onclick="toggleBotDungeon(' + b.id + ')">' + dungeonIcon + ' ' + dungeonLabel + '</button> ' +
+                    '<button class="db-btn db-btn-del" onclick="deleteBot(' + b.id + ')">✕</button>' +
+                '</td></tr>';
+        }).join('');
+        el.innerHTML = '<div class="table-wrap"><table class="sortable"><thead><tr>' +
+            '<th>Username</th><th>Class</th><th>Ver</th><th>Status</th><th>Lv</th><th>HP</th><th>Gold</th><th>Actions</th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
+}
+
+function toggleBot(id) {
+    adminApi('POST', '/game/admin/bots/' + id + '/toggle').then(function(r) {
+        if (r.error) { alert(r.error); return; }
+        loadBots();
+    }).catch(function(e) { alert(e.message); loadBots(); });
+}
+
+function switchBotVersion(id) {
+    if (!confirm('Switch bot version? This will restart the bot.')) return;
+    adminApi('POST', '/game/admin/bots/' + id + '/switch-version').then(function(r) {
+        if (r.error) { alert(r.error); return; }
+        loadBots();
+    }).catch(function(e) { alert(e.message); loadBots(); });
+}
+
+function deleteBot(id) {
+    if (!confirm('Delete this bot config?')) return;
+    adminApi('DELETE', '/game/admin/bots/' + id).then(function(r) {
+        if (r.error) { alert(r.error); return; }
+        loadBots();
+    }).catch(function(e) { alert(e.message); loadBots(); });
+}
+
+function toggleBotDungeon(id) {
+    adminApi('POST', '/game/admin/bots/' + id + '/dungeon-toggle').then(function(r) {
+        if (r.error) { alert(r.error); return; }
+        loadBots();
+    }).catch(function(e) { alert(e.message); loadBots(); });
 }
 
 init();
