@@ -10,7 +10,9 @@ class BotRunner {
   }
 
   async init() {
+    botLogger.write('BotRunner', 'init() called — syncing from DB');
     await this._syncFromDb();
+    botLogger.write('BotRunner', `_syncFromDb done — ${this.instances.size} instance(s) running`);
     this._startLoop();
   }
 
@@ -70,7 +72,9 @@ class BotRunner {
   }
 
   _startLoop() {
+    botLogger.write('BotRunner', 'Tick loop starting (first tick in 5s, then every 15s)');
     const tick = async () => {
+      botLogger.write('BotRunner', `Tick fired — ${this.instances.size} bot(s) to process`);
       for (const [id, bot] of this.instances) {
         try {
           await bot.tick();
@@ -80,6 +84,7 @@ class BotRunner {
           console.error(`[BotRunner] ${name} tick error:`, e.message);
         }
       }
+      botLogger.write('BotRunner', 'Tick complete, scheduling next in 15s');
       this._timer = setTimeout(tick, 15000);
     };
     this._timer = setTimeout(tick, 5000);
