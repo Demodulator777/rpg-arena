@@ -261,6 +261,23 @@ let chatMentionSuggestions = [];
 let chatSuggestionTimer = null;
 let chatSuggestionRequestId = 0;
 let chatMentionRange = null;
+const CHAT_STATE_VERSION = 1;
+function bustStaleChatState() {
+    const ver = parseInt(localStorage.getItem('rpg_chat_state_version') || '0', 10);
+    if (ver < CHAT_STATE_VERSION) {
+        localStorage.removeItem('rpg_chat_editing_id');
+        localStorage.removeItem('rpg_chat_state_version');
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('rpg_chat_read_state_')) {
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch {}
+        localStorage.setItem('rpg_chat_state_version', String(CHAT_STATE_VERSION));
+    }
+}
 
 function isTutorialCharacter(char = character) {
     if (!char) return false;
@@ -9039,6 +9056,7 @@ async function pollChat() {
 }
 
 function syncChatPolling() {
+    bustStaleChatState();
     if (chatPollTimer) clearInterval(chatPollTimer);
     chatPollTimer = null;
     if (!isChatWidgetAvailable()) {
@@ -9804,7 +9822,14 @@ async function sendChatMessage() {
         ? String(recipientInput?.value || chatActivePmThread || chatPmTarget || '').trim()
         : '';
     // Check multiple sources for editing ID
-    const editingId = input?.dataset?.editingId || localStorage.getItem('rpg_chat_editing_id') || window._chatEditingId;
+    let editingId = input?.dataset?.editingId || localStorage.getItem('rpg_chat_editing_id') || window._chatEditingId;
+    // Validate editing ID still exists in loaded messages — if not, it's stale
+    if (editingId && !chatMessages.some(m => String(m.id) === String(editingId))) {
+        localStorage.removeItem('rpg_chat_editing_id');
+        delete window._chatEditingId;
+        if (input?.dataset) delete input.dataset.editingId;
+        editingId = null;
+    }
     
     if (!message) {
         setChatWidgetStatus('Message required.', true);
