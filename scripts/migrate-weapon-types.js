@@ -1,60 +1,88 @@
 // Run: node scripts/migrate-weapon-types.js
-// Populates weapon_type column from item_data JSON for all weapon equipment.
+// Derives weapon_type from item_data JSON field, weapon name, or known recipe overrides.
 
 const { createClient } = require('@libsql/client');
 const path = require('path');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
+const NAME_PATTERNS = [
+  ['scythe',   ['Spiteforged Trident', 'Fang of the Worldpyre', 'Voidborn Scythe']],
+  ['dagger',   ['Shadewalker\'s Kiss']],
+  ['staff',    []],
+  ['bow',      []],
+  ['spear',    []],
+  ['hammer',   ['Ironclad Warhammer']],
+  ['mace',     []],
+  ['sword',    ['Abyssal Blade']],
+  ['blade',    []],
+  ['axe',      []],
+];
+
 async function main() {
   const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(PROJECT_ROOT, 'data', 'game.db')}`;
   const db = createClient({ url: dbUrl });
 
-  // 1. Ensure column exists
+  // Ensure column exists
   try {
     await db.execute(`ALTER TABLE inventory ADD COLUMN weapon_type TEXT DEFAULT NULL`);
-    console.log('✅ Column weapon_type added (or already existed)');
+    console.log('✅ Column weapon_type added');
   } catch (e) {
-    console.log('ℹ️  Column add skipped:', e.message);
+    if (e.message?.includes('duplicate column')) console.log('ℹ️  Column already exists');
+    else console.log('ℹ️  Column add skipped:', e.message);
   }
 
-  // 2. Extract weaponType from item_data JSON (covers newly-crafted items that have it)
+  let total = 0;
+
+  // 1. Extract weaponType from JSON field (newly-crafted items)
   const r1 = await db.execute(`
-    UPDATE inventory
-    SET weapon_type = json_extract(item_data, '$.weaponType')
+    UPDATE inventory SET weapon_type = json_extract(item_data, '$.weaponType')
     WHERE item_type = 'equipment'
       AND weapon_type IS NULL
       AND json_extract(item_data, '$.slot') = 'weapon'
       AND json_extract(item_data, '$.weaponType') IS NOT NULL
   `);
-  console.log(`✅ Extracted weaponType from JSON: ${r1.rowsAffected ?? 0} rows`);
+  total += r1.rowsAffected ?? 0;
 
-  // 3. Hardcode known scythe weapons (Spiteforged Trident, Fang of the Worldpyre)
-  const r2 = await db.execute(`
-    UPDATE inventory
-    SET weapon_type = 'scythe'
-    WHERE item_type = 'equipment'
-      AND weapon_type IS NULL
-      AND json_extract(item_data, '$.slot') = 'weapon'
-      AND (
-        json_extract(item_data, '$.id') IN ('spiteforged_weapon', 'wyrmflame_weapon')
-        OR json_extract(item_data, '$.name') IN ('Spiteforged Trident', 'Fang of the Worldpyre')
-      )
-  `);
-  console.log(`✅ Set scythe for known recipes: ${r2.rowsAffected ?? 0} rows`);
+  // 2. Derive from name: for each type, match name containing the keyword
+  for (const [type, overrides] of NAME_PATTERNS) {
+    // Match by keyword in name (e.g. "Scythe" → scythe)
+    const rc = await db.execute({
+      sql: `UPDATE inventory SET weapon_type = ? WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon' AND json_extract(item_data, '$.name') LIKE ?`,
+      args: [type, `%${type[0].toUpperCase() + type.slice(1)}%`],
+    });
+    total += rc.rowsAffected ?? 0;
 
-  // 4. Fallback: anything with "scythe" in the name or weaponType in JSON already
-  const r3 = await db.execute(`
-    UPDATE inventory
-    SET weapon_type = 'scythe'
-    WHERE item_type = 'equipment'
-      AND weapon_type IS NULL
-      AND json_extract(item_data, '$.slot') = 'weapon'
-      AND json_extract(item_data, '$.weaponType') = 'scythe'
-  `);
-  console.log(`✅ Fallback scythe from JSON: ${r3.rowsAffected ?? 0} rows`);
+    // Match by specific recipe overrides (e.g. "Spiteforged Trident" → scythe)
+    for (const name of overrides) {
+      const ro = await db.execute({
+        sql: `UPDATE inventory SET weapon_type = ? WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon' AND (json_extract(item_data, '$.name') = ? OR json_extract(item_data, '$.id') = ?)`,
+        args: [type, name, name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')],
+      });
+      total += ro.rowsAffected ?? 0;
+    }
+  }
 
-  // 5. Summary
+  // 3. Handle weapons with known `id` that don't match by name (recipes with non-standard names)
+  const specificOverrides = [
+    ['scythe', 'spiteforged_weapon', 'Spiteforged Trident'],
+    ['scythe', 'wyrmflame_weapon', 'Fang of the Worldpyre'],
+    ['dagger', 'shadewalker_weapon', 'Shadewalker\'s Kiss'],
+    ['sword', 'eclipsed_seraph_weapon', 'Fallen Grace'],
+    ['hammer', 'ironclad_weapon', 'Ironclad Warhammer'],
+    ['spear', 'sentinel_weapon', 'Sentinel Spear'],
+  ];
+  for (const [type, recipeId, recipeName] of specificOverrides) {
+    const rs = await db.execute({
+      sql: `UPDATE inventory SET weapon_type = ? WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon' AND (json_extract(item_data, '$.name') = ? OR json_extract(item_data, '$.id') = ? OR json_extract(item_data, '$.name') LIKE ?)`,
+      args: [type, recipeName, recipeId, `%${recipeName.replace(/[^a-z0-9\s]/gi, '').trim()}%`],
+    });
+    total += rs.rowsAffected ?? 0;
+  }
+
+  console.log(`✅ Updated ${total} rows`);
+
+  // Summary
   const summary = await db.execute(`
     SELECT weapon_type, COUNT(*) AS cnt
     FROM inventory
@@ -70,7 +98,4 @@ async function main() {
   await db.close();
 }
 
-main().catch(e => {
-  console.error('Migration failed:', e);
-  process.exit(1);
-});
+main().catch(e => { console.error(e); process.exit(1); });
