@@ -1,5 +1,6 @@
 const express = require('express');
 const { getDb } = require('./db');
+const BotRunner = require('./bot-runner');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
 const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
@@ -674,6 +675,16 @@ const WEEKLY_TASKS = [
             char_id INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
             created_at INTEGER NOT NULL
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bot_configs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            class TEXT NOT NULL,
+            script_version TEXT NOT NULL DEFAULT 'bot2',
+            enabled INTEGER NOT NULL DEFAULT 0,
+            extra_config TEXT DEFAULT '{}',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
         )`, args: [] });
 
         // Backfill: older characters may already have zones unlocked (beaten gatekeepers) before we tracked it.
@@ -5346,8 +5357,18 @@ function getActiveSkills(char) {
     } catch { return {}; }
 }
 function hasSkill(activeSkills, skillId) { return !!activeSkills[skillId]; }
-function hasClassModifier(fighter, modifierId) { if (!fighter) return null; return (Array.isArray(fighter.skillMods) ? fighter.skillMods : []).find(m => m.id === modifierId) || null; }
-function getActiveCombatEffect(fighter, effectId) { if (!fighter) return null; return (Array.isArray(fighter.skillEffects) ? fighter.skillEffects : []).find(e => e.id === effectId) || null; }
+function hasClassModifier(fighter, modifierId) {
+    if (!fighter) return null;
+    const mods = Array.isArray(fighter.skillMods) ? fighter.skillMods : [];
+    for (let i = mods.length - 1; i >= 0; i--) { if (mods[i].id === modifierId) return mods[i]; }
+    return null;
+}
+function getActiveCombatEffect(fighter, effectId) {
+    if (!fighter) return null;
+    const effects = Array.isArray(fighter.skillEffects) ? fighter.skillEffects : [];
+    for (let i = effects.length - 1; i >= 0; i--) { if (effects[i].id === effectId) return effects[i]; }
+    return null;
+}
 function mergeActiveSkills(baseSkills, skillEffects) {
     const legacySkillIds = new Set();
     for (const skills of Object.values(CLASS_SKILLS)) {
@@ -11927,6 +11948,109 @@ router.get('/admin/banners', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Bot Management (admin) ──────────────────────────────────────────────
+const botRunner = new BotRunner(getDb);
+let botRunnerInit = false;
+async function ensureBotRunner() {
+    if (!botRunnerInit) {
+        botRunnerInit = true;
+        // Ensure table exists (safe even if IIAFE already created it)
+        try { const db = await getDb(); await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bot_configs (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, class TEXT NOT NULL, script_version TEXT NOT NULL DEFAULT 'bot2', enabled INTEGER NOT NULL DEFAULT 0, extra_config TEXT DEFAULT '{}', created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')))`, args: [] }); } catch {}
+        await botRunner.init();
+    }
+}
+
+router.get('/admin/bots', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const configs = await db.execute({ sql: 'SELECT * FROM bot_configs ORDER BY id', args: [] });
+        const running = botRunner.getStatus();
+        const runningMap = {};
+        for (const r of running) runningMap[r.id] = r;
+        const rows = (configs.rows || []).map(r => {
+            const extra = r.extra_config ? JSON.parse(r.extra_config) : {};
+            return {
+                ...r, extra_config: undefined,
+                running: !!runningMap[r.id],
+                level: runningMap[r.id]?.level || 0,
+                hp: runningMap[r.id]?.hp || 0,
+                hpMax: runningMap[r.id]?.hpMax || 0,
+                gold: runningMap[r.id]?.gold || 0,
+                dungeonEnabled: extra.dungeonEnabled !== false,
+            };
+        });
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/bots', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const { username, password, class: cls, script_version, enabled, extra_config } = req.body;
+        if (!username || !password || !cls) return res.status(400).json({ error: 'username, password, class required' });
+        await db.execute({
+            sql: 'INSERT INTO bot_configs (username, password, class, script_version, enabled, extra_config) VALUES (?,?,?,?,?,?) ON CONFLICT(username) DO UPDATE SET password=excluded.password, class=excluded.class, script_version=excluded.script_version, enabled=excluded.enabled, extra_config=excluded.extra_config',
+            args: [username, password, cls, script_version || 'bot2', enabled ? 1 : 0, extra_config || '{}']
+        });
+        await ensureBotRunner();
+        await botRunner.refresh();
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/admin/bots/:id', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        await db.execute({ sql: 'DELETE FROM bot_configs WHERE id=?', args: [req.params.id] });
+        await botRunner.refresh();
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/bots/:id/toggle', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT enabled FROM bot_configs WHERE id=?', args: [req.params.id] });
+        if (!result.rows.length) return res.status(404).json({ error: 'Bot not found' });
+        const current = result.rows[0].enabled;
+        await db.execute({ sql: 'UPDATE bot_configs SET enabled=? WHERE id=?', args: [current ? 0 : 1, req.params.id] });
+        await botRunner.refresh();
+        res.json({ success: true, enabled: !current });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/bots/:id/switch-version', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT script_version FROM bot_configs WHERE id=?', args: [req.params.id] });
+        if (!result.rows.length) return res.status(404).json({ error: 'Bot not found' });
+        const current = result.rows[0].script_version;
+        const next = current === 'bot2' ? 'bot' : 'bot2';
+        await db.execute({ sql: 'UPDATE bot_configs SET script_version=? WHERE id=?', args: [next, req.params.id] });
+        await botRunner.refresh();
+        res.json({ success: true, script_version: next });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/bots/:id/dungeon-toggle', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT extra_config FROM bot_configs WHERE id=?', args: [req.params.id] });
+        if (!result.rows.length) return res.status(404).json({ error: 'Bot not found' });
+        const extra = JSON.parse(result.rows[0].extra_config || '{}');
+        extra.dungeonEnabled = extra.dungeonEnabled === false ? true : false;
+        await db.execute({ sql: 'UPDATE bot_configs SET extra_config=? WHERE id=?', args: [JSON.stringify(extra), req.params.id] });
+        await botRunner.refresh();
+        res.json({ success: true, dungeonEnabled: extra.dungeonEnabled });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/rewards/list', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
@@ -16652,5 +16776,5 @@ module.exports = {
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-    runHourlyHpRegen
+    runHourlyHpRegen, ensureBotRunner
 };
