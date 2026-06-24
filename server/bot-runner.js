@@ -11,8 +11,12 @@ class BotRunner {
 
   async init() {
     botLogger.write('BotRunner', 'init() called — syncing from DB');
-    await this._syncFromDb();
-    botLogger.write('BotRunner', `_syncFromDb done — ${this.instances.size} instance(s) running`);
+    try {
+      await this._syncFromDb();
+      botLogger.write('BotRunner', `_syncFromDb done — ${this.instances.size} instance(s) running`);
+    } catch (e) {
+      botLogger.write('BotRunner', `_syncFromDb threw: ${e.message}`);
+    }
     this._startLoop();
   }
 
@@ -110,6 +114,10 @@ class BotRunner {
 
   async refresh() {
     await this._syncFromDb();
+    if (!this._timer) {
+      botLogger.write('BotRunner', 'No tick loop running — starting it now');
+      this._startLoop();
+    }
   }
 
   shutdown() {
