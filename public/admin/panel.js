@@ -32,6 +32,7 @@ function renderLayout() {
             '<button class="tab-btn" data-tab="tournaments">Tournaments</button>' +
             '<button class="tab-btn" data-tab="actions">Action Log</button>' +
             '<button class="tab-btn" data-tab="bots">Bots</button>' +
+            '<button class="tab-btn" data-tab="console">Console</button>' +
         '</div>' +
         '<div id="tab-csp" class="tab-content active"><div class="loading">Loading CSP violations...</div></div>' +
         '<div id="tab-bugs" class="tab-content"><div class="loading">Loading bug reports...</div></div>' +
@@ -40,7 +41,8 @@ function renderLayout() {
         '<div id="tab-db" class="tab-content"><div class="loading">Loading database...</div></div>' +
         '<div id="tab-tournaments" class="tab-content"><div class="loading">Loading tournaments...</div></div>' +
         '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>' +
-        '<div id="tab-bots" class="tab-content"><div class="loading">Loading bots...</div></div>';
+        '<div id="tab-bots" class="tab-content"><div class="loading">Loading bots...</div></div>' +
+        '<div id="tab-console" class="tab-content"><div class="loading">Loading console...</div></div>';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -64,6 +66,7 @@ function loadTab(name) {
     else if (name === 'tournaments') loadTournaments();
     else if (name === 'actions') loadActions();
     else if (name === 'bots') loadBots();
+    else if (name === 'console') loadConsole();
 }
 
 function loadDbAdmin() {
@@ -730,6 +733,49 @@ function toggleBotDungeon(id) {
         if (r.error) { alert(r.error); return; }
         loadBots();
     }).catch(function(e) { alert(e.message); loadBots(); });
+}
+
+// ── Bot Console ──────────────────────────────────────────────────────────────
+
+var _consoleTimer = null;
+var _consoleSince = null;
+
+function loadConsole() {
+    var el = document.getElementById('tab-console');
+    el.innerHTML = '<div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">' +
+        '<button class="db-btn" id="console-clear">Clear</button>' +
+        '<span style="color:#6a6a70;font-size:12px">Auto-refreshing every 3s</span>' +
+        '</div>' +
+        '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></div>';
+
+    _consoleSince = null;
+    if (_consoleTimer) clearTimeout(_consoleTimer);
+    pollConsole();
+
+    document.getElementById('console-clear').addEventListener('click', function() {
+        adminApi('POST', '/game/admin/bots/logs/clear').then(function() {
+            document.getElementById('console-output').textContent = '';
+            _consoleSince = null;
+        }).catch(function(e) { alert(e.message); });
+    });
+}
+
+function pollConsole() {
+    var url = '/game/admin/bots/logs' + (_consoleSince ? '?since=' + encodeURIComponent(_consoleSince) : '');
+    API(url).then(function(data) {
+        if (!data.logs || !data.logs.length) return;
+        var out = document.getElementById('console-output');
+        if (!out) return;
+        data.logs.forEach(function(e) {
+            var line = '[' + e.ts.slice(11, 19) + '][' + e.name + '] ' + e.msg;
+            out.appendChild(document.createTextNode(line));
+            out.appendChild(document.createElement('br'));
+        });
+        _consoleSince = data.logs[data.logs.length - 1].ts;
+        out.scrollTop = out.scrollHeight;
+    }).catch(function() { /* ignore poll errors */ });
+
+    _consoleTimer = setTimeout(pollConsole, 3000);
 }
 
 init();
