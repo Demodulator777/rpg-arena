@@ -1197,7 +1197,14 @@ class BotAccount {
     await this.doPvp();
     await this.activatePremium();
     await this.upgradeStats();
-    if (this._skipDungeon) { this._skipDungeon = false; log(this.name, 'Skipping dungeon this tick after death'); } else { await this.doDungeonRun(); }
+    if (this.cfg.dungeonEnabled === false) {
+      log(this.name, 'Dungeon disabled by config');
+    } else if (this._skipDungeon) {
+      this._skipDungeon = false;
+      log(this.name, 'Skipping dungeon this tick after death');
+    } else {
+      await this.doDungeonRun();
+    }
     await this.refreshCharacter();
   }
 }
@@ -1231,4 +1238,5 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+module.exports = { BotAccount };
+if (require.main === module) main().catch(console.error);
