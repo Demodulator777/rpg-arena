@@ -12066,6 +12066,26 @@ router.post('/admin/bots/:id/dungeon-toggle', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Bot console log buffer
+router.get('/admin/bots/logs', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const botLogger = require('./bot-logger');
+        const since = req.query.since || null;
+        const logs = botLogger.read(since);
+        res.json({ logs });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/bots/logs/clear', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const botLogger = require('./bot-logger');
+        botLogger.clear();
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/rewards/list', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
