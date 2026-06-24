@@ -31,9 +31,12 @@ function api(method, path, body, token) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+const botLogger = require('./bot-logger');
+
 function log(name, msg) {
   const t = new Date().toISOString().slice(11, 19);
   console.log(`[${t}][${name}] ${msg}`);
+  botLogger.write(name, msg);
 }
 
 // ── Token persistence ──────────────────────────────────────────────────────
