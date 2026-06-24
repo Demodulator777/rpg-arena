@@ -559,10 +559,13 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN nightmare_missions_completed INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN damage_dealt INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN top_damage_dealt INTEGER DEFAULT 0',
+            `ALTER TABLE inventory ADD COLUMN weapon_type TEXT DEFAULT NULL`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
         }
+        try { await db.execute({ sql: `UPDATE inventory SET weapon_type = json_extract(item_data, '$.weaponType') WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon'`, args: [] }); } catch {}
+        try { await db.execute({ sql: `UPDATE inventory SET weapon_type = 'scythe' WHERE item_type = 'equipment' AND weapon_type IS NULL AND (json_extract(item_data, '$.id') IN ('spiteforged_weapon','wyrmflame_weapon') OR json_extract(item_data, '$.name') IN ('Spiteforged Trident','Fang of the Worldpyre'))`, args: [] }); } catch {}
         try {
             await db.execute({ sql: 'UPDATE users SET is_admin = 1 WHERE username = ?', args: ['Forsaken'] });
         } catch {}
@@ -8433,7 +8436,7 @@ router.post('/character', auth, async (req, res) => {
             level: 1,
             price: 0,
         };
-        const invResult = await dbRun(db, `INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, 'equipment', ?)`, [created?.id, JSON.stringify(starterWeapon)]);
+        const invResult = await dbRun(db, `INSERT INTO inventory (char_id, item_type, item_data, weapon_type) VALUES (?, 'equipment', ?, ?)`, [created?.id, JSON.stringify(starterWeapon), starterWeapon.weaponType || null]);
         const invId = invResult.lastInsertRowid;
         let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [created?.id]);
         if (!eq) {
@@ -9843,7 +9846,11 @@ router.get('/inventory', auth, async (req, res) => {
         const items = await dbAll(db, 'SELECT * FROM inventory WHERE char_id = ? ORDER BY item_type, acquired_at DESC', [char.id]);
         const equipped = await getEquippedItems(db, char.id);
         const equippedIds = Object.values(equipped).map(e => e.inventoryId).filter(Boolean);
-        res.json({ items: items.map(i => ({ ...i, item_data: JSON.parse(i.item_data), equipped: equippedIds.includes(i.id) })), equipped });
+        res.json({ items: items.map(i => {
+            const data = JSON.parse(i.item_data);
+            if (i.weapon_type) data.weaponType = data.weaponType || i.weapon_type;
+            return { ...i, item_data: data, equipped: equippedIds.includes(i.id) };
+        }), equipped });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -9983,8 +9990,8 @@ router.post('/inventory/add', auth, async (req, res) => {
 
         await dbRun(
             db,
-            `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?, 'equipment', ?)`,
-            [char.id, JSON.stringify(dataBase)]
+            `INSERT INTO inventory (char_id,item_type,item_data,weapon_type) VALUES (?, 'equipment', ?, ?)`,
+            [char.id, JSON.stringify(dataBase), dataBase.weaponType || null]
         );
 
         return res.json({ success: true });
@@ -10143,8 +10150,8 @@ router.post('/forge/craft', auth, async (req, res) => {
         const scaledItem = scaleItemToLevel(recipe, char.level);
         scaledItem.original_price = craftGoldCost;
 
-        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)',
-            [char.id, 'equipment', JSON.stringify(scaledItem)]);
+        await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data,weapon_type) VALUES (?,?,?,?)',
+            [char.id, 'equipment', JSON.stringify(scaledItem), scaledItem.weaponType || null]);
 
         res.json({ message: `⚒️ Crafted: ${recipe.name} (Level ${char.level})!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
@@ -10890,7 +10897,7 @@ router.post('/shop/buy', auth, async (req, res) => {
                 : item;
             await addStackableInventoryItem(db, character.id, 'consumable', shopConsumable, 1);
         } else {
-            await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,'equipment',?)`, [character.id, JSON.stringify(item)]);
+            await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data,weapon_type) VALUES (?,'equipment',?,?)`, [character.id, JSON.stringify(item), item.weaponType || null]);
             try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND json_extract(item_data,'$.id')=?`, [character.id, item.id]); } catch {}
         }
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
