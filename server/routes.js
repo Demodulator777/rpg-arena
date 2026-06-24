@@ -7992,10 +7992,11 @@ async function getEquippedItems(db, charId) {
                 const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
                 if (inv) {
                     const data = JSON.parse(inv.item_data);
+                    if (inv.weapon_type) data.weaponType = data.weaponType || inv.weapon_type;
                     if (data.slot === 'weapon') {
-                        slots['off_hand'] = { ...data, inventoryId: inv.id };
+                        slots['off_hand'] = { ...data, inventoryId: inv.id, weapon_type: inv.weapon_type };
                     } else {
-                        slots[slot] = { ...data, inventoryId: inv.id };
+                        slots[slot] = { ...data, inventoryId: inv.id, weapon_type: inv.weapon_type };
                     }
                 }
             }
@@ -8003,7 +8004,11 @@ async function getEquippedItems(db, charId) {
             const itemId = eq[`${slot}_id`];
             if (itemId) {
                 const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id = ?', [itemId]);
-                if (inv) slots[slot] = { ...JSON.parse(inv.item_data), inventoryId: inv.id };
+                if (inv) {
+                    const data = JSON.parse(inv.item_data);
+                    if (inv.weapon_type) data.weaponType = data.weaponType || inv.weapon_type;
+                    slots[slot] = { ...data, inventoryId: inv.id, weapon_type: inv.weapon_type };
+                }
             }
         }
     }
