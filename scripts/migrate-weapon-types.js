@@ -3,10 +3,11 @@
 
 const { createClient } = require('@libsql/client');
 const path = require('path');
-const url = require('url');
+
+const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 async function main() {
-  const dbUrl = process.env.TURSO_DATABASE_URL || 'file:./data/rpg-arena.db';
+  const dbUrl = process.env.TURSO_DATABASE_URL || `file:${path.join(PROJECT_ROOT, 'data', 'rpg-arena.db')}`;
   const db = createClient({ url: dbUrl });
 
   // 1. Ensure column exists
