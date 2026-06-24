@@ -771,7 +771,7 @@ function loadConsole() {
 }
 
 function pollConsole() {
-    var url = '/game/admin/bots/logs' + (_consoleSince ? '?since=' + encodeURIComponent(_consoleSince) : '');
+    var url = '/admin/bots/logs' + (_consoleSince ? '?since=' + encodeURIComponent(_consoleSince) : '');
     API(url).then(function(data) {
         var out = document.getElementById('console-output');
         if (!out) return;
