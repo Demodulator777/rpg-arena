@@ -744,9 +744,10 @@ function loadConsole() {
     var el = document.getElementById('tab-console');
     el.innerHTML = '<div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">' +
         '<button class="db-btn" id="console-clear">Clear</button>' +
+        '<button class="db-btn" id="console-refresh">Refresh Now</button>' +
         '<span style="color:#6a6a70;font-size:12px">Auto-refreshing every 3s</span>' +
         '</div>' +
-        '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all"></div>';
+        '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">Waiting for logs...</div>';
 
     _consoleSince = null;
     if (_consoleTimer) clearTimeout(_consoleTimer);
@@ -754,18 +755,35 @@ function loadConsole() {
 
     document.getElementById('console-clear').addEventListener('click', function() {
         adminApi('POST', '/game/admin/bots/logs/clear').then(function() {
-            document.getElementById('console-output').textContent = '';
+            var out = document.getElementById('console-output');
+            out.textContent = 'Logs cleared.';
             _consoleSince = null;
         }).catch(function(e) { alert(e.message); });
+    });
+
+    document.getElementById('console-refresh').addEventListener('click', function() {
+        _consoleSince = null;
+        var out = document.getElementById('console-output');
+        out.textContent = 'Refreshing...';
+        if (_consoleTimer) clearTimeout(_consoleTimer);
+        pollConsole();
     });
 }
 
 function pollConsole() {
     var url = '/game/admin/bots/logs' + (_consoleSince ? '?since=' + encodeURIComponent(_consoleSince) : '');
     API(url).then(function(data) {
-        if (!data.logs || !data.logs.length) return;
         var out = document.getElementById('console-output');
         if (!out) return;
+        if (!data.logs || !data.logs.length) {
+            if (!_consoleSince && out.textContent === 'Waiting for logs...') {
+                out.textContent = 'No bot logs yet. Waiting...';
+            }
+            return;
+        }
+        if (out.textContent === 'Waiting for logs...' || out.textContent === 'Refreshing...' || out.textContent === 'No bot logs yet. Waiting...' || out.textContent === 'Logs cleared.') {
+            out.textContent = '';
+        }
         data.logs.forEach(function(e) {
             var line = '[' + e.ts.slice(11, 19) + '][' + e.name + '] ' + e.msg;
             out.appendChild(document.createTextNode(line));
@@ -773,7 +791,10 @@ function pollConsole() {
         });
         _consoleSince = data.logs[data.logs.length - 1].ts;
         out.scrollTop = out.scrollHeight;
-    }).catch(function() { /* ignore poll errors */ });
+    }).catch(function(e) {
+        var out = document.getElementById('console-output');
+        if (out) out.textContent = 'Poll error: ' + (e.message || e);
+    });
 
     _consoleTimer = setTimeout(pollConsole, 3000);
 }
