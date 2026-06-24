@@ -5563,7 +5563,10 @@ function getEquippedWeaponData(equippedItems) {
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
-            if (data?.slot === 'weapon') return data;
+            if (data?.slot === 'weapon') {
+                if (item.weapon_type) data.weaponType = data.weaponType || item.weapon_type;
+                return data;
+            }
         } catch {}
     }
     return null;
