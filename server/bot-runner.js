@@ -1,5 +1,6 @@
 const { BotAccount } = require('./bot');
 const { TestBot } = require('./bot2');
+const botLogger = require('./bot-logger');
 
 class BotRunner {
   constructor(getDb) {
@@ -28,7 +29,9 @@ class BotRunner {
         if (existing) {
           if (existing._scriptVersion === row.script_version) continue;
           this.instances.delete(id);
-          console.log(`[BotRunner] Stopped ${row.username} (version switch)`);
+          const msg1 = `Stopped ${row.username} (version switch)`;
+          console.log(`[BotRunner] ${msg1}`);
+          botLogger.write('BotRunner', msg1);
         }
 
         try {
@@ -41,30 +44,40 @@ class BotRunner {
           if (typeof bot.startup === 'function') await bot.startup();
           else if (typeof bot.setupGear === 'function') await bot.setupGear();
           this.instances.set(id, bot);
-          console.log(`[BotRunner] Started ${row.username} (v${row.script_version})`);
+          const msg2 = `Started ${row.username} (v${row.script_version})`;
+          console.log(`[BotRunner] ${msg2}`);
+          botLogger.write('BotRunner', msg2);
         } catch (e) {
-          console.error(`[BotRunner] Failed to start ${row.username}: ${e.message}`);
+          const errMsg = `Failed to start ${row.username}: ${e.message}`;
+          console.error(`[BotRunner] ${errMsg}`);
+          botLogger.write('BotRunner', errMsg);
         }
       }
 
       for (const [id] of this.instances) {
         if (!activeIds.has(id)) {
           this.instances.delete(id);
-          console.log(`[BotRunner] Stopped bot config ${id}`);
+          const msg3 = `Stopped bot config ${id}`;
+          console.log(`[BotRunner] ${msg3}`);
+          botLogger.write('BotRunner', msg3);
         }
       }
     } catch (e) {
-      console.error('[BotRunner] sync error:', e.message);
+      const syncErr = `sync error: ${e.message}`;
+      console.error(`[BotRunner] ${syncErr}`);
+      botLogger.write('BotRunner', syncErr);
     }
   }
 
   _startLoop() {
     const tick = async () => {
       for (const [id, bot] of this.instances) {
-        try { await bot.tick(); } catch (e) {
-          const logFn = bot.log || console.log;
-          if (typeof logFn === 'function') logFn(bot.name || id, `Tick error: ${e.message}`);
-          else console.error(`[BotRunner] ${bot.name || id} tick error:`, e.message);
+        try {
+          await bot.tick();
+        } catch (e) {
+          const name = bot.name || id;
+          botLogger.write(name, `Tick error: ${e.message}`);
+          console.error(`[BotRunner] ${name} tick error:`, e.message);
         }
       }
       this._timer = setTimeout(tick, 15000);
