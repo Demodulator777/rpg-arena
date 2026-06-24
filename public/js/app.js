@@ -5739,7 +5739,7 @@ function renderInventory(data) {
 function isWeaponSuitedForClass(weapon, cls) {
   if (!weapon || !cls || weapon.slot !== 'weapon') return true;
   const name = (weapon.name || '').toLowerCase();
-  const wpnType = weapon.type || weapon.weaponType || '';
+  const wpnType = weapon.type || weapon.weaponType || weapon.weapon_type || '';
   const is = (s) => name.includes(s) || wpnType === s;
   if (cls === 'rogue')   return is('dagger') || is('bow') || is('scythe');
   if (cls === 'mage')    return is('scythe') || is('staff');
