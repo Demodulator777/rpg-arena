@@ -8716,6 +8716,129 @@ router.post('/settings', auth, async (req, res) => {
     }
 });
 
+// ── Equipment Setups ────────────────────────────────────────────────────
+router.get('/setups', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        await dbRun(db, `CREATE TABLE IF NOT EXISTS character_setups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER NOT NULL,
+            slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 4),
+            name TEXT NOT NULL DEFAULT '',
+            data TEXT NOT NULL DEFAULT '{}',
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(char_id, slot)
+        )`);
+        const rows = await dbAll(db, 'SELECT * FROM character_setups WHERE char_id=? ORDER BY slot', [char.id]);
+        // Ensure 4 slots exist
+        for (let i = 1; i <= 4; i++) {
+            if (!rows.find(r => r.slot === i)) {
+                await dbRun(db, 'INSERT OR IGNORE INTO character_setups (char_id, slot, name) VALUES (?, ?, ?)', [char.id, i, `Setup ${i}`]);
+                rows.push({ id: 0, char_id: char.id, slot: i, name: `Setup ${i}`, data: '{}', updated_at: null });
+            }
+        }
+        res.json(rows.map(r => ({ ...r, data: JSON.parse(r.data || '{}') })));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/setups/:slot', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const slot = parseInt(req.params.slot);
+        if (slot < 1 || slot > 4) return res.status(400).json({ error: 'Slot must be 1-4' });
+        await dbRun(db, `CREATE TABLE IF NOT EXISTS character_setups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER NOT NULL,
+            slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 4),
+            name TEXT NOT NULL DEFAULT '',
+            data TEXT NOT NULL DEFAULT '{}',
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(char_id, slot)
+        )`);
+        const name = req.body.name || `Setup ${slot}`;
+        // Use provided data (for rename-only) or snapshot current equipment
+        let data;
+        if (req.body.data) {
+            data = req.body.data;
+        } else {
+            const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+            data = {};
+            if (eq) {
+                for (const s of EQUIPMENT_SLOTS) {
+                    const key = `${s}_id`;
+                    if (eq[key] != null) data[s] = eq[key];
+                }
+            }
+        }
+        await dbRun(db, `INSERT INTO character_setups (char_id, slot, name, data, updated_at) VALUES (?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(char_id, slot) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
+            [char.id, slot, name, JSON.stringify(data)]);
+        res.json({ success: true, slot, name, data });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/setups/:slot/load', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const slot = parseInt(req.params.slot);
+        if (slot < 1 || slot > 4) return res.status(400).json({ error: 'Slot must be 1-4' });
+        const setup = await dbGet(db, 'SELECT * FROM character_setups WHERE char_id=? AND slot=?', [char.id, slot]);
+        if (!setup) return res.status(404).json({ error: 'Setup not found' });
+        const data = JSON.parse(setup.data || '{}');
+        const slotKeys = Object.keys(data);
+        if (!slotKeys.length) return res.status(400).json({ error: 'Setup is empty' });
+
+        // Ensure equipment row exists
+        let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+        if (!eq) {
+            await dbRun(db, 'INSERT INTO equipment (char_id) VALUES (?)', [char.id]);
+            eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+        }
+
+        // First unequip all slots that will be changed
+        for (const s of slotKeys) {
+            if (eq[`${s}_id`] != null && eq[`${s}_id`] != data[s]) {
+                await dbRun(db, `UPDATE equipment SET ${s}_id=NULL WHERE char_id=?`, [char.id]);
+            }
+        }
+
+        // Then equip saved items (verify they still belong to this character)
+        for (const [s, invId] of Object.entries(data)) {
+            if (!EQUIPMENT_SLOTS.includes(s)) continue;
+            const inv = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [invId, char.id]);
+            if (!inv) continue; // item no longer exists
+            await dbRun(db, `UPDATE equipment SET ${s}_id=? WHERE char_id=?`, [invId, char.id]);
+        }
+
+        // Ring/amulet mutual exclusion
+        if (data.ring && !data.amulet) await dbRun(db, 'UPDATE equipment SET amulet_id=NULL WHERE char_id=?', [char.id]);
+        if (data.amulet && !data.ring) await dbRun(db, 'UPDATE equipment SET ring_id=NULL WHERE char_id=?', [char.id]);
+
+        const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({ success: true, character: await buildCharacterResponse(freshChar, db) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/setups/:slot', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const slot = parseInt(req.params.slot);
+        if (slot < 1 || slot > 4) return res.status(400).json({ error: 'Slot must be 1-4' });
+        await dbRun(db, 'DELETE FROM character_setups WHERE char_id=? AND slot=?', [char.id, slot]);
+        // Re-insert as empty default
+        await dbRun(db, 'INSERT OR IGNORE INTO character_setups (char_id, slot, name) VALUES (?, ?, ?)', [char.id, slot, `Setup ${slot}`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/achievements', auth, async (req, res) => {
     try {
         const db = await getDb();
