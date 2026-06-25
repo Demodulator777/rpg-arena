@@ -2756,9 +2756,13 @@ async function loadSetups() {
       </div>`;
     }).join('');
 
+    // Cancel flag to prevent blur renaming from racing with Save click
+    var _cancelSetupRename = false;
+
     // Bind events
     grid.querySelectorAll('.setup-save').forEach(btn => {
       btn.addEventListener('click', async () => {
+        _cancelSetupRename = true;
         const slot = btn.dataset.slot;
         const nameInput = grid.querySelector(`.setup-name[data-slot="${slot}"]`);
         const name = nameInput ? nameInput.value.trim() || `Setup ${slot}` : `Setup ${slot}`;
@@ -2774,6 +2778,7 @@ async function loadSetups() {
 
     grid.querySelectorAll('.setup-load').forEach(btn => {
       btn.addEventListener('click', async () => {
+        _cancelSetupRename = true;
         if (btn.disabled) return;
         const slot = btn.dataset.slot;
         if (!confirm(`Load Setup ${slot}? Current equipment will be replaced.`)) return;
@@ -2791,19 +2796,21 @@ async function loadSetups() {
       });
     });
 
-    // Save name on enter/blur
+    // Save name on enter/blur (deferred via setTimeout to avoid racing with Save/Load)
     grid.querySelectorAll('.setup-name').forEach(inp => {
-      const saveName = async () => {
-        const slot = inp.dataset.slot;
-        const name = inp.value.trim() || `Setup ${slot}`;
-        try {
-          const setups = await api('GET', '/game/setups');
-          const s = setups.find(x => x.slot == slot);
-          if (s) await api('PUT', `/game/setups/${slot}`, { name: name, data: s.data });
-        } catch {}
-      };
-      inp.addEventListener('blur', saveName);
-      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+      inp.addEventListener('blur', () => {
+        var slot = inp.dataset.slot;
+        var name = inp.value.trim() || 'Setup ' + slot;
+        setTimeout(async () => {
+          if (_cancelSetupRename) { _cancelSetupRename = false; return; }
+          try {
+            var setups = await api('GET', '/game/setups');
+            var s = setups.find(function(x) { return x.slot == slot; });
+            if (s) await api('PUT', '/game/setups/' + slot, { name: name, data: s.data });
+          } catch {}
+        }, 0);
+      });
+      inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
     });
   } catch (e) { grid.innerHTML = `<div style="font-size:0.7rem;color:var(--text-dim)">Setups error: ${e.message}</div>`; }
 }
