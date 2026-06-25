@@ -2781,16 +2781,24 @@ async function loadSetups() {
         _cancelSetupRename = true;
         if (btn.disabled) return;
         const slot = btn.dataset.slot;
-        if (!confirm(`Load Setup ${slot}? Current equipment will be replaced.`)) return;
+        const confirmed = await openGameDialog({
+          title: 'Load Setup ' + slot,
+          message: 'Load this setup? Current equipment will be replaced.',
+          confirmLabel: 'Load',
+          cancelLabel: 'Cancel',
+          showCancel: true,
+          danger: true
+        });
+        if (!confirmed) return;
         btn.textContent = '...';
         btn.disabled = true;
         try {
-          const result = await api('POST', `/game/setups/${slot}/load`);
+          const result = await api('POST', '/game/setups/' + slot + '/load');
           if (result.character) {
             character = result.character;
             renderCharacter();
             loadInventory();
-            showMsg('char-msg', `Setup ${slot} loaded!`);
+            showMsg('char-msg', 'Setup ' + slot + ' loaded!');
           }
         } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
       });
