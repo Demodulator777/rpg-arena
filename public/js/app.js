@@ -2781,8 +2781,10 @@ async function loadSetups() {
         _cancelSetupRename = true;
         if (btn.disabled) return;
         const slot = btn.dataset.slot;
+        const nameInput = grid.querySelector('.setup-name[data-slot="' + slot + '"]');
+        const setupName = nameInput ? nameInput.value.trim() || 'Setup ' + slot : 'Setup ' + slot;
         const confirmed = await openGameDialog({
-          title: 'Load Setup ' + slot,
+          title: 'Load: ' + setupName,
           message: 'Load this setup? Current equipment will be replaced.',
           confirmLabel: 'Load',
           cancelLabel: 'Cancel',
