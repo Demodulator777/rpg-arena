@@ -2563,6 +2563,7 @@ const eqGrid = `
       <div class="class-scene-backdrop"></div>
       <div class="class-scene-glow"></div>
       <div class="class-scene-content char-grid">
+        <div id="char-msg" class="msg hidden" style="grid-column:1/-1;margin-bottom:8px"></div>
         <div class="char-panel">
           <h3>STATS</h3>
           ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr > 0)}
@@ -2669,6 +2670,10 @@ const eqGrid = `
             </div>
           </div>`;
         })() : ''}
+        <div class="char-panel char-panel-setups" id="char-setups-panel">
+          <h3>⚙️ SETUPS</h3>
+          <div id="char-setups-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
+        </div>
         <div class="char-panel char-panel-record">
           <h3>RECORD</h3>
           <div class="record-row">
@@ -2728,7 +2733,81 @@ const eqGrid = `
         };
     });
     if (c.elemental) loadElemFeedItems(c.elemental.id);
+    loadSetups();
 }
+
+// ── Equipment Setups ────────────────────────────────────────────────────
+async function loadSetups() {
+  const grid = document.getElementById('char-setups-grid');
+  if (!grid) return;
+  try {
+    const data = await api('GET', '/game/setups');
+    const setups = data || [];
+    grid.innerHTML = setups.map(s => {
+      const isEmpty = !s.data || Object.keys(s.data).length === 0;
+      const slotLabel = s.name || `Setup ${s.slot}`;
+      return `<div class="setup-card" data-slot="${s.slot}" style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.06)">
+        <input class="setup-name" value="${escHtml(slotLabel)}" maxlength="24" style="width:100%;background:transparent;border:none;color:var(--text-bright);font-size:0.85rem;font-weight:600;outline:none;margin-bottom:6px;padding:2px 4px;border-radius:4px" data-slot="${s.slot}">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="setup-save" data-slot="${s.slot}" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(75,175,80,0.15);color:#4caf50;cursor:pointer;font-size:0.75rem">💾 Save</button>
+          <button class="setup-load" data-slot="${s.slot}" ${isEmpty?'disabled':''} style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(100,150,255,0.15);color:#6496ff;cursor:pointer;font-size:0.75rem;${isEmpty?'opacity:0.4;cursor:default':''}">📂 Load</button>
+        </div>
+        ${isEmpty ? '<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">Empty — save current gear</div>' : `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">${Object.keys(s.data).length} item(s)</div>`}
+      </div>`;
+    }).join('');
+
+    // Bind events
+    grid.querySelectorAll('.setup-save').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const slot = btn.dataset.slot;
+        const nameInput = grid.querySelector(`.setup-name[data-slot="${slot}"]`);
+        const name = nameInput ? nameInput.value.trim() || `Setup ${slot}` : `Setup ${slot}`;
+        btn.textContent = '...';
+        btn.disabled = true;
+        try {
+          await api('PUT', `/game/setups/${slot}`, { name });
+          await loadSetups();
+          showMsg('char-msg', `Setup ${slot} saved!`);
+        } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
+      });
+    });
+
+    grid.querySelectorAll('.setup-load').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (btn.disabled) return;
+        const slot = btn.dataset.slot;
+        if (!confirm(`Load Setup ${slot}? Current equipment will be replaced.`)) return;
+        btn.textContent = '...';
+        btn.disabled = true;
+        try {
+          const result = await api('POST', `/game/setups/${slot}/load`);
+          if (result.character) {
+            character = result.character;
+            renderCharacter();
+            loadInventory();
+            showMsg('char-msg', `Setup ${slot} loaded!`);
+          }
+        } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
+      });
+    });
+
+    // Save name on enter/blur
+    grid.querySelectorAll('.setup-name').forEach(inp => {
+      const saveName = async () => {
+        const slot = inp.dataset.slot;
+        const name = inp.value.trim() || `Setup ${slot}`;
+        try {
+          const setups = await api('GET', '/game/setups');
+          const s = setups.find(x => x.slot == slot);
+          if (s) await api('PUT', `/game/setups/${slot}`, { name: name, data: s.data });
+        } catch {}
+      };
+      inp.addEventListener('blur', saveName);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+    });
+  } catch (e) { grid.innerHTML = `<div style="font-size:0.7rem;color:var(--text-dim)">Setups error: ${e.message}</div>`; }
+}
+
 const ELEM_FEED_IDS = new Set([
     'dgn_pyro_cinder','dgn_water_droplet','dgn_electro_spark','dgn_wind_feather',
     'dgn_pyro_ember','dgn_water_crystal','dgn_electro_shard','dgn_wind_whisper',
