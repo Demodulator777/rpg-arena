@@ -2550,6 +2550,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .char-panel.full { grid-column: 1 / -1; }
 .char-panel-record { grid-column: 2; }
 .char-panel-elemental { grid-column: 1; }
+.char-panel-setups { grid-column: 1 / -1; }
+.msg { padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);font-size:0.8rem;transition:opacity 0.3s; }
+.char-panel-setups .setup-card:hover { border-color: rgba(255,255,255,0.15) !important; }
+.char-panel-setups .setup-card .setup-name:focus { background: rgba(255,255,255,0.06) !important; }
 .char-panel-elemental .elem-overview { display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap }
 .char-panel-elemental .elem-name { font-size:0.9rem;font-weight:600;color:#e2e8f0 }
 .char-panel-elemental .elem-lvl-badge { font-size:0.7rem;padding:2px 8px;border-radius:10px;background:rgba(168,85,247,0.2);color:#a855f7 }
