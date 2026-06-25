@@ -5992,27 +5992,35 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} unleashes BLADE STORM — ${specialAttackDmg} damage`;
         }
         // divine_judgment: defense_mult, ignore_armor, uses: 1-2
+        // Second use (divine_wrath) requires round >= 6 (4-round cooldown)
         if (!specialAttackDmg && hasSkill(atkSkills, 'divine_judgment')) {
             const djEff = getActiveCombatEffect(attacker, 'divine_judgment');
             const maxUses = djEff?.uses || 1;
-            if ((attacker._usedAbilities.divineJudgment || 0) < maxUses) {
-                attacker._usedAbilities.divineJudgment = (attacker._usedAbilities.divineJudgment || 0) + 1;
-                const defMult = djEff?.defense_mult || 2.5;
-                specialAttackDmg = Math.max(1, Math.floor((attacker.defense || 0) * defMult));
-                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses DIVINE JUDGMENT — ${specialAttackDmg} damage`;
+            const used = attacker._usedAbilities.divineJudgment || 0;
+            if (used < maxUses) {
+                if (used === 0 || roundNum >= 6) {
+                    attacker._usedAbilities.divineJudgment = used + 1;
+                    const defMult = djEff?.defense_mult || 2.5;
+                    specialAttackDmg = Math.max(1, Math.floor((attacker.defense || 0) * defMult));
+                    if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses DIVINE JUDGMENT — ${specialAttackDmg} damage`;
+                }
             }
         }
         // holy_crusade: (magic+defense)*mult, ignore_resist, uses: 1-2
+        // Second use requires round >= 6 (4-round cooldown)
         if (!specialAttackDmg && hasSkill(atkSkills, 'holy_crusade')) {
             const hcEff = getActiveCombatEffect(attacker, 'holy_crusade');
             const maxUses = hcEff?.uses || 1;
-            if ((attacker._usedAbilities.holyCrusade || 0) < maxUses) {
-                attacker._usedAbilities.holyCrusade = (attacker._usedAbilities.holyCrusade || 0) + 1;
-                const stats = hcEff?.stats_sum || ['magic', 'defense'];
-                let sum = 0;
-                for (const s of stats) sum += attacker[s] || 0;
-                specialAttackDmg = Math.max(1, Math.floor(sum * (hcEff?.multiplier || 1.8)));
-                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses HOLY CRUSADE — ${specialAttackDmg} damage`;
+            const used = attacker._usedAbilities.holyCrusade || 0;
+            if (used < maxUses) {
+                if (used === 0 || roundNum >= 6) {
+                    attacker._usedAbilities.holyCrusade = used + 1;
+                    const stats = hcEff?.stats_sum || ['magic', 'defense'];
+                    let sum = 0;
+                    for (const s of stats) sum += attacker[s] || 0;
+                    specialAttackDmg = Math.max(1, Math.floor(sum * (hcEff?.multiplier || 1.8)));
+                    if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses HOLY CRUSADE — ${specialAttackDmg} damage`;
+                }
             }
         }
         // inferno: magic_mult 2.5-3x elems, ignore resist, uses: 1-2
