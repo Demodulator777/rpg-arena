@@ -6049,25 +6049,28 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
         }
         // tempest: guaranteed hit/crit, elem_mult 2-2.5x, uses: 1-2
+        // Second use requires round >= 6 (4-round cooldown)
         if (!specialAttackDmg && hasSkill(atkSkills, 'tempest')) {
             const tpEff = getActiveCombatEffect(attacker, 'tempest');
             const maxUses = tpEff?.uses || 1;
-            if ((attacker._usedAbilities.tempest || 0) < maxUses) {
-                attacker._usedAbilities.tempest = (attacker._usedAbilities.tempest || 0) + 1;
-                const elemMult = tpEff?.elem_mult || 2.0;
-                let totalTpDmg = 0;
-                for (const elem of ELEMENTS) {
-                    let ed = (attacker.elem_dmg || {})[elem] || 0;
-                    if (ed <= 0) continue;
-                    ed = Math.floor(ed * elemMult * magicElemMult);
-                    if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
-                    const eRes = (defender.elem_resist || {})[elem] || 0;
-                    const mRes = Math.floor((defender.magic || 0) * 0.05);
-                    ed = Math.max(0, ed - eRes - mRes);
-                    totalTpDmg += ed;
-                }
-                specialAttackDmg = Math.max(1, totalTpDmg);
-                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} summons TEMPEST — ${specialAttackDmg} elemental damage`;
+            const used = attacker._usedAbilities.tempest || 0;
+            if (used < maxUses) {
+                if (used === 0 || roundNum >= 6) {
+                    attacker._usedAbilities.tempest = used + 1;
+                    const elemMult = tpEff?.elem_mult || 2.0;
+                    let totalTpDmg = 0;
+                    for (const elem of ELEMENTS) {
+                        let ed = (attacker.elem_dmg || {})[elem] || 0;
+                        if (ed <= 0) continue;
+                        ed = Math.floor(ed * elemMult * magicElemMult);
+                        if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
+                        const eRes = (defender.elem_resist || {})[elem] || 0;
+                        const mRes = Math.floor((defender.magic || 0) * 0.05);
+                        ed = Math.max(0, ed - eRes - mRes);
+                        totalTpDmg += ed;
+                    }
+                    specialAttackDmg = Math.max(1, totalTpDmg);
+                    if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} summons TEMPEST — ${specialAttackDmg} elemental damage`;
             }
         }
         // blizzard: magic_mult 1.5x, split_rounds 5
