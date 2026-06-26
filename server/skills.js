@@ -74,6 +74,7 @@ const UNLOCK_CONDITIONS = {
     
     // Tier 5 (Master)
     wins_500:         { type: 'wins', value: 500, desc: 'Win 500 battles' },
+    level_50:         { type: 'level', value: 50, desc: 'Reach level 50' },
     level_60:         { type: 'level', value: 60, desc: 'Reach level 60' },
     gold_earned_1m:   { type: 'total_gold_earned', value: 1000000, desc: 'Earn 1,000,000 gold total' },
     dungeon_floor_30: { type: 'dungeon_highest_floor', value: 30, desc: 'Reach dungeon floor 30' },
