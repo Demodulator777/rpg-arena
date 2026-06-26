@@ -9986,7 +9986,7 @@ router.get('/inventory', auth, async (req, res) => {
         const equipped = await getEquippedItems(db, char.id);
         const equippedIds = Object.values(equipped).map(e => e.inventoryId).filter(Boolean);
         // Build invId → setup names map
-        const setupRows = await dbAll(db, 'SELECT name, data FROM character_setups WHERE char_id=? AND data IS NOT NULL AND data!="{}"', [char.id]);
+        const setupRows = await dbAll(db, "SELECT name, data FROM character_setups WHERE char_id=? AND data IS NOT NULL AND data!='{}'", [char.id]);
         const itemSetups = {};
         for (const s of setupRows) {
             const sData = JSON.parse(s.data || '{}');
