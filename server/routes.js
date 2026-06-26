@@ -6024,28 +6024,32 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
         }
         // inferno: magic_mult 2.5-3x elems, ignore resist, uses: 1-2
+        // Second use requires round >= 6 (4-round cooldown)
         if (!specialAttackDmg && hasSkill(atkSkills, 'inferno')) {
             const infEff = getActiveCombatEffect(attacker, 'inferno');
             const maxUses = infEff?.uses || 1;
-            if ((attacker._usedAbilities.inferno || 0) < maxUses) {
-                attacker._usedAbilities.inferno = (attacker._usedAbilities.inferno || 0) + 1;
-                const magicMult = infEff?.magic_mult || 2.5;
-                const ignoreResist = infEff?.ignore_resist || false;
-                let totalInfDmg = 0;
-                for (const elem of ELEMENTS) {
-                    let ed = (attacker.elem_dmg || {})[elem] || 0;
-                    if (ed <= 0) continue;
-                    ed = Math.floor(ed * magicMult * magicElemMult);
-                    if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
-                    if (!ignoreResist) {
-                        const eRes = (defender.elem_resist || {})[elem] || 0;
-                        const mRes = Math.floor((defender.magic || 0) * 0.05);
-                        ed = Math.max(0, ed - eRes - mRes);
+            const used = attacker._usedAbilities.inferno || 0;
+            if (used < maxUses) {
+                if (used === 0 || roundNum >= 6) {
+                    attacker._usedAbilities.inferno = used + 1;
+                    const magicMult = infEff?.magic_mult || 2.5;
+                    const ignoreResist = infEff?.ignore_resist || false;
+                    let totalInfDmg = 0;
+                    for (const elem of ELEMENTS) {
+                        let ed = (attacker.elem_dmg || {})[elem] || 0;
+                        if (ed <= 0) continue;
+                        ed = Math.floor(ed * magicMult * magicElemMult);
+                        if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
+                        if (!ignoreResist) {
+                            const eRes = (defender.elem_resist || {})[elem] || 0;
+                            const mRes = Math.floor((defender.magic || 0) * 0.05);
+                            ed = Math.max(0, ed - eRes - mRes);
+                        }
+                        totalInfDmg += ed;
                     }
-                    totalInfDmg += ed;
+                    specialAttackDmg = Math.max(1, totalInfDmg);
+                    if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} casts INFERNO — ${specialAttackDmg} elemental damage`;
                 }
-                specialAttackDmg = Math.max(1, totalInfDmg);
-                if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} casts INFERNO — ${specialAttackDmg} elemental damage`;
             }
         }
         // tempest: guaranteed hit/crit, elem_mult 2-2.5x, uses: 1-2
@@ -6071,6 +6075,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     }
                     specialAttackDmg = Math.max(1, totalTpDmg);
                     if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} summons TEMPEST — ${specialAttackDmg} elemental damage`;
+                }
             }
         }
         // blizzard: magic_mult 1.5x, split_rounds 5
