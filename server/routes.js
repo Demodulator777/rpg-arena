@@ -9985,10 +9985,20 @@ router.get('/inventory', auth, async (req, res) => {
         const items = await dbAll(db, 'SELECT * FROM inventory WHERE char_id = ? ORDER BY item_type, acquired_at DESC', [char.id]);
         const equipped = await getEquippedItems(db, char.id);
         const equippedIds = Object.values(equipped).map(e => e.inventoryId).filter(Boolean);
+        // Build invId → setup names map
+        const setupRows = await dbAll(db, 'SELECT name, data FROM character_setups WHERE char_id=? AND data IS NOT NULL AND data!="{}"', [char.id]);
+        const itemSetups = {};
+        for (const s of setupRows) {
+            const sData = JSON.parse(s.data || '{}');
+            for (const invId of Object.values(sData)) {
+                if (!itemSetups[invId]) itemSetups[invId] = [];
+                if (!itemSetups[invId].includes(s.name)) itemSetups[invId].push(s.name);
+            }
+        }
         res.json({ items: items.map(i => {
             const data = JSON.parse(i.item_data);
             if (i.weapon_type) data.weaponType = data.weaponType || i.weapon_type;
-            return { ...i, item_data: data, equipped: equippedIds.includes(i.id) };
+            return { ...i, item_data: data, equipped: equippedIds.includes(i.id), setups: itemSetups[i.id] || [] };
         }), equipped });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -10770,6 +10780,14 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
         if (eq) {
             const equippedIds = EQUIPMENT_SLOTS.map(s => eq[`${s}_id`]).filter(Boolean);
             if (equippedIds.includes(item.id)) return res.status(400).json({ error: 'Unequip the item before selling.' });
+        }
+        // Check if item is part of any equipment setup
+        const setupRows = await dbAll(db, 'SELECT name, data FROM character_setups WHERE char_id=?', [char.id]);
+        for (const s of setupRows) {
+            const sData = JSON.parse(s.data || '{}');
+            if (Object.values(sData).includes(item.id)) {
+                return res.status(400).json({ error: `Cannot sell — item is in setup "${s.name}". Remove it from the setup first.` });
+            }
         }
         const data = JSON.parse(item.item_data);
 
