@@ -3520,6 +3520,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         drop-shadow(0 0 16px rgba(201,146,42,0.18));
 }
 .inv-item-name-label { font-size: 0.56rem; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 3px; }
+.inv-item-setup-badges { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; margin-top: 3px; }
+.setup-badge { font-size: 0.5rem; background: rgba(52,152,219,0.25); color: #5dade2; padding: 1px 4px; border-radius: 3px; white-space: nowrap; }
 .inv-item-equipped-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; box-shadow: 0 0 5px rgba(201,146,42,0.8); }
 .inv-item-actions {
     display: grid !important;
