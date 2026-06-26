@@ -5494,7 +5494,7 @@ function renderGearGrid(el, gear, equipped) {
     const hasVaultKeeper = !!activePrem.vault_keeper;
     const hasApprentice = !!activePrem.apprentice;
     const merchantPrince = hasVaultKeeper && hasApprentice;
-    const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
+        const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
     
     el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
@@ -5504,6 +5504,7 @@ function renderGearGrid(el, gear, equipped) {
         const qc = d.quality==='legendary'?'inv-legendary':d.quality==='epic'?'inv-epic':d.quality==='rare'?'inv-rare':'';
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
         const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
+        const setupBadges = (i.setups || []).map(sn => `<span class="setup-badge" title="In setup: ${escHtml(sn)}">🔧 ${escHtml(sn)}</span>`).join('');
         
         return `
         <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;" ${actionAttrs('openItemTooltip', i.id)}>
@@ -5514,6 +5515,7 @@ function renderGearGrid(el, gear, equipped) {
             ${upgradeBadge}
             ${isEquipped ? '<div class="inv-item-equipped-dot"></div>' : ''}
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
+            ${setupBadges ? `<div class="inv-item-setup-badges">${setupBadges}</div>` : ''}
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
                 <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>
                 ${upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
