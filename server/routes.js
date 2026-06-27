@@ -92,7 +92,7 @@ router.use(async (req, res, next) => {
                 if (char) charName = char.name;
             } catch {}
             const lastTab = _missionsTabView.get(userId) || 0;
-            const tabViewed = (now - lastTab) < 120 ? 1 : 0;
+            const tabViewed = (now - lastTab) < 1800 ? 1 : 0;
             let bodyStr = '';
             if (req.body && typeof req.body === 'object' && Object.keys(req.body).length) {
                 bodyStr = JSON.stringify(req.body);
@@ -12182,6 +12182,45 @@ router.get('/admin/action-log', auth, async (req, res) => {
         const q = nameFilter.toLowerCase();
         const filtered = q ? actions.filter(a => (a.char_name || '').toLowerCase().includes(q)) : actions;
         filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+        // ── Bot detection pass ─────────────────────────────────────────
+        // Group api_log entries by char_name and detect suspicious patterns
+        const playerStats = {};
+        for (const a of filtered) {
+            if (a._source !== 'api_log') continue;
+            const name = a.char_name || '?';
+            if (!playerStats[name]) playerStats[name] = { entries: [], noTabCount: 0, collectNoTab: 0 };
+            playerStats[name].entries.push(a);
+            if (!a.tab_viewed) {
+                playerStats[name].noTabCount++;
+                if (a.label && (a.label.includes('/missions/collect') || a.label.includes('/missions/start') || a.label.includes('/attack/') || a.label.includes('/battle/recover'))) {
+                    playerStats[name].collectNoTab++;
+                }
+            }
+        }
+        const botPlayers = new Set();
+        for (const [name, stats] of Object.entries(playerStats)) {
+            const total = stats.entries.length;
+            if (total < 10) continue; // need enough data
+            const noTabRatio = stats.noTabCount / total;
+            // Sort entries by time
+            const times = stats.entries.map(e => e.ts).sort((a, b) => a - b);
+            const span = times[times.length - 1] - times[0];
+            const intervals = [];
+            for (let i = 1; i < times.length; i++) {
+                if (times[i] - times[i - 1] < 300) intervals.push(times[i] - times[i - 1]);
+            }
+            const avgInterval = intervals.length ? intervals.reduce((s, v) => s + v, 0) / intervals.length : 999;
+            const activeMinutes = span / 60;
+            // Bot if: high no-tab ratio + active > 20 min + tight intervals + collect no-tab
+            if (noTabRatio > 0.7 && activeMinutes > 20 && avgInterval < 120 && stats.collectNoTab > 3) {
+                botPlayers.add(name);
+            }
+        }
+        for (const a of filtered) {
+            if (botPlayers.has(a.char_name || '?')) a.bot = true;
+        }
+
         res.json(filtered.slice(0, limit));
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
