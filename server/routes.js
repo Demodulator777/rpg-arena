@@ -12239,7 +12239,8 @@ router.get('/admin/action-log', auth, async (req, res) => {
                 sql: `SELECT char_name, created_at, path
                       FROM api_log
                       WHERE created_at > ? AND method = 'POST'
-                      ORDER BY char_name, created_at`,
+                      ORDER BY char_name, created_at
+                      LIMIT 20000`,
                 args: [fpCutoff]
             });
             const fpGroups = {};
@@ -12284,7 +12285,8 @@ router.get('/admin/action-log', auth, async (req, res) => {
                 sql: `SELECT char_name, created_at, path
                       FROM api_log
                       WHERE created_at > ? AND method = 'POST'
-                      ORDER BY char_name, created_at`,
+                      ORDER BY char_name, created_at
+                      LIMIT 20000`,
                 args: [cutoff]
             });
 
@@ -12381,18 +12383,18 @@ router.get('/admin/action-log', auth, async (req, res) => {
             const pRows = await db.execute({
                 sql: `SELECT char_name, created_at, path
                       FROM api_log
-                      WHERE created_at > ? AND method = 'GET'
-                      ORDER BY char_name, created_at`,
+                      WHERE created_at > ?
+                        AND method = 'GET'
+                        AND path NOT LIKE '%/chat/%'
+                        AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions/active%' OR path LIKE '%/travel/status%' OR path LIKE '%/achievements%' OR path LIKE '%/setups%' OR path LIKE '%/messages/%')
+                      ORDER BY char_name, created_at
+                      LIMIT 10000`,
                 args: [pCutoff]
             });
             const pGroups = {};
             for (const r of pRows.rows) {
                 const name = r.char_name;
                 if (!name || name === '?' || !r.created_at) continue;
-                // Only state-polling endpoints, exclude chat
-                const p = (r.path || '').toLowerCase();
-                if (p.includes('/chat/')) continue;
-                if (!p.includes('/character') && !p.includes('/inventory') && !p.includes('/missions/active') && !p.includes('/travel/status') && !p.includes('/achievements') && !p.includes('/setups') && !p.includes('/messages/')) continue;
                 if (!pGroups[name]) pGroups[name] = [];
                 pGroups[name].push(r.created_at);
             }
