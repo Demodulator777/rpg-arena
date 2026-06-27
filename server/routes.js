@@ -5737,27 +5737,23 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (ignoreDefenderZones) atkHitChance = 1.0;
     // ── Round-start effects ────────────────────────────────────────────────
     // Round-start healing effects
-    let roundStartHealLog = '';
     if (hasSkill(atkSkills, 'radiance') && roundNum >= 1) {
         const radEff = getActiveCombatEffect(attacker, 'radiance');
         const healPct = radEff?.heal_pct || 0.04;
         const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
         attacker._radianceHeal = (attacker._radianceHeal || 0) + healAmt;
-        roundStartHealLog += ` radiance +${healAmt}`;
     }
     if (hasSkill(atkSkills, 'divine_light') && roundNum >= 1) {
         const dlEff = getActiveCombatEffect(attacker, 'divine_light');
         const healPct = dlEff?.heal_pct || 0.06;
         const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
         attacker._divineLightHeal = (attacker._divineLightHeal || 0) + healAmt;
-        roundStartHealLog += ` divine_light +${healAmt}`;
     }
     if (hasSkill(atkSkills, 'phoenix_soul') && roundNum >= 1) {
         const psEff = getActiveCombatEffect(attacker, 'phoenix_soul');
         const healPct = psEff?.heal_pct || 0.05;
         const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
         attacker._phoenixSoulHeal = (attacker._phoenixSoulHeal || 0) + healAmt;
-        roundStartHealLog += ` phoenix_soul +${healAmt}`;
     }
     // holy_regen: per-round heal (paladin)
     if (hasSkill(atkSkills, 'holy_regen') && roundNum >= 1) {
@@ -5765,7 +5761,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const healPct = hrEff?.heal_pct_per_round || 0.12;
         const healAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
         attacker._holyRegenHeal = (attacker._holyRegenHeal || 0) + healAmt;
-        roundStartHealLog += ` holy_regen +${healAmt}`;
     }
     // battle_start_heal: one-time heal at start of battle
     if (roundNum === 1 && hasSkill(atkSkills, 'battle_start_heal')) {
@@ -5773,7 +5768,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const healPct = bshEff?.heal_pct || 0.15;
         const bshAmt = Math.max(1, Math.floor((attacker.hpMax || 1) * healPct));
         attacker._battleStartHeal = (attacker._battleStartHeal || 0) + bshAmt;
-        roundStartHealLog += ` battle_start_heal +${bshAmt}`;
     }
     // burn_dot tick: apply stored burn damage to both fighters at round start
     let attackerBurnDmg = 0;
@@ -6497,8 +6491,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (attacker._sanctionedHeal) { attacker._sanctionedHeal = 0; }
     if (defender._bastionHeal) { defender._bastionHeal = 0; }
 
-    if (roundStartHealLog) {
-        logLine = logLine ? `💚${roundStartHealLog} | ${logLine}` : `💚${roundStartHealLog}`;
+    if (roundStartHeal > 0 && logLine) {
+        logLine += ` 💚+${roundStartHeal} HP healed`;
     }
     return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender };
 }
