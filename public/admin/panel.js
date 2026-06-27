@@ -445,6 +445,8 @@ function renderActionsTable(data) {
             detailHtml = '<span style="color:#8a8a90;font-size:11px">' + esc(a.detail || '') + '</span>';
             playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="text-decoration:none;' + nameColor + '">' + esc(a.char_name || '?') + '</a>' + noBadge;
         } else {
+            var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
+            var typeIcon = a.type === 'battle' ? '⚔️' : '📍';
             var nameColor = a.bot ? 'color:#e06060;font-weight:700' : 'color:#5dade2';
             typeBadge = '<span class="badge ' + typeClass + '" style="font-size:10px">' + typeIcon + ' ' + a.type.replace('_',' ') + '</span>';
             labelHtml = esc(a.label || '');
