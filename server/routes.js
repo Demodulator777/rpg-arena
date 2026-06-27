@@ -12374,6 +12374,54 @@ router.get('/admin/action-log', auth, async (req, res) => {
             }
         } catch {}
 
+        // 3) Game state polling: bots poll character/inventory/missions at regular intervals
+        //    Humans only check state when actively doing something.
+        try {
+            const pCutoff = now - 86400; // last 24h
+            const pRows = await db.execute({
+                sql: `SELECT char_name, created_at, path
+                      FROM api_log
+                      WHERE created_at > ? AND method = 'GET'
+                      ORDER BY char_name, created_at`,
+                args: [pCutoff]
+            });
+            const pGroups = {};
+            for (const r of pRows.rows) {
+                const name = r.char_name;
+                if (!name || name === '?' || !r.created_at) continue;
+                // Only state-polling endpoints, exclude chat
+                const p = (r.path || '').toLowerCase();
+                if (p.includes('/chat/')) continue;
+                if (!p.includes('/character') && !p.includes('/inventory') && !p.includes('/missions/active') && !p.includes('/travel/status') && !p.includes('/achievements') && !p.includes('/setups') && !p.includes('/messages/')) continue;
+                if (!pGroups[name]) pGroups[name] = [];
+                pGroups[name].push(r.created_at);
+            }
+            for (const [name, timestamps] of Object.entries(pGroups)) {
+                if (botPlayers.has(name)) continue;
+                timestamps.sort((a, b) => a - b);
+                const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
+                if (unique.length < 30) continue;
+                const span = unique[unique.length - 1] - unique[0];
+                if (span < 7200) continue; // 2+ hours of polling
+                // Compute gaps (skip > 10 min gaps to focus on active periods)
+                const gaps = [];
+                for (let i = 1; i < unique.length; i++) {
+                    const g = unique[i] - unique[i - 1];
+                    if (g < 600) gaps.push(g);
+                }
+                if (gaps.length < 25) continue;
+                const sum = gaps.reduce((s, v) => s + v, 0);
+                const mean = sum / gaps.length;
+                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+                const stddev = Math.sqrt(variance);
+                const cv = stddev / mean;
+                // Consistent polling: CV < 0.6, mean between 20-180s
+                if (cv < 0.6 && mean >= 20 && mean <= 180) {
+                    botPlayers.set(name, `State polling CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+                }
+            }
+        } catch {}
+
         // Sort by time descending and apply name filter client-side too
         const q = nameFilter.toLowerCase();
         const filtered = q ? actions.filter(a => (a.char_name || '').toLowerCase().includes(q)) : actions;
