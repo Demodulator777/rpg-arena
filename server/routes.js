@@ -12186,29 +12186,29 @@ router.get('/admin/action-log', auth, async (req, res) => {
         filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
         // ── Bot detection pass ─────────────────────────────────────────
-        // Uses purely behavioral signals: continuous activity + tight intervals
+        // Only count POST requests (actual actions, not GET polling) and deduplicate same-second bursts
         const playerStats = {};
         for (const a of filtered) {
             if (a._source !== 'api_log') continue;
+            if (!a.label || !a.label.startsWith('POST')) continue; // only actions, not polling
             const name = a.char_name || '?';
-            if (!playerStats[name]) playerStats[name] = [];
-            playerStats[name].push(a.ts);
+            if (!playerStats[name]) playerStats[name] = new Set();
+            playerStats[name].add(a.ts); // Set deduplicates same-second timestamps
         }
         const botPlayers = new Set();
-        for (const [name, times] of Object.entries(playerStats)) {
-            if (times.length < 50) continue;
-            times.sort((a, b) => a - b);
+        for (const [name, tsSet] of Object.entries(playerStats)) {
+            const times = [...tsSet].sort((a, b) => a - b);
+            if (times.length < 20) continue;
             const span = times[times.length - 1] - times[0];
-            if (span < 2700) continue; // less than 45 min active
-            // Only count gaps under 2 min as "active" gaps
+            if (span < 3600) continue; // less than 1 hour active
             const gaps = [];
             for (let i = 1; i < times.length; i++) {
                 const gap = times[i] - times[i - 1];
-                if (gap < 120) gaps.push(gap);
+                if (gap < 300) gaps.push(gap);
             }
-            if (gaps.length < 40) continue;
+            if (gaps.length < 15) continue;
             const avgGap = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (avgGap < 30) botPlayers.add(name); // avg < 30s between actions for 45+ min
+            if (avgGap < 60) botPlayers.add(name); // avg < 60s between POST actions for 1+ hour
         }
         for (const a of filtered) {
             if (botPlayers.has(a.char_name || '?')) a.bot = true;
