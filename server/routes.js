@@ -12400,16 +12400,16 @@ router.get('/admin/action-log', auth, async (req, res) => {
                 if (botPlayers.has(name)) continue;
                 timestamps.sort((a, b) => a - b);
                 const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
-                if (unique.length < 30) continue;
+                if (unique.length < 15) continue;
                 const span = unique[unique.length - 1] - unique[0];
-                if (span < 7200) continue; // 2+ hours of polling
+                if (span < 3600) continue; // 1+ hours of polling
                 // Compute gaps (skip > 10 min gaps to focus on active periods)
                 const gaps = [];
                 for (let i = 1; i < unique.length; i++) {
                     const g = unique[i] - unique[i - 1];
                     if (g < 600) gaps.push(g);
                 }
-                if (gaps.length < 25) continue;
+                if (gaps.length < 10) continue;
                 const sum = gaps.reduce((s, v) => s + v, 0);
                 const mean = sum / gaps.length;
                 const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
@@ -12436,6 +12436,8 @@ router.get('/admin/action-log', auth, async (req, res) => {
         const result = filtered.slice(0, limit);
         const seen = new Set(result.map(a => a.char_name || '?'));
 
+        // Only inject synthetic entries for bot players matching the current filter
+
         // Persist detected bots to flagged_characters table
         try {
             await ensureFlaggedTable(db);
@@ -12452,9 +12454,10 @@ router.get('/admin/action-log', auth, async (req, res) => {
         } catch {}
 
         for (const [bp, reason] of botPlayers) {
-            if (!seen.has(bp) && bp !== '?') {
-                result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: reason, _source: 'bot_detection', bot: true });
-            }
+            if (!bp || bp === '?' || seen.has(bp)) continue;
+            // Only inject synthetic entries matching the current name filter
+            if (q && !bp.toLowerCase().includes(q)) continue;
+            result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: reason, _source: 'bot_detection', bot: true });
         }
 
         res.json(result);
