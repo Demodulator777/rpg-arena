@@ -12180,43 +12180,122 @@ router.get('/admin/action-log', auth, async (req, res) => {
             actions.push({ ts: a.ts, type: 'api', char_name: a.char_name || '', label, detail, id: a.id, _source: 'api_log', tab_viewed: a.tab_viewed });
         }
 
-        // ── Bot detection pass (runs on FULL dataset before filter/slice) ──
-        // Counts: battle entries, spot_fight entries, and api_log POSTs (excludes GET polling)
-        const playerStats = {};
-        for (const a of actions) {
-            if (a._source === 'api_log') {
-                if (!a.label || !a.label.startsWith('POST')) continue;
+        // ── Bot detection pass ──
+        const botPlayers = new Map(); // name → reason
+
+        // 1) Known managed bots from bot_configs
+        try {
+            const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
+            for (const row of bots.rows) {
+                if (row.name) botPlayers.set(row.name, 'Managed test bot');
             }
-            const name = a.char_name || '?';
-            if (!playerStats[name]) playerStats[name] = [];
-            playerStats[name].push(a.ts);
-        }
-        const botPlayers = new Set();
-        for (const [name, times] of Object.entries(playerStats)) {
-            if (times.length < 15) continue;
-            times.sort((a, b) => a - b);
-            const span = times[times.length - 1] - times[0];
-            if (span < 3600) continue;
-            // deduplicate same-second timestamps
-            const unique = times.filter((t, i) => i === 0 || t !== times[i - 1]);
-            if (unique.length < 15) continue;
-            // only count gaps under 5 min
-            const gaps = [];
-            for (let i = 1; i < unique.length; i++) {
-                const gap = unique[i] - unique[i - 1];
-                if (gap < 300) gaps.push(gap);
+        } catch {}
+
+        // 2) Heuristic: look for low-variance gaps between POST actions
+        //    Bots have consistent delays (even with random jitter, CV < 0.5).
+        //    Humans are bursty — short gaps then long pauses — giving high CV.
+        try {
+            const cutoff = Math.floor(Date.now() / 1000) - 86400; // last 24h
+            const rows = await db.execute({
+                sql: `SELECT char_name, created_at, path
+                      FROM api_log
+                      WHERE created_at > ? AND method = 'POST'
+                      ORDER BY char_name, created_at`,
+                args: [cutoff]
+            });
+
+            // Group timestamps per player (only mission-related POSTs)
+            const groups = {};
+            for (const r of rows.rows) {
+                const name = r.char_name;
+                if (!name || name === '?' || !r.created_at) continue;
+                // Focus on mission-related endpoints (the main bot loop)
+                const p = (r.path || '').toLowerCase();
+                if (!p.includes('/missions/') && !p.includes('/dungeon/mp-spent')) continue;
+                if (!groups[name]) groups[name] = [];
+                groups[name].push(r.created_at);
             }
-            if (gaps.length < 10) continue;
-            const avgGap = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (avgGap < 60) botPlayers.add(name);
-        }
+
+            for (const [name, timestamps] of Object.entries(groups)) {
+                if (botPlayers.has(name)) continue;
+                timestamps.sort((a, b) => a - b);
+                // Remove duplicate-second timestamps (bursts)
+                const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
+                if (unique.length < 20) continue;
+
+                // Compute gaps; skip tiny gaps (< 3s) from collect→dungeon→start sequence
+                const gaps = [];
+                for (let i = 1; i < unique.length; i++) {
+                    const g = unique[i] - unique[i - 1];
+                    if (g >= 3) gaps.push(g);
+                }
+                if (gaps.length < 15) continue;
+
+                // Coefficient of variation = stddev / mean
+                const sum = gaps.reduce((s, v) => s + v, 0);
+                const mean = sum / gaps.length;
+                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+                const stddev = Math.sqrt(variance);
+                const cv = stddev / mean;
+                const maxGap = Math.max(...gaps);
+
+                // Bots: CV < 0.5 (consistent timing), mean between 1-15 min, no 30+ min pauses
+                // Humans: high CV (> 1.0) due to bursty behavior, or have very long gaps (> 30 min)
+                if (cv < 0.5 && mean >= 60 && mean <= 900 && maxGap < 1800)
+                    botPlayers.set(name, `Mission timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+            }
+        } catch {} 
+        // also check battle activity: high battle count with short average gaps and low CV
+        try {
+            const cutoff = Math.floor(Date.now() / 1000) - 86400;
+            const bRows = await db.execute({
+                sql: `SELECT ca.name AS char_name, b.fought_at
+                      FROM battles b
+                      JOIN characters ca ON b.attacker_id = ca.id
+                      WHERE b.fought_at > ?
+                      ORDER BY ca.name, b.fought_at`,
+                args: [cutoff]
+            });
+
+            const bGroups = {};
+            for (const r of bRows.rows) {
+                const name = r.char_name;
+                if (!name || name === '?' || !r.fought_at) continue;
+                if (!bGroups[name]) bGroups[name] = [];
+                bGroups[name].push(r.fought_at);
+            }
+
+            for (const [name, timestamps] of Object.entries(bGroups)) {
+                if (botPlayers.has(name)) continue;
+                timestamps.sort((a, b) => a - b);
+                const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
+                if (unique.length < 50) continue;
+
+                const gaps = [];
+                for (let i = 1; i < unique.length; i++) {
+                    const g = unique[i] - unique[i - 1];
+                    gaps.push(g);
+                }
+
+                const sum = gaps.reduce((s, v) => s + v, 0);
+                const mean = sum / gaps.length;
+                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+                const stddev = Math.sqrt(variance);
+                const cv = stddev / mean;
+                const maxGap = Math.max(...gaps);
+
+                // Bot attack pattern: consistent timing (CV < 0.5), tight average (< 60s), no long pauses
+                if (cv < 0.5 && mean < 60 && maxGap < 300)
+                    botPlayers.set(name, `Battle timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+            }
+        } catch {}
 
         // Sort by time descending and apply name filter client-side too
         const q = nameFilter.toLowerCase();
         const filtered = q ? actions.filter(a => (a.char_name || '').toLowerCase().includes(q)) : actions;
         filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
-        // Apply bot flags
+        // Apply bot flags to all matching entries
         for (const a of filtered) {
             if (botPlayers.has(a.char_name || '?')) a.bot = true;
         }
@@ -12224,9 +12303,9 @@ router.get('/admin/action-log', auth, async (req, res) => {
         // Ensure at least one entry per bot player survives the slice
         const result = filtered.slice(0, limit);
         const seen = new Set(result.map(a => a.char_name || '?'));
-        for (const bp of botPlayers) {
-            if (!seen.has(bp)) {
-                result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: 'Continuous activity detected', _source: 'bot_detection', bot: true });
+        for (const [bp, reason] of botPlayers) {
+            if (!seen.has(bp) && bp !== '?') {
+                result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: reason, _source: 'bot_detection', bot: true });
             }
         }
 
