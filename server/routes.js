@@ -12143,19 +12143,46 @@ router.get('/admin/action-log', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
-        const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+        const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
         const nameFilter = req.query.name || '';
-        let sql, args;
+        const actions = [];
+
+        // Battles fought (rich detail)
+        const battles = await db.execute({ sql: `SELECT b.id, b.fought_at AS ts, 'battle' AS type, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id, ca.name AS char_name FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id ORDER BY b.fought_at DESC LIMIT ?`, args: [limit] });
+        for (const b of battles.rows) {
+            if (b.ts) actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id, _source: 'battles' });
+        }
+
+        // Mission spot fights
+        const spotFights = await db.execute({ sql: `SELECT cs.char_id, cs.last_fought_at AS ts, 'spot_fight' AS type, c.name AS char_name, cs.zone_id, cs.spot_id, cs.fights, cs.wins FROM character_mission_spot_stats cs LEFT JOIN characters c ON cs.char_id = c.id WHERE cs.last_fought_at > 0 ORDER BY cs.last_fought_at DESC LIMIT ?`, args: [limit] });
+        for (const s of spotFights.rows) {
+            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id, _source: 'spot_fights' });
+        }
+
+        // API log (all authenticated requests)
+        let apiSql, apiArgs;
         if (nameFilter) {
             const like = `%${nameFilter}%`;
-            sql = `SELECT * FROM api_log WHERE (char_name LIKE ? OR username LIKE ?) ORDER BY created_at DESC LIMIT ?`;
-            args = [like, like, limit];
+            apiSql = `SELECT id, created_at AS ts, char_name, method, path, status, tab_viewed FROM api_log WHERE (char_name LIKE ? OR username LIKE ?) ORDER BY created_at DESC LIMIT ?`;
+            apiArgs = [like, like, limit];
         } else {
-            sql = `SELECT * FROM api_log ORDER BY created_at DESC LIMIT ?`;
-            args = [limit];
+            apiSql = `SELECT id, created_at AS ts, char_name, method, path, status, tab_viewed FROM api_log ORDER BY created_at DESC LIMIT ?`;
+            apiArgs = [limit];
         }
-        const result = await db.execute({ sql, args });
-        res.json(result.rows);
+        const apiRows = await db.execute({ sql: apiSql, args: apiArgs });
+        for (const a of apiRows.rows) {
+            if (!a.ts) continue;
+            const noTab = !a.tab_viewed ? ' ⚠️' : '';
+            const label = `${a.method} ${a.path}`;
+            const detail = `${a.status}${noTab}`;
+            actions.push({ ts: a.ts, type: 'api', char_name: a.char_name || '', label, detail, id: a.id, _source: 'api_log', tab_viewed: a.tab_viewed });
+        }
+
+        // Sort by time descending and apply name filter client-side too
+        const q = nameFilter.toLowerCase();
+        const filtered = q ? actions.filter(a => (a.char_name || '').toLowerCase().includes(q)) : actions;
+        filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        res.json(filtered.slice(0, limit));
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
