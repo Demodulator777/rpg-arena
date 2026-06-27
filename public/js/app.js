@@ -4384,6 +4384,7 @@ function queueMobileMissionModalScroll(target) {
 
 function pickMissionSize(zoneId, spotId, sizeKey) {
     if (window.activeMission || playerTravelTarget) return;
+    api('POST', '/game/missions/ui-tick', {}).catch(() => {});
 
     const currentMap = character?.current_map || 'overworld';
     let zone;
