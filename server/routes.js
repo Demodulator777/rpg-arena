@@ -74,6 +74,17 @@ async function ensureApiLogTable(db) {
     )`);
 }
 
+async function ensureFlaggedTable(db) {
+    await db.execute(`CREATE TABLE IF NOT EXISTS flagged_characters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        char_name TEXT NOT NULL UNIQUE,
+        reason TEXT NOT NULL DEFAULT '',
+        detected_at INTEGER NOT NULL,
+        last_seen_at INTEGER NOT NULL,
+        confirmed INTEGER NOT NULL DEFAULT 0
+    )`);
+}
+
 router.use(async (req, res, next) => {
     const start = Date.now();
     res.on('finish', async () => {
@@ -100,10 +111,19 @@ router.use(async (req, res, next) => {
                 bodyStr = JSON.stringify(req.body);
                 if (bodyStr.length > 500) bodyStr = bodyStr.substring(0, 500);
             }
-            await db.execute({
+            const result = await db.execute({
                 sql: `INSERT INTO api_log (user_id, username, char_name, method, path, status, req_body, tab_viewed, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
                 args: [userId, username, charName, req.method, path, res.statusCode, bodyStr, tabViewed, now]
             });
+            // Maintain 500 most recent entries per character (circular buffer)
+            if (charName && result.lastInsertRowid) {
+                try {
+                    await db.execute({
+                        sql: `DELETE FROM api_log WHERE char_name = ? AND id NOT IN (SELECT id FROM api_log WHERE char_name = ? ORDER BY id DESC LIMIT 500)`,
+                        args: [charName, charName]
+                    });
+                } catch {}
+            }
         } catch {}
     });
     next();
@@ -9342,6 +9362,17 @@ router.post('/missions/tab-viewed', auth, (req, res) => {
     res.json({ success: true });
 });
 
+// ── Mission UI Tick (bot protection) ─────────────────────────────────
+// Client sends this when player interacts with mission UI buttons.
+// The server checks for a recent tick before allowing /missions/start.
+const _missionUiTicks = new Map();
+const _missionNoTickStarts = new Map(); // char_name → count
+
+router.post('/missions/ui-tick', auth, (req, res) => {
+    _missionUiTicks.set(req.user.userId, Math.floor(Date.now() / 1000));
+    res.json({ success: true });
+});
+
 // ── Missions Start ─────────────────────────────────────────────────────
 router.post('/missions/start', auth, async (req, res) => {
     const userId = req.user.userId;
@@ -9355,6 +9386,13 @@ router.post('/missions/start', auth, async (req, res) => {
         const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
+
+        // Anti-bot: check for UI tick within the last 60 seconds
+        const lastTick = _missionUiTicks.get(userId) || 0;
+        const hadTick = (now - lastTick) < 60;
+        if (!hadTick && character.name) {
+            _missionNoTickStarts.set(character.name, (_missionNoTickStarts.get(character.name) || 0) + 1);
+        }
         const activeTraining = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id = ? AND ends_at > ?',
             [character.id, now]);
         if (activeTraining) {
@@ -12182,6 +12220,7 @@ router.get('/admin/action-log', auth, async (req, res) => {
 
         // ── Bot detection pass ──
         const botPlayers = new Map(); // name → reason
+        const now = Math.floor(Date.now() / 1000);
 
         // 1) Known managed bots from bot_configs
         try {
@@ -12191,11 +12230,56 @@ router.get('/admin/action-log', auth, async (req, res) => {
             }
         } catch {}
 
-        // 2) Heuristic: look for low-variance gaps between POST actions
+        // 1b) Fast-path: detect instant mission collect→start (< 2s gap)
+        //    Real players need 5-10s+ to click spot, select difficulty, size.
+        //    Bots start the next mission instantly after collecting.
+        try {
+            const fpCutoff = now - 86400; // last 24h
+            const fpRows = await db.execute({
+                sql: `SELECT char_name, created_at, path
+                      FROM api_log
+                      WHERE created_at > ? AND method = 'POST'
+                      ORDER BY char_name, created_at`,
+                args: [fpCutoff]
+            });
+            const fpGroups = {};
+            for (const r of fpRows.rows) {
+                const name = r.char_name;
+                if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
+                const p = (r.path || '').toLowerCase();
+                if (!p.includes('/missions/')) continue;
+                if (!fpGroups[name]) fpGroups[name] = [];
+                fpGroups[name].push({ ts: r.created_at, path: p });
+            }
+            for (const [name, entries] of Object.entries(fpGroups)) {
+                entries.sort((a, b) => a.ts - b.ts);
+                let instantStarts = 0;
+                for (let i = 1; i < entries.length; i++) {
+                    const prev = entries[i - 1].path;
+                    const cur = entries[i].path;
+                    const gap = entries[i].ts - entries[i - 1].ts;
+                    // Check collect/mp-spent → start with gap < 2s
+                    if (gap < 2 && cur.includes('/missions/start') &&
+                        (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) {
+                        instantStarts++;
+                    }
+                }
+                if (instantStarts >= 5) {
+                    botPlayers.set(name, `Instant collect→start: ${instantStarts} times in 24h`);
+                }
+                // Also flag players with multiple no-tick starts
+                const noTick = _missionNoTickStarts.get(name) || 0;
+                if (noTick >= 5) {
+                    botPlayers.set(name, `No UI tick: ${noTick} direct starts`);
+                }
+            }
+        } catch {}
+
+        // 2) Heuristic: look for low-variance gaps between actions (timing consistency)
         //    Bots have consistent delays (even with random jitter, CV < 0.5).
         //    Humans are bursty — short gaps then long pauses — giving high CV.
         try {
-            const cutoff = Math.floor(Date.now() / 1000) - 86400; // last 24h
+            const cutoff = now - 86400; // last 24h for mission detection
             const rows = await db.execute({
                 sql: `SELECT char_name, created_at, path
                       FROM api_log
@@ -12247,14 +12331,14 @@ router.get('/admin/action-log', auth, async (req, res) => {
         } catch {} 
         // also check battle activity: high battle count with short average gaps and low CV
         try {
-            const cutoff = Math.floor(Date.now() / 1000) - 86400;
+            const bCutoff = now - 21600; // last 6h for battle analysis
             const bRows = await db.execute({
                 sql: `SELECT ca.name AS char_name, b.fought_at
                       FROM battles b
                       JOIN characters ca ON b.attacker_id = ca.id
                       WHERE b.fought_at > ?
                       ORDER BY ca.name, b.fought_at`,
-                args: [cutoff]
+                args: [bCutoff]
             });
 
             const bGroups = {};
@@ -12303,6 +12387,22 @@ router.get('/admin/action-log', auth, async (req, res) => {
         // Ensure at least one entry per bot player survives the slice
         const result = filtered.slice(0, limit);
         const seen = new Set(result.map(a => a.char_name || '?'));
+
+        // Persist detected bots to flagged_characters table
+        try {
+            await ensureFlaggedTable(db);
+            const flaggedRows = await db.execute('SELECT char_name FROM flagged_characters');
+            const existingFlags = new Set(flaggedRows.rows.map(r => r.char_name));
+            for (const [bp, reason] of botPlayers) {
+                if (!bp || bp === '?') continue;
+                if (existingFlags.has(bp)) {
+                    await db.execute({ sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?', args: [reason, now, bp] });
+                } else {
+                    await db.execute({ sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at) VALUES (?,?,?,?)', args: [bp, reason, now, now] });
+                }
+            }
+        } catch {}
+
         for (const [bp, reason] of botPlayers) {
             if (!seen.has(bp) && bp !== '?') {
                 result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: reason, _source: 'bot_detection', bot: true });
@@ -12310,6 +12410,54 @@ router.get('/admin/action-log', auth, async (req, res) => {
         }
 
         res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Flagged Characters ───────────────────────────────────────────────
+router.get('/admin/flagged-characters', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        await ensureFlaggedTable(db);
+        const result = await db.execute('SELECT * FROM flagged_characters ORDER BY last_seen_at DESC');
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/character-logs/:name', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const name = req.params.name;
+        const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
+        const entries = await db.execute({
+            sql: `SELECT id, created_at AS ts, method, path, status, char_name FROM api_log WHERE char_name = ? ORDER BY created_at DESC LIMIT ?`,
+            args: [name, limit]
+        });
+        const battles = await db.execute({
+            sql: `SELECT b.id, b.fought_at AS ts, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id
+                  FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id
+                  WHERE ca.name = ? OR cd.name = ?
+                  ORDER BY b.fought_at DESC LIMIT ?`,
+            args: [name, name, limit]
+        });
+        res.json({ api_log: entries.rows, battles: battles.rows });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/flag-character', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        await ensureFlaggedTable(db);
+        const { char_name, reason } = req.body;
+        if (!char_name) return res.status(400).json({ error: 'char_name required' });
+        const now = Math.floor(Date.now() / 1000);
+        await db.execute({
+            sql: 'INSERT OR REPLACE INTO flagged_characters (char_name, reason, detected_at, last_seen_at, confirmed) VALUES (?,?,?,?,1)',
+            args: [char_name, reason || 'Manual flag', now, now]
+        });
+        res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
