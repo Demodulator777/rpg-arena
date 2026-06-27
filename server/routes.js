@@ -12196,19 +12196,19 @@ router.get('/admin/action-log', auth, async (req, res) => {
         }
         const botPlayers = new Set();
         for (const [name, times] of Object.entries(playerStats)) {
-            if (times.length < 20) continue;
+            if (times.length < 50) continue;
             times.sort((a, b) => a - b);
             const span = times[times.length - 1] - times[0];
-            if (span < 1800) continue; // less than 30 min active
-            // Calculate average interval for bursts (ignore gaps > 5 min)
+            if (span < 2700) continue; // less than 45 min active
+            // Only count gaps under 2 min as "active" gaps
             const gaps = [];
             for (let i = 1; i < times.length; i++) {
                 const gap = times[i] - times[i - 1];
-                if (gap < 300) gaps.push(gap);
+                if (gap < 120) gaps.push(gap);
             }
-            if (gaps.length < 15) continue;
+            if (gaps.length < 40) continue;
             const avgGap = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (avgGap < 60) botPlayers.add(name); // avg < 60s between actions for 30+ min
+            if (avgGap < 30) botPlayers.add(name); // avg < 30s between actions for 45+ min
         }
         for (const a of filtered) {
             if (botPlayers.has(a.char_name || '?')) a.bot = true;
