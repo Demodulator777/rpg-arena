@@ -6186,12 +6186,23 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
         const dmgMinConfigured = Number(attacker.dmgMin || 0);
         const dmgMaxConfigured = Number(attacker.dmgMax || 0);
-        const dmgCrit = Math.max(dmgMinConfigured, dmgMaxConfigured);
+        // Zone multiplier with variance:
+        //   dmgMult < 1 (penalty zones): effective mult ranges from dmgMult up to 1.0
+        //   dmgMult >= 1 (bonus zones): ±0.1 variance around multiplier
+        let zMult = hit.dmgMult;
+        let zoneEffMult;
+        if (zMult < 1) {
+            zoneEffMult = zMult + Math.random() * (1 - zMult);
+        } else {
+            zoneEffMult = (zMult - 0.1) + Math.random() * 0.2;
+        }
         if (!specialAttackFired) {
-            rawPhysicalDmg = isCrit ? dmgCrit : dmgMinConfigured;
+            // Roll base damage with variance between dmgMin and dmgMax
+            const dmgRoll = dmgMinConfigured + Math.floor(Math.random() * (dmgMaxConfigured - dmgMinConfigured + 1));
+            rawPhysicalDmg = dmgRoll;
             rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
             let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
-            physicalDmg = Math.floor(physicalDmg * hit.dmgMult * atkBonusDmg);
+            physicalDmg = Math.floor(physicalDmg * zoneEffMult * atkBonusDmg);
 
             const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
             const magicToElemental = attacker.class === 'mage';
@@ -6232,7 +6243,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const critTag = isCrit ? ' ⚡CRIT' : '';
 
             if (magicToElemental) {
-                const mageBaseElemRaw = Math.max(1, Math.floor((rawPhysicalDmg * hit.dmgMult * atkBonusDmg) * 0.05));
+                const mageBaseElemRaw = Math.max(1, Math.floor((rawPhysicalDmg * zoneEffMult * atkBonusDmg) * 0.05));
                 const avgElemResist = Math.floor(ELEMENTS.reduce((sum, elem) => sum + ((defender.elem_resist || {})[elem] || 0), 0) / ELEMENTS.length);
                 const magicResist = Math.floor((defender.magic || 0) * 0.05);
                 const mageBaseElemDmg = Math.max(0, mageBaseElemRaw - avgElemResist - magicResist);
