@@ -56,6 +56,7 @@ const router = express.Router();
 const _missionStartLock = new Set();
 const _upgradeLock = new Set();
 const _weeklyClaimableCountCache = new Map();
+const _missionsTabView = new Map(); // userId → last tab view timestamp
 
 function invalidateWeeklyClaimableCountCache(charId) {
     const prefix = `${charId}:`;
@@ -9284,15 +9285,54 @@ router.get('/missions', auth, async (req, res) => {
     }
 });
 
+// ── Missions Tab Viewed (bot detection) ────────────────────────────────
+router.post('/missions/tab-viewed', auth, (req, res) => {
+    _missionsTabView.set(req.user.userId, Math.floor(Date.now() / 1000));
+    res.json({ success: true });
+});
+
+// ── Missions Start ─────────────────────────────────────────────────────
 router.post('/missions/start', auth, async (req, res) => {
     const userId = req.user.userId;
+    const now = Math.floor(Date.now() / 1000);
+    // Log every attempt immediately (even failures)
+    let logId = null;
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, userId, 'id, name');
+        const charName = char?.name || 'unknown';
+        const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
+        await db.execute(`CREATE TABLE IF NOT EXISTS mission_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            char_id INTEGER NOT NULL,
+            char_name TEXT NOT NULL DEFAULT '',
+            zone TEXT,
+            spot TEXT,
+            mission_name TEXT,
+            size TEXT,
+            started_at INTEGER NOT NULL,
+            succeeded INTEGER NOT NULL DEFAULT 0,
+            error TEXT,
+            tab_viewed INTEGER NOT NULL DEFAULT 0
+        )`);
+        const lastTab = _missionsTabView.get(userId) || 0;
+        const tabViewed = (now - lastTab) < 120 ? 1 : 0;
+        const missionNameGuess = spotId ? `${spotId}` : 'unknown';
+        const result = await db.execute({
+            sql: `INSERT INTO mission_log (char_id, char_name, zone, spot, mission_name, size, started_at, succeeded, tab_viewed) VALUES (?,?,?,?,?,?,?,0,?)`,
+            args: [char?.id || 0, charName, zoneId || null, spotId || null, missionNameGuess, reqSize || null, now, tabViewed]
+        });
+        logId = Number(result.lastInsertRowid);
+    } catch (e) { /* logging failed, non-critical */ }
+
     if (_missionStartLock.has(userId)) {
+        // Update log entry with error
+        if (logId) try { const db = await getDb(); await db.execute({ sql: 'UPDATE mission_log SET error=? WHERE id=?', args: ['already in progress', logId] }); } catch {}
         return res.status(400).json({ error: 'Mission start already in progress.' });
     }
     _missionStartLock.add(userId);
     try {
         const db = await getDb();
-        const now = Math.floor(Date.now() / 1000);
         const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
@@ -9409,6 +9449,10 @@ router.post('/missions/start', auth, async (req, res) => {
             await recordTotalMpSpent(db, character.id, effectiveMpCost);
         }
 
+        // Mark mission_log as succeeded
+        if (logId) {
+            try { await db.execute({ sql: 'UPDATE mission_log SET succeeded=1, mission_name=?, size=?, zone=?, spot=? WHERE id=?', args: [missionName, sizeKey, zoneId, spotId, logId] }); } catch {}
+        }
         res.json({
             success: true,
             mission: {
@@ -9430,7 +9474,11 @@ router.post('/missions/start', auth, async (req, res) => {
         });
     } catch (e) {
         console.error('Mission start error:', e);
-        res.status(500).json({ error: e?.message || String(e) });
+        const errMsg = e?.message || String(e);
+        if (logId) {
+            try { const db2 = await getDb(); await db2.execute({ sql: 'UPDATE mission_log SET error=? WHERE id=?', args: [errMsg, logId] }); } catch {}
+        }
+        res.status(500).json({ error: errMsg });
     } finally {
         _missionStartLock.delete(userId);
     }
@@ -12094,10 +12142,18 @@ router.get('/admin/action-log', auth, async (req, res) => {
             actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id });
         }
 
-        // Missions started
-        const missions = await db.execute({ sql: `SELECT m.id, m.started_at AS ts, 'mission_start' AS type, c.name AS char_name, m.zone, m.mission_name FROM missions m LEFT JOIN characters c ON m.char_id = c.id ORDER BY m.started_at DESC LIMIT ?`, args: [limit] });
+        // Missions started (from mission_log)
+        const missions = await db.execute({ sql: `SELECT m.id, m.started_at AS ts, 'mission_start' AS type, m.char_name, m.zone, m.mission_name, m.succeeded, m.error, m.tab_viewed, m.size FROM mission_log m ORDER BY m.started_at DESC LIMIT ?`, args: [limit] });
         for (const m of missions.rows) {
-            if (m.ts) actions.push({ ts: m.ts, type: 'mission', char_name: m.char_name || '?', label: `${m.char_name || '?'} started ${m.mission_name || '?'} (${m.zone || '?'})`, detail: '', id: m.id });
+            if (m.ts) {
+                const detailParts = [];
+                if (m.succeeded) detailParts.push('✅');
+                else if (m.error) detailParts.push(`❌ ${m.error}`);
+                else detailParts.push('❌');
+                if (!m.tab_viewed) detailParts.push('⚠️ no tab view');
+                if (m.size) detailParts.push(m.size);
+                actions.push({ ts: m.ts, type: 'mission', char_name: m.char_name || '?', label: `${m.char_name || '?'} → ${m.mission_name || '?'} (${m.zone || '?'})`, detail: detailParts.join(' '), id: m.id });
+            }
         }
 
         // Mission spot fights
