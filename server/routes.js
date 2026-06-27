@@ -12405,21 +12405,18 @@ router.get('/admin/action-log', auth, async (req, res) => {
                 if (unique.length < 15) continue;
                 const span = unique[unique.length - 1] - unique[0];
                 if (span < 3600) continue; // 1+ hours of polling
-                // Compute gaps (skip > 10 min gaps to focus on active periods)
-                const gaps = [];
+                // Compute all gaps between consecutive polls
+                const allGaps = [];
                 for (let i = 1; i < unique.length; i++) {
-                    const g = unique[i] - unique[i - 1];
-                    if (g < 600) gaps.push(g);
+                    allGaps.push(unique[i] - unique[i - 1]);
                 }
-                if (gaps.length < 10) continue;
-                const sum = gaps.reduce((s, v) => s + v, 0);
-                const mean = sum / gaps.length;
-                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
-                const stddev = Math.sqrt(variance);
-                const cv = stddev / mean;
-                // Consistent polling: CV < 0.6, mean between 20-180s
-                if (cv < 0.6 && mean >= 20 && mean <= 180) {
-                    botPlayers.set(name, `State polling CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+                // Count how many are short gaps (< 120s) — these are active polling intervals
+                const shortGaps = allGaps.filter(g => g < 120);
+                // If > 50% of all gaps are < 120s and there are enough short gaps,
+                // the player is spending most of their time polling game state
+                if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.5) {
+                    const shortMean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
+                    botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, mean ${Math.round(shortMean)}s`);
                 }
             }
         } catch {}
