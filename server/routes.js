@@ -12410,13 +12410,14 @@ router.get('/admin/action-log', auth, async (req, res) => {
                 for (let i = 1; i < unique.length; i++) {
                     allGaps.push(unique[i] - unique[i - 1]);
                 }
-                // Count how many are short gaps (< 120s) — these are active polling intervals
+                // Count short gaps (< 120s) — these are active polling intervals
                 const shortGaps = allGaps.filter(g => g < 120);
-                // If > 50% of all gaps are < 120s and there are enough short gaps,
-                // the player is spending most of their time polling game state
-                if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.5) {
+                // Sum of short gaps = total time spent actively polling
+                const activeTime = shortGaps.reduce((s, v) => s + v, 0);
+                // Flag if: 10+ short gaps, > 50% gaps are short, AND active polling totals > 30 min
+                if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.5 && activeTime >= 1800) {
                     const shortMean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
-                    botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, mean ${Math.round(shortMean)}s`);
+                    botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active`);
                 }
             }
         } catch {}
@@ -12448,6 +12449,16 @@ router.get('/admin/action-log', auth, async (req, res) => {
                     await db.execute({ sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?', args: [reason, now, bp] });
                 } else {
                     await db.execute({ sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at) VALUES (?,?,?,?)', args: [bp, reason, now, now] });
+                }
+            }
+            // Clear stale flags: entries in table but not in current detection
+            const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
+            for (const flagged of flaggedRows.rows) {
+                if (!detectedNames.has(flagged.char_name)) {
+                    await db.execute({
+                        sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed IS NULL",
+                        args: [flagged.char_name]
+                    });
                 }
             }
         } catch {}
