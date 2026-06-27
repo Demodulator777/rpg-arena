@@ -444,6 +444,12 @@ function renderActionsTable(data) {
             labelHtml = '<span style="font-size:12px">' + esc(a.label || '') + '</span>';
             detailHtml = '<span style="color:#8a8a90;font-size:11px">' + esc(a.detail || '') + '</span>';
             playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="text-decoration:none;' + nameColor + '">' + esc(a.char_name || '?') + '</a>' + noBadge;
+        } else if (a._source === 'bot_detection') {
+            var nameColor = 'color:#e06060;font-weight:700';
+            typeBadge = '<span class="badge badge-warn" style="font-size:10px">🤖 BOT</span>';
+            labelHtml = esc(a.label || '');
+            detailHtml = '<span style="color:#e06060;font-size:11px">' + esc(a.detail || '') + '</span>';
+            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="text-decoration:none;' + nameColor + '">' + esc(a.char_name) + '</a>';
         } else {
             var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
             var typeIcon = a.type === 'battle' ? '⚔️' : '📍';
