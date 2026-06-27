@@ -31,6 +31,7 @@ function renderLayout() {
             '<button class="tab-btn" data-tab="db">Database</button>' +
             '<button class="tab-btn" data-tab="tournaments">Tournaments</button>' +
             '<button class="tab-btn" data-tab="actions">Action Log</button>' +
+            '<button class="tab-btn" data-tab="flagged">Flagged</button>' +
             '<button class="tab-btn" data-tab="bots">Bots</button>' +
             '<button class="tab-btn" data-tab="console">Console</button>' +
         '</div>' +
@@ -41,6 +42,7 @@ function renderLayout() {
         '<div id="tab-db" class="tab-content"><div class="loading">Loading database...</div></div>' +
         '<div id="tab-tournaments" class="tab-content"><div class="loading">Loading tournaments...</div></div>' +
         '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>' +
+        '<div id="tab-flagged" class="tab-content"><div class="loading">Loading flagged...</div></div>' +
         '<div id="tab-bots" class="tab-content"><div class="loading">Loading bots...</div></div>' +
         '<div id="tab-console" class="tab-content"><div class="loading">Loading console...</div></div>';
 
@@ -65,6 +67,7 @@ function loadTab(name) {
     else if (name === 'db') loadDbAdmin();
     else if (name === 'tournaments') loadTournaments();
     else if (name === 'actions') loadActions();
+    else if (name === 'flagged') loadFlagged();
     else if (name === 'bots') loadBots();
     else if (name === 'console') loadConsole();
 }
@@ -823,5 +826,99 @@ function pollConsole() {
 
     _consoleTimer = setTimeout(pollConsole, 3000);
 }
+
+// ── Flagged Characters ───────────────────────────────────────────────
+function loadFlagged() {
+    var el = document.getElementById('tab-flagged');
+    el.innerHTML = '<div class="loading">Loading flagged characters...</div>';
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/flagged-characters', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(rows) {
+            if (!rows || !rows.length) {
+                el.innerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No flagged characters.</p></div>';
+                return;
+            }
+            var html = '<div class="table-wrap"><table><thead><tr>' +
+                '<th>Name</th>' +
+                '<th>Reason</th>' +
+                '<th>Detected</th>' +
+                '<th>Last Seen</th>' +
+                '<th>Confirmed</th></tr></thead><tbody>';
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                var det = r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '?';
+                var seen = r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '?';
+                var confirmed = r.confirmed ? '<span class="badge badge-yes">Yes</span>' : '<span class="badge badge-no">No</span>';
+                html += '<tr>' +
+                    '<td><a href="#" class="flag-name-link" data-name="' + esc(r.char_name) + '" style="color:#e06060;font-weight:700;text-decoration:none">' + esc(r.char_name) + '</a></td>' +
+                    '<td style="color:#8a8a90;font-size:11px">' + esc(r.reason || '') + '</td>' +
+                    '<td style="font-size:11px">' + det + '</td>' +
+                    '<td style="font-size:11px">' + seen + '</td>' +
+                    '<td>' + confirmed + '</td></tr>';
+            }
+            html += '</tbody></table></div>';
+            el.innerHTML = html;
+        })
+        .catch(function(e) {
+            el.innerHTML = '<div class="error">Failed to load: ' + esc(e.message) + '</div>';
+        });
+}
+
+function renderCharacterLogs(name) {
+    var el = document.getElementById('tab-flagged');
+    el.innerHTML = '<div class="loading">Loading logs for ' + esc(name) + '...</div>';
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/character-logs/' + encodeURIComponent(name), { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var html = '<div style="margin-bottom:8px"><button class="tab-btn" onclick="loadFlagged()" style="display:inline-block;padding:4px 12px;border:1px solid #2a2a35;background:#14141e;color:#8a8a90;border-radius:4px;cursor:pointer">← Back to flagged</button>';
+            html += ' <span style="color:#e06060;font-weight:700;font-size:14px">' + esc(name) + '</span></div>';
+
+            // API logs
+            html += '<h2>API Log (' + (data.api_log || []).length + ')</h2>';
+            html += '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th></tr></thead><tbody>';
+            var api = data.api_log || [];
+            for (var i = 0; i < api.length; i++) {
+                var a = api[i];
+                var t = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
+                var methodClass = a.method === 'POST' ? 'badge-yes' : 'badge-no';
+                html += '<tr><td style="font-size:11px">' + t + '</td>' +
+                    '<td><span class="badge ' + methodClass + '" style="font-size:10px">' + esc(a.method) + '</span></td>' +
+                    '<td style="font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(a.path || '') + '</td>' +
+                    '<td style="font-size:11px">' + (a.status || '') + '</td></tr>';
+            }
+            html += '</tbody></table></div>';
+
+            // Battles
+            html += '<h2 style="margin-top:16px">Battles (' + (data.battles || []).length + ')</h2>';
+            html += '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Attacker</th><th>Defender</th><th>Winner</th></tr></thead><tbody>';
+            var bat = data.battles || [];
+            for (var i = 0; i < bat.length; i++) {
+                var b = bat[i];
+                var t = b.ts ? new Date(b.ts * 1000).toLocaleString() : '?';
+                var winnerLabel = b.winner_id === 0 ? 'Draw' : (b.winner_id ? 'Attacker' : 'Defender');
+                html += '<tr><td style="font-size:11px">' + t + '</td>' +
+                    '<td style="font-size:12px">' + esc(b.attacker_name || '?') + '</td>' +
+                    '<td style="font-size:12px">' + esc(b.defender_name || '?') + '</td>' +
+                    '<td style="font-size:11px">' + winnerLabel + '</td></tr>';
+            }
+            html += '</tbody></table></div>';
+
+            el.innerHTML = html;
+        })
+        .catch(function(e) {
+            el.innerHTML = '<div class="error">Failed to load logs: ' + esc(e.message) + '</div>';
+        });
+}
+
+// Click handler for flagged character names
+document.addEventListener('click', function(e) {
+    var link = e.target.closest('.flag-name-link');
+    if (!link) return;
+    e.preventDefault();
+    var name = link.getAttribute('data-name');
+    if (name) renderCharacterLogs(name);
+});
 
 init();
