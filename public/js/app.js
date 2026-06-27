@@ -3980,6 +3980,8 @@ async function activateSkill(skillId) {
 
 // ── Missions ──────────────────────────────────────────────────────────────
 async function loadMissions() {
+    // Signal tab view for bot detection
+    api('POST', '/game/missions/tab-viewed').catch(() => {});
     try {
         const char = character || await api('GET', '/game/character');
         if (!character) character = char;
