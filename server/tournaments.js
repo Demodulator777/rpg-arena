@@ -420,7 +420,8 @@ async function buildFighter(db, participant, participants, noEquip) {
       elem_resist: { pyro:0, water:0, wind:0, electro:0 },
       skillEffects: [], skillMods: [],
       baseActiveSkills: {}, activeSkills: {},
-      attackZones: DEFAULT_ATTACK_ZONES, blockZones: DEFAULT_BLOCK_ZONES,
+      attackZones: (() => { try { return JSON.parse(char.attack_zones); } catch { return null; } })() || DEFAULT_ATTACK_ZONES,
+      blockZones: (() => { try { return JSON.parse(char.block_zones); } catch { return null; } })() || DEFAULT_BLOCK_ZONES,
       _elementalFighter: await loadElem()
     };
   }
