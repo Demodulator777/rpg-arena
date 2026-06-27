@@ -438,12 +438,10 @@ function renderActionsTable(data) {
         var time = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
         var typeBadge, labelHtml, detailHtml, playerHtml;
         if (a._source === 'api_log') {
-            var statusClass = a.status >= 500 ? 'badge-no' : a.status >= 400 ? 'badge-warn' : 'badge-yes';
-            var noTab = a.tab_viewed ? '' : ' ⚠️';
             typeBadge = '<span class="badge badge-yes" style="font-size:10px">API</span>';
-            labelHtml = '<code style="font-size:11px">' + esc(a.method || '') + '</code> <span style="font-size:12px">' + esc(a.path || '') + '</span>';
-            detailHtml = '<span class="badge ' + statusClass + '">' + (a.status || '') + '</span>';
-            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name) + noTab + '</a>';
+            labelHtml = '<span style="font-size:12px">' + esc(a.label || '') + '</span>';
+            detailHtml = '<span style="color:#8a8a90;font-size:11px">' + esc(a.detail || '') + '</span>';
+            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name || '?') + '</a>';
         } else {
             var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
             var typeIcon = a.type === 'battle' ? '⚔️' : '📍';
