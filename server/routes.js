@@ -12456,7 +12456,7 @@ router.get('/admin/action-log', auth, async (req, res) => {
             for (const flagged of flaggedRows.rows) {
                 if (!detectedNames.has(flagged.char_name)) {
                     await db.execute({
-                        sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed IS NULL",
+                        sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0",
                         args: [flagged.char_name]
                     });
                 }
