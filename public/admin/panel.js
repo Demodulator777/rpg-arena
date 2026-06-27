@@ -872,7 +872,7 @@ function renderCharacterLogs(name) {
     fetch('/api/game/admin/character-logs/' + encodeURIComponent(name), { headers: { 'Authorization': 'Bearer ' + token } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            var html = '<div style="margin-bottom:8px"><button class="tab-btn" onclick="loadFlagged()" style="display:inline-block;padding:4px 12px;border:1px solid #2a2a35;background:#14141e;color:#8a8a90;border-radius:4px;cursor:pointer">← Back to flagged</button>';
+            var html = '<div style="margin-bottom:8px"><button class="tab-btn flagged-back-btn" style="display:inline-block;padding:4px 12px;border:1px solid #2a2a35;background:#14141e;color:#8a8a90;border-radius:4px;cursor:pointer">← Back to flagged</button>';
             html += ' <span style="color:#e06060;font-weight:700;font-size:14px">' + esc(name) + '</span></div>';
 
             // API logs
@@ -919,6 +919,13 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     var name = link.getAttribute('data-name');
     if (name) renderCharacterLogs(name);
+});
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.flagged-back-btn');
+    if (!btn) return;
+    e.preventDefault();
+    loadFlagged();
 });
 
 init();
