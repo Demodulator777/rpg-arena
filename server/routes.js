@@ -12180,41 +12180,57 @@ router.get('/admin/action-log', auth, async (req, res) => {
             actions.push({ ts: a.ts, type: 'api', char_name: a.char_name || '', label, detail, id: a.id, _source: 'api_log', tab_viewed: a.tab_viewed });
         }
 
+        // ── Bot detection pass (runs on FULL dataset before filter/slice) ──
+        // Counts: battle entries, spot_fight entries, and api_log POSTs (excludes GET polling)
+        const playerStats = {};
+        for (const a of actions) {
+            if (a._source === 'api_log') {
+                if (!a.label || !a.label.startsWith('POST')) continue;
+            }
+            const name = a.char_name || '?';
+            if (!playerStats[name]) playerStats[name] = [];
+            playerStats[name].push(a.ts);
+        }
+        const botPlayers = new Set();
+        for (const [name, times] of Object.entries(playerStats)) {
+            if (times.length < 15) continue;
+            times.sort((a, b) => a - b);
+            const span = times[times.length - 1] - times[0];
+            if (span < 3600) continue;
+            // deduplicate same-second timestamps
+            const unique = times.filter((t, i) => i === 0 || t !== times[i - 1]);
+            if (unique.length < 15) continue;
+            // only count gaps under 5 min
+            const gaps = [];
+            for (let i = 1; i < unique.length; i++) {
+                const gap = unique[i] - unique[i - 1];
+                if (gap < 300) gaps.push(gap);
+            }
+            if (gaps.length < 10) continue;
+            const avgGap = gaps.reduce((s, v) => s + v, 0) / gaps.length;
+            if (avgGap < 60) botPlayers.add(name);
+        }
+
         // Sort by time descending and apply name filter client-side too
         const q = nameFilter.toLowerCase();
         const filtered = q ? actions.filter(a => (a.char_name || '').toLowerCase().includes(q)) : actions;
         filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
-        // ── Bot detection pass ─────────────────────────────────────────
-        // Only count POST requests (actual actions, not GET polling) and deduplicate same-second bursts
-        const playerStats = {};
-        for (const a of filtered) {
-            if (a._source !== 'api_log') continue;
-            if (!a.label || !a.label.startsWith('POST')) continue; // only actions, not polling
-            const name = a.char_name || '?';
-            if (!playerStats[name]) playerStats[name] = new Set();
-            playerStats[name].add(a.ts); // Set deduplicates same-second timestamps
-        }
-        const botPlayers = new Set();
-        for (const [name, tsSet] of Object.entries(playerStats)) {
-            const times = [...tsSet].sort((a, b) => a - b);
-            if (times.length < 20) continue;
-            const span = times[times.length - 1] - times[0];
-            if (span < 3600) continue; // less than 1 hour active
-            const gaps = [];
-            for (let i = 1; i < times.length; i++) {
-                const gap = times[i] - times[i - 1];
-                if (gap < 300) gaps.push(gap);
-            }
-            if (gaps.length < 15) continue;
-            const avgGap = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (avgGap < 60) botPlayers.add(name); // avg < 60s between POST actions for 1+ hour
-        }
+        // Apply bot flags
         for (const a of filtered) {
             if (botPlayers.has(a.char_name || '?')) a.bot = true;
         }
 
-        res.json(filtered.slice(0, limit));
+        // Ensure at least one entry per bot player survives the slice
+        const result = filtered.slice(0, limit);
+        const seen = new Set(result.map(a => a.char_name || '?'));
+        for (const bp of botPlayers) {
+            if (!seen.has(bp)) {
+                result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: 'Continuous activity detected', _source: 'bot_detection', bot: true });
+            }
+        }
+
+        res.json(result);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
