@@ -419,12 +419,11 @@ function loadActions(name) {
         var nameVal = name || '';
         var filterHtml = '<div style="margin-bottom:10px;display:flex;gap:8px"><input id="actions-filter" type="text" placeholder="Filter by player name..." value="' + esc(nameVal) + '" style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid #2a2a35;background:#14141e;color:#e0dcd0;font-size:13px;outline:none"><button id="actions-filter-btn" class="btn-sm" style="padding:8px 14px">Filter</button></div>';
         el.innerHTML = filterHtml + '<div class="table-wrap"><table><thead><tr>' +
-            '<th class="sortable" data-tab="actions" data-col="created_at">Time</th>' +
-            '<th class="sortable" data-tab="actions" data-col="method">Method</th>' +
-            '<th class="sortable" data-tab="actions" data-col="path">Path</th>' +
-            '<th class="sortable" data-tab="actions" data-col="status">Status</th>' +
+            '<th class="sortable" data-tab="actions" data-col="ts">Time</th>' +
+            '<th class="sortable" data-tab="actions" data-col="type">Type</th>' +
+            '<th>Action</th>' +
             '<th class="sortable" data-tab="actions" data-col="char_name">Player</th>' +
-            '<th>Body</th>' +
+            '<th>Detail</th>' +
         '</tr></thead><tbody id="actions-tbody"></tbody></table></div>';
         window._actionsData = data;
         renderActionsTable(data);
@@ -436,17 +435,28 @@ function loadActions(name) {
 function renderActionsTable(data) {
     var tbody = document.getElementById('actions-tbody');
     tbody.innerHTML = data.map(function(a) {
-        var time = a.created_at ? new Date(a.created_at * 1000).toLocaleString() : '?';
-        var statusClass = a.status >= 500 ? 'badge-no' : a.status >= 400 ? 'badge-warn' : 'badge-yes';
-        var noTab = !a.tab_viewed ? ' ⚠️' : '';
-        var body = a.req_body || '';
-        if (body.length > 80) body = body.substring(0, 80) + '...';
+        var time = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
+        var typeBadge, labelHtml, detailHtml, playerHtml;
+        if (a._source === 'api_log') {
+            var statusClass = a.status >= 500 ? 'badge-no' : a.status >= 400 ? 'badge-warn' : 'badge-yes';
+            var noTab = a.tab_viewed ? '' : ' ⚠️';
+            typeBadge = '<span class="badge badge-yes" style="font-size:10px">API</span>';
+            labelHtml = '<code style="font-size:11px">' + esc(a.method || '') + '</code> <span style="font-size:12px">' + esc(a.path || '') + '</span>';
+            detailHtml = '<span class="badge ' + statusClass + '">' + (a.status || '') + '</span>';
+            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name) + noTab + '</a>';
+        } else {
+            var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
+            var typeIcon = a.type === 'battle' ? '⚔️' : '📍';
+            typeBadge = '<span class="badge ' + typeClass + '" style="font-size:10px">' + typeIcon + ' ' + a.type.replace('_',' ') + '</span>';
+            labelHtml = esc(a.label || '');
+            detailHtml = '<span style="color:#8a8a90;font-size:11px">' + esc(a.detail || '') + '</span>';
+            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name) + '</a>';
+        }
         return '<tr><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
-            '<td><code style="font-size:11px">' + esc(a.method) + '</code></td>' +
-            '<td style="font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(a.path) + '">' + esc(a.path) + '</td>' +
-            '<td><span class="badge ' + statusClass + '">' + a.status + '</span></td>' +
-            '<td><a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name || a.username) + noTab + '</a></td>' +
-            '<td style="color:#8a8a90;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(body) + '">' + esc(body) + '</td></tr>';
+            '<td>' + typeBadge + '</td>' +
+            '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + labelHtml + '</td>' +
+            '<td>' + playerHtml + '</td>' +
+            '<td>' + detailHtml + '</td></tr>';
     }).join('');
 }
 
