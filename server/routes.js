@@ -92,9 +92,9 @@ router.use(async (req, res, next) => {
                 if (char) charName = char.name;
             } catch {}
             const lastTab = _missionsTabView.get(userId) || 0;
-            // tab_viewed only matters for mission endpoints
+            // tab_viewed only matters for mission endpoints (generous 24h window)
             const isMissionPath = path.includes('/missions/start') || path.includes('/missions/collect') || path.includes('/missions/tab-viewed');
-            const tabViewed = isMissionPath ? ((now - lastTab) < 1800 ? 1 : 0) : 1;
+            const tabViewed = isMissionPath ? ((now - lastTab) < 86400 ? 1 : 0) : 1;
             let bodyStr = '';
             if (req.body && typeof req.body === 'object' && Object.keys(req.body).length) {
                 bodyStr = JSON.stringify(req.body);
@@ -12186,36 +12186,32 @@ router.get('/admin/action-log', auth, async (req, res) => {
         filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
         // ── Bot detection pass ─────────────────────────────────────────
-        // Group api_log entries by char_name and detect suspicious patterns
-        // Only tab_viewed on mission paths matters for bot detection
+        // Uses purely behavioral signals: continuous activity + tight intervals
         const playerStats = {};
         for (const a of filtered) {
             if (a._source !== 'api_log') continue;
             const name = a.char_name || '?';
-            if (!playerStats[name]) playerStats[name] = { entries: [], missionNoTab: 0 };
-            playerStats[name].entries.push(a);
-            // Only count no-tab against mission-specific endpoints
-            if (!a.tab_viewed && a.label && (a.label.includes('/missions/collect') || a.label.includes('/missions/start'))) {
-                playerStats[name].missionNoTab++;
-            }
+            if (!playerStats[name]) playerStats[name] = [];
+            playerStats[name].push(a.ts);
         }
         const botPlayers = new Set();
-        for (const [name, stats] of Object.entries(playerStats)) {
-            const total = stats.entries.length;
-            if (total < 10) continue;
-            // Sort entries by time
-            const times = stats.entries.map(e => e.ts).sort((a, b) => a - b);
+        for (const [name, times] of Object.entries(playerStats)) {
+            if (times.length < 20) continue;
+            times.sort((a, b) => a - b);
             const span = times[times.length - 1] - times[0];
-            const intervals = [];
+            if (span < 1800) continue; // less than 30 min active
+            // Calculate average interval for bursts (ignore gaps > 5 min)
+            const gaps = [];
             for (let i = 1; i < times.length; i++) {
-                if (times[i] - times[i - 1] < 300) intervals.push(times[i] - times[i - 1]);
+                const gap = times[i] - times[i - 1];
+                if (gap < 300) gaps.push(gap);
             }
-            const avgInterval = intervals.length ? intervals.reduce((s, v) => s + v, 0) / intervals.length : 999;
-            const activeMinutes = span / 60;
-            // Bot if: mission collects without tab view + active > 20 min + tight intervals
-            if (stats.missionNoTab > 3 && activeMinutes > 20 && avgInterval < 120) {
-                botPlayers.add(name);
-            }
+            if (gaps.length < 15) continue;
+            const avgGap = gaps.reduce((s, v) => s + v, 0) / gaps.length;
+            if (avgGap < 60) botPlayers.add(name); // avg < 60s between actions for 30+ min
+        }
+        for (const a of filtered) {
+            if (botPlayers.has(a.char_name || '?')) a.bot = true;
         }
         for (const a of filtered) {
             if (botPlayers.has(a.char_name || '?')) a.bot = true;
