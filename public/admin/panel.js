@@ -410,45 +410,53 @@ function sortTable(tab, col) {
     else if (tab === 'actions') renderActionsTable(data);
 }
 
-function loadActions() {
+function loadActions(name) {
     var el = document.getElementById('tab-actions');
-    API('/admin/action-log?limit=500').then(function(data) {
+    var url = '/admin/action-log?limit=500';
+    if (name) url += '&name=' + encodeURIComponent(name);
+    API(url).then(function(data) {
         if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No actions recorded</p>'; return; }
-        var filterHtml = '<div style="margin-bottom:10px"><input id="actions-filter" type="text" placeholder="Filter by player name..." style="width:100%;padding:8px 12px;border-radius:6px;border:1px solid #2a2a35;background:#14141e;color:#e0dcd0;font-size:13px;outline:none"></div>';
+        var nameVal = name || '';
+        var filterHtml = '<div style="margin-bottom:10px;display:flex;gap:8px"><input id="actions-filter" type="text" placeholder="Filter by player name..." value="' + esc(nameVal) + '" style="flex:1;padding:8px 12px;border-radius:6px;border:1px solid #2a2a35;background:#14141e;color:#e0dcd0;font-size:13px;outline:none"><button id="actions-filter-btn" class="btn-sm" style="padding:8px 14px">Filter</button></div>';
         el.innerHTML = filterHtml + '<div class="table-wrap"><table><thead><tr>' +
-            '<th class="sortable" data-tab="actions" data-col="ts">Time</th>' +
-            '<th class="sortable" data-tab="actions" data-col="type">Type</th>' +
+            '<th class="sortable" data-tab="actions" data-col="created_at">Time</th>' +
+            '<th class="sortable" data-tab="actions" data-col="method">Method</th>' +
+            '<th class="sortable" data-tab="actions" data-col="path">Path</th>' +
+            '<th class="sortable" data-tab="actions" data-col="status">Status</th>' +
             '<th class="sortable" data-tab="actions" data-col="char_name">Player</th>' +
-            '<th class="sortable" data-tab="actions" data-col="label">Action</th>' +
-            '<th class="sortable" data-tab="actions" data-col="detail">Detail</th>' +
+            '<th>Body</th>' +
         '</tr></thead><tbody id="actions-tbody"></tbody></table></div>';
         window._actionsData = data;
         renderActionsTable(data);
-        var filterInput = document.getElementById('actions-filter');
-        if (filterInput) filterInput.addEventListener('input', filterActionsTable);
+        document.getElementById('actions-filter').addEventListener('keydown', function(e) { if (e.key === 'Enter') loadActions(this.value.trim()); });
+        document.getElementById('actions-filter-btn').addEventListener('click', function() { loadActions(document.getElementById('actions-filter').value.trim()); });
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
-}
-
-function filterActionsTable() {
-    var q = (document.getElementById('actions-filter').value || '').toLowerCase();
-    var data = window._actionsData || [];
-    if (!q) { renderActionsTable(data); return; }
-    renderActionsTable(data.filter(function(a) { return (a.char_name || '').toLowerCase().indexOf(q) !== -1; }));
 }
 
 function renderActionsTable(data) {
     var tbody = document.getElementById('actions-tbody');
     tbody.innerHTML = data.map(function(a) {
-        var time = a.ts ? new Date(a.ts * 1000).toLocaleString() : '?';
-        var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
-        var typeIcon = a.type === 'battle' ? '⚔️' : a.type === 'mission' ? '📋' : '📍';
+        var time = a.created_at ? new Date(a.created_at * 1000).toLocaleString() : '?';
+        var statusClass = a.status >= 500 ? 'badge-no' : a.status >= 400 ? 'badge-warn' : 'badge-yes';
+        var noTab = !a.tab_viewed ? ' ⚠️' : '';
+        var body = a.req_body || '';
+        if (body.length > 80) body = body.substring(0, 80) + '...';
         return '<tr><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
-            '<td><span class="badge ' + typeClass + '">' + typeIcon + ' ' + a.type + '</span></td>' +
-            '<td>' + esc(a.char_name) + '</td>' +
-            '<td>' + esc(a.label) + '</td>' +
-            '<td style="color:#8a8a90;font-size:11px">' + esc(a.detail) + '</td></tr>';
+            '<td><code style="font-size:11px">' + esc(a.method) + '</code></td>' +
+            '<td style="font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(a.path) + '">' + esc(a.path) + '</td>' +
+            '<td><span class="badge ' + statusClass + '">' + a.status + '</span></td>' +
+            '<td><a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name || a.username) + noTab + '</a></td>' +
+            '<td style="color:#8a8a90;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(body) + '">' + esc(body) + '</td></tr>';
     }).join('');
 }
+
+document.addEventListener('click', function(e) {
+    var link = e.target.closest('.action-player-link');
+    if (!link) return;
+    e.preventDefault();
+    var name = link.getAttribute('data-name');
+    if (name) loadActions(name);
+});
 
 
 // CSP-safe sortable header delegation (replaces inline onclick)
