@@ -12213,12 +12213,6 @@ router.get('/admin/action-log', auth, async (req, res) => {
         for (const a of filtered) {
             if (botPlayers.has(a.char_name || '?')) a.bot = true;
         }
-        for (const a of filtered) {
-            if (botPlayers.has(a.char_name || '?')) a.bot = true;
-        }
-        for (const a of filtered) {
-            if (botPlayers.has(a.char_name || '?')) a.bot = true;
-        }
 
         res.json(filtered.slice(0, limit));
     } catch (e) { res.status(500).json({ error: e.message }); }
