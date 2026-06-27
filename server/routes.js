@@ -58,6 +58,55 @@ const _upgradeLock = new Set();
 const _weeklyClaimableCountCache = new Map();
 const _missionsTabView = new Map(); // userId → last tab view timestamp
 
+// ── API Log Middleware ──────────────────────────────────────────────
+async function ensureApiLogTable(db) {
+    await db.execute(`CREATE TABLE IF NOT EXISTS api_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        username TEXT NOT NULL DEFAULT '',
+        char_name TEXT NOT NULL DEFAULT '',
+        method TEXT NOT NULL,
+        path TEXT NOT NULL,
+        status INTEGER NOT NULL DEFAULT 0,
+        req_body TEXT,
+        tab_viewed INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+    )`);
+}
+
+router.use(async (req, res, next) => {
+    const start = Date.now();
+    res.on('finish', async () => {
+        try {
+            const db = await getDb();
+            await ensureApiLogTable(db);
+            const now = Math.floor(Date.now() / 1000);
+            const userId = req.user?.userId || 0;
+            const username = req.user?.username || '';
+            const path = req.originalUrl || req.url;
+            // Skip logging the action-log endpoint itself
+            if (path.includes('/admin/action-log')) return;
+            let charName = '';
+            try {
+                const char = await dbGet(db, 'SELECT name FROM characters WHERE (SELECT active_character_id FROM users WHERE id=?) = id', [userId]);
+                if (char) charName = char.name;
+            } catch {}
+            const lastTab = _missionsTabView.get(userId) || 0;
+            const tabViewed = (now - lastTab) < 120 ? 1 : 0;
+            let bodyStr = '';
+            if (req.body && typeof req.body === 'object' && Object.keys(req.body).length) {
+                bodyStr = JSON.stringify(req.body);
+                if (bodyStr.length > 500) bodyStr = bodyStr.substring(0, 500);
+            }
+            await db.execute({
+                sql: `INSERT INTO api_log (user_id, username, char_name, method, path, status, req_body, tab_viewed, created_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+                args: [userId, username, charName, req.method, path, res.statusCode, bodyStr, tabViewed, now]
+            });
+        } catch {}
+    });
+    next();
+});
+
 function invalidateWeeklyClaimableCountCache(charId) {
     const prefix = `${charId}:`;
     for (const key of _weeklyClaimableCountCache.keys()) {
@@ -9294,45 +9343,13 @@ router.post('/missions/tab-viewed', auth, (req, res) => {
 // ── Missions Start ─────────────────────────────────────────────────────
 router.post('/missions/start', auth, async (req, res) => {
     const userId = req.user.userId;
-    const now = Math.floor(Date.now() / 1000);
-    // Log every attempt immediately (even failures)
-    let logId = null;
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, userId, 'id, name');
-        const charName = char?.name || 'unknown';
-        const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
-        await db.execute(`CREATE TABLE IF NOT EXISTS mission_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            char_id INTEGER NOT NULL,
-            char_name TEXT NOT NULL DEFAULT '',
-            zone TEXT,
-            spot TEXT,
-            mission_name TEXT,
-            size TEXT,
-            started_at INTEGER NOT NULL,
-            succeeded INTEGER NOT NULL DEFAULT 0,
-            error TEXT,
-            tab_viewed INTEGER NOT NULL DEFAULT 0
-        )`);
-        const lastTab = _missionsTabView.get(userId) || 0;
-        const tabViewed = (now - lastTab) < 120 ? 1 : 0;
-        const missionNameGuess = spotId ? `${spotId}` : 'unknown';
-        const result = await db.execute({
-            sql: `INSERT INTO mission_log (char_id, char_name, zone, spot, mission_name, size, started_at, succeeded, tab_viewed) VALUES (?,?,?,?,?,?,?,0,?)`,
-            args: [char?.id || 0, charName, zoneId || null, spotId || null, missionNameGuess, reqSize || null, now, tabViewed]
-        });
-        logId = Number(result.lastInsertRowid);
-    } catch (e) { /* logging failed, non-critical */ }
-
     if (_missionStartLock.has(userId)) {
-        // Update log entry with error
-        if (logId) try { const db = await getDb(); await db.execute({ sql: 'UPDATE mission_log SET error=? WHERE id=?', args: ['already in progress', logId] }); } catch {}
         return res.status(400).json({ error: 'Mission start already in progress.' });
     }
     _missionStartLock.add(userId);
     try {
         const db = await getDb();
+        const now = Math.floor(Date.now() / 1000);
         const { zoneId, spotId, missionIdx, size: reqSize } = req.body;
         const character = await getCurrentCharacter(db, userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
@@ -9449,10 +9466,7 @@ router.post('/missions/start', auth, async (req, res) => {
             await recordTotalMpSpent(db, character.id, effectiveMpCost);
         }
 
-        // Mark mission_log as succeeded
-        if (logId) {
-            try { await db.execute({ sql: 'UPDATE mission_log SET succeeded=1, mission_name=?, size=?, zone=?, spot=? WHERE id=?', args: [missionName, sizeKey, zoneId, spotId, logId] }); } catch {}
-        }
+        // Mark mission_log as succeeded (handled by api_log middleware)
         res.json({
             success: true,
             mission: {
@@ -9474,11 +9488,7 @@ router.post('/missions/start', auth, async (req, res) => {
         });
     } catch (e) {
         console.error('Mission start error:', e);
-        const errMsg = e?.message || String(e);
-        if (logId) {
-            try { const db2 = await getDb(); await db2.execute({ sql: 'UPDATE mission_log SET error=? WHERE id=?', args: [errMsg, logId] }); } catch {}
-        }
-        res.status(500).json({ error: errMsg });
+        res.status(500).json({ error: e?.message || String(e) });
     } finally {
         _missionStartLock.delete(userId);
     }
@@ -12134,36 +12144,18 @@ router.get('/admin/action-log', auth, async (req, res) => {
     try {
         const db = await getDb();
         const limit = Math.min(parseInt(req.query.limit) || 200, 500);
-        const actions = [];
-
-        // Battles fought
-        const battles = await db.execute({ sql: `SELECT b.id, b.fought_at AS ts, 'battle' AS type, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id, ca.name AS char_name FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id ORDER BY b.fought_at DESC LIMIT ?`, args: [limit] });
-        for (const b of battles.rows) {
-            actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id });
+        const nameFilter = req.query.name || '';
+        let sql, args;
+        if (nameFilter) {
+            const like = `%${nameFilter}%`;
+            sql = `SELECT * FROM api_log WHERE (char_name LIKE ? OR username LIKE ?) ORDER BY created_at DESC LIMIT ?`;
+            args = [like, like, limit];
+        } else {
+            sql = `SELECT * FROM api_log ORDER BY created_at DESC LIMIT ?`;
+            args = [limit];
         }
-
-        // Missions started (from mission_log)
-        const missions = await db.execute({ sql: `SELECT m.id, m.started_at AS ts, 'mission_start' AS type, m.char_name, m.zone, m.mission_name, m.succeeded, m.error, m.tab_viewed, m.size FROM mission_log m ORDER BY m.started_at DESC LIMIT ?`, args: [limit] });
-        for (const m of missions.rows) {
-            if (m.ts) {
-                const detailParts = [];
-                if (m.succeeded) detailParts.push('✅');
-                else if (m.error) detailParts.push(`❌ ${m.error}`);
-                else detailParts.push('❌');
-                if (!m.tab_viewed) detailParts.push('⚠️ no tab view');
-                if (m.size) detailParts.push(m.size);
-                actions.push({ ts: m.ts, type: 'mission', char_name: m.char_name || '?', label: `${m.char_name || '?'} → ${m.mission_name || '?'} (${m.zone || '?'})`, detail: detailParts.join(' '), id: m.id });
-            }
-        }
-
-        // Mission spot fights
-        const spotFights = await db.execute({ sql: `SELECT cs.char_id, cs.last_fought_at AS ts, 'spot_fight' AS type, c.name AS char_name, cs.zone_id, cs.spot_id, cs.fights, cs.wins FROM character_mission_spot_stats cs LEFT JOIN characters c ON cs.char_id = c.id WHERE cs.last_fought_at > 0 ORDER BY cs.last_fought_at DESC LIMIT ?`, args: [limit] });
-        for (const s of spotFights.rows) {
-            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id });
-        }
-
-        actions.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-        res.json(actions.slice(0, limit));
+        const result = await db.execute({ sql, args });
+        res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
