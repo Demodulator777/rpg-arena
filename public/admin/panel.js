@@ -439,20 +439,19 @@ function renderActionsTable(data) {
         var typeBadge, labelHtml, detailHtml, playerHtml;
         if (a._source === 'api_log') {
             var noBadge = a.tab_viewed ? '' : ' ⚠️';
+            var nameColor = a.bot ? 'color:#e06060;font-weight:700' : 'color:#5dade2';
             typeBadge = '<span class="badge badge-yes" style="font-size:10px">API</span>';
             labelHtml = '<span style="font-size:12px">' + esc(a.label || '') + '</span>';
             detailHtml = '<span style="color:#8a8a90;font-size:11px">' + esc(a.detail || '') + '</span>';
-            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name || '?') + '</a>' + noBadge;
+            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="text-decoration:none;' + nameColor + '">' + esc(a.char_name || '?') + '</a>' + noBadge;
         } else {
-            var typeClass = a.type === 'battle' ? 'badge-yes' : 'badge-no';
-            var typeIcon = a.type === 'battle' ? '⚔️' : '📍';
+            var nameColor = a.bot ? 'color:#e06060;font-weight:700' : 'color:#5dade2';
             typeBadge = '<span class="badge ' + typeClass + '" style="font-size:10px">' + typeIcon + ' ' + a.type.replace('_',' ') + '</span>';
             labelHtml = esc(a.label || '');
             detailHtml = '<span style="color:#8a8a90;font-size:11px">' + esc(a.detail || '') + '</span>';
-            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="color:#5dade2;text-decoration:none">' + esc(a.char_name) + '</a>';
+            playerHtml = '<a href="#" class="action-player-link" data-name="' + esc(a.char_name) + '" style="text-decoration:none;' + nameColor + '">' + esc(a.char_name) + '</a>';
         }
-        var rowClass = a.bot ? ' style="background:rgba(224,96,96,0.12);border-left:3px solid #e06060"' : '';
-        return '<tr' + rowClass + '><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
+        return '<tr><td style="white-space:nowrap;font-size:11px">' + time + '</td>' +
             '<td>' + typeBadge + '</td>' +
             '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + labelHtml + '</td>' +
             '<td>' + playerHtml + '</td>' +
