@@ -8,6 +8,13 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Prevent mobile text selection / Tap to Search on interactive elements */
+button, [data-action], [onclick], a, .action-btn, [role="button"], label, select, input[type="submit"], input[type="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
 .hidden { display: none !important; }
 
 /* Event Banner Styles */
