@@ -85,18 +85,10 @@ function loadBugs() {
 function loadActions() {
     var tab = document.getElementById('tab-actions');
     var filter = (tab._filter || '');
-    var html = '<div class="filter-bar"><input type="text" id="action-filter" placeholder="Filter by character name..." value="' + escHtml(filter) + '"><button onclick="applyActionFilter()" style="padding:8px 16px;background:#2a2a35;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;cursor:pointer">Filter</button></div>';
+    var html = '<div class="filter-bar"><input type="text" id="action-filter" placeholder="Filter by character name..." value="' + escHtml(filter) + '"><button data-action="action-filter" style="padding:8px 16px;background:#2a2a35;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;cursor:pointer">Filter</button></div>';
     html += '<div id="action-results"><div class="loading">Loading action log...</div></div>';
     tab.innerHTML = html;
     fetchActions(filter);
-}
-
-function applyActionFilter() {
-    var input = document.getElementById('action-filter');
-    var tab = document.getElementById('tab-actions');
-    tab._filter = input.value;
-    document.getElementById('action-results').innerHTML = '<div class="loading">Loading...</div>';
-    fetchActions(input.value);
 }
 
 function fetchActions(nameFilter) {
@@ -122,7 +114,7 @@ function loadFlagged() {
         if (!rows.length) { tab.innerHTML = '<div style="text-align:center;padding:40px;color:#6a6a70">No flagged characters.</div>'; return; }
         var html = '<h2 style="margin-bottom:10px">Flagged Characters <span class="count-badge">' + rows.length + '</span></h2><div class="table-wrap"><table><thead><tr><th>Character</th><th>Reason</th><th>Detected</th><th>Last Seen</th><th>Confirmed</th></tr></thead><tbody>';
         rows.forEach(function(r) {
-            html += '<tr class="clickable" onclick="showCharLogs(\'' + escHtml(r.char_name) + '\')"><td>' + escHtml(r.char_name) + '</td><td>' + escHtml(r.reason || '') + '</td><td>' + (r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '') + '</td><td>' + (r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '') + '</td><td><span class="badge ' + (r.confirmed ? 'badge-yes' : 'badge-no') + '">' + (r.confirmed ? 'Yes' : 'No') + '</span></td></tr>';
+            html += '<tr class="clickable" data-action="show-char-logs" data-char-name="' + escHtml(r.char_name) + '"><td>' + escHtml(r.char_name) + '</td><td>' + escHtml(r.reason || '') + '</td><td>' + (r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '') + '</td><td>' + (r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '') + '</td><td><span class="badge ' + (r.confirmed ? 'badge-yes' : 'badge-no') + '">' + (r.confirmed ? 'Yes' : 'No') + '</span></td></tr>';
         });
         html += '</tbody></table></div>';
         tab.innerHTML = html;
@@ -134,7 +126,7 @@ function showCharLogs(name) {
     var tab = document.getElementById('tab-flagged');
     tab.innerHTML = '<div class="loading">Loading logs for ' + escHtml(name) + '...</div>';
     API('/admin/character-logs/' + encodeURIComponent(name)).then(function(data) {
-        var html = '<button onclick="loadFlagged()" style="margin-bottom:12px;padding:6px 14px;background:#2a2a35;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;cursor:pointer">&larr; Back to flagged</button>';
+        var html = '<button data-action="back-flagged" style="margin-bottom:12px;padding:6px 14px;background:#2a2a35;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e2e8f0;cursor:pointer">&larr; Back to flagged</button>';
         html += '<h2 style="margin-bottom:10px">Logs for ' + escHtml(name) + '</h2>';
         html += '<h3 style="margin-bottom:6px;color:var(--text-dim)">API Calls (' + (data.api_log ? data.api_log.length : 0) + ')</h3>';
         html += '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th></tr></thead><tbody>';
@@ -148,10 +140,6 @@ function showCharLogs(name) {
         html += '<div class="table-wrap"><table><thead><tr><th>Time</th><th>Attacker</th><th>Defender</th><th>Winner</th></tr></thead><tbody>';
         if (data.battles) {
             data.battles.forEach(function(b) {
-                var winnerName = b.attacker_name;
-                if (b.winner_id) {
-                    var bw = data.battles.find(function(x) { return x.id === b.id && x.winner_id; });
-                }
                 html += '<tr><td>' + new Date(b.ts * 1000).toLocaleString() + '</td><td>' + escHtml(b.attacker_name || '') + '</td><td>' + escHtml(b.defender_name || '') + '</td><td>' + escHtml(b.winner_id ? (b.winner_id === 1 ? b.attacker_name : b.defender_name) : 'Draw') + '</td></tr>';
             });
         }
@@ -159,5 +147,32 @@ function showCharLogs(name) {
         tab.innerHTML = html;
     }).catch(function(e) { tab.innerHTML = '<div class="loading" style="color:#e06060">Error: ' + e.message + '</div>'; });
 }
+
+// Event delegation (CSP-safe, no inline onclick)
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="action-filter"]');
+    if (!btn) return;
+    e.preventDefault();
+    var input = document.getElementById('action-filter');
+    var tab = document.getElementById('tab-actions');
+    tab._filter = input.value;
+    document.getElementById('action-results').innerHTML = '<div class="loading">Loading...</div>';
+    fetchActions(input.value);
+});
+
+document.addEventListener('click', function(e) {
+    var row = e.target.closest('[data-action="show-char-logs"]');
+    if (!row) return;
+    e.preventDefault();
+    var name = row.getAttribute('data-char-name');
+    if (name) showCharLogs(name);
+});
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="back-flagged"]');
+    if (!btn) return;
+    e.preventDefault();
+    loadFlagged();
+});
 
 init();

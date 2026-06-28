@@ -933,6 +933,29 @@ document.addEventListener('click', function(e) {
     loadFlagged();
 });
 
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="grant-mod"]');
+    if (!btn) return;
+    e.preventDefault();
+    var sel = document.getElementById('mod-user-select');
+    if (!sel || !sel.value) return;
+    API('/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:parseInt(sel.value), moderator:true}) }).then(function() {
+        loadModerators();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+});
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="revoke-mod"]');
+    if (!btn) return;
+    e.preventDefault();
+    var userId = parseInt(btn.getAttribute('data-user-id'));
+    var username = btn.getAttribute('data-username');
+    if (!confirm('Revoke moderator from ' + username + '?')) return;
+    API('/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:userId, moderator:false}) }).then(function() {
+        loadModerators();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+});
+
 function loadModerators() {
     var tab = document.getElementById('tab-moderators');
     API('/admin/moderators').then(function(mods) {
@@ -947,7 +970,7 @@ function loadModerators() {
                 if (!u.is_admin) html += '<option value="' + u.id + '">' + escHtml(u.username) + (u.is_moderator ? ' (moderator)' : '') + '</option>';
             });
             html += '</select>';
-            html += '<button onclick="grantModerator()" style="padding:8px 16px;background:#2d7a4a;border:none;border-radius:6px;color:#fff;cursor:pointer">Grant Moderator</button>';
+            html += '<button data-action="grant-mod" style="padding:8px 16px;background:#2d7a4a;border:none;border-radius:6px;color:#fff;cursor:pointer">Grant Moderator</button>';
             html += '</div>';
             html += '<h4 style="margin-bottom:8px;color:var(--text-dim)">Current Moderators</h4>';
             html += '<table style="width:100%;border-collapse:collapse"><tr style="background:rgba(255,255,255,0.03)"><th style="padding:8px;text-align:left">Username</th><th style="padding:8px;text-align:left">Role</th><th style="padding:8px;text-align:left">Actions</th></tr>';
@@ -956,7 +979,7 @@ function loadModerators() {
                 html += '<tr><td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.05)">' + escHtml(m.username) + '</td>';
                 html += '<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.05)">' + role + '</td>';
                 html += '<td style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.05)">';
-                if (!m.is_admin) html += '<button onclick="revokeModerator(' + m.id + ',\'' + escHtml(m.username) + '\')" style="padding:4px 10px;background:#8a3a3a;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:0.75rem">Revoke</button>';
+                if (!m.is_admin) html += '<button data-action="revoke-mod" data-user-id="' + m.id + '" data-username="' + escHtml(m.username) + '" style="padding:4px 10px;background:#8a3a3a;border:none;border-radius:4px;color:#fff;cursor:pointer;font-size:0.75rem">Revoke</button>';
                 else html += '<span style="color:var(--gold);font-size:0.75rem">👑</span>';
                 html += '</td></tr>';
             });
