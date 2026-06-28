@@ -12145,6 +12145,149 @@ router.delete('/messages/:id', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Bot Detection Engine ────────────────────────────────────────────
+async function runBotDetection(db) {
+    const botPlayers = new Map();
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
+        for (const row of bots.rows) {
+            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+        }
+    } catch {}
+    try {
+        const fpCutoff = now - 86400;
+        const fpRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'POST' ORDER BY char_name, created_at LIMIT 20000`, args: [fpCutoff] });
+        const fpGroups = {};
+        for (const r of fpRows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
+            const p = (r.path || '').toLowerCase();
+            if (!p.includes('/missions/')) continue;
+            if (!fpGroups[name]) fpGroups[name] = [];
+            fpGroups[name].push({ ts: r.created_at, path: p });
+        }
+        for (const [name, entries] of Object.entries(fpGroups)) {
+            entries.sort((a, b) => a.ts - b.ts);
+            let instantStarts = 0;
+            for (let i = 1; i < entries.length; i++) {
+                const prev = entries[i - 1].path;
+                const cur = entries[i].path;
+                const gap = entries[i].ts - entries[i - 1].ts;
+                if (gap < 2 && cur.includes('/missions/start') && (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) instantStarts++;
+            }
+            if (instantStarts >= 5) botPlayers.set(name, `Instant collect\u2192start: ${instantStarts} times in 24h`);
+            const noTick = _missionNoTickStarts.get(name) || 0;
+            if (noTick >= 5) botPlayers.set(name, `No UI tick: ${noTick} direct starts`);
+        }
+    } catch {}
+    try {
+        const cutoff = now - 86400;
+        const rows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'POST' ORDER BY char_name, created_at LIMIT 20000`, args: [cutoff] });
+        const groups = {};
+        for (const r of rows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?' || !r.created_at) continue;
+            const p = (r.path || '').toLowerCase();
+            if (!p.includes('/missions/') && !p.includes('/dungeon/mp-spent')) continue;
+            if (!groups[name]) groups[name] = [];
+            groups[name].push(r.created_at);
+        }
+        for (const [name, timestamps] of Object.entries(groups)) {
+            if (botPlayers.has(name)) continue;
+            timestamps.sort((a, b) => a - b);
+            const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
+            if (unique.length < 20) continue;
+            const gaps = [];
+            for (let i = 1; i < unique.length; i++) { const g = unique[i] - unique[i - 1]; if (g >= 3) gaps.push(g); }
+            if (gaps.length < 15) continue;
+            const sum = gaps.reduce((s, v) => s + v, 0);
+            const mean = sum / gaps.length;
+            const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+            const stddev = Math.sqrt(variance);
+            const cv = stddev / mean;
+            const maxGap = Math.max(...gaps);
+            if (cv < 0.5 && mean >= 60 && mean <= 900 && maxGap < 1800) botPlayers.set(name, `Mission timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+        }
+    } catch {}
+    try {
+        const bCutoff = now - 21600;
+        const bRows = await db.execute({ sql: `SELECT ca.name AS char_name, b.fought_at FROM battles b JOIN characters ca ON b.attacker_id = ca.id WHERE b.fought_at > ? ORDER BY ca.name, b.fought_at`, args: [bCutoff] });
+        const bGroups = {};
+        for (const r of bRows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?' || !r.fought_at) continue;
+            if (!bGroups[name]) bGroups[name] = [];
+            bGroups[name].push(r.fought_at);
+        }
+        for (const [name, timestamps] of Object.entries(bGroups)) {
+            if (botPlayers.has(name)) continue;
+            timestamps.sort((a, b) => a - b);
+            const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
+            if (unique.length < 50) continue;
+            const gaps = [];
+            for (let i = 1; i < unique.length; i++) gaps.push(unique[i] - unique[i - 1]);
+            const sum = gaps.reduce((s, v) => s + v, 0);
+            const mean = sum / gaps.length;
+            const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+            const stddev = Math.sqrt(variance);
+            const cv = stddev / mean;
+            const maxGap = Math.max(...gaps);
+            if (cv < 0.5 && mean < 60 && maxGap < 300) botPlayers.set(name, `Battle timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+        }
+    } catch {}
+    try {
+        const pCutoff = now - 86400;
+        const pRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'GET' AND path NOT LIKE '%/chat/%' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions/active%' OR path LIKE '%/travel/status%' OR path LIKE '%/achievements%' OR path LIKE '%/setups%' OR path LIKE '%/messages/%') ORDER BY char_name, created_at LIMIT 10000`, args: [pCutoff] });
+        const pGroups = {};
+        for (const r of pRows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?' || !r.created_at) continue;
+            if (!pGroups[name]) pGroups[name] = [];
+            pGroups[name].push(r.created_at);
+        }
+        for (const [name, timestamps] of Object.entries(pGroups)) {
+            if (botPlayers.has(name)) continue;
+            timestamps.sort((a, b) => a - b);
+            const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
+            if (unique.length < 15) continue;
+            const span = unique[unique.length - 1] - unique[0];
+            if (span < 3600) continue;
+            const allGaps = [];
+            for (let i = 1; i < unique.length; i++) allGaps.push(unique[i] - unique[i - 1]);
+            const shortGaps = allGaps.filter(g => g < 120);
+            const activeTime = shortGaps.reduce((s, v) => s + v, 0);
+            if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.5 && activeTime >= 1800) {
+                botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active`);
+            }
+        }
+    } catch {}
+    return botPlayers;
+}
+
+async function persistBotFlags(db, botPlayers) {
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        await ensureFlaggedTable(db);
+        const flaggedRows = await db.execute('SELECT char_name FROM flagged_characters');
+        const existingFlags = new Set(flaggedRows.rows.map(r => r.char_name));
+        for (const [bp, reason] of botPlayers) {
+            if (!bp || bp === '?') continue;
+            if (existingFlags.has(bp)) {
+                await db.execute({ sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?', args: [reason, now, bp] });
+            } else {
+                await db.execute({ sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at) VALUES (?,?,?,?)', args: [bp, reason, now, now] });
+            }
+        }
+        const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
+        for (const flagged of flaggedRows.rows) {
+            if (!detectedNames.has(flagged.char_name)) {
+                await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
+            }
+        }
+    } catch {}
+}
+
 // Admin check endpoint
 router.get('/admin/check', auth, async (req, res) => {
     res.json({ isAdmin: !!req.user.isAdmin, username: req.user.username });
@@ -12235,209 +12378,9 @@ router.get('/admin/action-log', auth, async (req, res) => {
             actions.push({ ts: a.ts, type: 'api', char_name: a.char_name || '', label, detail, id: a.id, _source: 'api_log', tab_viewed: a.tab_viewed });
         }
 
-        // ── Bot detection pass ──
-        const botPlayers = new Map(); // name → reason
-        const now = Math.floor(Date.now() / 1000);
-
-        // 1) Known managed bots from bot_configs
-        try {
-            const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
-            for (const row of bots.rows) {
-                if (row.name) botPlayers.set(row.name, 'Managed test bot');
-            }
-        } catch {}
-
-        // 1b) Fast-path: detect instant mission collect→start (< 2s gap)
-        //    Real players need 5-10s+ to click spot, select difficulty, size.
-        //    Bots start the next mission instantly after collecting.
-        try {
-            const fpCutoff = now - 86400; // last 24h
-            const fpRows = await db.execute({
-                sql: `SELECT char_name, created_at, path
-                      FROM api_log
-                      WHERE created_at > ? AND method = 'POST'
-                      ORDER BY char_name, created_at
-                      LIMIT 20000`,
-                args: [fpCutoff]
-            });
-            const fpGroups = {};
-            for (const r of fpRows.rows) {
-                const name = r.char_name;
-                if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
-                const p = (r.path || '').toLowerCase();
-                if (!p.includes('/missions/')) continue;
-                if (!fpGroups[name]) fpGroups[name] = [];
-                fpGroups[name].push({ ts: r.created_at, path: p });
-            }
-            for (const [name, entries] of Object.entries(fpGroups)) {
-                entries.sort((a, b) => a.ts - b.ts);
-                let instantStarts = 0;
-                for (let i = 1; i < entries.length; i++) {
-                    const prev = entries[i - 1].path;
-                    const cur = entries[i].path;
-                    const gap = entries[i].ts - entries[i - 1].ts;
-                    // Check collect/mp-spent → start with gap < 2s
-                    if (gap < 2 && cur.includes('/missions/start') &&
-                        (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) {
-                        instantStarts++;
-                    }
-                }
-                if (instantStarts >= 5) {
-                    botPlayers.set(name, `Instant collect→start: ${instantStarts} times in 24h`);
-                }
-                // Also flag players with multiple no-tick starts
-                const noTick = _missionNoTickStarts.get(name) || 0;
-                if (noTick >= 5) {
-                    botPlayers.set(name, `No UI tick: ${noTick} direct starts`);
-                }
-            }
-        } catch {}
-
-        // 2) Heuristic: look for low-variance gaps between actions (timing consistency)
-        //    Bots have consistent delays (even with random jitter, CV < 0.5).
-        //    Humans are bursty — short gaps then long pauses — giving high CV.
-        try {
-            const cutoff = now - 86400; // last 24h for mission detection
-            const rows = await db.execute({
-                sql: `SELECT char_name, created_at, path
-                      FROM api_log
-                      WHERE created_at > ? AND method = 'POST'
-                      ORDER BY char_name, created_at
-                      LIMIT 20000`,
-                args: [cutoff]
-            });
-
-            // Group timestamps per player (only mission-related POSTs)
-            const groups = {};
-            for (const r of rows.rows) {
-                const name = r.char_name;
-                if (!name || name === '?' || !r.created_at) continue;
-                // Focus on mission-related endpoints (the main bot loop)
-                const p = (r.path || '').toLowerCase();
-                if (!p.includes('/missions/') && !p.includes('/dungeon/mp-spent')) continue;
-                if (!groups[name]) groups[name] = [];
-                groups[name].push(r.created_at);
-            }
-
-            for (const [name, timestamps] of Object.entries(groups)) {
-                if (botPlayers.has(name)) continue;
-                timestamps.sort((a, b) => a - b);
-                // Remove duplicate-second timestamps (bursts)
-                const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
-                if (unique.length < 20) continue;
-
-                // Compute gaps; skip tiny gaps (< 3s) from collect→dungeon→start sequence
-                const gaps = [];
-                for (let i = 1; i < unique.length; i++) {
-                    const g = unique[i] - unique[i - 1];
-                    if (g >= 3) gaps.push(g);
-                }
-                if (gaps.length < 15) continue;
-
-                // Coefficient of variation = stddev / mean
-                const sum = gaps.reduce((s, v) => s + v, 0);
-                const mean = sum / gaps.length;
-                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
-                const stddev = Math.sqrt(variance);
-                const cv = stddev / mean;
-                const maxGap = Math.max(...gaps);
-
-                // Bots: CV < 0.5 (consistent timing), mean between 1-15 min, no 30+ min pauses
-                // Humans: high CV (> 1.0) due to bursty behavior, or have very long gaps (> 30 min)
-                if (cv < 0.5 && mean >= 60 && mean <= 900 && maxGap < 1800)
-                    botPlayers.set(name, `Mission timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
-            }
-        } catch {} 
-        // also check battle activity: high battle count with short average gaps and low CV
-        try {
-            const bCutoff = now - 21600; // last 6h for battle analysis
-            const bRows = await db.execute({
-                sql: `SELECT ca.name AS char_name, b.fought_at
-                      FROM battles b
-                      JOIN characters ca ON b.attacker_id = ca.id
-                      WHERE b.fought_at > ?
-                      ORDER BY ca.name, b.fought_at`,
-                args: [bCutoff]
-            });
-
-            const bGroups = {};
-            for (const r of bRows.rows) {
-                const name = r.char_name;
-                if (!name || name === '?' || !r.fought_at) continue;
-                if (!bGroups[name]) bGroups[name] = [];
-                bGroups[name].push(r.fought_at);
-            }
-
-            for (const [name, timestamps] of Object.entries(bGroups)) {
-                if (botPlayers.has(name)) continue;
-                timestamps.sort((a, b) => a - b);
-                const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
-                if (unique.length < 50) continue;
-
-                const gaps = [];
-                for (let i = 1; i < unique.length; i++) {
-                    const g = unique[i] - unique[i - 1];
-                    gaps.push(g);
-                }
-
-                const sum = gaps.reduce((s, v) => s + v, 0);
-                const mean = sum / gaps.length;
-                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
-                const stddev = Math.sqrt(variance);
-                const cv = stddev / mean;
-                const maxGap = Math.max(...gaps);
-
-                // Bot attack pattern: consistent timing (CV < 0.5), tight average (< 60s), no long pauses
-                if (cv < 0.5 && mean < 60 && maxGap < 300)
-                    botPlayers.set(name, `Battle timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
-            }
-        } catch {}
-
-        // 3) Game state polling: bots poll character/inventory/missions at regular intervals
-        //    Humans only check state when actively doing something.
-        try {
-            const pCutoff = now - 86400; // last 24h
-            const pRows = await db.execute({
-                sql: `SELECT char_name, created_at, path
-                      FROM api_log
-                      WHERE created_at > ?
-                        AND method = 'GET'
-                        AND path NOT LIKE '%/chat/%'
-                        AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions/active%' OR path LIKE '%/travel/status%' OR path LIKE '%/achievements%' OR path LIKE '%/setups%' OR path LIKE '%/messages/%')
-                      ORDER BY char_name, created_at
-                      LIMIT 10000`,
-                args: [pCutoff]
-            });
-            const pGroups = {};
-            for (const r of pRows.rows) {
-                const name = r.char_name;
-                if (!name || name === '?' || !r.created_at) continue;
-                if (!pGroups[name]) pGroups[name] = [];
-                pGroups[name].push(r.created_at);
-            }
-            for (const [name, timestamps] of Object.entries(pGroups)) {
-                if (botPlayers.has(name)) continue;
-                timestamps.sort((a, b) => a - b);
-                const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
-                if (unique.length < 15) continue;
-                const span = unique[unique.length - 1] - unique[0];
-                if (span < 3600) continue; // 1+ hours of polling
-                // Compute all gaps between consecutive polls
-                const allGaps = [];
-                for (let i = 1; i < unique.length; i++) {
-                    allGaps.push(unique[i] - unique[i - 1]);
-                }
-                // Count short gaps (< 120s) — these are active polling intervals
-                const shortGaps = allGaps.filter(g => g < 120);
-                // Sum of short gaps = total time spent actively polling
-                const activeTime = shortGaps.reduce((s, v) => s + v, 0);
-                // Flag if: 10+ short gaps, > 50% gaps are short, AND active polling totals > 30 min
-                if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.5 && activeTime >= 1800) {
-                    const shortMean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
-                    botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active`);
-                }
-            }
-        } catch {}
+        // ── Bot detection ──
+        const botPlayers = await runBotDetection(db);
+        await persistBotFlags(db, botPlayers);
 
         // Sort by time descending and apply name filter client-side too
         const q = nameFilter.toLowerCase();
@@ -12452,33 +12395,6 @@ router.get('/admin/action-log', auth, async (req, res) => {
         // Ensure at least one entry per bot player survives the slice
         const result = filtered.slice(0, limit);
         const seen = new Set(result.map(a => a.char_name || '?'));
-
-        // Only inject synthetic entries for bot players matching the current filter
-
-        // Persist detected bots to flagged_characters table
-        try {
-            await ensureFlaggedTable(db);
-            const flaggedRows = await db.execute('SELECT char_name FROM flagged_characters');
-            const existingFlags = new Set(flaggedRows.rows.map(r => r.char_name));
-            for (const [bp, reason] of botPlayers) {
-                if (!bp || bp === '?') continue;
-                if (existingFlags.has(bp)) {
-                    await db.execute({ sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?', args: [reason, now, bp] });
-                } else {
-                    await db.execute({ sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at) VALUES (?,?,?,?)', args: [bp, reason, now, now] });
-                }
-            }
-            // Clear stale flags: entries in table but not in current detection
-            const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
-            for (const flagged of flaggedRows.rows) {
-                if (!detectedNames.has(flagged.char_name)) {
-                    await db.execute({
-                        sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0",
-                        args: [flagged.char_name]
-                    });
-                }
-            }
-        } catch {}
 
         for (const [bp, reason] of botPlayers) {
             if (!bp || bp === '?' || seen.has(bp)) continue;
@@ -12496,6 +12412,9 @@ router.get('/admin/flagged-characters', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
+        // Run detection before returning so new flags appear immediately
+        const botPlayers = await runBotDetection(db);
+        await persistBotFlags(db, botPlayers);
         await ensureFlaggedTable(db);
         const result = await db.execute('SELECT * FROM flagged_characters ORDER BY last_seen_at DESC');
         res.json(result.rows);
