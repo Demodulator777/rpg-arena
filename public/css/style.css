@@ -2419,7 +2419,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         width: 100%;
     }
     .char-panel,
-    .char-panel-record,
     .char-panel-equipment {
         grid-column: auto !important;
         width: 100%;
@@ -2548,9 +2547,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .char-panel:hover { border-color: var(--border-mid); }
 .char-panel.full { grid-column: 1 / -1; }
-.char-panel-record { grid-column: 2; }
 .char-panel-elemental { grid-column: 1; }
-.char-panel-setups { grid-column: 1 / -1; }
+.char-panel-setups { grid-column: 2; }
 .msg { padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);font-size:0.8rem;transition:opacity 0.3s; }
 .char-panel-setups .setup-card:hover { border-color: rgba(255,255,255,0.15) !important; }
 .char-panel-setups .setup-card .setup-name:focus { background: rgba(255,255,255,0.06) !important; }
