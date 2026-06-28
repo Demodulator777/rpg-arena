@@ -2602,6 +2602,17 @@ const eqGrid = `
         <div class="char-panel char-panel-equipment">
           <h3>EQUIPMENT</h3>
           ${eqGrid}
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
+            <div class="record-row">
+              <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
+              <div class="record-item"><div class="record-num">${c.wins+c.losses+c.draws}</div><div class="record-lbl">BATTLES</div></div>
+              <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
+            </div>
+            ${c.draws?`<div style="margin-top:10px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">Draws <strong style="color:var(--gold);float:right">${c.draws}</strong></div>`:''}
+            ${c.wins+c.losses>0?`<div style="margin-top:8px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
+            ${c.trainingActive?`<div style="margin-top:10px;font-size:0.75rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
+            ${c.trainingDone?`<div style="margin-top:10px;font-size:0.75rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
+          </div>
         </div>
         ${c.elemental ? (() => {
           console.log('[DEBUG] Character elemental:', c.elemental);
@@ -2674,17 +2685,6 @@ const eqGrid = `
           <h3>⚙️ SETUPS</h3>
           <div id="char-setups-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
         </div>
-        <div class="char-panel char-panel-record">
-          <h3>RECORD</h3>
-          <div class="record-row">
-            <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
-            <div class="record-item"><div class="record-num">${c.wins+c.losses+c.draws}</div><div class="record-lbl">BATTLES</div></div>
-            <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
-          </div>
-          ${c.draws?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 14px;font-size:0.78rem;color:var(--text-dim)">Draws <strong style="color:var(--gold);float:right">${c.draws}</strong></div>`:''}
-          ${c.wins+c.losses>0?`<div style="margin-top:14px;background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
-          ${c.trainingActive?`<div style="margin-top:12px;font-size:0.8rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
-          ${c.trainingDone?`<div style="margin-top:12px;font-size:0.8rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
         </div>
       </div>
     </div>`;
