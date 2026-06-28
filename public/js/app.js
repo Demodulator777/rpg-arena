@@ -7601,6 +7601,8 @@ const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wr
             const adminData = await adminRes.json();
             if (adminData.isAdmin) {
                 adminBtnHtml = `<a href="/admin-panel" target="_blank" style="display:block;text-align:center;padding:10px;margin-top:16px;background:rgba(200,168,110,0.12);border:1px solid rgba(200,168,110,0.4);border-radius:var(--radius-sm);color:#c8a86e;font-weight:600;font-size:0.85rem;text-decoration:none;transition:background 0.15s" onmouseover="this.style.background='rgba(200,168,110,0.2)'" onmouseout="this.style.background='rgba(200,168,110,0.12)'">👑 Admin Panel</a>`;
+            } else if (adminData.isModerator) {
+                adminBtnHtml = `<a href="/moderator-panel" target="_blank" style="display:block;text-align:center;padding:10px;margin-top:16px;background:rgba(100,180,255,0.12);border:1px solid rgba(100,180,255,0.4);border-radius:var(--radius-sm);color:#64b4ff;font-weight:600;font-size:0.85rem;text-decoration:none;transition:background 0.15s" onmouseover="this.style.background='rgba(100,180,255,0.2)'" onmouseout="this.style.background='rgba(100,180,255,0.12)'">🛡️ Moderator Panel</a>`;
             }
         } catch {}
     }
