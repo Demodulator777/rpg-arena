@@ -5,6 +5,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 const crypto = require('crypto');
+const path = require('path');
 
 // ── Weapon leveling constants ──────────────────────────────────────────────
 const WEAPON_XP_PER_MISSION = 1;
@@ -623,6 +624,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
             'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
             'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN is_moderator INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_weapon INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_helmet INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_armor INTEGER DEFAULT 0',
@@ -12290,126 +12292,21 @@ async function persistBotFlags(db, botPlayers) {
 
 // Admin check endpoint
 router.get('/admin/check', auth, async (req, res) => {
-    res.json({ isAdmin: !!req.user.isAdmin, username: req.user.username });
+    res.json({ isAdmin: !!req.user.isAdmin, isModerator: !!req.user.isModerator, username: req.user.username });
 });
 
-// JSON admin data endpoints
-// CSP violation report from client-side JS (auth — includes character context)
-router.post('/admin/csp-violation', auth, async (req, res) => {
-    try {
-        const { blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number } = req.body || {};
-        const db = await getDb();
-        let charName = null;
-        try {
-            const char = await dbGet(db, 'SELECT name FROM characters WHERE user_id = ? ORDER BY id DESC LIMIT 1', [req.user.userId]);
-            if (char) charName = char.name;
-        } catch {}
-        await db.execute({ sql: `INSERT INTO csp_violations (blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number, raw_body, user_id, character_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, args: [
-                blocked_uri || '', document_uri || '', violated_directive || '', effective_directive || '', original_policy || '', source_file || '', line_number || null, column_number || null, JSON.stringify(req.body), req.user.userId, charName || req.user.username
-            ]});
-        res.json({ ok: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.get('/admin/csp-violations', auth, async (req, res) => {
+// Moderator management (admin only)
+router.get('/admin/users', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
-        const result = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200', args: [] });
+        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator FROM users ORDER BY username', args: [] });
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/admin/bug-reports', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
-    try {
-        const db = await getDb();
-        const result = await db.execute({ sql: 'SELECT id, report_timestamp, username, character_name, character_level, character_class, category, title, description, game_location, has_screenshot FROM bug_reports ORDER BY id DESC LIMIT 100', args: [] });
-        res.json(result.rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.get('/admin/rewards', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
-    try {
-        const db = await getDb();
-        const result = await db.execute({ sql: 'SELECT * FROM admin_reward_batches ORDER BY id DESC LIMIT 50', args: [] });
-        res.json(result.rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Skip attack cooldowns with gems (per-target cooldown and/or defender global cooldown)
-router.get('/admin/action-log', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
-    try {
-        const db = await getDb();
-        const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
-        const nameFilter = req.query.name || '';
-        const actions = [];
-
-        // Battles fought (rich detail)
-        const battles = await db.execute({ sql: `SELECT b.id, b.fought_at AS ts, 'battle' AS type, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id, ca.name AS char_name FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id ORDER BY b.fought_at DESC LIMIT ?`, args: [limit] });
-        for (const b of battles.rows) {
-            if (b.ts) actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id, _source: 'battles' });
-        }
-
-        // Mission spot fights
-        const spotFights = await db.execute({ sql: `SELECT cs.char_id, cs.last_fought_at AS ts, 'spot_fight' AS type, c.name AS char_name, cs.zone_id, cs.spot_id, cs.fights, cs.wins FROM character_mission_spot_stats cs LEFT JOIN characters c ON cs.char_id = c.id WHERE cs.last_fought_at > 0 ORDER BY cs.last_fought_at DESC LIMIT ?`, args: [limit] });
-        for (const s of spotFights.rows) {
-            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id, _source: 'spot_fights' });
-        }
-
-        // API log (all authenticated requests)
-        let apiSql, apiArgs;
-        if (nameFilter) {
-            const like = `%${nameFilter}%`;
-            apiSql = `SELECT id, created_at AS ts, char_name, method, path, status, tab_viewed FROM api_log WHERE (char_name LIKE ? OR username LIKE ?) ORDER BY created_at DESC LIMIT ?`;
-            apiArgs = [like, like, limit];
-        } else {
-            apiSql = `SELECT id, created_at AS ts, char_name, method, path, status, tab_viewed FROM api_log ORDER BY created_at DESC LIMIT ?`;
-            apiArgs = [limit];
-        }
-        const apiRows = await db.execute({ sql: apiSql, args: apiArgs });
-        for (const a of apiRows.rows) {
-            if (!a.ts) continue;
-            const noTab = !a.tab_viewed ? ' ⚠️' : '';
-            const label = `${a.method} ${a.path}`;
-            const detail = `${a.status}${noTab}`;
-            actions.push({ ts: a.ts, type: 'api', char_name: a.char_name || '', label, detail, id: a.id, _source: 'api_log', tab_viewed: a.tab_viewed });
-        }
-
-        // ── Bot detection ──
-        const botPlayers = await runBotDetection(db);
-        await persistBotFlags(db, botPlayers);
-
-        // Sort by time descending and apply name filter client-side too
-        const q = nameFilter.toLowerCase();
-        const filtered = q ? actions.filter(a => (a.char_name || '').toLowerCase().includes(q)) : actions;
-        filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-
-        // Apply bot flags to all matching entries
-        for (const a of filtered) {
-            if (botPlayers.has(a.char_name || '?')) a.bot = true;
-        }
-
-        // Ensure at least one entry per bot player survives the slice
-        const result = filtered.slice(0, limit);
-        const seen = new Set(result.map(a => a.char_name || '?'));
-
-        for (const [bp, reason] of botPlayers) {
-            if (!bp || bp === '?' || seen.has(bp)) continue;
-            // Only inject synthetic entries matching the current name filter
-            if (q && !bp.toLowerCase().includes(q)) continue;
-            result.push({ ts: 0, type: 'bot_flag', char_name: bp, label: 'Bot detected', detail: reason, _source: 'bot_detection', bot: true });
-        }
-
-        res.json(result);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ── Flagged Characters ───────────────────────────────────────────────
 router.get('/admin/flagged-characters', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
         // Run detection before returning so new flags appear immediately
@@ -12422,7 +12319,7 @@ router.get('/admin/flagged-characters', auth, async (req, res) => {
 });
 
 router.get('/admin/character-logs/:name', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
         const name = req.params.name;
@@ -12455,6 +12352,81 @@ router.post('/admin/flag-character', auth, async (req, res) => {
             args: [char_name, reason || 'Manual flag', now, now]
         });
         res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin data endpoints (readable by moderators)
+router.get('/admin/csp-violations', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/bug-reports', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT id, report_timestamp, username, character_name, character_level, character_class, category, title, description, game_location, has_screenshot FROM bug_reports ORDER BY id DESC LIMIT 100', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/rewards', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM admin_reward_batches ORDER BY id DESC LIMIT 50', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/action-log', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const limit = Math.min(parseInt(req.query.limit) || 500, 1000);
+        const nameFilter = req.query.name || '';
+        const actions = [];
+
+        // Battles fought (rich detail)
+        const battles = await db.execute({ sql: `SELECT b.id, b.fought_at AS ts, 'battle' AS type, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id, ca.name AS char_name FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id ORDER BY b.fought_at DESC LIMIT ?`, args: [limit] });
+        for (const b of battles.rows) {
+            if (b.ts) actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id, _source: 'battles' });
+        }
+
+        // Mission spot fights
+        const spotFights = await db.execute({ sql: `SELECT cs.char_id, cs.last_fought_at AS ts, 'spot_fight' AS type, c.name AS char_name, cs.zone_id, cs.spot_id, cs.fights, cs.wins FROM character_mission_spot_stats cs LEFT JOIN characters c ON cs.char_id = c.id WHERE cs.last_fought_at > 0 ORDER BY cs.last_fought_at DESC LIMIT ?`, args: [limit] });
+        for (const s of spotFights.rows) {
+            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id, _source: 'spot_fights' });
+        }
+
+        // API log (all authenticated requests)
+        let apiSql, apiArgs;
+        if (nameFilter) {
+            const like = `%${nameFilter}%`;
+            apiSql = `SELECT id, created_at AS ts, char_name, method, path, status, tab_viewed FROM api_log WHERE (char_name LIKE ? OR username LIKE ?) ORDER BY created_at DESC LIMIT ?`;
+            apiArgs = [like, like, limit];
+        } else {
+            apiSql = `SELECT id, created_at AS ts, char_name, method, path, status, tab_viewed FROM api_log ORDER BY created_at DESC LIMIT ?`;
+            apiArgs = [limit];
+        }
+        const apiEntries = await db.execute({ sql: apiSql, args: apiArgs });
+        for (const e of apiEntries.rows) {
+            if (e.ts) actions.push({ ts: e.ts, type: 'api', char_name: e.char_name || '?', label: `${e.method || '?'} ${e.path || '?'} (${e.status || '?'})`, detail: e.tab_viewed ? `Tab: ${e.tab_viewed}` : '', id: e.id, _source: 'api_log' });
+        }
+
+        // Bot detection
+        const botPlayers = await runBotDetection(db);
+        await persistBotFlags(db, botPlayers);
+        for (const bp of botPlayers) {
+            actions.push({ ts: Date.now() / 1000, type: 'flag', char_name: bp.char_name, label: `Flagged: ${bp.char_name || '?'}`, detail: bp.reason || 'Suspicious behavior', id: 0, _source: 'detection' });
+        }
+
+        actions.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        res.json(actions.slice(0, limit));
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -15449,7 +15421,6 @@ router.post('/shop/reroll', auth, async (req, res) => {
 });
 
 const fs = require('fs');
-const path = require('path');
 
 // ── Bug Report to Database with Images ────────────────────────────────────
 router.post('/bug-report', async (req, res) => {

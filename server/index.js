@@ -35,7 +35,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen } = require('./routes');
+const { runHourlyHpRegen, ensureBotRunner } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -100,6 +100,11 @@ getDb().then(async (db) => {
   // Admin panel (HTML page — auth check happens client-side via JS)
   app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin/panel.html'));
+  });
+
+  // Moderator panel (HTML page — auth check happens client-side via JS)
+  app.get('/moderator-panel', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin/moderator.html'));
   });
   
   // API endpoint to get admin password for password-protected admin pages
@@ -187,7 +192,11 @@ app.use('/test', express.static(path.join(__dirname, '../public/test'), {
 }));
   
   const PORT = process.env.PORT || 3009;
-  app.listen(PORT, () => console.log(`⚔️  RPG Arena running on http://localhost:${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`⚔️  RPG Arena running on http://localhost:${PORT}`);
+    // Start bot runner after server is listening
+    ensureBotRunner().catch(e => console.error('[BotRunner] init error:', e.message));
+  });
 }).catch(err => {
   console.error('Failed to initialize database:', err);
   process.exit(1);

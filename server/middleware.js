@@ -14,7 +14,7 @@ module.exports = async (req, res, next) => {
         // Get the user from database to ensure they still exist
         const db = await getDb();
         const user = await db.execute({
-            sql: 'SELECT id, username, user_session, is_admin FROM users WHERE id = ?',
+            sql: 'SELECT id, username, user_session, is_admin, is_moderator FROM users WHERE id = ?',
             args: [decoded.userId]
         });
         
@@ -48,6 +48,7 @@ module.exports = async (req, res, next) => {
             userId: user.rows[0].id, 
             username: user.rows[0].username,
             isAdmin: !!user.rows[0].is_admin,
+            isModerator: !!user.rows[0].is_moderator,
             sessionId,
             tabSession
         };
