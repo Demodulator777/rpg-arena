@@ -939,7 +939,10 @@ document.addEventListener('click', function(e) {
     e.preventDefault();
     var sel = document.getElementById('mod-user-select');
     if (!sel || !sel.value) return;
-    API('/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:parseInt(sel.value), moderator:true}) }).then(function() {
+    fetch('/api/game/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:parseInt(sel.value), moderator:true}) }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }).then(function() {
         loadModerators();
     }).catch(function(e) { alert('Error: ' + e.message); });
 });
@@ -951,7 +954,10 @@ document.addEventListener('click', function(e) {
     var userId = parseInt(btn.getAttribute('data-user-id'));
     var username = btn.getAttribute('data-username');
     if (!confirm('Revoke moderator from ' + username + '?')) return;
-    API('/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:userId, moderator:false}) }).then(function() {
+    fetch('/api/game/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:userId, moderator:false}) }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }).then(function() {
         loadModerators();
     }).catch(function(e) { alert('Error: ' + e.message); });
 });
