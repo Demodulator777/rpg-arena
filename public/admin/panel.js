@@ -12,7 +12,9 @@ function init() {
     var token = localStorage.getItem('rpg_token');
     if (!token) { renderNoAccess('Not logged in.'); return; }
     API('/admin/check').then(function(check) {
-        if (!check.isAdmin) { renderNoAccess('Admin access required.'); return; }
+        if (!check.isAdmin && !check.isModerator) { renderNoAccess('Access denied.'); return; }
+        window._isAdmin = check.isAdmin;
+        window._isModerator = check.isModerator;
         renderLayout();
     }).catch(function(e) {
         renderNoAccess('Failed to verify access: ' + e.message);
@@ -24,31 +26,30 @@ function renderNoAccess(msg) {
 }
 
 function renderLayout() {
+    var isModOnly = window._isModerator && !window._isAdmin;
+    var tabs = [
+        { id: 'csp', label: 'CSP Violations' },
+        { id: 'bugs', label: 'Bug Reports' },
+        { id: 'actions', label: 'Action Log' },
+        { id: 'flagged', label: 'Flagged' },
+    ];
+    if (!isModOnly) {
+        tabs.push(
+            { id: 'banners', label: 'Banners' },
+            { id: 'rewards', label: 'Rewards' },
+            { id: 'db', label: 'Database' },
+            { id: 'tournaments', label: 'Tournaments' },
+            { id: 'bots', label: 'Bots' },
+            { id: 'console', label: 'Console' },
+            { id: 'moderators', label: 'Moderators' }
+        );
+    }
     document.getElementById('app').innerHTML =
         '<div class="tabs" id="tabs">' +
-            '<button class="tab-btn active" data-tab="csp">CSP Violations</button>' +
-            '<button class="tab-btn" data-tab="bugs">Bug Reports</button>' +
-            '<button class="tab-btn" data-tab="banners">Banners</button>' +
-            '<button class="tab-btn" data-tab="rewards">Rewards</button>' +
-            '<button class="tab-btn" data-tab="db">Database</button>' +
-            '<button class="tab-btn" data-tab="tournaments">Tournaments</button>' +
-            '<button class="tab-btn" data-tab="actions">Action Log</button>' +
-            '<button class="tab-btn" data-tab="flagged">Flagged</button>' +
-            '<button class="tab-btn" data-tab="bots">Bots</button>' +
-            '<button class="tab-btn" data-tab="console">Console</button>' +
-            '<button class="tab-btn" data-tab="moderators">Moderators</button>' +
+            tabs.map(function(t) { return '<button class="tab-btn' + (t.id === 'csp' ? ' active' : '') + '" data-tab="' + t.id + '">' + t.label + '</button>'; }).join('') +
         '</div>' +
-        '<div id="tab-csp" class="tab-content active"><div class="loading">Loading CSP violations...</div></div>' +
-        '<div id="tab-bugs" class="tab-content"><div class="loading">Loading bug reports...</div></div>' +
-        '<div id="tab-banners" class="tab-content"><div class="loading">Loading banners...</div></div>' +
-        '<div id="tab-rewards" class="tab-content"><div class="loading">Loading rewards...</div></div>' +
-        '<div id="tab-db" class="tab-content"><div class="loading">Loading database...</div></div>' +
-        '<div id="tab-tournaments" class="tab-content"><div class="loading">Loading tournaments...</div></div>' +
-        '<div id="tab-actions" class="tab-content"><div class="loading">Loading action log...</div></div>' +
-        '<div id="tab-flagged" class="tab-content"><div class="loading">Loading flagged...</div></div>' +
-        '<div id="tab-bots" class="tab-content"><div class="loading">Loading bots...</div></div>' +
-        '<div id="tab-console" class="tab-content"><div class="loading">Loading console...</div></div>' +
-        '<div id="tab-moderators" class="tab-content"><div class="loading">Loading moderators...</div></div>';
+        tabs.map(function(t) { return '<div id="tab-' + t.id + '" class="tab-content' + (t.id === 'csp' ? ' active' : '') + '"><div class="loading">Loading ' + t.label.toLowerCase() + '...</div></div>'; }).join('') +
+        '';
 
     document.querySelectorAll('.tab-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
