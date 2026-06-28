@@ -84,7 +84,35 @@ getDb().then(async (db) => {
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes').router);
-  
+
+  // CSP violation reporting endpoint (no auth — browsers send these directly)
+  // Must be BEFORE app.use('/api', auth, ...) which would require auth
+  app.post('/api/csp-violation', async (req, res) => {    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        let parsed;
+        try { parsed = JSON.parse(body); } catch { parsed = {}; }
+        const report = parsed['csp-report'] || parsed.body || parsed;
+        await db.execute({
+          sql: `INSERT INTO csp_violations (blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number, raw_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            report['blocked-uri'] || '',
+            report['document-uri'] || '',
+            report['violated-directive'] || '',
+            report['effective-directive'] || '',
+            report['original-policy'] || '',
+            report['source-file'] || '',
+            report['line-number'] || null,
+            report['column-number'] || null,
+            JSON.stringify(parsed)
+          ]
+        });
+      } catch (e) { console.error('CSP save error:', e); }
+    });
+    res.status(204).end();
+  });
+
   // Tournament routes
   app.use('/api', auth, tournamentModule.router);
   
@@ -129,33 +157,6 @@ getDb().then(async (db) => {
   const dbAdminRouter = require('./db-admin');
   app.use('/api/db', auth, dbAdminRouter);
 
-  // CSP violation reporting endpoint (no auth — browsers send these directly)
-  app.post('/api/csp-violation', async (req, res) => {    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-      try {
-        let parsed;
-        try { parsed = JSON.parse(body); } catch { parsed = {}; }
-        const report = parsed['csp-report'] || parsed.body || parsed;
-        await db.execute({
-          sql: `INSERT INTO csp_violations (blocked_uri, document_uri, violated_directive, effective_directive, original_policy, source_file, line_number, column_number, raw_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            report['blocked-uri'] || '',
-            report['document-uri'] || '',
-            report['violated-directive'] || '',
-            report['effective-directive'] || '',
-            report['original-policy'] || '',
-            report['source-file'] || '',
-            report['line-number'] || null,
-            report['column-number'] || null,
-            JSON.stringify(parsed)
-          ]
-        });
-      } catch (e) { console.error('CSP save error:', e); }
-    });
-    res.status(204).end();
-  });
-  
   // View CSP violations (auth required)
   app.get('/api/csp-violations', auth, async (req, res) => {
     try {
