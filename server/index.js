@@ -133,11 +133,6 @@ getDb().then(async (db) => {
   app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin/panel.html'));
   });
-
-  // Moderator panel (HTML page — auth check happens client-side via JS)
-  app.get('/moderator-panel', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/admin/moderator.html'));
-  });
   
   // API endpoint to get admin password for password-protected admin pages
   app.get('/api/game/admin/password', auth, async (req, res) => {

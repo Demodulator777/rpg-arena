@@ -12414,13 +12414,13 @@ router.get('/admin/action-log', auth, async (req, res) => {
         // Battles fought (rich detail)
         const battles = await db.execute({ sql: `SELECT b.id, b.fought_at AS ts, 'battle' AS type, ca.name AS attacker_name, cd.name AS defender_name, b.winner_id, ca.name AS char_name FROM battles b LEFT JOIN characters ca ON b.attacker_id = ca.id LEFT JOIN characters cd ON b.defender_id = cd.id ORDER BY b.fought_at DESC LIMIT ?`, args: [limit] });
         for (const b of battles.rows) {
-            if (b.ts) actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id, _source: 'battles' });
+            if (b.ts) actions.push({ ts: b.ts, type: 'battle', char_name: b.attacker_name || '?', label: `${b.attacker_name || '?'} attacked ${b.defender_name || '?'}`, detail: b.winner_id ? (b.winner_id === b.attacker_id ? 'Attacker won' : 'Defender won') : 'Draw', id: b.id });
         }
 
         // Mission spot fights
         const spotFights = await db.execute({ sql: `SELECT cs.char_id, cs.last_fought_at AS ts, 'spot_fight' AS type, c.name AS char_name, cs.zone_id, cs.spot_id, cs.fights, cs.wins FROM character_mission_spot_stats cs LEFT JOIN characters c ON cs.char_id = c.id WHERE cs.last_fought_at > 0 ORDER BY cs.last_fought_at DESC LIMIT ?`, args: [limit] });
         for (const s of spotFights.rows) {
-            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id, _source: 'spot_fights' });
+            if (s.ts) actions.push({ ts: s.ts, type: 'spot_fight', char_name: s.char_name || '?', label: `${s.char_name || '?'} fought at ${s.zone_id || '?'}/${s.spot_id || '?'}`, detail: `${s.fights || 0} fights, ${s.wins || 0} wins`, id: s.char_id });
         }
 
         // API log (all authenticated requests)
@@ -12442,7 +12442,7 @@ router.get('/admin/action-log', auth, async (req, res) => {
         const botPlayers = await runBotDetection(db);
         await persistBotFlags(db, botPlayers);
         for (const bp of botPlayers) {
-            actions.push({ ts: Date.now() / 1000, type: 'flag', char_name: bp.char_name, label: `Flagged: ${bp.char_name || '?'}`, detail: bp.reason || 'Suspicious behavior', id: 0, _source: 'detection' });
+            actions.push({ ts: Date.now() / 1000, type: 'flag', char_name: bp.char_name, label: `Flagged: ${bp.char_name || '?'}`, detail: bp.reason || 'Suspicious behavior', id: 0, _source: 'bot_detection' });
         }
 
         actions.sort((a, b) => (b.ts || 0) - (a.ts || 0));
