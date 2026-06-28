@@ -12305,6 +12305,26 @@ router.get('/admin/users', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/admin/moderators', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator FROM users WHERE is_moderator=1 OR is_admin=1 ORDER BY username', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/set-moderator', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const { userId, moderator } = req.body;
+        if (!userId) return res.status(400).json({ error: 'userId required' });
+        await db.execute({ sql: 'UPDATE users SET is_moderator=? WHERE id=?', args: [moderator ? 1 : 0, userId] });
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/admin/flagged-characters', auth, async (req, res) => {
     if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {

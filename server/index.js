@@ -10,6 +10,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Favicon (silence 404)
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 app.use((req, res, next) => {
 const cspDirectives = [
     "default-src 'self'",
