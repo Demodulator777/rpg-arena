@@ -7173,8 +7173,6 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
             } else if (npcKey === 'hpMax') {
                 npc.hpMax = (npc.hpMax || 0) + val;
                 npc.hp = npc.hpMax;
-            } else if (npcKey === 'hit_chance') {
-                npc.hit_chance = Math.min(95, (npc.hit_chance || 0) + val);
             } else {
                 npc[npcKey] = (npc[npcKey] || 0) + val;
             }
@@ -7199,10 +7197,6 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         if (npc.dmgMax <= npc.dmgMin) {
             npc.dmgMax = npc.dmgMin + Math.max(2, Math.floor(npc.dmgMin * 0.25));
         }
-
-        // Cap hit/crit at reasonable maximums
-        if (npc.hit_chance > 95) npc.hit_chance = 95;
-        if (npc.crit_chance > 50) npc.crit_chance = 50;
     }
 
     return npc;
