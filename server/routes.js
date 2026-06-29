@@ -10589,34 +10589,37 @@ function scaleItemToLevel(recipe, playerLevel) {
 
         if (stat === 'dmg_min') {
             scaledValue = Math.floor(value * (1 + level * 0.03 * qualityScale));
-            scaledValue = Math.min(220, scaledValue);
+            scaledValue = Math.min(Math.max(220, Math.floor(level * 2.5)), scaledValue);
         } else if (stat === 'dmg_max') {
             scaledValue = Math.floor(value * (1 + level * 0.05 * qualityScale));
-            scaledValue = Math.min(380, scaledValue);
-        } else if (stat === 'strength' || stat === 'agility' || stat === 'magic') {
+            scaledValue = Math.min(Math.max(380, Math.floor(level * 4.0)), scaledValue);
+        } else if (stat === 'strength' || stat === 'magic') {
             scaledValue = Math.floor(value + (level * 0.20 * qualityScale));
-            scaledValue = Math.min(90, scaledValue);
+            scaledValue = Math.min(Math.max(90, Math.floor(level * 0.8)), scaledValue);
+        } else if (stat === 'agility') {
+            scaledValue = Math.floor(value + (level * 0.20 * qualityScale));
+            scaledValue = Math.min(Math.floor(level / 2), scaledValue);
         } else if (stat === 'vitality') {
             scaledValue = Math.floor(value + (level * 0.10 * qualityScale));
-            scaledValue = Math.min(45, scaledValue);
+            scaledValue = Math.min(Math.max(45, Math.floor(level * 0.4)), scaledValue);
         } else if (stat === 'defense') {
             scaledValue = Math.floor(value + (level * 0.68 * qualityScale));
-            scaledValue = Math.min(140, scaledValue);
+            scaledValue = Math.min(Math.max(140, Math.floor(level * 1.2)), scaledValue);
         } else if (stat === 'armor') {
             scaledValue = Math.floor(value + (level * 0.42 * qualityScale));
-            scaledValue = Math.min(70, scaledValue);
+            scaledValue = Math.min(Math.max(70, Math.floor(level * 0.6)), scaledValue);
         } else if (stat === 'hp_max') {
             scaledValue = Math.floor(value + (level * 2.0 * qualityScale));
-            scaledValue = Math.min(480, scaledValue);
+            scaledValue = Math.min(Math.max(480, Math.floor(level * 4.0)), scaledValue);
         } else if (stat === 'hit_chance' || stat === 'crit_chance') {
             scaledValue = Math.floor(value + (level * 0.15 * qualityScale));
-            scaledValue = Math.min(35, scaledValue);
+            scaledValue = Math.min(Math.floor(level / 2), scaledValue);
         } else if (stat.includes('_dmg')) {
             scaledValue = Math.floor(value + (level * 0.24 * qualityScale));
-            scaledValue = Math.min(70, scaledValue);
+            scaledValue = Math.min(Math.max(70, Math.floor(level * 0.6)), scaledValue);
         } else if (stat.includes('_resist')) {
             scaledValue = Math.floor(value + (level * 0.11 * qualityScale));
-            const resistCap = item.setId === 'voidborn' && item.slot === 'weapon' ? 40 : 34;
+            const resistCap = item.setId === 'voidborn' && item.slot === 'weapon' ? Math.max(40, Math.floor(level * 0.4)) : Math.max(34, Math.floor(level * 0.3));
             scaledValue = Math.min(resistCap, scaledValue);
         }
 
