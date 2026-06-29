@@ -7137,8 +7137,11 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     }
 
     // Equipment generation — gives NPCs legendary gear at level-scaled tiers
+    // Damage/armor scales by difficulty so normal doesn't hit nightmare levels
     const equipLevels = { normal: 0, hard: 25, nightmare: 50 };
+    const dmgArmorScale = { normal: 0, hard: 0, nightmare: 1.0 };
     const equipBonus = equipLevels[difficulty];
+    const dmgScale = dmgArmorScale[difficulty] || 0;
     if (equipBonus !== undefined) {
         const equipLevel = playerLevel + equipBonus;
         const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
@@ -7150,6 +7153,11 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
                 if (typeof v !== 'number' || v <= 0) continue;
                 eqStats[k] = (eqStats[k] || 0) + v;
             }
+        }
+
+        // Apply damage/armor scaling first (nightmare gets full, normal/hard get 0)
+        for (const k of ['dmg_min', 'dmg_max', 'armor', 'defense', 'hp_max']) {
+            if (eqStats[k]) eqStats[k] = Math.floor(eqStats[k] * dmgScale);
         }
 
         // Map equipment stats to NPC fighter stats
