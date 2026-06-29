@@ -7391,7 +7391,7 @@ function renderShop() {
         if (currentShopCategory === 'boots')     return slot === 'boots';
         if (currentShopCategory === 'jewelry')   return slot === 'ring' || slot === 'amulet';
         if (currentShopCategory === 'accessory') return slot === 'accessory';
-        if (currentShopCategory === 'consumables') return !!(item.consumable || cat === 'consumable');
+        if (currentShopCategory === 'consumables') return !!(item.consumable || cat === 'consumable') && item.category !== 'lootbox';
         if (currentShopCategory === 'premium')   return item.priceType === 'gems' || cat === 'premium';
         if (currentShopCategory === 'lootboxes') return item.category === 'lootbox';
         return false;
