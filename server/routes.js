@@ -7136,6 +7136,75 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         }
     }
 
+    // Equipment generation — gives NPCs legendary gear at level-scaled tiers
+    const equipLevels = { normal: 0, hard: 25, nightmare: 50 };
+    const equipBonus = equipLevels[difficulty];
+    if (equipBonus !== undefined) {
+        const equipLevel = playerLevel + equipBonus;
+        const slots = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+        const eqStats = {};
+        for (const slot of slots) {
+            const item = generateBackendRandomItem(equipLevel, slot, 'legendary');
+            if (!item || !item.stats) continue;
+            for (const [k, v] of Object.entries(item.stats)) {
+                if (typeof v !== 'number' || v <= 0) continue;
+                eqStats[k] = (eqStats[k] || 0) + v;
+            }
+        }
+
+        // Map equipment stats to NPC fighter stats
+        const statMap = {
+            dmg_min:     'dmgMin',
+            dmg_max:     'dmgMax',
+            agility:     'agility',
+            magic:       'magic',
+            vitality:    'vitality',
+            hit_chance:  'hit_chance',
+            crit_chance: 'crit_chance',
+            armor:       'armor',
+            defense:     'armor',
+            hp_max:      'hpMax',
+        };
+        for (const [eqKey, npcKey] of Object.entries(statMap)) {
+            const val = eqStats[eqKey];
+            if (!val || val <= 0) continue;
+            if (npcKey === 'armor') {
+                npc.armor = (npc.armor || 0) + val;
+            } else if (npcKey === 'hpMax') {
+                npc.hpMax = (npc.hpMax || 0) + val;
+                npc.hp = npc.hpMax;
+            } else if (npcKey === 'hit_chance') {
+                npc.hit_chance = Math.min(95, (npc.hit_chance || 0) + val);
+            } else {
+                npc[npcKey] = (npc[npcKey] || 0) + val;
+            }
+        }
+
+        // Elemental damage from equipment (item stats use "pyro_dmg", "pyro_resist" keys)
+        for (const el of ELEMENTS) {
+            const d = eqStats[`${el}_dmg`] || 0;
+            if (d > 0) npc.elem_dmg[el] = (npc.elem_dmg[el] || 0) + d;
+            const r = eqStats[`${el}_resist`] || 0;
+            if (r > 0) npc.elem_resist[el] = (npc.elem_resist[el] || 0) + r;
+        }
+
+        // Convert equipment vitality to HP
+        if (eqStats.vitality) {
+            const bonusHp = Math.floor(eqStats.vitality * 4);
+            npc.hpMax += bonusHp;
+            npc.hp = npc.hpMax;
+        }
+
+        // Ensure dmgMax > dmgMin
+        if (npc.dmgMax <= npc.dmgMin) {
+            npc.dmgMax = npc.dmgMin + Math.max(2, Math.floor(npc.dmgMin * 0.25));
+        }
+
+        // Cap hit/crit at reasonable maximums
+        if (npc.hit_chance > 95) npc.hit_chance = 95;
+        if (npc.crit_chance > 50) npc.crit_chance = 50;
+    }
+
     return npc;
 }
 
@@ -7762,11 +7831,12 @@ const ITEM_GENERATORS = {
     },
 };
 
-function generateBackendRandomItem(level, type) {
+function generateBackendRandomItem(level, type, forceQuality) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
     const tier = Math.min(5, Math.ceil(level / 20) + 1);
     const stats = {};
+    let quality;
 
     function rollStat(cfg, lvl) {
         const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.4);
@@ -7777,19 +7847,23 @@ function generateBackendRandomItem(level, type) {
         return Math.max(cfg.min, v);
     }
 
-    const quality = (() => {
-        const legendaryChance = 0.05;
-        if (Math.random() < legendaryChance) return 'legendary';
+    if (forceQuality) {
+        quality = forceQuality;
+    } else {
+        quality = (() => {
+            const legendaryChance = 0.05;
+            if (Math.random() < legendaryChance) return 'legendary';
 
-        let rareChance = 0;
-        if (tier >= 5) rareChance = 0.40;
-        else if (tier >= 4) rareChance = 0.35;
-        else if (tier >= 3) rareChance = 0.30;
-        else if (tier >= 2) rareChance = 0.25;
-        else rareChance = 0.2;
+            let rareChance = 0;
+            if (tier >= 5) rareChance = 0.40;
+            else if (tier >= 4) rareChance = 0.35;
+            else if (tier >= 3) rareChance = 0.30;
+            else if (tier >= 2) rareChance = 0.25;
+            else rareChance = 0.2;
 
-        return Math.random() < rareChance ? 'rare' : 'common';
-    })();
+            return Math.random() < rareChance ? 'rare' : 'common';
+        })();
+    }
 
     function getStatChance(baseChance) {
         if (quality === 'legendary') return Math.min(0.95, baseChance + 0.35);
