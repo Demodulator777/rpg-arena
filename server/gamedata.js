@@ -756,7 +756,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
     {
         id:'marsh_reaper_weapon', setId:'marsh_reaper', setPiece:'weapon',
         name:"Soulcleaver", emoji:'⚔️', quality:'legendary',
-        slot:'weapon',
+        slot:'weapon', weaponType:'scythe',
         desc:'Forged from fen-cursed bone, this blade severs both flesh and spirit.',
         stats:{ dmg_min:20, dmg_max:38, strength:10, agility:8, hit_chance:10, crit_chance:8,
                 water_dmg:8, wind_resist:12 },
