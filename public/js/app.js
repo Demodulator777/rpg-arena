@@ -8109,20 +8109,23 @@ function buildBattleFighterCard({ name, className, level, splash = false, fallba
 function findMissionVisualByName(missionName) {
     const target = String(missionName || '').trim().toLowerCase();
     if (!target) return null;
-    for (const zone of Object.values(ZONES || {})) {
-        for (const spot of zone?.spots || []) {
-            for (const mission of spot?.missions || []) {
-                if (String(mission?.name || '').trim().toLowerCase() === target) {
-                    return {
-                        img: mission.img || null,
-                        spotName: spot.name || '',
-                        zoneName: zone.name || ''
-                    };
+    const searchZones = (zones) => {
+        for (const zone of Object.values(zones || {})) {
+            for (const spot of zone?.spots || []) {
+                for (const mission of spot?.missions || []) {
+                    if (String(mission?.name || '').trim().toLowerCase() === target) {
+                        return {
+                            img: mission.img || null,
+                            spotName: spot.name || '',
+                            zoneName: zone.name || ''
+                        };
+                    }
                 }
             }
         }
-    }
-    return null;
+        return null;
+    };
+    return searchZones(ZONES) || (abyssData ? searchZones(abyssData.zones) : null);
 }
 
 function buildBattleShowcaseCard({ name, className, level, splash = false, fallback = 'вљ”пёЏ', side = 'left', imageSrc = null, metaText = '' }) {
