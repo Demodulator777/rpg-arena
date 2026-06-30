@@ -10110,6 +10110,25 @@ router.post('/missions/collect', auth, async (req, res) => {
             }
         }
 
+        // Zone-specific unique material drop (abyss only, difficulty-scaled rate)
+        if (mission.map_type === 'abyss') {
+            const zoneUniqueMats = {
+                shadowfen:    { id:'fen_cursed_bone',    emoji:'🦴', name:'Fen Cursed Bone' },
+                crimson:      { id:'crimson_royal_blood',emoji:'🩸', name:'Crimson Royal Blood' },
+                void:         { id:'void_null_core',     emoji:'🖤', name:'Void Null Core' },
+                citadel:      { id:'citadel_obsidian_heart', emoji:'💜', name:'Obsidian Heart' },
+                eternal_dark: { id:'eternal_spark',      emoji:'✨', name:'Eternal Spark' },
+            };
+            const uniqueMat = zoneUniqueMats[mission.zone];
+            if (uniqueMat) {
+                const diffRates = { nightmare: 0.35, hard: 0.15, normal: 0.06 };
+                const rate = diffRates[mission.difficulty] || 0;
+                if (Math.random() < rate) {
+                    await addMaterialDrop(uniqueMat, 1);
+                }
+            }
+        }
+
         try {
             await dbRun(db, `INSERT INTO battles (
         attacker_id, defender_id, winner_id, attacker_name, defender_name, log, 
