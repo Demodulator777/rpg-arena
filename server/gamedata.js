@@ -767,7 +767,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         name:'Fenbound Cuirass', emoji:'🛡️', quality:'legendary',
         slot:'armor',
         desc:'Cuirass woven from bog iron and shadow essence, light yet unyielding.',
-        stats:{ strength: 15, defense:30, armor:18, hp_max:100, magic:8, vitality:6, water_dmg:6, water_resist:14 },
+        stats:{ strength: 15, defense:30, armor:18, hp_max:100, agility:5, hit_chance:6, crit_chance:5, magic:8, vitality:6, water_dmg:6, water_resist:14 },
         components:{ fen_cursed_bone:2, abyss_weave:3, void_plate:2 }, goldCost:24000,
     },
     {
