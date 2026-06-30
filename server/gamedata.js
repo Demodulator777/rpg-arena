@@ -783,7 +783,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         name:'Bogwarden Aegis', emoji:'🛡️', quality:'legendary',
         slot:'shield',
         desc:'A shield of fossilized fen wood, warded against all elements.',
-        stats:{ defense:97, armor:20, hp_max:80, magic:12, agility:5, hit_chance:5, crit_chance:5, water_dmg:10, water_resist:18 },
+        stats:{ defense:97, armor:20, hp_max:80, magic:12, agility:5, hit_chance:5, crit_chance:5, water_dmg:10, water_resist:18, wind_resist:11, pyro_resist:8, electro_resist:8, },
         components:{ fen_cursed_bone:2, void_plate:3, abyss_weave:1 }, goldCost:26000,
     },
     {
