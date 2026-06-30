@@ -933,7 +933,7 @@ const LOOT_BOXES = [
         name: 'Epic Loot Box',
         emoji: '💎✨',
         desc: 'Epic loot! Contains 5 items: epic materials, high chance for epic/legendary gear. 10% chance for a gem!',
-        price: 5,
+        price: 25,
         priceType: 'gems',
         rarity: 'epic',
         consumable: true,
