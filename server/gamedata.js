@@ -295,6 +295,13 @@ const RAW_MATERIALS = {
     primordial_shard:   { name:'Primordial Shard',   emoji:'✨', rarity:'legendary' },
     eternal_core:       { name:'Eternal Core',       emoji:'💠', rarity:'legendary' },
 
+    // ── Abyss zone-specific set materials (legendary, dropped by missions) ──
+    fen_cursed_bone:    { name:"Fen Cursed Bone",   emoji:'🦴', rarity:'legendary' },
+    crimson_royal_blood:{ name:'Crimson Royal Blood',emoji:'🩸', rarity:'legendary' },
+    void_null_core:     { name:'Void Null Core',    emoji:'🖤', rarity:'legendary' },
+    citadel_obsidian_heart:{ name:'Obsidian Heart', emoji:'💜', rarity:'legendary' },
+    eternal_spark:      { name:'Eternal Spark',     emoji:'✨', rarity:'legendary' },
+
     // ── Elemental Spirit materials (dungeon-only, element-aligned) ──────
     dgn_pyro_cinder:     { name:'Pyro Cinder',     emoji:'🔥', rarity:'common',    element:'pyro'    },
     dgn_water_droplet:   { name:'Water Droplet',   emoji:'💧', rarity:'common',    element:'water'   },
@@ -741,6 +748,53 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
                 pyro_resist:12, water_resist:-30, electro_dmg:1, electro_resist:6, wind_resist:-15 },
         components:{ demon_alloy:2, tanned_hide:3, frost_core:1 }, goldCost:16000,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 7 — MARSH REAPER  (Shadowfen zone)
+    //  Balanced hybrid — AGI/MAG/DEF with all-resist
+    // ══════════════════════════════════════════════
+    {
+        id:'marsh_reaper_weapon', setId:'marsh_reaper', setPiece:'weapon',
+        name:"Soulcleaver", emoji:'⚔️', quality:'legendary',
+        slot:'weapon',
+        desc:'Forged from fen-cursed bone, this blade severs both flesh and spirit.',
+        stats:{ dmg_min:20, dmg_max:38, strength:10, agility:8, hit_chance:10, crit_chance:8,
+                water_dmg:8, wind_resist:12 },
+        components:{ fen_cursed_bone:2, void_crystal:3, shadow_weave:2 }, goldCost:20000,
+    },
+    {
+        id:'marsh_reaper_armor', setId:'marsh_reaper', setPiece:'armor',
+        name:'Fenbound Cuirass', emoji:'🛡️', quality:'legendary',
+        slot:'armor',
+        desc:'Cuirass woven from bog iron and shadow essence, light yet unyielding.',
+        stats:{ defense:30, armor:18, hp_max:100, magic:8, vitality:6, water_resist:14 },
+        components:{ fen_cursed_bone:1, abyss_weave:3, void_plate:2 }, goldCost:24000,
+    },
+    {
+        id:'marsh_reaper_helmet', setId:'marsh_reaper', setPiece:'helmet',
+        name:'Crown of the Marsh Reaper', emoji:'👑', quality:'legendary',
+        slot:'helmet',
+        desc:'A crown of bone and shadow that grants dominion over the fen.',
+        stats:{ defense:20, armor:10, hp_max:60, magic:10, agility:6, hit_chance:10, crit_chance:8 },
+        components:{ fen_cursed_bone:1, void_crystal:2, shadow_weave:2 }, goldCost:18000,
+    },
+    {
+        id:'marsh_reaper_shield', setId:'marsh_reaper', setPiece:'shield',
+        name:'Bogwarden Aegis', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'A shield of fossilized fen wood, warded against all elements.',
+        stats:{ defense:34, armor:20, hp_max:80, magic:6, water_dmg:10, water_resist:18 },
+        components:{ fen_cursed_bone:2, void_plate:3, abyss_weave:1 }, goldCost:26000,
+    },
+    {
+        id:'marsh_reaper_boots', setId:'marsh_reaper', setPiece:'boots',
+        name:'Mirewalker Greaves', emoji:'👢', quality:'legendary',
+        slot:'boots',
+        desc:'Greaves that tread lightly over bog and mire, leaving no trace.',
+        stats:{ defense:16, armor:8, agility:10, magic:6, hit_chance:8, crit_chance:6,
+                wind_dmg:8, wind_resist:12 },
+        components:{ fen_cursed_bone:1, void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:16000,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -819,6 +873,20 @@ const CRAFTING_SETS = {
             hit_chance:28, strength:26, dmg_min:8, dmg_max:12,
             pyro_dmg:22, pyro_resist:22,
             desc:'5/5: +28 Hit · +26 STR · +8-12 Dmg · +22 Pyro Dmg · +22 Pyro Resist'
+        },
+    },
+    marsh_reaper: {
+        name:'Marsh Reaper Set', emoji:'🌿',
+        bonus3:{
+            agility:12, magic:10, defense:12, hp_max:80,
+            pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
+            desc:'2/5: +12 AGI · +10 MAG · +12 DEF · +80 HP · +10 all Elem Resist'
+        },
+        bonus5:{
+            agility:24, magic:20, defense:24, hp_max:160, armor:8,
+            strength:14, hit_chance:16, crit_chance:12,
+            pyro_resist:18, water_resist:18, wind_resist:18, electro_resist:18,
+            desc:'5/5: +24 AGI · +20 MAG · +24 DEF · +160 HP · +8 Armor · +14 STR · +16 Hit · +12 Crit · +18 all Elem Resist'
         },
     },
 };
