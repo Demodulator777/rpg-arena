@@ -315,6 +315,17 @@ async function runAllVsAll(db, t, participants, fast) {
 async function runTournament(db, t, fast) {
   const participants = await ensureMinPlayers(db, t);
   if (!participants || participants.length === 0) return; // cancelled — no real players
+  // Refresh HP snapshot right before tournament starts
+  for (const p of participants) {
+    if (!p.is_npc && p.char_id) {
+      const freshChar = await dbGet_t(db, 'SELECT hp_current FROM characters WHERE id = ?', [p.char_id]);
+      if (freshChar) {
+        await dbRun_t(db, 'UPDATE tournament_participants SET hp_max = ?, hp_start = ? WHERE id = ?', [freshChar.hp_current, freshChar.hp_current, p.id]);
+        p.hp_max = freshChar.hp_current;
+        p.hp_start = freshChar.hp_current;
+      }
+    }
+  }
   const mode = t.mode || 'deathmatch';
   if (mode === 'elimination') await runElimination(db, t, participants, fast);
   else if (mode === 'all_vs_all') await runAllVsAll(db, t, participants, fast);
