@@ -6188,6 +6188,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 if (attacker._blizzardRound >= attacker._blizzardTotalRounds) attacker._blizzardActive = false;
             }
         }
+        // Apply defender armor to all special attack damage
+        if (specialAttackDmg > 0) {
+            const effArmor = Math.max(0, defender.armor || 0);
+            specialAttackDmg = Math.max(1, specialAttackDmg - effArmor);
+        }
         let specialAttackFired = specialAttackDmg > 0;
         if (specialAttackFired) {
             finalDmg = specialAttackDmg;
