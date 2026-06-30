@@ -6192,6 +6192,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (specialAttackDmg > 0) {
             const effArmor = Math.max(0, defender.armor || 0);
             specialAttackDmg = Math.max(1, specialAttackDmg - effArmor);
+            if (logLine) logLine = logLine.replace(/(—\s*)\d+/, `$1${specialAttackDmg}`);
         }
         let specialAttackFired = specialAttackDmg > 0;
         if (specialAttackFired) {
