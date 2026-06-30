@@ -1451,12 +1451,12 @@ const SKILL_TREES = {
                     avatar_of_justice: {
                         id: 'avatar_of_justice', tier: 5, name: 'Avatar of Justice', emoji: '☀️',
                         type: 'progressive',
-                        desc: '+20% Magic, +15% Defense. Reflect 35% damage. Heal 12% per round.',
+                        desc: '+20% Magic, +15% Defense. Reflect 35% damage. Heal 6% per round.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.20 },
                             { type: 'passive_pct', stat: 'defense', value: 0.15 },
                             { type: 'active_combat', id: 'consecrate', reflect_pct: 0.35 },
-                            { type: 'active_combat', id: 'holy_regen', heal_pct_per_round: 0.12 }
+                            { type: 'active_combat', id: 'holy_regen', heal_pct_per_round: 0.06 }
                         ],
                         requires: ['divine_judgment'],
                         unlockCondition: 'level_35',
