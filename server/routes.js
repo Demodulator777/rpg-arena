@@ -5446,6 +5446,11 @@ function getActiveCombatEffect(fighter, effectId) {
     for (let i = effects.length - 1; i >= 0; i--) { if (effects[i].id === effectId) return effects[i]; }
     return null;
 }
+function hasSkillOrEffect(fighter, id) {
+    if (!fighter) return false;
+    if (fighter.activeSkills && fighter.activeSkills[id]) return true;
+    return !!getActiveCombatEffect(fighter, id);
+}
 function mergeActiveSkills(baseSkills, skillEffects) {
     const legacySkillIds = new Set();
     for (const skills of Object.values(CLASS_SKILLS)) {
@@ -5838,7 +5843,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
     if (attacker.dmg_bonus) atkBonusDmg *= (1 + attacker.dmg_bonus);
     if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
-    if (hasSkill(atkSkills, 'holy_strike')) atkBonusDmg *= 1.20;
+    if (hasSkillOrEffect(attacker, 'holy_strike')) {
+        const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
+        atkBonusDmg *= 1 + (hsEff?.dmg_bonus || 0.20);
+    }
     if (hasSkill(atkSkills, 'reckless_swing')) atkBonusDmg *= 1.35;
     // execute: bonus vs low HP defender
     if (hasSkill(atkSkills, 'execute')) {
@@ -5893,7 +5901,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
     // Paladin Holy Strike "burst": when your force field shatters, your next hit gains 2× hit chance
     // and ignores blocks (but does not become a guaranteed hit).
-    if (attacker.class === 'paladin' && attacker.holyStrikeReady && hasSkill(atkSkills, 'holy_strike')) {
+    if (attacker.class === 'paladin' && attacker.holyStrikeReady && hasSkillOrEffect(attacker, 'holy_strike')) {
         holyStrikeBurst = true;
         attacker.holyStrikeReady = false;
         atkHitChance = Math.min(1.0, atkHitChance * 2.0);
@@ -5922,7 +5930,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const chargeHolyStrikeFromAbsorb = (absorbedAmount) => {
         if (absorbedAmount <= 0) return;
         if (defender.class !== 'paladin') return;
-        if (!hasSkill(defSkills, 'holy_strike')) return;
+        if (!hasSkillOrEffect(defender, 'holy_strike')) return;
         defender.holyAbsorbHits = (defender.holyAbsorbHits || 0) + 1;
         defender.holyAbsorbedTotal = (defender.holyAbsorbedTotal || 0) + absorbedAmount;
         if (defender.holyAbsorbHits >= 3) {
@@ -5933,7 +5941,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
     const consumeHolyStrikeEmpowerment = () => {
         if (attacker.class !== 'paladin') return 0;
-        if (!hasSkill(atkSkills, 'holy_strike')) return 0;
+        if (!hasSkillOrEffect(attacker, 'holy_strike')) return 0;
         if (!attacker.holyEmpowerNext) return 0;
         const absorbedTotal = Math.max(0, Number(attacker.holyAbsorbedTotal || 0));
         const bonus = Math.max(0, Math.floor(absorbedTotal * 0.20));
@@ -6011,7 +6019,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     defenderShield.remaining -= absorbed;
                     if (defenderShield.remaining <= 0) {
                         defenderShield.active = false;
-                        if (defender.class === 'paladin' && hasSkill(defSkills, 'holy_strike')) {
+                        if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
                             defender.holyStrikeReady = true;
                         }
                     }
@@ -6385,7 +6393,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     defenderShield.remaining -= absorbedAmount;
                     if (defenderShield.remaining <= 0) {
                         defenderShield.active = false;
-                        if (defender.class === 'paladin' && hasSkill(defSkills, 'holy_strike')) {
+                        if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
                             defender.holyStrikeReady = true;
                         }
                     }
@@ -6413,8 +6421,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     logLine += ` ${defenderShield.remaining} durability remains.`;
                 }
 
-                if (hasSkill(atkSkills, 'holy_strike') && finalDmg > 0) {
-                    healBack = Math.floor(finalDmg * 0.10);
+                if (hasSkillOrEffect(attacker, 'holy_strike') && finalDmg > 0) {
+                    const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
+                    const healPct = hsEff?.heal_pct || 0.10;
+                    healBack = Math.floor(finalDmg * healPct);
                     logLine += ` 💚 +${healBack} heal`;
                 }
                 if (lifeDrainAmt > 0) {
