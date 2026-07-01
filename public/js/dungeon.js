@@ -3476,29 +3476,49 @@ function renderRoomInfo(room) {
     const playerLevel = c?.level || 1;
     const playerSplash = `/images/class/${playerClass}-st.png`;
 
-    // Build monster card HTML
-    const monsterListHtml = isLoadingMonsters
+    // Build monster deck view — single card with <> navigation
+    const aliveMonsters = monsters.filter(m => m.currentHp > 0);
+    const aliveCount = aliveMonsters.length;
+    let viewIdx = D.combat.currentMonsterIndex;
+    if (!monsters[viewIdx] || monsters[viewIdx].currentHp <= 0) {
+        viewIdx = aliveCount ? monsters.indexOf(aliveMonsters[0]) : 0;
+    }
+    const alivePos = aliveCount ? aliveMonsters.findIndex(m => monsters.indexOf(m) === viewIdx) + 1 : 0;
+    const findAlive = (start, dir) => { for (let i = start + dir; i >= 0 && i < monsters.length; i += dir) { if (monsters[i].currentHp > 0) return i; } return -1; };
+    const prevAlive = findAlive(viewIdx, -1);
+    const nextAlive = findAlive(viewIdx, 1);
+
+    const monsterDeckHtml = isLoadingMonsters
         ? `<div style="padding:10px;color:var(--dungeon-muted)">Loading enemies...</div>`
-        : monsters.map((m, idx) => {
-        const isCurrent = idx === D.combat.currentMonsterIndex;
-        const isDead = m.currentHp <= 0;
-        const hpPercent = isDead ? 0 : Math.round(m.currentHp / m.maxHp * 100);
+        : aliveCount === 0
+        ? `<div style="padding:10px;color:var(--dungeon-muted);text-align:center">All enemies defeated!</div>`
+        : (() => {
+        const m = monsters[viewIdx];
+        const hpPercent = Math.round(m.currentHp / m.maxHp * 100);
         const hasImg = !!m.image;
-        return `
-            <div class="fighter-card monster-combat-card ${isCurrent ? 'current-target' : ''} ${isDead ? 'defeated' : ''}">
+        const card = `
+            <div class="fighter-card monster-combat-card current-target">
                 <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden">
                     ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
-                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : 'font-size:2rem'}">${isDead ? '💀' : (m.icon || '👾')}</span>
+                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : 'font-size:2rem'}">${m.icon || '👾'}</span>
                 </div>
-                <div class="fighter-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${idx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
+                <div class="fighter-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${viewIdx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
                 <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
                 <div class="fighter-hp-bar-wrap" style="width:72px;height:5px;margin:4px auto">
                     <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div>
                 </div>
-                <div class="fighter-stats">${isDead ? 'DEFEATED' : `${m.currentHp}/${m.maxHp}`}</div>
-            </div>
-        `;
-    }).join('');
+                <div class="fighter-stats">${m.currentHp}/${m.maxHp}</div>
+            </div>`;
+        return `
+            <div class="monster-deck">
+                <div class="monster-deck-inner">
+                    <button class="deck-arrow deck-arrow-left" data-action="deckNav" data-args='["prev"]' ${prevAlive === -1 ? 'disabled' : ''}>◀</button>
+                    <div class="deck-card-slot">${card}</div>
+                    <button class="deck-arrow deck-arrow-right" data-action="deckNav" data-args='["next"]' ${nextAlive === -1 ? 'disabled' : ''}>▶</button>
+                </div>
+                <div class="deck-counter">Monster ${alivePos}/${aliveCount}</div>
+            </div>`;
+    })();
 
     const roundEntries = D.combat.roundLog.slice(-10).reverse().map(e =>
         `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
@@ -3531,9 +3551,7 @@ function renderRoomInfo(room) {
 
                 <div class="fighter-vs">VS</div>
 
-                <div class="monster-cards-wrap">
-                    ${monsterListHtml}
-                </div>
+                ${monsterDeckHtml}
             </div>
 
             <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
@@ -3601,6 +3619,19 @@ function toggleMonsterLore(idx) {
   popup.textContent = m.lore;
   card.appendChild(popup);
   popup.addEventListener('click', e => { e.stopPropagation(); popup.remove(); });
+}
+function deckNav(dir) {
+  if (!D.combat || !D.combat.monsters) return;
+  const monsters = D.combat.monsters;
+  const current = D.combat.currentMonsterIndex;
+  const step = dir === 'prev' ? -1 : 1;
+  for (let i = current + step; i >= 0 && i < monsters.length; i += step) {
+    if (monsters[i].currentHp > 0) {
+      D.combat.currentMonsterIndex = i;
+      renderCombatPanel();
+      return;
+    }
+  }
 }
 
   function updateTravelBtn(idx, disabled) {
@@ -4295,6 +4326,7 @@ global.dungeonRun = (roomIdx) => {
   global.dungeonExit         = dungeonExit;
   global.closeDungeonVictory = closeDungeonVictory;
   global.toggleMonsterLore   = toggleMonsterLore;
+  global.deckNav             = deckNav;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
   global.dungeonShowFeedModal = globalThis.dungeonShowFeedModal;
