@@ -3471,6 +3471,11 @@ function renderRoomInfo(room) {
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
     const isLoadingMonsters = !!D.combat.serverAuth && !!D.combat.resolving && (!Array.isArray(monsters) || monsters.length === 0);
     
+    const c = getChar();
+    const playerClass = c?.class || 'warrior';
+    const playerLevel = c?.level || 1;
+    const playerSplash = `/images/class/${playerClass}-st.png`;
+
     // Build monster card HTML
     const monsterListHtml = isLoadingMonsters
         ? `<div style="padding:10px;color:var(--dungeon-muted)">Loading enemies...</div>`
@@ -3478,21 +3483,19 @@ function renderRoomInfo(room) {
         const isCurrent = idx === D.combat.currentMonsterIndex;
         const isDead = m.currentHp <= 0;
         const hpPercent = isDead ? 0 : Math.round(m.currentHp / m.maxHp * 100);
-        const imgHtml = m.image
-            ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="block" style="width:40px;height:40px;object-fit:cover;border-radius:6px;margin-bottom:4px">`
-            : `<div class="monster-card-icon">${isDead ? '💀' : (m.icon || '👾')}</div>`;
+        const hasImg = !!m.image;
         return `
-            <div class="combat-monster-card ${isCurrent ? 'current-target' : ''} ${isDead ? 'defeated' : ''}">
-                ${imgHtml}
-                <div class="combat-monster-card-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${idx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
-                <div class="combat-monster-card-stats">
-                    <span>⚔️ ${m.atk || 0}</span>
-                    <span>🛡️ ${m.def || 0}</span>
+            <div class="fighter-card monster-combat-card ${isCurrent ? 'current-target' : ''} ${isDead ? 'defeated' : ''}">
+                <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden">
+                    ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
+                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : 'font-size:2rem'}">${isDead ? '💀' : (m.icon || '👾')}</span>
                 </div>
-                <div class="fighter-hp-bar-wrap" style="height:5px">
+                <div class="fighter-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${idx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
+                <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
+                <div class="fighter-hp-bar-wrap" style="width:72px;height:5px;margin:4px auto">
                     <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div>
                 </div>
-                <div class="combat-monster-card-hp">${isDead ? 'DEFEATED' : `${m.currentHp}/${m.maxHp}`}</div>
+                <div class="fighter-stats">${isDead ? 'DEFEATED' : `${m.currentHp}/${m.maxHp}`}</div>
             </div>
         `;
     }).join('');
@@ -3513,18 +3516,22 @@ function renderRoomInfo(room) {
             </div>
 
             <div class="combat-fighters">
-                <div class="combat-fighter player-fighter">
-                    <div class="fighter-icon">🧙</div>
+                <div class="fighter-card">
+                    <div class="fighter-avatar fighter-avatar-splash">
+                        <img src="${playerSplash}" alt="${playerClass}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">
+                        <span class="battle-fighter-fallback" style="display:none">🧙</span>
+                    </div>
                     <div class="fighter-name">You</div>
-                    <div class="fighter-hp-bar-wrap">
+                    <div class="fighter-class">${capitalize(playerClass)} Lv.${playerLevel}</div>
+                    <div class="fighter-hp-bar-wrap" style="width:130px;height:6px;margin:4px auto">
                         <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
                     </div>
                     <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
                 </div>
 
-                <div class="combat-vs">VS</div>
+                <div class="fighter-vs">VS</div>
 
-                <div class="combat-fighter monster-fighter">
+                <div class="monster-cards-wrap">
                     ${monsterListHtml}
                 </div>
             </div>
