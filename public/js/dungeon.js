@@ -3373,14 +3373,16 @@ function renderRoomInfo(room) {
         const boss = def.boss;
         return `
             <div class="dungeon-boss-room">
-                <img src="${boss.image}" alt="${boss.name}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;margin-bottom:10px;border:2px solid var(--dungeon-gold)" data-error-hide="true" data-error-next-display="block">
-                <div style="display:none;font-size:3rem">${boss.icon}</div>
-                <div class="boss-name-big">${boss.name}</div>
-                <div class="boss-stats" style="color:var(--dungeon-muted)">
-                    Stats revealed in battle.
+                <div class="fighter-card" style="background:none;box-shadow:none;padding:0;min-width:0">
+                    <div class="fighter-avatar" style="width:82px;height:110px;border-radius:10px">
+                        <img src="${boss.image}" alt="${boss.name}" data-error-hide="true" data-error-next-display="block" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:2px solid var(--dungeon-gold)">
+                        <div style="display:none;font-size:2.5rem">${boss.icon}</div>
+                    </div>
+                    <div class="boss-name-big" style="margin-top:6px">${boss.name}</div>
+                    <div class="fighter-class">⚔️ ${boss.atk || '?'} · 🛡️ ${boss.def || '?'}</div>
                 </div>
-                <div class="boss-drop-preview">
-                    Drops: 💰${boss.loot.gold[0]}-${boss.loot.gold[1]} gold · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} gems · ✨ Random Premium Feature (${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]} days)
+                <div class="boss-drop-preview" style="margin-top:8px">
+                    💰${boss.loot.gold[0]}-${boss.loot.gold[1]}g · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} · ✨${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]}d premium
                 </div>
                 <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" ${actionAttrs('dungeonFightBoss', room.id)}>
                     ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
@@ -3391,16 +3393,18 @@ function renderRoomInfo(room) {
 
     if (room.isMiniBoss && anyMonsterAlive) {
         const m = aliveMonster;
+        const hasImg = !!m.image;
         return `
             <div class="dungeon-room-monster">
-                <div class="monster-icon">⚠️ ${m.icon}</div>
-                <div class="monster-info">
-                    <div class="monster-name">MINI-BOSS: ${m.name}</div>
-                    <div class="monster-stats" style="color:var(--dungeon-muted)">
-                        Stats revealed in battle.
+                <div class="fighter-card" style="background:none;box-shadow:none;padding:0;min-width:0;width:100px;margin:0 auto">
+                    <div class="fighter-avatar" style="width:82px;height:110px;border-radius:10px">
+                        ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : ''}
+                        <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : 'font-size:2.5rem'}">${m.icon || '👾'}</span>
                     </div>
+                    <div class="fighter-name" style="margin-top:4px">MINI-BOSS: ${m.name}</div>
+                    <div class="fighter-class">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
                 </div>
-                <div class="monster-btns">
+                <div class="monster-btns" style="margin-top:4px">
                     <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ Challenge Mini-Boss</button>
                 </div>
             </div>
