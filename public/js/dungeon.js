@@ -3496,25 +3496,21 @@ function renderRoomInfo(room) {
         const m = monsters[viewIdx];
         const hpPercent = Math.round(m.currentHp / m.maxHp * 100);
         const hasImg = !!m.image;
-        const card = `
-            <div class="fighter-card monster-combat-card current-target">
-                <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden">
-                    ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
-                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
-                </div>
-                <div class="fighter-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${viewIdx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
-                <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
-                <div class="fighter-hp-bar-wrap" style="width:72px;height:5px;margin:4px auto">
-                    <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div>
-                </div>
-                <div class="fighter-stats">${m.currentHp}/${m.maxHp}</div>
-            </div>`;
         return `
-            <div class="monster-deck">
-                <div class="monster-deck-inner">
-                    <button class="deck-arrow deck-arrow-left" data-action="deckNav" data-args='["prev"]' ${prevAlive === -1 ? 'disabled' : ''}>◀</button>
-                    <div class="deck-card-slot">${card}</div>
-                    <button class="deck-arrow deck-arrow-right" data-action="deckNav" data-args='["next"]' ${nextAlive === -1 ? 'disabled' : ''}>▶</button>
+            <div class="monster-side">
+                <div class="fighter-card monster-combat-card current-target">
+                    <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden">
+                        <button class="deck-arrow deck-arrow-left" data-action="deckNav" data-args='["prev"]' ${prevAlive === -1 ? 'disabled' : ''}>◀</button>
+                        ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
+                        <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
+                        <button class="deck-arrow deck-arrow-right" data-action="deckNav" data-args='["next"]' ${nextAlive === -1 ? 'disabled' : ''}>▶</button>
+                    </div>
+                    <div class="fighter-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${viewIdx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
+                    <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
+                    <div class="fighter-hp-bar-wrap" style="width:72px;height:5px;margin:4px auto">
+                        <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div>
+                    </div>
+                    <div class="fighter-stats">${m.currentHp}/${m.maxHp}</div>
                 </div>
                 <div class="deck-counter">Monster ${alivePos}/${aliveCount}</div>
             </div>`;
