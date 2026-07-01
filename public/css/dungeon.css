@@ -1764,7 +1764,7 @@ body.combat-lock #tab-content-area {
   flex-direction: column;
   align-items: center;
   flex: 1;
-  min-width: 0;
+  min-width: 210px;
   gap: 6px;
 }
 .monster-deck-inner {
@@ -1812,7 +1812,9 @@ body.combat-lock #tab-content-area {
   transition: all 0.15s ease;
   position: relative;
   flex: 0 0 auto;
-  width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .combat-fighters > .fighter-card:first-child {
   flex: 1;
@@ -1825,8 +1827,8 @@ body.combat-lock #tab-content-area {
   height: 180px;
 }
 .monster-combat-card .fighter-avatar {
-  width: 100px;
-  height: 130px;
+  width: 130px;
+  height: 180px;
   border-radius: 10px;
 }
 .monster-lore-popup {
