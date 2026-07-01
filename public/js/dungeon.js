@@ -3500,7 +3500,7 @@ function renderRoomInfo(room) {
             <div class="fighter-card monster-combat-card current-target">
                 <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden">
                     ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
-                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : 'font-size:2rem'}">${m.icon || '👾'}</span>
+                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
                 </div>
                 <div class="fighter-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${viewIdx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
                 <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
