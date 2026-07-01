@@ -1827,7 +1827,7 @@ body.combat-lock #tab-content-area {
 .monster-lore-popup {
   position: absolute;
   z-index: 100;
-  bottom: calc(100% + 6px);
+  top: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   max-width: 220px;
