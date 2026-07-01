@@ -3377,6 +3377,12 @@ function renderRoomInfo(room) {
     
     // Get first alive monster for display (if multiple)
     const aliveMonster = anyMonsterAlive ? room.monsters.find(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)) : null;
+    // Hydrate missing images directly from pool templates
+    if (aliveMonster && !aliveMonster.image) {
+        const id = aliveMonster.id || (aliveMonster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
+        const found = MONSTER_POOL.find(m => m.id === id) || MINI_BOSS_POOL.find(m => m.id === id);
+        if (found && found.image) aliveMonster.image = found.image;
+    }
     const monsterCount = room.monsters ? room.monsters.length : 0;
     const aliveCount = room.monsters ? room.monsters.filter(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)).length : 0;
 
