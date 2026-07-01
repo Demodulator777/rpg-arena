@@ -132,12 +132,12 @@ const GUILD_RANKS = [
 
   // ── Mini-Boss Pool ──────────────────────────────────────────
 const MINI_BOSS_POOL = [
-    { name:'Shadow Stalker', icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:5,  image:'/images/dungeon/miniboss1.jpg', lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
-    { name:'Crystal Golem',  icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/miniboss2.jpg' },
-    { name:'Flame Revenant', icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, tokenCost:7,  minFloor:20, image:'/images/dungeon/miniboss3.jpg' },
-    { name:'Frost Wyrmling', icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, tokenCost:8,  minFloor:25, image:'/images/dungeon/miniboss4.jpg' },
-    { name:'Void Stalker',   icon:'🌑', baseHp:500, baseAtk:75, baseDef:28, tokenCost:9,  minFloor:30, image:'/images/dungeon/miniboss5.jpg' },
-    { name:'Doom Knight',    icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, tokenCost:10, minFloor:35, image:'/images/dungeon/miniboss6.jpg' },
+    { name:'Shadow Stalker', icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:5,  image:'/images/dungeon/monsters/shadow_stalker.jpg', lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
+    { name:'Crystal Golem',  icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/monsters/crystal_golem.jpg' },
+    { name:'Flame Revenant', icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, tokenCost:7,  minFloor:20, image:'/images/dungeon/monsters/flame_revenant.jpg' },
+    { name:'Frost Wyrmling', icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, tokenCost:8,  minFloor:25, image:'/images/dungeon/monsters/frost_wyrmling.jpg' },
+    { name:'Void Stalker',   icon:'🌑', baseHp:500, baseAtk:75, baseDef:28, tokenCost:9,  minFloor:30, image:'/images/dungeon/monsters/void_stalker.jpg' },
+    { name:'Doom Knight',    icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, tokenCost:10, minFloor:35, image:'/images/dungeon/monsters/doom_knight.jpg' },
 ];
 
 const CRAWLER_BASE = {
@@ -306,26 +306,26 @@ function getCrawlerForFloor(floor) {
 }
 
   const MONSTER_POOL = [
-    { id:'skeleton',    name:'Skeleton Warrior', icon:'💀', hp:80,  atk:12, def:5,  steal:true,  minFloor:1,  lore:'Skeleton Warriors are basic dungeon fodder. Easy to put down, hard to keep down.' },
-    { id:'ghost',       name:'Wailing Ghost',    icon:'👻', hp:60,  atk:18, def:2,  steal:false, minFloor:1,  lore:'Wailing Ghosts are psychic entities, attacking the mind instead of the body.' },
-    { id:'zombie',      name:'Rotting Zombie',   icon:'🧟', hp:120, atk:8,  def:8,  steal:true,  minFloor:1,  lore:'Rotting Zombies are the direct refusal of the dungeon to waste perfectly good corrupted adventurers. Fight the remains of those before you!' },
-    { id:'lich',        name:'Lich Apprentice',  icon:'🧙', hp:70,  atk:22, def:3,  steal:false, minFloor:3,  lore:'The Lich apprentice is weak but threatens with the power of the unholy arcane arts.' },
-    { id:'fire_imp',    name:'Fire Imp',         icon:'😈', hp:90,  atk:20, def:6,  steal:false, minFloor:3,  lore:'Fire Imps are infernal manifestations of demonic influence. Holy water is highly recommended.' },
-    { id:'lava_golem',  name:'Lava Golem',       icon:'🗿', hp:180, atk:14, def:22, steal:false, minFloor:5,  lore:'Lava Golems are Magma given form. Cooling them exposes just how brittle a foundation they have.' },
-    { id:'salamander',  name:'Fire Salamander',  icon:'🦎', hp:110, atk:25, def:8,  steal:true,  minFloor:5,  lore:'Fire Salamanders exist in the underground around lava pools. Peaceful until disturbed.' },
-    { id:'pyromancer',  name:'Pyromancer Shade', icon:'🔥', hp:85,  atk:32, def:4,  steal:false, minFloor:7,  lore:'Pyromancer Shade is an after image of a long forgotten pyromancer from history. The stories forget, the powers do not.' },
-    { id:'void_wraith', name:'Void Wraith',      icon:'🌑', hp:130, atk:38, def:10, steal:true,  minFloor:8,  lore:'Void Wraiths are weak beings that exist on the after images of mana. Even a slight scent of mana will cause them to swarm.' },
-    { id:'abyssal_eye', name:'Abyssal Eye',      icon:'👁️', hp:100, atk:45, def:5,  steal:false, minFloor:10, lore:'Abyssal Eye is a manifestation of local corruption exposing reality to the watchful eye of the Abyss.' },
-    { id:'shadow_lord', name:'Shadow Lord',      icon:'🕷️', hp:200, atk:30, def:28, steal:true,  minFloor:12, lore:'Shadow Lords are weak imitations of what lurks in the darkness. Intangible made corporeal.' },
-    { id:'void_titan',  name:'Void Titan',       icon:'💠', hp:250, atk:42, def:35, steal:true,  minFloor:15 },
-    { id:'dread_knight',name:'Dread Knight',     icon:'⚔️', hp:300, atk:50, def:40, steal:true,  minFloor:20 },
-    { id:'elder_lich',  name:'Elder Lich',       icon:'💜', hp:220, atk:60, def:20, steal:false, minFloor:25 },
-    { id:'shadow_stalker', name:'Shadow Stalker', icon:'🐺', hp:400, atk:55, def:25, steal:true, minFloor:10, isMiniBoss: true, tokenCost: 5, lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
-    { id:'crystal_golem', name:'Crystal Golem', icon:'💎', hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss: true, tokenCost: 6 },
-    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss: true, tokenCost: 7 },
-    { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', hp:450, atk:60, def:30, steal:true, minFloor:25, isMiniBoss: true, tokenCost: 8 },
-    { id:'void_stalker', name:'Void Stalker', icon:'🌑', hp:500, atk:75, def:28, steal:true, minFloor:30, isMiniBoss: true, tokenCost: 9 },
-    { id:'doom_knight', name:'Doom Knight', icon:'⚔️', hp:700, atk:65, def:50, steal:true, minFloor:35, isMiniBoss: true, tokenCost: 10 },
+    { id:'skeleton',    name:'Skeleton Warrior', icon:'💀', image:'/images/dungeon/monsters/skeleton.jpg', hp:80,  atk:12, def:5,  steal:true,  minFloor:1,  lore:'Skeleton Warriors are basic dungeon fodder. Easy to put down, hard to keep down.' },
+    { id:'ghost',       name:'Wailing Ghost',    icon:'👻', image:'/images/dungeon/monsters/ghost.jpg', hp:60,  atk:18, def:2,  steal:false, minFloor:1,  lore:'Wailing Ghosts are psychic entities, attacking the mind instead of the body.' },
+    { id:'zombie',      name:'Rotting Zombie',   icon:'🧟', image:'/images/dungeon/monsters/zombie.jpg', hp:120, atk:8,  def:8,  steal:true,  minFloor:1,  lore:'Rotting Zombies are the direct refusal of the dungeon to waste perfectly good corrupted adventurers. Fight the remains of those before you!' },
+    { id:'lich',        name:'Lich Apprentice',  icon:'🧙', image:'/images/dungeon/monsters/lich.jpg', hp:70,  atk:22, def:3,  steal:false, minFloor:3,  lore:'The Lich apprentice is weak but threatens with the power of the unholy arcane arts.' },
+    { id:'fire_imp',    name:'Fire Imp',         icon:'😈', image:'/images/dungeon/monsters/fire_imp.jpg', hp:90,  atk:20, def:6,  steal:false, minFloor:3,  lore:'Fire Imps are infernal manifestations of demonic influence. Holy water is highly recommended.' },
+    { id:'lava_golem',  name:'Lava Golem',       icon:'🗿', image:'/images/dungeon/monsters/lava_golem.jpg', hp:180, atk:14, def:22, steal:false, minFloor:5,  lore:'Lava Golems are Magma given form. Cooling them exposes just how brittle a foundation they have.' },
+    { id:'salamander',  name:'Fire Salamander',  icon:'🦎', image:'/images/dungeon/monsters/salamander.jpg', hp:110, atk:25, def:8,  steal:true,  minFloor:5,  lore:'Fire Salamanders exist in the underground around lava pools. Peaceful until disturbed.' },
+    { id:'pyromancer',  name:'Pyromancer Shade', icon:'🔥', image:'/images/dungeon/monsters/pyromancer.jpg', hp:85,  atk:32, def:4,  steal:false, minFloor:7,  lore:'Pyromancer Shade is an after image of a long forgotten pyromancer from history. The stories forget, the powers do not.' },
+    { id:'void_wraith', name:'Void Wraith',      icon:'🌑', image:'/images/dungeon/monsters/void_wraith.jpg', hp:130, atk:38, def:10, steal:true,  minFloor:8,  lore:'Void Wraiths are weak beings that exist on the after images of mana. Even a slight scent of mana will cause them to swarm.' },
+    { id:'abyssal_eye', name:'Abyssal Eye',      icon:'👁️', image:'/images/dungeon/monsters/abyssal_eye.jpg', hp:100, atk:45, def:5,  steal:false, minFloor:10, lore:'Abyssal Eye is a manifestation of local corruption exposing reality to the watchful eye of the Abyss.' },
+    { id:'shadow_lord', name:'Shadow Lord',      icon:'🕷️', image:'/images/dungeon/monsters/shadow_lord.jpg', hp:200, atk:30, def:28, steal:true,  minFloor:12, lore:'Shadow Lords are weak imitations of what lurks in the darkness. Intangible made corporeal.' },
+    { id:'void_titan',  name:'Void Titan',       icon:'💠', image:'/images/dungeon/monsters/void_titan.jpg', hp:250, atk:42, def:35, steal:true,  minFloor:15 },
+    { id:'dread_knight',name:'Dread Knight',     icon:'⚔️', image:'/images/dungeon/monsters/dread_knight.jpg', hp:300, atk:50, def:40, steal:true,  minFloor:20 },
+    { id:'elder_lich',  name:'Elder Lich',       icon:'💜', image:'/images/dungeon/monsters/elder_lich.jpg', hp:220, atk:60, def:20, steal:false, minFloor:25 },
+    { id:'shadow_stalker', name:'Shadow Stalker', icon:'🐺', image:'/images/dungeon/monsters/shadow_stalker.jpg', hp:400, atk:55, def:25, steal:true, minFloor:10, isMiniBoss: true, tokenCost: 5, lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
+    { id:'crystal_golem', name:'Crystal Golem', icon:'💎', image:'/images/dungeon/monsters/crystal_golem.jpg', hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss: true, tokenCost: 6 },
+    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', image:'/images/dungeon/monsters/flame_revenant.jpg', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss: true, tokenCost: 7 },
+    { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', image:'/images/dungeon/monsters/frost_wyrmling.jpg', hp:450, atk:60, def:30, steal:true, minFloor:25, isMiniBoss: true, tokenCost: 8 },
+    { id:'void_stalker', name:'Void Stalker', icon:'🌑', image:'/images/dungeon/monsters/void_stalker.jpg', hp:500, atk:75, def:28, steal:true, minFloor:30, isMiniBoss: true, tokenCost: 9 },
+    { id:'doom_knight', name:'Doom Knight', icon:'⚔️', image:'/images/dungeon/monsters/doom_knight.jpg', hp:700, atk:65, def:50, steal:true, minFloor:35, isMiniBoss: true, tokenCost: 10 },
   ];
 
 const BOSS_POOL = [
@@ -877,6 +877,7 @@ async function refreshCharacter() {
                   id: monsterDef.id,
                   name: monsterDef.name,
                   icon: monsterDef.icon,
+                  image: monsterDef.image,
                   hp: scaledHp,
                   atk: scaledAtk,
                   def: scaledDef,
@@ -3470,26 +3471,28 @@ function renderRoomInfo(room) {
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
     const isLoadingMonsters = !!D.combat.serverAuth && !!D.combat.resolving && (!Array.isArray(monsters) || monsters.length === 0);
     
-    // Build monster list HTML
+    // Build monster card HTML
     const monsterListHtml = isLoadingMonsters
         ? `<div style="padding:10px;color:var(--dungeon-muted)">Loading enemies...</div>`
         : monsters.map((m, idx) => {
         const isCurrent = idx === D.combat.currentMonsterIndex;
         const isDead = m.currentHp <= 0;
         const hpPercent = isDead ? 0 : Math.round(m.currentHp / m.maxHp * 100);
+        const imgHtml = m.image
+            ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="block" style="width:40px;height:40px;object-fit:cover;border-radius:6px;margin-bottom:4px">`
+            : `<div class="monster-card-icon">${isDead ? '💀' : (m.icon || '👾')}</div>`;
         return `
-            <div class="combat-monster-entry ${isCurrent ? 'current-target' : ''} ${isDead ? 'defeated' : ''}" style="margin-bottom:8px;padding:6px;border-radius:6px;background:${isCurrent ? 'rgba(255,255,255,0.1)' : 'transparent'}">
-                <div style="display:flex;align-items:center;gap:8px">
-                    <span class="fighter-icon" style="font-size:1.2rem">${isDead ? '💀' : m.icon}</span>
-                    <div style="flex:1">
-                        <div class="combat-monster-name" style="font-size:0.7rem;cursor:${m.lore ? 'pointer' : 'default'}" title="${m.lore ? m.lore.replace(/"/g,'&quot;') : ''}" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${idx}]'` : ''}>${m.name} ${isCurrent ? '(current)' : ''}${m.lore ? ' 📖' : ''}</div>
-                        ${m.lore ? `<div class="combat-monster-lore" style="display:none;margin-top:4px;padding:4px 6px;font-size:0.65rem;line-height:1.4;color:rgba(220,200,160,0.85);background:rgba(0,0,0,0.35);border-left:2px solid rgba(200,170,80,0.4);border-radius:0 4px 4px 0">${m.lore}</div>` : ''}
-                        <div class="fighter-hp-bar-wrap" style="height:6px">
-                            <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%;height:6px"></div>
-                        </div>
-                    </div>
-                    <div style="font-size:0.65rem">${isDead ? 'DEFEATED' : `${m.currentHp}/${m.maxHp}`}</div>
+            <div class="combat-monster-card ${isCurrent ? 'current-target' : ''} ${isDead ? 'defeated' : ''}">
+                ${imgHtml}
+                <div class="combat-monster-card-name" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${idx}]'` : ''} title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}${m.lore ? ' 📖' : ''}</div>
+                <div class="combat-monster-card-stats">
+                    <span>⚔️ ${m.atk || 0}</span>
+                    <span>🛡️ ${m.def || 0}</span>
                 </div>
+                <div class="fighter-hp-bar-wrap" style="height:5px">
+                    <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div>
+                </div>
+                <div class="combat-monster-card-hp">${isDead ? 'DEFEATED' : `${m.currentHp}/${m.maxHp}`}</div>
             </div>
         `;
     }).join('');
@@ -3506,7 +3509,7 @@ function renderRoomInfo(room) {
         <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
             <div class="combat-header">
                 ${D.combat.isCrawler ? `<div class="combat-boss-warning">🕷️ THE CRAWLER</div>` : currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
-                <div class="combat-title">${D.combat.isCrawler ? 'Run or be torn apart.' : `⚔️ Combat: ${monsters.length} Enemies`}</div>
+                <div class="combat-title">${D.combat.isCrawler ? 'Run or be torn apart.' : `You vs ${monsters.length} ${monsters.length === 1 ? 'Monster' : 'Monsters'}`}</div>
             </div>
 
             <div class="combat-fighters">
@@ -3521,8 +3524,7 @@ function renderRoomInfo(room) {
 
                 <div class="combat-vs">VS</div>
 
-                <div class="combat-fighter monster-fighter" style="flex-direction:column;align-items:stretch">
-                    <div class="fighter-name" style="margin-bottom:8px">Enemies</div>
+                <div class="combat-fighter monster-fighter">
                     ${monsterListHtml}
                 </div>
             </div>
@@ -3580,12 +3582,18 @@ function renderRoomInfo(room) {
 }
 
 function toggleMonsterLore(idx) {
-  const entries = document.querySelectorAll('.combat-monster-entry');
-  const entry = entries[idx];
-  if (!entry) return;
-  const lore = entry.querySelector('.combat-monster-lore');
-  if (!lore) return;
-  lore.style.display = lore.style.display === 'block' ? 'none' : 'block';
+  const cards = document.querySelectorAll('.combat-monster-card');
+  const card = cards[idx];
+  if (!card) return;
+  const m = D.combat?.monsters?.[idx];
+  if (!m || !m.lore) return;
+  const existing = card.querySelector('.monster-lore-popup');
+  if (existing) { existing.remove(); return; }
+  const popup = document.createElement('div');
+  popup.className = 'monster-lore-popup';
+  popup.textContent = m.lore;
+  card.appendChild(popup);
+  popup.addEventListener('click', e => { e.stopPropagation(); popup.remove(); });
 }
 
   function updateTravelBtn(idx, disabled) {
