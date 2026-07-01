@@ -311,30 +311,6 @@
   }
 }
 
-/* Multi-enemy combat styles - add these */
-.combat-monster-entry {
-  transition: background 0.15s ease;
-}
-
-.combat-monster-entry.current-target {
-  background: rgba(124, 58, 237, 0.2) !important;
-  border-left: 3px solid var(--dtheme, #7c3aed);
-}
-
-.combat-monster-entry.defeated {
-  flex: 0 0 0;
-  height: 0;
-  overflow: hidden;
-  margin: 0 !important;
-  padding: 0 !important;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.combat-monster-entry .fighter-hp-bar-wrap {
-  background: rgba(0, 0, 0, 0.3);
-}
-
 /* Warning text for multiple enemies */
 .monster-warning {
   animation: warning-pulse 1s ease-in-out infinite;
@@ -1735,8 +1711,6 @@ body.combat-lock #tab-content-area {
   border-radius: 0;
   padding: 16px;
   box-shadow: 0 0 30px var(--dglow, rgba(124,58,237,0.2));
-  width: 100%;
-  max-width: none;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1780,23 +1754,65 @@ body.combat-lock #tab-content-area {
 }
 .combat-fighters {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 16px;
+  justify-content: center;
 }
-.combat-fighter {
+.monster-cards-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
   flex: 1;
-  text-align: center;
+  min-width: 0;
 }
-.combat-vs {
-  font-family: 'Cinzel Decorative', serif;
-  color: var(--dungeon-muted);
-  font-size: 1.2rem;
+.monster-combat-card {
+  flex: 0 1 110px !important;
+  max-width: 120px !important;
+  min-width: 80px !important;
+  cursor: default;
+  transition: all 0.15s ease;
+  position: relative;
 }
-.fighter-icon {
-  font-size: 2.5rem;
-  margin-bottom: 6px;
+.monster-combat-card.current-target {
+  background: rgba(124, 58, 237, 0.25) !important;
+  border-color: var(--dtheme, #7c3aed) !important;
+  box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
 }
+.monster-combat-card.defeated {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.combat-fighters > .fighter-card:first-child {
+  flex: 0 0 auto;
+  max-width: 170px;
+}
+.combat-fighters .fighter-avatar-splash {
+  width: 130px;
+  height: 180px;
+}
+.monster-lore-popup {
+  position: absolute;
+  z-index: 100;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 220px;
+  width: max-content;
+  padding: 6px 10px;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: rgba(220,200,160,0.95);
+  background: rgba(0,0,0,0.85);
+  border: 1px solid rgba(200,170,80,0.4);
+  border-radius: 6px;
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+
 .fighter-name {
   font-size: 0.85rem;
   color: var(--dungeon-text);
