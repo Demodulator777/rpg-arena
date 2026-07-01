@@ -181,6 +181,7 @@ function rebalanceMiniBossMonster(monster, floor) {
         String(entry.name || '').toLowerCase().replace(/[^\w]+/g, '_') === monster.id
     );
     if (!template) {
+        if (!monster.image) return hydrateMonsterImage({ ...monster, rebalanceVersion: 1 });
         return { ...monster, rebalanceVersion: 1 };
     }
 
@@ -198,6 +199,7 @@ function rebalanceMiniBossMonster(monster, floor) {
 
     return {
         ...monster,
+        image: monster.image || template.image,
         atk: newAtk,
         def: newDef,
         hp: newMaxHp,
@@ -222,19 +224,28 @@ function normalizeMiniBossRooms(rooms, floor) {
                 // seconds -> ms
                 lastKilled = lastKilled * 1000;
             }
+            const hydrated = hydrateMonsterImage(monster || {});
             if (typeof lastKilled === 'number' && lastKilled > 0 && (now - lastKilled) >= respawnMs) {
                 const maxHp = Number(monster?.maxHp || monster?.hp || 1);
                 return rebalanceMiniBossMonster({
-                    ...monster,
+                    ...hydrated,
                     lastKilled: null,
                     maxHp,
                     currentHp: Math.max(1, maxHp),
                 }, floor);
             }
-            return rebalanceMiniBossMonster(monster, floor);
+            return rebalanceMiniBossMonster(hydrated, floor);
         });
         return { ...room, monsters };
     });
+}
+
+function hydrateMonsterImage(monster) {
+    if (monster.image) return monster;
+    const id = monster.id || (monster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
+    const found = MONSTER_POOL.find(m => m.id === id) || MINI_BOSS_POOL.find(m => m.id === id);
+    if (found && found.image) return { ...monster, image: found.image };
+    return monster;
 }
 
 function normalizeRoomMonsters(rooms, floor) {
@@ -254,11 +265,12 @@ function normalizeRoomMonsters(rooms, floor) {
 
             const maxHp = Number(monster.maxHp ?? monster.hp ?? 1);
             const currentHp = Number(monster.currentHp ?? maxHp);
+            const hydrated = hydrateMonsterImage(monster);
 
             // If the respawn window elapsed, treat as alive again.
             if (typeof lastKilled === 'number' && lastKilled > 0 && (now - lastKilled) >= respawnMs) {
                 return rebalanceMiniBossMonster({
-                    ...monster,
+                    ...hydrated,
                     lastKilled: null,
                     maxHp,
                     currentHp: Math.max(1, maxHp),
@@ -268,14 +280,14 @@ function normalizeRoomMonsters(rooms, floor) {
             // Guard against older saved states: monsters with 0 HP but no lastKilled would appear "alive".
             if (!lastKilled && currentHp <= 0) {
                 return rebalanceMiniBossMonster({
-                    ...monster,
+                    ...hydrated,
                     lastKilled: now,
                     maxHp,
                     currentHp: 0,
                 }, floor);
             }
 
-            return rebalanceMiniBossMonster({ ...monster, lastKilled }, floor);
+            return rebalanceMiniBossMonster({ ...hydrated, lastKilled }, floor);
         });
         return { ...room, monsters };
     });
