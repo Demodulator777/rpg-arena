@@ -3373,15 +3373,12 @@ function renderRoomInfo(room) {
         const boss = def.boss;
         return `
             <div class="dungeon-boss-room">
-                <div class="fighter-card" style="background:none;box-shadow:none;padding:0;min-width:0">
-                    <div class="fighter-avatar" style="width:82px;height:110px;border-radius:10px">
-                        <img src="${boss.image}" alt="${boss.name}" data-error-hide="true" data-error-next-display="block" style="width:100%;height:100%;object-fit:cover;border-radius:10px;border:2px solid var(--dungeon-gold)">
-                        <div style="display:none;font-size:2.5rem">${boss.icon}</div>
-                    </div>
-                    <div class="boss-name-big" style="margin-top:6px">${boss.name}</div>
-                    <div class="fighter-class">⚔️ ${boss.atk || '?'} · 🛡️ ${boss.def || '?'}</div>
+                <div style="width:82px;height:110px;margin:0 auto 6px;border-radius:10px;overflow:hidden;border:2px solid var(--dungeon-gold)">
+                    <img src="${boss.image}" alt="${boss.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">
                 </div>
-                <div class="boss-drop-preview" style="margin-top:8px">
+                <div class="boss-name-big" style="margin-top:0">${boss.name}</div>
+                <div class="fighter-class" style="margin-bottom:8px">⚔️ ${boss.atk || '?'} · 🛡️ ${boss.def || '?'}</div>
+                <div class="boss-drop-preview" style="margin-bottom:8px">
                     💰${boss.loot.gold[0]}-${boss.loot.gold[1]}g · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} · ✨${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]}d premium
                 </div>
                 <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" ${actionAttrs('dungeonFightBoss', room.id)}>
@@ -3396,15 +3393,13 @@ function renderRoomInfo(room) {
         const hasImg = !!m.image;
         return `
             <div class="dungeon-room-monster">
-                <div class="fighter-card" style="background:none;box-shadow:none;padding:0;min-width:0;width:100px;margin:0 auto">
-                    <div class="fighter-avatar" style="width:82px;height:110px;border-radius:10px">
-                        ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : ''}
-                        <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : 'font-size:2.5rem'}">${m.icon || '👾'}</span>
-                    </div>
-                    <div class="fighter-name" style="margin-top:4px">MINI-BOSS: ${m.name}</div>
-                    <div class="fighter-class">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
+                <div style="width:82px;height:110px;margin:0 auto 4px;border-radius:10px;overflow:hidden;border:2px solid rgba(201,146,42,0.45)">
+                    ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
+                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
                 </div>
-                <div class="monster-btns" style="margin-top:4px">
+                <div class="fighter-name" style="margin-bottom:2px;font-weight:700">MINI-BOSS: ${m.name}</div>
+                <div class="fighter-class">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
+                <div class="monster-btns" style="margin-top:6px">
                     <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ Challenge Mini-Boss</button>
                 </div>
             </div>
