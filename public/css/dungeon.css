@@ -1812,19 +1812,21 @@ body.combat-lock #tab-content-area {
   transition: all 0.15s ease;
   position: relative;
   flex: 0 0 auto;
-  width: 110px;
+  width: 130px;
 }
 .combat-fighters > .fighter-card:first-child {
-  flex: 0 0 auto;
-  max-width: 170px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .combat-fighters .fighter-avatar-splash {
   width: 130px;
   height: 180px;
 }
 .monster-combat-card .fighter-avatar {
-  width: 82px;
-  height: 110px;
+  width: 100px;
+  height: 130px;
   border-radius: 10px;
 }
 .monster-lore-popup {
