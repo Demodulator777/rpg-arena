@@ -6825,3 +6825,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .loading-title-shimmer { font-size: 0.95rem; letter-spacing: 5px; }
     .loading-filigree { width: 60px; height: 60px; }
 }
+
+/* Hide scrollbars on mobile — scrolling is gesture-based */
+@media (max-width: 768px) {
+    ::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    * { -ms-overflow-style: none; scrollbar-width: none; }
+}
