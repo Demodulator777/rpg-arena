@@ -1675,6 +1675,18 @@ function startCombat(roomIdx) {
 
 function fightRound() {
     if (!D.combat) return;
+
+    const atkType = D.combat.attackType || 'regular';
+    // Burst/Ultimate trigger skill check before the round
+    if ((atkType === 'burst' || atkType === 'ultimate') && !D.combat._skillCheckDone) {
+      showSkillCheck(atkType, (mult) => {
+        D.combat.skillCheckMult = mult;
+        D.combat._skillCheckDone = true;
+        fightRound();
+      });
+      return;
+    }
+
     if (D.combat.serverAuth) {
         // Crawler has its own endpoints for now.
         if (D.combat.isCrawler) {
@@ -1755,8 +1767,10 @@ function fightRound() {
         }
         D.combat.resolving = true;
         renderCombatPanel();
-        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex, attackType: D.combat.attackType || 'regular' })
+        const skillCheckMult = D.combat.skillCheckMult ?? 1;
+        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex, attackType: D.combat.attackType || 'regular', skillCheckMult })
             .then(res => {
+                D.combat._skillCheckDone = false;
                 if (!D.combat) return;
                 if (!res || !res.success) throw new Error(res?.error || 'Combat action failed.');
                 if (res?.debug) console.debug('[dungeon combat act]', res.debug);
@@ -1866,6 +1880,7 @@ function fightRound() {
             .catch(err => {
                 console.error('Server combat action failed:', err);
                 if (D.combat) {
+                    D.combat._skillCheckDone = false;
                     D.combat.resolving = false;
                     D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
                     renderCombatPanel();
@@ -3732,6 +3747,89 @@ function selectAttack(type) {
   if (!D.combat) return;
   D.combat.attackType = type;
   renderCombatPanel();
+}
+
+// Skill check mini-game for Burst/Ultimate
+// Shows an oscillating dot on a bar with zones; player taps to stop it.
+function showSkillCheck(attackType, callback) {
+  const isUlt = attackType === 'ultimate';
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'skill-check-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85)';
+  overlay.innerHTML = `
+<div style="background:#1a1a2e;border:2px solid ${isUlt ? '#e74c3c' : '#3498db'};border-radius:12px;padding:24px 32px;text-align:center;max-width:450px;width:90%;user-select:none">
+  <div style="font-size:1.1rem;font-weight:bold;color:${isUlt ? '#e74c3c' : '#3498db'};margin-bottom:16px">
+    ${isUlt ? '⚡ Ultimate' : '💥 Burst'} — Tap to stop!
+  </div>
+  <div style="position:relative;height:36px;margin:8px 0;border-radius:6px;overflow:hidden;background:#2c2c3e" id="skill-check-track">
+    <div style="position:absolute;inset:0;display:flex">
+      <div style="flex:0 0 25%;background:rgba(231,76,60,0.25)"></div>
+      <div style="flex:0 0 15%;background:rgba(241,196,15,0.25)"></div>
+      <div style="flex:0 0 20%;background:rgba(46,204,113,0.35)"></div>
+      <div style="flex:0 0 15%;background:rgba(241,196,15,0.25)"></div>
+      <div style="flex:0 0 25%;background:rgba(231,76,60,0.25)"></div>
+    </div>
+    <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:4px;height:36px;background:rgba(255,255,255,0.15);z-index:1"></div>
+    <div id="skill-check-marker" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);width:10px;height:32px;background:${isUlt ? '#e74c3c' : '#3498db'};border-radius:3px;z-index:2;transition:none"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;padding:0 4px">
+    <span>MISS</span>
+    <span>GOOD</span>
+    <span>PERFECT</span>
+    <span>GOOD</span>
+    <span>MISS</span>
+  </div>
+  <div id="skill-check-cycle" style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:12px">Cycle 1/10</div>
+</div>`;
+  document.body.appendChild(overlay);
+
+  const marker = overlay.querySelector('#skill-check-marker');
+  const cycleEl = overlay.querySelector('#skill-check-cycle');
+  let pos = 50; // 0-100, percentage position on the bar
+  let dir = 1; // 1 = right, -1 = left
+  let bounces = 0; // count edge hits (0 or 100)
+  const maxBounces = 20; // 10 full left-right cycles
+  let speed = isUlt ? (2.5 + Math.random() * 2.5) : (1.2 + Math.random() * 1.2);
+  let animId = null;
+  let done = false;
+
+  function getMult(p) {
+    if (p >= 40 && p <= 60) return 1.0; // perfect
+    if ((p >= 25 && p < 40) || (p > 60 && p <= 75)) return 0.75; // good
+    return 0.5; // miss
+  }
+
+  function resolve() {
+    if (done) return;
+    done = true;
+    if (animId) cancelAnimationFrame(animId);
+    overlay.remove();
+    callback(getMult(pos));
+  }
+
+  function animate() {
+    if (done) return;
+    pos += dir * speed;
+    if (pos >= 100) { pos = 100; dir = -1; bounces++; updateCycle(); }
+    else if (pos <= 0) { pos = 0; dir = 1; bounces++; updateCycle(); }
+    marker.style.left = pos + '%';
+    if (bounces >= maxBounces) { resolve(); return; }
+    // Vary speed each bounce
+    if (bounces % 2 === 0 && speed > 0) {
+      speed = isUlt
+        ? (1.5 + Math.random() * 4.5)
+        : (1.0 + Math.random() * 2.0);
+    }
+    animId = requestAnimationFrame(animate);
+  }
+
+  function updateCycle() {
+    cycleEl.textContent = 'Cycle ' + Math.ceil(bounces / 2) + '/10';
+  }
+
+  overlay.addEventListener('click', resolve);
+  animId = requestAnimationFrame(animate);
 }
 
 function roomDeckNav(dir) {
