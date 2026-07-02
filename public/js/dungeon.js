@@ -1605,6 +1605,9 @@ function startCombat(roomIdx) {
         combatId: null,
         turnNonce: 0,
         clientStartId,
+        manaPoints: 0,
+        manaCap: 100,
+        attackType: 'regular',
     };
     renderCombatPanel();
     // If the player scrolled the page before entering combat, scroll the tab content to the bottom
@@ -1650,6 +1653,8 @@ function startCombat(roomIdx) {
                 }));
                 D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
             }
+            if (typeof res.manaPoints === 'number') D.combat.manaPoints = res.manaPoints;
+            if (typeof res.manaCap === 'number') D.combat.manaCap = res.manaCap;
             if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
             D.combat.resolving = false;
             saveState();
@@ -1750,7 +1755,7 @@ function fightRound() {
         }
         D.combat.resolving = true;
         renderCombatPanel();
-        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex })
+        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex, attackType: D.combat.attackType || 'regular' })
             .then(res => {
                 if (!D.combat) return;
                 if (!res || !res.success) throw new Error(res?.error || 'Combat action failed.');
@@ -1784,6 +1789,9 @@ function fightRound() {
                         }
                     }
                 }
+                // Update mana state from server response
+                if (typeof res.manaPoints === 'number') D.combat.manaPoints = res.manaPoints;
+                if (typeof res.manaCap === 'number') D.combat.manaCap = res.manaCap;
 
                 if (res.ended && res.outcome === 'player_dead') {
                     D.combat.resolving = false;
@@ -3549,6 +3557,18 @@ function renderRoomInfo(room) {
         const hasImg = !!m.image;
         const isSelected = viewIdx === D.combat.currentMonsterIndex;
         const targetBorder = isSelected ? '3px solid rgba(201,146,42,0.9)' : '2px solid rgba(201,146,42,0.35)';
+        const hpBars = Number(m.hpBars || 1);
+        const bossBarsHtml = hpBars > 1 ? (() => {
+            const barSize = Math.ceil(m.maxHp / hpBars);
+            const fullBars = Math.max(0, Math.floor((m.currentHp || 0) / barSize));
+            let bars = '';
+            for (let i = 0; i < hpBars; i++) {
+                const pct = i < fullBars ? 100 : i === fullBars ? ((m.currentHp % barSize || barSize) / barSize) * 100 : 0;
+                bars += '<div style="width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-bottom:2px"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#e74c3c,#c0392b);border-radius:2px;transition:width 0.2s"></div></div>';
+            }
+            return bars;
+        })() : '';
+
         return `
             <div class="monster-side">
                 <div class="fighter-card monster-combat-card ${isSelected ? 'current-target' : ''}" data-action="selectMonster" data-args='[${viewIdx}]' style="cursor:pointer">
@@ -3560,8 +3580,8 @@ function renderRoomInfo(room) {
                     </div>
                     <div class="fighter-name" title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}</div>
                     <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
-                    <div class="fighter-hp-bar-wrap" style="width:72px;height:5px;margin:4px auto">
-                        <div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div>
+                    <div style="width:72px;margin:4px auto">
+                        ${bossBarsHtml || `<div class="fighter-hp-bar-wrap" style="width:100%;height:5px;margin:0"><div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div></div>`}
                     </div>
                     <div class="fighter-stats">${m.currentHp}/${m.maxHp}</div>
                 </div>
@@ -3596,6 +3616,15 @@ function renderRoomInfo(room) {
                         <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
                     </div>
                     <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
+                    <div style="margin-top:4px;width:130px">
+                        <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--dungeon-muted);margin-bottom:2px">
+                            <span>🔷 Mana</span>
+                            <span>${D.combat.manaPoints ?? 0}/${D.combat.manaCap ?? 100}</span>
+                        </div>
+                        <div style="width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden">
+                            <div style="width:${Math.round(((D.combat.manaPoints ?? 0) / (D.combat.manaCap ?? 100)) * 100)}%;height:100%;background:linear-gradient(90deg,#4fc3f7,#29b6f6);border-radius:2px;transition:width 0.2s"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="fighter-vs">VS</div>
@@ -3612,8 +3641,15 @@ function renderRoomInfo(room) {
                          <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ Keep Fighting</button>
                        `
                      : `
-                         <button class="dungeon-btn dungeon-btn-fight" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonAttack')}>⚔️ Strike</button>
-                         <button class="dungeon-btn dungeon-btn-run" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
+                         <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
+                           <button class="dungeon-btn ${D.combat.attackType === 'regular' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')}>⚔️ Strike</button>
+                           <button class="dungeon-btn ${D.combat.attackType === 'burst' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')}>💥 Burst (60)</button>
+                           <button class="dungeon-btn ${D.combat.attackType === 'ultimate' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')}>⚡ Ultimate (100)</button>
+                         </div>
+                         <div style="display:flex;gap:4px;justify-content:center;margin-top:4px">
+                           <button class="dungeon-btn dungeon-btn-fight" style="font-size:0.85rem;padding:8px 20px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonAttack')}>⚔️ Attack</button>
+                           <button class="dungeon-btn dungeon-btn-run" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
+                         </div>
                        `}
              </div>
          </div>
@@ -3689,6 +3725,12 @@ function selectMonster(idx) {
     D.combat.currentMonsterIndex = idx;
     renderCombatPanel();
   }
+}
+
+function selectAttack(type) {
+  if (!D.combat) return;
+  D.combat.attackType = type;
+  renderCombatPanel();
 }
 
 function roomDeckNav(dir) {
@@ -4384,6 +4426,7 @@ global.claimGuildBounty = claimGuildBounty;
   global.toggleMonsterLore   = toggleMonsterLore;
   global.deckNav             = deckNav;
   global.selectMonster       = selectMonster;
+  global.selectAttack        = selectAttack;
   global.roomDeckNav         = roomDeckNav;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
