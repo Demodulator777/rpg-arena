@@ -144,7 +144,7 @@ const CRAWLER_BASE = {
     id: 'the_crawler',
     name: 'The Crawler',
     icon: '🕷️',
-    image: '/images/dungeon/crawler.jpg',
+    image: '/images/dungeon/monsters/crawler.jpg',
 };
 
 function getMiniBossForFloor(floor) {
@@ -243,7 +243,12 @@ function normalizeMiniBossRooms(rooms, floor) {
 function hydrateMonsterImage(monster) {
     if (monster.image) return monster;
     const id = monster.id || (monster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
-    const found = MONSTER_POOL.find(m => m.id === id) || MINI_BOSS_POOL.find(m => m.id === id);
+    const byName = (m) => (m.name || '').toLowerCase().replace(/[^\w]+/g, '_');
+    const found = MONSTER_POOL.find(m => m.id === id)
+        || MONSTER_POOL.find(m => byName(m) === id)
+        || MINI_BOSS_POOL.find(m => byName(m) === id)
+        || BOSS_POOL.find(m => byName(m) === id)
+        || CRAWLER_BASE && byName(CRAWLER_BASE) === id && CRAWLER_BASE;
     if (found && found.image) return { ...monster, image: found.image };
     return monster;
 }
@@ -3380,7 +3385,10 @@ function renderRoomInfo(room) {
     // Hydrate missing images directly from pool templates
     if (aliveMonster && !aliveMonster.image) {
         const id = aliveMonster.id || (aliveMonster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
-        const found = MONSTER_POOL.find(m => m.id === id) || MINI_BOSS_POOL.find(m => m.id === id);
+        const byName = (m) => (m.name || '').toLowerCase().replace(/[^\w]+/g, '_');
+        const found = MONSTER_POOL.find(m => m.id === id)
+            || MONSTER_POOL.find(m => byName(m) === id)
+            || MINI_BOSS_POOL.find(m => byName(m) === id);
         if (found && found.image) aliveMonster.image = found.image;
     }
     const monsterCount = room.monsters ? room.monsters.length : 0;
