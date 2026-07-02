@@ -14689,6 +14689,13 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
                 cur.bossEnrage = bossEnrage - 1;
             }
 
+            // Cap damage per HP bar — excess damage does not carry over
+            if (Number(cur.hpBars || 1) > 1 && cur.currentHp > 0) {
+                const barSize = Number(cur.barSize || cur.maxHp || 1);
+                const remainingInBar = cur.currentHp % barSize || barSize;
+                if (pDmg > remainingInBar) pDmg = remainingInBar;
+            }
+
             cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
 
             const atkLabel = attackType === 'burst' ? '💥 Burst' : attackType === 'ultimate' ? '⚡ Ultimate' : '⚔️ Strike';
