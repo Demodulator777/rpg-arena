@@ -3564,7 +3564,7 @@ function renderRoomInfo(room) {
             const fullBars = Math.max(0, Math.floor((m.currentHp || 0) / barSize));
             let bars = '';
             for (let i = 0; i < hpBars; i++) {
-                const pct = i < fullBars ? 100 : i === fullBars ? ((m.currentHp % barSize || barSize) / barSize) * 100 : 0;
+                const pct = i < fullBars ? 100 : i === fullBars ? ((m.currentHp % barSize) / barSize) * 100 : 0;
                 bars += '<div style="width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;margin-bottom:2px"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#e74c3c,#c0392b);border-radius:2px;transition:width 0.2s"></div></div>';
             }
             return bars;
