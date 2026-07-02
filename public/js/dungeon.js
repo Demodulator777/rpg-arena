@@ -3525,6 +3525,7 @@ function renderRoomInfo(room) {
     document.body.classList.add('combat-lock');
     const def = getDungeonDef(D.activeDungeon);
     const monsters = D.combat.monsters;
+
     const currentMonster = monsters[D.combat.currentMonsterIndex] || {};
     const pStats = calcPlayerStats();
     const pHpPct = Math.round((pStats.hp / pStats.maxHp) * 100);
