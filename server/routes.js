@@ -14506,15 +14506,19 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
         const gatekeeperCount = Number(gkRows?.[0]?.cnt || 0);
         const manaCap = Math.min(200, 100 + gatekeeperCount * 20);
 
-        // Boss HP bars: floor 1-9 = 1 bar, then +1 per 10 floors
-        if (kind === 'boss') {
-            const hpBars = Math.min(4, 1 + Math.max(0, Math.floor((floor - 1) / 10)));
-            for (const m of monsters) {
-                m.maxHp = m.hp;
+        // Boss/mini-boss HP bars: floor 1-9 = 1, then +1 per 10 floors (2x, 3x, 4x HP)
+        const hpBars = Math.min(4, 1 + Math.floor(floor / 10));
+        for (const m of monsters) {
+            if (m.isBoss || m.isMiniBoss) {
+                const baseHp = m.hp;
+                const wasDead = Number(m.currentHp || 0) === 0;
                 m.hpBars = hpBars;
-                m.barSize = Math.ceil(m.hp / hpBars);
-                m.currentBar = hpBars;
+                m.barSize = baseHp;
+                m.currentBar = wasDead ? 0 : hpBars;
                 m.bossEnrage = 0;
+                m.hp = baseHp * hpBars;
+                m.maxHp = m.hp;
+                m.currentHp = wasDead ? 0 : baseHp * hpBars;
             }
         }
 
