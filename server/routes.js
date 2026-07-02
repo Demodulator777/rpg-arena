@@ -14594,6 +14594,10 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
 
         const monsters = Array.isArray(state.monsters) ? state.monsters : [];
         let currentMonsterIndex = Math.max(0, Number(state.currentMonsterIndex || 0));
+        const clientTarget = Number(req.body?.currentMonsterIndex);
+        if (Number.isFinite(clientTarget) && clientTarget >= 0) {
+            currentMonsterIndex = clientTarget;
+        }
         const log = [];
         const lootGranted = [];
 
