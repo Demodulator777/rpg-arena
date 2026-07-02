@@ -1680,6 +1680,7 @@ function fightRound() {
     // Burst/Ultimate trigger skill check before the round
     if ((atkType === 'burst' || atkType === 'ultimate') && !D.combat._skillCheckDone) {
       showSkillCheck(atkType, (mult) => {
+        console.log('[SKILL_CHECK] Got multiplier:', mult, 'from attack:', atkType);
         D.combat.skillCheckMult = mult;
         D.combat._skillCheckDone = true;
         fightRound();
@@ -1768,6 +1769,7 @@ function fightRound() {
         D.combat.resolving = true;
         renderCombatPanel();
         const skillCheckMult = D.combat.skillCheckMult ?? 1;
+        console.log('[SKILL_CHECK] Sending skillCheckMult:', skillCheckMult, 'attackType:', D.combat.attackType);
         apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex, attackType: D.combat.attackType || 'regular', skillCheckMult })
             .then(res => {
                 D.combat._skillCheckDone = false;
@@ -2358,6 +2360,8 @@ async function fightBoss(roomIdx) {
         resolving: true,
         combatId: null,
         turnNonce: 0,
+        manaPoints: 0,
+        manaCap: 100,
     };
     renderCombatPanel();
 
@@ -2376,6 +2380,8 @@ async function fightBoss(roomIdx) {
                 }));
                 D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
             }
+            if (typeof res.manaPoints === 'number') D.combat.manaPoints = res.manaPoints;
+            if (typeof res.manaCap === 'number') D.combat.manaCap = res.manaCap;
             if (typeof res.tokens === 'number') {
                 D.tokens = res.tokens;
                 updateTokenDisplay();
