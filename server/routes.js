@@ -13697,14 +13697,14 @@ function rngIntInclusive(rngState, min, max) {
 function buildDungeonBossStatsForFloor(floor) {
     const safeFloor = Math.max(1, Number(floor) || 1);
     const BOSS_POOL = [
-        { name: 'Death Knight Malachar', baseHp: 600, baseAtk: 45, baseDef: 20, lore:'The Death Knight is the remnant of a forgotten warrior bound in undeath to oppose all who enter his final abode.' },
-        { name: 'Ignarath the Eternal', baseHp: 700, baseAtk: 55, baseDef: 25, lore:'Ignarath is a fusion of demonic and necrotic energy warped to resemble a human abomination. Win quickly or be forever lost to corruption\'s touch.' },
-        { name: 'Nyxaroth the Devourer', baseHp: 800, baseAtk: 65, baseDef: 30, lore:'Nyxaroth is a mindless predator of unequal quickness and fury. Few survive to whisper tales of the calamity that follows her wake.' },
-        { name: 'Vizorax the Unholy', baseHp: 850, baseAtk: 60, baseDef: 35, lore:'Vizorax the Unholy, a Demon from the depths who adds a piece of each defeated opponent to his living armor. Said to be so magically potent reality bends to his whims.' },
-        { name: 'The Hollow King', baseHp: 900, baseAtk: 70, baseDef: 35 },
-        { name: 'Voidborn Colossus', baseHp: 1000, baseAtk: 80, baseDef: 40 },
-        { name: 'The Undying Empress', baseHp: 1100, baseAtk: 90, baseDef: 45, lore:'The Undying Empress is rumored to have sacrificed an entire civilization to fuel her immortality, pure speculation as none exist to bear witness to the truths of her existence.' },
-        { name: 'Abyssal Sovereign', baseHp: 1200, baseAtk: 95, baseDef: 50, lore:'An abomination that crawled out of the void, the Abyssal Sovereign desecrates reality with his presence as he seeks to consume all to fuel his existence.' },
+        { name: 'Death Knight Malachar', baseHp: 600, baseAtk: 45, baseDef: 20, image:'/images/boss/malachar.jpg', lore:'The Death Knight is the remnant of a forgotten warrior bound in undeath to oppose all who enter his final abode.' },
+        { name: 'Ignarath the Eternal', baseHp: 700, baseAtk: 55, baseDef: 25, image:'/images/boss/ignarath.jpg', lore:'Ignarath is a fusion of demonic and necrotic energy warped to resemble a human abomination. Win quickly or be forever lost to corruption\'s touch.' },
+        { name: 'Nyxaroth the Devourer', baseHp: 800, baseAtk: 65, baseDef: 30, image:'/images/boss/nyxaroth.jpg', lore:'Nyxaroth is a mindless predator of unequal quickness and fury. Few survive to whisper tales of the calamity that follows her wake.' },
+        { name: 'Vizorax the Unholy', baseHp: 850, baseAtk: 60, baseDef: 35, image:'/images/boss/vizorax.jpg', lore:'Vizorax the Unholy, a Demon from the depths who adds a piece of each defeated opponent to his living armor. Said to be so magically potent reality bends to his whims.' },
+        { name: 'The Hollow King', baseHp: 900, baseAtk: 70, baseDef: 35, image:'/images/boss/hollowking.jpg' },
+        { name: 'Voidborn Colossus', baseHp: 1000, baseAtk: 80, baseDef: 40, image:'/images/boss/voidborn.jpg' },
+        { name: 'The Undying Empress', baseHp: 1100, baseAtk: 90, baseDef: 45, image:'/images/boss/empress.jpg', lore:'The Undying Empress is rumored to have sacrificed an entire civilization to fuel her immortality, pure speculation as none exist to bear witness to the truths of her existence.' },
+        { name: 'Abyssal Sovereign', baseHp: 1200, baseAtk: 95, baseDef: 50, image:'/images/boss/sovereign.jpg', lore:'An abomination that crawled out of the void, the Abyssal Sovereign desecrates reality with his presence as he seeks to consume all to fuel his existence.' },
     ];
     const idx = (safeFloor - 1) % BOSS_POOL.length;
     const tier = Math.floor((safeFloor - 1) / BOSS_POOL.length);
@@ -13712,6 +13712,7 @@ function buildDungeonBossStatsForFloor(floor) {
     const scale = 1 + (safeFloor - 1) * 0.18 + tier * 0.5;
     return {
         name: base.name,
+        image: base.image,
         hp: Math.round(base.baseHp * scale),
         atk: Math.round(base.baseAtk * scale),
         def: Math.round(base.baseDef * scale),
@@ -14461,6 +14462,7 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
                 id: `boss_floor_${floor}`,
                 name: boss.name,
                 icon: '⚠️',
+                image: boss.image,
                 hp: boss.hp,
                 maxHp: boss.hp,
                 currentHp: boss.hp,
