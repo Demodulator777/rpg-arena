@@ -1747,7 +1747,7 @@ function fightRound() {
         }
         D.combat.resolving = true;
         renderCombatPanel();
-        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce })
+        apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex })
             .then(res => {
                 if (!D.combat) return;
                 if (!res || !res.success) throw new Error(res?.error || 'Combat action failed.');
@@ -3543,10 +3543,12 @@ function renderRoomInfo(room) {
         const m = monsters[viewIdx];
         const hpPercent = Math.round(m.currentHp / m.maxHp * 100);
         const hasImg = !!m.image;
+        const isSelected = viewIdx === D.combat.currentMonsterIndex;
+        const targetBorder = isSelected ? '3px solid rgba(201,146,42,0.9)' : '2px solid rgba(201,146,42,0.35)';
         return `
             <div class="monster-side">
-                <div class="fighter-card monster-combat-card current-target" ${m.lore ? `data-action="toggleMonsterLore" data-args='[${viewIdx}]'` : ''}>
-                    <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden">
+                <div class="fighter-card monster-combat-card ${isSelected ? 'current-target' : ''}" data-action="selectMonster" data-args='[${viewIdx}]' style="cursor:pointer">
+                    <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden;border:${targetBorder}">
                         <button class="deck-arrow deck-arrow-left" data-action="deckNav" data-args='["prev"]' ${prevAlive === -1 ? 'disabled' : ''}>◀</button>
                         ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
                         <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
@@ -3674,6 +3676,14 @@ function deckNav(dir) {
       renderCombatPanel();
       return;
     }
+  }
+}
+
+function selectMonster(idx) {
+  if (!D.combat || !D.combat.monsters) return;
+  if (D.combat.monsters[idx] && D.combat.monsters[idx].currentHp > 0) {
+    D.combat.currentMonsterIndex = idx;
+    renderCombatPanel();
   }
 }
 
@@ -4369,6 +4379,7 @@ global.claimGuildBounty = claimGuildBounty;
   global.closeDungeonVictory = closeDungeonVictory;
   global.toggleMonsterLore   = toggleMonsterLore;
   global.deckNav             = deckNav;
+  global.selectMonster       = selectMonster;
   global.roomDeckNav         = roomDeckNav;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
