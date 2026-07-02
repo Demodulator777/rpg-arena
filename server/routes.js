@@ -13730,7 +13730,7 @@ function buildCrawlerStatsForFloor(floor) {
         id: 'the_crawler',
         name: 'The Crawler',
         icon: '🕷️',
-        image: '/images/dungeon/crawler.jpg',
+        image: '/images/dungeon/monsters/crawler.jpg',
         hp: maxHp,
         maxHp,
         currentHp: maxHp,
