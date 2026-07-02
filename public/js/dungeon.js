@@ -3459,7 +3459,6 @@ function renderRoomInfo(room) {
                 ${aliveCount > 1 ? `<div class="deck-counter" style="margin-bottom:4px">Monster ${viewIdx + 1}/${aliveCount}</div>` : ''}
                 <div class="monster-btns" style="margin-top:6px">
                     <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ Fight</button>
-                    <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRun', room.id)}>💨 Run (75%)</button>
                 </div>
                 ${m.stolenItems && m.stolenItems.length > 0 ? `
                     <div class="stolen-items-notice" style="margin-top:4px">
@@ -4343,25 +4342,6 @@ global.claimGuildBounty = claimGuildBounty;
   global.dungeonEnter        = enterDungeon;
   global.dungeonTravel       = travelToRoom;
   global.dungeonFight        = initiateFight;
-global.dungeonRun = (roomIdx) => {
-    const room = D.rooms[roomIdx];
-    if (room && room.monsters && room.monsters.length > 0) {
-        // Check if any monsters are alive
-        const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(Number(m.lastKilled), MONSTER_RESPAWN_H));
-        if (!anyAlive) {
-            log(`💤 All monsters are dead or respawning.`, 'log-info');
-            return;
-        }
-
-        // Start combat (server-authoritative) and attempt to flee from the combat panel.
-        startCombat(roomIdx);
-        setTimeout(() => {
-            if (D.combat && D.combat.roomIdx === roomIdx) {
-                tryRun(roomIdx);
-            }
-        }, 200);
-    }
-};
   global.dungeonAttack       = fightRound;
   global.dungeonRunCombat    = () => { if(D.combat) tryRun(D.combat.roomIdx); };
   global.dungeonEscapeConfirm = () => { if(D.combat) confirmEscape(D.combat.roomIdx); };
