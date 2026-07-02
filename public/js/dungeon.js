@@ -3446,25 +3446,20 @@ function renderRoomInfo(room) {
             <button class="deck-arrow deck-arrow-left" data-action="roomDeckNav" data-args='[-1]'>◀</button>
             <button class="deck-arrow deck-arrow-right" data-action="roomDeckNav" data-args='[1]'>▶</button>
         ` : '';
-        const showSteal = m.steal && aliveCount === 1;
 
         return `
-            <div class="dungeon-room-monster" style="display:flex;flex-direction:column;align-items:center">
-                <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-                    <div class="fighter-card" style="width:82px;cursor:default;display:flex;flex-direction:column;align-items:center">
-                        <div class="fighter-avatar" style="width:82px;height:110px;border-radius:10px;overflow:hidden;border:2px solid rgba(100,180,255,0.35);position:relative;display:flex;align-items:center;justify-content:center">
-                            ${arrowsHtml}
-                            ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
-                            <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
-                        </div>
-                        <div class="fighter-name" style="font-size:0.7rem;margin-top:2px" ${m.lore ? `title="${m.lore.replace(/"/g,'&quot;')}"` : ''}>${m.name}</div>
-                        <div class="fighter-class" style="font-size:0.65rem">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}${showSteal ? ' · 🎒' : ''}</div>
-                        ${aliveCount > 1 ? `<div class="deck-counter">Monster ${viewIdx + 1}/${aliveCount}</div>` : ''}
-                    </div>
-                    <div class="monster-btns" style="margin-top:4px">
-                        <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ Fight</button>
-                        <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRun', room.id)}>💨 Run (75%)</button>
-                    </div>
+            <div class="dungeon-room-monster" style="text-align:center">
+                <div style="width:82px;height:110px;margin:0 auto 4px;border-radius:10px;overflow:hidden;border:2px solid rgba(100,180,255,0.35);position:relative;display:flex;align-items:center;justify-content:center">
+                    ${arrowsHtml}
+                    ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
+                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
+                </div>
+                <div class="fighter-name" style="margin-bottom:2px;font-weight:600">${m.name}</div>
+                <div class="fighter-class">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
+                ${aliveCount > 1 ? `<div class="deck-counter" style="margin-bottom:4px">Monster ${viewIdx + 1}/${aliveCount}</div>` : ''}
+                <div class="monster-btns" style="margin-top:6px">
+                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ Fight</button>
+                    <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonRun', room.id)}>💨 Run (75%)</button>
                 </div>
                 ${m.stolenItems && m.stolenItems.length > 0 ? `
                     <div class="stolen-items-notice" style="margin-top:4px">
@@ -3679,7 +3674,8 @@ function roomDeckNav(dir) {
   if (newIdx >= aliveMonsters.length) newIdx = 0;
   if (newIdx === currentIdx) return;
   D._roomMonsterIdx[D.playerPos] = newIdx;
-  renderUi();
+  const infoEl = document.querySelector('.dungeon-hud-room-info');
+  if (infoEl) infoEl.innerHTML = renderRoomInfo(room);
 }
 
   function updateTravelBtn(idx, disabled) {
@@ -4375,6 +4371,7 @@ global.dungeonRun = (roomIdx) => {
   global.closeDungeonVictory = closeDungeonVictory;
   global.toggleMonsterLore   = toggleMonsterLore;
   global.deckNav             = deckNav;
+  global.roomDeckNav         = roomDeckNav;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
   global.dungeonShowFeedModal = globalThis.dungeonShowFeedModal;
