@@ -105,18 +105,36 @@ function loadDbAdmin() {
                 '</div>';
             
             var listEl = document.getElementById('db-table-list');
+
+            // Table select dropdown for mobile
+            var sel = document.createElement('select');
+            sel.className = 'db-table-select';
+            sel.addEventListener('change', function() {
+                listEl.querySelectorAll('.active').forEach(function(b) { b.classList.remove('active'); });
+                queryTable(this.value);
+            });
+            tables.forEach(function(t) {
+                var opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                sel.appendChild(opt);
+            });
+            listEl.appendChild(sel);
+
             tables.forEach(function(t) {
                 var btn = document.createElement('button');
                 btn.textContent = t;
                 btn.addEventListener('click', function() {
                     listEl.querySelectorAll('.active').forEach(function(b) { b.classList.remove('active'); });
                     btn.classList.add('active');
+                    sel.value = t;
                     queryTable(t);
                 });
                 listEl.appendChild(btn);
             });
             if (tables.length) {
                 listEl.querySelector('button').classList.add('active');
+                sel.value = tables[0];
                 queryTable(tables[0]);
             }
 
