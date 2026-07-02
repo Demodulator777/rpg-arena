@@ -14501,6 +14501,23 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
             });
         }
 
+        // Mana system: base 100, +20 per gatekeeper defeated, hard cap 200
+        const gkRows = await dbAll(db, 'SELECT COUNT(*) AS cnt FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id]);
+        const gatekeeperCount = Number(gkRows?.[0]?.cnt || 0);
+        const manaCap = Math.min(200, 100 + gatekeeperCount * 20);
+
+        // Boss HP bars: floor 1-9 = 1 bar, then +1 per 10 floors
+        if (kind === 'boss') {
+            const hpBars = Math.min(4, 1 + Math.max(0, Math.floor((floor - 1) / 10)));
+            for (const m of monsters) {
+                m.maxHp = m.hp;
+                m.hpBars = hpBars;
+                m.barSize = Math.ceil(m.hp / hpBars);
+                m.currentBar = hpBars;
+                m.bossEnrage = 0;
+            }
+        }
+
         const state = {
             floor,
             roomIndex,
@@ -14509,6 +14526,8 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
             round: 1,
             playerHp: Math.max(0, safeStartHp),
             playerMaxHp: Math.max(1, trueHpMax),
+            manaPoints: manaCap,
+            manaCap,
             monsters,
             currentMonsterIndex: 0,
             escapeReady: false,
@@ -14531,6 +14550,8 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
             turnNonce: 0,
             kind,
             player: { hp: state.playerHp, maxHp: state.playerMaxHp },
+            manaPoints: state.manaPoints,
+            manaCap,
             monsters: state.monsters,
             currentMonsterIndex: 0,
             escapeReady: false,
@@ -14604,6 +14625,17 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         const aliveMonsters = () => monsters.filter(m => Number(m.currentHp || 0) > 0);
         let escaped = false;
 
+        // Mana state
+        let manaPoints = Math.max(0, Number(state.manaPoints ?? state.manaCap ?? 100));
+        const manaCap = Math.max(1, Number(state.manaCap ?? 100));
+
+        // Attack type logic
+        const attackType = String(req.body?.attackType || 'regular').toLowerCase();
+        const MANA_COST = { regular: 0, burst: 60, ultimate: 100 };
+        const DMG_MULT = { regular: 1, burst: 2.5, ultimate: 5 };
+        const manaCost = MANA_COST[attackType] ?? 0;
+        const dmgMult = DMG_MULT[attackType] ?? 1;
+
         if (action === 'run') {
             const r = mulberry32Next(rngState);
             rngState = r.state;
@@ -14628,7 +14660,6 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         } else {
             const target = monsters[currentMonsterIndex];
             if (!target || Number(target.currentHp || 0) <= 0) {
-                // Find next alive
                 const idx = monsters.findIndex(m => Number(m.currentHp || 0) > 0);
                 if (idx >= 0) currentMonsterIndex = idx;
             }
@@ -14636,26 +14667,68 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             const cur = monsters[currentMonsterIndex];
             if (!cur) return res.status(400).json({ error: 'No target.' });
 
+            // Deduct mana cost if enough
+            if (manaCost > 0 && manaPoints < manaCost) {
+                return res.status(400).json({ error: 'Not enough mana.' });
+            }
+            manaPoints = Math.max(0, manaPoints - manaCost);
+
+            // Player attack
             const pRoll = rngIntInclusive(rngState, -3, 3);
             rngState = pRoll.rngState;
-            const pDmg = Math.max(1, Math.floor(pStats.atk - Number(cur.def || 0) * 0.5 + pRoll.n));
-            cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
-            log.push({ actor: 'player', text: `You strike ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
+            let pDmg = Math.max(1, Math.floor((pStats.atk - Number(cur.def || 0) * 0.5 + pRoll.n) * dmgMult));
 
-            // All alive monsters attack back
+            // Boss enrage: +50% damage while active
+            const bossEnrage = Number(cur.bossEnrage || 0);
+            if (bossEnrage > 0) {
+                pDmg = Math.floor(pDmg * 1.5);
+                cur.bossEnrage = bossEnrage - 1;
+            }
+
+            cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
+
+            const atkLabel = attackType === 'burst' ? '💥 Burst' : attackType === 'ultimate' ? '⚡ Ultimate' : '⚔️ Strike';
+            log.push({ actor: 'player', text: `${atkLabel} → ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
+
+            // Boss HP bar check
+            const hpBars = Number(cur.hpBars || 1);
+            const barSize = Number(cur.barSize || cur.maxHp || 1);
+            const prevFullBars = cur.currentBar ?? hpBars;
+            const fullBars = Math.max(0, Math.floor(cur.currentHp / barSize));
+            if (fullBars < prevFullBars && cur.currentHp > 0) {
+                cur.bossEnrage = 1;
+                log.push({ actor: 'monster', text: `🔥 ${cur.name} enrages as a HP bar shatters!` });
+            }
+            cur.currentBar = fullBars;
+
+            // Boss special attack (25% chance)
             let totalPlayerDmg = 0;
             for (const m of aliveMonsters()) {
-                const roll = rngIntInclusive(rngState, -2, 2);
-                rngState = roll.rngState;
-                const mDmg = Math.max(1, Math.floor(Number(m.atk || 1) - pStats.def * 0.5 + roll.n));
+                let mDmg;
+                const isBossOrMini = m.isBoss || m.isMiniBoss;
+                if (isBossOrMini && Math.random() < 0.25) {
+                    const specRoll = rngIntInclusive(rngState, 0, 3);
+                    rngState = specRoll.rngState;
+                    mDmg = Math.max(1, Math.floor((Number(m.atk || 1) - pStats.def * 0.3 + specRoll.n) * 2));
+                    log.push({ actor: 'monster', text: `💢 ${m.name} uses SPECIAL ATTACK for ${mDmg}!`, dmg: mDmg });
+                } else {
+                    const roll = rngIntInclusive(rngState, -2, 2);
+                    rngState = roll.rngState;
+                    mDmg = Math.max(1, Math.floor(Number(m.atk || 1) - pStats.def * 0.5 + roll.n));
+                    log.push({ actor: 'monster', text: `${m.name} hits you for ${mDmg}!`, dmg: mDmg });
+                }
                 totalPlayerDmg += mDmg;
-                log.push({ actor: 'monster', text: `${m.name} hits you for ${mDmg}!`, dmg: mDmg });
             }
             playerHp = Math.max(0, playerHp - totalPlayerDmg);
 
             if (cur.currentHp <= 0) {
                 log.push({ actor: 'player', text: `✅ ${cur.name} defeated!` });
             }
+
+            // Regen mana: +10 per turn (capped)
+            manaPoints = Math.min(manaCap, manaPoints + 10);
+            state.manaPoints = manaPoints;
+            state.manaCap = manaCap;
         }
 
         // Persist server-authoritative player HP every action.
@@ -14766,6 +14839,9 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             turnNonce: nextNonce,
             kind,
             player: { hp: playerHp, maxHp: playerMaxHp },
+            manaPoints,
+            manaCap,
+            attackType,
             monsters,
             currentMonsterIndex,
             escapeReady: !!state.escapeReady,
