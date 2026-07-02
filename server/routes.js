@@ -14639,6 +14639,8 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         const DMG_MULT = { regular: 1, burst: 2.5, ultimate: 5 };
         const manaCost = MANA_COST[attackType] ?? 0;
         const dmgMult = DMG_MULT[attackType] ?? 1;
+        const skillCheckMult = parseFloat(String(req.body?.skillCheckMult || '1'));
+        const effectiveMult = dmgMult * skillCheckMult;
 
         if (action === 'run') {
             const r = mulberry32Next(rngState);
@@ -14680,7 +14682,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             // Player attack
             const pRoll = rngIntInclusive(rngState, -3, 3);
             rngState = pRoll.rngState;
-            let pDmg = Math.max(1, Math.floor((pStats.atk - Number(cur.def || 0) * 0.5 + pRoll.n) * dmgMult));
+            let pDmg = Math.max(1, Math.floor((pStats.atk - Number(cur.def || 0) * 0.5 + pRoll.n) * effectiveMult));
 
             // Boss enrage: +50% damage while active
             const bossEnrage = Number(cur.bossEnrage || 0);
@@ -14698,8 +14700,10 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
 
             cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
 
+            const zoneLabel = skillCheckMult === 1.0 ? 'PERFECT!' : skillCheckMult === 0.75 ? 'GOOD' : skillCheckMult === 0.5 ? 'MISS' : '';
             const atkLabel = attackType === 'burst' ? '💥 Burst' : attackType === 'ultimate' ? '⚡ Ultimate' : '⚔️ Strike';
-            log.push({ actor: 'player', text: `${atkLabel} → ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
+            const zoneSuffix = zoneLabel ? ` [${zoneLabel}]` : '';
+            log.push({ actor: 'player', text: `${atkLabel}${zoneSuffix} → ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
 
             // Boss HP bar check
             const hpBars = Number(cur.hpBars || 1);
@@ -14853,6 +14857,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             manaPoints,
             manaCap,
             attackType,
+            skillCheckMult,
             monsters,
             currentMonsterIndex,
             escapeReady: !!state.escapeReady,
