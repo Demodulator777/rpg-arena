@@ -241,15 +241,18 @@ function normalizeMiniBossRooms(rooms, floor) {
 }
 
 function hydrateMonsterImage(monster) {
-    if (monster.image) return monster;
-    const id = monster.id || (monster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
-    const byName = (m) => (m.name || '').toLowerCase().replace(/[^\w]+/g, '_');
-    const found = MONSTER_POOL.find(m => m.id === id)
-        || MONSTER_POOL.find(m => byName(m) === id)
-        || MINI_BOSS_POOL.find(m => byName(m) === id)
-        || BOSS_POOL.find(m => byName(m) === id)
-        || CRAWLER_BASE && byName(CRAWLER_BASE) === id && CRAWLER_BASE;
-    if (found && found.image) return { ...monster, image: found.image };
+    // Fix old image paths (miniboss*.jpg → monsters/*.jpg)
+    const oldPath = monster.image && /\/images\/dungeon\/miniboss\d*\.jpg/i.test(monster.image);
+    if (!monster.image || oldPath) {
+        const id = monster.id || (monster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
+        const byName = (m) => (m.name || '').toLowerCase().replace(/[^\w]+/g, '_');
+        const found = MONSTER_POOL.find(m => m.id === id)
+            || MONSTER_POOL.find(m => byName(m) === id)
+            || MINI_BOSS_POOL.find(m => byName(m) === id)
+            || BOSS_POOL.find(m => byName(m) === id)
+            || CRAWLER_BASE && byName(CRAWLER_BASE) === id && CRAWLER_BASE;
+        if (found && found.image) return { ...monster, image: found.image };
+    }
     return monster;
 }
 
@@ -3382,8 +3385,9 @@ function renderRoomInfo(room) {
     
     // Get first alive monster for display (if multiple)
     const aliveMonster = anyMonsterAlive ? room.monsters.find(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)) : null;
-    // Hydrate missing images directly from pool templates
-    if (aliveMonster && !aliveMonster.image) {
+    // Hydrate missing or old-path images directly from pool templates
+    const monsterImg = aliveMonster?.image;
+    if (aliveMonster && (!monsterImg || /\/images\/dungeon\/miniboss\d*\.jpg/i.test(monsterImg))) {
         const id = aliveMonster.id || (aliveMonster.name || '').toLowerCase().replace(/[^\w]+/g, '_');
         const byName = (m) => (m.name || '').toLowerCase().replace(/[^\w]+/g, '_');
         const found = MONSTER_POOL.find(m => m.id === id)
