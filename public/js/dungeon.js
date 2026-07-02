@@ -3435,35 +3435,51 @@ function renderRoomInfo(room) {
     if (anyMonsterAlive) {
         const aliveMonsters = room.monsters.filter(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
         const aliveCount = aliveMonsters.length;
-        if (!D._roomMonsterIdx) D._roomMonsterIdx = {};
+        if (!D._roomMonsterOffset) D._roomMonsterOffset = {};
         const roomIdx = D.rooms.indexOf(room);
-        let viewIdx = D._roomMonsterIdx[roomIdx] ?? 0;
-        if (viewIdx >= aliveMonsters.length) viewIdx = 0;
-        const m = aliveMonsters[viewIdx];
-        const hasImg = !!m.image;
+        const perPage = window.innerWidth <= 768 ? 1 : 3;
+        let offset = D._roomMonsterOffset[roomIdx] ?? 0;
+        if (offset >= aliveCount) offset = Math.max(0, aliveCount - perPage);
+        const visible = aliveMonsters.slice(offset, offset + perPage);
+        const hasPrev = offset > 0;
+        const hasNext = offset + perPage < aliveCount;
 
-        const arrowsHtml = aliveCount > 1 ? `
-            <button class="deck-arrow deck-arrow-left" data-action="roomDeckNav" data-args='[-1]'>◀</button>
-            <button class="deck-arrow deck-arrow-right" data-action="roomDeckNav" data-args='[1]'>▶</button>
-        ` : '';
+        const cardsHtml = visible.map(m => {
+            const hi = !!m.image;
+            return `
+                <div style="text-align:center">
+                    <div style="width:82px;height:110px;margin:0 auto 4px;border-radius:10px;overflow:hidden;border:2px solid rgba(100,180,255,0.35);display:flex;align-items:center;justify-content:center">
+                        ${hi ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
+                        <span class="battle-fighter-fallback" style="${hi ? 'display:none' : ''}">${m.icon || '👾'}</span>
+                    </div>
+                    <div class="fighter-name" style="font-size:0.7rem;font-weight:600;max-width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.name}">${m.name}</div>
+                    <div class="fighter-class" style="font-size:0.6rem">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
+                </div>
+            `;
+        }).join('');
+
+        const arrowStyle = 'width:28px;height:80px;border:none;background:rgba(0,0,0,0.2);color:rgba(201,146,42,0.7);cursor:pointer;border-radius:6px;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0';
+        const prevArrow = hasPrev ? `<button style="${arrowStyle}" data-action="roomDeckNav" data-args='[-1]'>◀</button>` : `<div style="width:28px;flex-shrink:0"></div>`;
+        const nextArrow = hasNext ? `<button style="${arrowStyle}" data-action="roomDeckNav" data-args='[1]'>▶</button>` : `<div style="width:28px;flex-shrink:0"></div>`;
 
         return `
             <div class="dungeon-room-monster" style="text-align:center">
-                <div style="width:82px;height:110px;margin:0 auto 4px;border-radius:10px;overflow:hidden;border:2px solid rgba(100,180,255,0.35);position:relative;display:flex;align-items:center;justify-content:center">
-                    ${arrowsHtml}
-                    ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
-                    <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
+                <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+                    ${prevArrow}
+                    <div style="display:flex;gap:8px;justify-content:center">
+                        ${cardsHtml}
+                    </div>
+                    ${nextArrow}
                 </div>
-                <div class="fighter-name" style="margin-bottom:2px;font-weight:600">${m.name}</div>
-                <div class="fighter-class">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
-                ${aliveCount > 1 ? `<div class="deck-counter" style="margin-bottom:4px">Monster ${viewIdx + 1}/${aliveCount}</div>` : ''}
+                ${aliveCount > 1 ? `<div class="deck-counter" style="margin-top:2px">${offset + 1}–${Math.min(offset + perPage, aliveCount)} of ${aliveCount}</div>` : ''}
                 <div class="monster-btns" style="margin-top:6px">
                     <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ Fight</button>
                 </div>
-                ${m.stolenItems && m.stolenItems.length > 0 ? `
+                ${(() => { const anyStolen = room.monsters.find(m => m.stolenItems?.length); return anyStolen ? `
                     <div class="stolen-items-notice" style="margin-top:4px">
-                        🎒 Carrying stolen items: ${m.stolenItems.map(i=>i.name).join(', ')}
-                    </div>` : ''}
+                        🎒 Monster carries stolen items
+                    </div>` : '';
+                })()}
             </div>
         `;
     }
@@ -3662,17 +3678,19 @@ function deckNav(dir) {
 }
 
 function roomDeckNav(dir) {
-  if (!D._roomMonsterIdx) D._roomMonsterIdx = {};
+  if (!D._roomMonsterOffset) D._roomMonsterOffset = {};
   const room = D.rooms?.[D.playerPos];
   if (!room || !Array.isArray(room.monsters)) return;
   const aliveMonsters = room.monsters.filter(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H));
   if (aliveMonsters.length < 2) return;
-  const currentIdx = D._roomMonsterIdx[D.playerPos] ?? 0;
-  let newIdx = currentIdx + dir;
-  if (newIdx < 0) newIdx = aliveMonsters.length - 1;
-  if (newIdx >= aliveMonsters.length) newIdx = 0;
-  if (newIdx === currentIdx) return;
-  D._roomMonsterIdx[D.playerPos] = newIdx;
+  const perPage = window.innerWidth <= 768 ? 1 : 3;
+  const currentOffset = D._roomMonsterOffset[D.playerPos] ?? 0;
+  let newOffset = currentOffset + dir * perPage;
+  if (newOffset < 0) newOffset = 0;
+  const maxOffset = Math.max(0, aliveMonsters.length - perPage);
+  if (newOffset > maxOffset) newOffset = maxOffset;
+  if (newOffset === currentOffset) return;
+  D._roomMonsterOffset[D.playerPos] = newOffset;
   const infoEl = document.querySelector('.dungeon-hud-room-info');
   if (infoEl) infoEl.innerHTML = renderRoomInfo(room);
 }
