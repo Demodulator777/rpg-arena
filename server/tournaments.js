@@ -531,6 +531,7 @@ function deathmatchBattle(fighterA, fighterB) {
   log.push('---');
 
   let winnerId = null, roundsCompleted = 0;
+  let maxHitToA = 0, maxHitToB = 0;
 
   for (let round = 1; ; round++) {
     const idx = (round - 1) % 10;
@@ -577,6 +578,8 @@ function deathmatchBattle(fighterA, fighterB) {
 
     totalDmgToA += dmgToA + elemDmgToA;
     totalDmgToB += dmgToB + elemDmgToB;
+    maxHitToA = Math.max(maxHitToA, resB.damageDealt, resA.damageCounter, elemDmgToA);
+    maxHitToB = Math.max(maxHitToB, resA.damageDealt, resB.damageCounter, elemDmgToB);
     roundsCompleted = round;
 
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
@@ -640,7 +643,20 @@ function deathmatchBattle(fighterA, fighterB) {
       if (resurrected) { log.push('---'); continue; }
 
       if (hpA <= 0 && hpB <= 0) {
-        log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`); winnerId = 0;
+        // Tiebreaker: higher total damage wins; if equal, highest single hit wins
+        if (totalDmgToB > totalDmgToA) {
+          log.push(`Round ${round}: Both fall! ${fighterB.name} dealt more damage (${Math.round(totalDmgToB)} vs ${Math.round(totalDmgToA)}) — advances!`);
+          winnerId = fighterB.id;
+        } else if (totalDmgToA > totalDmgToB) {
+          log.push(`Round ${round}: Both fall! ${fighterA.name} dealt more damage (${Math.round(totalDmgToA)} vs ${Math.round(totalDmgToB)}) — advances!`);
+          winnerId = fighterA.id;
+        } else if (maxHitToB > maxHitToA) {
+          log.push(`Round ${round}: Both fall! ${fighterB.name}'s highest hit (${Math.round(maxHitToB)}) beats ${fighterA.name}'s (${Math.round(maxHitToA)}) — advances!`);
+          winnerId = fighterB.id;
+        } else {
+          log.push(`Round ${round}: Both fall! ${fighterA.name}'s highest hit (${Math.round(maxHitToA)}) beats ${fighterB.name}'s (${Math.round(maxHitToB)}) — advances!`);
+          winnerId = fighterA.id;
+        }
       } else if (hpA <= 0) {
         log.push(`Round ${round}: ${fighterA.name} has fallen!`);
         winnerId = fighterB.id;
@@ -654,8 +670,7 @@ function deathmatchBattle(fighterA, fighterB) {
   }
 
   log.push('---');
-  if (winnerId === 0) log.push(`Draw! After ${roundsCompleted} rounds`);
-  else if (winnerId === fighterA.id) log.push(`After ${roundsCompleted} rounds — ${fighterA.name} wins!`);
+  if (winnerId === fighterA.id) log.push(`After ${roundsCompleted} rounds — ${fighterA.name} wins!`);
   else log.push(`After ${roundsCompleted} rounds — ${fighterB.name} wins!`);
 
   return {
