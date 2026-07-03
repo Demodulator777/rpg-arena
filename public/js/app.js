@@ -4728,7 +4728,8 @@ async function instantBattleRecovery() {
         showMsg('missions-msg', 'Need 1 💎 gem to recover instantly!', true);
         return;
     }
-    if (!confirm('Skip battle cooldown for 1 💎?')) return;
+    const ok = await openGameDialog({ title: 'Skip Cooldown', message: 'Skip battle cooldown for 1 💎?', showCancel: true, confirmLabel: 'Skip' });
+    if (!ok) return;
     const btn = document.getElementById('rest-recover-btn');
     if (btn) btn.disabled = true;
     try {
@@ -8057,19 +8058,21 @@ function closeProfile() { hideItemTooltip(); document.getElementById('profile-mo
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
 async function skipCooldownAndAttack(id, name, targetClass) {
     closeProfile();
-    if (!id) { alert('Invalid target'); return; }
-    if (!confirm('Skip cooldown for 1 💎?')) return;
+    if (!id) { openGameDialog({ title: 'Error', message: 'Invalid target' }); return; }
+    const ok = await openGameDialog({ title: 'Skip Cooldown', message: 'Skip cooldown for 1 💎?', showCancel: true, confirmLabel: 'Skip' });
+    if (!ok) return;
     try {
         const r = await api('POST', '/game/attack/skip-cooldown', { targetId: id });
         if (r.character) character = r.character;
-    } catch(e) { alert(e.message); return; }
+    } catch(e) { openGameDialog({ title: 'Error', message: e.message }); return; }
     await attack(id, name, targetClass);
 }
 async function skipBattleCdAndAttack(id, name, targetClass, level) {
-    if (!confirm('Skip battle cooldown for 1 💎?')) return;
+    const ok = await openGameDialog({ title: 'Skip Cooldown', message: 'Skip battle cooldown for 1 💎?', showCancel: true, confirmLabel: 'Skip' });
+    if (!ok) return;
     try {
         await api('POST', '/game/battle/recover');
-    } catch(e) { alert(e.message); return; }
+    } catch(e) { openGameDialog({ title: 'Error', message: e.message }); return; }
     await attack(id, name, targetClass, level);
 }
 function composeFromProfile(id, name) { closeProfile(); openCompose(id, name); }
