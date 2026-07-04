@@ -6826,10 +6826,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .loading-filigree { width: 60px; height: 60px; }
 }
 
-/* Hide scrollbars globally — scrolling is gesture-based */
+/* Hide scrollbars on mobile only — scrolling is gesture-based on phones */
+@media (max-width: 680px) {
 html { scrollbar-width: none !important; -ms-overflow-style: none !important; }
 html::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 body { scrollbar-width: none !important; -ms-overflow-style: none !important; overflow: auto; }
 body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
 * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+}
