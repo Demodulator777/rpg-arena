@@ -1784,6 +1784,7 @@ function fightRound() {
         apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex, attackType: D.combat.attackType || 'regular', skillCheckMult })
             .then(res => {
                 D.combat._skillCheckDone = false;
+                D.combat.skillCheckMult = undefined;
                 if (!D.combat) return;
                 if (!res || !res.success) throw new Error(res?.error || 'Combat action failed.');
                 if (res?.debug) console.debug('[dungeon combat act]', res.debug);
