@@ -1677,6 +1677,17 @@ function fightRound() {
     if (!D.combat) return;
 
     const atkType = D.combat.attackType || 'regular';
+
+    // Don't attempt burst/ultimate without enough mana
+    const manaNeeded = atkType === 'ultimate' ? 100 : atkType === 'burst' ? 60 : 0;
+    if (manaNeeded > 0 && (D.combat.manaPoints ?? 0) < manaNeeded) {
+        D.combat.attackType = 'regular';
+        D.combat.roundLog.push({ actor: 'player', text: '⚠️ Not enough mana — switched to regular attack.' });
+        D.combat._skillCheckDone = false;
+        renderCombatPanel();
+        return;
+    }
+
     // Burst/Ultimate trigger skill check before the round
     if ((atkType === 'burst' || atkType === 'ultimate') && !D.combat._skillCheckDone) {
       showSkillCheck(atkType, (mult) => {
@@ -1808,6 +1819,10 @@ function fightRound() {
                 // Update mana state from server response
                 if (typeof res.manaPoints === 'number') D.combat.manaPoints = res.manaPoints;
                 if (typeof res.manaCap === 'number') D.combat.manaCap = res.manaCap;
+
+                // Auto-reset attack type if not enough mana for it
+                if (D.combat.attackType === 'ultimate' && (D.combat.manaPoints ?? 0) < 100) D.combat.attackType = 'regular';
+                else if (D.combat.attackType === 'burst' && (D.combat.manaPoints ?? 0) < 60) D.combat.attackType = 'regular';
 
                 if (res.ended && res.outcome === 'player_dead') {
                     D.combat.resolving = false;
