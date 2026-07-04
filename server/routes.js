@@ -14640,6 +14640,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         const manaCost = MANA_COST[attackType] ?? 0;
         const dmgMult = DMG_MULT[attackType] ?? 1;
         const skillCheckMult = parseFloat(String(req.body?.skillCheckMult || '1'));
+        console.log(`[SKILL_CHECK] Received skillCheckMult: ${skillCheckMult} (from body: ${req.body?.skillCheckMult}) for attackType: ${attackType}`);
         const effectiveMult = dmgMult * skillCheckMult;
 
         if (action === 'run') {
@@ -14692,6 +14693,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             }
 
             // Cap damage per HP bar — excess damage does not carry over
+            const rawDmg = pDmg;
             if (Number(cur.hpBars || 1) > 1 && cur.currentHp > 0) {
                 const barSize = Number(cur.barSize || cur.maxHp || 1);
                 const remainingInBar = cur.currentHp % barSize || barSize;
@@ -14703,7 +14705,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             const zoneLabel = skillCheckMult === 1.0 ? 'PERFECT!' : skillCheckMult === 0.75 ? 'GOOD' : skillCheckMult === 0.5 ? 'MISS' : '';
             const atkLabel = attackType === 'burst' ? '💥 Burst' : attackType === 'ultimate' ? '⚡ Ultimate' : '⚔️ Strike';
             const zoneSuffix = zoneLabel ? ` [${zoneLabel}]` : '';
-            log.push({ actor: 'player', text: `${atkLabel}${zoneSuffix} → ${cur.name} for ${pDmg} damage!`, dmg: pDmg });
+            log.push({ actor: 'player', text: `${atkLabel}${zoneSuffix} → ${cur.name} for ${rawDmg} damage!`, dmg: rawDmg });
 
             // Boss HP bar check
             const hpBars = Number(cur.hpBars || 1);
