@@ -7080,9 +7080,9 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const zoneScale = 1 + zoneTier * 0.10;
         const diffProfile = ({
             easy:       { hp:0.55, dmg:0.50, agi:0.45, armor:0.50, elem:0.40, hitMult:0.6,  critRange:[0.2,0.4] },
-            normal:     { hp:0.75, dmg:0.70, agi:0.65, armor:0.70, elem:0.60, hitMult:0.8,  critRange:[0.3,0.6] },
-            hard:       { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.8,1.5] },
-            nightmare:  { hp:1.15, dmg:1.20, agi:1.00, armor:1.10, elem:1.05, hitMult:1.0,  critRange:[1.0,2.0] },
+            normal:     { hp:0.75, dmg:0.55, agi:0.65, armor:0.50, elem:0.60, hitMult:0.8,  critRange:[0.3,0.6] },
+            hard:       { hp:0.90, dmg:0.65, agi:0.75, armor:0.60, elem:0.80, hitMult:0.85, critRange:[0.8,1.5] },
+            nightmare:  { hp:1.15, dmg:0.80, agi:1.00, armor:0.70, elem:1.05, hitMult:1.0,  critRange:[1.0,2.0] },
         })[difficulty] || { hp:0.90, dmg:0.90, agi:0.75, armor:0.85, elem:0.80, hitMult:0.85, critRange:[0.5,0.8] };
         // Scale profile up by zone tier so deeper zones are tougher
         if (zoneTier > 0) {
@@ -7155,7 +7155,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     // Equipment generation — gives NPCs legendary gear at level-scaled tiers
     // Damage/armor scales by difficulty so normal doesn't hit nightmare levels
     const equipLevels = { normal: 0, hard: 25, nightmare: 50 };
-    const dmgArmorScale = { normal: 0, hard: 0, nightmare: 1.0 };
+    const dmgArmorScale = { normal: 0, hard: 0, nightmare: 0 };
     const equipBonus = equipLevels[difficulty];
     const dmgScale = dmgArmorScale[difficulty] || 0;
     if (equipBonus !== undefined) {
