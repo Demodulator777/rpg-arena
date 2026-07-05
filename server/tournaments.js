@@ -132,9 +132,9 @@ async function ensureMinPlayers(db, t) {
 }
 
 
-async function runRoundRobin(db, t, participants, mode, fast) {
+async function runRoundRobin(db, t, participants, mode, fast, startRound) {
   const schedule = generateRoundRobin(participants.map(p => p.id));
-  for (let r = 0; r < schedule.length; r++) {
+  for (let r = startRound ?? Number(t.current_round || 0); r < schedule.length; r++) {
     const round = schedule[r];
     if (!fast && r > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
     for (const [p1Id, p2Id] of round) {
@@ -146,19 +146,57 @@ async function runRoundRobin(db, t, participants, mode, fast) {
       await sendMatchReport(db, mm, participants, mm.participant1_id);
       await sendMatchReport(db, mm, participants, mm.participant2_id);
     }
+    await dbRun_t(db, 'UPDATE tournaments SET current_round = ? WHERE id = ?', [r + 1, t.id]);
   }
 }
 
-async function runElimination(db, t, participants, fast) {
-  const shuffled = [...participants];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  let bracket = shuffled.map(p => p.id);
-  const mode = t.mode;
-  let roundIndex = 0;
+async function runElimination(db, t, participants, fast, startRound) {
+  const initialStart = startRound ?? Number(t.current_round || 0);
+  let bracket, roundIndex;
 
+  if (initialStart > 0) {
+    // Reconstruct survivor list from existing match results
+    const allMatches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [t.id]);
+    let survivors = participants.map(p => p.id);
+    const maxRound = allMatches.length > 0 ? Math.max(...allMatches.map(m => m.round_index)) : -1;
+
+    for (let r = 0; r < initialStart && r <= maxRound; r++) {
+      const roundMatches = allMatches.filter(m => m.round_index === r);
+      if (roundMatches.length === 0) continue;
+
+      const matchedIds = new Set();
+      for (const m of roundMatches) { matchedIds.add(m.participant1_id); matchedIds.add(m.participant2_id); }
+
+      const nextSurvivors = [];
+      for (const pid of survivors) { if (!matchedIds.has(pid)) nextSurvivors.push(pid); }
+      for (const m of roundMatches) {
+        if (m.winner_id) nextSurvivors.push(m.winner_id);
+        else { nextSurvivors.push(m.participant1_id); nextSurvivors.push(m.participant2_id); }
+      }
+      survivors = nextSurvivors;
+    }
+
+    bracket = survivors;
+    roundIndex = initialStart;
+
+    // Sync eliminated flags for already-processed losers
+    for (const m of allMatches) {
+      if (m.winner_id) {
+        const loserId = m.participant1_id === m.winner_id ? m.participant2_id : m.participant1_id;
+        await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1 WHERE id = ? AND eliminated = 0', [loserId]);
+      }
+    }
+  } else {
+    const shuffled = [...participants];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    bracket = shuffled.map(p => p.id);
+    roundIndex = 0;
+  }
+
+  const mode = t.mode;
   while (bracket.length > 1) {
     const pairs = [];
     const survivors = [];
@@ -202,35 +240,52 @@ async function runElimination(db, t, participants, fast) {
       await sendMatchReport(db, mm, participants, mm.participant2_id);
     }
     bracket = survivors;
+    await dbRun_t(db, 'UPDATE tournaments SET current_round = ? WHERE id = ?', [roundIndex + 1, t.id]);
     roundIndex++;
   }
 }
 
-async function runAllVsAll(db, t, participants, fast) {
-  const log = [`👥 ALL VS ALL — ${participants.length} players enter the arena!`];
-  log.push(`🏟️ ${participants.map(p => p.name).join(', ')}`);
-  log.push('---');
+async function runAllVsAll(db, t, participants, fast, startRound) {
+  const initialStart = startRound ?? Number(t.current_round || 0);
+  let fighters, log, round, eliminationCount;
 
-  const fighters = [];
-  for (const p of participants) {
-    const f = await buildFighter(db, p, participants);
-    f._pid = p.id;
-    f._participant = participants.find(pp => pp.id === p.id);
-    f._spawnIndex = fighters.length;
-    f._dmgDealt = 0;
-    f._dmgTaken = 0;
-    f._lastAttacker = null;
-    fighters.push(f);
-  }
-  for (let i = fighters.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [fighters[i], fighters[j]] = [fighters[j], fighters[i]];
-    fighters[i]._spawnIndex = i;
-    fighters[j]._spawnIndex = j;
-  }
+  if (initialStart > 0 && t.state_json) {
+    const saved = typeof t.state_json === 'string' ? JSON.parse(t.state_json) : t.state_json;
+    fighters = saved.fighters;
+    log = saved.log;
+    round = saved.round;
+    eliminationCount = saved.eliminationCount;
+    // Restore participant references
+    for (const f of fighters) {
+      f._participant = participants.find(p => p.id === f._pid) || f._participant;
+    }
+  } else {
+    log = [`👥 ALL VS ALL — ${participants.length} players enter the arena!`];
+    log.push(`🏟️ ${participants.map(p => p.name).join(', ')}`);
+    log.push('---');
 
-  let round = 0;
-  let eliminationCount = 1;
+    fighters = [];
+    for (const p of participants) {
+      const f = await buildFighter(db, p, participants);
+      f._pid = p.id;
+      f._participant = participants.find(pp => pp.id === p.id);
+      f._spawnIndex = fighters.length;
+      f._dmgDealt = 0;
+      f._dmgTaken = 0;
+      f._lastAttacker = null;
+      f._eliminated = false;
+      fighters.push(f);
+    }
+    for (let i = fighters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [fighters[i], fighters[j]] = [fighters[j], fighters[i]];
+      fighters[i]._spawnIndex = i;
+      fighters[j]._spawnIndex = j;
+    }
+
+    round = 0;
+    eliminationCount = 1;
+  }
 
   while (fighters.filter(f => f.hp > 0).length > 1) {
     round++;
@@ -284,7 +339,15 @@ async function runAllVsAll(db, t, participants, fast) {
     }
 
     log.push('---');
-    await dbRun_t(db, 'UPDATE tournaments SET battle_log = ? WHERE id = ?', [JSON.stringify(log), t.id]);
+    // Save state for crash recovery
+    const stateForDb = { fighters: fighters.map(f => ({
+      id: f.id, _pid: f._pid, name: f.name, level: f.level,
+      hp: f.hp, hpMax: f.hpMax, _spawnIndex: f._spawnIndex,
+      _dmgDealt: f._dmgDealt, _dmgTaken: f._dmgTaken,
+      _eliminated: !!f._eliminated, _lastAttackerId: f._lastAttacker ? f._lastAttacker.id : null
+    })), log, round, eliminationCount };
+    await dbRun_t(db, 'UPDATE tournaments SET battle_log = ?, state_json = ?, current_round = ? WHERE id = ?',
+      [JSON.stringify(log), JSON.stringify(stateForDb), round, t.id]);
     if (!fast) await new Promise(resolve => setTimeout(resolve, 5000));
   }
 
@@ -327,10 +390,39 @@ async function runTournament(db, t, fast) {
     }
   }
   const mode = t.mode || 'deathmatch';
-  if (mode === 'elimination') await runElimination(db, t, participants, fast);
-  else if (mode === 'all_vs_all') await runAllVsAll(db, t, participants, fast);
-  else await runRoundRobin(db, t, participants, mode, fast);
+  const startRound = Number(t.current_round || 0);
+  if (mode === 'elimination') await runElimination(db, t, participants, fast, startRound);
+  else if (mode === 'all_vs_all') await runAllVsAll(db, t, participants, fast, startRound);
+  else await runRoundRobin(db, t, participants, mode, fast, startRound);
   await finalizeTournament(db, t.id);
+}
+
+async function resumeActiveTournaments() {
+  const db = await getDb();
+  const active = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'active'");
+  for (const t of active) {
+    console.log(`🔄 Resuming tournament #${t.id} (${t.level_group}, ${t.mode}) from round ${t.current_round || 0}`);
+    try {
+      const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
+      if (!participants || participants.length === 0) {
+        const realCount = participants ? participants.filter(p => !p.is_npc).length : 0;
+        if (realCount === 0) {
+          await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
+          console.log(`❌ Tournament #${t.id} cancelled on resume — no real players`);
+        }
+        continue;
+      }
+      const mode = t.mode || 'deathmatch';
+      const startRound = Number(t.current_round || 0);
+      if (mode === 'elimination') await runElimination(db, t, participants, true, startRound);
+      else if (mode === 'all_vs_all') await runAllVsAll(db, t, participants, true, startRound);
+      else await runRoundRobin(db, t, participants, mode, true, startRound);
+      await finalizeTournament(db, t.id);
+      console.log(`✅ Tournament #${t.id} resumed and completed`);
+    } catch (e) {
+      console.error(`❌ Resume tournament #${t.id} failed:`, e);
+    }
+  }
 }
 
 function generateNpc(seed, levelGroup) {
@@ -1314,6 +1406,8 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN battle_log TEXT"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN level_group TEXT NOT NULL DEFAULT '1-10'"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN scheduled_at TEXT"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN current_round INTEGER DEFAULT 0"); } catch {}
+  try { await dbRun_t(db, "ALTER TABLE tournaments ADD COLUMN state_json TEXT"); } catch {}
 }
 
 router.post('/tournaments/add-player/:id', auth, async (req, res) => {
@@ -1403,4 +1497,4 @@ function startScheduler() {
   }, 5 * 60 * 1000);
 }
 
-module.exports = { router, initTournamentTables, startScheduler, startTournament, ensureCurrentTournament, ensureMinPlayers, createRelevantBrackets, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
+module.exports = { router, initTournamentTables, startScheduler, startTournament, resumeActiveTournaments, ensureCurrentTournament, ensureMinPlayers, createRelevantBrackets, TOURNAMENT_COST, getLevelGroup, getAllLevelGroups, getLevelRange };
