@@ -7737,12 +7737,17 @@ function renderSquads() {
                         <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
                         <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
                     </span>
-                    ${isLeader && m.id !== character?.id ? `
-                        <select class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem" onchange="changeMemberRole(${m.id}, this.value)">
-                            <option value="officer" ${m.role === 'officer' ? 'selected' : ''}>Officer</option>
-                            <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
-                        </select>
-                    ` : ''}
+                    <span style="display:flex;align-items:center;gap:4px">
+                        ${isLeader && m.id !== character?.id ? `
+                            <select class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem" onchange="changeMemberRole(${m.id}, this.value)">
+                                <option value="officer" ${m.role === 'officer' ? 'selected' : ''}>Officer</option>
+                                <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
+                            </select>
+                        ` : ''}
+                        ${(isLeader || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
+                            <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 Kick</button>
+                        ` : ''}
+                    </span>
                 </div>`).join('')}
             </div>
         </div>
@@ -7864,6 +7869,18 @@ async function changeMemberRole(charId, role) {
     }
 }
 window.changeMemberRole = changeMemberRole;
+
+async function kickMember(charId) {
+    if (!confirm('Kick this member from the squad?')) return;
+    try {
+        await api('POST', `/game/squads/members/${charId}/kick`);
+        await openGameNoticeDialog({ title: '👢 Member Kicked', message: 'The member has been removed from the squad.' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '👢 Kick Member', message: e.message || String(e) });
+    }
+}
+window.kickMember = kickMember;
 
 function filterLeaderboard() { renderLeaderboard(); }
 function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
