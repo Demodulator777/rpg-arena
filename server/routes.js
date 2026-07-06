@@ -9223,7 +9223,7 @@ router.post('/squads/apply', auth, async (req, res) => {
         if (existingApp) return res.status(400).json({ error: 'You already have a pending application to this squad.' });
         const now = Math.floor(Date.now() / 1000);
         await dbRun(db, 'INSERT INTO squad_applications (squad_id, char_id, status, created_at) VALUES (?,?,?,?)', [squadId, char.id, 'pending', now]);
-        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, char.id, '📋 Squad Application Sent', `Your application to "${squad.name}" has been sent. The squad leader will review it.`]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, char.id, '📋 Squad Application Sent', `Your application to "${squad.name}" has been sent. The squad leader will review it.`]);
         res.json({ success: true });
     } catch (e) {
         if (e.code === 'SQLITE_CONSTRAINT' || e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
@@ -9279,7 +9279,7 @@ router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [membership.squad_id, app.char_id, 'member', now]);
         await dbRun(db, "UPDATE squad_applications SET status='accepted' WHERE id=?", [appId]);
-        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '✅ Squad Application Accepted', `You have been accepted into the squad!`]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, app.char_id, '✅ Squad Application Accepted', `You have been accepted into the squad!`]);
         res.json({ success: true });
     } catch (e) {
         if (e.code === 'SQLITE_CONSTRAINT' || e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
@@ -9300,7 +9300,7 @@ router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
         await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
-        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '❌ Squad Application Rejected', `Your squad application was not accepted.`]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, app.char_id, '❌ Squad Application Rejected', `Your squad application was not accepted.`]);
         res.json({ success: true });
     } catch (e) {
         if (e.code === 'SQLITE_CONSTRAINT' || e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
@@ -9327,7 +9327,7 @@ router.post('/squads/members/:charId/role', auth, async (req, res) => {
         const target = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
         if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
         await dbRun(db, 'UPDATE squad_members SET role=? WHERE char_id=? AND squad_id=?', [role, targetId, membership.squad_id]);
-        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, targetId, '🔰 Squad Role Changed', `Your role has been changed to "${role}".`]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '🔰 Squad Role Changed', `Your role has been changed to "${role}".`]);
         res.json({ success: true, role });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
