@@ -6268,209 +6268,217 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (blockCovers && !blockFails) {
                 logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
                 totalElemDmg = 0;
-            } else {
+                finalDmg = 0;
+            }
+            if (!blockCovers || blockFails) {
                 finalDmg = physicalDmg;
 
-                if (finalDmg > 0 && (defender.armor || 0) > 0) {
-                    let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
-                    const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
-                    if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
-                    const physReduction = Math.min(finalDmg - 1, effArmor);
-                    finalDmg = Math.max(1, finalDmg - physReduction);
-                }
+            if (finalDmg > 0 && (defender.armor || 0) > 0) {
+                let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
+                if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
+                const physReduction = Math.min(finalDmg - 1, effArmor);
+                finalDmg = Math.max(1, finalDmg - physReduction);
+            }
 
-                if (totalElemDmg > 0) finalDmg += totalElemDmg;
+            if (totalElemDmg > 0) finalDmg += totalElemDmg;
 
-                const holyEmpowerBonus = consumeHolyStrikeEmpowerment();
-                if (holyEmpowerBonus > 0) {
-                    finalDmg += holyEmpowerBonus;
-                }
-                let venomfangBonus = 0;
-                if (hasSkill(atkSkills, 'venomfang')) {
-                    const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
-                    venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
-                    finalDmg += venomfangBonus;
-                }
+            const holyEmpowerBonus = consumeHolyStrikeEmpowerment();
+            if (holyEmpowerBonus > 0) {
+                finalDmg += holyEmpowerBonus;
+            }
+            let venomfangBonus = 0;
+            if (hasSkill(atkSkills, 'venomfang')) {
+                const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
+                venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
+                finalDmg += venomfangBonus;
+            }
 
-                // plague_sovereign: poison crit bonus
-                if (venomfangBonus > 0 && isCrit && hasSkill(atkSkills, 'plague_sovereign')) {
-                    const psEff = getActiveCombatEffect(attacker, 'plague_sovereign');
-                    if (psEff?.poison_crit_bonus) {
-                        const extraPoison = Math.round(venomfangBonus * psEff.poison_crit_bonus);
-                        if (extraPoison > 0) { finalDmg += extraPoison; venomfangBonus += extraPoison; }
-                    }
+            // plague_sovereign: poison crit bonus
+            if (venomfangBonus > 0 && isCrit && hasSkill(atkSkills, 'plague_sovereign')) {
+                const psEff = getActiveCombatEffect(attacker, 'plague_sovereign');
+                if (psEff?.poison_crit_bonus) {
+                    const extraPoison = Math.round(venomfangBonus * psEff.poison_crit_bonus);
+                    if (extraPoison > 0) { finalDmg += extraPoison; venomfangBonus += extraPoison; }
                 }
+            }
 
-                // life_drain: drain extra HP from opponent (added to final damage)
-                let lifeDrainAmt = 0;
-                if (finalDmg > 0 && hasSkill(atkSkills, 'life_drain')) {
-                    const ldEff = getActiveCombatEffect(attacker, 'life_drain');
-                    const ldPct = ldEff?.pct || 0.10;
-                    lifeDrainAmt = Math.max(1, Math.floor(finalDmg * ldPct));
-                    finalDmg += lifeDrainAmt;
-                }
+            // life_drain: drain extra HP from opponent (added to final damage)
+            let lifeDrainAmt = 0;
+            if (finalDmg > 0 && hasSkill(atkSkills, 'life_drain')) {
+                const ldEff = getActiveCombatEffect(attacker, 'life_drain');
+                const ldPct = ldEff?.pct || 0.10;
+                lifeDrainAmt = Math.max(1, Math.floor(finalDmg * ldPct));
+                finalDmg += lifeDrainAmt;
+            }
 
-                // sanctioned_strike: crit heal
-                if (isCrit && finalDmg > 0 && hasSkill(atkSkills, 'sanctioned_strike')) {
-                    const ssEff = getActiveCombatEffect(attacker, 'sanctioned_strike');
-                    const ssPct = ssEff?.crit_heal_pct || 0.30;
-                    const critHeal = Math.max(1, Math.floor(finalDmg * ssPct));
-                    attacker._sanctionedHeal = (attacker._sanctionedHeal || 0) + critHeal;
-                    if (logLine) logLine += ` 💚+${critHeal} sanctified`;
-                }
+            // sanctioned_strike: crit heal
+            if (isCrit && finalDmg > 0 && hasSkill(atkSkills, 'sanctioned_strike')) {
+                const ssEff = getActiveCombatEffect(attacker, 'sanctioned_strike');
+                const ssPct = ssEff?.crit_heal_pct || 0.30;
+                const critHeal = Math.max(1, Math.floor(finalDmg * ssPct));
+                attacker._sanctionedHeal = (attacker._sanctionedHeal || 0) + critHeal;
+                if (logLine) logLine += ` 💚+${critHeal} sanctified`;
+            }
 
-                // bastion_heart: block heal
-                if (blockCovers && !blockFails && finalDmg > 0 && hasSkill(defSkills, 'bastion_heart')) {
-                    const bhEff = getActiveCombatEffect(defender, 'bastion_heart');
-                    const bhPct = bhEff?.block_heal_pct || 0.06;
-                    const blockHeal = Math.max(1, Math.floor(finalDmg * bhPct));
-                    defender._bastionHeal = (defender._bastionHeal || 0) + blockHeal;
-                    if (logLine) logLine += ` 💚+${blockHeal} bastion_heart`;
-                }
+            // bastion_heart: block heal
+            if (blockCovers && !blockFails && finalDmg > 0 && hasSkill(defSkills, 'bastion_heart')) {
+                const bhEff = getActiveCombatEffect(defender, 'bastion_heart');
+                const bhPct = bhEff?.block_heal_pct || 0.06;
+                const blockHeal = Math.max(1, Math.floor(finalDmg * bhPct));
+                defender._bastionHeal = (defender._bastionHeal || 0) + blockHeal;
+                if (logLine) logLine += ` 💚+${blockHeal} bastion_heart`;
+            }
 
-                // void_curse: reduce defender elem resist for future rounds
-                if (finalDmg > 0 && hasSkill(atkSkills, 'void_curse')) {
-                    const vcEff = getActiveCombatEffect(attacker, 'void_curse');
-                    if (vcEff?.enemy_elem_resist_debuff) {
-                        for (const elem of ELEMENTS) {
-                            if (defender.elem_resist) {
-                                defender.elem_resist[elem] = (defender.elem_resist[elem] || 0) - vcEff.enemy_elem_resist_debuff;
-                            }
+            // void_curse: reduce defender elem resist for future rounds
+            if (finalDmg > 0 && hasSkill(atkSkills, 'void_curse')) {
+                const vcEff = getActiveCombatEffect(attacker, 'void_curse');
+                if (vcEff?.enemy_elem_resist_debuff) {
+                    for (const elem of ELEMENTS) {
+                        if (defender.elem_resist) {
+                            defender.elem_resist[elem] = (defender.elem_resist[elem] || 0) - vcEff.enemy_elem_resist_debuff;
                         }
                     }
                 }
+            }
 
-                // burn_dot: apply burning to defender (5% of damage per round, pyro element)
-                if (finalDmg > 0 && hasSkill(atkSkills, 'burn_dot')) {
-                    const bdEff = getActiveCombatEffect(attacker, 'burn_dot');
-                    const bdPct = bdEff?.dot_pct || 0.05;
-                    let burnDmg = Math.max(1, Math.floor(finalDmg * bdPct));
-                    // burn_amplify: class modifier that increases burn damage
-                    if (hasClassModifier(attacker, 'burn_amplify')) {
-                        const baMod = hasClassModifier(attacker, 'burn_amplify');
-                        burnDmg = Math.floor(burnDmg * (1 + (baMod.bonus || 0)));
-                    }
-                    defender._burnDotDmg = (defender._burnDotDmg || 0) + burnDmg;
+            // burn_dot: apply burning to defender (5% of damage per round, pyro element)
+            if (finalDmg > 0 && hasSkill(atkSkills, 'burn_dot')) {
+                const bdEff = getActiveCombatEffect(attacker, 'burn_dot');
+                const bdPct = bdEff?.dot_pct || 0.05;
+                let burnDmg = Math.max(1, Math.floor(finalDmg * bdPct));
+                // burn_amplify: class modifier that increases burn damage
+                if (hasClassModifier(attacker, 'burn_amplify')) {
+                    const baMod = hasClassModifier(attacker, 'burn_amplify');
+                    burnDmg = Math.floor(burnDmg * (1 + (baMod.bonus || 0)));
                 }
+                defender._burnDotDmg = (defender._burnDotDmg || 0) + burnDmg;
+            }
 
-                // void_blade: proc agility-based elemental damage
-                let voidBladeDmg = 0;
-                if (finalDmg > 0 && hasSkill(atkSkills, 'void_blade')) {
-                    const vbEff = getActiveCombatEffect(attacker, 'void_blade');
-                    if (vbEff && Math.random() < (vbEff.proc_chance || 0.30)) {
-                        const statVal = attacker[vbEff.bonus_from_stat || 'agility'] || 0;
-                        const rawBonus = Math.floor(statVal * (vbEff.bonus_mult || 1.50));
-                        if (rawBonus > 0) {
-                            voidBladeDmg = rawBonus;
-                            const vbElems = vbEff.elems || ['electro', 'wind'];
-                            let resistSum = 0;
-                            for (const el of vbElems) {
-                                resistSum += (defender.elem_resist || {})[el] || 0;
-                            }
-                            const avgResist = Math.floor(resistSum / Math.max(1, vbElems.length));
-                            const mRes = Math.floor((defender.magic || 0) * 0.05);
-                            voidBladeDmg = Math.max(0, voidBladeDmg - avgResist - mRes);
-                            if (voidBladeDmg > 0) {
-                                finalDmg += voidBladeDmg;
-                            }
+            // void_blade: proc agility-based elemental damage
+            let voidBladeDmg = 0;
+            if (finalDmg > 0 && hasSkill(atkSkills, 'void_blade')) {
+                const vbEff = getActiveCombatEffect(attacker, 'void_blade');
+                if (vbEff && Math.random() < (vbEff.proc_chance || 0.30)) {
+                    const statVal = attacker[vbEff.bonus_from_stat || 'agility'] || 0;
+                    const rawBonus = Math.floor(statVal * (vbEff.bonus_mult || 1.50));
+                    if (rawBonus > 0) {
+                        voidBladeDmg = rawBonus;
+                        const vbElems = vbEff.elems || ['electro', 'wind'];
+                        let resistSum = 0;
+                        for (const el of vbElems) {
+                            resistSum += (defender.elem_resist || {})[el] || 0;
                         }
-                    }
-                }
-
-                // lightning_arc: proc bonus electro damage
-                let lightningArcDmg = 0;
-                if (finalDmg > 0 && hasSkill(atkSkills, 'lightning_arc')) {
-                    const laEff = getActiveCombatEffect(attacker, 'lightning_arc');
-                    if (laEff && Math.random() < (laEff.proc_chance || 0.25)) {
-                        const elemDmg = (attacker.elem_dmg || {}).electro || 0;
-                        lightningArcDmg = Math.max(1, Math.floor((elemDmg + magicFlatBonus) * (laEff.bonus_pct || 0.75)));
-                        const eRes = (defender.elem_resist || {}).electro || 0;
+                        const avgResist = Math.floor(resistSum / Math.max(1, vbElems.length));
                         const mRes = Math.floor((defender.magic || 0) * 0.05);
-                        lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
-                        if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
-                    }
-                }
-
-                let justAbsorbed = false;
-                let absorbedAmount = 0;
-                if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
-                    absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
-                    finalDmg -= absorbedAmount;
-                    defenderShield.remaining -= absorbedAmount;
-                    if (defenderShield.remaining <= 0) {
-                        defenderShield.active = false;
-                        if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
-                            defender.holyStrikeReady = true;
-                        }
-                    }
-                    justAbsorbed = true;
-                }
-                chargeHolyStrikeFromAbsorb(absorbedAmount);
-
-                const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
-                logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
-                if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
-                if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
-                if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
-                if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
-
-                if (justAbsorbed) {
-                    if (finalDmg <= 0) {
-                        logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
-                    } else {
-                        logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
-                    }
-                    if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
-                }
-
-                if (justAbsorbed && defenderShield.remaining > 0) {
-                    logLine += ` ${defenderShield.remaining} durability remains.`;
-                }
-
-                if (hasSkillOrEffect(attacker, 'holy_strike') && finalDmg > 0) {
-                    const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
-                    const healPct = hsEff?.heal_pct || 0.10;
-                    healBack = Math.floor(finalDmg * healPct);
-                    logLine += ` 💚 +${healBack} heal`;
-                }
-                if (lifeDrainAmt > 0) {
-                    logLine += ` 💀 +${lifeDrainAmt} life drain`;
-                }
-                const consEff = getActiveCombatEffect(defender, 'consecrate');
-                if (consEff && finalDmg > 0) {
-                    const reflectPct = consEff.reflect_pct || 0.15;
-                    const reflect = Math.floor(finalDmg * reflectPct);
-                    logLine += ` 🌿 ${reflect} reflected`;
-                    damageCounter += reflect;
-                }
-                // counter_attack: 40% chance to counter for 75% damage
-                if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
-                    const caEff = getActiveCombatEffect(defender, 'counter_attack');
-                    const caChance = caEff?.counter_chance || 0.40;
-                    const caPct = caEff?.counter_dmg_pct || 0.75;
-                    if (Math.random() < caChance) {
-                        const counterDmg = Math.floor(finalDmg * caPct);
-                        logLine += ` — COUNTERED for ${counterDmg}`;
-                        damageCounter += counterDmg;
-                    }
-                }
-                // phantom_counter: 25% counter on dodge (when attacker missed)
-                if (!atkHit && hasSkill(defSkills, 'phantom_counter')) {
-                    const pcEff = getActiveCombatEffect(defender, 'phantom_counter');
-                    const pcChance = pcEff?.counter_on_dodge_pct || 0.25;
-                    if (Math.random() < pcChance) {
-                        const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
-                        if (phantomDmg > 0) {
-                            logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
-                            damageCounter += phantomDmg;
+                        voidBladeDmg = Math.max(0, voidBladeDmg - avgResist - mRes);
+                        if (voidBladeDmg > 0) {
+                            finalDmg += voidBladeDmg;
                         }
                     }
                 }
-                if (blk.special === 'next_round_hit_penalty' && !hasClassModifier(attacker, 'stun_immune')) nextAtkPenalty = true;
-                if (blk.special === 'counter_25' && Math.random() < 0.25) {
-                    const counterDmg = Math.floor(finalDmg * 0.50);
+            }
+
+            // lightning_arc: proc bonus electro damage
+            let lightningArcDmg = 0;
+            if (finalDmg > 0 && hasSkill(atkSkills, 'lightning_arc')) {
+                const laEff = getActiveCombatEffect(attacker, 'lightning_arc');
+                if (laEff && Math.random() < (laEff.proc_chance || 0.25)) {
+                    const elemDmg = (attacker.elem_dmg || {}).electro || 0;
+                    lightningArcDmg = Math.max(1, Math.floor((elemDmg + magicFlatBonus) * (laEff.bonus_pct || 0.75)));
+                    const eRes = (defender.elem_resist || {}).electro || 0;
+                    const mRes = Math.floor((defender.magic || 0) * 0.05);
+                    lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
+                    if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
+                }
+            }
+
+            // block_effectiveness from skills applies as general damage reduction
+            if (finalDmg > 0) {
+                const dmgReduction = defender.blockEffectiveness || 0;
+                finalDmg = Math.max(1, Math.floor(finalDmg * Math.max(0.05, 1 - dmgReduction)));
+            }
+
+            let justAbsorbed = false;
+            let absorbedAmount = 0;
+            if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
+                absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
+                finalDmg -= absorbedAmount;
+                defenderShield.remaining -= absorbedAmount;
+                if (defenderShield.remaining <= 0) {
+                    defenderShield.active = false;
+                    if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
+                        defender.holyStrikeReady = true;
+                    }
+                }
+                justAbsorbed = true;
+            }
+            chargeHolyStrikeFromAbsorb(absorbedAmount);
+
+            const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
+            logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
+            if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
+            if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
+            if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
+            if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
+
+            if (justAbsorbed) {
+                if (finalDmg <= 0) {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
+                } else {
+                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
+                }
+                if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
+            }
+
+            if (justAbsorbed && defenderShield.remaining > 0) {
+                logLine += ` ${defenderShield.remaining} durability remains.`;
+            }
+
+            if (hasSkillOrEffect(attacker, 'holy_strike') && finalDmg > 0) {
+                const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
+                const healPct = hsEff?.heal_pct || 0.10;
+                healBack = Math.floor(finalDmg * healPct);
+                logLine += ` 💚 +${healBack} heal`;
+            }
+            if (lifeDrainAmt > 0) {
+                logLine += ` 💀 +${lifeDrainAmt} life drain`;
+            }
+            const consEff = getActiveCombatEffect(defender, 'consecrate');
+            if (consEff && finalDmg > 0) {
+                const reflectPct = consEff.reflect_pct || 0.15;
+                const reflect = Math.floor(finalDmg * reflectPct);
+                logLine += ` 🌿 ${reflect} reflected`;
+                damageCounter += reflect;
+            }
+            // counter_attack: 40% chance to counter for 75% damage
+            if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
+                const caEff = getActiveCombatEffect(defender, 'counter_attack');
+                const caChance = caEff?.counter_chance || 0.40;
+                const caPct = caEff?.counter_dmg_pct || 0.75;
+                if (Math.random() < caChance) {
+                    const counterDmg = Math.floor(finalDmg * caPct);
                     logLine += ` — COUNTERED for ${counterDmg}`;
                     damageCounter += counterDmg;
+                }
+            }
+            // phantom_counter: 25% counter on dodge (when attacker missed)
+            if (!atkHit && hasSkill(defSkills, 'phantom_counter')) {
+                const pcEff = getActiveCombatEffect(defender, 'phantom_counter');
+                const pcChance = pcEff?.counter_on_dodge_pct || 0.25;
+                if (Math.random() < pcChance) {
+                    const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
+                    if (phantomDmg > 0) {
+                        logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
+                        damageCounter += phantomDmg;
+                    }
+                }
+            }
+            if (blk.special === 'next_round_hit_penalty' && !hasClassModifier(attacker, 'stun_immune')) nextAtkPenalty = true;
+            if (blk.special === 'counter_25' && Math.random() < 0.25) {
+                const counterDmg = Math.floor(finalDmg * 0.50);
+                logLine += ` — COUNTERED for ${counterDmg}`;
+                damageCounter += counterDmg;
                 }
             }
         }
@@ -7315,6 +7323,7 @@ async function buildCombatFighter(db, char) {
             const eHp = 30 + bv * 4 + er.level * 8;
             return { id: `elem_${er.id}`, name: er.name || 'Elemental', element: er.element || 'pyro', level: er.level, hp: er.hp_current ?? eHp, hpMax: eHp, dmgMin: 2 + Math.floor(bs * 0.4) + Math.floor(er.level * 0.5), dmgMax: 5 + Math.floor(bs * 0.6) + Math.floor(er.level * 0.8) };
         })(),
+        blockEffectiveness: skillPassives.block_effectiveness || 0,
     };
 }
 
@@ -9795,6 +9804,7 @@ router.post('/missions/collect', auth, async (req, res) => {
             attackZones: JSON.parse(freshChar.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshChar.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
             dualWield: freshChar.class === 'rogue' && rogueHasDualWield(learnedIds),
+            blockEffectiveness: skillPassives.block_effectiveness || 0,
         };
 
         // Attach elemental companion for missions
@@ -11594,6 +11604,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             attackZones: JSON.parse(freshA.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshA.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
             dualWield: freshA.class === 'rogue' && rogueHasDualWield(learnedIdsA),
+            blockEffectiveness: skillPassivesA.block_effectiveness || 0,
         };
 
         const setBonusesD = getEquippedSetBonuses(equippedD);
@@ -11632,6 +11643,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             attackZones: JSON.parse(freshD.attack_zones || 'null') || DEFAULT_ATTACK_ZONES,
             blockZones: JSON.parse(freshD.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
             dualWield: freshD.class === 'rogue' && rogueHasDualWield(learnedIdsD),
+            blockEffectiveness: skillPassivesD.block_effectiveness || 0,
         };
 
         // Attach elemental companions
