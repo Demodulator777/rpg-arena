@@ -9334,6 +9334,31 @@ router.post('/squads/members/:charId/role', auth, async (req, res) => {
 
 // ── Squad Invite Code Reset ─────────────────────────────────────────
 
+router.post('/squads/members/:charId/kick', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const targetId = Number(req.params.charId);
+        if (!targetId) return res.status(400).json({ error: 'Invalid character ID.' });
+        if (targetId === char.id) return res.status(400).json({ error: 'You cannot kick yourself.' });
+        const target = await dbGet(db, 'SELECT role FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
+        if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
+        // Authorization: leader can kick anyone; officer can kick members only
+        if (membership.role === 'officer' && target.role !== 'member') {
+            return res.status(403).json({ error: 'Officers can only kick members.' });
+        }
+        if (membership.role === 'member') {
+            return res.status(403).json({ error: 'Only leaders and officers can kick members.' });
+        }
+        await dbRun(db, 'DELETE FROM squad_members WHERE char_id=? AND squad_id=?', [targetId, membership.squad_id]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '👢 Kicked from Squad', `You have been kicked from the squad by ${char.name}.`]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/squads/reset-invite', auth, async (req, res) => {
     try {
         const db = await getDb();
