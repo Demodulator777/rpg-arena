@@ -481,7 +481,8 @@ async function buildFighter(db, participant, participants, noEquip) {
       baseActiveSkills: {},
       activeSkills: {},
       attackZones: DEFAULT_ATTACK_ZONES,
-      blockZones: DEFAULT_BLOCK_ZONES
+      blockZones: DEFAULT_BLOCK_ZONES,
+      blockEffectiveness: 0
     };
   }
   const char = await dbGet_t(db, 'SELECT * FROM characters WHERE id = ?', [participant.char_id]);
@@ -525,7 +526,8 @@ async function buildFighter(db, participant, participants, noEquip) {
       baseActiveSkills: {}, activeSkills: {},
       attackZones: (() => { try { return JSON.parse(char.attack_zones); } catch { return null; } })() || DEFAULT_ATTACK_ZONES,
       blockZones: (() => { try { return JSON.parse(char.block_zones); } catch { return null; } })() || DEFAULT_BLOCK_ZONES,
-      _elementalFighter: await loadElem()
+      _elementalFighter: await loadElem(),
+      blockEffectiveness: 0
     };
   }
 
@@ -593,7 +595,8 @@ async function buildFighter(db, participant, participants, noEquip) {
     activeSkills: mergeActiveSkills(getActiveSkills(char), skillActives),
     attackZones: (() => { try { return JSON.parse(char.attack_zones); } catch { return null; } })() || DEFAULT_ATTACK_ZONES,
     blockZones: (() => { try { return JSON.parse(char.block_zones); } catch { return null; } })() || DEFAULT_BLOCK_ZONES,
-    dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds)
+    dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
+    blockEffectiveness: skillPassives.block_effectiveness || 0
   };
 }
 
