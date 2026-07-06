@@ -795,6 +795,56 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
                 wind_dmg:8, wind_resist:12 },
         components:{ fen_cursed_bone:1, void_crystal:2, shadow_weave:2, frost_core:1 }, goldCost:16000,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 9 — FIRST SCREAM  (Crimson Wastes zone)
+    //  Pyro focus · high strength · hit chance
+    // ══════════════════════════════════════════════
+    {
+        id:'first_scream_weapon', setId:'first_scream', setPiece:'weapon',
+        name:'Blade of the First Scream', emoji:'⚔️', quality:'legendary',
+        slot:'weapon', weaponType:'scythe',
+        desc:'The obsidian edge hums with the final shriek of a god whose fall carved the Abyss, drinking crimson light to fuel each swing.',
+        stats:{ dmg_min:28, dmg_max:42, strength:30, hit_chance:18, crit_chance:5, agility:-10,
+                pyro_dmg:15, pyro_resist:8, water_resist:-12, wind_resist:-10 },
+        components:{ crimson_royal_blood:2, crimson_alloy:3, abyss_weave:2 }, goldCost:22000,
+    },
+    {
+        id:'first_scream_armor', setId:'first_scream', setPiece:'armor',
+        name:'Ribcage of the Sundered Titan', emoji:'🥼', quality:'legendary',
+        slot:'armor',
+        desc:'Interlocking plates of petrified demon-flesh pulse with slow, atrial beats, hardening each time the wearer spills blood upon the stone.',
+        stats:{ defense:12, armor:20, hp_max:120, strength:18, hit_chance:12,
+                pyro_dmg:12, pyro_resist:18, water_resist:-15, wind_resist:-8, electro_resist:-10 },
+        components:{ crimson_royal_blood:2, void_plate:3, shadowsteel_bar:2 }, goldCost:26000,
+    },
+    {
+        id:'first_scream_helmet', setId:'first_scream', setPiece:'helmet',
+        name:'Crown of Drowned Stars', emoji:'👑', quality:'legendary',
+        slot:'helmet',
+        desc:'Forged from a collapsed constellation\'s core, this helm traps the wearer\'s last breath, trading mortality for glimpses of the void\'s hungry will.',
+        stats:{ strength:22, magic:15, defense:3, armor:12, hp_max:30, hit_chance:10,
+                pyro_dmg:10, pyro_resist:12, water_resist:-10, wind_resist:-5, electro_resist:-8 },
+        components:{ crimson_royal_blood:1, crimson_alloy:2, shadowsteel_bar:2 }, goldCost:19000,
+    },
+    {
+        id:'first_scream_shield', setId:'first_scream', setPiece:'shield',
+        name:'Mirror of Oaths Betrayed', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'Its polished surface reflects not foes, but their deepest regrets, shattering their resolve as the Abyss shatters light — one crack per broken vow.',
+        stats:{ defense:20, armor:28, strength:25, hit_chance:15, crit_chance:8, agility:-8,
+                pyro_dmg:14, pyro_resist:20, water_resist:-18, wind_resist:-12, electro_resist:-8 },
+        components:{ crimson_royal_blood:2, void_plate:3, abyss_weave:2 }, goldCost:25000,
+    },
+    {
+        id:'first_scream_boots', setId:'first_scream', setPiece:'boots',
+        name:'Tread of Unremembered Graves', emoji:'👟', quality:'legendary',
+        slot:'boots',
+        desc:'Each step siphons warmth from the ground below, leaving frost-scorched prints that whisper the names of souls too forgotten to rise again.',
+        stats:{ defense:10, armor:8, agility:5, strength:15, hit_chance:12, crit_chance:3,
+                pyro_dmg:8, pyro_resist:10, water_resist:-20, wind_resist:-12 },
+        components:{ crimson_royal_blood:1, crimson_alloy:2, void_crystal:3 }, goldCost:17000,
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -887,6 +937,18 @@ const CRAFTING_SETS = {
             strength:14, hit_chance:16, crit_chance:12,
             pyro_resist:18, water_resist:18, wind_resist:18, electro_resist:18,
             desc:'5/5: +24 AGI · +20 MAG · +24 DEF · +160 HP · +8 Armor · +14 STR · +16 Hit · +12 Crit · +18 all Elem Resist'
+        },
+    },
+    first_scream: {
+        name:'First Scream Set', emoji:'🔥',
+        bonus3:{
+            strength:16, hit_chance:14, pyro_dmg:18, pyro_resist:10,
+            desc:'2/5: +16 STR · +14 Hit · +18 Pyro Dmg · +10 Pyro Resist'
+        },
+        bonus5:{
+            strength:32, hit_chance:28, crit_chance:10, dmg_min:6, dmg_max:10,
+            pyro_dmg:35, pyro_resist:20, hp_max:80,
+            desc:'5/5: +32 STR · +28 Hit · +10 Crit · +6-10 Dmg · +35 Pyro Dmg · +20 Pyro Resist · +80 HP'
         },
     },
 };
