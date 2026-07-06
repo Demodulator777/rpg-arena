@@ -5452,13 +5452,9 @@ function hasSkillOrEffect(fighter, id) {
     return !!getActiveCombatEffect(fighter, id);
 }
 function mergeActiveSkills(baseSkills, skillEffects) {
-    const legacySkillIds = new Set();
-    for (const skills of Object.values(CLASS_SKILLS)) {
-        for (const s of skills) legacySkillIds.add(s.id);
-    }
     const result = { ...(baseSkills || {}) };
     for (const eff of (skillEffects || [])) {
-        if (eff.id && !legacySkillIds.has(eff.id)) result[eff.id] = true;
+        if (eff.id) result[eff.id] = true;
     }
     return result;
 }
@@ -5842,7 +5838,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
     let atkBonusDmg = (blk.special === 'attacker_bonus_10') ? 1.10 : 1.0;
     if (attacker.dmg_bonus) atkBonusDmg *= (1 + attacker.dmg_bonus);
-    if (hasSkill(atkSkills, 'berserker_rage')) atkBonusDmg *= 1.25;
+    const brEff = getActiveCombatEffect(attacker, 'berserker_rage');
+    if (brEff) {
+        const brDmgBonus = brEff.atk_dmg_bonus || 0.25;
+        atkBonusDmg *= (1 + brDmgBonus);
+    } else if (hasSkill(atkSkills, 'berserker_rage')) {
+        atkBonusDmg *= 1.25;
+    }
     if (hasSkillOrEffect(attacker, 'holy_strike')) {
         const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
         atkBonusDmg *= 1 + (hsEff?.dmg_bonus || 0.20);
@@ -6226,7 +6228,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
             const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             const blockCovers = autoBlockedHit || (!ignoreDefenderZones && !holyStrikeBurst && !pierceBlock && (blk.protects.includes(atkZone) || blk.protects.includes('any')));
-            const randomBlockPen = Math.random() < 0.001;
+            const rsBlockPen = getActiveCombatEffect(attacker, 'reckless_swing');
+            const randomBlockPen = Math.random() < 0.001 || (rsBlockPen && Math.random() < (rsBlockPen.block_penalty || 0.10));
             const blockFails = rageActive || randomBlockPen;
 
             const elemDmgs = attacker.elem_dmg || {};
@@ -6277,6 +6280,14 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
                 const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
                 if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
+                const brArmourEff = getActiveCombatEffect(attacker, 'berserker_rage');
+                if (brArmourEff && brArmourEff.ignore_armour_pct) {
+                    attacker._berserkerRageHits = (attacker._berserkerRageHits || 0) + 1;
+                    const interval = Math.max(1, Math.round(brArmourEff.interval || 3));
+                    if (attacker._berserkerRageHits % interval === 0) {
+                        effArmor = Math.floor(effArmor * (1 - brArmourEff.ignore_armour_pct));
+                    }
+                }
                 const physReduction = Math.min(finalDmg - 1, effArmor);
                 finalDmg = Math.max(1, finalDmg - physReduction);
             }
@@ -6391,6 +6402,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
                     if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
                 }
+            }
+
+            // frenzy_stacks: accumulate per hit (capped at max_stacks)
+            if (finalDmg > 0 && hasSkill(atkSkills, 'frenzy_stacks')) {
+                const fzEff = getActiveCombatEffect(attacker, 'frenzy_stacks');
+                const maxStacks = fzEff?.max_stacks || 5;
+                attacker._frenzyStacks = Math.min(maxStacks, (attacker._frenzyStacks || 0) + 1);
             }
 
             // block_effectiveness from skills applies as general damage reduction
@@ -9080,7 +9098,7 @@ router.get('/squads/me', auth, async (req, res) => {
         const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ squad: null, members: [] });
         const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
-        const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned
+        const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role
             FROM squad_members sm JOIN characters c ON c.id = sm.char_id
             WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id]);
         res.json({ squad, members });
@@ -9136,8 +9154,20 @@ router.post('/squads/leave', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ success: true });
+        // If leader leaves, transfer ownership to oldest officer or member.
+        if (membership.role === 'leader') {
+            const successor = await dbGet(db, "SELECT char_id FROM squad_members WHERE squad_id=? AND role='officer' AND char_id!=? ORDER BY joined_at ASC LIMIT 1", [membership.squad_id, char.id]);
+            if (successor) {
+                await dbRun(db, 'UPDATE squads SET owner_char_id=? WHERE id=?', [successor.char_id, membership.squad_id]);
+                await dbRun(db, "UPDATE squad_members SET role='leader' WHERE char_id=? AND squad_id=?", [successor.char_id, membership.squad_id]);
+            } else {
+                // No officers — just delete the whole squad.
+                await dbRun(db, 'DELETE FROM squad_members WHERE squad_id=?', [membership.squad_id]);
+                await dbRun(db, 'DELETE FROM squads WHERE id=?', [membership.squad_id]);
+                return res.json({ success: true, message: 'Squad disbanded.' });
+            }
+        }
         await dbRun(db, 'DELETE FROM squad_members WHERE char_id=?', [char.id]);
-        // If squad is empty, delete it.
         const left = await dbGet(db, 'SELECT COUNT(*) AS c FROM squad_members WHERE squad_id=?', [membership.squad_id]);
         if (Number(left?.c || 0) <= 0) {
             await dbRun(db, 'DELETE FROM squads WHERE id=?', [membership.squad_id]);
@@ -9195,7 +9225,12 @@ router.post('/squads/apply', auth, async (req, res) => {
         await dbRun(db, 'INSERT INTO squad_applications (squad_id, char_id, status, created_at) VALUES (?,?,?,?)', [squadId, char.id, 'pending', now]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, char.id, '📋 Squad Application Sent', `Your application to "${squad.name}" has been sent. The squad leader will review it.`]);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        if (e.code === 'SQLITE_CONSTRAINT' || e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            return res.status(400).json({ error: 'Could not submit application — the squad or your character may no longer exist.' });
+        }
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.get('/squads/applications', auth, async (req, res) => {
@@ -9203,7 +9238,7 @@ router.get('/squads/applications', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','officer') LIMIT 1", [char.id]);
         if (!membership) return res.json({ applications: [] });
         const apps = await dbAll(db, `SELECT sa.id, sa.char_id, sa.status, sa.created_at, c.name, c.class, c.level
             FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
@@ -9226,8 +9261,8 @@ router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only squad leaders can accept applications.' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','officer') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders and officers can accept applications.' });
         const appId = Number(req.params.appId);
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
@@ -9236,12 +9271,22 @@ router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
             await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
             return res.status(400).json({ error: 'Applicant is already in a squad.' });
         }
+        const appChar = await dbGet(db, 'SELECT id FROM characters WHERE id=?', [app.char_id]);
+        if (!appChar) {
+            await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
+            return res.status(400).json({ error: 'Applicant character no longer exists.' });
+        }
         const now = Math.floor(Date.now() / 1000);
         await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [membership.squad_id, app.char_id, 'member', now]);
         await dbRun(db, "UPDATE squad_applications SET status='accepted' WHERE id=?", [appId]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '✅ Squad Application Accepted', `You have been accepted into the squad!`]);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        if (e.code === 'SQLITE_CONSTRAINT' || e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            return res.status(400).json({ error: 'Could not add member — the character may have been deleted.' });
+        }
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
@@ -9249,14 +9294,61 @@ router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only squad leaders can reject applications.' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','officer') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders and officers can reject applications.' });
         const appId = Number(req.params.appId);
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
         await dbRun(db, "UPDATE squad_applications SET status='rejected' WHERE id=?", [appId]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, app.char_id, '❌ Squad Application Rejected', `Your squad application was not accepted.`]);
         res.json({ success: true });
+    } catch (e) {
+        if (e.code === 'SQLITE_CONSTRAINT' || e.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+            return res.status(400).json({ error: 'Could not send notification — the applicant may have been deleted.' });
+        }
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Squad Role Management ───────────────────────────────────────────
+
+router.post('/squads/members/:charId/role', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only the squad leader can assign roles.' });
+        const targetId = Number(req.params.charId);
+        if (!targetId) return res.status(400).json({ error: 'Invalid character ID.' });
+        if (targetId === char.id) return res.status(400).json({ error: 'You cannot change your own role.' });
+        const { role } = req.body;
+        if (!role || !['officer', 'member'].includes(role)) return res.status(400).json({ error: 'Role must be "officer" or "member".' });
+        const target = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
+        if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
+        await dbRun(db, 'UPDATE squad_members SET role=? WHERE char_id=? AND squad_id=?', [role, targetId, membership.squad_id]);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [0, targetId, '🔰 Squad Role Changed', `Your role has been changed to "${role}".`]);
+        res.json({ success: true, role });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Squad Invite Code Reset ─────────────────────────────────────────
+
+router.post('/squads/reset-invite', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const squad = await dbGet(db, 'SELECT id FROM squads WHERE owner_char_id=? LIMIT 1', [char.id]);
+        if (!squad) return res.status(403).json({ error: 'Only the squad leader can reset the invite code.' });
+        const code = makeInviteCode();
+        for (let i = 0; i < 5; i++) {
+            const exists = await dbGet(db, 'SELECT 1 FROM squads WHERE invite_code=? AND id!=? LIMIT 1', [code, squad.id]);
+            if (!exists) break;
+            code = makeInviteCode();
+        }
+        await dbRun(db, 'UPDATE squads SET invite_code=? WHERE id=?', [code, squad.id]);
+        res.json({ success: true, invite_code: code });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
