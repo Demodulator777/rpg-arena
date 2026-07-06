@@ -1097,6 +1097,7 @@ const WEEKLY_TASKS = [
         // Add phase deadline columns to clan_wars
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN scout_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN attack_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN looted_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
 
         // Seed clan bases if empty
         try {
@@ -9633,6 +9634,78 @@ router.post('/squads/bases/:baseId/upgrade', auth, async (req, res) => {
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)',
             [char.id, char.id, '🏰 Base Upgraded', `Base "${base.name}" upgraded to level ${cost.next_level}!`]);
         res.json({ success: true, level: cost.next_level, cost });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/bases/:baseId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const baseId = Number(req.params.baseId);
+        const base = await dbGet(db, 'SELECT cb.*, s.name AS owner_squad_name FROM clan_bases cb LEFT JOIN squads s ON s.id = cb.owner_squad_id WHERE cb.id=?', [baseId]);
+        if (!base) return res.status(404).json({ error: 'Base not found.' });
+
+        const isOwned = Number(base.owner_squad_id) === membership.squad_id;
+        const isOccupied = base.owner_squad_id !== null && !isOwned;
+        let canLoot = false;
+        if (isOccupied) {
+            // Check if user's squad has a resolved war against this base with >=3 wins and not looted
+            const lootableWar = await dbGet(db, "SELECT id FROM clan_wars WHERE attacker_squad_id=? AND base_id=? AND status='completed' AND phase='resolved' AND attacker_wins >= 3 AND looted_at IS NULL LIMIT 1",
+                [membership.squad_id, baseId]);
+            if (lootableWar) canLoot = true;
+        }
+
+        res.json({
+            base: {
+                id: Number(base.id), name: base.name, tier: base.tier,
+                map_x: Number(base.map_x), map_y: Number(base.map_y),
+                owner_squad_id: Number(base.owner_squad_id || 0), owner_squad_name: base.owner_squad_name,
+                is_owned: isOwned, is_occupied: isOccupied,
+                can_capture: !isOwned, // Can capture if not owned by current squad
+                can_loot: canLoot,
+            }
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/bases/:baseId/loot', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const baseId = Number(req.params.baseId);
+        const base = await dbGet(db, 'SELECT * FROM clan_bases WHERE id=?', [baseId]);
+        if (!base) return res.status(404).json({ error: 'Base not found.' });
+        if (Number(base.owner_squad_id || 0) === membership.squad_id) return res.status(400).json({ error: 'You cannot loot your own base.' });
+        if (base.owner_squad_id === null) return res.status(400).json({ error: 'Base is not occupied.' });
+
+        const lootableWar = await dbGet(db, "SELECT * FROM clan_wars WHERE attacker_squad_id=? AND base_id=? AND status='completed' AND phase='resolved' AND attacker_wins >= 3 AND looted_at IS NULL LIMIT 1",
+            [membership.squad_id, baseId]);
+        if (!lootableWar) return res.status(400).json({ error: 'No valid war found to loot this base.' });
+
+        const defenderTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [base.owner_squad_id]);
+        const defGold = Number(defenderTreasury?.gold || 0);
+        const lootAmount = Math.floor(defGold * 0.10); // 10% of defender's gold
+
+        if (lootAmount <= 0) return res.status(400).json({ error: 'No gold to loot or already looted.' });
+
+        // Deduct from defender, add to attacker
+        await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [lootAmount, base.owner_squad_id]);
+        await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [lootAmount, membership.squad_id]);
+        if (db.changes === 0) {
+            await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [membership.squad_id, lootAmount]);
+        }
+
+        // Mark war as looted
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'UPDATE clan_wars SET looted_at=? WHERE id=?', [now, lootableWar.id]);
+
+        res.json({ success: true, looted_gold: lootAmount });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
