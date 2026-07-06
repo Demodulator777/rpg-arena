@@ -7102,7 +7102,7 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
         const r = () => 0.85 + Math.random() * 0.30;
 
         // Deeper Abyss zones get tougher regardless of player power
-        const zoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.015);
+        const zoneMult = 1.0 + Math.max(0, (zoneLevel - 40) * 0.010);
 
         // Blend the difficulty profile with a small powerScale bump
         // so a very strong player still faces a tougher NPC
@@ -9667,7 +9667,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
         let playerStats = null;
         if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
-            const glvl = (freshChar.level || 1) * 2;
+            const glvl = (freshChar.level || 1);
             const r = () => 0.85 + Math.random() * 0.30;
             const gearStr  = Math.floor((10 + glvl * 0.8) * r());
             const gearAgi  = Math.floor((10 + glvl * 0.8) * r());
