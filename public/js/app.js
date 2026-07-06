@@ -7679,7 +7679,8 @@ async function loadSquads() {
             const myMem = me.members.find(m => m.id === character?.id);
             const isLeader = me.squad.owner_char_id === character?.id;
             const isOfficer = myMem?.role === 'officer';
-            if (isLeader || isOfficer) {
+            const isCoLeader = myMem?.role === 'co_leader';
+            if (isLeader || isCoLeader || isOfficer) {
                 const appsRes = await api('GET', '/game/squads/applications').catch(() => ({ applications: [] }));
                 squadsData.applications = appsRes.applications || [];
             }
@@ -7702,8 +7703,18 @@ function renderSquads() {
     const myRole = myMembership?.role || 'member';
     const isLeader = squad && squad.owner_char_id === character?.id;
     const isOfficer = myRole === 'officer';
-    const canManageApps = isLeader || isOfficer;
-    const roleLabels = { leader: '👑 Leader', officer: '⚔️ Officer', member: '🪖 Member' };
+    const isCoLeader = myRole === 'co_leader';
+    const canManageApps = isLeader || isCoLeader || isOfficer;
+    const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
+    const canAssignRoles = isLeader || isCoLeader;
+
+    function roleOptions(currentRole, isLeaderAssigner) {
+        const opts = [];
+        if (isLeaderAssigner) opts.push(['co_leader', '⭐ Co-Leader']);
+        opts.push(['officer', '⚔️ Officer']);
+        opts.push(['member', '🪖 Member']);
+        return opts.map(([v, l]) => `<option value="${v}" ${v === currentRole ? 'selected' : ''}>${l}</option>`).join('');
+    }
 
     const appsHtml = canManageApps && apps.length > 0 ? `
         <div class="squads-card" style="margin-top:10px">
@@ -7738,11 +7749,12 @@ function renderSquads() {
                         <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
                     </span>
                     <span style="display:flex;align-items:center;gap:4px">
-                        ${isLeader && m.id !== character?.id ? `
-                            ${m.role === 'member' ? `<button class="btn-sm" ${actionAttrs('changeMemberRole', m.id, 'officer')} style="font-size:0.7rem;padding:2px 6px;background:rgba(155,89,182,0.3);border:none;border-radius:4px;cursor:pointer">⬆️ Officer</button>` : ''}
-                            ${m.role === 'officer' ? `<button class="btn-sm" ${actionAttrs('changeMemberRole', m.id, 'member')} style="font-size:0.7rem;padding:2px 6px;background:rgba(100,100,100,0.3);border:none;border-radius:4px;cursor:pointer">⬇️ Member</button>` : ''}
+                        ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader')) ? `
+                            <select class="input-field squad-role-select" data-role-select="${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem">
+                                ${roleOptions(m.role, isLeader)}
+                            </select>
                         ` : ''}
-                        ${(isLeader || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
+                        ${(isLeader || isCoLeader || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
                             <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 Kick</button>
                         ` : ''}
                     </span>
@@ -10245,6 +10257,11 @@ document.addEventListener('input', (event) => {
 
 document.addEventListener('change', (event) => {
     handleDelegatedAction(event, 'data-change-action');
+    const sel = event.target.closest('[data-role-select]');
+    if (sel) {
+        const charId = Number(sel.dataset.roleSelect);
+        if (charId) changeMemberRole(charId, sel.value);
+    }
 });
 
 document.addEventListener('mouseover', (event) => {
