@@ -1,0 +1,16 @@
+{
+  "name": "Battle Arena",
+  "short_name": "Arena",
+  "description": "Build. Train. Conquer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07080f",
+  "theme_color": "#b8860b",
+  "icons": [
+    {
+      "src": "/images/logo/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

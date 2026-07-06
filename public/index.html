@@ -4,6 +4,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Battle ⚔️ Arena</title>
+    <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css"/>
@@ -1115,5 +1116,6 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
 <script src="/js/dungeon.js?v=2026-05-08-dungeon-combat-fix"></script>
 <script src="/js/tournaments.js?v=2026-06-03"></script>
+<script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(function(){}); }</script>
 </body>
 </html>
