@@ -7739,10 +7739,8 @@ function renderSquads() {
                     </span>
                     <span style="display:flex;align-items:center;gap:4px">
                         ${isLeader && m.id !== character?.id ? `
-                            <select class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem" onchange="changeMemberRole(${m.id}, this.value)">
-                                <option value="officer" ${m.role === 'officer' ? 'selected' : ''}>Officer</option>
-                                <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
-                            </select>
+                            ${m.role === 'member' ? `<button class="btn-sm" ${actionAttrs('changeMemberRole', m.id, 'officer')} style="font-size:0.7rem;padding:2px 6px;background:rgba(155,89,182,0.3);border:none;border-radius:4px;cursor:pointer">⬆️ Officer</button>` : ''}
+                            ${m.role === 'officer' ? `<button class="btn-sm" ${actionAttrs('changeMemberRole', m.id, 'member')} style="font-size:0.7rem;padding:2px 6px;background:rgba(100,100,100,0.3);border:none;border-radius:4px;cursor:pointer">⬇️ Member</button>` : ''}
                         ` : ''}
                         ${(isLeader || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
                             <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 Kick</button>
