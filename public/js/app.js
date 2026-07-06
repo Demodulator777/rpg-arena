@@ -7907,199 +7907,51 @@ function renderClanContent() {
     return mapHtml + baseHtml + treasuryHtml + warHtml + startWarBtn;
 }
 
-async function showClanBaseDetail(baseId) { /* click on map dot — handled inline */ }
+async function showClanBaseDetail(baseId) {
+    try {
+        const res = await api('GET', `/game/squads/bases/${baseId}`);
+        const b = res.base;
+        if (!b) return;
+        let html = `<div class="squads-card" style="min-width:400px">
+            <div class="squads-card-head">
+                <div><div class="squads-title">🏰 ${escHtml(b.name)}</div>
+                <div class="squads-meta">${tierNames[b.tier] || b.tier}
+                    ${b.is_owned ? '· Owned by your squad' : b.is_occupied ? `· Owned by ${escHtml(b.owner_squad_name)}` : '· Unoccupied'}
+                </div>
+            </div></div>
+            <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
+                ${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
+                ${b.can_loot ? `<button class="btn-success btn-sm" ${actionAttrs('lootBase', b.id)}>💰 Loot Base (10% Gold)</button>` : ''}
+            </div>
+        </div>`;
+        await openGameNoticeDialog({ title: 'Base Detail', message: html });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Base Detail', message: e.message || String(e) });
+    }
+}
 window.showClanBaseDetail = showClanBaseDetail;
 
-async function donateToBase(baseId) {
-    const gold = Math.floor(Number(document.getElementById('clan-donate-gold')?.value || 0));
-    const gems = Math.floor(Number(document.getElementById('clan-donate-gems')?.value || 0));
-    if (gold <= 0 && gems <= 0) return;
+async function captureBase(baseId) {
     try {
-        await api('POST', `/game/squads/bases/${baseId}/donate`, { gold, gems });
-        await openGameNoticeDialog({ title: '💰 Donation', message: `Donated ${gold} gold and ${gems} gems to the base.` });
-        document.getElementById('clan-donate-gold').value = '';
-        document.getElementById('clan-donate-gems').value = '';
-        await loadClanData(); renderSquads();
-    } catch (e) { await openGameNoticeDialog({ title: '💰 Donation', message: e.message || String(e) }); }
-}
-window.donateToBase = donateToBase;
-
-async function upgradeBase(baseId) {
-    try {
-        await api('POST', `/game/squads/bases/${baseId}/upgrade`);
-        await openGameNoticeDialog({ title: '🏰 Base Upgraded', message: 'Base has been upgraded!' });
-        await loadClanData(); renderSquads();
-    } catch (e) { await openGameNoticeDialog({ title: '🏰 Upgrade', message: e.message || String(e) }); }
-}
-window.upgradeBase = upgradeBase;
-
-async function payBaseUpkeep(baseId) {
-    try {
-        await api('POST', `/game/squads/bases/${baseId}/pay-upkeep`);
-        await openGameNoticeDialog({ title: '💰 Upkeep Paid', message: 'Daily upkeep has been paid.' });
-        await loadClanData(); renderSquads();
-    } catch (e) { await openGameNoticeDialog({ title: '💰 Upkeep', message: e.message || String(e) }); }
-}
-window.payBaseUpkeep = payBaseUpkeep;
-
-async function startClanWar() {
-    const baseId = Number(document.getElementById('clan-war-base-select')?.value);
-    if (!baseId) return;
-    try {
-        const res = await api('POST', '/game/squads/wars/start', { base_id: baseId });
-        await openGameNoticeDialog({ title: '⚔️ War Declared!', message: `War has started!` });
-        await loadClanData(); renderSquads();
-        if (res.war_id) setTimeout(() => openWarPanel(res.war_id), 500);
-    } catch (e) { await openGameNoticeDialog({ title: '⚔️ War', message: e.message || String(e) }); }
-}
-window.startClanWar = startClanWar;
-
-async function openWarPanel(warId) {
-    try {
-        const res = await api('GET', `/game/squads/wars/${warId}`);
-        const w = res.war;
-        if (!w) return;
-        let html = `<div class="squads-card" style="min-width:600px">
-            <div class="squads-card-head">
-                <div><div class="squads-title">⚔️ ${escHtml(w.attacker_name)} vs ${escHtml(w.defender_name)}</div>
-                <div class="squads-meta">${escHtml(w.base_name)} · Phase: ${w.phase} · ${w.attacker_wins}-${w.defender_wins}</div>
-                <div class="squads-meta" style="font-size:0.7rem">${w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}</div>
-            </div></div>`;
-
-            // Show outposts
-            for (let i = 0; i < 5; i++) {
-                const op = w.outposts?.[i];
-                const capturedChars = w.scouts?.filter(s => s.outpost_index === i && s.status === 'captured').map(s => s.char_id) || [];
-                html += `<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
-                    <div><strong>Outpost ${i + 1}</strong> ${op ? `⚔️ ${Math.round(op.attacker_power)} vs 🛡️ ${Math.round(op.defender_power)}` : ''} ${op?.winner ? (op.winner === 'attacker' ? '🏆' : '🛡️') : ''}</div>`;
-
-                // Scout phase: attackers scout, defenders assign defenders
-                if (w.phase === 'scout') {
-                    if (w.is_attacker) {
-                        html += `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-                            ${(w.squad_members || []).filter(m => !w.attackers_captured?.includes(m.id)).slice(0, 3).map(m =>
-                                `<button class="btn-sm btn-secondary" ${actionAttrs('sendScout', warId, i, m.id)} style="font-size:0.7rem;padding:2px 6px">🔍 Scout with ${escHtml(m.name)}</button>`
-                            ).join('')}
-                            <select id="scout-select-${i}" class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem">
-                                ${(w.squad_members || []).filter(m => !w.attackers_captured?.includes(m.id)).map(m => `<option value="${m.id}">${escHtml(m.name)} (⚡${m.power})</option>`).join('')}
-                            </select>
-                            <button class="btn-sm btn-secondary" ${actionAttrs('sendScoutSelect', warId, i)} style="font-size:0.7rem;padding:2px 6px">🔍 Scout</button>
-                        </div>`;
-                    } else {
-                        // Defenders: assign defenders to outposts during scout phase
-                        html += `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-                            <select id="assign-def-${i}" class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem">
-                                <option value="">-- Assign defender --</option>
-                                ${(w.squad_members || []).map(m => `<option value="${m.id}">${escHtml(m.name)} (⚡${m.power})</option>`).join('')}
-                            </select>
-                            <button class="btn-sm btn-primary" ${actionAttrs('assignDefToOutpost', warId, i)} style="font-size:0.7rem;padding:2px 6px">🛡️ Assign Def</button>
-                        </div>`;
-                    }
-                }
-
-                // Attack phase: attackers assign attackers
-                if (w.phase === 'attacking' && w.is_attacker) {
-                    html += `<div style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
-                        <select id="assign-atk-${i}" class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem">
-                            <option value="">-- Assign attacker --</option>
-                            ${(w.squad_members || []).filter(m => !w.attackers_captured?.includes(m.id)).map(m => `<option value="${m.id}">${escHtml(m.name)} (⚡${m.power})</option>`).join('')}
-                        </select>
-                        <button class="btn-sm btn-primary" ${actionAttrs('assignAtkToOutpost', warId, i)} style="font-size:0.7rem;padding:2px 6px">⚔️ Assign Atk</button>
-                    </div>`;
-                }
-
-                html += `</div>`;
-            }
-
-            // Start battle button (attackers only, during attack phase)
-            if (w.phase === 'attacking' && w.is_attacker) {
-                html += `<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
-                    <button class="btn-danger" ${actionAttrs('startWarBattle', warId)}>⚔️ Start Battle!</button>
-                </div>`;
-            }
-
-            if (w.phase === 'resolved') {
-            html += `<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
-                <div class="squads-meta">Battle resolved · Winner: ${w.attacker_wins > w.defender_wins ? escHtml(w.attacker_name) : escHtml(w.defender_name)}</div>
-            </div>`;
-        }
-
-        html += `</div>`;
-        await openGameNoticeDialog({ title: '⚔️ War Panel', message: html });
-    } catch (e) {
-        await openGameNoticeDialog({ title: '⚔️ War Panel', message: e.message || String(e) });
-    }
-}
-window.openWarPanel = openWarPanel;
-
-async function sendScout(warId, outpostIndex, charId) {
-    try {
-        const res = await api('POST', `/game/squads/wars/${warId}/scout`, { outpost_index: outpostIndex, char_id: charId });
-        const msg = res.status === 'captured'
-            ? `😱 ${res.message || 'Scout was captured!'}`
-            : `✅ ${res.message || 'Scout returned with intel!'}${res.defender_power ? ` Defender power: ${res.defender_power}` : ''}`;
-        await openGameNoticeDialog({ title: '🔍 Scout Report', message: msg });
+        await api('POST', '/game/squads/wars/start', { base_id: baseId });
+        await openGameNoticeDialog({ title: '⚔️ War Started', message: 'You have declared war on this base!' });
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '🔍 Scout', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '⚔️ War', message: e.message || String(e) });
     }
 }
-window.sendScout = sendScout;
+window.captureBase = captureBase;
 
-async function sendScoutSelect(warId, outpostIndex) {
-    const sel = document.getElementById(`scout-select-${outpostIndex}`);
-    const charId = Number(sel?.value);
-    if (!charId) return;
-    await sendScout(warId, outpostIndex, charId);
-}
-window.sendScoutSelect = sendScoutSelect;
-
-async function assignDefToOutpost(warId, outpostIndex) {
-    const sel = document.getElementById(`assign-def-${outpostIndex}`);
-    const charId = Number(sel?.value);
-    if (!charId) return;
+async function lootBase(baseId) {
     try {
-        await api('POST', `/game/squads/wars/${warId}/assign`, {
-            assignments: [{ outpost_index: outpostIndex, char_id: charId }]
-        });
-        await openGameNoticeDialog({ title: '✅ Assigned', message: `Defender assigned to outpost ${outpostIndex + 1}.` });
+        const res = await api('POST', `/game/squads/bases/${baseId}/loot`);
+        await openGameNoticeDialog({ title: '💰 Loot Success', message: `You looted ${res.looted_gold.toLocaleString()} gold!` });
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '❌ Assign', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '💰 Loot Failed', message: e.message || String(e) });
     }
 }
-window.assignDefToOutpost = assignDefToOutpost;
-
-async function assignAtkToOutpost(warId, outpostIndex) {
-    const sel = document.getElementById(`assign-atk-${outpostIndex}`);
-    const charId = Number(sel?.value);
-    if (!charId) return;
-    try {
-        await api('POST', `/game/squads/wars/${warId}/assign`, {
-            assignments: [{ outpost_index: outpostIndex, char_id: charId }]
-        });
-        await openGameNoticeDialog({ title: '✅ Assigned', message: `Attacker assigned to outpost ${outpostIndex + 1}.` });
-        await loadClanData(); renderSquads();
-    } catch (e) {
-        await openGameNoticeDialog({ title: '❌ Assign', message: e.message || String(e) });
-    }
-}
-window.assignAtkToOutpost = assignAtkToOutpost;
-
-async function startWarBattle(warId) {
-    try {
-        const res = await api('POST', `/game/squads/wars/${warId}/start-battle`);
-        let msg = `Attackers won ${res.attacker_wins} outposts, Defenders won ${res.defender_wins}.`;
-        if (res.captured_base) msg += `\n🔥 The base has been CAPTURED!`;
-        msg += `\n💰 Loot: ${res.loot} gold.`;
-        if (res.logs?.length) msg += `\n\n${res.logs.join('\n')}`;
-        await openGameNoticeDialog({ title: '⚔️ Battle Complete!', message: msg });
-        await loadClanData(); renderSquads();
-    } catch (e) {
-        await openGameNoticeDialog({ title: '⚔️ Battle', message: e.message || String(e) });
-    }
-}
-window.startWarBattle = startWarBattle;
+window.lootBase = lootBase;
 
 async function createSquad() {
     const name = document.getElementById('squad-name')?.value || '';
