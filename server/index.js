@@ -18,6 +18,7 @@ app.use((req, res, next) => {
 const cspDirectives = [
     "default-src 'self'",
     "script-src 'self'",
+    "worker-src 'self'",
     "connect-src 'self'",
     "img-src 'self' data: blob:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
