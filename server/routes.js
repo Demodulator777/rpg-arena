@@ -9957,6 +9957,18 @@ router.post('/missions/collect', auth, async (req, res) => {
 
             goldEarned += damageGold;
 
+            // Level gold bonus: scales with character level and mission MP
+            if (playerWon) {
+                const lvl = freshChar.level || 1;
+                const lvlMpMult = sizeConf.mpCost / 20;
+                let lvlMin, lvlMax;
+                if (mission.difficulty === 'nightmare') { lvlMin = 80; lvlMax = 100; }
+                else if (mission.difficulty === 'hard') { lvlMin = 60; lvlMax = 80; }
+                else { lvlMin = 40; lvlMax = 60; }
+                const per20Mp = lvlMin + Math.floor(Math.random() * (lvlMax - lvlMin + 1));
+                goldEarned += Math.floor(per20Mp * lvlMpMult * lvl);
+            }
+
             if (isEvent) {
                 goldEarned *= 2;
                 xpEarned *= 2;
