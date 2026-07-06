@@ -9154,9 +9154,15 @@ router.post('/squads/leave', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ success: true });
-        // If leader leaves, transfer ownership to oldest officer or member.
+        // If leader leaves, transfer ownership to oldest co-leader, officer, or member.
         if (membership.role === 'leader') {
-            const successor = await dbGet(db, "SELECT char_id FROM squad_members WHERE squad_id=? AND role='officer' AND char_id!=? ORDER BY joined_at ASC LIMIT 1", [membership.squad_id, char.id]);
+            let successor = await dbGet(db, "SELECT char_id FROM squad_members WHERE squad_id=? AND role='co_leader' AND char_id!=? ORDER BY joined_at ASC LIMIT 1", [membership.squad_id, char.id]);
+            if (!successor) {
+                successor = await dbGet(db, "SELECT char_id FROM squad_members WHERE squad_id=? AND role='officer' AND char_id!=? ORDER BY joined_at ASC LIMIT 1", [membership.squad_id, char.id]);
+            }
+            if (!successor) {
+                successor = await dbGet(db, "SELECT char_id FROM squad_members WHERE squad_id=? AND char_id!=? ORDER BY joined_at ASC LIMIT 1", [membership.squad_id, char.id]);
+            }
             if (successor) {
                 await dbRun(db, 'UPDATE squads SET owner_char_id=? WHERE id=?', [successor.char_id, membership.squad_id]);
                 await dbRun(db, "UPDATE squad_members SET role='leader' WHERE char_id=? AND squad_id=?", [successor.char_id, membership.squad_id]);
@@ -9238,7 +9244,7 @@ router.get('/squads/applications', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','officer') LIMIT 1", [char.id]);
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
         if (!membership) return res.json({ applications: [] });
         const apps = await dbAll(db, `SELECT sa.id, sa.char_id, sa.status, sa.created_at, c.name, c.class, c.level
             FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
@@ -9261,8 +9267,8 @@ router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','officer') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only squad leaders and officers can accept applications.' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders, co-leaders and officers can accept applications.' });
         const appId = Number(req.params.appId);
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
@@ -9294,8 +9300,8 @@ router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','officer') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only squad leaders and officers can reject applications.' });
+        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only squad leaders, co-leaders and officers can reject applications.' });
         const appId = Number(req.params.appId);
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
@@ -9317,15 +9323,28 @@ router.post('/squads/members/:charId/role', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role='leader' LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only the squad leader can assign roles.' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
         const targetId = Number(req.params.charId);
         if (!targetId) return res.status(400).json({ error: 'Invalid character ID.' });
         if (targetId === char.id) return res.status(400).json({ error: 'You cannot change your own role.' });
         const { role } = req.body;
-        if (!role || !['officer', 'member'].includes(role)) return res.status(400).json({ error: 'Role must be "officer" or "member".' });
-        const target = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
+        if (!role || !['co_leader', 'officer', 'member'].includes(role)) return res.status(400).json({ error: 'Role must be "co_leader", "officer", or "member".' });
+        const target = await dbGet(db, 'SELECT role FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
         if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
+        // Authorization
+        if (membership.role === 'leader') {
+            // Leader can assign any role
+        } else if (membership.role === 'co_leader') {
+            if (target.role === 'leader' || target.role === 'co_leader') {
+                return res.status(403).json({ error: 'Co-leaders cannot change roles of leaders or other co-leaders.' });
+            }
+            if (role === 'co_leader') {
+                return res.status(403).json({ error: 'Only the squad leader can promote to co-leader.' });
+            }
+        } else {
+            return res.status(403).json({ error: 'Only leaders and co-leaders can assign roles.' });
+        }
         await dbRun(db, 'UPDATE squad_members SET role=? WHERE char_id=? AND squad_id=?', [role, targetId, membership.squad_id]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '🔰 Squad Role Changed', `Your role has been changed to "${role}".`]);
         res.json({ success: true, role });
@@ -9346,12 +9365,15 @@ router.post('/squads/members/:charId/kick', auth, async (req, res) => {
         if (targetId === char.id) return res.status(400).json({ error: 'You cannot kick yourself.' });
         const target = await dbGet(db, 'SELECT role FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
         if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
-        // Authorization: leader can kick anyone; officer can kick members only
+        // Authorization: leader can kick anyone; co-leader can kick officers and members; officer can kick members only
         if (membership.role === 'officer' && target.role !== 'member') {
             return res.status(403).json({ error: 'Officers can only kick members.' });
         }
+        if (membership.role === 'co_leader' && (target.role === 'leader' || target.role === 'co_leader')) {
+            return res.status(403).json({ error: 'Co-leaders cannot kick leaders or other co-leaders.' });
+        }
         if (membership.role === 'member') {
-            return res.status(403).json({ error: 'Only leaders and officers can kick members.' });
+            return res.status(403).json({ error: 'Only leaders, co-leaders and officers can kick members.' });
         }
         await dbRun(db, 'DELETE FROM squad_members WHERE char_id=? AND squad_id=?', [targetId, membership.squad_id]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '👢 Kicked from Squad', `You have been kicked from the squad by ${char.name}.`]);
