@@ -7675,9 +7675,14 @@ async function loadSquads() {
             api('GET', '/game/squads/leaderboard')
         ]);
         squadsData = { me, lb };
-        if (me.squad && me.squad.owner_char_id === character?.id) {
-            const appsRes = await api('GET', '/game/squads/applications').catch(() => ({ applications: [] }));
-            squadsData.applications = appsRes.applications || [];
+        if (me.squad && me.members) {
+            const myMem = me.members.find(m => m.id === character?.id);
+            const isLeader = me.squad.owner_char_id === character?.id;
+            const isOfficer = myMem?.role === 'officer';
+            if (isLeader || isOfficer) {
+                const appsRes = await api('GET', '/game/squads/applications').catch(() => ({ applications: [] }));
+                squadsData.applications = appsRes.applications || [];
+            }
         }
         renderSquads();
     } catch (e) {
@@ -7693,9 +7698,14 @@ function renderSquads() {
     const squad = me.squad;
     const members = me.members || [];
     const apps = squadsData?.applications || [];
+    const myMembership = members.find(m => m.id === character?.id);
+    const myRole = myMembership?.role || 'member';
     const isLeader = squad && squad.owner_char_id === character?.id;
+    const isOfficer = myRole === 'officer';
+    const canManageApps = isLeader || isOfficer;
+    const roleLabels = { leader: '👑 Leader', officer: '⚔️ Officer', member: '🪖 Member' };
 
-    const appsHtml = isLeader && apps.length > 0 ? `
+    const appsHtml = canManageApps && apps.length > 0 ? `
         <div class="squads-card" style="margin-top:10px">
             <div class="squads-title">📋 Pending Applications (${apps.length})</div>
             <div class="squads-members">
@@ -7721,9 +7731,18 @@ function renderSquads() {
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
             </div>
             <div class="squads-members">
-                ${members.map(m => `<div class="squads-member">
-                    <span class="squads-member-name">${escHtml(m.name)}</span>
-                    <span class="squads-member-sub">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
+                    <span>
+                        <span class="squads-member-name">${escHtml(m.name)}</span>
+                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
+                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                    </span>
+                    ${isLeader && m.id !== character?.id ? `
+                        <select class="input-field" style="width:auto;padding:2px 6px;font-size:0.75rem" onchange="changeMemberRole(${m.id}, this.value)">
+                            <option value="officer" ${m.role === 'officer' ? 'selected' : ''}>Officer</option>
+                            <option value="member" ${m.role === 'member' ? 'selected' : ''}>Member</option>
+                        </select>
+                    ` : ''}
                 </div>`).join('')}
             </div>
         </div>
@@ -7834,6 +7853,18 @@ async function rejectApplication(appId) {
     }
 }
 window.rejectApplication = rejectApplication;
+
+async function changeMemberRole(charId, role) {
+    try {
+        await api('POST', `/game/squads/members/${charId}/role`, { role });
+        await openGameNoticeDialog({ title: '🔰 Role Changed', message: `Member role updated to "${role}".` });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🔰 Squad Role', message: e.message || String(e) });
+    }
+}
+window.changeMemberRole = changeMemberRole;
+
 function filterLeaderboard() { renderLeaderboard(); }
 function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const rank = p.rank || fallbackRank;
