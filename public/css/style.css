@@ -495,6 +495,7 @@ body.modal-lock .topbar {
    ════════════════════════════════════════════════════════════════════════ */
 .screen { display: none; min-height: 100vh; }
 .screen.active { display: block; }
+#screen-auth { overflow-x: hidden; }
 #screen-game.active { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 .auth-bg {
@@ -510,6 +511,36 @@ body.modal-lock .topbar {
     position: fixed; inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.018'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
+.auth-bg::before {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        radial-gradient(1px 1px at 12% 28%, rgba(255,215,0,0.35), transparent),
+        radial-gradient(1px 1px at 25% 55%, rgba(255,215,0,0.25), transparent),
+        radial-gradient(1.5px 1.5px at 38% 12%, rgba(255,255,255,0.3), transparent),
+        radial-gradient(1px 1px at 52% 65%, rgba(255,215,0,0.2), transparent),
+        radial-gradient(1px 1px at 68% 32%, rgba(255,255,255,0.2), transparent),
+        radial-gradient(1.5px 1.5px at 78% 72%, rgba(255,215,0,0.3), transparent),
+        radial-gradient(1px 1px at 88% 48%, rgba(255,255,255,0.15), transparent),
+        radial-gradient(1px 1px at 18% 82%, rgba(255,215,0,0.18), transparent),
+        radial-gradient(1px 1px at 55% 92%, rgba(255,215,0,0.25), transparent),
+        radial-gradient(1.5px 1.5px at 42% 42%, rgba(255,215,0,0.15), transparent),
+        radial-gradient(1px 1px at 72% 16%, rgba(255,215,0,0.22), transparent),
+        radial-gradient(1px 1px at 30% 68%, rgba(255,255,255,0.12), transparent),
+        radial-gradient(1px 1px at 60% 22%, rgba(255,215,0,0.2), transparent),
+        radial-gradient(1.5px 1.5px at 48% 78%, rgba(255,255,255,0.12), transparent),
+        radial-gradient(1px 1px at 82% 88%, rgba(255,215,0,0.18), transparent),
+        radial-gradient(1px 1px at 92% 8%, rgba(255,255,255,0.12), transparent);
+    animation: particleDrift 25s ease-in-out infinite alternate;
+}
+@keyframes particleDrift {
+    0%   { transform: translate(-5%, -5%) rotate(0deg); }
+    50%  { transform: translate(3%, -2%) rotate(2deg); }
+    100% { transform: translate(5%, 5%) rotate(-2deg); }
+}
 
 .auth-container {
     position: relative; z-index: 1;
@@ -517,6 +548,16 @@ body.modal-lock .topbar {
     margin: 0 auto; padding: 56px 20px 40px;
     display: flex; flex-direction: column; align-items: center; gap: 18px;
 }
+.auth-container > * { animation: authFadeIn 0.6s ease both; }
+.auth-container > :nth-child(1) { animation-delay: 0s; }
+.auth-container > :nth-child(2) { animation-delay: 0.08s; }
+.auth-container > :nth-child(3) { animation-delay: 0.16s; }
+.auth-container > :nth-child(4) { animation-delay: 0.24s; }
+.auth-container > :nth-child(5) { animation-delay: 0.32s; }
+.auth-container > :nth-child(6) { animation-delay: 0.40s; }
+.auth-container > :nth-child(7) { animation-delay: 0.48s; }
+.auth-container > :nth-child(8) { animation-delay: 0.56s; }
+@keyframes authFadeIn { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
 .auth-container.wide { max-width: 800px; padding-top: 36px; }
 
 .game-title {
@@ -553,10 +594,9 @@ body.modal-lock .topbar {
 .game-logo {
     position: relative;
     z-index: 10;
-    width: 200%;
-    margin-left: -50%;
-    margin-right: -50%;
-    max-width: none;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
     display: block;
     height: auto;
     border-radius: 30px;
@@ -605,7 +645,8 @@ body.modal-lock .topbar {
 }
 
 .tab-content { display: none; flex-direction: column; gap: 12px; width: 100%; }
-.tab-content.active { display: flex; }
+.tab-content.active { display: flex; animation: tabSlideIn 0.3s ease; }
+@keyframes tabSlideIn { 0% { opacity: 0; transform: translateX(-8px); } 100% { opacity: 1; transform: translateX(0); } }
 .auth-legal-links {
     display: flex;
     justify-content: center;
@@ -643,6 +684,7 @@ body.modal-lock .topbar {
 .input-field:focus, .auth-input:focus {
     border-color: var(--gold);
     background: rgba(255,255,255,0.07);
+    box-shadow: 0 0 20px rgba(212,168,67,0.12), inset 0 0 20px rgba(212,168,67,0.04);
 }
 .auth-password-toggle {
     display: flex;
@@ -5380,7 +5422,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .mission-overlay-timer { font-size: 2rem; }
 
     .auth-container { padding: 28px 16px 32px; gap: 14px; }
-    .game-logo { width: 130%; margin-left: -15%; margin-right: -15%; border-radius: 16px; }
+    .game-logo { max-width: 100%; margin: 0; border-radius: 16px; }
     .game-subtitle { font-size: 0.78rem; letter-spacing: 0.15em; }
     .auth-tabs { gap: 3px; }
     .tab-btn { font-size: 0.76rem; padding: 8px 10px; }
