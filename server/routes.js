@@ -10177,13 +10177,16 @@ router.post('/squads/wars/:warId/start-battle', auth, async (req, res) => {
         const warId = Number(req.params.warId);
         const war = await dbGet(db, "SELECT * FROM clan_wars WHERE id=? AND attacker_squad_id=? AND phase='attacking' AND status='preparation'", [warId, membership.squad_id]);
         if (!war) return res.status(400).json({ error: 'War not found or not in attack phase. Wait for scout phase to end.' });
+        const isNpcWar = Number(war.is_npc_war || 0) === 1;
         // Validate each outpost has fighters
         const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=?', [warId]);
         for (const op of outposts) {
             const atkCount = await dbGet(db, "SELECT COUNT(*) AS c FROM clan_war_assignments WHERE outpost_id=? AND side='attacker'", [op.id]);
-            const defCount = await dbGet(db, "SELECT COUNT(*) AS c FROM clan_war_assignments WHERE outpost_id=? AND side='defender'", [op.id]);
             if (Number(atkCount?.c || 0) === 0) return res.status(400).json({ error: `Outpost ${op.outpost_index + 1} has no attackers assigned.` });
-            if (Number(defCount?.c || 0) === 0) return res.status(400).json({ error: `Outpost ${op.outpost_index + 1} has no defenders assigned.` });
+            if (!isNpcWar) {
+                const defCount = await dbGet(db, "SELECT COUNT(*) AS c FROM clan_war_assignments WHERE outpost_id=? AND side='defender'", [op.id]);
+                if (Number(defCount?.c || 0) === 0) return res.status(400).json({ error: `Outpost ${op.outpost_index + 1} has no defenders assigned.` });
+            }
         }
         await resolveWarBattle(db, war);
         const updatedWar = await dbGet(db, 'SELECT * FROM clan_wars WHERE id=?', [warId]);
@@ -10191,8 +10194,8 @@ router.post('/squads/wars/:warId/start-battle', auth, async (req, res) => {
             success: true,
             attacker_wins: Number(updatedWar.attacker_wins || 0),
             defender_wins: Number(updatedWar.defender_wins || 0),
-            captured_base: updatedWar.attacker_wins >= 3,
-            loot: 'deducted from defender',
+            captured_base: Number(updatedWar.attacker_wins || 0) >= 5,
+            loot: isNpcWar ? null : 'deducted from defender',
             attackers_captured: JSON.parse(updatedWar.attackers_captured || '[]'),
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
