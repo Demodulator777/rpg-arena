@@ -7854,7 +7854,6 @@ function renderClanContent() {
             <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
             <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
                 <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
-                <button class="btn-secondary btn-sm" ${actionAttrs('payBaseUpkeep', base.id)}>💰 Pay Upkeep (${base.upkeep_cost.toLocaleString()} gold)</button>
             </div>
         </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">Base at max level.</span></div>'}
         <div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
