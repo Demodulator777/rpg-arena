@@ -2751,10 +2751,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     #tab-squads .squads-actions .input-field { min-width: 0; flex: 1; width: auto; }
     #tab-squads .squads-card { max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
     .clan-base-map { height: 300px !important; }
-    .squad-row { flex-wrap: wrap; gap: 4px; }
-    .squad-info { flex: 1 1 100%; }
-    .squad-name { white-space: normal; overflow: visible; text-overflow: clip; }
-    .squad-metric { flex: 0 0 auto; }
+    .squad-row { gap: 6px; }
+    .squad-info { min-width: 0; }
+    .squad-name { white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word; }
+    .squad-metric { font-size: 0.75rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .squads-member { flex-wrap: wrap; gap: 4px; }
 }
 @media (max-width: 400px) {
