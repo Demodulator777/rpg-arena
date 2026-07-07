@@ -81,20 +81,20 @@ async function startTournament() {
   const now = new Date();
   const nowStr = formatDate(now);
   const pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND (scheduled_at IS NULL OR scheduled_at <= ?) ORDER BY id", [nowStr]);
-  for (const t of pending) {
+  await Promise.all(pending.map(async (t) => {
     try {
       const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
       const realCount = participants.filter(p => !p.is_npc).length;
       if (realCount === 0) {
         await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
         console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — no real players joined`);
-        continue;
+        return;
       }
-      await runTournament(db, t);
+      await runTournament(db, t, true);
     } catch (e) {
       console.error(`❌ Tournament #${t.id} (${t.level_group}) failed:`, e);
     }
-  }
+  }));
 }
 
 async function ensureMinPlayers(db, t) {
