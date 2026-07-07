@@ -7887,26 +7887,13 @@ function renderClanContent() {
         </div>
     </div>`).join('') : '';
 
-    const startWarBtn = clanData.squad_id && !base ? `<div class="squads-card" style="margin-top:10px">
-        <div class="squads-title">⚔️ Start a War</div>
-        <div class="squads-members" style="padding:8px 12px">
-            <div class="squads-meta">Select a base on the map to attack it.</div>
-            <div style="margin-top:6px">
-                <select id="clan-war-base-select" class="input-field" style="padding:4px 8px;font-size:0.8rem">
-                    <option value="">-- Select target base --</option>
-                    ${(clanData.bases || []).filter(b => b.owner_squad_id && b.owner_squad_id !== clanData.squad_id).map(b =>
-                        `<option value="${b.id}">${escHtml(b.name)} (${escHtml(b.owner_name || 'Unknown')})</option>`
-                    ).join('')}
-                </select>
-                <button class="btn-danger btn-sm" ${actionAttrs('startClanWar')} style="margin-left:6px">⚔️ Attack!</button>
-            </div>
-        </div>
-    </div>` : '';
+    const startWarBtn = '';
 
     return mapHtml + baseHtml + treasuryHtml + warHtml + startWarBtn;
 }
 
 async function showClanBaseDetail(baseId) {
+    const tierNames = { main: '🏰 Main', large: '🏯 Large', medium: '🏘️ Medium', small: '🛖 Small' };
     try {
         const res = await api('GET', `/game/squads/bases/${baseId}`);
         const b = res.base;
