@@ -7972,6 +7972,89 @@ async function openWarPanel(warId) {
 }
 window.openWarPanel = openWarPanel;
 
+async function assignToOutpost(warId) {
+    try {
+        const res = await api('GET', `/game/squads/wars/${warId}`);
+        const w = res.war;
+        if (!w) return;
+        if (w.phase !== 'attacking' && w.phase !== 'scout') {
+            return await openGameNoticeDialog({ title: 'Assign', message: 'Cannot assign fighters at this phase.', confirmLabel: 'Close' });
+        }
+        const isAttacker = w.is_attacker;
+        if (w.is_npc_war && !isAttacker) {
+            return await openGameNoticeDialog({ title: 'Assign', message: 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
+        }
+        const members = w.squad_members || [];
+        let html = `<div class="squads-card" style="max-width:100%">
+            <div class="squads-card-head">
+                <div><div class="squads-title">📋 Assign Fighters</div>
+                <div class="squads-meta">${isAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
+            </div></div>
+            <div style="padding:8px 12px">
+                <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+                    <tr style="border-bottom:1px solid #ffffff22">
+                        <th style="text-align:left;padding:4px">Member</th>
+                        <th style="text-align:center;padding:4px">Power</th>
+                        <th style="text-align:center;padding:4px">Outpost</th>
+                    </tr>
+                    ${members.map(m => `
+                    <tr style="border-bottom:1px solid #ffffff11">
+                        <td style="padding:4px">${escHtml(m.name)}</td>
+                        <td style="text-align:center;padding:4px">${m.power.toLocaleString()}</td>
+                        <td style="text-align:center;padding:4px">
+                            <select class="input-field" id="assign-${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem">
+                                <option value="-1">— Unassigned —</option>
+                                ${[0,1,2,3,4].map(i => `<option value="${i}">Outpost ${i+1}</option>`).join('')}
+                            </select>
+                        </td>
+                    </tr>`).join('')}
+                </table>
+            </div>
+            <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px">
+                <button class="btn-primary btn-sm" id="save-assignments" data-war-id="${warId}">💾 Save Assignments</button>
+            </div>
+        </div>`;
+        openGameNoticeDialog({ title: 'Assign Fighters', message: html, confirmLabel: 'Close' });
+        // Wire save button after dialog renders
+        const saveBtn = document.getElementById('save-assignments');
+        if (saveBtn) {
+            saveBtn.onclick = async () => {
+                const assignments = [];
+                for (const m of members) {
+                    const sel = document.getElementById(`assign-${m.id}`);
+                    if (sel) {
+                        const outpostIdx = parseInt(sel.value);
+                        if (outpostIdx >= 0) assignments.push({ char_id: m.id, outpost_index: outpostIdx });
+                    }
+                }
+                try {
+                    await api('POST', `/game/squads/wars/${warId}/assign`, { assignments });
+                    await openGameNoticeDialog({ title: 'Assignments Saved', message: 'Fighters assigned to outposts!', confirmLabel: 'Close' });
+                } catch (e) {
+                    await openGameNoticeDialog({ title: 'Assign Failed', message: e.message || String(e), confirmLabel: 'Close' });
+                }
+            };
+        }
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Assign', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.assignToOutpost = assignToOutpost;
+
+async function startWarBattle(warId) {
+    try {
+        const res = await api('POST', `/game/squads/wars/${warId}/start-battle`);
+        let msg = `⚔️ Battle resolved!<br>Attacker wins: ${res.attacker_wins}/5<br>Defender wins: ${res.defender_wins}/5`;
+        if (res.captured_base) msg += '<br>🏰 Base captured!';
+        if (res.loot) msg += '<br>💰 Loot deducted from defender!';
+        await openGameNoticeDialog({ title: '⚔️ War Battle', message: msg, confirmLabel: 'Close' });
+        await loadClanData(); renderSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '⚔️ Battle Failed', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.startWarBattle = startWarBattle;
+
 async function showSquadDetail(squadId) {
     try {
         const res = await api('GET', `/game/squads/${squadId}`);
