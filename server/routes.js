@@ -9277,9 +9277,11 @@ router.get('/squads/me', auth, async (req, res) => {
         const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ squad: null, members: [] });
         const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
-        const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role
+        const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
+            COALESCE((SELECT SUM(gold) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gold_donated,
+            COALESCE((SELECT SUM(gems) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gems_donated
             FROM squad_members sm JOIN characters c ON c.id = sm.char_id
-            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id]);
+            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id]);
         res.json({ squad, members });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -9826,23 +9828,6 @@ router.get('/squads/treasury', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/squads/donations', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id');
-        if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
-        if (!membership) return res.json({ donations: [] });
-        const rows = await dbAll(db, `SELECT d.*, c.name AS char_name FROM squad_base_donations d
-            JOIN characters c ON c.id = d.char_id WHERE d.squad_id=? ORDER BY d.created_at DESC LIMIT 100`,
-            [membership.squad_id]);
-        res.json({ donations: rows.map(r => ({
-            id: Number(r.id), char_id: Number(r.char_id), char_name: r.char_name,
-            gold: Number(r.gold), gems: Number(r.gems), created_at: Number(r.created_at),
-        })) });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // ── Squad Base Info ─────────────────────────────────────────────────────────
 
 router.get('/squads/base-info', auth, async (req, res) => {
@@ -9877,14 +9862,18 @@ router.get('/squads/:squadId', auth, async (req, res) => {
         const squadId = Number(req.params.squadId);
         const squad = await dbGet(db, 'SELECT id, name, invite_code FROM squads WHERE id=?', [squadId]);
         if (!squad) return res.status(404).json({ error: 'Squad not found.' });
-        const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role
-            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId]);
+        const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
+            COALESCE((SELECT SUM(gold) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gold_donated,
+            COALESCE((SELECT SUM(gems) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gems_donated
+            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId]);
         res.json({
             squad: { id: Number(squad.id), name: squad.name },
             members: members.map(m => ({
                 id: Number(m.id), name: m.name, level: Number(m.level),
                 class: m.class, role: m.role,
                 total_gold_earned: Number(m.total_gold_earned || 0),
+                gold_donated: Number(m.gold_donated || 0),
+                gems_donated: Number(m.gems_donated || 0),
             }))
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
