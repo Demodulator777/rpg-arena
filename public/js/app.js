@@ -3765,6 +3765,7 @@ function renderUpgrade() {
     
     const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
     const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
+    const squadBanner = c.squad_discount_pct > 0 ? `<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#2ecc71">🏰 <strong>Squad Base:</strong> ${c.squad_discount_pct}% off all upgrades!</div>` : '';
     
     const stats = [
         { key: 'strength', asset: 'strength', icon: '💪', label: 'Strength' },
@@ -3776,7 +3777,7 @@ function renderUpgrade() {
         { key: 'crit_chance', asset: 'critical', icon: '💥', label: 'Crit Chance', hint: 'Chance to hit max dmg' },
     ];
     
-    document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + stats.map(s => {
+    document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + squadBanner + stats.map(s => {
         // Use the cost directly from backend (already includes all modifiers: skill tree, event, premium)
         let cost = costs[s.key];
         if (cost === undefined || cost === null) cost = '?';
