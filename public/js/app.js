@@ -7858,7 +7858,7 @@ function renderClanContent() {
             <div class="squads-meta">${tierNames[base.tier] || base.tier} · Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}</div>
         </div></div>
         ${base.upgrade_cost ? `<div class="squads-members" style="padding:8px 12px">
-            <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
+            <div class="squads-meta">Next upgrade: 💎 ${base.upgrade_cost.gems} gems</div>
             <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
                 <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
             </div>
