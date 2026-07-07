@@ -7755,7 +7755,7 @@ function renderSquads() {
                                 ${roleOptions(m.role, isLeader)}
                             </select>
                         ` : ''}
-                        ${(isLeader || isCoLeader || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
+                        ${(isLeader || (isCoLeader && m.role !== 'leader') || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
                             <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 Kick</button>
                         ` : ''}
                     </span>
