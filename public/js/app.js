@@ -7774,7 +7774,7 @@ function renderSquads() {
                     <span>
                         <span class="squads-member-name">${escHtml(m.name)}</span>
                         <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)}</span>
                     </span>
                     <span style="display:flex;align-items:center;gap:4px">
                         ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader')) ? `
@@ -7878,9 +7878,6 @@ function renderClanContent() {
         <div class="squads-members" style="padding:8px 12px">
             <span class="squads-meta">💵 ${treasury.gold.toLocaleString()} gold · 💎 ${treasury.gems} gems</span>
         </div>
-        <div class="squads-members" style="padding:8px 12px">
-            <button class="btn-secondary btn-sm" ${actionAttrs('viewDonations')}>📜 Donation History</button>
-        </div>
     </div>` : '';
 
     const warHtml = wars.length > 0 ? wars.map(w => `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? '#e74c3c44' : '#2ecc7144'}">
@@ -7977,7 +7974,7 @@ window.payBaseUpkeep = payBaseUpkeep;
 async function upgradeBase(baseId) {
     try {
         const res = await api('POST', `/game/squads/bases/${baseId}/upgrade`);
-        await loadClanData(); renderSquads();
+        await loadClanData(); renderSquads(); renderUpgrade();
         await openGameNoticeDialog({ title: '⬆️ Upgrade', message: `Base upgraded to level ${res.level}!`, confirmLabel: 'Close' });
     } catch (e) {
         await openGameNoticeDialog({ title: 'Upgrade Failed', message: e.message || String(e), confirmLabel: 'Close' });
@@ -7985,43 +7982,6 @@ async function upgradeBase(baseId) {
 }
 window.upgradeBase = upgradeBase;
 
-async function viewDonations() {
-    try {
-        const res = await api('GET', '/game/squads/donations');
-        const donos = res.donations || [];
-        const totalGold = donos.reduce((s, d) => s + d.gold, 0);
-        const totalGems = donos.reduce((s, d) => s + d.gems, 0);
-        let html = `<div class="squads-card" style="max-width:100%">
-            <div class="squads-card-head">
-                <div><div class="squads-title">📜 Donation History</div>
-                <div class="squads-meta">Total: 💰 ${totalGold.toLocaleString()} gold · 💎 ${totalGems} gems</div>
-            </div></div>
-            <div style="padding:8px 12px;max-height:400px;overflow-y:auto">`;
-        if (donos.length === 0) {
-            html += '<div class="squads-meta">No donations yet.</div>';
-        } else {
-            html += `<table style="width:100%;border-collapse:collapse;font-size:0.8rem">
-                <tr style="border-bottom:1px solid #ffffff22">
-                    <th style="text-align:left;padding:4px">Member</th>
-                    <th style="text-align:right;padding:4px">Gold</th>
-                    <th style="text-align:right;padding:4px">Gems</th>
-                    <th style="text-align:right;padding:4px">When</th>
-                </tr>
-                ${donos.map(d => `<tr style="border-bottom:1px solid #ffffff11">
-                    <td style="padding:4px">${escHtml(d.char_name)}</td>
-                    <td style="text-align:right;padding:4px;color:#f1c40f">${d.gold.toLocaleString()}</td>
-                    <td style="text-align:right;padding:4px;color:#9b59b6">${d.gems.toLocaleString()}</td>
-                    <td style="text-align:right;padding:4px;opacity:0.6">${formatDate(d.created_at)}</td>
-                </tr>`).join('')}
-            </table>`;
-        }
-        html += '</div></div>';
-        await openGameNoticeDialog({ title: 'Donations', message: html, confirmLabel: 'Close' });
-    } catch (e) {
-        await openGameNoticeDialog({ title: 'Donations', message: e.message || String(e), confirmLabel: 'Close' });
-    }
-}
-window.viewDonations = viewDonations;
 
 async function openWarPanel(warId) {
     try {
@@ -8160,7 +8120,7 @@ async function showSquadDetail(squadId) {
                     <span>
                         <span class="squads-member-name">${escHtml(m.name)}</span>
                         <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)}</span>
                     </span>
                 </div>`).join('')}
             </div>
