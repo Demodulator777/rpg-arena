@@ -7784,16 +7784,13 @@ function renderSquads() {
             <div class="squads-title">🏆 Top Squads</div>
             <div class="squads-leaderboard">
                 ${(lb || []).map((s, idx) => `
-                    <div class="squad-row">
+                    <div class="squad-row" style="cursor:pointer" data-action="showSquadDetail" data-args="${encodeActionArgs([s.id])}">
                         <div class="squad-rank">#${idx + 1}</div>
                         <div class="squad-info">
                             <div class="squad-name">${escHtml(s.name)}</div>
                             <div class="squad-sub">Members: ${s.member_count} · Avg Lv: ${s.avg_level} · Avg Earned: ${Number(s.avg_gold_earned||0).toLocaleString()}</div>
                         </div>
-                        <div style="display:flex;align-items:center;gap:8px">
-                            <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
-                            ${hasNoSquad ? `<button class="btn-primary btn-sm" ${actionAttrs('applyToSquad', s.id)}>Apply</button>` : ''}
-                        </div>
+                        <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
                     </div>
                 `).join('')}
             </div>
@@ -7938,6 +7935,39 @@ async function lootBase(baseId) {
     }
 }
 window.lootBase = lootBase;
+
+async function showSquadDetail(squadId) {
+    try {
+        const res = await api('GET', `/game/squads/${squadId}`);
+        const s = res.squad;
+        const members = res.members || [];
+        if (!s) return;
+        const isInSquad = squadsData?.me?.squad != null;
+        const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
+        let html = `<div class="squads-card" style="max-width:100%">
+            <div class="squads-card-head">
+                <div><div class="squads-title">🛡️ ${escHtml(s.name)}</div>
+                <div class="squads-meta">Members: ${members.length}</div>
+            </div></div>
+            <div class="squads-members">
+                ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
+                    <span>
+                        <span class="squads-member-name">${escHtml(m.name)}</span>
+                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
+                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                    </span>
+                </div>`).join('')}
+            </div>
+            ${!isInSquad ? `<div class="squads-actions" style="margin-top:12px">
+                <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
+            </div>` : ''}
+        </div>`;
+        await openGameNoticeDialog({ title: 'Squad Details', message: html });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Squad Details', message: e.message || String(e) });
+    }
+}
+window.showSquadDetail = showSquadDetail;
 
 async function createSquad() {
     const name = document.getElementById('squad-name')?.value || '';
