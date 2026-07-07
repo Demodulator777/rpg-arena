@@ -9608,9 +9608,9 @@ router.post('/squads/bases/:baseId/donate', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET gold=gold-?, gems=gems-? WHERE id=?', [gold, gems, char.id]);
         await dbRun(db, 'INSERT INTO squad_base_donations (squad_id, base_id, char_id, gold, gems, created_at) VALUES (?,?,?,?,?,?)',
             [membership.squad_id, baseId, char.id, gold, gems, now]);
-        await dbRun(db, 'UPDATE squad_treasury SET gold=gold+?, gems=gems+? WHERE squad_id=?',
+        const donateResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+?, gems=gems+? WHERE squad_id=?',
             [gold, gems, membership.squad_id]);
-        if (db.changes === 0) {
+        if (!(donateResult?.rowsAffected ?? donateResult?.changes ?? 0)) {
             await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,?)',
                 [membership.squad_id, gold, gems]);
         }
@@ -9708,8 +9708,8 @@ router.post('/squads/bases/:baseId/loot', auth, async (req, res) => {
 
         // Deduct from defender, add to attacker
         await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [lootAmount, base.owner_squad_id]);
-        await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [lootAmount, membership.squad_id]);
-        if (db.changes === 0) {
+        const lootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [lootAmount, membership.squad_id]);
+        if (!(lootResult?.rowsAffected ?? lootResult?.changes ?? 0)) {
             await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [membership.squad_id, lootAmount]);
         }
 
@@ -9916,8 +9916,8 @@ async function resolveWarBattle(db, war) {
     const isNpcWar = Number(war.is_npc_war || 0) === 1;
     if (!isNpcWar && attackerWins >= 3) {
         const loot = calcWarLoot(attackerWins, war.defender_squad_id);
-        await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
-        if (db.changes === 0) {
+        const warLootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
+        if (!(warLootResult?.rowsAffected ?? warLootResult?.changes ?? 0)) {
             await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
         }
         const defTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.defender_squad_id]);
