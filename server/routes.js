@@ -4993,9 +4993,13 @@ function eventHas(bonus) {
 }
 
 // ── DB helpers ────────────────────────────────────────────────────────────
-async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows[0] ?? null; }
-async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args }); return r.rows; }
-async function dbRun(db, sql, args = []) { return db.execute({ sql, args }); }
+async function dbGet(db, sql, args = []) { const r = await db.execute({ sql, args: sanitizeArgs(args) }); return r.rows[0] ?? null; }
+async function dbAll(db, sql, args = []) { const r = await db.execute({ sql, args: sanitizeArgs(args) }); return r.rows; }
+async function dbRun(db, sql, args = []) { return db.execute({ sql, args: sanitizeArgs(args) }); }
+
+function sanitizeArgs(args) {
+    return args.map(a => a != null && typeof a === 'number' && !Number.isFinite(a) ? 0 : a);
+}
 
 function normalizeMonsterKey(value) {
     return String(value || '')
