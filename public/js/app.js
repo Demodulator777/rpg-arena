@@ -7649,20 +7649,45 @@ async function rerollShop() {
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
+let lbMode = 'players'; // 'players' | 'squads'
+let lbSquadData = [];
+function setLbMode(mode, btn) {
+    lbMode = mode;
+    document.querySelectorAll('.lb-mode-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderLeaderboard();
+}
 function setLbSort(sort,btn) { lbSort=sort; document.querySelectorAll('.lb-filters .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); loadLeaderboard(); }
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
     try {
-        const [freshCharacter, leaderboard] = await Promise.all([
+        const [freshCharacter, leaderboard, squadLb] = await Promise.all([
             api('GET','/game/character'),
-            api('GET',`/game/leaderboard?sort=${lbSort}`)
+            api('GET',`/game/leaderboard?sort=${lbSort}`),
+            api('GET', '/game/squads/leaderboard').catch(() => []),
         ]);
         character = freshCharacter;
         lbData = leaderboard;
+        lbSquadData = squadLb;
         renderLeaderboard();
     }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
+function buildSquadLeaderboardRow(s, idx) {
+    const rank = idx + 1;
+    const rc = rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
+    const rs = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
+    return `<div class="lb-row" ${actionAttrs('showSquadDetail', s.id)}>
+        <div class="lb-rank ${rc}">${rs}</div>
+        <div class="lb-info"><div class="lb-name">${escHtml(s.name)}</div>
+        <div class="lb-sub">${s.member_count} members · Avg Lv ${s.avg_level} · Avg 💰 ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
+        <div class="lb-stats">
+            <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div></div>
+        </div>
+    </div>`;
+}
+window.setLbMode = setLbMode;
+window.setLbSort = setLbSort;
 
 // ── Squads ────────────────────────────────────────────────────────────────
 let squadsData = null;
@@ -7779,26 +7804,7 @@ function renderSquads() {
         </div>
     `;
 
-    const hasNoSquad = !squad;
-    const lbHtml = `
-        <div class="squads-card">
-            <div class="squads-title">🏆 Top Squads</div>
-            <div class="squads-leaderboard">
-                ${(lb || []).map((s, idx) => `
-                    <div class="squad-row" style="cursor:pointer" data-action="showSquadDetail" data-args="${encodeActionArgs([s.id])}">
-                        <div class="squad-rank">#${idx + 1}</div>
-                        <div class="squad-info">
-                            <div class="squad-name">${escHtml(s.name)}</div>
-                            <div class="squad-sub">Members: ${s.member_count} · Avg Lv: ${s.avg_level} · Avg Earned: ${Number(s.avg_gold_earned||0).toLocaleString()}</div>
-                        </div>
-                        <div class="squad-metric">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    `;
-
-    el.innerHTML = `<div class="squads-grid">${myCard}${lbHtml}</div>${renderClanContent()}`;
+    el.innerHTML = `<div class="squads-grid">${myCard}</div>${renderClanContent()}`;
 }
 
 // ── Clan Base / War System ────────────────────────────────────────────────
@@ -7870,6 +7876,9 @@ function renderClanContent() {
         <div class="squads-title">💰 Squad Treasury</div>
         <div class="squads-members" style="padding:8px 12px">
             <span class="squads-meta">💵 ${treasury.gold.toLocaleString()} gold · 💎 ${treasury.gems} gems</span>
+        </div>
+        <div class="squads-members" style="padding:8px 12px">
+            <button class="btn-secondary btn-sm" ${actionAttrs('viewDonations')}>📜 Donation History</button>
         </div>
     </div>` : '';
 
@@ -7974,6 +7983,44 @@ async function upgradeBase(baseId) {
     }
 }
 window.upgradeBase = upgradeBase;
+
+async function viewDonations() {
+    try {
+        const res = await api('GET', '/game/squads/donations');
+        const donos = res.donations || [];
+        const totalGold = donos.reduce((s, d) => s + d.gold, 0);
+        const totalGems = donos.reduce((s, d) => s + d.gems, 0);
+        let html = `<div class="squads-card" style="max-width:100%">
+            <div class="squads-card-head">
+                <div><div class="squads-title">📜 Donation History</div>
+                <div class="squads-meta">Total: 💰 ${totalGold.toLocaleString()} gold · 💎 ${totalGems} gems</div>
+            </div></div>
+            <div style="padding:8px 12px;max-height:400px;overflow-y:auto">`;
+        if (donos.length === 0) {
+            html += '<div class="squads-meta">No donations yet.</div>';
+        } else {
+            html += `<table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+                <tr style="border-bottom:1px solid #ffffff22">
+                    <th style="text-align:left;padding:4px">Member</th>
+                    <th style="text-align:right;padding:4px">Gold</th>
+                    <th style="text-align:right;padding:4px">Gems</th>
+                    <th style="text-align:right;padding:4px">When</th>
+                </tr>
+                ${donos.map(d => `<tr style="border-bottom:1px solid #ffffff11">
+                    <td style="padding:4px">${escHtml(d.char_name)}</td>
+                    <td style="text-align:right;padding:4px;color:#f1c40f">${d.gold.toLocaleString()}</td>
+                    <td style="text-align:right;padding:4px;color:#9b59b6">${d.gems.toLocaleString()}</td>
+                    <td style="text-align:right;padding:4px;opacity:0.6">${formatDate(d.created_at)}</td>
+                </tr>`).join('')}
+            </table>`;
+        }
+        html += '</div></div>';
+        await openGameNoticeDialog({ title: 'Donations', message: html, confirmLabel: 'Close' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Donations', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.viewDonations = viewDonations;
 
 async function openWarPanel(warId) {
     try {
@@ -8108,7 +8155,7 @@ async function showSquadDetail(squadId) {
                 <div class="squads-meta">Members: ${members.length}</div>
             </div></div>
             <div class="squads-members">
-                ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
+                ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" ${actionAttrs('openProfile', m.id)}>
                     <span>
                         <span class="squads-member-name">${escHtml(m.name)}</span>
                         <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
@@ -8242,6 +8289,20 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         </div>`;
 }
 function renderLeaderboard() {
+    const modeToggle = `<div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="filter-btn lb-mode-btn ${lbMode === 'players' ? 'active' : ''}" ${actionAttrs('setLbMode', 'players')}>👤 Players</button>
+        <button class="filter-btn lb-mode-btn ${lbMode === 'squads' ? 'active' : ''}" ${actionAttrs('setLbMode', 'squads')}>🛡️ Squads</button>
+    </div>`;
+    if (lbMode === 'squads') {
+        const filtered = lbSquadData || [];
+        document.getElementById('leaderboard-list').innerHTML = modeToggle + (
+            filtered.length === 0
+                ? '<p class="empty">No squads found.</p>'
+                : '<div class="lb-row lb-header-row"><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">💰 TOTAL EARNED</div></div></div></div>' +
+                  filtered.map((s, i) => buildSquadLeaderboardRow(s, i)).join('')
+        );
+        return;
+    }
     const q=(document.getElementById('lb-search')?.value||'').toLowerCase();
     const filtered=q?lbData.filter(p=>p.name.toLowerCase().includes(q)):lbData;
     const mmBox = document.getElementById('matchmaking-box');
@@ -8251,8 +8312,11 @@ function renderLeaderboard() {
             ? buildLeaderboardRow(myRow, myRow.rank || 1, 'lb-self-row')
             : '<p class="empty" style="padding:10px">Your character is not ranked yet.</p>';
     }
-    if (!filtered.length){document.getElementById('leaderboard-list').innerHTML='<p class="empty">No players found.</p>';return;}
-    document.getElementById('leaderboard-list').innerHTML=
+    if (!filtered.length){
+        document.getElementById('leaderboard-list').innerHTML = modeToggle + '<p class="empty">No players found.</p>';
+        return;
+    }
+    document.getElementById('leaderboard-list').innerHTML = modeToggle +
         '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div></div>' +
         filtered.map((p,i)=>buildLeaderboardRow(p, i + 1)).join('');
 }
