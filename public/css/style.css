@@ -2749,6 +2749,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 @media (max-width: 520px) {
     #tab-squads .squads-actions { gap: 8px; }
     #tab-squads .squads-actions .input-field { min-width: 220px; }
+    #tab-squads { overflow-x: hidden; }
+    #tab-squads .squads-card { max-width: 100%; box-sizing: border-box; }
+    .clan-base-map { height: 300px !important; }
 }
 .squads-members { margin-top: 12px; display: grid; gap: 8px; }
 .squads-member { padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); background: rgba(0,0,0,0.18); }
@@ -4368,12 +4371,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .modal-header h3 { font-family: 'Cinzel',serif; font-size: 0.98rem; font-weight: 700; color: var(--text-bright); }
-.game-dialog-box { max-width: 460px; }
+.game-dialog-box { max-width: 460px; width: 90%; }
 .game-dialog-message {
     font-size: 0.9rem;
     color: var(--text);
     line-height: 1.7;
     margin-bottom: 18px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.game-dialog-message > .squads-card { max-width: 100%; }
+@media (max-width: 640px) {
+    .game-dialog-box { max-width: 94vw; }
+    .game-dialog-message { font-size: 0.82rem; }
 }
 .game-dialog-actions {
     display: flex;
