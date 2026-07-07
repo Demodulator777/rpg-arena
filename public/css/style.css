@@ -2753,6 +2753,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .clan-base-map { height: 300px !important; }
     .squad-row { flex-wrap: wrap; gap: 4px; }
     .squad-info { flex: 1 1 100%; }
+    .squad-name { white-space: normal; overflow: visible; text-overflow: clip; }
+    .squad-metric { flex: 0 0 auto; }
     .squads-member { flex-wrap: wrap; gap: 4px; }
 }
 @media (max-width: 400px) {
