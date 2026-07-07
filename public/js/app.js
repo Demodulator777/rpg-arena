@@ -7679,9 +7679,10 @@ function buildSquadLeaderboardRow(s, idx) {
     const rs = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
     return `<div class="lb-row" ${actionAttrs('showSquadDetail', s.id)}>
         <div class="lb-rank ${rc}">${rs}</div>
+        <div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1rem">🛡️</div>
         <div class="lb-info"><div class="lb-name">${escHtml(s.name)}</div>
         <div class="lb-sub">${s.member_count} members · Avg Lv ${s.avg_level} · Avg 💰 ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
-        <div class="lb-stats">
+        <div class="lb-stats" style="grid-template-columns:1fr">
             <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div></div>
         </div>
     </div>`;
@@ -8298,7 +8299,7 @@ function renderLeaderboard() {
         document.getElementById('leaderboard-list').innerHTML = modeToggle + (
             filtered.length === 0
                 ? '<p class="empty">No squads found.</p>'
-                : '<div class="lb-row lb-header-row"><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">💰 TOTAL EARNED</div></div></div></div>' +
+                : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 TOTAL EARNED</div></div></div></div>' +
                   filtered.map((s, i) => buildSquadLeaderboardRow(s, i)).join('')
         );
         return;
@@ -8325,6 +8326,8 @@ async function openProfile(id) {
     const modal=document.getElementById('profile-modal'), content=document.getElementById('profile-content');
     if (!modal||!content) return;
     hideItemTooltip();
+    // Move to end of body so it stacks above any open game dialog
+    document.body.appendChild(modal);
     content.innerHTML='<p class="loading">Loading profile...</p>'; modal.classList.remove('hidden');
     try {
         character = await api('GET','/game/character');
