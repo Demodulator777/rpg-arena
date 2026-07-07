@@ -7877,7 +7877,7 @@ function renderClanContent() {
         <div class="squads-card-head">
             <div><div class="squads-title">⚔️ ${w.is_attacker ? 'Attacking' : 'Defending'} ${escHtml(w.base_name)}</div>
             <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
-            <div class="squads-meta" style="font-size:0.65rem">${w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}</div>
+            <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture' : ''} ${!w.is_npc_war && w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}</div>
         </div></div>
         <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
             ${w.phase !== 'resolved' ? `<button class="btn-primary btn-sm" ${actionAttrs('openWarPanel', w.id)}>⚔️ War Panel</button>` : ''}
@@ -7916,11 +7916,11 @@ window.showClanBaseDetail = showClanBaseDetail;
 
 async function captureBase(baseId) {
     try {
-        await api('POST', '/game/squads/wars/start', { base_id: baseId });
-        await openGameNoticeDialog({ title: '⚔️ War Started', message: 'You have declared war on this base!' });
+        const res = await api('POST', `/game/squads/bases/${baseId}/capture`);
+        await openGameNoticeDialog({ title: '⚔️ NPC Capture', message: `War started! Defeat all ${res.npc_count} NPC defenders (lvl ${res.npc_level}, ~${res.npc_power.toLocaleString()} power each) across 5 outposts.` });
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '⚔️ War', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '⚔️ Capture Failed', message: e.message || String(e) });
     }
 }
 window.captureBase = captureBase;
@@ -7935,6 +7935,42 @@ async function lootBase(baseId) {
     }
 }
 window.lootBase = lootBase;
+
+async function openWarPanel(warId) {
+    try {
+        const res = await api('GET', `/game/squads/wars/${warId}`);
+        const w = res.war;
+        if (!w) return;
+        let html = `<div class="squads-card" style="max-width:100%">
+            <div class="squads-card-head">
+                <div><div class="squads-title">⚔️ ${escHtml(w.base_name)}</div>
+                <div class="squads-meta">${w.is_attacker ? `Attacking ${escHtml(w.defender_name)}` : `Defending vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
+                <div class="squads-meta" style="font-size:0.65rem">
+                    ${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture this base' : ''}
+                    ${!w.is_npc_war && w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''}
+                    ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}
+                </div>
+            </div></div>
+            <div class="squads-members" style="padding:8px 12px">
+                <div class="squads-title" style="font-size:0.8rem">Outposts</div>
+                ${w.outposts.map((o, i) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
+                    <span>Outpost ${i + 1}</span>
+                    <span>Attacker: ${o.attacker_power.toLocaleString()} · Defender: ${o.defender_power.toLocaleString()}</span>
+                    <span>${o.winner ? (o.winner === 'attacker' ? '✅ Won' : '❌ Lost') : '⏳ Pending'}</span>
+                </div>`).join('')}
+            </div>
+            <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
+                ${w.phase === 'scout' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
+                ${w.phase === 'attacking' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
+                ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('startWarBattle', w.id)}>⚔️ Start Battle</button>` : ''}
+            </div>
+        </div>`;
+        await openGameNoticeDialog({ title: 'War Panel', message: html, confirmLabel: 'Close' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'War Panel', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.openWarPanel = openWarPanel;
 
 async function showSquadDetail(squadId) {
     try {
