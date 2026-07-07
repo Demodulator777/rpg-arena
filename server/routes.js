@@ -9567,7 +9567,7 @@ router.post('/squads/reset-invite', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const squad = await dbGet(db, 'SELECT id FROM squads WHERE owner_char_id=? LIMIT 1', [char.id]);
         if (!squad) return res.status(403).json({ error: 'Only the squad leader can reset the invite code.' });
-        const code = makeInviteCode();
+        let code = makeInviteCode();
         for (let i = 0; i < 5; i++) {
             const exists = await dbGet(db, 'SELECT 1 FROM squads WHERE invite_code=? AND id!=? LIMIT 1', [code, squad.id]);
             if (!exists) break;
@@ -9823,6 +9823,23 @@ router.get('/squads/treasury', auth, async (req, res) => {
         if (!membership) return res.json({ treasury: null });
         const treasury = await dbGet(db, 'SELECT gold, gems FROM squad_treasury WHERE squad_id=?', [membership.squad_id]);
         res.json({ treasury: treasury ? { gold: Number(treasury.gold), gems: Number(treasury.gems) } : { gold: 0, gems: 0 } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/donations', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.json({ donations: [] });
+        const rows = await dbAll(db, `SELECT d.*, c.name AS char_name FROM squad_base_donations d
+            JOIN characters c ON c.id = d.char_id WHERE d.squad_id=? ORDER BY d.created_at DESC LIMIT 100`,
+            [membership.squad_id]);
+        res.json({ donations: rows.map(r => ({
+            id: Number(r.id), char_id: Number(r.char_id), char_name: r.char_name,
+            gold: Number(r.gold), gems: Number(r.gems), created_at: Number(r.created_at),
+        })) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
