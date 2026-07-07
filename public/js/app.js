@@ -7936,6 +7936,44 @@ async function lootBase(baseId) {
 }
 window.lootBase = lootBase;
 
+async function donateToBase(baseId) {
+    const gold = parseInt(document.getElementById('clan-donate-gold')?.value || '0');
+    const gems = parseInt(document.getElementById('clan-donate-gems')?.value || '0');
+    if (gold <= 0 && gems <= 0) return;
+    try {
+        await api('POST', `/game/squads/bases/${baseId}/donate`, { gold, gems });
+        document.getElementById('clan-donate-gold').value = '';
+        document.getElementById('clan-donate-gems').value = '';
+        await loadClanData(); renderSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Donate Failed', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.donateToBase = donateToBase;
+
+async function payBaseUpkeep(baseId) {
+    try {
+        const res = await api('POST', `/game/squads/bases/${baseId}/pay-upkeep`);
+        const msg = res.upkeep_paid ? `Upkeep paid! Discount active for 24h.` : `Already paid.`;
+        await loadClanData(); renderSquads();
+        await openGameNoticeDialog({ title: '💰 Upkeep', message: msg, confirmLabel: 'Close' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Upkeep Failed', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.payBaseUpkeep = payBaseUpkeep;
+
+async function upgradeBase(baseId) {
+    try {
+        const res = await api('POST', `/game/squads/bases/${baseId}/upgrade`);
+        await loadClanData(); renderSquads();
+        await openGameNoticeDialog({ title: '⬆️ Upgrade', message: `Base upgraded to level ${res.level}!`, confirmLabel: 'Close' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Upgrade Failed', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.upgradeBase = upgradeBase;
+
 async function openWarPanel(warId) {
     try {
         const res = await api('GET', `/game/squads/wars/${warId}`);
