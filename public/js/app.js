@@ -7833,7 +7833,7 @@ function renderClanContent() {
 
     const mapHtml = `<div class="squads-card" style="margin-top:10px">
         <div class="squads-title">🗺️ Clan Base Map</div>
-        <div style="position:relative;width:100%;height:500px;background:rgba(0,0,0,0.3);border-radius:12px;overflow:hidden;margin-top:8px">
+        <div class="clan-base-map" style="position:relative;width:100%;height:500px;background:rgba(0,0,0,0.3);border-radius:12px;overflow:hidden;margin-top:8px">
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
             ${(clanData.bases || []).map(b => {
                 const color = tierColors[b.tier] || '#888';
@@ -7898,7 +7898,7 @@ async function showClanBaseDetail(baseId) {
         const res = await api('GET', `/game/squads/bases/${baseId}`);
         const b = res.base;
         if (!b) return;
-        let html = `<div class="squads-card" style="min-width:400px">
+        let html = `<div class="squads-card" style="max-width:100%">
             <div class="squads-card-head">
                 <div><div class="squads-title">🏰 ${escHtml(b.name)}</div>
                 <div class="squads-meta">${tierNames[b.tier] || b.tier}
