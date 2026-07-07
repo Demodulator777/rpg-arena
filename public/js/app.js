@@ -7945,6 +7945,7 @@ async function donateToBase(baseId) {
         await api('POST', `/game/squads/bases/${baseId}/donate`, { gold, gems });
         document.getElementById('clan-donate-gold').value = '';
         document.getElementById('clan-donate-gems').value = '';
+        if (character) { character.gold = Math.max(0, (character.gold || 0) - gold); character.gems = Math.max(0, (character.gems || 0) - gems); renderTopBar(); }
         await loadClanData(); renderSquads();
     } catch (e) {
         await openGameNoticeDialog({ title: 'Donate Failed', message: e.message || String(e), confirmLabel: 'Close' });
