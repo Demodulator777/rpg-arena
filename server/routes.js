@@ -4953,10 +4953,10 @@ function calcBaseUpgradeCost(tier, level) {
     };
 }
 
-function calcBaseUpkeep(tier, level) {
+function calcBaseUpkeep(tier, level, totalSquadLevel) {
     const cfg = CLAN_BASE_TIERS[tier];
     if (!cfg || level <= 0) return 0;
-    return level * cfg.upkeep;
+    return level * (totalSquadLevel || 1);
 }
 
 function calcMemberStatDiscount(tier, level, lastUpkeepPaid) {
@@ -4966,6 +4966,21 @@ function calcMemberStatDiscount(tier, level, lastUpkeepPaid) {
     const day = 86400;
     if (!lastUpkeepPaid || (now - lastUpkeepPaid) > day) return 0;
     return level * cfg.discount_per_lvl;
+}
+
+async function getSquadStatDiscount(db, charId) {
+    const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [charId]);
+    if (!membership) return 0;
+    const owned = await dbGet(db, `SELECT b.tier, su.upgrade_level, su.last_upkeep_paid
+        FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
+        WHERE b.owner_squad_id=? LIMIT 1`, [membership.squad_id]);
+    if (!owned) return 0;
+    return calcMemberStatDiscount(owned.tier, Number(owned.upgrade_level || 0), Number(owned.last_upkeep_paid || 0));
+}
+
+async function getSquadTotalLevel(db, squadId) {
+    const rows = await dbAll(db, 'SELECT level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)', [squadId]);
+    return rows.reduce((sum, r) => sum + Number(r.level || 0), 0);
 }
 
 function calcFighterPower(char) {
@@ -8334,7 +8349,7 @@ function withTrainingStatus(char) {
     return { ...char, trainingDone:!!trainingDone, trainingActive:!!trainingActive,
         trainingSecondsLeft: trainingActive ? char.training_ends_at - now : 0 };
 }
-function withUpgradeCosts(char) {
+function withUpgradeCosts(char, squadDiscountPct = 0) {
     const costs = {};
     const stats = ['strength','defense','agility','magic','vitality','hit_chance','crit_chance'];
 
@@ -8352,6 +8367,8 @@ function withUpgradeCosts(char) {
         // Premium & event discounts (mirrors lines 6404-6406)
         if (discountEvent) finalCost = Math.max(1, Math.floor(finalCost * 0.70));
         if (hasPremium(activePrem, 'apprentice')) finalCost = Math.max(1, Math.floor(finalCost * 0.80));
+        // Squad base stat discount
+        if (squadDiscountPct > 0) finalCost = Math.max(1, Math.floor(finalCost * (100 - squadDiscountPct) / 100));
 
         costs[stat] = finalCost;
     }
@@ -8607,7 +8624,8 @@ async function buildCharacterResponse(char, db) {
     const setCounts = getEquippedSetCounts(equippedArray);
     const hpMax     = calcHpMax(char, equippedArray);
     const hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
-    const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent });
+    const squadDiscountPct = await getSquadStatDiscount(db, char.id);
+    const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent }, squadDiscountPct);
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
 
@@ -8752,6 +8770,7 @@ async function buildCharacterResponse(char, db) {
                 return [];
             }
         })(),
+        squad_discount_pct: squadDiscountPct,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -9780,7 +9799,8 @@ router.post('/squads/bases/:baseId/pay-upkeep', auth, async (req, res) => {
         const cur = await dbGet(db, 'SELECT upgrade_level, last_upkeep_paid FROM squad_base_upgrades WHERE squad_id=? AND base_id=?', [membership.squad_id, baseId]);
         const curLevel = Number(cur?.upgrade_level || 0);
         if (curLevel <= 0) return res.status(400).json({ error: 'Base has no upgrades yet.' });
-        const upkeepCost = calcBaseUpkeep(base.tier, curLevel);
+        const totalLevel = await getSquadTotalLevel(db, membership.squad_id);
+        const upkeepCost = calcBaseUpkeep(base.tier, curLevel, totalLevel);
         if (upkeepCost <= 0) return res.status(400).json({ error: 'No upkeep required.' });
         const treasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [membership.squad_id]);
         if (Number(treasury?.gold || 0) < upkeepCost) return res.status(400).json({ error: `Treasury needs ${upkeepCost} gold for upkeep.` });
@@ -9820,13 +9840,14 @@ router.get('/squads/base-info', auth, async (req, res) => {
             WHERE b.owner_squad_id=? LIMIT 1`, [membership.squad_id]);
         if (!ownedBase) return res.json({ base: null });
         const discount = calcMemberStatDiscount(ownedBase.tier, Number(ownedBase.upgrade_level || 0), Number(ownedBase.last_upkeep_paid || 0));
+        const totalLevel = await getSquadTotalLevel(db, membership.squad_id);
         res.json({
             base: {
                 id: Number(ownedBase.id), name: ownedBase.name, tier: ownedBase.tier,
                 upgrade_level: Number(ownedBase.upgrade_level || 0),
                 max_upgrades: Number(ownedBase.max_upgrades),
                 discount_pct: discount,
-                upkeep_cost: calcBaseUpkeep(ownedBase.tier, Number(ownedBase.upgrade_level || 0)),
+                upkeep_cost: calcBaseUpkeep(ownedBase.tier, Number(ownedBase.upgrade_level || 0), totalLevel),
                 upgrade_cost: calcBaseUpgradeCost(ownedBase.tier, Number(ownedBase.upgrade_level || 0)),
             }
         });
@@ -10348,6 +10369,9 @@ router.post('/upgrade', auth, async (req, res) => {
         if (eventHas('discount_stats')) cost = Math.max(1, Math.floor(cost * 0.70));
         const activePrem = getActivePremium(char);
         if (hasPremium(activePrem, 'apprentice')) cost = Math.max(1, Math.floor(cost * 0.80));
+        // Squad base stat discount
+        const squadDiscount = await getSquadStatDiscount(db, char.id);
+        if (squadDiscount > 0) cost = Math.max(1, Math.floor(cost * (100 - squadDiscount) / 100));
 
         const result = await dbRun(db,
             `UPDATE characters SET ${stat}=${stat}+1, gold=gold-? WHERE id=? AND gold>=?`,
