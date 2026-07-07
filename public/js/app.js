@@ -7839,8 +7839,7 @@ function renderClanContent() {
                 const color = tierColors[b.tier] || '#888';
                 const isOwned = b.owner_squad_id && b.owner_squad_id === clanData.squad_id;
                 const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
-                return `<div style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center"
-                        onclick="showClanBaseDetail(${b.id})" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
+                return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
                     <div style="width:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;height:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;border-radius:50%;background:${isOwned ? '#2ecc71' : isOccupied ? '#e74c3c' : color};border:2px solid ${isOwned ? '#27ae60' : isOccupied ? '#c0392b' : 'rgba(255,255,255,0.3)'};margin:0 auto;box-shadow:0 0 ${isOwned ? 8 : 4}px ${color}44"></div>
                     <div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:${isOwned ? '#2ecc71' : '#aaa'}">${escHtml(b.name)}${b.discount_pct ? ' 🏷️' : ''}</div>
                 </div>`;
