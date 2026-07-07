@@ -1295,6 +1295,11 @@ router.post('/tournaments/join', auth, async (req, res) => {
       t = await dbGet_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND level_group = ? ORDER BY id DESC LIMIT 1", [group]);
     }
     if (!t) return res.status(400).json({ error: 'No upcoming tournament' });
+    // Character can only join one tournament total, across all level groups
+    const alreadyInAny = await dbGet_t(db, `SELECT 1 FROM tournament_participants tp
+      JOIN tournaments t2 ON t2.id = tp.tournament_id
+      WHERE tp.char_id = ? AND t2.status = 'pending' LIMIT 1`, [char.id]);
+    if (alreadyInAny) return res.status(400).json({ error: 'You have already joined a tournament for this cycle.' });
     const existing = await dbGet_t(db, 'SELECT id FROM tournament_participants WHERE tournament_id = ? AND char_id = ?', [t.id, char.id]);
     if (existing) return res.status(400).json({ error: 'Already joined' });
     if (char.gold < TOURNAMENT_COST) return res.status(400).json({ error: `Need ${TOURNAMENT_COST} gold to join` });
