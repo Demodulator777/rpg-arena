@@ -4944,10 +4944,9 @@ const NPC_BASE_CAPTURE = {
 function calcBaseUpgradeCost(tier, level) {
     const cfg = CLAN_BASE_TIERS[tier];
     if (!cfg || level >= cfg.max_upgrades) return null;
-    const mult = level + 1;
     return {
-        gold: Math.floor(cfg.gold_cost * Math.pow(mult, 1.5)),
-        gems: Math.floor(cfg.gem_cost * mult),
+        gold: 0,
+        gems: 50,
         next_level: level + 1,
         max_upgrades: cfg.max_upgrades,
     };
