@@ -7858,7 +7858,7 @@ function renderClanContent() {
             <div class="squads-meta">${tierNames[base.tier] || base.tier} · Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}</div>
         </div></div>
         ${base.upgrade_cost ? `<div class="squads-members" style="padding:8px 12px">
-            <div class="squads-meta">Next upgrade: 💎 ${base.upgrade_cost.gems} gems</div>
+            <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
             <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
                 <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
             </div>
@@ -8120,7 +8120,7 @@ async function showSquadDetail(squadId) {
                     <span>
                         <span class="squads-member-name">${escHtml(m.name)}</span>
                         <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)}</span>
+                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
                     </span>
                 </div>`).join('')}
             </div>
