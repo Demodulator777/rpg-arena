@@ -7907,9 +7907,9 @@ async function showClanBaseDetail(baseId) {
                 ${b.can_loot ? `<button class="btn-success btn-sm" ${actionAttrs('lootBase', b.id)}>💰 Loot Base (10% Gold)</button>` : ''}
             </div>
         </div>`;
-        await openGameNoticeDialog({ title: 'Base Detail', message: html });
+        await openGameNoticeDialog({ title: 'Base Detail', message: html, confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Base Detail', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: 'Base Detail', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.showClanBaseDetail = showClanBaseDetail;
@@ -7962,9 +7962,9 @@ async function showSquadDetail(squadId) {
                 <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
             </div>` : ''}
         </div>`;
-        await openGameNoticeDialog({ title: 'Squad Details', message: html });
+        await openGameNoticeDialog({ title: 'Squad Details', message: html, confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Squad Details', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: 'Squad Details', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.showSquadDetail = showSquadDetail;
@@ -8008,6 +8008,7 @@ async function applyToSquad(squadId) {
     try {
         await api('POST', '/game/squads/apply', { squad_id: squadId });
         await openGameNoticeDialog({ title: '📋 Application Sent', message: 'Your application has been sent to the squad leader.' });
+        await loadSquads();
     } catch (e) {
         await openGameNoticeDialog({ title: '📋 Squad Application', message: e.message || String(e) });
     }
