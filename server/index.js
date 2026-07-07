@@ -40,7 +40,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, ensureBotRunner } = require('./routes');
+const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -82,6 +82,13 @@ getDb().then(async (db) => {
       runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
     }, 3600000);
   }, msUntilHour);
+  
+  // Auto upkeep — check every 60s for due payments
+  setInterval(() => {
+    autoProcessUpkeep(db).catch(e => console.error('[Upkeep] tick failed:', e.message));
+  }, 60000);
+  // Fire once on startup too
+  autoProcessUpkeep(db).catch(e => console.error('[Upkeep] init failed:', e.message));
   
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
