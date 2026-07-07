@@ -9364,25 +9364,6 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/squads/:squadId', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const squadId = Number(req.params.squadId);
-        const squad = await dbGet(db, 'SELECT id, name, invite_code FROM squads WHERE id=?', [squadId]);
-        if (!squad) return res.status(404).json({ error: 'Squad not found.' });
-        const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role
-            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId]);
-        res.json({
-            squad: { id: Number(squad.id), name: squad.name },
-            members: members.map(m => ({
-                id: Number(m.id), name: m.name, level: Number(m.level),
-                class: m.class, role: m.role,
-                total_gold_earned: Number(m.total_gold_earned || 0),
-            }))
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // ── Squad Applications ──────────────────────────────────────────
 
 router.post('/squads/apply', auth, async (req, res) => {
@@ -9796,6 +9777,25 @@ router.get('/squads/base-info', auth, async (req, res) => {
                 upkeep_cost: calcBaseUpkeep(ownedBase.tier, Number(ownedBase.upgrade_level || 0)),
                 upgrade_cost: calcBaseUpgradeCost(ownedBase.tier, Number(ownedBase.upgrade_level || 0)),
             }
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/squads/:squadId', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const squadId = Number(req.params.squadId);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code FROM squads WHERE id=?', [squadId]);
+        if (!squad) return res.status(404).json({ error: 'Squad not found.' });
+        const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role
+            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId]);
+        res.json({
+            squad: { id: Number(squad.id), name: squad.name },
+            members: members.map(m => ({
+                id: Number(m.id), name: m.name, level: Number(m.level),
+                class: m.class, role: m.role,
+                total_gold_earned: Number(m.total_gold_earned || 0),
+            }))
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
