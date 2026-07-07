@@ -18520,6 +18520,31 @@ async function isCharacterTraining(db, characterId) {
     return !!training;
 }
 
+// ── Auto Upkeep Scheduler ──────────────────────────────────────────────────
+async function autoProcessUpkeep(db) {
+    try {
+        const ownedBases = await dbAll(db, `SELECT cb.*, su.upgrade_level, su.last_upkeep_paid, su.id AS upgrade_id
+            FROM clan_bases cb JOIN squad_base_upgrades su ON su.base_id = cb.id AND su.squad_id = cb.owner_squad_id
+            WHERE cb.owner_squad_id IS NOT NULL AND su.upgrade_level > 0`, []);
+        const now = Math.floor(Date.now() / 1000);
+        const day = 86400;
+        for (const base of ownedBases) {
+            try {
+                const lastPaid = Number(base.last_upkeep_paid || 0);
+                if (lastPaid > 0 && (now - lastPaid) < day) continue; // Already paid within 24h
+                const totalLevel = await getSquadTotalLevel(db, base.owner_squad_id);
+                const cost = calcBaseUpkeep(base.tier, Number(base.upgrade_level || 0), totalLevel);
+                if (cost <= 0) continue;
+                const treasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [base.owner_squad_id]);
+                const gold = Number(treasury?.gold || 0);
+                if (gold < cost) continue; // Not enough gold — skip until next tick
+                await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [cost, base.owner_squad_id]);
+                await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=NULL WHERE id=?', [now, base.upgrade_id]);
+            } catch (e) { console.error(`[Upkeep] base ${base.id}:`, e.message); }
+        }
+    } catch (e) { console.error('[Upkeep] tick error:', e.message); }
+}
+
 // Export battle engine for use by tournament module
 module.exports = {
     router, parseAdminPassword, dbGet, getDb,
@@ -18530,5 +18555,5 @@ module.exports = {
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-    runHourlyHpRegen, ensureBotRunner
+    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep
 };
