@@ -1098,6 +1098,8 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN scout_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN attack_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN looted_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN is_npc_war INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN defender_npc_count INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
 
         // Seed clan bases if empty
         try {
@@ -4931,6 +4933,12 @@ const BASE_POSITIONS = {
     large:  [{ x: 200, y: 150 }, { x: 800, y: 150 }, { x: 500, y: 700 }],
     medium: [{ x: 100, y: 300 }, { x: 300, y: 500 }, { x: 700, y: 300 }, { x: 900, y: 500 }, { x: 500, y: 100 }],
     small:  [{ x: 50, y: 50 }, { x: 150, y: 600 }, { x: 350, y: 100 }, { x: 450, y: 750 }, { x: 650, y: 50 }, { x: 750, y: 750 }, { x: 850, y: 200 }, { x: 950, y: 350 }, { x: 300, y: 300 }, { x: 700, y: 600 }],
+};
+const NPC_BASE_CAPTURE = {
+    main:   { min_members: 50, npc_count: 50, npc_level: 50 },
+    large:  { min_members: 40, npc_count: 40, npc_level: 40 },
+    medium: { min_members: 30, npc_count: 30, npc_level: 30 },
+    small:  { min_members: 20, npc_count: 20, npc_level: 20 },
 };
 
 function calcBaseUpgradeCost(tier, level) {
@@ -9668,7 +9676,7 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 map_x: Number(base.map_x), map_y: Number(base.map_y),
                 owner_squad_id: Number(base.owner_squad_id || 0), owner_squad_name: base.owner_squad_name,
                 is_owned: isOwned, is_occupied: isOccupied,
-                can_capture: !isOwned, // Can capture if not owned by current squad
+                can_capture: !base.owner_squad_id,
                 can_loot: canLoot,
             }
         });
@@ -9710,6 +9718,50 @@ router.post('/squads/bases/:baseId/loot', auth, async (req, res) => {
         await dbRun(db, 'UPDATE clan_wars SET looted_at=? WHERE id=?', [now, lootableWar.id]);
 
         res.json({ success: true, looted_gold: lootAmount });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/bases/:baseId/capture', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only leaders, co-leaders and officers can capture bases.' });
+        const baseId = Number(req.params.baseId);
+        const base = await dbGet(db, 'SELECT * FROM clan_bases WHERE id=?', [baseId]);
+        if (!base) return res.status(404).json({ error: 'Base not found.' });
+        if (base.owner_squad_id) return res.status(400).json({ error: 'Base is already occupied.' });
+        const cfg = NPC_BASE_CAPTURE[base.tier];
+        if (!cfg) return res.status(400).json({ error: 'Invalid base tier.' });
+        // Check member count
+        const memberCount = await dbGet(db, 'SELECT COUNT(*) AS c FROM squad_members WHERE squad_id=?', [membership.squad_id]);
+        if (Number(memberCount?.c || 0) < cfg.min_members) {
+            return res.status(400).json({ error: `Need at least ${cfg.min_members} squad members to capture a ${base.tier} base (current: ${memberCount?.c || 0}).` });
+        }
+        // Check for existing war or owned base
+        const attackerOwned = await dbGet(db, 'SELECT 1 FROM clan_bases WHERE owner_squad_id=? LIMIT 1', [membership.squad_id]);
+        if (attackerOwned) return res.status(400).json({ error: 'Your squad already owns a base.' });
+        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND is_npc_war=1 LIMIT 1",
+            [membership.squad_id, membership.squad_id]);
+        if (activeWar) return res.status(400).json({ error: 'Your squad already has an active NPC war.' });
+        const now = Math.floor(Date.now() / 1000);
+        const attackEndsAt = now + 43200; // 12h assignment phase
+        const warIns = await dbRun(db, `INSERT INTO clan_wars (attacker_squad_id, defender_squad_id, base_id, status, phase, created_at, attack_ends_at, is_npc_war, defender_npc_count)
+            VALUES (?,?,?,?,?,?,?,?,?)`,
+            [membership.squad_id, 0, baseId, 'preparation', 'attacking', now, attackEndsAt, 1, cfg.npc_count]);
+        const warId = Number(warIns.lastInsertRowid || 0);
+        // Create outposts with NPC defenders
+        const npcsPerOutpost = Math.ceil(cfg.npc_count / 5);
+        const npcPower = calcNpcPower(cfg.npc_level);
+        for (let i = 0; i < 5; i++) {
+            const defPower = npcsPerOutpost * npcPower;
+            await dbRun(db, 'INSERT INTO clan_war_outposts (war_id, outpost_index, attacker_power, defender_power) VALUES (?,?,0,?)', [warId, i, defPower]);
+        }
+        // Give the squad some time to assign — also generate a notification
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)',
+            [char.id, char.id, '⚔️ NPC Base Capture', `Your squad has started capturing "${base.name}"! Assign members to outposts in the war panel.`]);
+        res.json({ success: true, war_id: warId, npc_count: cfg.npc_count, npc_level: cfg.npc_level, npc_power: npcPower });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -9822,29 +9874,37 @@ async function autoAdvanceWar(db, war) {
 
 async function resolveWarBattle(db, war) {
     const warId = war.id;
-    const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=?', [warId]);
+    const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? ORDER BY outpost_index ASC', [warId]);
     let attackerWins = 0, defenderWins = 0;
+    let carryOver = 0;
     for (const op of outposts) {
-        const atkPower = Number(op.attacker_power || 0);
         const defPower = Number(op.defender_power || 0);
+        const assignedPower = Number(op.attacker_power || 0);
+        const totalAtkPower = assignedPower + carryOver;
         let winner;
-        if (atkPower <= 0 && defPower <= 0) {
+        if (totalAtkPower <= 0 && defPower <= 0) {
             winner = 'defender';
-        } else if (atkPower <= 0) {
+        } else if (totalAtkPower <= 0) {
             winner = 'defender';
         } else if (defPower <= 0) {
             winner = 'attacker';
         } else {
-            const atkRoll = atkPower * (0.8 + Math.random() * 0.4);
+            const atkRoll = totalAtkPower * (0.8 + Math.random() * 0.4);
             const defRoll = defPower * (0.8 + Math.random() * 0.4);
             winner = atkRoll >= defRoll ? 'attacker' : 'defender';
         }
+        if (winner === 'attacker') {
+            // Survivors carry to next outpost
+            const consumedRatio = Math.min(1, defPower / Math.max(1, totalAtkPower)) * (0.6 + Math.random() * 0.4);
+            carryOver = Math.floor(totalAtkPower * (1 - consumedRatio));
+            attackerWins++;
+        } else {
+            carryOver = 0;
+            defenderWins++;
+        }
         await dbRun(db, 'UPDATE clan_war_outposts SET winner=? WHERE id=?', [winner, op.id]);
-        if (winner === 'attacker') attackerWins++; else defenderWins++;
     }
-    const captured = JSON.parse(war.attackers_captured || '[]');
-    const loot = calcWarLoot(attackerWins, war.defender_squad_id);
-    const capturedBase = attackerWins >= 3;
+    const capturedBase = attackerWins >= 5; // Always need all 5 to capture
     if (capturedBase) {
         await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE id=?', [war.base_id]);
         await dbRun(db, 'DELETE FROM squad_base_upgrades WHERE base_id=?', [war.base_id]);
@@ -9852,15 +9912,20 @@ async function resolveWarBattle(db, war) {
         await dbRun(db, 'INSERT INTO squad_base_upgrades (squad_id, base_id, upgrade_level) VALUES (?,?,1) ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=1',
             [war.attacker_squad_id, war.base_id]);
     }
-    await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
-    if (db.changes === 0) {
-        await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
-    }
-    const defTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.defender_squad_id]);
-    const defGold = Number(defTreasury?.gold || 0);
-    const deductedLoot = Math.min(loot, defGold);
-    if (deductedLoot > 0) {
-        await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [deductedLoot, war.defender_squad_id]);
+    // Loot requires at least 3 wins (PvP only)
+    const isNpcWar = Number(war.is_npc_war || 0) === 1;
+    if (!isNpcWar && attackerWins >= 3) {
+        const loot = calcWarLoot(attackerWins, war.defender_squad_id);
+        await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
+        if (db.changes === 0) {
+            await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
+        }
+        const defTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.defender_squad_id]);
+        const defGold = Number(defTreasury?.gold || 0);
+        const deductedLoot = Math.min(loot, defGold);
+        if (deductedLoot > 0) {
+            await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [deductedLoot, war.defender_squad_id]);
+        }
     }
     const now = Math.floor(Date.now() / 1000);
     await dbRun(db, "UPDATE clan_wars SET status='completed', phase='resolved', attacker_wins=?, defender_wins=?, resolved_at=? WHERE id=?",
@@ -9874,6 +9939,11 @@ function calcWarLoot(outpostWins, defenderSquadId) {
     const perOutpost = 2000;
     const capBonus = outpostWins >= 3 ? 15000 : 0;
     return baseLoot + perOutpost * outpostWins + capBonus;
+}
+
+function calcNpcPower(npcLevel) {
+    const stat = npcLevel * 3;
+    return npcLevel * 10 + stat * 5;
 }
 
 router.post('/squads/wars/start', auth, async (req, res) => {
@@ -9920,7 +9990,7 @@ router.get('/squads/wars/active', auth, async (req, res) => {
             a_s.name AS attacker_name, d_s.name AS defender_name
             FROM clan_wars cw JOIN clan_bases b ON b.id = cw.base_id
             JOIN squads a_s ON a_s.id = cw.attacker_squad_id
-            JOIN squads d_s ON d_s.id = cw.defender_squad_id
+            LEFT JOIN squads d_s ON d_s.id = cw.defender_squad_id
             WHERE (cw.attacker_squad_id=? OR cw.defender_squad_id=?) AND cw.status IN ('preparation','attacking')
             ORDER BY cw.created_at DESC LIMIT 5`, [membership.squad_id, membership.squad_id]);
         // Auto-advance any wars whose deadlines have passed
@@ -9929,12 +9999,13 @@ router.get('/squads/wars/active', auth, async (req, res) => {
         }
         const result = wars.map(w => ({
             id: Number(w.id), base_name: w.base_name, base_tier: w.base_tier,
-            attacker_name: w.attacker_name, defender_name: w.defender_name,
+            attacker_name: w.attacker_name, defender_name: w.defender_name || 'NPC Defenders',
             status: w.status, phase: w.phase,
             scout_ends_at: Number(w.scout_ends_at || 0), attack_ends_at: Number(w.attack_ends_at || 0),
             attacker_wins: Number(w.attacker_wins || 0), defender_wins: Number(w.defender_wins || 0),
             attackers_captured: JSON.parse(w.attackers_captured || '[]'),
             is_attacker: Number(w.attacker_squad_id) === membership.squad_id,
+            is_npc_war: Number(w.is_npc_war || 0) === 1,
             created_at: Number(w.created_at),
         }));
         res.json({ wars: result });
@@ -9953,7 +10024,7 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
             a_s.name AS attacker_name, d_s.name AS defender_name
             FROM clan_wars cw JOIN clan_bases b ON b.id = cw.base_id
             JOIN squads a_s ON a_s.id = cw.attacker_squad_id
-            JOIN squads d_s ON d_s.id = cw.defender_squad_id WHERE cw.id=?`, [warId]);
+            LEFT JOIN squads d_s ON d_s.id = cw.defender_squad_id WHERE cw.id=?`, [warId]);
         if (!war) return res.status(404).json({ error: 'War not found.' });
         // Auto-advance phase if deadline passed
         await autoAdvanceWar(db, war);
@@ -9964,22 +10035,31 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
             return res.status(403).json({ error: 'Not your war.' });
         }
         const isAttacker = Number(war.attacker_squad_id) === membership.squad_id;
+        const isNpcWar = Number(war.is_npc_war || 0) === 1;
         const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? ORDER BY outpost_index', [warId]);
         const scouts = await dbAll(db, "SELECT * FROM clan_war_scouts WHERE war_id=?", [warId]);
         const squadMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
             [isAttacker ? war.attacker_squad_id : war.defender_squad_id]);
-        const enemyMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
-            [isAttacker ? war.defender_squad_id : war.attacker_squad_id]);
+        let enemyMembers = [];
+        let npcInfo = null;
+        if (isNpcWar) {
+            const cfg = NPC_BASE_CAPTURE[war.base_tier];
+            if (cfg) npcInfo = { npc_count: cfg.npc_count, npc_level: cfg.npc_level, npc_power: calcNpcPower(cfg.npc_level) };
+        } else {
+            enemyMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
+                [isAttacker ? war.defender_squad_id : war.attacker_squad_id]);
+        }
         res.json({
             war: {
                 id: Number(war.id), base_name: war.base_name, base_tier: war.base_tier,
                 status: war.status, phase: war.phase,
                 scout_ends_at: Number(war.scout_ends_at || 0), attack_ends_at: Number(war.attack_ends_at || 0),
-                attacker_name: war.attacker_name, defender_name: war.defender_name,
+                attacker_name: war.attacker_name, defender_name: war.defender_name || 'NPC Defenders',
                 attacker_wins: Number(war.attacker_wins || 0), defender_wins: Number(war.defender_wins || 0),
                 attackers_captured: JSON.parse(war.attackers_captured || '[]'),
-                is_attacker: isAttacker,
+                is_attacker: isAttacker, is_npc_war: isNpcWar,
                 created_at: Number(war.created_at), resolved_at: Number(war.resolved_at || 0),
+                npc_info: npcInfo,
                 outposts: outposts.map(o => ({
                     id: Number(o.id), outpost_index: Number(o.outpost_index),
                     attacker_power: Number(o.attacker_power), defender_power: Number(o.defender_power),
