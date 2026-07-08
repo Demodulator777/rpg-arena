@@ -1,11 +1,7 @@
-const CACHE = 'rpg-arena-v1';
+const CACHE = 'rpg-arena-v2';
 const STATIC_EXT = /\.(css|js|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$/;
 
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/tournaments.html',
-  '/admin/panel.html',
   '/css/style.css',
   '/css/dungeon.css',
   '/css/tournaments.css',
@@ -53,14 +49,11 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
-
-  const path = url.pathname;
-
-  if (STATIC_EXT.test(path)) {
+  // Only cache static assets — never intercept navigation (HTML) requests
+  if (STATIC_EXT.test(url.pathname)) {
     e.respondWith(cacheFirst(e.request));
-  } else if (path === '/' || path === '/index.html' || path === '/tournaments.html') {
-    e.respondWith(networkFirst(e.request));
   }
+  // Navigation (/ , /index.html, etc.) passes through normally — no SW delay
 });
 
 async function cacheFirst(req) {
@@ -77,21 +70,5 @@ async function cacheFirst(req) {
     return res;
   } catch {
     return new Response('', { status: 503, statusText: 'Offline' });
-  }
-}
-
-async function networkFirst(req) {
-  const key = cacheKey(req.url);
-  try {
-    const res = await fetch(req);
-    if (res.ok) {
-      const clone = res.clone();
-      const cache = await caches.open(CACHE);
-      cache.put(key, clone);
-    }
-    return res;
-  } catch {
-    const cached = await caches.match(key);
-    return cached || new Response('Offline', { status: 503, statusText: 'Offline' });
   }
 }
