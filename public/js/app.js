@@ -195,11 +195,8 @@ if (navigator.serviceWorker) {
         }
     }
 
-    if (document.readyState === 'complete') {
-        dismissOverlay();
-    } else {
-        window.addEventListener('load', dismissOverlay);
-    }
+    // Expose so init code can call it after first render + images load
+    window._dismissOverlay = dismissOverlay;
 })();
 // ── State ─────────────────────────────────────────────────────────────────
 let token = localStorage.getItem('rpg_token');
@@ -1471,12 +1468,18 @@ window.addEventListener('DOMContentLoaded', async () => {
             ]);
             character = charData;
             showScreen('game');
+            // Wait for all rendered images to load before dismissing overlay
+            await Promise.all(Array.from(document.querySelectorAll('#app img')).map(function(im) {
+                if (im.complete) return Promise.resolve();
+                return new Promise(function(resolve) { im.addEventListener('load', resolve, { once: true }); im.addEventListener('error', resolve, { once: true }); });
+            }));
+            if (window._dismissOverlay) window._dismissOverlay();
         }
         catch (e) {
-            if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); }
-            else { token=null; localStorage.removeItem('rpg_token'); showScreen('auth'); }
+            if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); if (window._dismissOverlay) window._dismissOverlay(); }
+            else { token=null; localStorage.removeItem('rpg_token'); showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
         }
-    } else showScreen('auth');
+    } else { showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
 });
 
 // Client-side CSP violation reporter (adds character context to reports)
