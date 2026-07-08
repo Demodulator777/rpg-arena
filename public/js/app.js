@@ -1,3 +1,10 @@
+// ── Service worker kill switch (unregister any stale SW so next load isn't blocked) ──
+if (navigator.serviceWorker) {
+    navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+    });
+}
+
 // ── Loading Overlay ───────────────────────────────────────────────────────
 (function(){
 
