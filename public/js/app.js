@@ -8347,7 +8347,7 @@ function renderLeaderboard() {
             html += '<p class="empty">No data recorded yet this week.</p>';
         } else {
             const col1 = isDmg ? '⚔️ DAMAGE' : '🏆 WINS';
-            html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 This Week</div>' +
+            html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 Current Week</div>' +
                 '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">' + col1 + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">BATTLES</div></div></div></div>';
             cur.forEach((r, i) => {
                 const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
