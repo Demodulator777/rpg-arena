@@ -936,7 +936,7 @@ function sortWeekly(col) {
     html += '</tbody></table></div>';
     html += '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Sorted by ' + col + ' (desc).</div>';
     tableWrap.innerHTML = html;
-}────
+}
 
 var _consoleTimer = null;
 var _consoleSince = null;
