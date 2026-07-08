@@ -7660,6 +7660,7 @@ function setLbMode(mode, btn) {
 function setLbSort(sort, btn) {
     if (sort === 'weekly_dmg') {
         lbSort = sort;
+        window._weeklyLbSub = window._weeklyLbSub || 'damage';
         document.querySelectorAll('.lb-filters .filter-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
         Promise.all([
@@ -7667,7 +7668,8 @@ function setLbSort(sort, btn) {
             api('GET', '/game/leaderboard/weekly/history?limit=20'),
         ]).then(([weekly, hist]) => {
             window._weeklyLbData = weekly;
-            window._weeklyLbHistory = hist.history || [];
+            window._weeklyLbHistoryDmg = hist.history_dmg || [];
+            window._weeklyLbHistoryWin = hist.history_win || [];
             renderLeaderboard();
         }).catch(() => renderLeaderboard());
         return;
@@ -7680,16 +7682,19 @@ function setLbSort(sort, btn) {
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
     try {
-        const [freshCharacter, leaderboard, squadLb, weeklyLb] = await Promise.all([
+        const [freshCharacter, leaderboard, squadLb, weeklyLb, weeklyHist] = await Promise.all([
             api('GET','/game/character'),
             api('GET',`/game/leaderboard?sort=${lbSort}`),
             api('GET', '/game/squads/leaderboard').catch(() => []),
-            api('GET', '/game/leaderboard/weekly').catch(() => ({ current_week: [], previous_winner: null })),
+            api('GET', '/game/leaderboard/weekly').catch(() => ({ current_dmg_top: [], current_win_top: [], previous_dmg_winner: null, previous_win_winner: null })),
+            api('GET', '/game/leaderboard/weekly/history?limit=20').catch(() => ({ history_dmg: [], history_win: [] })),
         ]);
         character = freshCharacter;
         lbData = leaderboard;
         lbSquadData = squadLb;
         window._weeklyLbData = weeklyLb;
+        window._weeklyLbHistoryDmg = weeklyHist.history_dmg || [];
+        window._weeklyLbHistoryWin = weeklyHist.history_win || [];
         renderLeaderboard();
     }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
@@ -7710,6 +7715,7 @@ function buildSquadLeaderboardRow(s, idx) {
 }
 window.setLbMode = setLbMode;
 window.setLbSort = setLbSort;
+window.setWeeklyLbSub = setWeeklyLbSub;
 
 // ── Squads ────────────────────────────────────────────────────────────────
 let squadsData = null;
@@ -8278,13 +8284,27 @@ function getWeekNumber(mondayTs) {
     const diff = Math.floor((thursday - yearStart) / 86400000);
     return Math.ceil((diff + 1) / 7);
 }
+function setWeeklyLbSub(sub) {
+    window._weeklyLbSub = sub;
+    renderLeaderboard();
+}
 function renderLeaderboard() {
     // Weekly damage view
     if (lbSort === 'weekly_dmg') {
         const data = window._weeklyLbData;
-        const cur = data?.current_week || [];
-        const history = window._weeklyLbHistory || [];
+        const sub = window._weeklyLbSub || 'damage';
+        const isDmg = sub === 'damage';
+        const cur = isDmg ? (data?.current_dmg_top || []) : (data?.current_win_top || []);
+        const history = isDmg ? (window._weeklyLbHistoryDmg || []) : (window._weeklyLbHistoryWin || []);
+        const prev = isDmg ? data?.previous_dmg_winner : data?.previous_win_winner;
         let html = '';
+
+        // Sub-tab toggle
+        html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+            `<button class="filter-btn ${isDmg ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'damage')}>⚔️ Damage</button>` +
+            `<button class="filter-btn ${!isDmg ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'wins')}>🏆 Wins</button>` +
+            '</div>';
+
         // Hall of Fame
         if (history.length > 0) {
             html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ Hall of Fame — Past Champions</div>' +
@@ -8293,39 +8313,43 @@ function renderLeaderboard() {
                 const lbImg = h.profile_pic ? `/images/class/${h.profile_pic}` : `/images/class/${h.class}.png`;
                 const wn = getWeekNumber(h.week_start);
                 const y = new Date(h.week_start * 1000).getUTCFullYear();
+                const val = isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins';
                 html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('openProfile', h.char_id)}>
                     <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">Week ${wn} (${y})</div>
                     <img src="${lbImg}" alt="${h.class}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">
                     <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}</div>
-                    <div style="font-size:10px;color:#8a8a90">${Number(h.total_dmg).toLocaleString()} dmg</div>
+                    <div style="font-size:10px;color:#8a8a90">${val}</div>
                 </div>`;
             });
             html += '</div></div>';
         }
         // Previous week winner
-        const prev = data?.previous_winner;
         if (prev) {
+            const label = isDmg ? 'Last Week\'s Damage King' : 'Last Week\'s Win Champion';
+            const stat = isDmg ? `${Number(prev.total_dmg).toLocaleString()} damage` : `${Number(prev.total_wins).toLocaleString()} wins`;
             html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
-                <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 Last Week's Champion</div>
-                <div style="font-size:15px;margin-top:4px">${escHtml(prev.name)} · ${Number(prev.total_dmg).toLocaleString()} damage</div>
+                <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 ${label}</div>
+                <div style="font-size:15px;margin-top:4px">${escHtml(prev.name)} · ${stat}</div>
                 <div style="font-size:11px;color:#6a6a70">Awarded ${prev.reward_gems}💎</div>
             </div>`;
         }
         if (cur.length === 0) {
-            html += '<p class="empty">No damage data recorded yet this week.</p>';
+            html += '<p class="empty">No data recorded yet this week.</p>';
         } else {
+            const col1 = isDmg ? '⚔️ DAMAGE' : '🏆 WINS';
             html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 This Week</div>' +
-                '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ DAMAGE</div></div><div class="lb-stat"><div class="lb-stat-lbl">BATTLES</div></div></div></div>';
+                '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">' + col1 + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">BATTLES</div></div></div></div>';
             cur.forEach((r, i) => {
                 const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
                 const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
                 const lbImg = r.profile_pic ? `/images/class/${r.profile_pic}` : `/images/class/${r.class}.png`;
+                const val = isDmg ? Number(r.total_dmg).toLocaleString() : Number(r.total_wins).toLocaleString();
                 html += `<div class="lb-row" ${actionAttrs('openProfile', r.char_id)}>
                     <div class="lb-rank ${rc}">${rs}</div>
                     <img src="${lbImg}" alt="${r.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${r.class}">
                     <div class="lb-info"><div class="lb-name">${escHtml(r.name)}</div><div class="lb-sub">Lv.${r.level} ${capitalize(r.class)}</div></div>
                     <div class="lb-stats" style="grid-template-columns:1fr 1fr">
-                        <div class="lb-stat"><div class="lb-stat-val">${Number(r.total_dmg).toLocaleString()}</div></div>
+                        <div class="lb-stat"><div class="lb-stat-val">${val}</div></div>
                         <div class="lb-stat"><div class="lb-stat-val">${r.total_battles}</div></div>
                     </div>
                 </div>`;
