@@ -7662,8 +7662,12 @@ function setLbSort(sort, btn) {
         lbSort = sort;
         document.querySelectorAll('.lb-filters .filter-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
-        api('GET', '/game/leaderboard/weekly').then(res => {
-            window._weeklyLbData = res;
+        Promise.all([
+            api('GET', '/game/leaderboard/weekly'),
+            api('GET', '/game/leaderboard/weekly/history?limit=20'),
+        ]).then(([weekly, hist]) => {
+            window._weeklyLbData = weekly;
+            window._weeklyLbHistory = hist.history || [];
             renderLeaderboard();
         }).catch(() => renderLeaderboard());
         return;
@@ -8271,12 +8275,34 @@ function renderLeaderboard() {
     if (lbSort === 'weekly_dmg') {
         const data = window._weeklyLbData;
         const cur = data?.current_week || [];
+        const history = window._weeklyLbHistory || [];
+        let html = '';
+        // Hall of Fame
+        if (history.length > 0) {
+            html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ Hall of Fame — Past Champions</div>' +
+                '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
+            history.forEach(h => {
+                const lbImg = h.profile_pic ? `/images/class/${h.profile_pic}` : `/images/class/${h.class}.png`;
+                const weekDate = new Date(h.week_start * 1000);
+                const dateStr = weekDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('openProfile', h.char_id)}>
+                    <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">${dateStr}</div>
+                    <img src="${lbImg}" alt="${h.class}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">
+                    <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}</div>
+                    <div style="font-size:10px;color:#8a8a90">${Number(h.total_dmg).toLocaleString()} dmg</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+        // Previous week winner
         const prev = data?.previous_winner;
-        let html = prev ? `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center">
-            <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 Last Week's Champion</div>
-            <div style="font-size:15px;margin-top:4px">${escHtml(prev.name)} · ${Number(prev.total_dmg).toLocaleString()} damage</div>
-            <div style="font-size:11px;color:#6a6a70">Awarded ${prev.reward_gems}💎</div>
-        </div>` : '';
+        if (prev) {
+            html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
+                <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 Last Week's Champion</div>
+                <div style="font-size:15px;margin-top:4px">${escHtml(prev.name)} · ${Number(prev.total_dmg).toLocaleString()} damage</div>
+                <div style="font-size:11px;color:#6a6a70">Awarded ${prev.reward_gems}💎</div>
+            </div>`;
+        }
         if (cur.length === 0) {
             html += '<p class="empty">No damage data recorded yet this week.</p>';
         } else {
