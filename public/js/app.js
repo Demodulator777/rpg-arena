@@ -2384,7 +2384,8 @@ function normalizeClassTheme(className) {
 }
 
 function getClassThemeBackground(className) {
-    return 'none';
+    const theme = normalizeClassTheme(className);
+    return `url('/images/${theme}-bg.webp'), url('/images/${theme}-bg.png'), url('/images/${theme}-bg.jpg'), url('/images/class/${theme}.png')`;
 }
 
 function renderDetailSlot(icon, label, value, accent='var(--text-bright)', title='') {
