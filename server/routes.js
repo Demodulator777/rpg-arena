@@ -634,6 +634,13 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN damage_dealt INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN top_damage_dealt INTEGER DEFAULT 0',
             `ALTER TABLE inventory ADD COLUMN weapon_type TEXT DEFAULT NULL`,
+            `ALTER TABLE battles ADD COLUMN attacker_name TEXT DEFAULT NULL`,
+            `ALTER TABLE battles ADD COLUMN defender_name TEXT DEFAULT NULL`,
+            `ALTER TABLE battles ADD COLUMN battle_type TEXT DEFAULT NULL`,
+            `ALTER TABLE battles ADD COLUMN xp_gained INTEGER DEFAULT 0`,
+            `ALTER TABLE battles ADD COLUMN gold_gained INTEGER DEFAULT 0`,
+            `ALTER TABLE battles ADD COLUMN total_dmg_dealt INTEGER DEFAULT 0`,
+            `ALTER TABLE battles ADD COLUMN total_dmg_taken INTEGER DEFAULT 0`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
