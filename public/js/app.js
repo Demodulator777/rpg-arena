@@ -8284,10 +8284,10 @@ function renderLeaderboard() {
             cur.forEach((r, i) => {
                 const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
                 const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
-                const cls = {warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[r.class] || '⚔️';
+                const lbImg = r.profile_pic ? `/images/class/${r.profile_pic}` : `/images/class/${r.class}.png`;
                 html += `<div class="lb-row" ${actionAttrs('openProfile', r.char_id)}>
                     <div class="lb-rank ${rc}">${rs}</div>
-                    <div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem">${cls}</div>
+                    <img src="${lbImg}" alt="${r.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${r.class}">
                     <div class="lb-info"><div class="lb-name">${escHtml(r.name)}</div><div class="lb-sub">Lv.${r.level} ${capitalize(r.class)}</div></div>
                     <div class="lb-stats" style="grid-template-columns:1fr 1fr">
                         <div class="lb-stat"><div class="lb-stat-val">${Number(r.total_dmg).toLocaleString()}</div></div>
