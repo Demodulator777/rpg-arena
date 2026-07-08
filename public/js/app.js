@@ -12026,3 +12026,8 @@ async function setProfilePic(picId) {
         showMsg('inv-msg', e.message, true);
     }
 }
+
+// ── Service Worker Registration ──────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
