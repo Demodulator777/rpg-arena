@@ -12890,8 +12890,8 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
     try {
         const db = await getDb();
         const limit = Math.min(Number(req.query.limit) || 10, 52);
-        const rows = await dbAll(db, `SELECT week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data
-            FROM weekly_leaderboard_awards WHERE reward_sent=1 AND winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
+        const rows = await dbAll(db, `SELECT week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, top10_data
+            FROM weekly_leaderboard_awards WHERE winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
         const history = [];
         for (const r of rows) {
             const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.winner_char_id)]);
