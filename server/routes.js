@@ -13811,66 +13811,76 @@ router.post('/admin/bots/logs/clear', auth, async (req, res) => {
 async function computeWeeklyLeaderboard(db) {
     const now = Math.floor(Date.now() / 1000);
     const currentWeekStart = getCurrentWeekStart(now);
-    const prevWeekStart = currentWeekStart - 7 * 86400;
 
-    // Check if previous week was already awarded
-    const existing = await dbGet(db, 'SELECT reward_sent FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
-    if (existing && existing.reward_sent) return; // already awarded
+    // Backfill all past weeks that have data but no award record (up to 52 weeks back)
+    for (let w = 0; w < 52; w++) {
+        const weekStart = currentWeekStart - (w + 1) * 7 * 86400;
+        const weekEnd = weekStart + 7 * 86400;
 
-    // Get top 10 by damage for the previous week (PvP from battles, missions from messages)
-    const topRows = await dbAll(db, `
-        SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
-        FROM (
-            SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
-            FROM battles WHERE fought_at >= ? AND fought_at < ?
-            UNION ALL
-            SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
-            FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-            UNION ALL
-            SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
-            FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                AND json_extract(substr(body, 15), '$.type') = 'mission'
-                AND sent_at >= ? AND sent_at < ?
-        ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
-    `, [prevWeekStart, currentWeekStart, prevWeekStart, currentWeekStart, prevWeekStart, currentWeekStart]);
+        const existing = await dbGet(db, 'SELECT reward_sent FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
+        if (existing) continue; // already processed
 
-    // Fetch character names
-    let top10 = [];
-    let winner = null;
-    for (const r of topRows) {
-        const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
-        if (!ch) continue;
-        const entry = {
-            char_id: Number(ch.id), name: ch.name, class: ch.class,
-            total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
-        };
-        top10.push(entry);
-        if (!winner) winner = entry;
-    }
+        // Get top 10 by damage for this week
+        const topRows = await dbAll(db, `
+            SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
+            FROM (
+                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
+                FROM battles WHERE fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
+                FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
+                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                    AND json_extract(substr(body, 15), '$.type') = 'mission'
+                    AND sent_at >= ? AND sent_at < ?
+            ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
+        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
 
-    if (!winner || top10.length === 0) {
-        // No data — mark as awarded to skip rechecking
+        let top10 = [];
+        let winner = null;
+        for (const r of topRows) {
+            const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
+            if (!ch) continue;
+            const entry = {
+                char_id: Number(ch.id), name: ch.name, class: ch.class,
+                total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
+            };
+            top10.push(entry);
+            if (!winner) winner = entry;
+        }
+
+        const isPrevWeek = (w === 0); // only the previous week gets the reward
+
+        if (!winner || top10.length === 0) {
+            await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
+                (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
+                VALUES (?,0,'','',0,0,1,'[]')`, [weekStart]);
+            if (isPrevWeek) console.log(`📊 Weekly leaderboard: no data for week ${weekStart}, skipping reward`);
+            continue;
+        }
+
+        // Send reward only for the most recent week
+        if (isPrevWeek) {
+            const rewardPayload = JSON.stringify({ gems: 5 });
+            await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                VALUES (?,?,?,?,?,1)`,
+                [0, winner.char_id, '🏆 Weekly Damage King!',
+                    `You dealt the most damage this week: ${winner.total_dmg.toLocaleString()} damage across ${winner.total_battles} battles! Claim your 5💎 reward below.`,
+                    rewardPayload]);
+        }
+
         await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
             (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
-            VALUES (?,0,'','',0,0,1,'[]')`, [prevWeekStart]);
-        console.log(`📊 Weekly leaderboard: no data for week ${prevWeekStart}, skipping reward`);
-        return;
+            VALUES (?,?,?,?,?,?,?,?)`,
+            [weekStart, winner.char_id, winner.name, winner.class, winner.total_dmg, winner.total_battles, isPrevWeek ? 1 : 0, JSON.stringify(top10)]);
+
+        if (isPrevWeek) {
+            console.log(`📊 Weekly leaderboard: ${winner.name} (#${winner.char_id}) wins with ${winner.total_dmg} damage — 5💎 awarded`);
+        } else {
+            console.log(`📊 Weekly leaderboard backfill: week ${weekStart} — ${winner.name} (#${winner.char_id}) ${winner.total_dmg} damage`);
+        }
     }
-
-    // Award 5 gems to winner via message with reward payload
-    const rewardPayload = JSON.stringify({ gems: 5 });
-    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-        VALUES (?,?,?,?,?,1)`,
-        [0, winner.char_id, '🏆 Weekly Damage King!',
-            `You dealt the most damage this week: ${winner.total_dmg.toLocaleString()} damage across ${winner.total_battles} battles! Claim your 5💎 reward below.`,
-            rewardPayload]);
-
-    await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
-        (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
-        VALUES (?,?,?,?,?,?,1,?)`,
-        [prevWeekStart, winner.char_id, winner.name, winner.class, winner.total_dmg, winner.total_battles, JSON.stringify(top10)]);
-
-    console.log(`📊 Weekly leaderboard: ${winner.name} (#${winner.char_id}) wins with ${winner.total_dmg} damage — 5💎 awarded`);
 }
 
 // ── Weekly Stats ─────────────────────────────────────────────────────
