@@ -7661,14 +7661,16 @@ function setLbSort(sort,btn) { lbSort=sort; document.querySelectorAll('.lb-filte
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
     try {
-        const [freshCharacter, leaderboard, squadLb] = await Promise.all([
+        const [freshCharacter, leaderboard, squadLb, weeklyLb] = await Promise.all([
             api('GET','/game/character'),
             api('GET',`/game/leaderboard?sort=${lbSort}`),
             api('GET', '/game/squads/leaderboard').catch(() => []),
+            api('GET', '/game/leaderboard/weekly').catch(() => ({ current_week: [], previous_winner: null })),
         ]);
         character = freshCharacter;
         lbData = leaderboard;
         lbSquadData = squadLb;
+        window._weeklyLbData = weeklyLb;
         renderLeaderboard();
     }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
@@ -8250,13 +8252,34 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         </div>`;
 }
 function renderLeaderboard() {
+    const weeklyData = window._weeklyLbData;
+    let weeklyHtml = '';
+    if (weeklyData) {
+        const prev = weeklyData.previous_winner;
+        const cur = weeklyData.current_week || [];
+        weeklyHtml = '<div class="card-compact" style="margin-bottom:10px;padding:10px 14px">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">' +
+            '<div style="font-weight:700;font-size:13px">⚔️ Weekly Damage</div>' +
+            (prev ? `<div style="font-size:11px;color:var(--gold)">🏆 ${escHtml(prev.name)} · ${Number(prev.total_dmg).toLocaleString()} dmg · +${prev.reward_gems}💎</div>` : '') +
+            '</div>' +
+            (cur.length > 0 ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+                cur.slice(0, 5).map((r, i) => {
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+                    const cls = r.class ? r.class.charAt(0).toUpperCase() + r.class.slice(1) : '';
+                    return `<span style="font-size:11px;background:rgba(255,255,255,0.04);padding:3px 8px;border-radius:4px;white-space:nowrap">${medal} ${escHtml(r.name)} · ${Number(r.total_dmg).toLocaleString()}</span>`;
+                }).join('') +
+                (cur.length > 5 ? `<span style="font-size:11px;color:#6a6a70">+${cur.length - 5} more</span>` : '') +
+                '</div>' : '<div style="font-size:11px;color:#6a6a70">No damage data yet this week.</div>') +
+            '</div>';
+    }
+
     const modeToggle = `<div style="display:flex;gap:8px;margin-bottom:10px">
         <button class="filter-btn lb-mode-btn ${lbMode === 'players' ? 'active' : ''}" ${actionAttrs('setLbMode', 'players')}>👤 Players</button>
         <button class="filter-btn lb-mode-btn ${lbMode === 'squads' ? 'active' : ''}" ${actionAttrs('setLbMode', 'squads')}>🛡️ Squads</button>
     </div>`;
     if (lbMode === 'squads') {
         const filtered = lbSquadData || [];
-        document.getElementById('leaderboard-list').innerHTML = modeToggle + (
+        document.getElementById('leaderboard-list').innerHTML = weeklyHtml + modeToggle + (
             filtered.length === 0
                 ? '<p class="empty">No squads found.</p>'
                 : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 TOTAL EARNED</div></div></div></div>' +
@@ -8274,10 +8297,10 @@ function renderLeaderboard() {
             : '<p class="empty" style="padding:10px">Your character is not ranked yet.</p>';
     }
     if (!filtered.length){
-        document.getElementById('leaderboard-list').innerHTML = modeToggle + '<p class="empty">No players found.</p>';
+        document.getElementById('leaderboard-list').innerHTML = weeklyHtml + modeToggle + '<p class="empty">No players found.</p>';
         return;
     }
-    document.getElementById('leaderboard-list').innerHTML = modeToggle +
+    document.getElementById('leaderboard-list').innerHTML = weeklyHtml + modeToggle +
         '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div></div>' +
         filtered.map((p,i)=>buildLeaderboardRow(p, i + 1)).join('');
 }
