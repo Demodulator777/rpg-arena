@@ -13726,13 +13726,15 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
         const weekStart = Number(req.query.week_start) || getCurrentWeekStart();
         const weekEnd = weekStart + 7 * 86400;
 
-        // Total battles on server this week (mission + pvp)
-        const totalRow = await dbGet(db, `SELECT COUNT(*) AS total FROM battles WHERE fought_at >= ? AND fought_at < ?`,
+        // Total battles on server this week (PvP + missions)
+        const totalPvP = await dbGet(db, `SELECT COUNT(*) AS total FROM battles WHERE fought_at >= ? AND fought_at < ?`,
             [weekStart, weekEnd]);
-        const totalBattles = Number(totalRow?.total || 0);
+        const totalMissions = await dbGet(db, `SELECT COUNT(*) AS total FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+            AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?`,
+            [weekStart, weekEnd]);
+        const totalBattles = Number(totalPvP?.total || 0) + Number(totalMissions?.total || 0);
 
-        // Per-character stats — battles table schema: id, attacker_id, defender_id, winner_id, log, fought_at
-        // defender_id = -1 means mission, defender_id > 0 means PvP
+        // Per-character stats — PvP from battles table, missions from messages table (BATTLE_REPORT payloads)
         const rows = await dbAll(db, `
             SELECT char_id,
                    SUM(battles) AS battles,
@@ -13742,7 +13744,7 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
                    SUM(dmg_dealt) AS dmg_dealt,
                    SUM(dmg_taken) AS dmg_taken
             FROM (
-                -- As attacker (missions + PvP)
+                -- As attacker in battles (PvP + any missions that made it to battles table)
                 SELECT attacker_id AS char_id,
                        COUNT(*) AS battles,
                        SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
@@ -13756,7 +13758,7 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
 
                 UNION ALL
 
-                -- As defender (PvP only)
+                -- As defender in PvP battles
                 SELECT defender_id AS char_id,
                        COUNT(*) AS battles,
                        SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
@@ -13767,9 +13769,26 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
                 FROM battles
                 WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
                 GROUP BY defender_id
+
+                UNION ALL
+
+                -- Missions from messages table (BATTLE_REPORT payloads)
+                SELECT receiver_id AS char_id,
+                       COUNT(*) AS battles,
+                       SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
+                       SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0 
+                                AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
+                       SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws,
+                       SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0)) AS dmg_dealt,
+                       SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgTaken'), 0)) AS dmg_taken
+                FROM messages
+                WHERE body LIKE 'BATTLE_REPORT:%'
+                  AND json_extract(substr(body, 15), '$.type') = 'mission'
+                  AND sent_at >= ? AND sent_at < ?
+                GROUP BY receiver_id
             )
             GROUP BY char_id
-        `, [weekStart, weekEnd, weekStart, weekEnd]);
+        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
 
         // Build char stat map
         const charStatMap = {};
