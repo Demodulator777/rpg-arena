@@ -37,6 +37,7 @@ function renderLayout() {
         tabs.push(
             { id: 'banners', label: 'Banners' },
             { id: 'rewards', label: 'Rewards' },
+            { id: 'weekly', label: 'Weekly Stats' },
             { id: 'db', label: 'Database' },
             { id: 'tournaments', label: 'Tournaments' },
             { id: 'bots', label: 'Bots' },
@@ -76,6 +77,7 @@ function loadTab(name) {
     else if (name === 'bots') loadBots();
     else if (name === 'console') loadConsole();
     else if (name === 'moderators') loadModerators();
+    else if (name === 'weekly') loadWeekly();
 }
 
 function loadDbAdmin() {
@@ -787,7 +789,154 @@ function toggleBotDungeon(id) {
     }).catch(function(e) { alert(e.message); loadBots(); });
 }
 
-// ── Bot Console ──────────────────────────────────────────────────────────────
+// ── Weekly Stats ──────────────────────────────────────────────────────────
+function loadWeekly() {
+    var el = document.getElementById('tab-weekly');
+    var now = new Date();
+    var day = now.getUTCDay();
+    var diff = day === 0 ? 6 : day - 1;
+    var monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff, 0, 0, 0, 0));
+    var weekTs = Math.floor(monday.getTime() / 1000);
+    el.innerHTML = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+        '<h2 style="margin:0;border:none">📊 Weekly Stats</h2>' +
+        '<input type="date" id="weekly-date" value="' + monday.toISOString().slice(0,10) + '" style="padding:6px 10px;background:#14141e;border:1px solid #2a2a35;border-radius:6px;color:inherit;font-size:13px">' +
+        '<button class="db-btn weekly-load-btn" style="background:#c8a86e;color:#0a0a0f;padding:6px 14px;font-size:12px">📅 Load Week</button>' +
+        '</div><div id="weekly-summary" class="loading">Loading...</div><div id="weekly-table-wrap"></div>';
+    // Event delegation for weekly actions
+    if (!el._weeklyDelegation) {
+        el._weeklyDelegation = true;
+        el.addEventListener('click', function(e) {
+            var target = e.target;
+            if (target.classList.contains('weekly-load-btn')) {
+                loadWeeklyData();
+            } else if (target.classList.contains('weekly-sort')) {
+                sortWeekly(target.dataset.col);
+            }
+        });
+    }
+    loadWeeklyData();
+}
+
+function loadWeeklyData() {
+    var dateInput = document.getElementById('weekly-date');
+    if (!dateInput) return;
+    var parts = dateInput.value.split('-');
+    var monday = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0));
+    var weekTs = Math.floor(monday.getTime() / 1000);
+    var summary = document.getElementById('weekly-summary');
+    var tableWrap = document.getElementById('weekly-table-wrap');
+    summary.innerHTML = '<div class="loading">Loading...</div>';
+    tableWrap.innerHTML = '';
+    API('/admin/weekly-stats?week_start=' + weekTs).then(function(res) {
+        var stats = res.stats || [];
+        var totalBattles = res.total_battles || 0;
+        var totalPlayers = stats.length;
+        var totalWins = stats.reduce(function(s, r) { return s + r.wins; }, 0);
+        var totalLosses = stats.reduce(function(s, r) { return s + r.losses; }, 0);
+        var totalDraws = stats.reduce(function(s, r) { return s + r.draws; }, 0);
+        var totalGoldEarned = stats.reduce(function(s, r) { return s + r.gold_earned; }, 0);
+        var totalGoldLost = stats.reduce(function(s, r) { return s + r.gold_lost; }, 0);
+
+        summary.innerHTML =
+            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px">' +
+            '  <div class="card-compact"><div class="lbl">Total Battles</div><div class="val" style="font-size:18px;font-weight:700">' + totalBattles.toLocaleString() + '</div></div>' +
+            '  <div class="card-compact"><div class="lbl">Active Players</div><div class="val" style="font-size:18px;font-weight:700">' + totalPlayers + '</div></div>' +
+            '  <div class="card-compact"><div class="lbl">W / L / D</div><div class="val" style="font-size:18px;font-weight:700">' + totalWins + ' / ' + totalLosses + ' / ' + totalDraws + '</div></div>' +
+            '  <div class="card-compact"><div class="lbl">Gold +/-</div><div class="val" style="font-size:18px;font-weight:700">+' + totalGoldEarned.toLocaleString() + ' / -' + totalGoldLost.toLocaleString() + '</div></div>' +
+            '</div>';
+
+        if (stats.length === 0) {
+            tableWrap.innerHTML = '<p class="error" style="padding:24px">No battle data for this week.</p>';
+            return;
+        }
+        var html = '<div class="table-wrap"><table><thead><tr>' +
+            '<th>#</th><th>Name</th>' +
+            '<th class="weekly-sort" data-col="class" style="cursor:pointer">Class</th>' +
+            '<th class="weekly-sort" data-col="level" style="cursor:pointer">Lv</th>' +
+            '<th>Skills</th>' +
+            '<th class="weekly-sort" data-col="battles" style="cursor:pointer">Battles</th>' +
+            '<th class="weekly-sort" data-col="wins" style="cursor:pointer">W</th>' +
+            '<th class="weekly-sort" data-col="losses" style="cursor:pointer">L</th>' +
+            '<th class="weekly-sort" data-col="draws" style="cursor:pointer">D</th>' +
+            '<th class="weekly-sort" data-col="win_rate" style="cursor:pointer">Win %</th>' +
+            '<th class="weekly-sort" data-col="gold_earned" style="cursor:pointer">Gold +</th>' +
+            '<th class="weekly-sort" data-col="gold_lost" style="cursor:pointer">Gold -</th>' +
+            '</tr></thead><tbody>';
+        stats.forEach(function(r, i) {
+            var className = r.class ? r.class.charAt(0).toUpperCase() + r.class.slice(1) : '?';
+            var classEmoji = {Warrior:'🛡️',Mage:'🔮',Rogue:'🗡️',Paladin:'✨'}[className] || '⚔️';
+            html += '<tr>' +
+                '<td>' + (i + 1) + '</td>' +
+                '<td><strong>' + escHtml(r.name) + '</strong></td>' +
+                '<td>' + classEmoji + ' ' + className + '</td>' +
+                '<td>' + r.level + '</td>' +
+                '<td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(r.skills) + '">' + escHtml(r.skills) + '</td>' +
+                '<td><strong>' + r.total_battles + '</strong></td>' +
+                '<td style="color:#60e060">' + r.wins + '</td>' +
+                '<td style="color:#e06060">' + r.losses + '</td>' +
+                '<td>' + r.draws + '</td>' +
+                '<td><strong>' + r.win_rate + '%</strong></td>' +
+                '<td style="color:#f1c40f">+' + r.gold_earned.toLocaleString() + '</td>' +
+                '<td style="color:#e06060">-' + r.gold_lost.toLocaleString() + '</td>' +
+                '</tr>';
+        });
+        html += '</tbody></table></div>';
+        html += '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Sort by most battles. Click column headers to sort.</div>';
+        tableWrap.innerHTML = html;
+        window._weeklyData = stats;
+    }).catch(function(e) {
+        summary.innerHTML = '<p class="error">Error loading weekly stats: ' + escHtml(e.message) + '</p>';
+    });
+}
+
+function sortWeekly(col) {
+    var data = window._weeklyData;
+    if (!data) return;
+    var colMap = { class:'class', level:'level', battles:'total_battles', wins:'wins', losses:'losses', draws:'draws', win_rate: function(r) { return parseFloat(r.win_rate); }, gold_earned:'gold_earned', gold_lost:'gold_lost' };
+    var key = colMap[col];
+    data.sort(function(a, b) {
+        var va = typeof key === 'function' ? key(a) : a[key];
+        var vb = typeof key === 'function' ? key(b) : b[key];
+        if (typeof va === 'string') return va.localeCompare(vb);
+        return (vb || 0) - (va || 0);
+    });
+    // Re-render table with sorted data
+    var tableWrap = document.getElementById('weekly-table-wrap');
+    var html = '<div class="table-wrap"><table><thead><tr>' +
+        '<th>#</th><th>Name</th>' +
+        '<th class="weekly-sort" data-col="class" style="cursor:pointer">Class</th>' +
+        '<th class="weekly-sort" data-col="level" style="cursor:pointer">Lv</th>' +
+        '<th>Skills</th>' +
+        '<th class="weekly-sort" data-col="battles" style="cursor:pointer">Battles</th>' +
+        '<th class="weekly-sort" data-col="wins" style="cursor:pointer">W</th>' +
+        '<th class="weekly-sort" data-col="losses" style="cursor:pointer">L</th>' +
+        '<th class="weekly-sort" data-col="draws" style="cursor:pointer">D</th>' +
+        '<th class="weekly-sort" data-col="win_rate" style="cursor:pointer">Win %</th>' +
+        '<th class="weekly-sort" data-col="gold_earned" style="cursor:pointer">Gold +</th>' +
+        '<th class="weekly-sort" data-col="gold_lost" style="cursor:pointer">Gold -</th>' +
+        '</tr></thead><tbody>';
+    data.forEach(function(r, i) {
+        var className = r.class ? r.class.charAt(0).toUpperCase() + r.class.slice(1) : '?';
+        var classEmoji = {Warrior:'🛡️',Mage:'🔮',Rogue:'🗡️',Paladin:'✨'}[className] || '⚔️';
+        html += '<tr>' +
+            '<td>' + (i + 1) + '</td>' +
+            '<td><strong>' + escHtml(r.name) + '</strong></td>' +
+            '<td>' + classEmoji + ' ' + className + '</td>' +
+            '<td>' + r.level + '</td>' +
+            '<td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escHtml(r.skills) + '">' + escHtml(r.skills) + '</td>' +
+            '<td><strong>' + r.total_battles + '</strong></td>' +
+            '<td style="color:#60e060">' + r.wins + '</td>' +
+            '<td style="color:#e06060">' + r.losses + '</td>' +
+            '<td>' + r.draws + '</td>' +
+            '<td><strong>' + r.win_rate + '%</strong></td>' +
+            '<td style="color:#f1c40f">+' + r.gold_earned.toLocaleString() + '</td>' +
+            '<td style="color:#e06060">-' + r.gold_lost.toLocaleString() + '</td>' +
+            '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Sorted by ' + col + ' (desc).</div>';
+    tableWrap.innerHTML = html;
+}────
 
 var _consoleTimer = null;
 var _consoleSince = null;
