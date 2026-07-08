@@ -6,9 +6,10 @@
     <title>Battle ⚔️ Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css"/>
-    <link rel="stylesheet" href="/css/tournaments.css"/>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600&family=IM+Fell+English&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="stylesheet" href="/css/style.css" media="print" onload="this.media='all'"/>
+    <link rel="stylesheet" href="/css/tournaments.css" media="print" onload="this.media='all'"/>
+    <noscript><link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/tournaments.css"></noscript>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
         #app { display: none; }
