@@ -8270,6 +8270,14 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
             </div>
         </div>`;
 }
+function getWeekNumber(mondayTs) {
+    const d = new Date(mondayTs * 1000);
+    const thursday = new Date(d);
+    thursday.setUTCDate(thursday.getUTCDate() + 3);
+    const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
+    const diff = Math.floor((thursday - yearStart) / 86400000);
+    return Math.ceil((diff + 1) / 7);
+}
 function renderLeaderboard() {
     // Weekly damage view
     if (lbSort === 'weekly_dmg') {
@@ -8283,10 +8291,10 @@ function renderLeaderboard() {
                 '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
             history.forEach(h => {
                 const lbImg = h.profile_pic ? `/images/class/${h.profile_pic}` : `/images/class/${h.class}.png`;
-                const weekDate = new Date(h.week_start * 1000);
-                const dateStr = weekDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const wn = getWeekNumber(h.week_start);
+                const y = new Date(h.week_start * 1000).getUTCFullYear();
                 html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('openProfile', h.char_id)}>
-                    <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">${dateStr}</div>
+                    <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">Week ${wn} (${y})</div>
                     <img src="${lbImg}" alt="${h.class}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">
                     <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}</div>
                     <div style="font-size:10px;color:#8a8a90">${Number(h.total_dmg).toLocaleString()} dmg</div>
@@ -8306,7 +8314,8 @@ function renderLeaderboard() {
         if (cur.length === 0) {
             html += '<p class="empty">No damage data recorded yet this week.</p>';
         } else {
-            html += '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ DAMAGE</div></div><div class="lb-stat"><div class="lb-stat-lbl">BATTLES</div></div></div></div>';
+            html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 This Week</div>' +
+                '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ DAMAGE</div></div><div class="lb-stat"><div class="lb-stat-lbl">BATTLES</div></div></div></div>';
             cur.forEach((r, i) => {
                 const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
                 const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
