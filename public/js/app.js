@@ -195,7 +195,7 @@ if (navigator.serviceWorker) {
         }
     }
 
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    if (document.readyState === 'complete') {
         dismissOverlay();
     } else {
         window.addEventListener('load', dismissOverlay);
