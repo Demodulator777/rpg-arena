@@ -649,11 +649,31 @@ const WEEKLY_TASKS = [
                 winner_dmg INTEGER NOT NULL DEFAULT 0,
                 winner_battles INTEGER NOT NULL DEFAULT 0,
                 reward_sent INTEGER NOT NULL DEFAULT 0,
-                top10_data TEXT NOT NULL DEFAULT '[]'
+                top10_data TEXT NOT NULL DEFAULT '[]',
+                win_winner_char_id INTEGER NOT NULL DEFAULT 0,
+                win_winner_name TEXT NOT NULL DEFAULT '',
+                win_winner_class TEXT NOT NULL DEFAULT '',
+                win_winner_wins INTEGER NOT NULL DEFAULT 0,
+                win_winner_battles INTEGER NOT NULL DEFAULT 0,
+                win_reward_sent INTEGER NOT NULL DEFAULT 0,
+                win_top10_data TEXT NOT NULL DEFAULT '[]'
             )`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
+        }
+        // Add wins columns to existing weekly_leaderboard_awards table (for DBs created before v2)
+        const winCols = [
+            'win_winner_char_id INTEGER NOT NULL DEFAULT 0',
+            'win_winner_name TEXT NOT NULL DEFAULT \'\'',
+            'win_winner_class TEXT NOT NULL DEFAULT \'\'',
+            'win_winner_wins INTEGER NOT NULL DEFAULT 0',
+            'win_winner_battles INTEGER NOT NULL DEFAULT 0',
+            'win_reward_sent INTEGER NOT NULL DEFAULT 0',
+            'win_top10_data TEXT NOT NULL DEFAULT \'[]\'',
+        ];
+        for (const colDef of winCols) {
+            try { await db.execute({ sql: `ALTER TABLE weekly_leaderboard_awards ADD COLUMN ${colDef}`, args: [] }); } catch {}
         }
         try { await db.execute({ sql: `UPDATE inventory SET weapon_type = json_extract(item_data, '$.weaponType') WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon'`, args: [] }); } catch {}
         try { await db.execute({ sql: `UPDATE inventory SET weapon_type = 'scythe' WHERE item_type = 'equipment' AND weapon_type IS NULL AND (json_extract(item_data, '$.id') IN ('spiteforged_weapon','wyrmflame_weapon') OR json_extract(item_data, '$.name') IN ('Spiteforged Trident','Fang of the Worldpyre'))`, args: [] }); } catch {}
@@ -12838,9 +12858,10 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const weekStart = getCurrentWeekStart(now);
         const prevWeekStart = weekStart - 7 * 86400;
+        const params = [weekStart, now, weekStart, now, weekStart, now];
 
-        // Get top 10 current week
-        const currentRows = await dbAll(db, `
+        // Get top 10 current week by damage
+        const dmgRows = await dbAll(db, `
             SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
             FROM (
                 SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
@@ -12854,34 +12875,85 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                     AND json_extract(substr(body, 15), '$.type') = 'mission'
                     AND sent_at >= ? AND sent_at < ?
             ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
-        `, [weekStart, now, weekStart, now, weekStart, now]);
+        `, params);
 
-        const currentTop = [];
-        for (const r of currentRows) {
+        const currentDmgTop = [];
+        for (const r of dmgRows) {
             const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic FROM characters WHERE id=?', [Number(r.char_id)]);
             if (!ch) continue;
-            currentTop.push({
+            currentDmgTop.push({
                 char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
                 profile_pic: ch.profile_pic,
                 total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
             });
         }
 
-        // Get previous week award winner
-        const prevAward = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
-        let previousWinner = null;
-        if (prevAward && prevAward.reward_sent && Number(prevAward.winner_char_id) > 0) {
-            previousWinner = {
-                char_id: Number(prevAward.winner_char_id),
-                name: prevAward.winner_name,
-                class: prevAward.winner_class,
-                total_dmg: Number(prevAward.winner_dmg),
-                total_battles: Number(prevAward.winner_battles),
-                reward_gems: 5,
-            };
+        // Get top 10 current week by wins
+        const winRows = await dbAll(db, `
+            SELECT char_id, SUM(is_win) AS total_wins, SUM(bats) AS total_battles
+            FROM (
+                SELECT attacker_id AS char_id,
+                    CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
+                    1 AS bats
+                FROM battles WHERE fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT defender_id AS char_id,
+                    CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
+                    1 AS bats
+                FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT receiver_id AS char_id,
+                    CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
+                    1 AS bats
+                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                    AND json_extract(substr(body, 15), '$.type') = 'mission'
+                    AND sent_at >= ? AND sent_at < ?
+            ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC LIMIT 10
+        `, params);
+
+        const currentWinTop = [];
+        for (const r of winRows) {
+            const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic FROM characters WHERE id=?', [Number(r.char_id)]);
+            if (!ch) continue;
+            currentWinTop.push({
+                char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
+                profile_pic: ch.profile_pic,
+                total_wins: Number(r.total_wins || 0), total_battles: Number(r.total_battles || 0),
+            });
         }
 
-        res.json({ current_week: currentTop, previous_winner: previousWinner });
+        // Get previous week award winners
+        const prevAward = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
+        let previousDmgWinner = null, previousWinWinner = null;
+        if (prevAward) {
+            if (prevAward.reward_sent && Number(prevAward.winner_char_id) > 0) {
+                previousDmgWinner = {
+                    char_id: Number(prevAward.winner_char_id),
+                    name: prevAward.winner_name,
+                    class: prevAward.winner_class,
+                    total_dmg: Number(prevAward.winner_dmg),
+                    total_battles: Number(prevAward.winner_battles),
+                    reward_gems: 5,
+                };
+            }
+            if (prevAward.win_reward_sent && Number(prevAward.win_winner_char_id) > 0) {
+                previousWinWinner = {
+                    char_id: Number(prevAward.win_winner_char_id),
+                    name: prevAward.win_winner_name,
+                    class: prevAward.win_winner_class,
+                    total_wins: Number(prevAward.win_winner_wins),
+                    total_battles: Number(prevAward.win_winner_battles),
+                    reward_gems: 5,
+                };
+            }
+        }
+
+        res.json({
+            current_dmg_top: currentDmgTop,
+            current_win_top: currentWinTop,
+            previous_dmg_winner: previousDmgWinner,
+            previous_win_winner: previousWinWinner,
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -12890,23 +12962,38 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
     try {
         const db = await getDb();
         const limit = Math.min(Number(req.query.limit) || 10, 52);
-        const rows = await dbAll(db, `SELECT week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, top10_data
-            FROM weekly_leaderboard_awards WHERE winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
-        const history = [];
+        const rows = await dbAll(db, `SELECT * FROM weekly_leaderboard_awards WHERE winner_char_id>0 OR win_winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
+        const history_dmg = [];
+        const history_win = [];
         for (const r of rows) {
-            const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.winner_char_id)]);
-            history.push({
-                week_start: Number(r.week_start),
-                char_id: Number(r.winner_char_id),
-                name: r.winner_name,
-                class: r.winner_class,
-                profile_pic: ch?.profile_pic || null,
-                total_dmg: Number(r.winner_dmg || 0),
-                total_battles: Number(r.winner_battles || 0),
-                reward_gems: 5,
-            });
+            if (Number(r.winner_char_id) > 0) {
+                const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.winner_char_id)]);
+                history_dmg.push({
+                    week_start: Number(r.week_start),
+                    char_id: Number(r.winner_char_id),
+                    name: r.winner_name,
+                    class: r.winner_class,
+                    profile_pic: ch?.profile_pic || null,
+                    total_dmg: Number(r.winner_dmg || 0),
+                    total_battles: Number(r.winner_battles || 0),
+                    type: 'damage',
+                });
+            }
+            if (Number(r.win_winner_char_id) > 0) {
+                const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.win_winner_char_id)]);
+                history_win.push({
+                    week_start: Number(r.week_start),
+                    char_id: Number(r.win_winner_char_id),
+                    name: r.win_winner_name,
+                    class: r.win_winner_class,
+                    profile_pic: ch?.profile_pic || null,
+                    total_wins: Number(r.win_winner_wins || 0),
+                    total_battles: Number(r.win_winner_battles || 0),
+                    type: 'wins',
+                });
+            }
         }
-        res.json({ history });
+        res.json({ history_dmg, history_win });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -13807,7 +13894,7 @@ router.post('/admin/bots/logs/clear', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Weekly Leaderboard — Award top damage dealer ─────────────────────
+// ── Weekly Leaderboard — Award top damage dealer & top wins ────────────
 async function computeWeeklyLeaderboard(db) {
     const now = Math.floor(Date.now() / 1000);
     const currentWeekStart = getCurrentWeekStart(now);
@@ -13817,68 +13904,119 @@ async function computeWeeklyLeaderboard(db) {
         const weekStart = currentWeekStart - (w + 1) * 7 * 86400;
         const weekEnd = weekStart + 7 * 86400;
 
-        const existing = await dbGet(db, 'SELECT reward_sent FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
-        if (existing) continue; // already processed
+        const existing = await dbGet(db, 'SELECT reward_sent, win_reward_sent FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
+        if (existing && existing.reward_sent && existing.win_reward_sent) continue;
 
-        // Get top 10 by damage for this week
-        const topRows = await dbAll(db, `
-            SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
-            FROM (
-                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
-                FROM battles WHERE fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
-                FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
-                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                    AND json_extract(substr(body, 15), '$.type') = 'mission'
-                    AND sent_at >= ? AND sent_at < ?
-            ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
-        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
+        const isPrevWeek = (w === 0);
+        const params = [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd];
 
-        let top10 = [];
-        let winner = null;
-        for (const r of topRows) {
-            const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
-            if (!ch) continue;
-            const entry = {
-                char_id: Number(ch.id), name: ch.name, class: ch.class,
-                total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
-            };
-            top10.push(entry);
-            if (!winner) winner = entry;
+        // ── Top 10 by damage ──
+        let dmgTop10 = [], dmgWinner = null;
+        {
+            const rows = await dbAll(db, `
+                SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
+                FROM (
+                    SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
+                    FROM battles WHERE fought_at >= ? AND fought_at < ?
+                    UNION ALL
+                    SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
+                    FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                    UNION ALL
+                    SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
+                    FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                        AND json_extract(substr(body, 15), '$.type') = 'mission'
+                        AND sent_at >= ? AND sent_at < ?
+                ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
+            `, params);
+            for (const r of rows) {
+                const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
+                if (!ch) continue;
+                const entry = {
+                    char_id: Number(ch.id), name: ch.name, class: ch.class,
+                    total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
+                };
+                dmgTop10.push(entry);
+                if (!dmgWinner) dmgWinner = entry;
+            }
         }
 
-        const isPrevWeek = (w === 0); // only the previous week gets the reward
-
-        if (!winner || top10.length === 0) {
-            await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
-                (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
-                VALUES (?,0,'','',0,0,1,'[]')`, [weekStart]);
-            if (isPrevWeek) console.log(`📊 Weekly leaderboard: no data for week ${weekStart}, skipping reward`);
-            continue;
+        // ── Top 10 by wins ──
+        let winTop10 = [], winWinner = null;
+        {
+            const rows = await dbAll(db, `
+                SELECT char_id, SUM(is_win) AS total_wins, SUM(bats) AS total_battles
+                FROM (
+                    SELECT attacker_id AS char_id,
+                        CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
+                        1 AS bats
+                    FROM battles WHERE fought_at >= ? AND fought_at < ?
+                    UNION ALL
+                    SELECT defender_id AS char_id,
+                        CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
+                        1 AS bats
+                    FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                    UNION ALL
+                    SELECT receiver_id AS char_id,
+                        CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
+                        1 AS bats
+                    FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                        AND json_extract(substr(body, 15), '$.type') = 'mission'
+                        AND sent_at >= ? AND sent_at < ?
+                ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC LIMIT 10
+            `, params);
+            for (const r of rows) {
+                const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
+                if (!ch) continue;
+                const entry = {
+                    char_id: Number(ch.id), name: ch.name, class: ch.class,
+                    total_wins: Number(r.total_wins || 0), total_battles: Number(r.total_battles || 0),
+                };
+                winTop10.push(entry);
+                if (!winWinner) winWinner = entry;
+            }
         }
 
-        // Send reward only for the most recent week
+        // Send rewards only for the most recent week (skip if already sent)
         if (isPrevWeek) {
-            const rewardPayload = JSON.stringify({ gems: 5 });
-            await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                VALUES (?,?,?,?,?,1)`,
-                [winner.char_id, winner.char_id, '🏆 Weekly Damage King!',
-                    `You dealt the most damage this week: ${winner.total_dmg.toLocaleString()} damage across ${winner.total_battles} battles! Claim your 5💎 reward below.`,
-                    rewardPayload]);
+            if (dmgWinner && !existing?.reward_sent) {
+                const payload = JSON.stringify({ gems: 5 });
+                await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                    VALUES (?,?,?,?,?,1)`,
+                    [dmgWinner.char_id, dmgWinner.char_id, '🏆 Weekly Damage King!',
+                        `You dealt the most damage this week: ${dmgWinner.total_dmg.toLocaleString()} damage across ${dmgWinner.total_battles} battles! Claim your 5💎 reward below.`,
+                        payload]);
+            }
+            if (winWinner && !existing?.win_reward_sent) {
+                const payload = JSON.stringify({ gems: 5 });
+                await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                    VALUES (?,?,?,?,?,1)`,
+                    [winWinner.char_id, winWinner.char_id, '🏆 Weekly Win Champion!',
+                        `You won the most battles this week: ${winWinner.total_wins} wins across ${winWinner.total_battles} battles! Claim your 5💎 reward below.`,
+                        payload]);
+            }
         }
+
+        const dmgRewardSent = isPrevWeek && dmgWinner ? 1 : (existing?.reward_sent || 0);
+        const winRewardSent = isPrevWeek && winWinner ? 1 : (existing?.win_reward_sent || 0);
 
         await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
-            (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
-            VALUES (?,?,?,?,?,?,?,?)`,
-            [weekStart, winner.char_id, winner.name, winner.class, winner.total_dmg, winner.total_battles, isPrevWeek ? 1 : 0, JSON.stringify(top10)]);
+            (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data,
+             win_winner_char_id, win_winner_name, win_winner_class, win_winner_wins, win_winner_battles, win_reward_sent, win_top10_data)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [weekStart,
+             dmgWinner ? dmgWinner.char_id : 0, dmgWinner ? dmgWinner.name : '', dmgWinner ? dmgWinner.class : '',
+             dmgWinner ? dmgWinner.total_dmg : 0, dmgWinner ? dmgWinner.total_battles : 0,
+             dmgRewardSent, JSON.stringify(dmgTop10),
+             winWinner ? winWinner.char_id : 0, winWinner ? winWinner.name : '', winWinner ? winWinner.class : '',
+             winWinner ? winWinner.total_wins : 0, winWinner ? winWinner.total_battles : 0,
+             winRewardSent, JSON.stringify(winTop10)]);
 
         if (isPrevWeek) {
-            console.log(`📊 Weekly leaderboard: ${winner.name} (#${winner.char_id}) wins with ${winner.total_dmg} damage — 5💎 awarded`);
+            if (dmgWinner) console.log(`📊 Weekly damage: ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg — 5💎 awarded`);
+            if (winWinner) console.log(`📊 Weekly wins: ${winWinner.name} (#${winWinner.char_id}) ${winWinner.total_wins} wins — 5💎 awarded`);
         } else {
-            console.log(`📊 Weekly leaderboard backfill: week ${weekStart} — ${winner.name} (#${winner.char_id}) ${winner.total_dmg} damage`);
+            if (dmgWinner) console.log(`📊 Weekly backfill damage: week ${weekStart} — ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg`);
+            if (winWinner) console.log(`📊 Weekly backfill wins: week ${weekStart} — ${winWinner.name} (#${winWinner.char_id}) ${winWinner.total_wins} wins`);
         }
     }
 }
