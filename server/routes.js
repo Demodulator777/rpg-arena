@@ -13865,7 +13865,7 @@ async function computeWeeklyLeaderboard(db) {
             const rewardPayload = JSON.stringify({ gems: 5 });
             await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
                 VALUES (?,?,?,?,?,1)`,
-                [0, winner.char_id, '🏆 Weekly Damage King!',
+                [winner.char_id, winner.char_id, '🏆 Weekly Damage King!',
                     `You dealt the most damage this week: ${winner.total_dmg.toLocaleString()} damage across ${winner.total_battles} battles! Claim your 5💎 reward below.`,
                     rewardPayload]);
         }
@@ -18841,7 +18841,7 @@ async function isCharacterTraining(db, characterId) {
 // ── Auto Upkeep Scheduler ──────────────────────────────────────────────────
 async function autoProcessUpkeep(db) {
     try {
-        const ownedBases = await dbAll(db, `SELECT cb.*, su.upgrade_level, su.last_upkeep_paid, su.id AS upgrade_id
+        const ownedBases = await dbAll(db, `SELECT cb.*, su.upgrade_level, su.last_upkeep_paid, su.squad_id, su.base_id
             FROM clan_bases cb JOIN squad_base_upgrades su ON su.base_id = cb.id AND su.squad_id = cb.owner_squad_id
             WHERE cb.owner_squad_id IS NOT NULL AND su.upgrade_level > 0`, []);
         const now = Math.floor(Date.now() / 1000);
@@ -18857,7 +18857,7 @@ async function autoProcessUpkeep(db) {
                 const gold = Number(treasury?.gold || 0);
                 if (gold < cost) continue; // Not enough gold — skip until next tick
                 await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [cost, base.owner_squad_id]);
-                await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=NULL WHERE id=?', [now, base.upgrade_id]);
+                await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=NULL WHERE squad_id=? AND base_id=?', [now, base.squad_id, base.base_id]);
             } catch (e) { console.error(`[Upkeep] base ${base.id}:`, e.message); }
         }
     } catch (e) { console.error('[Upkeep] tick error:', e.message); }
