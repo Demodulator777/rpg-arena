@@ -13711,6 +13711,140 @@ router.post('/admin/bots/logs/clear', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Weekly Stats ─────────────────────────────────────────────────────
+router.get('/admin/weekly-stats', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const weekStart = Number(req.query.week_start) || getCurrentWeekStart();
+        const weekEnd = weekStart + 7 * 86400;
+
+        // Total battles on server this week (mission + pvp)
+        const totalRow = await dbGet(db, `SELECT COUNT(*) AS total FROM battles WHERE fought_at >= ? AND fought_at < ?`,
+            [weekStart, weekEnd]);
+        const totalBattles = Number(totalRow?.total || 0);
+
+        // Per-character stats via UNION ALL
+        const rows = await dbAll(db, `
+            SELECT char_id,
+                   SUM(battles) AS battles,
+                   SUM(wins) AS wins,
+                   SUM(losses) AS losses,
+                   SUM(draws) AS draws,
+                   SUM(gold_earned) AS gold_earned,
+                   SUM(gold_lost) AS gold_lost
+            FROM (
+                -- Mission battles (player is always attacker)
+                SELECT attacker_id AS char_id,
+                       COUNT(*) AS battles,
+                       SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
+                       SUM(CASE WHEN winner_id = -1 THEN 1 ELSE 0 END) AS losses,
+                       SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                       SUM(gold_gained) AS gold_earned,
+                       0 AS gold_lost
+                FROM battles
+                WHERE battle_type = 'mission' AND fought_at >= ? AND fought_at < ?
+                GROUP BY attacker_id
+
+                UNION ALL
+
+                -- PvP as attacker
+                SELECT attacker_id AS char_id,
+                       COUNT(*) AS battles,
+                       SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
+                       SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS losses,
+                       SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                       SUM(CASE WHEN winner_id = attacker_id THEN gold_gained ELSE 0 END) AS gold_earned,
+                       SUM(CASE WHEN winner_id = defender_id THEN gold_gained ELSE 0 END) AS gold_lost
+                FROM battles
+                WHERE battle_type = 'pvp' AND fought_at >= ? AND fought_at < ?
+                GROUP BY attacker_id
+
+                UNION ALL
+
+                -- PvP as defender
+                SELECT defender_id AS char_id,
+                       COUNT(*) AS battles,
+                       SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
+                       SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS losses,
+                       SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                       SUM(CASE WHEN winner_id = defender_id THEN gold_gained ELSE 0 END) AS gold_earned,
+                       SUM(CASE WHEN winner_id = attacker_id THEN gold_gained ELSE 0 END) AS gold_lost
+                FROM battles
+                WHERE battle_type = 'pvp' AND defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                GROUP BY defender_id
+            )
+            GROUP BY char_id
+        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
+
+        // Build char stat map
+        const charStatMap = {};
+        for (const r of rows) {
+            const id = Number(r.char_id);
+            if (!id) continue;
+            charStatMap[id] = {
+                total_battles: Number(r.battles || 0),
+                wins: Number(r.wins || 0),
+                losses: Number(r.losses || 0),
+                draws: Number(r.draws || 0),
+                gold_earned: Number(r.gold_earned || 0),
+                gold_lost: Number(r.gold_lost || 0),
+            };
+        }
+
+        // Fetch character details and skill tree for all active participants
+        const charIds = Object.keys(charStatMap).filter(k => charStatMap[k].total_battles > 0).map(Number);
+        let stats = [];
+        if (charIds.length > 0) {
+            // SQLite doesn't support array params, use placeholders
+            const placeholders = charIds.map(() => '?').join(',');
+            const chars = await dbAll(db, `SELECT id, name, class, level FROM characters WHERE id IN (${placeholders})`, charIds);
+            // Fetch skill tree for all chars
+            const skillRows = await dbAll(db, `SELECT cst.char_id, cst.skill_id, cst.branch_id, cst.class
+                FROM character_skill_tree cst WHERE cst.char_id IN (${placeholders})`, charIds);
+            // Group skills by char
+            const charSkills = {};
+            for (const sk of skillRows) {
+                const cid = Number(sk.char_id);
+                if (!charSkills[cid]) charSkills[cid] = [];
+                charSkills[cid].push({ branch_id: sk.branch_id, skill_id: sk.skill_id });
+            }
+
+            for (const ch of chars) {
+                const cid = Number(ch.id);
+                const s = charStatMap[cid];
+                // Build readable skill/branch list
+                const branchNames = {};
+                const skills = charSkills[cid] || [];
+                for (const sk of skills) {
+                    if (!branchNames[sk.branch_id]) branchNames[sk.branch_id] = [];
+                    branchNames[sk.branch_id].push(sk.skill_id);
+                }
+                const skillDisplay = Object.entries(branchNames)
+                    .map(([branch, skillIds]) => `${branch}:${skillIds.join(',')}`)
+                    .join('; ');
+                stats.push({
+                    id: cid,
+                    name: ch.name,
+                    class: ch.class,
+                    level: Number(ch.level),
+                    skills: skillDisplay || '',
+                    total_battles: s.total_battles,
+                    wins: s.wins,
+                    losses: s.losses,
+                    draws: s.draws,
+                    win_rate: s.total_battles > 0 ? ((s.wins / s.total_battles) * 100).toFixed(1) : '0.0',
+                    gold_earned: s.gold_earned,
+                    gold_lost: s.gold_lost,
+                });
+            }
+            stats.sort((a, b) => b.total_battles - a.total_battles || b.wins - a.wins);
+        }
+
+        res.json({ week_start: weekStart, total_battles: totalBattles, stats });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/rewards/list', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
