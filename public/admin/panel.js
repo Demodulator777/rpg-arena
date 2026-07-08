@@ -834,15 +834,12 @@ function loadWeeklyData() {
         var totalWins = stats.reduce(function(s, r) { return s + r.wins; }, 0);
         var totalLosses = stats.reduce(function(s, r) { return s + r.losses; }, 0);
         var totalDraws = stats.reduce(function(s, r) { return s + r.draws; }, 0);
-        var totalGoldEarned = stats.reduce(function(s, r) { return s + r.gold_earned; }, 0);
-        var totalGoldLost = stats.reduce(function(s, r) { return s + r.gold_lost; }, 0);
 
         summary.innerHTML =
             '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px">' +
             '  <div class="card-compact"><div class="lbl">Total Battles</div><div class="val" style="font-size:18px;font-weight:700">' + totalBattles.toLocaleString() + '</div></div>' +
             '  <div class="card-compact"><div class="lbl">Active Players</div><div class="val" style="font-size:18px;font-weight:700">' + totalPlayers + '</div></div>' +
             '  <div class="card-compact"><div class="lbl">W / L / D</div><div class="val" style="font-size:18px;font-weight:700">' + totalWins + ' / ' + totalLosses + ' / ' + totalDraws + '</div></div>' +
-            '  <div class="card-compact"><div class="lbl">Gold +/-</div><div class="val" style="font-size:18px;font-weight:700">+' + totalGoldEarned.toLocaleString() + ' / -' + totalGoldLost.toLocaleString() + '</div></div>' +
             '</div>';
 
         if (stats.length === 0) {
@@ -859,8 +856,8 @@ function loadWeeklyData() {
             '<th class="weekly-sort" data-col="losses" style="cursor:pointer">L</th>' +
             '<th class="weekly-sort" data-col="draws" style="cursor:pointer">D</th>' +
             '<th class="weekly-sort" data-col="win_rate" style="cursor:pointer">Win %</th>' +
-            '<th class="weekly-sort" data-col="gold_earned" style="cursor:pointer">Gold +</th>' +
-            '<th class="weekly-sort" data-col="gold_lost" style="cursor:pointer">Gold -</th>' +
+            '<th class="weekly-sort" data-col="dmg_dealt" style="cursor:pointer">Dmg ⚔️</th>' +
+            '<th class="weekly-sort" data-col="dmg_taken" style="cursor:pointer">Dmg 💥</th>' +
             '</tr></thead><tbody>';
         stats.forEach(function(r, i) {
             var className = r.class ? r.class.charAt(0).toUpperCase() + r.class.slice(1) : '?';
@@ -876,8 +873,8 @@ function loadWeeklyData() {
                 '<td style="color:#e06060">' + r.losses + '</td>' +
                 '<td>' + r.draws + '</td>' +
                 '<td><strong>' + r.win_rate + '%</strong></td>' +
-                '<td style="color:#f1c40f">+' + r.gold_earned.toLocaleString() + '</td>' +
-                '<td style="color:#e06060">-' + r.gold_lost.toLocaleString() + '</td>' +
+                '<td>' + Number(r.dmg_dealt || 0).toLocaleString() + '</td>' +
+                '<td>' + Number(r.dmg_taken || 0).toLocaleString() + '</td>' +
                 '</tr>';
         });
         html += '</tbody></table></div>';
@@ -892,7 +889,7 @@ function loadWeeklyData() {
 function sortWeekly(col) {
     var data = window._weeklyData;
     if (!data) return;
-    var colMap = { class:'class', level:'level', battles:'total_battles', wins:'wins', losses:'losses', draws:'draws', win_rate: function(r) { return parseFloat(r.win_rate); }, gold_earned:'gold_earned', gold_lost:'gold_lost' };
+    var colMap = { class:'class', level:'level', battles:'total_battles', wins:'wins', losses:'losses', draws:'draws', win_rate: function(r) { return parseFloat(r.win_rate); }, dmg_dealt:'dmg_dealt', dmg_taken:'dmg_taken' };
     var key = colMap[col];
     data.sort(function(a, b) {
         var va = typeof key === 'function' ? key(a) : a[key];
@@ -909,12 +906,12 @@ function sortWeekly(col) {
         '<th>Skills</th>' +
         '<th class="weekly-sort" data-col="battles" style="cursor:pointer">Battles</th>' +
         '<th class="weekly-sort" data-col="wins" style="cursor:pointer">W</th>' +
-        '<th class="weekly-sort" data-col="losses" style="cursor:pointer">L</th>' +
-        '<th class="weekly-sort" data-col="draws" style="cursor:pointer">D</th>' +
-        '<th class="weekly-sort" data-col="win_rate" style="cursor:pointer">Win %</th>' +
-        '<th class="weekly-sort" data-col="gold_earned" style="cursor:pointer">Gold +</th>' +
-        '<th class="weekly-sort" data-col="gold_lost" style="cursor:pointer">Gold -</th>' +
-        '</tr></thead><tbody>';
+            '<th class="weekly-sort" data-col="losses" style="cursor:pointer">L</th>' +
+            '<th class="weekly-sort" data-col="draws" style="cursor:pointer">D</th>' +
+            '<th class="weekly-sort" data-col="win_rate" style="cursor:pointer">Win %</th>' +
+            '<th class="weekly-sort" data-col="dmg_dealt" style="cursor:pointer">Dmg ⚔️</th>' +
+            '<th class="weekly-sort" data-col="dmg_taken" style="cursor:pointer">Dmg 💥</th>' +
+            '</tr></thead><tbody>';
     data.forEach(function(r, i) {
         var className = r.class ? r.class.charAt(0).toUpperCase() + r.class.slice(1) : '?';
         var classEmoji = {Warrior:'🛡️',Mage:'🔮',Rogue:'🗡️',Paladin:'✨'}[className] || '⚔️';
@@ -929,8 +926,8 @@ function sortWeekly(col) {
             '<td style="color:#e06060">' + r.losses + '</td>' +
             '<td>' + r.draws + '</td>' +
             '<td><strong>' + r.win_rate + '%</strong></td>' +
-            '<td style="color:#f1c40f">+' + r.gold_earned.toLocaleString() + '</td>' +
-            '<td style="color:#e06060">-' + r.gold_lost.toLocaleString() + '</td>' +
+            '<td>' + Number(r.dmg_dealt || 0).toLocaleString() + '</td>' +
+            '<td>' + Number(r.dmg_taken || 0).toLocaleString() + '</td>' +
             '</tr>';
     });
     html += '</tbody></table></div>';
