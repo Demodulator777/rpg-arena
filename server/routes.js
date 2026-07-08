@@ -12885,6 +12885,31 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Weekly Hall of Fame ──────────────────────────────────────────────────
+router.get('/leaderboard/weekly/history', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const limit = Math.min(Number(req.query.limit) || 10, 52);
+        const rows = await dbAll(db, `SELECT week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data
+            FROM weekly_leaderboard_awards WHERE reward_sent=1 AND winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
+        const history = [];
+        for (const r of rows) {
+            const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.winner_char_id)]);
+            history.push({
+                week_start: Number(r.week_start),
+                char_id: Number(r.winner_char_id),
+                name: r.winner_name,
+                class: r.winner_class,
+                profile_pic: ch?.profile_pic || null,
+                total_dmg: Number(r.winner_dmg || 0),
+                total_battles: Number(r.winner_battles || 0),
+                reward_gems: 5,
+            });
+        }
+        res.json({ history });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Player profile ────────────────────────────────────────────────────────
 router.get('/player/:id', auth, async (req, res) => {
     try {
