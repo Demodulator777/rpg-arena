@@ -641,6 +641,16 @@ const WEEKLY_TASKS = [
             `ALTER TABLE battles ADD COLUMN gold_gained INTEGER DEFAULT 0`,
             `ALTER TABLE battles ADD COLUMN total_dmg_dealt INTEGER DEFAULT 0`,
             `ALTER TABLE battles ADD COLUMN total_dmg_taken INTEGER DEFAULT 0`,
+            `CREATE TABLE IF NOT EXISTS weekly_leaderboard_awards (
+                week_start INTEGER PRIMARY KEY,
+                winner_char_id INTEGER NOT NULL,
+                winner_name TEXT NOT NULL,
+                winner_class TEXT NOT NULL,
+                winner_dmg INTEGER NOT NULL DEFAULT 0,
+                winner_battles INTEGER NOT NULL DEFAULT 0,
+                reward_sent INTEGER NOT NULL DEFAULT 0,
+                top10_data TEXT NOT NULL DEFAULT '[]'
+            )`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -12821,6 +12831,59 @@ router.get('/leaderboard', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// ── Weekly Damage Leaderboard ────────────────────────────────────────────
+router.get('/leaderboard/weekly', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const now = Math.floor(Date.now() / 1000);
+        const weekStart = getCurrentWeekStart(now);
+        const prevWeekStart = weekStart - 7 * 86400;
+
+        // Get top 10 current week
+        const currentRows = await dbAll(db, `
+            SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
+            FROM (
+                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
+                FROM battles WHERE fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
+                FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
+                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                    AND json_extract(substr(body, 15), '$.type') = 'mission'
+                    AND sent_at >= ? AND sent_at < ?
+            ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
+        `, [weekStart, now, weekStart, now, weekStart, now]);
+
+        const currentTop = [];
+        for (const r of currentRows) {
+            const ch = await dbGet(db, 'SELECT id, name, class, level FROM characters WHERE id=?', [Number(r.char_id)]);
+            if (!ch) continue;
+            currentTop.push({
+                char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
+                total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
+            });
+        }
+
+        // Get previous week award winner
+        const prevAward = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
+        let previousWinner = null;
+        if (prevAward && prevAward.reward_sent && Number(prevAward.winner_char_id) > 0) {
+            previousWinner = {
+                char_id: Number(prevAward.winner_char_id),
+                name: prevAward.winner_name,
+                class: prevAward.winner_class,
+                total_dmg: Number(prevAward.winner_dmg),
+                total_battles: Number(prevAward.winner_battles),
+                reward_gems: 5,
+            };
+        }
+
+        res.json({ current_week: currentTop, previous_winner: previousWinner });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Player profile ────────────────────────────────────────────────────────
 router.get('/player/:id', auth, async (req, res) => {
     try {
@@ -13717,6 +13780,72 @@ router.post('/admin/bots/logs/clear', auth, async (req, res) => {
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// ── Weekly Leaderboard — Award top damage dealer ─────────────────────
+async function computeWeeklyLeaderboard(db) {
+    const now = Math.floor(Date.now() / 1000);
+    const currentWeekStart = getCurrentWeekStart(now);
+    const prevWeekStart = currentWeekStart - 7 * 86400;
+
+    // Check if previous week was already awarded
+    const existing = await dbGet(db, 'SELECT reward_sent FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
+    if (existing && existing.reward_sent) return; // already awarded
+
+    // Get top 10 by damage for the previous week (PvP from battles, missions from messages)
+    const topRows = await dbAll(db, `
+        SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
+        FROM (
+            SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
+            FROM battles WHERE fought_at >= ? AND fought_at < ?
+            UNION ALL
+            SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
+            FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+            UNION ALL
+            SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
+            FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                AND json_extract(substr(body, 15), '$.type') = 'mission'
+                AND sent_at >= ? AND sent_at < ?
+        ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
+    `, [prevWeekStart, currentWeekStart, prevWeekStart, currentWeekStart, prevWeekStart, currentWeekStart]);
+
+    // Fetch character names
+    let top10 = [];
+    let winner = null;
+    for (const r of topRows) {
+        const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
+        if (!ch) continue;
+        const entry = {
+            char_id: Number(ch.id), name: ch.name, class: ch.class,
+            total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
+        };
+        top10.push(entry);
+        if (!winner) winner = entry;
+    }
+
+    if (!winner || top10.length === 0) {
+        // No data — mark as awarded to skip rechecking
+        await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
+            (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
+            VALUES (?,0,'','',0,0,1,'[]')`, [prevWeekStart]);
+        console.log(`📊 Weekly leaderboard: no data for week ${prevWeekStart}, skipping reward`);
+        return;
+    }
+
+    // Award 5 gems to winner via message with reward payload
+    const rewardPayload = JSON.stringify({ gems: 5 });
+    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+        VALUES (?,?,?,?,?,1)`,
+        [0, winner.char_id, '🏆 Weekly Damage King!',
+            `You dealt the most damage this week: ${winner.total_dmg.toLocaleString()} damage across ${winner.total_battles} battles! Claim your 5💎 reward below.`,
+            rewardPayload]);
+
+    await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
+        (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data)
+        VALUES (?,?,?,?,?,?,1,?)`,
+        [prevWeekStart, winner.char_id, winner.name, winner.class, winner.total_dmg, winner.total_battles, JSON.stringify(top10)]);
+
+    console.log(`📊 Weekly leaderboard: ${winner.name} (#${winner.char_id}) wins with ${winner.total_dmg} damage — 5💎 awarded`);
+}
 
 // ── Weekly Stats ─────────────────────────────────────────────────────
 router.get('/admin/weekly-stats', auth, async (req, res) => {
@@ -18708,5 +18837,5 @@ module.exports = {
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep
+    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard
 };
