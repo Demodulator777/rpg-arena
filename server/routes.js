@@ -12858,10 +12858,11 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
 
         const currentTop = [];
         for (const r of currentRows) {
-            const ch = await dbGet(db, 'SELECT id, name, class, level FROM characters WHERE id=?', [Number(r.char_id)]);
+            const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic FROM characters WHERE id=?', [Number(r.char_id)]);
             if (!ch) continue;
             currentTop.push({
                 char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
+                profile_pic: ch.profile_pic,
                 total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
             });
         }
