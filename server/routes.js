@@ -12711,8 +12711,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, freshD.id]);
         try {
-            await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained)]);
+            await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained,total_dmg_dealt,total_dmg_taken) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained), battle.totalDmgToB || 0, battle.totalDmgToA || 0]);
         } catch (e) {
             try { await dbRun(db, 'INSERT INTO battles (attacker_id,defender_id,winner_id,log) VALUES (?,?,?,?)', [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, JSON.stringify(battle.log)]); } catch {}
         }
@@ -13724,58 +13724,45 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
             [weekStart, weekEnd]);
         const totalBattles = Number(totalRow?.total || 0);
 
-        // Per-character stats via UNION ALL
+        // Per-character stats — battles table schema: id, attacker_id, defender_id, winner_id, log, fought_at
+        // defender_id = -1 means mission, defender_id > 0 means PvP
         const rows = await dbAll(db, `
             SELECT char_id,
                    SUM(battles) AS battles,
                    SUM(wins) AS wins,
                    SUM(losses) AS losses,
                    SUM(draws) AS draws,
-                   SUM(gold_earned) AS gold_earned,
-                   SUM(gold_lost) AS gold_lost
+                   SUM(dmg_dealt) AS dmg_dealt,
+                   SUM(dmg_taken) AS dmg_taken
             FROM (
-                -- Mission battles (player is always attacker)
+                -- As attacker (missions + PvP)
                 SELECT attacker_id AS char_id,
                        COUNT(*) AS battles,
                        SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
-                       SUM(CASE WHEN winner_id = -1 THEN 1 ELSE 0 END) AS losses,
+                       SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
                        SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                       SUM(gold_gained) AS gold_earned,
-                       0 AS gold_lost
+                       SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_dealt,
+                       SUM(COALESCE(total_dmg_taken, 0)) AS dmg_taken
                 FROM battles
-                WHERE battle_type = 'mission' AND fought_at >= ? AND fought_at < ?
+                WHERE fought_at >= ? AND fought_at < ?
                 GROUP BY attacker_id
 
                 UNION ALL
 
-                -- PvP as attacker
-                SELECT attacker_id AS char_id,
-                       COUNT(*) AS battles,
-                       SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
-                       SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS losses,
-                       SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                       SUM(CASE WHEN winner_id = attacker_id THEN gold_gained ELSE 0 END) AS gold_earned,
-                       SUM(CASE WHEN winner_id = defender_id THEN gold_gained ELSE 0 END) AS gold_lost
-                FROM battles
-                WHERE battle_type = 'pvp' AND fought_at >= ? AND fought_at < ?
-                GROUP BY attacker_id
-
-                UNION ALL
-
-                -- PvP as defender
+                -- As defender (PvP only)
                 SELECT defender_id AS char_id,
                        COUNT(*) AS battles,
                        SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
-                       SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS losses,
+                       SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
                        SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                       SUM(CASE WHEN winner_id = defender_id THEN gold_gained ELSE 0 END) AS gold_earned,
-                       SUM(CASE WHEN winner_id = attacker_id THEN gold_gained ELSE 0 END) AS gold_lost
+                       SUM(COALESCE(total_dmg_taken, 0)) AS dmg_dealt,
+                       SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_taken
                 FROM battles
-                WHERE battle_type = 'pvp' AND defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
                 GROUP BY defender_id
             )
             GROUP BY char_id
-        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
+        `, [weekStart, weekEnd, weekStart, weekEnd]);
 
         // Build char stat map
         const charStatMap = {};
@@ -13787,8 +13774,8 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
                 wins: Number(r.wins || 0),
                 losses: Number(r.losses || 0),
                 draws: Number(r.draws || 0),
-                gold_earned: Number(r.gold_earned || 0),
-                gold_lost: Number(r.gold_lost || 0),
+                dmg_dealt: Number(r.dmg_dealt || 0),
+                dmg_taken: Number(r.dmg_taken || 0),
             };
         }
 
@@ -13834,8 +13821,8 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
                     losses: s.losses,
                     draws: s.draws,
                     win_rate: s.total_battles > 0 ? ((s.wins / s.total_battles) * 100).toFixed(1) : '0.0',
-                    gold_earned: s.gold_earned,
-                    gold_lost: s.gold_lost,
+                    dmg_dealt: s.dmg_dealt,
+                    dmg_taken: s.dmg_taken,
                 });
             }
             stats.sort((a, b) => b.total_battles - a.total_battles || b.wins - a.wins);
