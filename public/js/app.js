@@ -570,22 +570,22 @@ async function api(method, path, body=null) {
     } else {
         fullUrl = `/api${path}`;
     }
-    
+
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     const storedToken = localStorage.getItem('rpg_token');
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
     if (window.tabSession) opts.headers['X-Tab-Session'] = window.tabSession;
     if (body) opts.body = JSON.stringify(body);
-    
+
     try {
         const res = await fetch(fullUrl, opts);
         const text = await res.text();
         if (!res.ok) {
             console.error('[API ERROR]', res.status, text.substring(0, 300));
             let errMsg;
-            try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; } 
+            try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; }
             catch { errMsg = text.trim() || `Request failed (${res.status})`; }
-            
+
             // Handle single-device login enforcement without spamming alerts:
             // we only want to auto-logout when the server says the session was replaced.
             if (res.status === 401 && errMsg === 'Session expired') {
@@ -602,7 +602,7 @@ async function api(method, path, body=null) {
                 if (!window.__auth401Seen) window.__auth401Seen = true;
                 throw new Error(errMsg);
             }
-            
+
             throw new Error(errMsg);
         }
         if (!text.trim()) return {};
@@ -1355,8 +1355,8 @@ function renderCharacterSwitcher() {
         </div>
         <div class="character-switch-grid">
             ${accountCharacters.map(c => {
-                const isActive = (c.id === (activeCharacterId || character?.id));
-                return `<button class="character-switch-card ${isActive ? 'active' : ''}" ${isActive ? 'disabled' : actionAttrs('selectCharacter', c.id)}>
+        const isActive = (c.id === (activeCharacterId || character?.id));
+        return `<button class="character-switch-card ${isActive ? 'active' : ''}" ${isActive ? 'disabled' : actionAttrs('selectCharacter', c.id)}>
                     <img src="/images/class/${c.class}.png" alt="${c.class}" class="character-switch-avatar" data-error-hide="true">
                     <div class="character-switch-info">
                         <div class="character-switch-name">${escHtml(c.name)}</div>
@@ -1364,7 +1364,7 @@ function renderCharacterSwitcher() {
                     </div>
                     <div class="character-switch-state">${isActive ? 'Active' : 'Play'}</div>
                 </button>`;
-            }).join('')}
+    }).join('')}
             ${Array.from({ length: remaining }, (_, i) => `
                 <button class="character-switch-card empty" ${actionAttrs('openCharacterCreation')}>
                     <div class="character-switch-empty">Empty Slot ${accountCharacters.length + i + 1}</div>
@@ -1399,7 +1399,7 @@ async function selectCharacter(characterId) {
 window.addEventListener('DOMContentLoaded', async () => {
     bindLegacyInlineHandlers(document);
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
-const characterHubTrigger = document.getElementById('character-hub-trigger');
+    const characterHubTrigger = document.getElementById('character-hub-trigger');
     if (characterHubTrigger) {
         characterHubTrigger.addEventListener('click', (event) => {
             event.preventDefault();
@@ -1653,7 +1653,7 @@ async function submitPasswordReset() {
 function logout() {
     // Save token for logout request before clearing
     const storedToken = localStorage.getItem('rpg_token');
-    
+
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
     chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatSeenGlobalId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
@@ -1662,12 +1662,12 @@ function logout() {
     chatPollTimer = null;
     renderChatWidget();
     showScreen('auth');
-    
+
     // Logout from server with saved token (ignore errors)
     if (storedToken) {
-        fetch('/api/auth/logout', { 
-            method: 'POST', 
-            headers: { 'Authorization': `Bearer ${storedToken}` } 
+        fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${storedToken}` }
         }).catch(() => {});
     }
 }
@@ -1808,14 +1808,14 @@ function showTab(name) {
     if (INVENTORY_SUB_TABS.includes(name)) window._inventoryHubTarget = name;
     if (MISSIONS_SUB_TABS.includes(name)) window._missionsHubTarget = name;
     closeCharacterHubInline();
-    
+
     // Update assistant highlight after tab change
     updateAssistantUI();
-    
+
     // Show tab-specific help message
     loadTabHelp(name);
-    
-if (name === 'character')   renderCharacter();
+
+    if (name === 'character')   renderCharacter();
     if (name === 'premium')     loadPremium();
     if (name === 'loadout')     renderLoadout();
     if (name === 'train') {
@@ -1841,18 +1841,18 @@ if (name === 'character')   renderCharacter();
 function toggleCharacterHubInline() {
     const trigger = document.getElementById('character-hub-trigger');
     if (!trigger) return;
-    
+
     const fixedHub = document.getElementById('character-inline-hub-fixed');
     const shouldOpen = !fixedHub || fixedHub.classList.contains('hidden');
-    
+
     // Close any existing hub
     closeCharacterHubInline();
-    
+
     if (shouldOpen) {
         // Create a new fixed hub element
         const triggerRect = trigger.getBoundingClientRect();
         const characterFrameHeight = getCharacterDropdownFrameHeight();
-        
+
         const hub = document.createElement('div');
         hub.id = 'character-inline-hub-fixed';
         hub.className = 'character-inline-hub';
@@ -1864,13 +1864,13 @@ function toggleCharacterHubInline() {
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
         hub.style.setProperty('--dropdown-frame-height', `${characterFrameHeight}px`);
-        
+
         // Get the original hub content
         const originalHub = document.getElementById('character-inline-hub');
         if (!originalHub) return;
-        
+
         hub.innerHTML = originalHub.innerHTML;
-        
+
         // Attach click handlers
         hub.querySelectorAll('.nav-sub-btn').forEach((btn) => {
             btn.addEventListener('click', (event) => {
@@ -1880,12 +1880,12 @@ function toggleCharacterHubInline() {
                 if (tabName) navigateCharacterHub(tabName);
             });
         });
-        
+
         const currentTab = document.querySelector('.game-tab.active')?.id?.replace(/^tab-/, '') || 'character';
         hub.querySelectorAll('.nav-sub-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.args === `["${currentTab}"]`);
         });
-        
+
         document.body.appendChild(hub);
     }
 }
@@ -2065,11 +2065,11 @@ window.navigateMissionsHub = navigateMissionsHub;
 // ── Top Bar ───────────────────────────────────────────────────────────────
 async function skipTutorial() {
     console.log('skipTutorial called');
-    
+
     if (character?.tutorial_skipped) {
         return;
     }
-    
+
     const proceed = await openGameDialog({
         title: 'Skip Tutorial?',
         message: 'You will lose the early protection. You can still do Small missions after skipping.',
@@ -2079,7 +2079,7 @@ async function skipTutorial() {
         danger: true
     });
     if (!proceed) return;
-    
+
     try {
         const res = await api('POST', '/game/tutorial/skip');
         console.log('Skip result full:', JSON.stringify(res));
@@ -2088,25 +2088,25 @@ async function skipTutorial() {
             // Merge the response with current character, ensuring tutorial_skipped is set
             character = { ...character, ...res.character, tutorial_skipped: 1 };
             console.log('Updated character tutorial_skipped:', character.tutorial_skipped);
-            
+
             // Clear tutorial states
             delete character.isTutorial;
-            
+
             // Refresh views
             renderTopBar();
             renderCharacter();
             showTab('character');
-            
+
             // Force remove any tutorial overlays by forcing a DOM update
             const bannerEl = document.getElementById('event-banner');
             if (bannerEl) {
                 bannerEl.classList.remove('event-banner--tutorial');
                 bannerEl.style.display = 'none';
             }
-            
+
             // Re-render the top bar/banner state after tutorial mode is removed
             renderTopBar();
-            
+
             if (document.getElementById('tab-missions').classList.contains('active')) {
                 showMissions();
             }
@@ -2158,12 +2158,12 @@ function renderTopBar() {
     if (!character) return;
     syncClientPreferencesFromCharacter();
     const c=getLiveCharacterSnapshot(character);
-    
+
     // Debug: Force tutorial_skipped into snapshot if missing
     if (!c.tutorial_skipped && character.tutorial_skipped) {
         c.tutorial_skipped = character.tutorial_skipped;
     }
-    
+
     const hpCur=c.hp_current??c.hp_max;
     const hpPct=Math.min(100,Math.round((hpCur/c.hp_max)*100));
     const lxp=c.level*25;
@@ -2209,11 +2209,11 @@ function renderTopBar() {
         }
     }
 
-    set('topbar-avatar',el=>{ 
+    set('topbar-avatar',el=>{
         const pic = c.profile_pic || `${c.class}.png`;
-        el.src=`/images/class/${pic}`; 
-        el.alt=c.class; 
-        el.dataset.errorHide='true'; 
+        el.src=`/images/class/${pic}`;
+        el.alt=c.class;
+        el.dataset.errorHide='true';
         el.style.cursor = 'pointer';
         el.onclick = (e) => { e.stopPropagation(); showProfilePicSelector(); };
     });
@@ -2237,7 +2237,7 @@ function renderTopBar() {
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
     set('topbar-name',el=>{ el.textContent=c.name; });
-    
+
     // Highlight menu button if weekly tasks are claimable
     const menuBtn = document.getElementById('topbar-menu-btn');
     if (menuBtn) {
@@ -2280,7 +2280,7 @@ function startPolling() {
         } catch {}
     },600000);
     unreadTimer=setInterval(pollUnread,600000);
-topbarLiveTimer=setInterval(()=>{
+    topbarLiveTimer=setInterval(()=>{
         if (!character) return;
         renderTopBar();
     },60000);
@@ -2326,7 +2326,7 @@ let tabHelpTimeout = null;
 
 async function loadTabHelp(tabName) {
     if (!assistantEnabled) return;
-    
+
     clearTimeout(tabHelpTimeout);
     let notif = document.getElementById('assistant-notification');
     if (!notif) {
@@ -2344,14 +2344,14 @@ async function loadTabHelp(tabName) {
         document.getElementById('assistant-close-btn').onclick = () => notif.classList.add('hidden');
         document.getElementById('assistant-disable-btn').onclick = () => { toggleAssistant(); notif.classList.add('hidden'); };
     }
-    
+
     try {
         const data = await api('GET', `/game/assistant/tab-help/${tabName}`);
         if (data.message) {
             const msgsContainer = notif.querySelector('.assistant-messages');
             msgsContainer.innerHTML = `<div class="assistant-msg-line">${data.message}</div>`;
             notif.classList.remove('hidden');
-            
+
             tabHelpTimeout = setTimeout(() => {
                 notif.classList.add('hidden');
             }, 15000);
@@ -2372,8 +2372,8 @@ function buildEqSlotSmall(slot, eq, icon, label) {
         data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip" data-item="${itemData}">
         <span class="eq-slot-icon eq-slot-small-icon">
             ${imgSrc
-                ? `<img src="${imgSrc}" style="max-width:100%;max-height:100%;object-fit:contain;display:block" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1rem;line-height:1">${icon}</span>`
-                : `<span style="font-size:1rem;line-height:1">${icon}</span>`}
+        ? `<img src="${imgSrc}" style="max-width:100%;max-height:100%;object-fit:contain;display:block" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1rem;line-height:1">${icon}</span>`
+        : `<span style="font-size:1rem;line-height:1">${icon}</span>`}
         </span>
     </div>`;
 }
@@ -2516,34 +2516,34 @@ function renderCharacter() {
         {slot:'boots',  icon:'👢', label:'Boots'},
     ];
     const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
-const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
-    const avatarDiv = idx === 3 ? `
+    const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
+        const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
             <img src="/images/class/${c.profile_pic || c.class + '.png'}" alt="${c.class}" data-error-opacity-zero="true">
             ${c.elemental ? (() => {
-              const el = c.elemental;
-              const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
-              const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
-              return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
-            })() : ''}
+            const el = c.elemental;
+            const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
+            const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, hp: el.hp_current + '/' + el.hpMax, xp: (el.xp || 0) + '/' + el.xpNext, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
+            return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
+        })() : ''}
         </div>` : '';
-    const item = resolvedEq[slot];
-    if (!item) return avatarDiv + `
+        const item = resolvedEq[slot];
+        if (!item) return avatarDiv + `
         <div class="eq-slot eq-slot--${slot} empty">
             <span class="eq-slot-icon">${icon}</span>
             <span class="eq-slot-label">${label}</span>
         </div>`;
-    const itemData = escHtml(JSON.stringify(item));
-    return avatarDiv + `
+        const itemData = escHtml(JSON.stringify(item));
+        return avatarDiv + `
         <div class="eq-slot eq-slot--${slot} filled"
             data-hover-action="hoverEqTooltip"
             data-leave-action="scheduleHideTooltip"
             data-item="${itemData}">
             <span class="eq-slot-icon">${itemIcon(item,'slot')}</span>
         </div>`;
-}).join('');
+    }).join('');
 
-const eqGrid = `
+    const eqGrid = `
 <div class="eq-stage"><div class="eq-grid">${mainEqGrid}</div>
 <div class="eq-accessory-row">
     ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
@@ -2615,13 +2615,13 @@ const eqGrid = `
           </div>
         </div>
         ${c.elemental ? (() => {
-          console.log('[DEBUG] Character elemental:', c.elemental);
-          const el = c.elemental;
-          if (!el.is_equipped) return ''; // Conditional render
-          const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
-          const elHpPct = Math.min(100, el.hpMax > 0 ? Math.round((el.hp_current / el.hpMax) * 100) : 0);
-          const elXpPct = Math.min(100, el.xpNext > 0 ? Math.round(((el.xp || 0) / el.xpNext) * 100) : 0);
-          return `<div class="char-panel char-panel-elemental">
+        console.log('[DEBUG] Character elemental:', c.elemental);
+        const el = c.elemental;
+        if (!el.is_equipped) return ''; // Conditional render
+        const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
+        const elHpPct = Math.min(100, el.hpMax > 0 ? Math.round((el.hp_current / el.hpMax) * 100) : 0);
+        const elXpPct = Math.min(100, el.xpNext > 0 ? Math.round(((el.xp || 0) / el.xpNext) * 100) : 0);
+        return `<div class="char-panel char-panel-elemental">
             <h3>🐉 ELEMENTAL SPIRIT</h3>
             <div class="elem-overview">
               <span class="elem-name">${elEmoji} ${escHtml(el.name)}</span>
@@ -2643,16 +2643,16 @@ const eqGrid = `
             <div style="margin:8px 0 4px;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:6px">
               <div style="font-size:0.65rem;color:var(--text-dim);margin-bottom:4px">Element Affinity:</div>
               ${(() => {
-                const meta = {pyro:['🔥','#ef4444'],water:['💧','#3b82f6'],electro:['⚡','#a855f7'],wind:['🌪️','#22c55e']};
-                const affs = [{k:'pyro',v:Number(el.pyro_affinity||0)},{k:'water',v:Number(el.water_affinity||0)},{k:'electro',v:Number(el.electro_affinity||0)},{k:'wind',v:Number(el.wind_affinity||0)}];
-                const curV = affs.find(a=>a.k===el.element)?.v||0;
-                const maxV = Math.max(...affs.map(a=>a.v),1);
-                return affs.map(a => {
-                  const [emo,clr] = meta[a.k];
-                  const isCur = a.k === el.element;
-                  const gap = curV - a.v;
-                  const pct = Math.round((a.v/maxV)*100);
-                  return `<div style="display:flex;align-items:center;gap:4px;padding:1px 0">
+            const meta = {pyro:['🔥','#ef4444'],water:['💧','#3b82f6'],electro:['⚡','#a855f7'],wind:['🌪️','#22c55e']};
+            const affs = [{k:'pyro',v:Number(el.pyro_affinity||0)},{k:'water',v:Number(el.water_affinity||0)},{k:'electro',v:Number(el.electro_affinity||0)},{k:'wind',v:Number(el.wind_affinity||0)}];
+            const curV = affs.find(a=>a.k===el.element)?.v||0;
+            const maxV = Math.max(...affs.map(a=>a.v),1);
+            return affs.map(a => {
+                const [emo,clr] = meta[a.k];
+                const isCur = a.k === el.element;
+                const gap = curV - a.v;
+                const pct = Math.round((a.v/maxV)*100);
+                return `<div style="display:flex;align-items:center;gap:4px;padding:1px 0">
                     <span style="font-size:0.7rem">${emo}</span>
                     <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
                       <div style="height:100%;width:${pct}%;background:${clr};border-radius:3px"></div>
@@ -2660,8 +2660,8 @@ const eqGrid = `
                     <span style="font-size:0.6rem;color:var(--text-dim);min-width:16px;text-align:right">${a.v}</span>
                     ${isCur?'<span style="font-size:0.55rem;color:var(--gold)">◀</span>':`<span style="font-size:0.55rem;color:${gap>0?'var(--text-dim)':'#ef4444'}">${gap>0?'+'+gap:'⚡'}</span>`}
                   </div>`;
-                }).join('');
-              })()}
+            }).join('');
+        })()}
             </div>
             ${el.stat_points > 0 ? `
             <div class="elem-stat-assign">
@@ -2680,7 +2680,7 @@ const eqGrid = `
               <div class="elem-feed-loading" style="font-size:0.7rem;color:var(--text-dim)">Loading...</div>
             </div>
           </div>`;
-        })() : ''}
+    })() : ''}
         <div class="char-panel char-panel-setups" id="char-setups-panel">
           <h3>⚙️ SETUPS</h3>
           <div id="char-setups-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
@@ -2738,15 +2738,15 @@ const eqGrid = `
 
 // ── Equipment Setups ────────────────────────────────────────────────────
 async function loadSetups() {
-  const grid = document.getElementById('char-setups-grid');
-  if (!grid) return;
-  try {
-    const data = await api('GET', '/game/setups');
-    const setups = data || [];
-    grid.innerHTML = setups.map(s => {
-      const isEmpty = !s.data || Object.keys(s.data).length === 0;
-      const slotLabel = s.name || `Setup ${s.slot}`;
-      return `<div class="setup-card" data-slot="${s.slot}" style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.06)">
+    const grid = document.getElementById('char-setups-grid');
+    if (!grid) return;
+    try {
+        const data = await api('GET', '/game/setups');
+        const setups = data || [];
+        grid.innerHTML = setups.map(s => {
+            const isEmpty = !s.data || Object.keys(s.data).length === 0;
+            const slotLabel = s.name || `Setup ${s.slot}`;
+            return `<div class="setup-card" data-slot="${s.slot}" style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.06)">
         <input class="setup-name" value="${escHtml(slotLabel)}" maxlength="24" style="width:100%;background:transparent;border:none;color:var(--text-bright);font-size:0.85rem;font-weight:600;outline:none;margin-bottom:6px;padding:2px 4px;border-radius:4px" data-slot="${s.slot}">
         <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="setup-save" data-slot="${s.slot}" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(75,175,80,0.15);color:#4caf50;cursor:pointer;font-size:0.75rem">💾 Save</button>
@@ -2754,75 +2754,75 @@ async function loadSetups() {
         </div>
         ${isEmpty ? '<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">Empty — save current gear</div>' : `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">${Object.keys(s.data).length} item(s)</div>`}
       </div>`;
-    }).join('');
+        }).join('');
 
-    // Cancel flag to prevent blur renaming from racing with Save click
-    var _cancelSetupRename = false;
+        // Cancel flag to prevent blur renaming from racing with Save click
+        var _cancelSetupRename = false;
 
-    // Bind events
-    grid.querySelectorAll('.setup-save').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        _cancelSetupRename = true;
-        const slot = btn.dataset.slot;
-        const nameInput = grid.querySelector(`.setup-name[data-slot="${slot}"]`);
-        const name = nameInput ? nameInput.value.trim() || `Setup ${slot}` : `Setup ${slot}`;
-        btn.textContent = '...';
-        btn.disabled = true;
-        try {
-          await api('PUT', `/game/setups/${slot}`, { name });
-          await loadSetups();
-          showMsg('char-msg', `Setup ${slot} saved!`);
-        } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
-      });
-    });
-
-    grid.querySelectorAll('.setup-load').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        _cancelSetupRename = true;
-        if (btn.disabled) return;
-        const slot = btn.dataset.slot;
-        const nameInput = grid.querySelector('.setup-name[data-slot="' + slot + '"]');
-        const setupName = nameInput ? nameInput.value.trim() || 'Setup ' + slot : 'Setup ' + slot;
-        const confirmed = await openGameDialog({
-          title: 'Load: ' + setupName,
-          message: 'Load this setup? Current equipment will be replaced.',
-          confirmLabel: 'Load',
-          cancelLabel: 'Cancel',
-          showCancel: true,
-          danger: true
+        // Bind events
+        grid.querySelectorAll('.setup-save').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                _cancelSetupRename = true;
+                const slot = btn.dataset.slot;
+                const nameInput = grid.querySelector(`.setup-name[data-slot="${slot}"]`);
+                const name = nameInput ? nameInput.value.trim() || `Setup ${slot}` : `Setup ${slot}`;
+                btn.textContent = '...';
+                btn.disabled = true;
+                try {
+                    await api('PUT', `/game/setups/${slot}`, { name });
+                    await loadSetups();
+                    showMsg('char-msg', `Setup ${slot} saved!`);
+                } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
+            });
         });
-        if (!confirmed) return;
-        btn.textContent = '...';
-        btn.disabled = true;
-        try {
-          const result = await api('POST', '/game/setups/' + slot + '/load');
-          if (result.character) {
-            character = result.character;
-            renderCharacter();
-            loadInventory();
-            showMsg('char-msg', 'Setup ' + slot + ' loaded!');
-          }
-        } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
-      });
-    });
 
-    // Save name on enter/blur (deferred via setTimeout to avoid racing with Save/Load)
-    grid.querySelectorAll('.setup-name').forEach(inp => {
-      inp.addEventListener('blur', () => {
-        var slot = inp.dataset.slot;
-        var name = inp.value.trim() || 'Setup ' + slot;
-        setTimeout(async () => {
-          if (_cancelSetupRename) { _cancelSetupRename = false; return; }
-          try {
-            var setups = await api('GET', '/game/setups');
-            var s = setups.find(function(x) { return x.slot == slot; });
-            if (s) await api('PUT', '/game/setups/' + slot, { name: name, data: s.data });
-          } catch {}
-        }, 0);
-      });
-      inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
-    });
-  } catch (e) { grid.innerHTML = `<div style="font-size:0.7rem;color:var(--text-dim)">Setups error: ${e.message}</div>`; }
+        grid.querySelectorAll('.setup-load').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                _cancelSetupRename = true;
+                if (btn.disabled) return;
+                const slot = btn.dataset.slot;
+                const nameInput = grid.querySelector('.setup-name[data-slot="' + slot + '"]');
+                const setupName = nameInput ? nameInput.value.trim() || 'Setup ' + slot : 'Setup ' + slot;
+                const confirmed = await openGameDialog({
+                    title: 'Load: ' + setupName,
+                    message: 'Load this setup? Current equipment will be replaced.',
+                    confirmLabel: 'Load',
+                    cancelLabel: 'Cancel',
+                    showCancel: true,
+                    danger: true
+                });
+                if (!confirmed) return;
+                btn.textContent = '...';
+                btn.disabled = true;
+                try {
+                    const result = await api('POST', '/game/setups/' + slot + '/load');
+                    if (result.character) {
+                        character = result.character;
+                        renderCharacter();
+                        loadInventory();
+                        showMsg('char-msg', 'Setup ' + slot + ' loaded!');
+                    }
+                } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
+            });
+        });
+
+        // Save name on enter/blur (deferred via setTimeout to avoid racing with Save/Load)
+        grid.querySelectorAll('.setup-name').forEach(inp => {
+            inp.addEventListener('blur', () => {
+                var slot = inp.dataset.slot;
+                var name = inp.value.trim() || 'Setup ' + slot;
+                setTimeout(async () => {
+                    if (_cancelSetupRename) { _cancelSetupRename = false; return; }
+                    try {
+                        var setups = await api('GET', '/game/setups');
+                        var s = setups.find(function(x) { return x.slot == slot; });
+                        if (s) await api('PUT', '/game/setups/' + slot, { name: name, data: s.data });
+                    } catch {}
+                }, 0);
+            });
+            inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } });
+        });
+    } catch (e) { grid.innerHTML = `<div style="font-size:0.7rem;color:var(--text-dim)">Setups error: ${e.message}</div>`; }
 }
 
 const ELEM_FEED_IDS = new Set([
@@ -3094,17 +3094,17 @@ function renderAchievementsPanel(data, targetId='achievements-modal-content') {
         </div>
         <div class="achievements-list">
             ${items.map(achievement => {
-                const pct = Math.max(0, Math.min(100, Math.round((achievement.progress / Math.max(achievement.target, 1)) * 100)));
-                const cardClass = achievement.claimed ? 'claimed' : achievement.claimable ? 'claimable' : 'locked';
-                const progressText = achievement.claimed
-                    ? 'Claimed'
-                    : achievement.claimable
-                        ? 'Ready to claim'
-                        : `${achievement.progress.toLocaleString()} / ${achievement.target.toLocaleString()}`;
-                const nextLabel = achievement.claimed
-                    ? 'Max tier cleared'
-                    : `Next milestone: ${achievement.target.toLocaleString()}`;
-                return `<div class="achievement-card ${cardClass}">
+        const pct = Math.max(0, Math.min(100, Math.round((achievement.progress / Math.max(achievement.target, 1)) * 100)));
+        const cardClass = achievement.claimed ? 'claimed' : achievement.claimable ? 'claimable' : 'locked';
+        const progressText = achievement.claimed
+            ? 'Claimed'
+            : achievement.claimable
+                ? 'Ready to claim'
+                : `${achievement.progress.toLocaleString()} / ${achievement.target.toLocaleString()}`;
+        const nextLabel = achievement.claimed
+            ? 'Max tier cleared'
+            : `Next milestone: ${achievement.target.toLocaleString()}`;
+        return `<div class="achievement-card ${cardClass}">
                     <div class="achievement-card-head">
                         <div class="achievement-icon">${achievement.icon}</div>
                         <div class="achievement-copy">
@@ -3119,12 +3119,12 @@ function renderAchievementsPanel(data, targetId='achievements-modal-content') {
                     </div>
                     <div class="achievement-rewards">${renderAchievementRewardSummary(achievement)}</div>
                     ${achievement.claimed
-                        ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
-                        : achievement.claimable
-                            ? `<button class="achievement-claim-btn" ${actionAttrs('claimAchievement', achievement.id)}>Claim Reward</button>`
-                            : '<button class="achievement-claim-btn locked" disabled>In Progress</button>'}
+            ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
+            : achievement.claimable
+                ? `<button class="achievement-claim-btn" ${actionAttrs('claimAchievement', achievement.id)}>Claim Reward</button>`
+                : '<button class="achievement-claim-btn locked" disabled>In Progress</button>'}
                 </div>`;
-            }).join('')}
+    }).join('')}
         </div>`;
 }
 
@@ -3326,14 +3326,14 @@ function renderWeeklyTasksPanel(data, targetId='weekly-tasks-modal-content') {
         </div>
         <div class="achievements-list">
             ${items.map(task => {
-                const pct = Math.max(0, Math.min(100, Math.round((task.progress / Math.max(task.target, 1)) * 100)));
-                const cardClass = task.claimed ? 'claimed' : task.claimable ? 'claimable' : 'locked';
-                const progressText = task.claimed
-                    ? 'Claimed'
-                    : task.claimable
-                        ? 'Ready to claim'
-                        : `${task.progress.toLocaleString()} / ${task.target.toLocaleString()}`;
-                const materialChoices = task.material_choices?.length ? `
+        const pct = Math.max(0, Math.min(100, Math.round((task.progress / Math.max(task.target, 1)) * 100)));
+        const cardClass = task.claimed ? 'claimed' : task.claimable ? 'claimable' : 'locked';
+        const progressText = task.claimed
+            ? 'Claimed'
+            : task.claimable
+                ? 'Ready to claim'
+                : `${task.progress.toLocaleString()} / ${task.target.toLocaleString()}`;
+        const materialChoices = task.material_choices?.length ? `
                     <div class="weekly-task-materials">
                         ${task.material_choices.map(choice => `
                             <button class="weekly-task-material-btn" ${actionAttrs('claimWeeklyTask', task.id, choice.id)}>
@@ -3342,14 +3342,14 @@ function renderWeeklyTasksPanel(data, targetId='weekly-tasks-modal-content') {
                             </button>
                         `).join('')}
                     </div>` : '';
-                const actionHtml = task.claimed
-                    ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
-                    : task.claimable
-                        ? (task.material_choices?.length
-                            ? `<div class="weekly-task-claim-block"><div class="weekly-task-choice-note">Choose your material reward:</div>${materialChoices}</div>`
-                            : `<button class="achievement-claim-btn" ${actionAttrs('claimWeeklyTask', task.id)}>Claim Reward</button>`)
-                        : '<button class="achievement-claim-btn locked" disabled>In Progress</button>';
-                return `<div class="achievement-card ${cardClass}">
+        const actionHtml = task.claimed
+            ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
+            : task.claimable
+                ? (task.material_choices?.length
+                    ? `<div class="weekly-task-claim-block"><div class="weekly-task-choice-note">Choose your material reward:</div>${materialChoices}</div>`
+                    : `<button class="achievement-claim-btn" ${actionAttrs('claimWeeklyTask', task.id)}>Claim Reward</button>`)
+                : '<button class="achievement-claim-btn locked" disabled>In Progress</button>';
+        return `<div class="achievement-card ${cardClass}">
                     <div class="achievement-card-head">
                         <div class="achievement-icon">${task.icon}</div>
                         <div class="achievement-copy">
@@ -3365,7 +3365,7 @@ function renderWeeklyTasksPanel(data, targetId='weekly-tasks-modal-content') {
                     <div class="achievement-rewards">${renderWeeklyTaskRewardSummary(task)}</div>
                     ${actionHtml}
                 </div>`;
-            }).join('')}
+    }).join('')}
         </div>`;
 }
 
@@ -3752,21 +3752,21 @@ function renderUpgrade() {
     if (!character) return;
     const c = character;
     const costs = c.upgradeCosts || {};
-    
+
     const ev = c.active_event;
     const hasStatDiscount = ev?.key === 'discount_stats';
     const hasApprentice = !!(c.premium_features && c.premium_features['apprentice']);
-    
+
     document.getElementById('upgrade-gold').innerHTML = `
         <div class="upgrade-wallet">
             <span class="upgrade-wallet-label">War Chest</span>
             <span class="upgrade-wallet-value">💰 ${c.gold.toLocaleString()}</span>
         </div>`;
-    
+
     const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
     const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
     const squadBanner = c.squad_discount_pct > 0 ? `<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#2ecc71">🏰 <strong>Squad Base:</strong> ${c.squad_discount_pct}% off all upgrades!</div>` : '';
-    
+
     const stats = [
         { key: 'strength', asset: 'strength', icon: '💪', label: 'Strength' },
         { key: 'defense', asset: 'defense', icon: '🛡️', label: 'Defense' },
@@ -3776,18 +3776,18 @@ function renderUpgrade() {
         { key: 'hit_chance', asset: 'accuracy', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
         { key: 'crit_chance', asset: 'critical', icon: '💥', label: 'Crit Chance', hint: 'Chance to hit max dmg' },
     ];
-    
+
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + squadBanner + stats.map(s => {
         // Use the cost directly from backend (already includes all modifiers: skill tree, event, premium)
         let cost = costs[s.key];
         if (cost === undefined || cost === null) cost = '?';
-        
+
         const can = c.gold >= cost;
         const displayName = s.label || capitalize(s.key);
         const currentValue = c[s.key] || 0;
         const projectedValue = typeof cost === 'number' ? currentValue + 1 : currentValue;
         const statusText = can ? 'Ready to ascend' : `${Math.max(0, cost - c.gold).toLocaleString()} gold short`;
-        
+
         return `<div class="upgrade-card">
             <div class="upgrade-card-aura"></div>
             <div class="upgrade-card-header">
@@ -3987,19 +3987,19 @@ async function loadMissions() {
         const char = character || await api('GET', '/game/character');
         if (!character) character = char;
         await checkTravelStatus();
-        
+
         // Load Abyss data if not loaded
         if (!abyssData) {
             await loadAbyssData();
         }
-        
+
         // Check which map to render
         if (character.current_map === 'abyss' && abyssData) {
             renderAbyssMap();
         } else {
             renderWorldMap();
         }
-        
+
         await checkAndShowMissionOverlay();
         await checkTrainingStatus();
     } catch(e) {
@@ -4029,7 +4029,7 @@ function renderWorldMap() {
         }
     }
     svgLines+='</svg>';
-    
+
     let pinsHtml=Object.entries(ZONES).map(([zoneId,zone])=>{
         const prereq = getTravelGatekeeperPrereq(zoneId, 'overworld');
         const prereqMet = !prereq || unlockedTravelZones.has(prereq.unlockZone) || currentZone===prereq.unlockZone;
@@ -4048,7 +4048,7 @@ function renderWorldMap() {
             <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):(prereq && !prereqMet ? `Beat ${prereq.guardianName}` : 'Gatekeeper')}</div>
         </div>`;
     }).join('');
-    
+
     // Add Abyss Gate (appears at level 39, after Dark City is unlocked)
     const darkCityUnlocked = unlockedTravelZones.has('dark_city') || currentZone === 'dark_city';
     if (playerLevel >= 39 && darkCityUnlocked) {
@@ -4062,9 +4062,9 @@ function renderWorldMap() {
                 <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">Abyss Gate</div> 
                 <div style="font-size:10px;color:rgba(155,89,182,0.8);text-align:center">Lv.39+</div> 
             </div> 
-        `; 
-    } 
-    
+        `;
+    }
+
     layer.innerHTML=svgLines+pinsHtml;
     // Restore overworld map background
     const bgImg = document.getElementById('world-map-bg');
@@ -4077,17 +4077,17 @@ function onMapNodeClick(zoneId) {
         enterAbyssGate();
         return;
     }
-    
+
     // Determine which map we're on
     const currentMap = character?.current_map || 'overworld';
     let zone;
-    
+
     if (currentMap === 'abyss' && abyssData) {
         zone = abyssData.zones[zoneId];
     } else {
         zone = ZONES[zoneId];
     }
-    
+
     if (!zone) return;
     openLocationModal(zoneId);
 }
@@ -4180,36 +4180,36 @@ async function enterAbyssGate() {
     } catch (e) {
         showMsg('missions-msg', e.message, true);
     }
-} 
+}
 
 function openLocationModal(zoneId) {
     // Determine which map we're on
     const currentMap = character?.current_map || 'overworld';
     let zone;
-    
+
     if (currentMap === 'abyss' && abyssData) {
         zone = abyssData.zones[zoneId];
     } else {
         zone = ZONES[zoneId];
     }
-    
+
     if (!zone) {
         console.error('Zone not found:', zoneId);
         return;
     }
-    
+
     const modal = document.getElementById('mission-location-modal');
     const header = document.getElementById('mission-location-header');
     const spotsEl = document.getElementById('mission-spots-grid');
     const activeEl = document.getElementById('mission-location-active');
     if (!modal) return;
-    
+
     const currentZone = character?.location || 'forest';
     const isCurrent = currentZone === zoneId;
     const isTraveling = !!playerTravelTarget;
     const hasActiveMission = !!window.activeMission;
     const actionBlocked = isTraveling || hasActiveMission;
-    
+
     const isUnlocked = currentMap === 'abyss'
         ? (unlockedAbyssZones.has(zoneId) || isCurrent)
         : (unlockedTravelZones.has(zoneId) || isCurrent);
@@ -4221,13 +4221,13 @@ function openLocationModal(zoneId) {
         travelInfo = !canChallengeThisGatekeeper
             ? `Please challenge ${prereq.guardianName} first`
             : isUnlocked
-            ? `Travel required to reach ${zone.name}`
-            : `Defeat the gatekeeper to unlock ${zone.name}`;
+                ? `Travel required to reach ${zone.name}`
+                : `Defeat the gatekeeper to unlock ${zone.name}`;
     }
-    
+
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
     const db2 = { easy: 'rgba(39,174,96,0.2)', medium: 'rgba(243,156,18,0.2)', hard: 'rgba(192,57,43,0.2)', normal: 'rgba(52,152,219,0.2)', nightmare: 'rgba(155,89,182,0.2)' };
-    
+
     header.innerHTML = `
         <div class="mz-hero" style="background-image:url('${zone.bgImg || zone.mapImg}')">
             <div class="mz-hero-overlay">
@@ -4235,33 +4235,33 @@ function openLocationModal(zoneId) {
                 <div class="mz-hero-desc">${zone.description}</div>
                 <div class="mz-hero-actions">
                     ${isCurrent
-                        ? `<span class="mz-here-badge">📍 You are here</span>`
-                        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked || !canChallengeThisGatekeeper ? 'disabled' : ''}>
+        ? `<span class="mz-here-badge">📍 You are here</span>`
+        : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked || !canChallengeThisGatekeeper ? 'disabled' : ''}>
                             ${isUnlocked ? '🚶 Travel here' : '⚔️ Challenge for entry'}${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
-                    }
+    }
                 </div>
             </div>
         </div>`;
-    
+
     spotsEl.innerHTML = `
         <div class="mz-section-label">Choose a location</div>
         <div class="mz-spots-grid">
             ${zone.spots.map(spot => {
-                let locked = !isCurrent || actionBlocked;
-                let lockMsg = actionBlocked
-                    ? (hasActiveMission ? '🔒 Mission already in progress' : '🔒 Travel already in progress')
-                    : '🔒 Travel here first';
-                
-                // Tutorial Lock: Wins < 4 only allows Easy
-                const isTutorial = isTutorialCharacter(character);
-                
-                if (!actionBlocked && isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
-                    locked = true;
-                    lockMsg = '🔒 Tutorial: Win 4 battles to unlock';
-                }
+        let locked = !isCurrent || actionBlocked;
+        let lockMsg = actionBlocked
+            ? (hasActiveMission ? '🔒 Mission already in progress' : '🔒 Travel already in progress')
+            : '🔒 Travel here first';
 
-                return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" ${locked ? '' : actionAttrs('openSpotMissions', zoneId, spot.id)}>
+        // Tutorial Lock: Wins < 4 only allows Easy
+        const isTutorial = isTutorialCharacter(character);
+
+        if (!actionBlocked && isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
+            locked = true;
+            lockMsg = '🔒 Tutorial: Win 4 battles to unlock';
+        }
+
+        return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" ${locked ? '' : actionAttrs('openSpotMissions', zoneId, spot.id)}>
                     <div class="mz-spot-img-wrap">
                         <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" data-error-src="">
                         <span class="mz-spot-diff-badge" style="background:${db2[spot.difficulty]};color:${dc[spot.difficulty]}">${spot.difficulty.toUpperCase()}</span>
@@ -4272,9 +4272,9 @@ function openLocationModal(zoneId) {
                         <div style="height:20px;line-height:20px">&nbsp;</div>
                     </div>
                 </div>`;
-            }).join('')}
+    }).join('')}
         </div>`;
-    
+
     activeEl.innerHTML = '';
     modal.classList.remove('hidden');
 }
@@ -4282,23 +4282,23 @@ function openLocationModal(zoneId) {
 function openSpotMissions(zoneId, spotId) {
     const currentMap = character?.current_map || 'overworld';
     let zone;
-    
+
     if (currentMap === 'abyss' && abyssData) {
         zone = abyssData.zones[zoneId];
     } else {
         zone = ZONES[zoneId];
     }
-    
+
     if (!zone) return;
-    
+
     const spot = zone.spots.find(s => s.id === spotId);
     if (!spot) return;
-    
+
     const activeEl = document.getElementById('mission-location-active');
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
     const mp = character?.mission_points ?? 0;
     const actionBlocked = !!window.activeMission || !!playerTravelTarget;
-    
+
     // Tutorial state
     const isTutorial = isTutorialCharacter(character);
 
@@ -4307,27 +4307,27 @@ function openSpotMissions(zoneId, spotId) {
         { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8×', desc: 'Longer mission, better rewards' },
         { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '2.5×', desc: 'Epic mission, best rewards' },
     ];
-    
+
     activeEl.innerHTML = `
         <div class="mz-section-label" style="margin-top:24px">${spot.name} — pick mission size</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
             ${sizes.map(sz => {
-                let locked = isTutorial && sz.key !== 'small';
-                const canAfford = mp >= sz.mpCost && !locked;
-                const isDisabled = actionBlocked || !canAfford;
-                
-                const border = (!isDisabled && canAfford) ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
-                const bg = (!isDisabled && canAfford) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
-                const opacity = actionBlocked ? '0.38' : ((canAfford || (locked && mp >= sz.mpCost)) ? '1' : '0.45');
-                
-                let lockOverlay = '';
-                if (locked) {
-                    lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#fff;text-align:center;padding:5px;font-weight:700">🔒 Tutorial: Win 4 battles</div>`;
-                } else if (actionBlocked) {
-                    lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.62);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:rgba(255,255,255,0.82);text-align:center;padding:8px 10px;font-weight:700">${window.activeMission ? 'Mission in progress' : 'Travel in progress'}</div>`;
-                }
+        let locked = isTutorial && sz.key !== 'small';
+        const canAfford = mp >= sz.mpCost && !locked;
+        const isDisabled = actionBlocked || !canAfford;
 
-                return `<div ${(!isDisabled && !locked) ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
+        const border = (!isDisabled && canAfford) ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
+        const bg = (!isDisabled && canAfford) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
+        const opacity = actionBlocked ? '0.38' : ((canAfford || (locked && mp >= sz.mpCost)) ? '1' : '0.45');
+
+        let lockOverlay = '';
+        if (locked) {
+            lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#fff;text-align:center;padding:5px;font-weight:700">🔒 Tutorial: Win 4 battles</div>`;
+        } else if (actionBlocked) {
+            lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.62);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:rgba(255,255,255,0.82);text-align:center;padding:8px 10px;font-weight:700">${window.activeMission ? 'Mission in progress' : 'Travel in progress'}</div>`;
+        }
+
+        return `<div ${(!isDisabled && !locked) ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
                     style="position:relative;border:${border};border-radius:10px;padding:14px 10px;text-align:center;cursor:${(!isDisabled && canAfford) ? 'pointer' : 'not-allowed'};background:${bg};opacity:${opacity};transition:all 0.2s">
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
@@ -4335,7 +4335,7 @@ function openSpotMissions(zoneId, spotId) {
                     ${(!canAfford && !locked && !actionBlocked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
                     ${lockOverlay}
                 </div>`;
-            }).join('')}
+    }).join('')}
         </div>
         <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 120}</strong> · MP regenerates +5/hr</div>
         <div class="mz-section-label">Choose a mission</div>
@@ -4353,7 +4353,7 @@ function openSpotMissions(zoneId, spotId) {
                 </div>
             `).join('')}
         </div>`;
-    
+
     activeEl.dataset.zoneId = zoneId;
     activeEl.dataset.spotId = spotId;
     activeEl.dataset.selectedSize = '';
@@ -4389,25 +4389,25 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
 
     const currentMap = character?.current_map || 'overworld';
     let zone;
-    
+
     if (currentMap === 'abyss' && abyssData) {
         zone = abyssData.zones[zoneId];
     } else {
         zone = ZONES[zoneId];
     }
-    
+
     if (!zone) return;
-    
+
     const spot = zone.spots.find(s => s.id === spotId);
     if (!spot) return;
-    
+
     const activeEl = document.getElementById('mission-location-active');
     activeEl.dataset.selectedSize = sizeKey;
-    
+
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
     const mults = { small: 1.0, medium: 1.8, large: 2.5 };
     const mult = mults[sizeKey] || 1;
-    
+
     spot.missions.forEach((m, idx) => {
         const card = document.getElementById(`mission-opt-${idx}`);
         if (card) {
@@ -4428,7 +4428,7 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
             }
         }
     });
-    
+
     // Highlight selected size
     document.querySelectorAll('#mission-location-active [data-mission-size]').forEach(el => {
         const isSelected = el.getAttribute('data-mission-size') === sizeKey;
@@ -4443,34 +4443,34 @@ let _missionStarting = false;
 async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
     if (_missionStarting) return;
     _missionStarting = true;
-    
+
     const currentMap = character?.current_map || 'overworld';
     let zone;
-    
+
     if (currentMap === 'abyss' && abyssData) {
         zone = abyssData.zones[zoneId];
     } else {
         zone = ZONES[zoneId];
     }
-    
+
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
     if (character?.location !== zoneId) { showMsg('missions-msg', 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
     if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
-    
+
     closeMissionModal2();
     const chosenMission = spot.missions[missionIdx] || spot.missions[0];
     const missionName = chosenMission.name;
-    
+
     try {
         const result = await api('POST', '/game/missions/start', { zoneId, spotId, missionIdx, missionName, size });
-        
+
         window.activeMission = true;  // <-- ADD THIS LINE
-        
+
         // Dungeon token generation
         const mpCosts = { small: 20, medium: 40, large: 60 };
         if (typeof dungeonAddTokens === 'function') dungeonAddTokens(mpCosts[size] || 20);
-        
+
         character = await api('GET', '/game/character');
         renderTopBar();
         const confirmedName = result?.mission?.missionName || result?.mission?.mission_name || missionName;
@@ -4516,7 +4516,7 @@ async function travelToZone(zoneId) {
             abyss: { crimson: 'Crimson Gatekeeper', void: 'Void Gatekeeper', citadel: 'Citadel Watcher', eternal_dark: 'Eternal Warden' }
         };
         const guardian = guardianZones[currentMap]?.[zoneId];
-        
+
         if (guardian && !zoneAlreadyUnlocked) {
             const hpCurrent = character?.hp_current || 0;
             const hpMax = character?.hp_max || 1;
@@ -4534,10 +4534,10 @@ async function travelToZone(zoneId) {
             });
             if (!proceed) return;
         }
-        
+
         // Close the modal first
         closeMissionModal2();
-        
+
         const result = await api('POST', '/game/travel/start', { targetZone: zoneId });
         if (result.success) {
             // Start travel timer
@@ -4558,7 +4558,7 @@ async function collectMission() {
         const d = await api('POST', '/game/missions/collect');
         character = d.character;
         window.activeMission = false;
-        hideMissionOverlay(); 
+        hideMissionOverlay();
         renderTopBar();
         let msg=`💰 +${d.goldEarned} gold`;
         if (d.gemsFound) msg += ` · 💎 +${d.gemsFound} gem${d.gemsFound > 1 ? 's' : ''}`;
@@ -4566,7 +4566,7 @@ async function collectMission() {
         if (d.won===false) msg=`💀 Defeated · ${msg}`;
         if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
         if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
-        
+
         // Show level up modal if applicable
         if (d.levelUpMessage) {
             await openGameDialog({
@@ -4576,7 +4576,7 @@ async function collectMission() {
                 showCancel: false
             });
         }
-        
+
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
             enemyName: d.npcName || 'Enemy',
             enemyLevel: d.npcLevel ?? null,
@@ -4776,7 +4776,7 @@ function showMissionOverlay(active, displayName) {
 function hideMissionOverlay() {
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
     overlayMissionCollectBusy = false;
-    const o = document.getElementById('mission-overlay'); 
+    const o = document.getElementById('mission-overlay');
     if(o) o.classList.add('hidden');
     window.activeMission = false;
 }
@@ -4843,31 +4843,31 @@ async function cancelTravel() {
     const elapsed = now - playerTravelStartTime;
     const isFreeCancel = playerTravelStartTime === 0 || elapsed < FREE_CANCEL_WINDOW;
     const gems = character?.gems || 0;
-    
+
     if (!isFreeCancel && gems < 1) {
         showMsg('missions-msg', 'Not enough gems to cancel!', true);
         return;
     }
-    
+
     if (!confirm(isFreeCancel ? 'Cancel travel for free?' : 'Cancel travel for 1 💎?')) return;
-    
+
     try {
         await api('POST', '/game/travel/cancel', { paid: !isFreeCancel });
-        
+
         // Clear travel targets - DO NOT change location
         playerTravelTarget = null;
         playerTravelEndTime = 0;
         playerTravelStartTime = 0;
-        
+
         // Refresh character to get updated gems
         character = await api('GET', '/game/character');
-        
+
         // Hide travel overlay
         hideTravelOverlay();
-        
+
         // Re-render the current map (stay in same zone)
         renderCurrentMap();
-        
+
         showMsg('missions-msg', isFreeCancel ? 'Travel cancelled.' : 'Travel cancelled (1 💎 spent).');
     } catch (e) {
         showMsg('missions-msg', e.message, true);
@@ -4901,30 +4901,30 @@ async function checkTravelStatus() {
         playerTravelStartTime=status.travelStartTime||0;
         unlockedTravelZones = new Set(status.unlockedZones || ['forest']);
         unlockedAbyssZones = new Set(status.unlockedAbyssZones || []);
-        
+
         if (playerTravelTarget) showTravelOverlay(); else hideTravelOverlay();
-        
+
         if (status.encounterResult) {
             const result = status.encounterResult;
             const currentMap = status.currentMap || character?.current_map || 'overworld';
             const zoneMap = currentMap === 'abyss' ? ABYSS_ZONES : ZONES;
             const zoneDef = zoneMap[result.targetZone];
             const zoneLabel = zoneDef ? zoneDef.name : (result.targetZone || 'the zone');
-            
+
             const summary = result.won
                 ? `Unlocked ${zoneLabel} · ⚔️ ${result.guardianName} defeated`
                 : `${result.guardianName} drove you back from ${zoneLabel}`;
-                
+
             showBattleReportModal(result.log || [], result.won, summary, result.totalDmgDealt, result.totalDmgTaken);
             showMsg('missions-msg', result.won ? `${zoneLabel} unlocked.` : `You were forced back to ${status.location}.`, !result.won);
-            
+
             // Re-render map to show progress
             renderCurrentMap();
         }
         return status;
-    } catch(e) { 
-        console.error('Failed to check travel status:', e); 
-        return null; 
+    } catch(e) {
+        console.error('Failed to check travel status:', e);
+        return null;
     }
 }
 
@@ -5116,8 +5116,8 @@ function renderForge() {
                 </div>
                 <div style="font-size:0.72rem;color:var(--text-dim);margin:6px 0 2px">Hover the item header to preview scaled stats</div>
                 ${locked
-                    ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
-                    : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
+                ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
+                : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
                 ${r.craftClass ? `<div style="font-size:0.7rem;color:var(--text-dim);margin:2px 0">📋 Classes: ${r.craftClass}</div>` : ''}
                 <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
                 <button class="btn-forge" style="margin-top:auto" ${actionAttrs('craftItem', r.id)} ${r.canCraft?'':'disabled'}>
@@ -5174,7 +5174,7 @@ function buildWeaponDialog(dialog, weap) {
                 <button class="btn-secondary" style="font-size:0.85rem;padding:4px 10px" data-action="closeWeaponDialog">✕</button>
             </div>
             ${weap.maxed ? `<div style="text-align:center;padding:12px;background:#2ecc7122;border:1px solid #2ecc7144;border-radius:10px;font-weight:700;color:#2ecc71">⬆️ WEAPON MAXED</div>`
-            : `
+        : `
             <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px">
                 <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:4px">
                     <span>Level <strong>${weap.wp_level}/5</strong></span>
@@ -5199,8 +5199,8 @@ function buildWeaponDialog(dialog, weap) {
                 <div style="display:flex;gap:8px;margin-top:12px">
                     <button class="btn-forge" style="flex:1" data-action="openWeaponFeedDialog">📦 Feed Materials</button>
                     ${(weap.wp_xp>=weap.wp_xp_target&&weap.wp_feed>=weap.wp_feed_target)
-                        ? `<button class="btn-forge" style="flex:1;background:linear-gradient(135deg,#2ecc71,#27ae60)" data-action="weaponLevelUp">⬆️ Level Up!</button>`
-                        : ''}
+            ? `<button class="btn-forge" style="flex:1;background:linear-gradient(135deg,#2ecc71,#27ae60)" data-action="weaponLevelUp">⬆️ Level Up!</button>`
+            : ''}
                 </div>
             </div>`}
 
@@ -5307,7 +5307,7 @@ async function openWeaponFeedDialog(dialog, weap) {
             </div>
             <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
                 ${entries.map(([id, mat]) =>
-                    `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
+        `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
                         <span style="font-size:1.1rem;flex-shrink:0">${mat.emoji||'📦'}</span>
                         <span style="flex:1;min-width:0">${mat.name||id}</span>
                         <span style="color:var(--text-dim);font-size:0.7rem;flex-shrink:0">×${mat.qty}</span>
@@ -5319,7 +5319,7 @@ async function openWeaponFeedDialog(dialog, weap) {
                             <button class="btn-sm feed-go-btn" style="font-size:0.65rem;padding:2px 6px;background:var(--green-dim);border:1px solid rgba(46,204,113,0.3)">Feed</button>
                         </div>
                     </div>`
-                ).join('')}
+    ).join('')}
             </div>
             <div id="feed-error-msg" class="msg-bar hidden" style="font-size:0.75rem;padding:6px 10px;border-radius:6px;text-align:center"></div>
         </div>`;
@@ -5492,15 +5492,15 @@ function renderGearGrid(el, gear, equipped) {
         window._invGearData[i.id] = { ...i, equippedInSlot: equipped?.[d.slot] };
     });
     const equippedIds = Object.values(equipped || {}).map(e => e.inventoryId).filter(Boolean);
-    
+
     // Calculate premium sell rate for display in tooltip (tooltip will handle it)
     // But we can also show a small badge for merchant prince
     const activePrem = character?.premium_features || {};
     const hasVaultKeeper = !!activePrem.vault_keeper;
     const hasApprentice = !!activePrem.apprentice;
     const merchantPrince = hasVaultKeeper && hasApprentice;
-        const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
-    
+    const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
+
     el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
@@ -5510,7 +5510,7 @@ function renderGearGrid(el, gear, equipped) {
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
         const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
         const setupBadges = (i.setups || []).map(sn => `<span class="setup-badge" title="In setup: ${escHtml(sn)}">🔧 ${escHtml(sn)}</span>`).join('');
-        
+
         return `
         <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;" ${actionAttrs('openItemTooltip', i.id)}>
             <div class="inv-item-icon" 
@@ -5536,7 +5536,7 @@ async function upgradeItem(inventoryId) {
         const invData = await api('GET', '/game/inventory');
         const item = invData.items.find(i => i.id === inventoryId);
         if (!item) return;
-        
+
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
         const quality = itemData.quality || 'common';
@@ -5546,15 +5546,15 @@ async function upgradeItem(inventoryId) {
             showMsg('inv-msg', `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`, true);
             return;
         }
-        
+
         // Get all components
         const components = invData.items.filter(i => i.item_type === 'component');
-        
+
         if (components.length === 0) {
             showMsg('inv-msg', 'You need components to upgrade! Craft them in the forge.', true);
             return;
         }
-        
+
         // Build simple component selection
         let componentList = '';
         const componentOptions = {};
@@ -5563,19 +5563,19 @@ async function upgradeItem(inventoryId) {
             componentList += `${idx + 1}. ${compData.name} (x${compData.qty || 1})\n`;
             componentOptions[idx + 1] = compData.id;
         });
-        
+
         const choice = prompt(`Select a component to upgrade ${itemData.name}:\n\n${componentList}\n\nEnter number (1-${components.length}):`);
         if (!choice) return;
-        
+
         const selectedComponentId = componentOptions[parseInt(choice)];
         if (!selectedComponentId) {
             showMsg('inv-msg', 'Invalid selection!', true);
             return;
         }
-        
+
         // Let backend handle everything
         const result = await api('POST', `/game/equipment/upgrade/${inventoryId}`, { componentId: selectedComponentId });
-        
+
         if (result.success) {
             let message = result.message;
             if (result.upgradedStats && result.upgradedStats.length > 0) {
@@ -5604,10 +5604,10 @@ function renderInventory(data) {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         return d.slot || '';
     }
-    
+
     // Helper to check if item is a loot box
     const isLootBox = (item) => item.item_data?.category === 'lootbox';
-    
+
     // Helper to get item image path
     const getItemImage = (itemName) => {
         if (!itemName) return '';
@@ -5703,9 +5703,9 @@ function renderInventory(data) {
                         </div>
                         <div class="elem-inv-actions">
                             ${e.equipped
-                                ? `<button class="btn-secondary" data-action="unequipElementalInv" data-args='[${e.id}]'>Unequip</button>`
-                                : `<button class="btn-primary" data-action="equipElementalInv" data-args='[${e.id}]'>Equip</button>`
-                            }
+                        ? `<button class="btn-secondary" data-action="unequipElementalInv" data-args='[${e.id}]'>Unequip</button>`
+                        : `<button class="btn-primary" data-action="equipElementalInv" data-args='[${e.id}]'>Equip</button>`
+                    }
                         </div>
                     </div>`;
                 }).join('') + '</div>';
@@ -5722,10 +5722,10 @@ function renderInventory(data) {
             const d = i.item_data;
             const eff = d.effect ? (
                 d.effect.type === 'heal' ? '❤️ Restore ' + d.effect.value + ' HP' :
-                d.effect.type === 'heal_full' ? '❤️ Full HP restore' :
-                d.effect.type === 'xp' ? '⭐ +' + d.effect.value + ' XP' :
-                d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat :
-                d.effect.type === 'mp' ? '🔮 Restore ' + d.effect.value + ' MP' : ''
+                    d.effect.type === 'heal_full' ? '❤️ Full HP restore' :
+                        d.effect.type === 'xp' ? '⭐ +' + d.effect.value + ' XP' :
+                            d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat :
+                                d.effect.type === 'mp' ? '🔮 Restore ' + d.effect.value + ' MP' : ''
             ) : '';
             const sp = getInventorySellPrice(d);
             const itemImage = d.image || getItemImage(d.name);
@@ -5752,18 +5752,18 @@ function renderInventory(data) {
     } else if (invTab === 'materials') {
         // MATERIALS TAB with exchange options
         const mats = data.items.filter(i => i.item_type === 'raw_mat' || i.item_type === 'component');
-        if (!mats.length) { 
-            el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>'; 
-            return; 
+        if (!mats.length) {
+            el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>';
+            return;
         }
-        
+
         // Get legendary fragment count for exchange
         let fragmentCount = 0;
         const fragmentItem = mats.find(i => i.item_data?.id === 'legendary_fragment');
         if (fragmentItem) {
             fragmentCount = fragmentItem.item_data?.qty || 1;
         }
-        
+
         // Define exchange rates
         const exchangeRates = {
             abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', fragmentCost: 20 },
@@ -5792,10 +5792,10 @@ function renderInventory(data) {
             shadow_weave: { name: 'Shadow Weave', emoji: '🌙', fragmentCost: 25 },
             demon_alloy: { name: 'Demon Alloy', emoji: '⚙️', fragmentCost: 25 },
         };
-        
+
         // Separate owned materials (excluding legendary fragments from the owned display)
         const ownedMaterials = mats.filter(m => m.item_data?.id !== 'legendary_fragment');
-        
+
         el.innerHTML = `
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
@@ -5808,23 +5808,23 @@ function renderInventory(data) {
             <div class="section-title">📦 Your Materials</div>
             <div class="mat-grid">
                 ${ownedMaterials.map(i => {
-                    const d = i.item_data;
-                    const itemImage = d.image || getItemImage(d.name);
-                    return `<div class="mat-card">
+            const d = i.item_data;
+            const itemImage = d.image || getItemImage(d.name);
+            return `<div class="mat-card">
                         <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" data-error-hide="true" data-error-next-display="block">
                         <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
                         <div class="mat-name">${d.name || d.id}</div>
                         <div class="mat-qty">× ${d.qty || 1}</div>
                         <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
                     </div>`;
-                }).join('')}
+        }).join('')}
             </div>
             
             <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
             <div class="mat-grid">
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
-                    const canAfford = fragmentCount >= rate.fragmentCost;
-                    return `<div class="mat-card" style="position: relative;">
+            const canAfford = fragmentCount >= rate.fragmentCost;
+            return `<div class="mat-card" style="position: relative;">
                         <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
                         <div class="mat-name">${rate.name}</div>
                         <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
@@ -5833,24 +5833,24 @@ function renderInventory(data) {
                         <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 5)} ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
                             style="margin-top: 4px; width: 100%;">Exchange x5</button>
                     </div>`;
-                }).join('')}
+        }).join('')}
             </div>
         `;
     }
 }
 // ── Weapon class suitability ──────────────────────────────────────────────
 function isWeaponSuitedForClass(weapon, cls) {
-  if (!weapon || !cls || weapon.slot !== 'weapon') return true;
-  const name = (weapon.name || '').toLowerCase();
-  const wpnType = weapon.weaponType || weapon.weapon_type || weapon.type || '';
-  const is = (s) => name.includes(s) || wpnType === s;
-  let result = true;
-  if (cls === 'rogue')   result = is('dagger') || is('bow') || is('scythe');
-  else if (cls === 'mage')    result = is('scythe') || is('staff');
-  else if (cls === 'paladin') result = is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword');
-  else if (cls === 'warrior') result = !(is('staff') || is('dagger'));
-  if (!result) console.log('[WPNDEBUG]', weapon.name, 'type='+weapon.type, 'weaponType='+weapon.weaponType, 'weapon_type='+weapon.weapon_type, 'wpnType='+wpnType, 'name='+name, 'cls='+cls);
-  return result;
+    if (!weapon || !cls || weapon.slot !== 'weapon') return true;
+    const name = (weapon.name || '').toLowerCase();
+    const wpnType = weapon.weaponType || weapon.weapon_type || weapon.type || '';
+    const is = (s) => name.includes(s) || wpnType === s;
+    let result = true;
+    if (cls === 'rogue')   result = is('dagger') || is('bow') || is('scythe');
+    else if (cls === 'mage')    result = is('scythe') || is('staff');
+    else if (cls === 'paladin') result = is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword');
+    else if (cls === 'warrior') result = !(is('staff') || is('dagger'));
+    if (!result) console.log('[WPNDEBUG]', weapon.name, 'type='+weapon.type, 'weaponType='+weapon.weaponType, 'weapon_type='+weapon.weapon_type, 'wpnType='+wpnType, 'name='+name, 'cls='+cls);
+    return result;
 }
 const CLASS_WARN_HTML = '<div style="color:#e74c3c;font-size:0.72rem;margin-top:4px;padding:4px 6px;background:rgba(231,76,60,0.1);border-radius:4px">⚠️ This weapon is not suited for your class</div>';
 
@@ -5865,11 +5865,11 @@ function showItemTooltip(event, itemId) {
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
-    
+
     // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
     let itemSlot = d.slot;
     let equippedItem = eq;
-    
+
     if (itemSlot === 'ring' || itemSlot === 'amulet') {
         itemSlot = 'jewelry';
         // For equipped comparison, check both ring and amulet slots
@@ -5877,7 +5877,7 @@ function showItemTooltip(event, itemId) {
             equippedItem = character.equipped.ring || character.equipped.amulet;
         }
     }
-    
+
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
@@ -5902,8 +5902,8 @@ function showItemTooltip(event, itemId) {
         <div class="tt-preview">
             <button class="tt-close" id="tt-close-btn" ${actionAttrs('closeItemTooltip')}>✕</button>
             ${imgSrc
-                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
-                :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
+        ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+        :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
@@ -5915,8 +5915,8 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-actions">
             ${isEquipped
-                ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
-                :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
+        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
+        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
             <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sp)} ${isEquipped?'disabled':''}>Sell ${sp}g</button>
         </div>`;
 
@@ -6020,11 +6020,11 @@ function showItemTooltip(event, itemId) {
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
-    
+
     // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
     let itemSlot = d.slot;
     let equippedItem = eq;
-    
+
     if (itemSlot === 'ring' || itemSlot === 'amulet') {
         itemSlot = 'jewelry';
         // For equipped comparison, check both ring and amulet slots
@@ -6032,7 +6032,7 @@ function showItemTooltip(event, itemId) {
             equippedItem = character.equipped.ring || character.equipped.amulet;
         }
     }
-    
+
     const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
@@ -6062,8 +6062,8 @@ function showItemTooltip(event, itemId) {
         <div class="tt-preview">
             <button class="tt-close" id="tt-close-btn" ${actionAttrs('closeItemTooltip')}>✕</button>
             ${imgSrc
-                ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
-                :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
+        ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
+        :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
@@ -6075,8 +6075,8 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-actions">
             ${isEquipped
-                ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
-                :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
+        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
+        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
             <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sellPrice)} ${isEquipped?'disabled':''}>
                 Sell ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
             </button>
@@ -6227,7 +6227,7 @@ let lootboxModalState = {
 function createLootboxModal() {
     // Check if modal already exists
     if (document.getElementById('lootbox-exclusive-modal')) return;
-    
+
     const modalHTML = `
         <div id="lootbox-exclusive-modal" class="lootbox-modal-overlay">
             <div class="lootbox-modal-container">
@@ -6247,9 +6247,9 @@ function createLootboxModal() {
             </div>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
+
     // Add modal styles if not already present
     if (!document.getElementById('lootbox-modal-styles')) {
         const styleSheet = document.createElement('style');
@@ -6695,7 +6695,7 @@ function renderSingleLootboxItem(item) {
     const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
     const quality = (item.quality || 'common').toLowerCase();
     const rarityClass = ['rare', 'epic', 'legendary'].includes(quality) ? ` lootbox-rarity-${quality}` : '';
-    
+
     return `
         <div class="lootbox-item-card${rarityClass}">
             <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">
@@ -6712,14 +6712,14 @@ function renderLootboxSummary(result, boxName) {
     const goldAmount = result.goldFound || 0;
     const gemsAmount = result.gemsFound || 0;
     const lootItems = result.loot || [];
-    
+
     let summaryHtml = `
         <div class="lootbox-summary-panel">
             <div class="lootbox-summary-header">
                 🎉 ${escapeHtml(boxName)} - UNBOXED! 🎉
             </div>
     `;
-    
+
     if (goldAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
@@ -6728,7 +6728,7 @@ function renderLootboxSummary(result, boxName) {
             </div>
         `;
     }
-    
+
     if (gemsAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
@@ -6737,12 +6737,12 @@ function renderLootboxSummary(result, boxName) {
             </div>
         `;
     }
-    
+
     for (const item of lootItems) {
         // USE EXACT SAME LOGIC as single view
         const imageName = item.name.toLowerCase().replace(/\s+/g, '-');
         const imagePath = `/images/assets/${imageName}.png`;
-        
+
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <img class="lootbox-summary-img" src="${imagePath}" data-error-src="/images/assets/prize.png" alt="${escapeHtml(item.name)}">
@@ -6752,7 +6752,7 @@ function renderLootboxSummary(result, boxName) {
             </div>
         `;
     }
-    
+
     summaryHtml += `</div>`;
     return summaryHtml;
 }
@@ -6769,7 +6769,7 @@ function stopLootboxReveal() {
 function startSequentialReveal(result, boxName, onComplete) {
     const stage = document.getElementById('lootbox-stage-content');
     if (!stage) return;
-    
+
     // Build queue: gold, gems, then items
     const queue = [];
     if (result.goldFound > 0) {
@@ -6787,19 +6787,19 @@ function startSequentialReveal(result, boxName, onComplete) {
             quality: lootItem.quality || 'common'
         });
     }
-    
+
     lootboxModalState.currentQueue = queue;
     lootboxModalState.currentIndex = 0;
     lootboxModalState.skipRequested = false;
     lootboxModalState.currentResult = result;
     lootboxModalState.currentBoxName = boxName;
-    
+
     if (queue.length === 0) {
         stage.innerHTML = `<div class="lootbox-loader-spinner"><p>🎁 The box seems empty...</p></div>`;
         if (onComplete) onComplete();
         return;
     }
-    
+
     function showNextItem() {
         if (lootboxModalState.skipRequested || lootboxModalState.currentIndex >= lootboxModalState.currentQueue.length) {
             if (lootboxModalState.skipRequested) {
@@ -6812,11 +6812,11 @@ function startSequentialReveal(result, boxName, onComplete) {
             if (onComplete) onComplete();
             return;
         }
-        
+
         const item = lootboxModalState.currentQueue[lootboxModalState.currentIndex];
         stage.innerHTML = renderSingleLootboxItem(item);
         lootboxModalState.currentIndex++;
-        
+
         if (!lootboxModalState.skipRequested && lootboxModalState.currentIndex < lootboxModalState.currentQueue.length) {
             lootboxModalState.revealTimer = setTimeout(showNextItem, 700);
         } else if (!lootboxModalState.skipRequested && lootboxModalState.currentIndex >= lootboxModalState.currentQueue.length) {
@@ -6828,7 +6828,7 @@ function startSequentialReveal(result, boxName, onComplete) {
             }, 500);
         }
     }
-    
+
     showNextItem();
 }
 
@@ -6860,22 +6860,22 @@ async function openLootBox(itemId, itemName) {
         cancelLabel: 'Cancel'
     });
     if (!shouldOpen) return;
-    
+
     // Create modal if not exists
     if (!document.getElementById('lootbox-exclusive-modal')) {
         createLootboxModal();
     }
-    
+
     const modal = document.getElementById('lootbox-exclusive-modal');
     const stage = document.getElementById('lootbox-stage-content');
     const skipBtn = document.getElementById('lootbox-skip-all-btn');
     const closeBtn = document.getElementById('lootbox-close-btn');
-    
+
     if (!modal) return;
-    
+
     try {
         const result = await api('POST', `/game/lootbox/open/${itemId}`);
-        
+
         if (result.success) {
             // Update character data
             if (result.goldFound > 0 && character) {
@@ -6884,7 +6884,7 @@ async function openLootBox(itemId, itemName) {
             if (result.gemsFound > 0 && character) {
                 character.gems = (character.gems || 0) + result.gemsFound;
             }
-            
+
             // Build queue of items
             const queue = [];
             if (result.goldFound > 0) {
@@ -6902,19 +6902,19 @@ async function openLootBox(itemId, itemName) {
                     quality: lootItem.quality || 'common'
                 });
             }
-            
+
             let currentIndex = 0;
             let skipRequested = false;
             let currentItemCallback = null;
-            
+
             // Open modal
             modal.classList.add('active');
             if (closeBtn) closeBtn.style.display = 'none';
             if (skipBtn) skipBtn.style.display = 'inline-flex';
-            
+
             // Clear any existing content
             stage.innerHTML = '';
-            
+
             // Function to show summary (skip or complete)
             function showSummary() {
                 stage.innerHTML = renderLootboxSummary(result, itemName);
@@ -6923,26 +6923,26 @@ async function openLootBox(itemId, itemName) {
                 if (liveSkipBtn) liveSkipBtn.style.display = 'none';
                 if (liveCloseBtn) liveCloseBtn.style.display = 'block';
             }
-            
+
             // Function to show current item
             function showCurrentItem() {
                 if (skipRequested) {
                     showSummary();
                     return;
                 }
-                
+
                 if (currentIndex >= queue.length) {
                     showSummary();
                     return;
                 }
-                
+
                 const item = queue[currentIndex];
                 const isLastItem = (currentIndex === queue.length - 1);
-                
+
                 // Create item display with button
                 const itemHtml = renderSingleLootboxItem(item);
                 const buttonText = isLastItem ? '✨ COMPLETE ✨' : '▶ NEXT ITEM ▶';
-                
+
                 stage.innerHTML = `
                     <div style="width:100%">
                         ${itemHtml}
@@ -6951,7 +6951,7 @@ async function openLootBox(itemId, itemName) {
                         </div>
                     </div>
                 `;
-                
+
                 const actionBtn = document.getElementById('lootbox-action-btn');
                 if (actionBtn) {
                     actionBtn.addEventListener('click', () => {
@@ -6962,7 +6962,7 @@ async function openLootBox(itemId, itemName) {
                     actionBtn.addEventListener('mouseleave', () => { actionBtn.style.transform = 'scale(1)'; });
                 }
             }
-            
+
             // Skip button handler
             const freshSkipBtn = skipBtn.cloneNode(true);
             skipBtn.replaceWith(freshSkipBtn);
@@ -6972,7 +6972,7 @@ async function openLootBox(itemId, itemName) {
                     showSummary();
                 }
             }, { once: true });
-            
+
             // Close button handler (initially hidden, set up for later)
             const closeHandler = () => {
                 modal.classList.remove('active');
@@ -6984,10 +6984,10 @@ async function openLootBox(itemId, itemName) {
             const freshCloseBtn = closeBtn.cloneNode(true);
             closeBtn.replaceWith(freshCloseBtn);
             freshCloseBtn.addEventListener('click', closeHandler, { once: true });
-            
+
             // Start showing first item
             showCurrentItem();
-            
+
         } else {
             await openGameNoticeDialog({
                 title: 'Loot Box Failed',
@@ -7011,9 +7011,9 @@ async function equipItem(invId) {
         const invData = await api('GET', '/game/inventory');
         const item = invData.items.find(i => i.id === invId);
         if (!item) throw new Error('Item not found');
-        
+
         const slot = item.item_data.slot;
-        
+
         // If it's a ring or amulet, unequip the other jewelry slot first
         if (slot === 'ring' || slot === 'amulet') {
             const otherSlot = slot === 'ring' ? 'amulet' : 'ring';
@@ -7025,16 +7025,16 @@ async function equipItem(invId) {
                 console.log(`🔄 Replaced ${otherItem.name} with new item`);
             }
         }
-        
+
         // Now equip the new item
         await api('POST', `/game/equip/${invId}`);
         loadInventory();
         character = await api('GET', '/game/character');
         renderCharacter();
         showMsg('inv-msg', 'Equipped!');
-    } catch(e) { 
+    } catch(e) {
         console.error('Equip error:', e);
-        showMsg('inv-msg', e.message, true); 
+        showMsg('inv-msg', e.message, true);
     }
 }
 async function unequipSlot(slot) { try { await api('POST',`/game/unequip/${slot}`); loadInventory(); character=await api('GET','/game/character'); renderCharacter(); showMsg('inv-msg','Unequipped.'); } catch(e) { showMsg('inv-msg',e.message,true); } }
@@ -7117,12 +7117,12 @@ async function loadBannerEvent() {
     console.log('loadBannerEvent called');
     const content = document.getElementById('event-content');
     if (!content) return;
-    
+
     content.innerHTML = '<div class="loading-spinner">Loading...</div>';
-    
+
     try {
         const data = await api('GET', '/banner/current');
-        
+
         if (!data.active) {
             content.innerHTML = `
                 <div class="event-no-banner">
@@ -7133,7 +7133,7 @@ async function loadBannerEvent() {
             `;
             return;
         }
-        
+
         const { banner, stats } = data;
         if (!banner) {
             content.innerHTML = '<p style="color:red">Banner data missing</p>';
@@ -7143,7 +7143,7 @@ async function loadBannerEvent() {
         const nextOddsPct = stats.nextOddsUp ? (stats.nextOddsUp * 100).toFixed(1) : null;
         const pityProgress = stats.pityCount ?? stats.effectivePulls ?? 0;
         const pityToGuarantee = 10 - pityProgress;
-        
+
         content.innerHTML = `
             <div class="event-banner-card">
                 <div class="event-banner-image" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;">
@@ -7188,9 +7188,9 @@ async function loadBannerEvent() {
                 <div id="event-results" class="event-results"></div>
             </div>
         `;
-        
+
         updateEventTimer(banner.endAt);
-        
+
     } catch (e) {
         content.innerHTML = `<div style="color:var(--red-light);padding:20px;text-align:center;">${escHtml(e.message)}</div>`;
     }
@@ -7200,19 +7200,19 @@ async function doBannerPull() {
     const btn = document.getElementById('event-pull-btn');
     const results = document.getElementById('event-results');
     if (!btn || !results) return;
-    
+
     btn.disabled = true;
     btn.textContent = 'Pulling...';
     results.innerHTML = '<div class="loading-spinner">Opening pulls...</div>';
-    
+
     try {
         const data = await api('POST', '/banner/pull');
         console.log('Pull response:', data);
-        
+
         if (data.won) {
             showMsg('event-msg', '🎴 You won the banner set! Check your inbox!', false);
         }
-        
+
         const itemsHtml = data.items.map(item => {
             if (item.type === 'raw_mat') {
                 return `<div class="event-item event-item-${item.rarity || 'common'}">${item.emoji || '📦'} ${item.qty}x ${item.name}</div>`;
@@ -7220,16 +7220,16 @@ async function doBannerPull() {
                 return `<div class="event-item event-item-${item.rarity || 'common'}">${item.emoji || '🎁'} ${item.name}</div>`;
             }
         }).join('');
-        
-const bonusHtml = [];
+
+        const bonusHtml = [];
         if (data.goldFound > 0) bonusHtml.push(`💰 +${data.goldFound.toLocaleString()} Gold`);
         if (data.gemsFound > 0) bonusHtml.push(`💎 +${data.gemsFound} Gems`);
-        
+
         // Add won items to display
-        const wonItemsHtml = data.wonItems ? data.wonItems.map(item => 
+        const wonItemsHtml = data.wonItems ? data.wonItems.map(item =>
             `<div class="event-item event-item-legendary">🌟 ${escHtml(item.name)}</div>`
         ).join('') : '';
-        
+
         results.innerHTML = `
             <div class="event-result-won ${data.won ? 'won' : ''}">${data.won ? '🎴 BANNER SET WON!' : ''}</div>
             ${wonItemsHtml ? `<div class="event-items-grid">${wonItemsHtml}</div>` : ''}
@@ -7239,11 +7239,11 @@ const bonusHtml = [];
                 ${data.won ? '<span style="color:#f1c40f">Pity Reset!</span> · ' : ''}Pulls: ${data.stats.pityCount ?? data.stats.effectivePulls ?? 0}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}% · 💎 ${data.gems.toLocaleString()} · 💰 ${(character.gold || 0).toLocaleString()}
             </div>
         `;
-        
+
         character.gems = data.gems;
         if (data.gold) character.gold = data.gold;
         renderTopBar();
-        
+
         const pityProgress = data.stats.pityCount ?? data.stats.effectivePulls ?? 0;
         const pityEl = document.querySelector('.event-pity-header span:last-child');
         const pityBar = document.querySelector('.event-pity-fill');
@@ -7257,7 +7257,7 @@ const bonusHtml = [];
     } catch (e) {
         results.innerHTML = `<div style="color:var(--red-light);padding:10px;text-align:center;">${escHtml(e.message || 'Pull failed')}</div>`;
     }
-    
+
     btn.disabled = false;
     btn.textContent = '🎴 Pull 5x';
 }
@@ -7265,20 +7265,20 @@ const bonusHtml = [];
 function updateEventTimer(endAt) {
     const timerEl = document.getElementById('event-timer');
     if (!timerEl) return;
-    
+
     const update = () => {
         const remaining = endAt * 1000 - Date.now();
         if (remaining <= 0) {
             timerEl.textContent = 'Event ended';
             return;
         }
-        
+
         const hours = Math.floor(remaining / 3600000);
         const mins = Math.floor((remaining % 3600000) / 60000);
         const secs = Math.floor((remaining % 60000) / 1000);
         timerEl.textContent = `Ends in ${hours}h ${mins}m ${secs}s`;
     };
-    
+
     update();
     setInterval(update, 1000);
 }
@@ -7451,13 +7451,13 @@ function renderShop() {
                     <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
                 <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough&&!item._buying?'':'disabled'}>${
-                    item._buying ? 'Buying...' :
-                    !isAvail ? `Level ${item.level}` :
+            item._buying ? 'Buying...' :
+                !isAvail ? `Level ${item.level}` :
                     !classOk ? 'Class Locked' :
-                    !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
-                    !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} 💎` :
-                    'Buy'
-                }</button>
+                        !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
+                            !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} 💎` :
+                                'Buy'
+        }</button>
             </div>
         </div>`;
     }).join('');
@@ -7477,7 +7477,7 @@ async function buyItem(itemId) {
     renderShop();
     try {
         await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item});
-        
+
         // Refresh character properly from the game endpoint instead of using result.character
         const refreshedChar = await api('GET','/game/character');
         character = refreshedChar;
@@ -7488,22 +7488,22 @@ async function buyItem(itemId) {
         } else {
             shopInventory = shopInventory.filter(i => i.id !== item.id);
         }
-        renderShop(); 
+        renderShop();
         const shopGoldEl = document.getElementById('shop-gold');
         if (shopGoldEl) shopGoldEl.textContent = `💰 ${character.gold.toLocaleString()} Gold`;
         const shopGemsEl = document.getElementById('shop-gems');
         if (shopGemsEl) shopGemsEl.textContent = `💎 ${(character.gems || 0).toLocaleString()} Gems`;
         renderTopBar();
         renderCharacter(); // Force re-render character sheet with correct HP
-        
-        if (item.consumable) { 
-            invTab='consumables'; 
-            loadInventory(); 
+
+        if (item.consumable) {
+            invTab='consumables';
+            loadInventory();
         }
-    } catch(e) { 
-        item._buying=false; 
+    } catch(e) {
+        item._buying=false;
         renderShop();
-        showMsg('shop-msg',e.message,true); 
+        showMsg('shop-msg',e.message,true);
     }
 }
 function setShopCategory(category, btn) {
@@ -7561,14 +7561,14 @@ async function renderPremium(data) {
             </div>`).join('')}
         </div>` : '';
 
-const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
+    const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
         ${features.map(f => {
-            const isActive = f.active;
-            const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
-            const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
-            const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
-            const artSrc = premiumArt[f.id];
-            return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column">
+        const isActive = f.active;
+        const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
+        const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
+        const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
+        const artSrc = premiumArt[f.id];
+        return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column">
                 <div class="premium-feature-art-wrap pc-only">
                     ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
                     ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:100%;object-fit:cover">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%">${f.emoji}</span>`}
@@ -7590,7 +7590,7 @@ const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wr
                     </button>
                 </div>
             </div>`;
-        }).join('')}
+    }).join('')}
     </div>`;
 
     let adminBtnHtml = '';
@@ -7868,14 +7868,14 @@ function renderClanContent() {
         <div class="clan-base-map" style="position:relative;width:100%;height:500px;background:rgba(0,0,0,0.3);border-radius:12px;overflow:hidden;margin-top:8px">
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
             ${(clanData.bases || []).map(b => {
-                const color = tierColors[b.tier] || '#888';
-                const isOwned = b.owner_squad_id && b.owner_squad_id === clanData.squad_id;
-                const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
-                return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
+        const color = tierColors[b.tier] || '#888';
+        const isOwned = b.owner_squad_id && b.owner_squad_id === clanData.squad_id;
+        const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
+        return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
                     <div style="width:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;height:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;border-radius:50%;background:${isOwned ? '#2ecc71' : isOccupied ? '#e74c3c' : color};border:2px solid ${isOwned ? '#27ae60' : isOccupied ? '#c0392b' : 'rgba(255,255,255,0.3)'};margin:0 auto;box-shadow:0 0 ${isOwned ? 8 : 4}px ${color}44"></div>
                     <div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:${isOwned ? '#2ecc71' : '#aaa'}">${escHtml(b.name)}${b.discount_pct ? ' 🏷️' : ''}</div>
                 </div>`;
-            }).join('')}
+    }).join('')}
         </div>
     </div>`;
 
@@ -8369,7 +8369,7 @@ function renderLeaderboard() {
             filtered.length === 0
                 ? '<p class="empty">No squads found.</p>'
                 : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 TOTAL EARNED</div></div></div></div>' +
-                  filtered.map((s, i) => buildSquadLeaderboardRow(s, i)).join('')
+                filtered.map((s, i) => buildSquadLeaderboardRow(s, i)).join('')
         );
         return;
     }
@@ -8453,10 +8453,10 @@ async function openProfile(id) {
                 <div class="eq-avatar-center profile-eq-avatar">
                     <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
                     ${p.elemental ? (() => {
-                        const el = p.elemental;
-                        const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
-                        return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
-                    })() : ''}
+                const el = p.elemental;
+                const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
+                return `<img src="/images/assets/elemental.png" alt="Elemental" class="eq-elemental-spirit" data-hover-action="hoverElemTooltip" data-leave-action="scheduleHideTooltip" data-elem="${elemData}">`;
+            })() : ''}
                 </div>` : '';
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
@@ -8549,7 +8549,7 @@ async function openProfile(id) {
                     ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${reason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6" ${actionAttrs('skipCooldownAndAttack', id, name, p.class)}>⚡ Skip cooldown for 1 💎</button></div>`
                     :`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`);
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
-          })() : ''}
+        })() : ''}
           <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:16px 0 0">
             ${renderDetailSlot('DMG', 'Damage', `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
             ${renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2')}
@@ -8724,9 +8724,9 @@ function finalizeBattlePlayback() {
     const out = document.getElementById('battle-outcome');
     if (!battlePlaybackMeta || !logEl || !out) return;
     const { log, enemyName, won, summary, dmgDealt, dmgTaken, tutorialMessage, isDraw } = battlePlaybackMeta;
-    
+
     logEl.innerHTML = log.map(line => renderBattleLogLine(line, enemyName, getBattleLogTintRole(line, enemyName))).join('');
-    
+
     // Add tutorial completion message if present
     if (tutorialMessage) {
         logEl.insertAdjacentHTML('beforeend', `
@@ -8735,7 +8735,7 @@ function finalizeBattlePlayback() {
             </div>
         `);
     }
-    
+
     logEl.scrollTop = logEl.scrollHeight;
     out.className = isDraw ? 'draw battle-outcome battle-outcome-visible' : (won ? 'won battle-outcome battle-outcome-visible' : 'lost battle-outcome battle-outcome-visible');
     out.innerHTML = isDraw
@@ -8850,7 +8850,7 @@ async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
         character=r.character;
         renderTopBar();
         if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
-        
+
         // Show level up modal if applicable
         if (r.atkLevelUpMessage) {
             await openGameDialog({
@@ -8860,7 +8860,7 @@ async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
                 showCancel: false
             });
         }
-        
+
         showBattleResult(r,targetId,targetName,targetClass,r.opponentLevel ?? targetLevel);
     }
     catch(e) { alert(e.message); }
@@ -8918,11 +8918,11 @@ function renderBattleStatsPanel(battleStats, enemyName) {
 function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = {}) {
     const modal = document.getElementById('battle-result-modal');
     if (!modal) { showMissionModal(summary); return; }
-    
+
     const fighters = document.getElementById('battle-fighters');
     const statsEl = document.getElementById('battle-stats');
     const battleLog = Array.isArray(log) ? log : [];
-    
+
     let enemyName = options.enemyName || 'Enemy';
     const vsLine = battleLog.find(l => l.includes(' vs '));
     if (vsLine) {
@@ -8940,38 +8940,38 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
     const missionVisual = options.battleType === 'mission'
         ? findMissionVisualByName(options.missionName || enemyName)
         : null;
-    
+
     if (fighters && character) {
         fighters.innerHTML = `
             ${buildBattleShowcaseCard({
-                name: character.name,
-                className: character.class,
-                level: character.level,
-                splash: true,
-                fallback: '⚔️',
-                side: 'left'
-            })}
+            name: character.name,
+            className: character.class,
+            level: character.level,
+            splash: true,
+            fallback: '⚔️',
+            side: 'left'
+        })}
             <div class="fighter-vs">VS</div>
             ${buildBattleShowcaseCard({
-                name: options.battleType === 'mission' ? (options.missionName || enemyName) : enemyName,
-                className: enemyClass,
-                level: options.enemyLevel || null,
-                splash: true,
-                fallback: enemyClass ? '⚔️' : '👾',
-                side: 'right',
-                imageSrc: missionVisual?.img || null,
-                metaText: missionVisual
-                    ? [missionVisual.spotName, missionVisual.zoneName].filter(Boolean).join(' · ')
-                    : ''
-            })}`;
+            name: options.battleType === 'mission' ? (options.missionName || enemyName) : enemyName,
+            className: enemyClass,
+            level: options.enemyLevel || null,
+            splash: true,
+            fallback: enemyClass ? '⚔️' : '👾',
+            side: 'right',
+            imageSrc: missionVisual?.img || null,
+            metaText: missionVisual
+                ? [missionVisual.spotName, missionVisual.zoneName].filter(Boolean).join(' · ')
+                : ''
+        })}`;
     }
 
     if (statsEl) {
         statsEl.innerHTML = renderBattleStatsPanel(options.battleStats || null, enemyName);
     }
-    
+
     modal.classList.remove('hidden');
-    startBattlePlayback(battleLog, { 
+    startBattlePlayback(battleLog, {
         won, summary, dmgDealt, dmgTaken, enemyName,
         tutorialMessage: options.tutorialMessage,
         isDraw: options.isDraw
@@ -9022,12 +9022,12 @@ async function loadInbox() {
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
-        
+
         // Separate messages into categories
         const messagesList = [];
         const battlesList = [];
         const missionsList = [];
-        
+
         messages.forEach(m => {
             const isReport = m.body && m.body.startsWith('BATTLE_REPORT:');
             if (isReport) {
@@ -9041,12 +9041,12 @@ async function loadInbox() {
                 messagesList.push(m);
             }
         });
-        
+
         // Sort each by date (newest first)
         messagesList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
         battlesList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
         missionsList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
-        
+
         let html=`<div class="inbox-tabs">
             <button class="inbox-tab active" ${actionAttrs('filterInbox', 'messages')}>💬 Messages (${messagesList.length})</button>
             <button class="inbox-tab" ${actionAttrs('filterInbox', 'battles')}>⚔️ Battles (${battlesList.length})</button>
@@ -9054,12 +9054,12 @@ async function loadInbox() {
         </div>
         <div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>
         <div id="inbox-filtered-content"></div>`;
-        
+
         // Store for filtering
         window._inboxData = { messages: messagesList, battles: battlesList, missions: missionsList };
-        
+
         el.innerHTML=html;
-        
+
         // Render current filter if available, otherwise default to messages
         renderInboxFilter(window._currentInboxFilter || 'messages');
 
@@ -9092,7 +9092,7 @@ function renderInboxFilter(filter) {
         if (reward.material?.id && reward.material?.qty) parts.push(`🧱 ${Number(reward.material.qty).toLocaleString()}x ${reward.material.id.replace(/_/g, ' ')}`);
         return parts.join(' · ');
     };
-    
+
     const renderMsgRow = (m) => {
         const dateStr = formatDate(m.sent_at);
         const rewardSummary = describeInboxReward(m.reward_payload);
@@ -9117,7 +9117,7 @@ function renderInboxFilter(filter) {
             </div>
         </div>`;
     };
-    
+
     const renderBattleRow = (m) => {
         const report = m.report;
         const dateStr = formatDate(m.sent_at);
@@ -9145,7 +9145,7 @@ function renderInboxFilter(filter) {
             </div>
         </div>`;
     };
-    
+
     const renderMissionRow = (m) => {
         const report = m.report;
         const dateStr = formatDate(m.sent_at);
@@ -9171,15 +9171,15 @@ function renderInboxFilter(filter) {
             </div>
         </div>`;
     };
-    
+
     if (!list.length) {
         container.innerHTML = '<p class="empty">No items in this category.</p>';
         return;
     }
-    
+
     const renderFn = filter === 'messages' ? renderMsgRow : (filter === 'battles' ? renderBattleRow : renderMissionRow);
     container.innerHTML = `<div class="inbox-list">${list.map(renderFn).join('')}</div>`;
-    
+
     // Re-attach click handlers for messages
     if (filter === 'messages') {
         list.forEach(m => {
@@ -9197,7 +9197,7 @@ function renderInboxFilter(filter) {
     }
 
     pollUnread();
-    
+
     // Update tab UI
     document.querySelectorAll('.inbox-tab').forEach(t => {
         t.classList.toggle('active', parseActionArgs(t)?.[0] === filter);
@@ -9620,17 +9620,17 @@ function updateChatMessagesDOM() {
                     <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
                     <span class="chat-line-channel">${privateLabel}</span>
                     ${(() => {
-                        const btns = [];
-                        if (!isOwn) {
-                            btns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">✉</button>`);
-                            btns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
-                        }
-                        if (isOwn) {
-                            btns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
-                            btns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
-                        }
-                        return btns.length ? `<div class="chat-line-actions">${btns.join('')}</div>` : '';
-                    })()}
+            const btns = [];
+            if (!isOwn) {
+                btns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">✉</button>`);
+                btns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
+            }
+            if (isOwn) {
+                btns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
+                btns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
+            }
+            return btns.length ? `<div class="chat-line-actions">${btns.join('')}</div>` : '';
+        })()}
                 </div>
                 <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
             </div>
@@ -9817,7 +9817,7 @@ function ensureChatWidgetRoot() {
 }
 
 function renderChatWidget() {
-const root = ensureChatWidgetRoot();
+    const root = ensureChatWidgetRoot();
     if (!root) return;
     if (!isChatWidgetAvailable()) {
         root.innerHTML = '';
@@ -9900,19 +9900,19 @@ const root = ensureChatWidgetRoot();
                 ` : ''}
 <div class="chat-widget-messages" id="chat-widget-messages">
                     ${visibleMessages.length ? visibleMessages.map(msg => {
-                        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
-                        const isOwn = msg.is_outgoing;
-                        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
-                        const actionBtns = [];
-                        if (!isOwn) {
-                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
-                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
-                        }
-                        if (isOwn) {
-                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
-                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
-                        }
-                        return `
+        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+        const isOwn = msg.is_outgoing;
+        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
+        const actionBtns = [];
+        if (!isOwn) {
+            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
+            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
+        }
+        if (isOwn) {
+            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
+            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
+        }
+        return `
                             <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
                                 <div class="chat-line-meta">
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
@@ -9923,7 +9923,7 @@ const root = ensureChatWidgetRoot();
                                 <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
                             </div>
                         `;
-                    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
+    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
                 </div>
                 ${filteredMessages.length > 8 ? `
                     <div class="chat-widget-more">
@@ -9943,7 +9943,7 @@ const root = ensureChatWidgetRoot();
             </div>
         </section>`;
 
-bindChatWidgetEvents();
+    bindChatWidgetEvents();
     if (wasFocused) {
         const newInput = document.getElementById('chat-message-input');
         if (newInput) {
@@ -10056,17 +10056,17 @@ function clearChatEdit() {
 function editChatMessage(messageId) {
     const message = chatMessages.find(m => m.id === messageId);
     if (!message) return;
-    
+
     const input = document.getElementById('chat-message-input');
     if (!input) return;
-    
+
     const editingIdStr = String(messageId);
     input.value = message.message_text || '';
     input.dataset.editingId = editingIdStr;
     localStorage.setItem('rpg_chat_editing_id', editingIdStr);
     window._chatEditingId = editingIdStr;
     input.focus();
-    
+
     setChatWidgetStatus('Edit your message and press Send.', false);
     renderChatWidget();
 }
@@ -10074,14 +10074,14 @@ function editChatMessage(messageId) {
 function pmChatMessage(messageId) {
     const message = chatMessages.find(m => m.id === messageId);
     if (!message || !message.sender_name) return;
-    
+
     const recipientInput = document.getElementById('chat-recipient-input');
     const input = document.getElementById('chat-message-input');
     chatActiveView = 'private';
     chatActivePmThread = message.sender_name;
     chatPmTarget = message.sender_name;
     clearChatEdit();
-    
+
     if (recipientInput) recipientInput.value = message.sender_name;
     if (input) input.focus();
     setChatWidgetStatus(`PM to ${message.sender_name}.`, false);
@@ -10091,17 +10091,17 @@ function pmChatMessage(messageId) {
 function replyChatMessage(messageId) {
     const message = chatMessages.find(m => m.id === messageId);
     if (!message || !message.sender_name) return;
-    
+
     const input = document.getElementById('chat-message-input');
     const recipientInput = document.getElementById('chat-recipient-input');
     if (!input) return;
-    
+
     if (recipientInput) recipientInput.value = '';
     chatPmTarget = '';
-    
+
     input.value = `@${message.sender_name} `;
     clearChatEdit();
-    
+
     input.focus();
     setChatWidgetStatus(`Replying to ${message.sender_name}.`, false);
     renderChatWidget();
@@ -10109,7 +10109,7 @@ function replyChatMessage(messageId) {
 
 function deleteChatMessage(messageId) {
     if (!confirm('Delete this message? This cannot be undone.')) return;
-    
+
     api('DELETE', `/game/chat/${messageId}`).then(() => {
         chatMessages = chatMessages.filter(m => m.id !== messageId);
         setChatWidgetStatus('Message deleted.');
@@ -10320,20 +10320,20 @@ function renderChatWidget() {
                 ` : ''}
                 <div class="chat-widget-messages" id="chat-widget-messages">
                     ${visibleMessages.length ? visibleMessages.map(msg => {
-                        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
-                        const isOwn = msg.is_outgoing;
-                        const isUnreadHighlight = !isOwn && ((!msg.is_private && chatHighlightedGlobalIds.has(Number(msg.id || 0))) || (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0))));
-                        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
-                        const actionBtns = [];
-                        if (!isOwn) {
-                            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
-                            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
-                        }
-                        if (isOwn) {
-                            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
-                            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
-                        }
-                        return `
+        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+        const isOwn = msg.is_outgoing;
+        const isUnreadHighlight = !isOwn && ((!msg.is_private && chatHighlightedGlobalIds.has(Number(msg.id || 0))) || (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0))));
+        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
+        const actionBtns = [];
+        if (!isOwn) {
+            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
+            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
+        }
+        if (isOwn) {
+            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
+            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
+        }
+        return `
                             <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'} ${isUnreadHighlight ? 'unread-highlight' : ''}">
                                 <div class="chat-line-meta">
                                     <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
@@ -10344,7 +10344,7 @@ function renderChatWidget() {
                                 <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
                             </div>
                         `;
-                    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
+    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
                 </div>
                 ${filteredMessages.length > 8 ? `
                     <div class="chat-widget-more">
@@ -10463,12 +10463,12 @@ async function sendChatMessage() {
         if (input?.dataset) delete input.dataset.editingId;
         editingId = null;
     }
-    
+
     if (!message) {
         setChatWidgetStatus('Message required.', true);
         return;
     }
-    
+
     try {
         if (editingId) {
             const result = await api('PUT', `/game/chat/edit/${editingId}`, { message });
@@ -10476,12 +10476,12 @@ async function sendChatMessage() {
             localStorage.removeItem('rpg_chat_editing_id');
             delete window._chatEditingId;
             if (input) input.value = '';
-            
+
             const idx = chatMessages.findIndex(m => m.id === Number(editingId));
             if (idx >= 0) {
                 chatMessages[idx] = { ...chatMessages[idx], message_text: message, edited: true };
             }
-            
+
             setChatWidgetStatus('Message edited.');
         } else {
             const result = await api('POST', '/game/chat/send', {
@@ -10550,7 +10550,7 @@ function gameLog(msg, type = 'info', duration = 3000) {
     const messageEl = document.createElement('div');
     messageEl.className = `game-message game-message--${type}`;
     messageEl.innerHTML = escHtml(msg); // Use escHtml to prevent XSS
-    
+
     // Prepend to show newest messages at top
     container.prepend(messageEl);
 
@@ -10672,14 +10672,14 @@ function clickElementById(id) {
 
 document.addEventListener('click', (event) => {
     const overlay = event.target;
-    
+
     // Handle banner menu click
     if (overlay.classList.contains('topbar-menu-info-value') && overlay.textContent?.includes('Banner')) {
         showTab('event');
         closeTopbarMenu();
         return;
     }
-    
+
     if (overlay instanceof HTMLElement) {
         const tooltip = document.getElementById('item-tooltip');
         const clickedTooltipTrigger =
@@ -10908,7 +10908,7 @@ function initBugReport() {
     if (btn) {
         btn.addEventListener('click', openBugReport);
     }
-    
+
     // Close modal when clicking outside
     const modal = document.getElementById('bug-report-modal');
     if (modal) {
@@ -10916,19 +10916,19 @@ function initBugReport() {
             if (e.target === modal) closeBugReport();
         });
     }
-    
+
     // Handle form submission
     const form = document.getElementById('bug-report-form');
     if (form) {
         form.addEventListener('submit', submitBugReport);
     }
-    
+
     // Handle file upload
     const fileInput = document.getElementById('screenshot-file');
     if (fileInput) {
         fileInput.addEventListener('change', handleScreenshotUpload);
     }
-    
+
     // Handle drag & drop
     const dropzone = document.getElementById('screenshot-dropzone');
     if (dropzone) {
@@ -10937,18 +10937,18 @@ function initBugReport() {
             dropzone.style.borderColor = '#9b59b6';
             dropzone.style.background = 'rgba(155, 89, 182, 0.1)';
         });
-        
+
         dropzone.addEventListener('dragleave', (e) => {
             e.preventDefault();
             dropzone.style.borderColor = 'var(--border)';
             dropzone.style.background = 'var(--bg3)';
         });
-        
+
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropzone.style.borderColor = 'var(--border)';
             dropzone.style.background = 'var(--bg3)';
-            
+
             const files = e.dataTransfer.files;
             if (files && files[0] && files[0].type.startsWith('image/')) {
                 handleFile(files[0]);
@@ -10971,7 +10971,7 @@ function openBugReport() {
         if (preview) preview.classList.add('hidden');
         const uploadArea = document.getElementById('screenshot-upload-area');
         if (uploadArea) uploadArea.classList.add('hidden');
-        
+
         // Auto-fill browser info
         const browserInput = document.getElementById('bug-browser');
         if (browserInput && !browserInput.value) {
@@ -10997,21 +10997,21 @@ async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.
             img.onload = () => {
                 let width = img.width;
                 let height = img.height;
-                
+
                 // Calculate new dimensions
                 if (width > maxWidth || height > maxHeight) {
                     const ratio = Math.min(maxWidth / width, maxHeight / height);
                     width = Math.floor(width * ratio);
                     height = Math.floor(height * ratio);
                 }
-                
+
                 // Create canvas and resize
                 const canvas = document.createElement('canvas');
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                
+
                 // Compress and convert to base64
                 const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
                 resolve(compressedDataUrl);
@@ -11196,18 +11196,18 @@ async function handleFile(file) {
         showBugReportStatus('Image too large! Maximum 5MB. Please choose a smaller image.', 'error');
         return;
     }
-    
+
     showBugReportStatus('Compressing image...', 'info');
-    
+
     try {
         // Compress and resize the image
         const compressedImage = await compressImage(file, 800, 800, 0.7);
         bugReportScreenshot = compressedImage;
-        
+
         // Show compressed size in preview
         const compressedSizeKB = Math.round(compressedImage.length / 1024);
         showScreenshotPreview(bugReportScreenshot, compressedSizeKB);
-        
+
         if (compressedSizeKB > 500) {
             showBugReportStatus(`Image compressed to ${compressedSizeKB}KB. This is still large but should work.`, 'info');
             setTimeout(() => {
@@ -11267,20 +11267,20 @@ function getBrowserInfo() {
 
 async function submitBugReport(event) {
     event.preventDefault();
-    
+
     const category = document.getElementById('bug-category').value;
     const title = document.getElementById('bug-title').value.trim();
     const description = document.getElementById('bug-description').value.trim();
     const steps = document.getElementById('bug-steps').value.trim();
     const browser = document.getElementById('bug-browser').value.trim();
-    
+
     if (!category || !title || !description) {
         showBugReportStatus('Please fill in all required fields.', 'error');
         return;
     }
-    
+
     showBugReportStatus('Submitting report...', 'info');
-    
+
     const report = {
         timestamp: new Date().toISOString(),
         user: {
@@ -11304,7 +11304,7 @@ async function submitBugReport(event) {
             level: character?.level || 0
         }
     };
-    
+
     try {
         const response = await fetch('/api/game/bug-report', {
             method: 'POST',
@@ -11313,9 +11313,9 @@ async function submitBugReport(event) {
             },
             body: JSON.stringify(report)
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             showBugReportStatus('✅ Report submitted successfully! Thank you for helping improve the game.', 'success');
             setTimeout(() => closeBugReport(), 2000);
@@ -11428,18 +11428,18 @@ async function convertMpToPotion() {
     }
 
     _convertingMp = true;
-    
+
     const btn = document.getElementById('convert-mp-btn');
-    
+
     if (btn) {
         btn.disabled = true;
         btn.style.opacity = '0.6';
         btn.innerHTML = '⏳ Converting...';
     }
-    
+
     try {
         const response = await api('POST', '/game/convert-mp-to-potion');
-        
+
         if (response.success) {
             character = response.character;
             renderTopBar();
@@ -11468,7 +11468,7 @@ async function convertMpToPotion() {
             btn.style.opacity = '1';
             btn.innerHTML = '💎✨ Convert MP';
         }
-        
+
         // Auto-hide status message after 3 seconds
         setTimeout(() => {
             const status = document.getElementById('convert-mp-status');
@@ -11586,7 +11586,7 @@ async function openUpgradeModal(inventoryId) {
         Object.entries(COMPONENT_UPGRADE_VALUES).forEach(([id, info]) => {
             const owned = ownedComponents[id] || 0;
             const canCraft = info.recipe && Object.entries(info.recipe).every(([mat, qty]) => (ownedRawMats[mat] || 0) >= qty) && (character?.gold || 0) >= (info.goldCost || 0);
-            
+
             // Build recipe string for hint
             let recipeInfo = '';
             if (info.recipe) {
@@ -11717,7 +11717,7 @@ function selectComponent(id, name, qty, el) {
             <div class="selected-comp-owned">You have ${qty} available</div>
         `;
     }
-    
+
     selectedInfo.classList.remove('hidden');
     requestAnimationFrame(() => {
         const confirmBtn = document.querySelector('#upgrade-modal .btn-confirm-upgrade');
@@ -11741,9 +11741,9 @@ async function confirmUpgrade() {
         confirmBtn.disabled = true;
         confirmBtn.textContent = 'Upgrading...';
     }
-    
+
     try {
-        const body = { 
+        const body = {
             componentId: selectedComponentId,
             expectedUpgradeLevel: currentUpgradeBaseLevel
         };
@@ -11757,7 +11757,7 @@ async function confirmUpgrade() {
             body.selectedStats = _crimsonSelectedStats;
         }
         const result = await api('POST', `/game/equipment/upgrade/${currentUpgradeItemId}`, body);
-        
+
         if (result.success) {
             let message = result.message;
             if (result.upgradedStats && result.upgradedStats.length > 0) {
@@ -11802,23 +11802,23 @@ function closeUpgradeModal() {
 async function openExchangeModal() {
     const modal = document.getElementById('exchange-modal');
     const content = document.getElementById('exchange-content');
-    
+
     modal.classList.remove('hidden');
     content.innerHTML = '<p class="loading">Loading exchanges...</p>';
-    
+
     try {
         const data = await api('GET', '/exchange/fragments/list');
-        
+
         let html = `
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px;">
                 <div style="font-size: 1.2rem; font-weight: bold; color: #f1c40f;">⭐ Legendary Fragments: ${data.fragmentCount}</div>
                 <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials</div>
             </div>
         `;
-        
+
         const rarityNames = { 1: 'Common', 2: 'Uncommon', 3: 'Rare', 4: 'Epic', 5: 'Legendary' };
         const rarityColors = { 1: '#95a5a6', 2: '#2ecc71', 3: '#3498db', 4: '#9b59b6', 5: '#f1c40f' };
-        
+
         for (const [rarity, materials] of Object.entries(data.exchanges)) {
             html += `
                 <div style="margin-top: 16px;">
@@ -11827,7 +11827,7 @@ async function openExchangeModal() {
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;">
             `;
-            
+
             for (const mat of materials) {
                 html += `
                     <div style="padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
@@ -11844,10 +11844,10 @@ async function openExchangeModal() {
                     </div>
                 `;
             }
-            
+
             html += `</div></div>`;
         }
-        
+
         content.innerHTML = html;
     } catch (e) {
         content.innerHTML = `<p class="error">${e.message}</p>`;
@@ -11941,16 +11941,16 @@ window.showShopItemTooltip = showShopItemTooltip;
 function renderAbyssMap() {
     const layer = document.getElementById('map-nodes-layer');
     if (!layer || !abyssData) return;
-    
+
     const currentZone = character?.location || 'shadowfen';
     const playerLevel = character?.level || 1;
     const drawnPairs = new Set();
     const zones = abyssData.zones;
     const routes = abyssData.routes;
-    
+
     // Draw connections between Abyss zones
     let svgLines = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
-    
+
     for (const [fromId, neighbors] of Object.entries(routes)) {
         for (const toId of Object.keys(neighbors)) {
             const key = [fromId, toId].sort().join('-');
@@ -11965,7 +11965,7 @@ function renderAbyssMap() {
         }
     }
     svgLines += '</svg>';
-    
+
     // Render Abyss zones
     const pinsHtml = Object.entries(zones).map(([zoneId, zone]) => {
         const isUnlocked = unlockedAbyssZones.has(zoneId) || currentZone === zoneId;
@@ -11974,7 +11974,7 @@ function renderAbyssMap() {
         const pinStyle = `position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked ? 'opacity:0.82' : ''}`;
         const badge = isCurrent ? '📍' : isTraveling ? '🚶' : !isUnlocked ? '⚔️' : '';
         const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : !isUnlocked ? 'rgba(231,76,60,0.7)' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? ';filter:saturate(0.85);box-shadow:0 0 0 2px rgba(231,76,60,0.2)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
-        
+
         return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
             <div style="position:relative;display:inline-block">
                 ${badge ? `<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>` : ''}
@@ -11984,7 +11984,7 @@ function renderAbyssMap() {
             <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? 'HERE' : '') : 'Gatekeeper'}</div>
         </div>`;
     }).join('');
-    
+
     // Add exit to Dark City as a zone-style circle (only from Shadowfen)
     const showExit = currentZone === 'shadowfen';
     const exitButton = showExit ? `
@@ -11995,11 +11995,11 @@ function renderAbyssMap() {
             </div>
         </div>
     ` : '';
-    
+
     // Swap map background to abyss-map
     const bgImg = document.getElementById('world-map-bg');
     if (bgImg) bgImg.src = '/images/abyss-map.jpg';
-    
+
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
 
@@ -12008,14 +12008,14 @@ async function showProfilePicSelector() {
         const data = await api('GET', '/game/profile-pics');
         const existing = document.getElementById('profile-pic-modal');
         if (existing) existing.remove();
-        
+
         const modal = document.createElement('div');
         modal.id = 'profile-pic-modal';
         modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-overflow-scrolling:touch;';
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-        
+
         const currentPic = character.profile_pic || `${character.class}.png`;
-        
+
         const optionsHtml = data.available.map(pic => {
             const isSelected = pic.id === currentPic;
             const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
@@ -12025,7 +12025,7 @@ async function showProfilePicSelector() {
                 ${isSelected ? '<div style="font-size:10px;color:#f1c40f;">✓ Selected</div>' : ''}
             </div>`;
         }).join('');
-        
+
         modal.innerHTML = `
             <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
                 <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
@@ -12033,7 +12033,7 @@ async function showProfilePicSelector() {
                 <button class="btn-primary" id="profile-pic-close-btn">Close</button>
             </div>
         `;
-        
+
         modal.querySelector('#profile-pic-close-btn').addEventListener('click', () => modal.remove());
         modal.querySelector('#profile-pic-options').addEventListener('click', async (e) => {
             const option = e.target.closest('.profile-pic-option');
@@ -12042,7 +12042,7 @@ async function showProfilePicSelector() {
             await setProfilePic(picId);
             modal.remove();
         });
-        
+
         document.body.appendChild(modal);
     } catch (e) {
         showMsg('inv-msg', e.message, true);
@@ -12060,7 +12060,9 @@ async function setProfilePic(picId) {
     }
 }
 
-// ── Service Worker Registration ──────────────────────────────────────────
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(function(){});
-}
+// ── Service Worker Registration (delayed — let loading screen render first) ──
+window.addEventListener('load', function() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+});
