@@ -91,6 +91,12 @@ async function ensureFlaggedTable(db) {
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_count INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN distinct_signals INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_types TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
+    // Flag events log table
+    try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS flag_events (id INTEGER PRIMARY KEY AUTOINCREMENT, char_name TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', signal_type TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
+}
+
+async function logFlagEvent(db, charName, reason, signalType) {
+    try { await db.execute({ sql: `INSERT INTO flag_events (char_name, reason, signal_type, created_at) VALUES (?,?,?,?)`, args: [charName, String(reason).slice(0, 500), String(signalType).slice(0, 100), Math.floor(Date.now()/1000)] }); } catch {}
 }
 
 router.use(async (req, res, next) => {
@@ -13619,11 +13625,13 @@ async function persistBotFlags(db, botPlayers) {
                     sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
                     args: [reason, types.join(','), types.length, now, bp]
                 });
+                await logFlagEvent(db, bp, reason, reasonType);
             } else {
                 await db.execute({
                     sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
                     args: [bp, reason, now, now, reasonType]
                 });
+                await logFlagEvent(db, bp, reason, reasonType);
             }
         }
         const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
@@ -13728,6 +13736,7 @@ router.post('/admin/flag-character', auth, async (req, res) => {
                 args: [char_name, reason || 'Manual flag', now, now, reasonType]
             });
         }
+        await logFlagEvent(db, char_name, reason || 'Manual flag', reasonType);
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -13804,11 +13813,13 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {
                     sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
                     args: [String(detail).slice(0, 300), types.join(','), types.length, now, charName]
                 });
+                await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
             } else {
                 await db.execute({
                     sql: 'INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
                     args: [charName, String(detail).slice(0, 300), now, now, reasonType]
                 });
+                await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
             }
         }
         res.json({ success: true });
@@ -13829,6 +13840,16 @@ router.get('/admin/stale-clients', auth, async (req, res) => {
     try {
         const db = await getDb();
         const result = await db.execute({ sql: 'SELECT * FROM stale_clients ORDER BY id DESC LIMIT 200', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Individual flag events for a character
+router.get('/admin/flagged-events/:charName', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM flag_events WHERE char_name=? ORDER BY id DESC LIMIT 100', args: [req.params.charName] });
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
