@@ -682,6 +682,8 @@ const WEEKLY_TASKS = [
         } catch {}
         try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN user_id INTEGER DEFAULT NULL", args: [] }); } catch {}
         try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN character_name TEXT DEFAULT NULL", args: [] }); } catch {}
+        // DOM mutation reports table
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dom_mutations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', char_id INTEGER DEFAULT 0, mutation_type TEXT DEFAULT '', target_info TEXT DEFAULT '', detail TEXT DEFAULT '', url TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
         try {
             const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
             const charSql = charTable?.sql || '';
@@ -9844,10 +9846,12 @@ router.post('/squads/bases/:baseId/pay-upkeep', auth, async (req, res) => {
         const treasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [membership.squad_id]);
         if (Number(treasury?.gold || 0) < upkeepCost) return res.status(400).json({ error: `Treasury needs ${upkeepCost} gold for upkeep.` });
         const now = Math.floor(Date.now() / 1000);
+        // Snap to 00:00 UTC today so expiry always aligns to midnight
+        const paidAt = Math.floor(now / 86400) * 86400;
         await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [upkeepCost, membership.squad_id]);
         await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=? WHERE squad_id=? AND base_id=?',
-            [now, char.id, membership.squad_id, baseId]);
-        res.json({ success: true, upkeep_paid: upkeepCost, valid_until: now + 86400 });
+            [paidAt, char.id, membership.squad_id, baseId]);
+        res.json({ success: true, upkeep_paid: upkeepCost, valid_until: paidAt + 86400 });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -9889,6 +9893,7 @@ router.get('/squads/base-info', auth, async (req, res) => {
                 upkeep_cost: calcBaseUpkeep(ownedBase.tier, Number(ownedBase.upgrade_level || 0), totalLevel),
                 upgrade_cost: calcBaseUpgradeCost(ownedBase.tier, Number(ownedBase.upgrade_level || 0)),
                 last_upkeep_paid: Number(ownedBase.last_upkeep_paid || 0),
+                // Expires at next 00:00 UTC (one day from last paid)
                 discount_expires_at: Number(ownedBase.last_upkeep_paid || 0) > 0 ? (Number(ownedBase.last_upkeep_paid) + 86400) * 1000 : 0,
             }
         });
@@ -13675,6 +13680,33 @@ router.get('/admin/csp-violations', auth, async (req, res) => {
     try {
         const db = await getDb();
         const result = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── DOM Mutation Reporting ────────────────────────────────────────────────
+
+router.post('/admin/report-dom-mutation', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        const charName = char?.name || '';
+        const charId = char?.id || 0;
+        const { mutation_type = '', target_info = '', detail = '' } = req.body;
+        const now = Math.floor(Date.now() / 1000);
+        await db.execute({
+            sql: `INSERT INTO dom_mutations (user_id, char_name, char_id, mutation_type, target_info, detail, url, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+            args: [req.user.userId, charName, charId, String(mutation_type).slice(0, 50), String(target_info).slice(0, 500), String(detail).slice(0, 2000), String(req.headers.referer || req.headers.origin || '').slice(0, 500), now]
+        });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/dom-mutations', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM dom_mutations ORDER BY id DESC LIMIT 200', args: [] });
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -18989,15 +19021,17 @@ async function autoProcessUpkeep(db) {
         for (const base of ownedBases) {
             try {
                 const lastPaid = Number(base.last_upkeep_paid || 0);
-                if (lastPaid > 0 && (now - lastPaid) < day) continue; // Already paid within 24h
+                if (lastPaid > 0 && (now - lastPaid) < day) continue;
                 const totalLevel = await getSquadTotalLevel(db, base.owner_squad_id);
                 const cost = calcBaseUpkeep(base.tier, Number(base.upgrade_level || 0), totalLevel);
                 if (cost <= 0) continue;
                 const treasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [base.owner_squad_id]);
                 const gold = Number(treasury?.gold || 0);
-                if (gold < cost) continue; // Not enough gold — skip until next tick
+                if (gold < cost) continue;
                 await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [cost, base.owner_squad_id]);
-                await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=NULL WHERE squad_id=? AND base_id=?', [now, base.squad_id, base.base_id]);
+                // Snap to 00:00 UTC
+                const paidAt = Math.floor(now / 86400) * 86400;
+                await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=NULL WHERE squad_id=? AND base_id=?', [paidAt, base.squad_id, base.base_id]);
             } catch (e) { console.error(`[Upkeep] base ${base.id}:`, e.message); }
         }
     } catch (e) { console.error('[Upkeep] tick error:', e.message); }
