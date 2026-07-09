@@ -184,6 +184,15 @@ if (navigator.serviceWorker) {
         pRaf = requestAnimationFrame(drawParticles);
     }
 
+    // ── Progress bar ────────────────────────────────────────────────────────
+    function setLoadingProgress(pct, text) {
+        var fill = document.getElementById('loading-bar-fill');
+        var status = document.getElementById('loading-status');
+        if (fill) fill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+        if (status && text) status.textContent = text;
+    }
+    window._setLoadingProgress = setLoadingProgress;
+
     // ── Cleanup on load ────────────────────────────────────────────────────
     function dismissOverlay() {
         var ov  = document.getElementById('loading-overlay');
@@ -195,7 +204,7 @@ if (navigator.serviceWorker) {
         }
     }
 
-    // Expose so init code can call it after first render + images load
+    // Expose so init code can call it after first render
     window._dismissOverlay = dismissOverlay;
 })();
 // ── State ─────────────────────────────────────────────────────────────────
@@ -1401,6 +1410,7 @@ async function selectCharacter(characterId) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+    window._setLoadingProgress(0, 'Initializing...');
     bindLegacyInlineHandlers(document);
     legacyHandlerObserver.observe(document.body, { childList: true, subtree: true });
     const characterHubTrigger = document.getElementById('character-hub-trigger');
@@ -1460,14 +1470,29 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     updateHubUpgradeButtonVisibility();
     initMissionTimer();
+    window._setLoadingProgress(10, 'Connecting to server...');
     if (token) {
         try {
+            window._setLoadingProgress(30, 'Loading character data...');
             const [charData] = await Promise.all([
                 api('GET','/game/character'),
                 loadCharacterRoster()
             ]);
             character = charData;
+            window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
+            // Register SW in background — never blocks, only caches static assets
+            window._setLoadingProgress(80, 'Finalizing...');
+            if ('serviceWorker' in navigator) {
+                var reg = navigator.serviceWorker.register('/sw.js').then(function(r) {
+                    window._setLoadingProgress(95, 'Ready');
+                }).catch(function() {
+                    window._setLoadingProgress(95, 'Ready');
+                });
+            } else {
+                window._setLoadingProgress(95, 'Ready');
+            }
+            window._setLoadingProgress(100, '');
             if (window._dismissOverlay) window._dismissOverlay();
         }
         catch (e) {
