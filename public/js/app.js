@@ -7966,7 +7966,8 @@ function renderClanContent() {
 }
 
 function renderUpkeepStatus(base) {
-    if (!base || base.upgrade_level <= 0) return '';
+    if (!base) return '';
+    if (base.upgrade_level <= 0) return '<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)"><div class="squads-meta">Daily Upkeep: No upgrades yet — no upkeep required.</div></div>';
     var expiresAt = base.discount_expires_at || 0;
     return '<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">' +
         '<div class="squads-meta">Daily Upkeep: 💰 ' + base.upkeep_cost.toLocaleString() + ' gold' +
@@ -7979,7 +7980,7 @@ function renderUpkeepStatus(base) {
 
 function _formatUpkeepTime(expiresAt, discountPct) {
     var now = Date.now();
-    var active = expiresAt > now && discountPct > 0;
+    var active = expiresAt > 0 && expiresAt > now && discountPct > 0;
     var remaining = active ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
     var h = Math.floor(remaining / 3600);
     var m = Math.floor((remaining % 3600) / 60);
