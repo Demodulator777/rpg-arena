@@ -1,9 +1,5 @@
-// ── Service worker kill switch (unregister any stale SW so next load isn't blocked) ──
-if (navigator.serviceWorker) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(r) { r.unregister(); });
-    });
-}
+// ── Service Worker — static asset cache (stale-while-revalidate) ──
+// Registered in init below after game loads
 
 // ── Loading Overlay ───────────────────────────────────────────────────────
 (function(){
@@ -7791,6 +7787,7 @@ async function loadSquads() {
 }
 
 function renderSquads() {
+    _startUpkeepTicker();
     const el = document.getElementById('squads-content');
     if (!el) return;
     const me = squadsData?.me || {};
@@ -7928,6 +7925,7 @@ function renderClanContent() {
             <div><div class="squads-title">🏰 ${escHtml(base.name)}</div>
             <div class="squads-meta">${tierNames[base.tier] || base.tier} · Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}</div>
         </div></div>
+        ${renderUpkeepStatus(base)}
         ${base.upgrade_cost ? `<div class="squads-members" style="padding:8px 12px">
             <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
             <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
@@ -7966,6 +7964,43 @@ function renderClanContent() {
 
     return mapHtml + baseHtml + treasuryHtml + warHtml + startWarBtn;
 }
+
+function renderUpkeepStatus(base) {
+    if (!base || base.upgrade_level <= 0) return '';
+    var expiresAt = base.discount_expires_at || 0;
+    return '<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">' +
+        '<div class="squads-meta">Daily Upkeep: 💰 ' + base.upkeep_cost.toLocaleString() + ' gold' +
+        ' · <span class="upkeep-timer" data-expires="' + expiresAt + '" data-discount="' + (base.discount_pct || 0) + '">' +
+        _formatUpkeepTime(expiresAt, base.discount_pct) +
+        '</span></div>' +
+        '<div class="squads-meta" style="font-size:0.65rem;opacity:0.6">Upkeep deducted from treasury daily at 00:00 UTC. Stat discount requires active upkeep.</div>' +
+    '</div>';
+}
+
+function _formatUpkeepTime(expiresAt, discountPct) {
+    var now = Date.now();
+    var active = expiresAt > now && discountPct > 0;
+    var remaining = active ? Math.max(0, Math.floor((expiresAt - now) / 1000)) : 0;
+    var h = Math.floor(remaining / 3600);
+    var m = Math.floor((remaining % 3600) / 60);
+    var s = remaining % 60;
+    var timeStr = active ? h + 'h ' + m + 'm ' + s + 's' : 'Expired';
+    return '<span style="color:' + (active ? '#2ecc71' : '#e74c3c') + '">' +
+        (active ? '✅ Active (' + timeStr + ' remaining)' : '❌ ' + timeStr) + '</span>';
+}
+
+// Live upkeep countdown ticker
+var _upkeepTick = null;
+function _startUpkeepTicker() {
+    if (_upkeepTick) return;
+    _upkeepTick = setInterval(function() {
+        document.querySelectorAll('.upkeep-timer').forEach(function(el) {
+        var expiresAt = Number(el.dataset.expires || 0);
+        var discount = Number(el.dataset.discount || 0);
+        el.innerHTML = _formatUpkeepTime(expiresAt, discount);
+        });
+    }, 1000);
+} function _stopUpkeepTicker() { if (_upkeepTick) { clearInterval(_upkeepTick); _upkeepTick = null; } }
 
 async function showClanBaseDetail(baseId) {
     const tierNames = { main: '🏰 Main', large: '🏯 Large', medium: '🏘️ Medium', small: '🛖 Small' };
