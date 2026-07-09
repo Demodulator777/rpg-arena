@@ -586,6 +586,21 @@ async function api(method, path, body=null) {
     if (window.tabSession) opts.headers['X-Tab-Session'] = window.tabSession;
     if (body) opts.body = JSON.stringify(body);
 
+    // Trusted-event check: flag state-changing calls without recent user interaction
+    if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && path.indexOf('/auth/') === -1) {
+        var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
+        if (msSinceEvent > 500) {
+            var token2 = localStorage.getItem('rpg_token');
+            if (token2) {
+                fetch('/api/game/admin/report-dom-mutation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token2 },
+                    body: JSON.stringify({ mutation_type: 'untrusted_api', target_info: path.slice(0, 100), detail: method + ' ' + path + ' (' + msSinceEvent + 'ms since last trusted event)' })
+                }).catch(function(){});
+            }
+        }
+    }
+
     try {
         const res = await fetch(fullUrl, opts);
         const text = await res.text();
@@ -1620,6 +1635,19 @@ document.addEventListener('securitypolicyviolation', (e) => {
             }
         });
     }
+})();
+
+// ── Trusted Event Tracker (detect bot-driven API calls) ───────────────────
+// Tracks the last trusted user interaction. If a state-changing API call
+// happens without a recent trusted event, it's likely script-driven.
+(function(){
+    window.__lastTrustedEvent = Date.now();
+    function onTrusted(e) {
+        if (e.isTrusted) window.__lastTrustedEvent = Date.now();
+    }
+    document.addEventListener('click', onTrusted, true);
+    document.addEventListener('keydown', onTrusted, true);
+    document.addEventListener('touchstart', onTrusted, true);
 })();
 
 // ── Auth ──────────────────────────────────────────────────────────────────
