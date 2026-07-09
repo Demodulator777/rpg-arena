@@ -1481,16 +1481,22 @@ window.addEventListener('DOMContentLoaded', async () => {
             character = charData;
             window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
-            // Register SW in background — never blocks, only caches static assets
-            window._setLoadingProgress(80, 'Finalizing...');
+            // Fire SW registration in background (never blocks)
             if ('serviceWorker' in navigator) {
-                var reg = navigator.serviceWorker.register('/sw.js').then(function(r) {
-                    window._setLoadingProgress(95, 'Ready');
-                }).catch(function() {
-                    window._setLoadingProgress(95, 'Ready');
-                });
-            } else {
-                window._setLoadingProgress(95, 'Ready');
+                navigator.serviceWorker.register('/sw.js').catch(function(){});
+            }
+            // Wait for rendered images to be decoded before dismissing
+            window._setLoadingProgress(70, 'Loading assets...');
+            var appEl = document.getElementById('app');
+            if (appEl) {
+                var imgs = Array.from(appEl.querySelectorAll('img'));
+                var pending = imgs.filter(function(im) { return !im.complete; });
+                if (pending.length > 0) {
+                    await Promise.race([
+                        Promise.all(pending.map(function(im) { return im.decode().catch(function(){}); })),
+                        new Promise(function(r) { setTimeout(r, 5000); })
+                    ]);
+                }
             }
             window._setLoadingProgress(100, '');
             if (window._dismissOverlay) window._dismissOverlay();
