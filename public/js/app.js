@@ -1496,9 +1496,9 @@ window.addEventListener('DOMContentLoaded', async () => {
                     });
                 }));
             }
-            // Fire SW registration in background
+            // Fire SW registration in background (if enabled)
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(function(){});
+                fetch('/api/game/sw-status').then(function(r){ return r.json(); }).then(function(s){ if (s.enabled) navigator.serviceWorker.register('/sw.js').catch(function(){}); }).catch(function(){});
             }
             window._setLoadingProgress(100, '');
             if (window._dismissOverlay) window._dismissOverlay();
