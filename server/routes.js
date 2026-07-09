@@ -684,6 +684,10 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN character_name TEXT DEFAULT NULL", args: [] }); } catch {}
         // DOM mutation reports table
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dom_mutations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', char_id INTEGER DEFAULT 0, mutation_type TEXT DEFAULT '', target_info TEXT DEFAULT '', detail TEXT DEFAULT '', url TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
+        // Server settings table (key-value)
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS server_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`, args: [] }); } catch {}
+        // Default SW enabled
+        try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('sw_enabled', '1')`, args: [] }); } catch {}
         try {
             const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
             const charSql = charTable?.sql || '';
@@ -13681,6 +13685,36 @@ router.get('/admin/csp-violations', auth, async (req, res) => {
         const db = await getDb();
         const result = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200', args: [] });
         res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Service Worker Admin Toggle ────────────────────────────────────────────
+
+// Public endpoint (no auth) so client can check before SW registration
+router.get('/sw-status', async (req, res) => {
+    try {
+        const db = await getDb();
+        const row = await dbGet(db, "SELECT value FROM server_settings WHERE key='sw_enabled'");
+        res.json({ enabled: row?.value === '1' });
+    } catch (e) { res.json({ enabled: true }); }
+});
+
+router.get('/admin/sw-status', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const row = await dbGet(db, "SELECT value FROM server_settings WHERE key='sw_enabled'");
+        res.json({ enabled: row?.value === '1' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/sw-toggle', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const { enabled } = req.body;
+        await db.execute({ sql: "UPDATE server_settings SET value=? WHERE key='sw_enabled'", args: [enabled ? '1' : '0'] });
+        res.json({ success: true, enabled: !!enabled });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
