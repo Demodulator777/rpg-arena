@@ -1468,11 +1468,6 @@ window.addEventListener('DOMContentLoaded', async () => {
             ]);
             character = charData;
             showScreen('game');
-            // Wait for all rendered images to load before dismissing overlay
-            await Promise.all(Array.from(document.querySelectorAll('#app img')).map(function(im) {
-                if (im.complete) return Promise.resolve();
-                return new Promise(function(resolve) { im.addEventListener('load', resolve, { once: true }); im.addEventListener('error', resolve, { once: true }); });
-            }));
             if (window._dismissOverlay) window._dismissOverlay();
         }
         catch (e) {
@@ -12070,9 +12065,5 @@ async function setProfilePic(picId) {
     }
 }
 
-// ── Service Worker Registration (delayed — let loading screen render first) ──
-window.addEventListener('load', function() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js').catch(function(){});
-    }
-});
+// ── Service Worker — disabled (caused navigation blocking + stale cache issues) ──
+// Registration moved to sw-register.js if needed later
