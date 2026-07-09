@@ -590,7 +590,7 @@ async function api(method, path, body=null) {
     // Trusted-event check: flag state-changing calls without recent user interaction
     if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && path.indexOf('/auth/') === -1) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
-        if (msSinceEvent > 500) {
+        if (msSinceEvent > 3000) {
             var token2 = localStorage.getItem('rpg_token');
             if (token2) {
                 fetch('/api/game/admin/report-dom-mutation', {
