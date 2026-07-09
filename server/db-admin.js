@@ -32,16 +32,30 @@ router.get('/tables', auth, requireAdmin, async (req, res) => {
 router.post('/query', auth, requireAdmin, async (req, res) => {
     try {
         const db = await getDb();
-        const { table, page = 1 } = req.body;
+        const { table, page = 1, filter = '' } = req.body;
         if (!table) return res.status(400).json({ error: 'Table required' });
         
         const safeTable = table.replace(/[^a-zA-Z0-9_]/g, '');
         const limit = 50;
         const offset = (Number(page) - 1) * limit;
         
-        const countRes = await db.execute(`SELECT COUNT(*) as total FROM "${safeTable}"`);
+        let whereSql = '';
+        const args = [];
+        if (filter.trim()) {
+            const kw = '%' + filter.trim() + '%';
+            const nameCols = ['name','char_name','sender_name','receiver_name','attacker_name','defender_name','winner_name','character_name','username','monster_name','item_name','title','description','body','message','action','type','class','role'];
+            const tableInfo = await db.execute({ sql: `PRAGMA table_info("${safeTable}")`, args: [] });
+            const existingCols = new Set(tableInfo.rows.map(r => r.name));
+            const validCols = nameCols.filter(c => existingCols.has(c));
+            if (validCols.length > 0) {
+                whereSql = ' WHERE ' + validCols.map(c => `"${c}" LIKE ?`).join(' OR ');
+                for (var i = 0; i < validCols.length; i++) args.push(kw);
+            }
+        }
+        
+        const countRes = await db.execute({ sql: `SELECT COUNT(*) as total FROM "${safeTable}"${whereSql}`, args });
         const total = countRes.rows[0].total;
-        const result = await db.execute(`SELECT * FROM "${safeTable}" LIMIT ${limit} OFFSET ${offset}`);
+        const result = await db.execute({ sql: `SELECT * FROM "${safeTable}"${whereSql} LIMIT ? OFFSET ?`, args: args.concat([limit, offset]) });
         
         res.json({ rows: result.rows, total, page: Number(page), limit });
     } catch (e) {
