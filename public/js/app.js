@@ -1481,22 +1481,31 @@ window.addEventListener('DOMContentLoaded', async () => {
             character = charData;
             window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
-            // Fire SW registration in background (never blocks)
+            // Fetch asset manifest and preload every file from /public
+            var manifest = [];
+            try {
+                var res = await fetch('/api/asset-manifest');
+                manifest = await res.json();
+            } catch(e) { manifest = []; }
+            var total = manifest.length;
+            var loaded = 0;
+            window._setLoadingProgress(65, 'Loading assets (0/' + total + ')...');
+            var batchSize = 8;
+            for (var i = 0; i < total; i += batchSize) {
+                var batch = manifest.slice(i, i + batchSize);
+                await Promise.all(batch.map(function(url) {
+                    return fetch(url).then(function() {
+                        loaded++;
+                        var pct = 65 + Math.floor((loaded / total) * 30);
+                        window._setLoadingProgress(pct, 'Loading assets (' + loaded + '/' + total + ')...');
+                    }).catch(function() {
+                        loaded++;
+                    });
+                }));
+            }
+            // Fire SW registration in background
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').catch(function(){});
-            }
-            // Wait for rendered images to be decoded before dismissing
-            window._setLoadingProgress(70, 'Loading assets...');
-            var appEl = document.getElementById('app');
-            if (appEl) {
-                var imgs = Array.from(appEl.querySelectorAll('img'));
-                var pending = imgs.filter(function(im) { return !im.complete; });
-                if (pending.length > 0) {
-                    await Promise.race([
-                        Promise.all(pending.map(function(im) { return im.decode().catch(function(){}); })),
-                        new Promise(function(r) { setTimeout(r, 5000); })
-                    ]);
-                }
             }
             window._setLoadingProgress(100, '');
             if (window._dismissOverlay) window._dismissOverlay();
@@ -1732,7 +1741,9 @@ function showScreen(name) {
         window.scrollTo(0, 0);
         renderTopBar();
         startPolling();
-        checkTravelStatus().then(() => {
+        renderChatWidget();
+        syncChatPolling();
+        return checkTravelStatus().then(() => {
             showTab(playerTravelTarget ? 'missions' : 'character');
             if (playerTravelTarget) showTravelOverlay();
         }).catch(() => {});
