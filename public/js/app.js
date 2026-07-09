@@ -588,7 +588,9 @@ async function api(method, path, body=null) {
     if (body) opts.body = JSON.stringify(body);
 
     // Trusted-event check: flag state-changing calls without recent user interaction
-    if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && path.indexOf('/auth/') === -1) {
+    if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && 
+        path.indexOf('/auth/') === -1 && 
+        path.indexOf('/missions/tab-viewed') === -1) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
             var token2 = localStorage.getItem('rpg_token');
