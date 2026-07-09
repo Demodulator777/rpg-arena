@@ -583,6 +583,7 @@ async function api(method, path, body=null) {
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     const storedToken = localStorage.getItem('rpg_token');
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
+    opts.headers['X-Build-Version'] = '2026-07-09-v1';
     if (window.tabSession) opts.headers['X-Tab-Session'] = window.tabSession;
     if (body) opts.body = JSON.stringify(body);
 
