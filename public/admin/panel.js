@@ -991,10 +991,12 @@ var _consoleSince = null;
 
 function loadConsole() {
     var el = document.getElementById('tab-console');
-    el.innerHTML = '<div style="margin-bottom:8px;display:flex;gap:8px;align-items:center">' +
+    el.innerHTML = '<div style="margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
         '<button class="db-btn" id="console-clear">Clear</button>' +
         '<button class="db-btn" id="console-refresh">Refresh Now</button>' +
         '<span style="color:#6a6a70;font-size:12px">Auto-refreshing every 3s</span>' +
+        '<span style="flex:1"></span>' +
+        '<span id="sw-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">SW: <span id="sw-status-text">...</span> <button class="db-btn" id="sw-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
         '</div>' +
         '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">Waiting for logs...</div>';
 
@@ -1016,6 +1018,24 @@ function loadConsole() {
         out.textContent = 'Refreshing...';
         if (_consoleTimer) clearTimeout(_consoleTimer);
         pollConsole();
+    });
+
+    // SW status toggle
+    var swText = document.getElementById('sw-status-text');
+    var swBtn = document.getElementById('sw-toggle-btn');
+    var tok = function() { return localStorage.getItem('rpg_token'); };
+    function refreshSwStatus() {
+        fetch('/api/game/admin/sw-status', { headers: { 'Authorization': 'Bearer ' + tok() } }).then(function(r) { return r.json(); }).then(function(s) {
+            swText.textContent = s.enabled ? '✅ ON' : '❌ OFF';
+            swText.style.color = s.enabled ? '#50c878' : '#e06060';
+        }).catch(function() { swText.textContent = '?'; });
+    }
+    refreshSwStatus();
+    swBtn.addEventListener('click', function() {
+        var currentlyOn = swText.textContent.indexOf('ON') !== -1;
+        fetch('/api/game/admin/sw-toggle', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function(r) { return r.json(); }).then(function(r) {
+            refreshSwStatus();
+        }).catch(function(e) { alert(e.message); });
     });
 }
 
