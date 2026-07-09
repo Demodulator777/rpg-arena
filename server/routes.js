@@ -13689,7 +13689,7 @@ router.get('/admin/csp-violations', auth, async (req, res) => {
 router.post('/admin/report-dom-mutation', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
         const charName = char?.name || '';
         const charId = char?.id || 0;
         const { mutation_type = '', target_info = '', detail = '' } = req.body;
