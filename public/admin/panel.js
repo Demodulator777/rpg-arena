@@ -30,6 +30,7 @@ function renderLayout() {
     var tabs = [
         { id: 'csp', label: 'CSP Violations' },
         { id: 'dom', label: 'DOM Mutations' },
+        { id: 'stale', label: 'Stale Clients' },
         { id: 'bugs', label: 'Bug Reports' },
         { id: 'actions', label: 'Action Log' },
         { id: 'flagged', label: 'Flagged' },
@@ -69,6 +70,7 @@ function renderLayout() {
 function loadTab(name) {
     if (name === 'csp') loadCsp();
     else if (name === 'dom') loadDom();
+    else if (name === 'stale') loadStale();
     else if (name === 'bugs') loadBugs();
     else if (name === 'banners') loadBanners();
     else if (name === 'rewards') loadRewards();
@@ -410,6 +412,32 @@ function loadDom() {
                 '<td style="font-size:11px;word-break:break-all;max-width:150px">' + (v.target_info || '') + '</td>' +
                 '<td style="font-size:11px;word-break:break-all;max-width:250px"><span title="' + detail.replace(/"/g,'&quot;') + '">' + snippet + '</span></td>' +
                 '<td style="font-size:11px;word-break:break-all;max-width:120px">' + (v.url || '') + '</td>' +
+            '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
+}
+
+// ── Stale Clients Tab ──────────────────────────────────────────────────────
+
+function loadStale() {
+    var el = document.getElementById('tab-stale');
+    API('/admin/stale-clients').then(function(data) {
+        if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No stale clients reported</p>'; return; }
+        el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+            '<th>#</th>' +
+            '<th>Time</th>' +
+            '<th>User</th>' +
+            '<th>Character</th>' +
+            '<th>Version</th>' +
+            '<th>Path</th>' +
+        '</tr></thead><tbody>' + data.map(function(v) {
+            return '<tr>' +
+                '<td style="color:#6a6a70">' + v.id + '</td>' +
+                '<td style="white-space:nowrap">' + (v.created_at ? new Date(v.created_at * 1000).toLocaleString() : '') + '</td>' +
+                '<td style="color:#6a6a70">' + (v.user_id || '') + '</td>' +
+                '<td>' + (v.char_name || '<span style="color:#4a4a50">—</span>') + '</td>' +
+                '<td><code style="background:#2a2a30;padding:1px 6px;border-radius:3px">' + (v.version || '') + '</code></td>' +
+                '<td style="font-size:11px;word-break:break-all;max-width:250px">' + (v.path || '') + '</td>' +
             '</tr>';
         }).join('') + '</tbody></table></div>';
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
@@ -1095,6 +1123,8 @@ function loadFlagged() {
             var html = '<div class="table-wrap"><table><thead><tr>' +
                 '<th>Name</th>' +
                 '<th>Reason</th>' +
+                '<th title="Total flag events">Flags</th>' +
+                '<th title="Distinct signal types">Signals</th>' +
                 '<th>Detected</th>' +
                 '<th>Last Seen</th>' +
                 '<th>Confirmed</th></tr></thead><tbody>';
@@ -1103,9 +1133,14 @@ function loadFlagged() {
                 var det = r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '?';
                 var seen = r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '?';
                 var confirmed = r.confirmed ? '<span class="badge badge-yes">Yes</span>' : '<span class="badge badge-no">No</span>';
+                var signalBadge = (r.distinct_signals || 0) > 1
+                    ? '<span style="color:#e06060;font-weight:700">' + (r.distinct_signals || 0) + '</span>'
+                    : '<span style="color:#6a6a70">' + (r.distinct_signals || 0) + '</span>';
                 html += '<tr>' +
                     '<td><a href="#" class="flag-name-link" data-name="' + esc(r.char_name) + '" style="color:#e06060;font-weight:700;text-decoration:none">' + esc(r.char_name) + '</a></td>' +
-                    '<td style="color:#8a8a90;font-size:11px">' + esc(r.reason || '') + '</td>' +
+                    '<td style="color:#8a8a90;font-size:11px" title="Types: ' + esc(r.signal_types || '') + '">' + esc(r.reason || '') + '</td>' +
+                    '<td style="text-align:center;font-size:12px">' + (r.signal_count || 0) + '</td>' +
+                    '<td style="text-align:center;font-size:12px">' + signalBadge + '</td>' +
                     '<td style="font-size:11px">' + det + '</td>' +
                     '<td style="font-size:11px">' + seen + '</td>' +
                     '<td>' + confirmed + '</td></tr>';
