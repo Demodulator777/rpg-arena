@@ -5950,6 +5950,13 @@ function calcBaseDamage(char, equippedItems) {
     const totalStrength = (char.strength || 1) + (setBonuses.strength || 0) + itemStr;
     let dmgMin = Math.floor(totalStrength * 0.5);
     let dmgMax = dmgMin + 4;
+
+    if (char.class === 'warrior') {
+        const strBonus = Math.floor(totalStrength / 10);
+        dmgMin += strBonus;
+        dmgMax += strBonus;
+    }
+
     if (setBonuses.dmg_min) dmgMin += setBonuses.dmg_min;
     if (setBonuses.dmg_max) dmgMax += setBonuses.dmg_max;
     for (const item of equippedItems) {
@@ -13667,6 +13674,9 @@ router.delete('/messages/:id', auth, async (req, res) => {
 
 // ── Bot Detection Engine ────────────────────────────────────────────
 async function runBotDetection(db) {
+    const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
+    if (setting && setting.value === 'false') return new Map();
+
     const botPlayers = new Map();
     const now = Math.floor(Date.now() / 1000);
     try {
@@ -13852,6 +13862,45 @@ async function persistBotFlags(db, botPlayers) {
         }
     } catch (e) { console.error('[persistBotFlags]', e.message); }
 }
+
+// Get all server settings
+router.get('/admin/settings', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const settings = await dbAll(db, 'SELECT * FROM server_settings', []);
+        const settingsMap = settings.reduce((acc, s) => { acc[s.key] = s.value; return acc; }, {});
+        res.json(settingsMap);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin settings toggle for bot detection
+router.post('/admin/settings/bot-detection', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const { enabled } = req.body;
+        await db.execute({
+            sql: 'INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)',
+            args: ['bot_detection_enabled', enabled ? 'true' : 'false']
+        });
+        res.json({ success: true, enabled });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Toggle confirmed status for flagged characters
+router.post('/admin/flagged/:charName/confirm', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const { confirmed } = req.body;
+        await db.execute({
+            sql: 'UPDATE flagged_characters SET confirmed=? WHERE char_name=?',
+            args: [confirmed ? 1 : 0, req.params.charName]
+        });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Admin check endpoint
 router.get('/admin/check', auth, async (req, res) => {
