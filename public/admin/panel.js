@@ -29,6 +29,7 @@ function renderLayout() {
     var isModOnly = window._isModerator && !window._isAdmin;
     var tabs = [
         { id: 'csp', label: 'CSP Violations' },
+        { id: 'dom', label: 'DOM Mutations' },
         { id: 'bugs', label: 'Bug Reports' },
         { id: 'actions', label: 'Action Log' },
         { id: 'flagged', label: 'Flagged' },
@@ -67,6 +68,7 @@ function renderLayout() {
 
 function loadTab(name) {
     if (name === 'csp') loadCsp();
+    else if (name === 'dom') loadDom();
     else if (name === 'bugs') loadBugs();
     else if (name === 'banners') loadBanners();
     else if (name === 'rewards') loadRewards();
@@ -381,6 +383,36 @@ function renderCspTable(data) {
     tbody.innerHTML = data.map(function(v) {
         return '<tr><td style="color:#6a6a70">' + v.id + '</td><td style="white-space:nowrap">' + v.reported_at + '</td><td>' + (v.character_name || '<span style="color:#4a4a50">—</span>') + '</td><td style="color:#6a6a70">' + (v.user_id || '') + '</td><td style="color:#e0c060;word-break:break-all">' + (v.blocked_uri || '') + '</td><td>' + (v.violated_directive || '') + '</td><td style="font-size:11px;word-break:break-all;max-width:180px">' + (v.document_uri || '') + '</td></tr>';
     }).join('');
+}
+
+// ── DOM Mutations Tab ──────────────────────────────────────────────────────
+
+function loadDom() {
+    var el = document.getElementById('tab-dom');
+    API('/admin/dom-mutations').then(function(data) {
+        if (!data.length) { el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No DOM mutations reported</p>'; return; }
+        el.innerHTML = '<div class="table-wrap"><table><thead><tr>' +
+            '<th>#</th>' +
+            '<th>Time</th>' +
+            '<th>Character</th>' +
+            '<th>Type</th>' +
+            '<th>Target</th>' +
+            '<th>Detail</th>' +
+            '<th>URL</th>' +
+        '</tr></thead><tbody>' + data.map(function(v) {
+            var detail = v.detail || '';
+            var snippet = detail.length > 120 ? detail.slice(0, 120) + '...' : detail;
+            return '<tr>' +
+                '<td style="color:#6a6a70">' + v.id + '</td>' +
+                '<td style="white-space:nowrap">' + (v.created_at ? new Date(v.created_at * 1000).toLocaleString() : '') + '</td>' +
+                '<td>' + (v.char_name || '<span style="color:#4a4a50">—</span>') + '</td>' +
+                '<td><code style="background:#2a2a30;padding:1px 6px;border-radius:3px">' + (v.mutation_type || '') + '</code></td>' +
+                '<td style="font-size:11px;word-break:break-all;max-width:150px">' + (v.target_info || '') + '</td>' +
+                '<td style="font-size:11px;word-break:break-all;max-width:250px"><span title="' + detail.replace(/"/g,'&quot;') + '">' + snippet + '</span></td>' +
+                '<td style="font-size:11px;word-break:break-all;max-width:120px">' + (v.url || '') + '</td>' +
+            '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
 }
 
 function loadBugs() {
