@@ -13599,8 +13599,14 @@ async function runBotDetection(db) {
             for (let i = 1; i < unique.length; i++) allGaps.push(unique[i] - unique[i - 1]);
             const shortGaps = allGaps.filter(g => g < 120);
             const activeTime = shortGaps.reduce((s, v) => s + v, 0);
-            if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.5 && activeTime >= 1800) {
-                botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active`);
+            // Only flag if the polling is machine-regular (low CV), not human browsing
+            if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.6 && activeTime >= 1800) {
+                const mean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
+                const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
+                const cv = Math.sqrt(variance) / mean;
+                if (cv < 0.6) {
+                    botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
+                }
             }
         }
     } catch {}
