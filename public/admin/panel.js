@@ -193,16 +193,24 @@ function runSql() {
     });
 }
 
-function queryTable(table, page = 1) {
+function queryTable(table, page, filterOverride) {
+    if (!page) page = 1;
     var el = document.getElementById('db-content');
-    el.innerHTML = '<div class="loading">Loading...</div>';
+    var existingInput = document.getElementById('db-filter-input');
+    var filterVal = filterOverride !== undefined ? filterOverride : (existingInput ? existingInput.value : '');
+    el.innerHTML = '<div class="db-filter-bar"><input type="text" id="db-filter-input" class="db-filter-input" placeholder="Filter by name, user, character... (press Enter to apply)" value="' + esc(filterVal) + '"></div><div class="loading">Loading...</div>';
+    document.getElementById('db-filter-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { queryTable(table, 1); }
+    });
     fetch('/api/db/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
-        body: JSON.stringify({ table: table, page: page })
+        body: JSON.stringify({ table: table, page: page, filter: filterVal })
     }).then(function(r) { return r.json(); }).then(function(res) {
         var data = res.rows;
-        if (!data.length) { el.innerHTML = '<div class="no-data">No rows found</div>'; return; }
+        if (!data.length) { el.innerHTML = '<div class="db-filter-bar"><input type="text" id="db-filter-input" class="db-filter-input" placeholder="Filter by name, user, character... (press Enter to apply)" value="' + esc(filterVal) + '"></div><div class="no-data">No rows found</div>';
+            document.getElementById('db-filter-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') { queryTable(table, 1); } });
+            return; }
         
         var totalPages = Math.ceil(res.total / res.limit);
         var cols = Object.keys(data[0]);
@@ -234,6 +242,17 @@ function queryTable(table, page = 1) {
         html += '<div class="db-pagination" id="db-pagination"></div>';
         
         el.innerHTML = html;
+        // Restore filter bar (empty result state destroys it)
+        var fi = document.getElementById('db-filter-input');
+        if (!fi) {
+            var filterDiv = document.createElement('div');
+            filterDiv.className = 'db-filter-bar';
+            filterDiv.innerHTML = '<input type="text" id="db-filter-input" class="db-filter-input" placeholder="Filter by name, user, character... (press Enter to apply)" value="' + esc(filterVal) + '">';
+            el.insertBefore(filterDiv, el.firstChild);
+        }
+        document.getElementById('db-filter-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { queryTable(table, 1); }
+        });
         
         function enterEditMode(row) {
             if (!row) return;
@@ -303,7 +322,7 @@ function queryTable(table, page = 1) {
             var btn = document.createElement('button');
             btn.textContent = i;
             if (i === page) btn.classList.add('active');
-            else btn.addEventListener('click', (function(p) { return function() { queryTable(table, p); }; })(i));
+            else btn.addEventListener('click', (function(p) { return function() { var fi = document.getElementById('db-filter-input'); var fv = fi ? fi.value : ''; queryTable(table, p, fv); }; })(i));
             pagEl.appendChild(btn);
         }
     });
