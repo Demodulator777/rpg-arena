@@ -13599,13 +13599,19 @@ async function runBotDetection(db) {
             for (let i = 1; i < unique.length; i++) allGaps.push(unique[i] - unique[i - 1]);
             const shortGaps = allGaps.filter(g => g < 120);
             const activeTime = shortGaps.reduce((s, v) => s + v, 0);
-            // Only flag if the polling is machine-regular (low CV), not human browsing
-            if (shortGaps.length >= 10 && shortGaps.length / allGaps.length > 0.6 && activeTime >= 1800) {
-                const mean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
-                const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
-                const cv = Math.sqrt(variance) / mean;
-                if (cv < 0.6) {
-                    botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
+            const ratio = shortGaps.length / allGaps.length;
+            const isSustained = span > 7200; // > 2h coverage
+            const isRelentless = ratio > 0.9; // almost no breaks at all
+            if (shortGaps.length >= 10 && activeTime >= 1800) {
+                if (ratio > 0.6) {
+                    const mean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
+                    const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
+                    const cv = Math.sqrt(variance) / mean;
+                    // Regular poller (even with some randomization): CV < 0.8
+                    // OR relentless coverage with high CV — no real breaks for 2h+
+                    if (cv < 0.8 || (isRelentless && isSustained)) {
+                        botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
+                    }
                 }
             }
         }
