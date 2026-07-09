@@ -1563,7 +1563,13 @@ document.addEventListener('securitypolicyviolation', (e) => {
                 m.addedNodes.forEach(function(n) {
                     if (n.nodeType === 1 && suspiciousTags[n.tagName]) {
                         var src = n.src || n.href || n.data || '';
-                        queueReport('injected_' + n.tagName.toLowerCase(), src.slice(0, 200), n.outerHTML ? n.outerHTML.slice(0, 300) : n.tagName);
+                        // Skip same-origin assets (game's own scripts/styles)
+                        if (src && src.indexOf('//') !== -1 && src.indexOf(location.hostname) === -1) {
+                            queueReport('injected_' + n.tagName.toLowerCase(), src.slice(0, 200), n.outerHTML ? n.outerHTML.slice(0, 300) : n.tagName);
+                        } else if (!src || src.indexOf('//') === -1) {
+                            // Also report src-less or relative injections (inline script, data: URIs)
+                            queueReport('injected_' + n.tagName.toLowerCase(), src || '[no src]', n.outerHTML ? n.outerHTML.slice(0, 300) : n.tagName);
+                        }
                     }
                 });
             }
