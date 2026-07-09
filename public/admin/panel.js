@@ -1033,8 +1033,20 @@ function loadConsole() {
     refreshSwStatus();
     swBtn.addEventListener('click', function() {
         var currentlyOn = swText.textContent.indexOf('ON') !== -1;
-        fetch('/api/game/admin/sw-toggle', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function(r) { return r.json(); }).then(function(r) {
+        var turnOn = !currentlyOn;
+        fetch('/api/game/admin/sw-toggle', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: turnOn }) }).then(function(r) { return r.json(); }).then(function(r) {
             refreshSwStatus();
+            // If turning off, unregister SW + clear caches + reload to release control
+            if (!turnOn && 'serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistration().then(function(reg) {
+                    if (reg) reg.unregister();
+                });
+                caches.keys().then(function(names) {
+                    names.forEach(function(n) { caches.delete(n); });
+                }).then(function() {
+                    location.reload();
+                });
+            }
         }).catch(function(e) { alert(e.message); });
     });
 }
