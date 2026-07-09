@@ -1532,6 +1532,59 @@ document.addEventListener('securitypolicyviolation', (e) => {
     }
 });
 
+// ── DOM Mutation Observer (detect client-side tampering) ──────────────────
+// Watches for script/iframe injection and inline event handler attributes.
+// Reports are batched and sent at most once every 10s to avoid noise.
+(function() {
+    var reportQueue = [];
+    var reportTimer = null;
+    function flushReports() {
+        if (!reportQueue.length) return;
+        var batch = reportQueue.splice(0);
+        var token = localStorage.getItem('rpg_token');
+        if (!token) return;
+        fetch('/api/game/admin/report-dom-mutation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ mutation_type: 'batch', detail: JSON.stringify(batch.slice(0, 20)), target_info: batch.length + ' mutations' })
+        }).catch(function(){});
+    }
+    function queueReport(type, target, detail) {
+        reportQueue.push({ type: type, target: (target || '').slice(0, 200), detail: (detail || '').slice(0, 500), ts: Date.now() });
+        if (!reportTimer) reportTimer = setTimeout(function() { reportTimer = null; flushReports(); }, 10000);
+    }
+    // Safe tag names to ignore (game's own templating)
+    var safeTags = { 'DIV':1, 'SPAN':1, 'P':1, 'A':1, 'BUTTON':1, 'INPUT':1, 'SELECT':1, 'TEXTAREA':1, 'IMG':1, 'UL':1, 'LI':1, 'TABLE':1, 'TR':1, 'TD':1, 'TH':1, 'THEAD':1, 'TBODY':1, 'H1':1, 'H2':1, 'H3':1, 'H4':1, 'H5':1, 'BR':1, 'HR':1, 'LABEL':1, 'FORM':1, 'OPTION':1, 'OPTGROUP':1, 'CANVAS':1, 'SVG':1, 'CIRCLE':1, 'PATH':1, 'LINE':1, 'DEFS':1, 'STOP':1, 'LINEARGRADIENT':1, 'RADIALGRADIENT':1, 'RECT':1, 'TEXT':1, 'G':1, 'IMAGE':1, 'FOREIGNOBJECT':1, 'USE':1, 'CLIPPATH':1, 'MASK':1, 'FILTER':1, 'FEGAUSSIANBLUR':1, 'FEMERGE':1, 'FEMERGENODE':1, 'FEOFFSET':1, 'FEBLEND':1, 'FECOLORMATRIX':1, 'FECOMPONENTTRANSFER':1, 'FEFUNCR':1, 'FEFUNCG':1, 'FEFUNCB':1, 'FEFUNCA':1, 'FEFLOOD':1, 'FEDISPLACEMENTMAP':1, 'FETURBULENCE':1, 'FEDROPSHADOW':1 };
+    var suspiciousTags = { 'SCRIPT':1, 'IFRAME':1, 'EMBED':1, 'OBJECT':1, 'APPLET':1, 'FRAME':1, 'FRAMESET':1, 'LINK':1, 'STYLE':1, 'BASE':1 };
+    var obs = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+            // Added nodes
+            if (m.type === 'childList' && m.addedNodes.length) {
+                m.addedNodes.forEach(function(n) {
+                    if (n.nodeType === 1 && suspiciousTags[n.tagName]) {
+                        var src = n.src || n.href || n.data || '';
+                        queueReport('injected_' + n.tagName.toLowerCase(), src.slice(0, 200), n.outerHTML ? n.outerHTML.slice(0, 300) : n.tagName);
+                    }
+                });
+            }
+            // Attribute changes
+            if (m.type === 'attributes') {
+                var name = m.attributeName || '';
+                // Detect inline event handlers being set
+                if (name.startsWith('on') || name === 'href' || name === 'src') {
+                    var val = m.target.getAttribute ? m.target.getAttribute(name) : '';
+                    if (val && (name.startsWith('on') || String(val).indexOf('javascript:') !== -1)) {
+                        queueReport('attr_' + name, (m.target.tagName || '') + '#' + (m.target.id || ''), String(val).slice(0, 300));
+                    }
+                }
+            }
+        });
+    });
+    if (document.body) {
+        obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['onclick','onerror','onload','onchange','onsubmit','onmouseover','onfocus','onblur','onkeydown','onkeyup','onscroll','onresize','oncontextmenu','ondblclick','onmousedown','onmouseup','onmouseenter','onmouseleave','src','href'] });
+    }
+})();
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(tab==='login'?0:1)));
