@@ -5001,7 +5001,7 @@ function calcMemberStatDiscount(tier, level, lastUpkeepPaid) {
     if (!cfg || level <= 0) return 0;
     const now = Math.floor(Date.now() / 1000);
     const day = 86400;
-    if (!lastUpkeepPaid || (now - lastUpkeepPaid) > day) return 0;
+    if (!lastUpkeepPaid || (now - lastUpkeepPaid) >= day) return 0;
     return level * cfg.discount_per_lvl;
 }
 
@@ -9888,6 +9888,8 @@ router.get('/squads/base-info', auth, async (req, res) => {
                 discount_pct: discount,
                 upkeep_cost: calcBaseUpkeep(ownedBase.tier, Number(ownedBase.upgrade_level || 0), totalLevel),
                 upgrade_cost: calcBaseUpgradeCost(ownedBase.tier, Number(ownedBase.upgrade_level || 0)),
+                last_upkeep_paid: Number(ownedBase.last_upkeep_paid || 0),
+                discount_expires_at: Number(ownedBase.last_upkeep_paid || 0) > 0 ? (Number(ownedBase.last_upkeep_paid) + 86400) * 1000 : 0,
             }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
