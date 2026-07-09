@@ -1481,12 +1481,9 @@ window.addEventListener('DOMContentLoaded', async () => {
             character = charData;
             window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
-            // Fetch asset manifest and preload every file from /public
-            var manifest = [];
-            try {
-                var res = await fetch('/api/asset-manifest');
-                manifest = await res.json();
-            } catch(e) { manifest = []; }
+            // Preload every file from /public (manifest loaded via <script> tag)
+            var manifest = window.ASSET_MANIFEST || [];
+            if (!manifest.length) { console.error('[preload] ASSET_MANIFEST empty or missing'); }
             var total = manifest.length;
             var loaded = 0;
             window._setLoadingProgress(65, 'Loading assets (0/' + total + ')...');
