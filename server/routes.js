@@ -4416,6 +4416,228 @@ ACHIEVEMENTS.push(
     { id: 'level_240', category: 'progression', name: 'Limitless', desc: 'Reach level 240.', icon: '⭐', metric: 'level', target: 240, rewards: { gold: 950000, gems: 25 } },
     { id: 'level_250', category: 'progression', name: 'Alpha', desc: 'Reach level 250.', icon: '⭐', metric: 'level', target: 250, rewards: { gold: 1000000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
 
+    // Weekly Damage Achievements
+    {
+        id: 'weekly_damage_100k',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Novice',
+        desc: 'Deal 100,000 damage in a single week.',
+        icon: '💥',
+        metric: 'total_dmg_dealt',
+        target: 100000,
+        rewards: { gold: 10000, consumable: { id: 'elixir_might', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_250k',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Apprentice',
+        desc: 'Deal 250,000 damage in a single week.',
+        icon: '💢',
+        metric: 'total_dmg_dealt',
+        target: 250000,
+        rewards: { gold: 25000, consumable: { id: 'elixir_might', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_500k',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Journeyman',
+        desc: 'Deal 500,000 damage in a single week.',
+        icon: '⚡',
+        metric: 'total_dmg_dealt',
+        target: 500000,
+        rewards: { gold: 50000, consumable: { id: 'elixir_might', qty: 2 } },
+    },
+    {
+        id: 'weekly_damage_1m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Expert',
+        desc: 'Deal 1,000,000 damage in a single week.',
+        icon: '🔥',
+        metric: 'total_dmg_dealt',
+        target: 1000000,
+        rewards: { gold: 100000, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_2_5m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Master',
+        desc: 'Deal 2,500,000 damage in a single week.',
+        icon: '☄️',
+        metric: 'total_dmg_dealt',
+        target: 2500000,
+        rewards: { gems: 5, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_5m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Grandmaster',
+        desc: 'Deal 5,000,000 damage in a single week.',
+        icon: '🌟',
+        metric: 'total_dmg_dealt',
+        target: 5000000,
+        rewards: { gems: 10, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_10m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Legendary',
+        desc: 'Deal 10,000,000 damage in a single week.',
+        icon: '✨',
+        metric: 'total_dmg_dealt',
+        target: 10000000,
+        rewards: { gems: 15, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_25m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Mythic',
+        desc: 'Deal 25,000,000 damage in a single week.',
+        icon: '💫',
+        metric: 'total_dmg_dealt',
+        target: 25000000,
+        rewards: { gems: 20, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    },
+    {
+        id: 'weekly_damage_50m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Godlike',
+        desc: 'Deal 50,000,000 damage in a single week.',
+        icon: '⚡',
+        metric: 'total_dmg_dealt',
+        target: 50000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_100m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Cosmic',
+        desc: 'Deal 100,000,000 damage in a single week.',
+        icon: '🌌',
+        metric: 'total_dmg_dealt',
+        target: 100000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_250m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Galactic',
+        desc: 'Deal 250,000,000 damage in a single week.',
+        icon: '🌠',
+        metric: 'total_dmg_dealt',
+        target: 250000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 1 } },
+    },
+    {
+        id: 'weekly_damage_500m',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Celestial',
+        desc: 'Deal 500,000,000 damage in a single week.',
+        icon: '✨',
+        metric: 'total_dmg_dealt',
+        target: 500000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 2 } },
+    },
+    {
+        id: 'weekly_damage_1b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Titan',
+        desc: 'Deal 1,000,000,000 damage in a single week.',
+        icon: '🗿',
+        metric: 'total_dmg_dealt',
+        target: 1000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 } },
+    },
+    {
+        id: 'weekly_damage_2_5b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Colossus',
+        desc: 'Deal 2,500,000,000 damage in a single week.',
+        icon: '🌋',
+        metric: 'total_dmg_dealt',
+        target: 2500000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 } },
+    },
+    {
+        id: 'weekly_damage_5b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: World-Eater',
+        desc: 'Deal 5,000,000,000 damage in a single week.',
+        icon: '🌎',
+        metric: 'total_dmg_dealt',
+        target: 5000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 3 } },
+    },
+    {
+        id: 'weekly_damage_10b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Star-Destroyer',
+        desc: 'Deal 10,000,000,000 damage in a single week.',
+        icon: '⭐',
+        metric: 'total_dmg_dealt',
+        target: 10000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 5 } },
+    },
+    {
+        id: 'weekly_damage_25b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Galaxy-Sunderer',
+        desc: 'Deal 25,000,000,000 damage in a single week.',
+        icon: '🌀',
+        metric: 'total_dmg_dealt',
+        target: 25000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 5 } },
+    },
+    {
+        id: 'weekly_damage_50b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Multiverse-Crusher',
+        desc: 'Deal 50,000,000,000 damage in a single week.',
+        icon: '💠',
+        metric: 'total_dmg_dealt',
+        target: 50000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 10 } },
+    },
+    {
+        id: 'weekly_damage_100b',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Reality-Bender',
+        desc: 'Deal 100,000,000,000 damage in a single week.',
+        icon: '🎭',
+        metric: 'total_dmg_dealt',
+        target: 100000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 10 } },
+    },
+    {
+        id: 'weekly_damage_1t',
+        chain: 'weekly_damage',
+        category: 'combat',
+        name: 'Weekly Damage: Eternity-End',
+        desc: 'Deal 1,000,000,000,000 damage in a single week.',
+        icon: '♾️',
+        metric: 'total_dmg_dealt',
+        target: 1000000000000,
+        rewards: { gems: 25, lootbox: { id: 'lootbox_mythic', qty: 20 } },
+    },
+
     // Gold earned achievements
     { id: 'gold_earned_5k', category: 'economy', name: 'Penny Pincher', desc: 'Earn 5,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000, rewards: { gold: 1000 } },
     { id: 'gold_earned_25k', category: 'economy', name: 'Coin Collector', desc: 'Earn 25,000 gold total.', icon: '💰', metric: 'gold_earned', target: 25000, rewards: { gold: 4000 } },
@@ -14130,9 +14352,17 @@ async function computeWeeklyLeaderboard(db) {
                     FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
                         AND json_extract(substr(body, 15), '$.type') = 'mission'
                         AND sent_at >= ? AND sent_at < ?
-                ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
+                ) GROUP BY char_id ORDER BY total_dmg DESC
             `, params);
+            
+            // First, process achievements for ALL players who dealt damage
             for (const r of rows) {
+                await checkAndAwardWeeklyDamageAchievements(db, Number(r.char_id), Number(r.total_dmg));
+            }
+
+            // Then, only take the top 10 for the leaderboard display
+            const top10Rows = rows.slice(0, 10);
+            for (const r of top10Rows) {
                 const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
                 if (!ch) continue;
                 const entry = {
@@ -14142,7 +14372,7 @@ async function computeWeeklyLeaderboard(db) {
                 dmgTop10.push(entry);
                 if (!dmgWinner) dmgWinner = entry;
             }
-        }
+            }
 
         // ── Top 10 by wins ──
         let winTop10 = [], winWinner = null;
@@ -17910,24 +18140,49 @@ function generateLootFromBox(boxType, playerLevel) {
             gemChance: 0.10,
             gemRange: [1, 5]
         },
-        legendary: {
-            itemsCount: 5,
-            materials: [
-                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 50, qty: [2, 5] },
-                { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 30, qty: [2, 4] }
-            ],
-            gear: [
-                { quality: 'epic', chance: 0.50, level: playerLevel },
-                { quality: 'legendary', chance: 0.50, level: playerLevel }
-            ],
-            goldRange: [2000, 5000],
-            gemChance: 0.25,
-            gemRange: [2, 10]
-        }
-    };
+            legendary: {
+                itemsCount: 5,
+                materials: [
+                    { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 50, qty: [2, 5] },
+                    { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 30, qty: [2, 4] }
+                ],
+                gear: [
+                    { quality: 'epic', chance: 0.50, level: playerLevel },
+                    { quality: 'legendary', chance: 0.50, level: playerLevel }
+                ],
+                goldRange: [2000, 5000],
+                gemChance: 0.25,
+                gemRange: [2, 10]
+            },
+            mythic: {
+                itemsCount: 5,
+                materials: [
+                    { id: 'eternal_essence', name: 'Eternal Essence', emoji: '💠', weight: 40, qty: [2, 5] },
+                    { id: 'primordial_shard', name: 'Primordial Shard', emoji: '✨', weight: 30, qty: [2, 4] },
+                    { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 30, qty: [3, 6] }
+                ],
+                gear: [
+                    { quality: 'epic', chance: 0.20, level: playerLevel },
+                    { quality: 'legendary', chance: 0.80, level: playerLevel }
+                ],
+                goldRange: [5000, 10000],
+                gemChance: 0.50,
+                gemRange: [5, 20]
+            }
+        };
 
-    const boxDrops = drops[boxType];
-    const createMaterialDrop = () => {
+        const boxDrops = drops[boxType];
+        
+        // Guarantee one crafted item for Mythic
+        if (boxType === 'mythic') {
+            const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            const item = generateBackendRandomItem(playerLevel, randomType, 'legendary');
+            item.desc = `✨ Guaranteed Mythic Item: ${item.desc}`;
+            result.items.push(item);
+        }
+
+        const createMaterialDrop = () => {
         const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
         let roll = Math.random() * totalWeight;
         let selected = boxDrops.materials[0];
@@ -19207,6 +19462,22 @@ async function autoProcessUpkeep(db) {
     } catch (e) { console.error('[Upkeep] tick error:', e.message); }
 }
 
+async function checkAndAwardWeeklyDamageAchievements(db, charId, weeklyDamage) {
+    const weeklyDamageAchievements = ACHIEVEMENTS.filter(a => a.chain === 'weekly_damage');
+    for (const achievement of weeklyDamageAchievements) {
+        if (weeklyDamage >= achievement.target) {
+            const alreadyClaimed = await dbGet(db, 'SELECT 1 FROM character_achievements WHERE char_id = ? AND achievement_id = ?', [charId, achievement.id]);
+            if (!alreadyClaimed) {
+                await db.execute({
+                    sql: 'INSERT INTO character_achievements (char_id, achievement_id, claimed_at) VALUES (?, ?, ?)',
+                    args: [charId, achievement.id, Math.floor(Date.now() / 1000)]
+                });
+                console.log(`[Achievements] Character ${charId} awarded ${achievement.id} for ${weeklyDamage} damage.`);
+            }
+        }
+    }
+}
+
 // Export battle engine for use by tournament module
 module.exports = {
     router, parseAdminPassword, dbGet, getDb,
@@ -19217,5 +19488,5 @@ module.exports = {
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard
+    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements
 };
