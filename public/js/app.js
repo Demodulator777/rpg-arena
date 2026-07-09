@@ -1505,8 +1505,6 @@ window.addEventListener('DOMContentLoaded', async () => {
                         });
                     }));
                 }
-                // Register SW after preloading
-                navigator.serviceWorker.register('/sw.js').catch(function(){});
             }
             window._setLoadingProgress(100, '');
             if (window._dismissOverlay) window._dismissOverlay();
@@ -1518,7 +1516,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     } else { showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
 });
 
-// Client-side CSP violation reporter (adds character context to reports)
+// ── Client-side CSP violation reporter ─────────────────────────────────────
 document.addEventListener('securitypolicyviolation', (e) => {
     const body = {
         blocked_uri: e.blockedURI,
@@ -1541,9 +1539,9 @@ document.addEventListener('securitypolicyviolation', (e) => {
 });
 
 // ── DOM Mutation Observer (detect client-side tampering) ──────────────────
-// Watches for script/iframe injection and inline event handler attributes.
-// Reports are batched and sent at most once every 10s to avoid noise.
-(function() {
+// Watches for injected script/iframe/style elements and inline event handlers.
+// Uses ASSET_MANIFEST + DOM snapshot to ignore the game's own assets.
+(function(){
     var reportQueue = [];
     var reportTimer = null;
     function flushReports() {
@@ -1561,41 +1559,50 @@ document.addEventListener('securitypolicyviolation', (e) => {
         reportQueue.push({ type: type, target: (target || '').slice(0, 200), detail: (detail || '').slice(0, 500), ts: Date.now() });
         if (!reportTimer) reportTimer = setTimeout(function() { reportTimer = null; flushReports(); }, 10000);
     }
-    // Safe tag names to ignore (game's own templating)
-    var safeTags = { 'DIV':1, 'SPAN':1, 'P':1, 'A':1, 'BUTTON':1, 'INPUT':1, 'SELECT':1, 'TEXTAREA':1, 'IMG':1, 'UL':1, 'LI':1, 'TABLE':1, 'TR':1, 'TD':1, 'TH':1, 'THEAD':1, 'TBODY':1, 'H1':1, 'H2':1, 'H3':1, 'H4':1, 'H5':1, 'BR':1, 'HR':1, 'LABEL':1, 'FORM':1, 'OPTION':1, 'OPTGROUP':1, 'CANVAS':1, 'SVG':1, 'CIRCLE':1, 'PATH':1, 'LINE':1, 'DEFS':1, 'STOP':1, 'LINEARGRADIENT':1, 'RADIALGRADIENT':1, 'RECT':1, 'TEXT':1, 'G':1, 'IMAGE':1, 'FOREIGNOBJECT':1, 'USE':1, 'CLIPPATH':1, 'MASK':1, 'FILTER':1, 'FEGAUSSIANBLUR':1, 'FEMERGE':1, 'FEMERGENODE':1, 'FEOFFSET':1, 'FEBLEND':1, 'FECOLORMATRIX':1, 'FECOMPONENTTRANSFER':1, 'FEFUNCR':1, 'FEFUNCG':1, 'FEFUNCB':1, 'FEFUNCA':1, 'FEFLOOD':1, 'FEDISPLACEMENTMAP':1, 'FETURBULENCE':1, 'FEDROPSHADOW':1 };
     var suspiciousTags = { 'SCRIPT':1, 'IFRAME':1, 'EMBED':1, 'OBJECT':1, 'APPLET':1, 'FRAME':1, 'FRAMESET':1, 'LINK':1, 'STYLE':1, 'BASE':1 };
-    var obs = new MutationObserver(function(mutations) {
-        mutations.forEach(function(m) {
-            // Added nodes
-            if (m.type === 'childList' && m.addedNodes.length) {
-                m.addedNodes.forEach(function(n) {
-                    if (n.nodeType === 1 && suspiciousTags[n.tagName]) {
-                        var src = n.src || n.href || n.data || '';
-                        // Skip same-origin assets (game's own scripts/styles)
-                        if (src && src.indexOf('//') !== -1 && src.indexOf(location.hostname) === -1) {
+    // Build set of known asset URLs from manifest (loaded before app.js)
+    var knownUrls = {};
+    if (window.ASSET_MANIFEST) {
+        window.ASSET_MANIFEST.forEach(function(url) { knownUrls[url] = 1; });
+    }
+    // Also snapshot script/link elements already in DOM
+    if (document.querySelectorAll) {
+        document.querySelectorAll('script[src], link[href]').forEach(function(el) {
+            var u = el.src || el.href;
+            if (u) knownUrls[u] = 1;
+        });
+    }
+    function startObserver() {
+        var obs = new MutationObserver(function(mutations) {
+            mutations.forEach(function(m) {
+                if (m.type === 'childList' && m.addedNodes.length) {
+                    m.addedNodes.forEach(function(n) {
+                        if (n.nodeType === 1 && suspiciousTags[n.tagName]) {
+                            var src = n.src || n.href || n.data || '';
+                            if (src && knownUrls[src]) return;
                             queueReport('injected_' + n.tagName.toLowerCase(), src.slice(0, 200), n.outerHTML ? n.outerHTML.slice(0, 300) : n.tagName);
-                        } else if (!src || src.indexOf('//') === -1) {
-                            // Also report src-less or relative injections (inline script, data: URIs)
-                            queueReport('injected_' + n.tagName.toLowerCase(), src || '[no src]', n.outerHTML ? n.outerHTML.slice(0, 300) : n.tagName);
+                        }
+                    });
+                }
+                if (m.type === 'attributes') {
+                    var name = m.attributeName || '';
+                    if (name.startsWith('on') || name === 'href' || name === 'src') {
+                        var val = m.target.getAttribute ? m.target.getAttribute(name) : '';
+                        if (val && (name.startsWith('on') || String(val).indexOf('javascript:') !== -1)) {
+                            queueReport('attr_' + name, (m.target.tagName || '') + '#' + (m.target.id || ''), String(val).slice(0, 300));
                         }
                     }
-                });
-            }
-            // Attribute changes
-            if (m.type === 'attributes') {
-                var name = m.attributeName || '';
-                // Detect inline event handlers being set
-                if (name.startsWith('on') || name === 'href' || name === 'src') {
-                    var val = m.target.getAttribute ? m.target.getAttribute(name) : '';
-                    if (val && (name.startsWith('on') || String(val).indexOf('javascript:') !== -1)) {
-                        queueReport('attr_' + name, (m.target.tagName || '') + '#' + (m.target.id || ''), String(val).slice(0, 300));
-                    }
                 }
-            }
+            });
         });
-    });
-    if (document.body) {
-        obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['onclick','onerror','onload','onchange','onsubmit','onmouseover','onfocus','onblur','onkeydown','onkeyup','onscroll','onresize','oncontextmenu','ondblclick','onmousedown','onmouseup','onmouseenter','onmouseleave','src','href'] });
+        if (document.body) {
+            obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['onclick','onerror','onload','onchange','onsubmit','onmouseover','onfocus','onblur','onkeydown','onkeyup','onscroll','onresize','oncontextmenu','ondblclick','onmousedown','onmouseup','onmouseenter','onmouseleave','src','href'] });
+        }
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startObserver);
+    } else {
+        startObserver();
     }
 })();
 
