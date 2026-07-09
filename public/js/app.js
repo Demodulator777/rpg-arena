@@ -1477,28 +1477,36 @@ window.addEventListener('DOMContentLoaded', async () => {
             character = charData;
             window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
-            // Preload every file from /public (manifest loaded via <script> tag)
-            var manifest = window.ASSET_MANIFEST || [];
-            if (!manifest.length) { console.error('[preload] ASSET_MANIFEST empty or missing'); }
-            var total = manifest.length;
-            var loaded = 0;
-            window._setLoadingProgress(65, 'Loading assets (0/' + total + ')...');
-            var batchSize = 8;
-            for (var i = 0; i < total; i += batchSize) {
-                var batch = manifest.slice(i, i + batchSize);
-                await Promise.all(batch.map(function(url) {
-                    return fetch(url).then(function() {
-                        loaded++;
-                        var pct = 65 + Math.floor((loaded / total) * 30);
-                        window._setLoadingProgress(pct, 'Loading assets (' + loaded + '/' + total + ')...');
-                    }).catch(function() {
-                        loaded++;
-                    });
-                }));
-            }
-            // Fire SW registration in background (if enabled)
+            // Check SW status — only preload assets if SW is enabled (to warm cache)
+            var swEnabled = false;
             if ('serviceWorker' in navigator) {
-                fetch('/api/game/sw-status').then(function(r){ return r.json(); }).then(function(s){ if (s.enabled) navigator.serviceWorker.register('/sw.js').catch(function(){}); }).catch(function(){});
+                try {
+                    var swRes = await fetch('/api/game/sw-status');
+                    var swData = await swRes.json();
+                    swEnabled = swData.enabled;
+                } catch(e) {}
+            }
+            if (swEnabled) {
+                var manifest = window.ASSET_MANIFEST || [];
+                if (!manifest.length) { console.error('[preload] ASSET_MANIFEST empty or missing'); }
+                var total = manifest.length;
+                var loaded = 0;
+                window._setLoadingProgress(65, 'Loading assets (0/' + total + ')...');
+                var batchSize = 8;
+                for (var i = 0; i < total; i += batchSize) {
+                    var batch = manifest.slice(i, i + batchSize);
+                    await Promise.all(batch.map(function(url) {
+                        return fetch(url).then(function() {
+                            loaded++;
+                            var pct = 65 + Math.floor((loaded / total) * 30);
+                            window._setLoadingProgress(pct, 'Loading assets (' + loaded + '/' + total + ')...');
+                        }).catch(function() {
+                            loaded++;
+                        });
+                    }));
+                }
+                // Register SW after preloading
+                navigator.serviceWorker.register('/sw.js').catch(function(){});
             }
             window._setLoadingProgress(100, '');
             if (window._dismissOverlay) window._dismissOverlay();
