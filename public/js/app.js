@@ -1565,11 +1565,13 @@ document.addEventListener('securitypolicyviolation', (e) => {
     if (window.ASSET_MANIFEST) {
         window.ASSET_MANIFEST.forEach(function(url) { knownUrls[url] = 1; });
     }
-    // Also snapshot script/link elements already in DOM
+    // Also snapshot script/link elements already in DOM — only add legit asset URLs to knownUrls
     if (document.querySelectorAll) {
         document.querySelectorAll('script[src], link[href]').forEach(function(el) {
             var u = el.src || el.href;
-            if (u) knownUrls[u] = 1;
+            if (u && (u.indexOf('/js/') !== -1 || u.indexOf('/css/') !== -1 || u.indexOf('/images/') !== -1 || u.indexOf('asset-manifest') !== -1)) {
+                knownUrls[u] = 1;
+            }
         });
     }
     function startObserver() {
@@ -1600,9 +1602,23 @@ document.addEventListener('securitypolicyviolation', (e) => {
         }
     }
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startObserver);
+        document.addEventListener('DOMContentLoaded', function() { startObserver(); scanExistingScripts(); });
     } else {
         startObserver();
+        scanExistingScripts();
+    }
+    // Also scan existing scripts at startup for any injected before observer started
+    function scanExistingScripts() {
+        var allScripts = document.querySelectorAll('script');
+        allScripts.forEach(function(s) {
+            var src = s.src || '';
+            if (!src) return; // inline script
+            if (knownUrls[src]) return;
+            // Seen same-origin URLs that aren't in the manifest? Report them.
+            if (src.indexOf('userscript.html') !== -1 || src.indexOf('://') === -1) {
+                queueReport('existing_script', src.slice(0, 200), s.outerHTML ? s.outerHTML.slice(0, 300) : '');
+            }
+        });
     }
 })();
 
