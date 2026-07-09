@@ -13496,7 +13496,7 @@ async function runBotDetection(db) {
         for (const row of bots.rows) {
             if (row.name) botPlayers.set(row.name, 'Managed test bot');
         }
-    } catch {}
+    } catch (e) { console.error('[bot-detect] bot_configs error:', e.message); }
     try {
         const fpCutoff = now - 86400;
         const fpRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'POST' ORDER BY char_name, created_at LIMIT 20000`, args: [fpCutoff] });
@@ -13522,7 +13522,7 @@ async function runBotDetection(db) {
             const noTick = _missionNoTickStarts.get(name) || 0;
             if (noTick >= 5) botPlayers.set(name, `No UI tick: ${noTick} direct starts`);
         }
-    } catch {}
+    } catch (e) { console.error('[bot-detect] mission instant starts error:', e.message); }
     try {
         const cutoff = now - 86400;
         const rows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'POST' ORDER BY char_name, created_at LIMIT 20000`, args: [cutoff] });
@@ -13551,7 +13551,7 @@ async function runBotDetection(db) {
             const maxGap = Math.max(...gaps);
             if (cv < 0.5 && mean >= 60 && mean <= 900 && maxGap < 1800) botPlayers.set(name, `Mission timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
         }
-    } catch {}
+    } catch (e) { console.error('[bot-detect] mission timing error:', e.message); }
     try {
         const bCutoff = now - 21600;
         const bRows = await db.execute({ sql: `SELECT ca.name AS char_name, b.fought_at FROM battles b JOIN characters ca ON b.attacker_id = ca.id WHERE b.fought_at > ? ORDER BY ca.name, b.fought_at`, args: [bCutoff] });
@@ -13577,7 +13577,7 @@ async function runBotDetection(db) {
             const maxGap = Math.max(...gaps);
             if (cv < 0.5 && mean < 60 && maxGap < 300) botPlayers.set(name, `Battle timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
         }
-    } catch {}
+    } catch (e) { console.error('[bot-detect] battle timing error:', e.message); }
     try {
         const pCutoff = now - 86400;
         const pRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'GET' AND path NOT LIKE '%/chat/%' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions/active%' OR path LIKE '%/travel/status%' OR path LIKE '%/achievements%' OR path LIKE '%/setups%' OR path LIKE '%/messages/%') ORDER BY char_name, created_at LIMIT 10000`, args: [pCutoff] });
@@ -13615,7 +13615,7 @@ async function runBotDetection(db) {
                 }
             }
         }
-    } catch {}
+    } catch (e) { console.error('[bot-detect] state polling error:', e.message); }
     return botPlayers;
 }
 
