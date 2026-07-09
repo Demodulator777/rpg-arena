@@ -82,8 +82,15 @@ async function ensureFlaggedTable(db) {
         reason TEXT NOT NULL DEFAULT '',
         detected_at INTEGER NOT NULL,
         last_seen_at INTEGER NOT NULL,
-        confirmed INTEGER NOT NULL DEFAULT 0
+        confirmed INTEGER NOT NULL DEFAULT 0,
+        signal_count INTEGER NOT NULL DEFAULT 0,
+        distinct_signals INTEGER NOT NULL DEFAULT 0,
+        signal_types TEXT NOT NULL DEFAULT ''
     )`);
+    // Migration: add signal tracking columns to existing tables
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_count INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN distinct_signals INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_types TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
 }
 
 router.use(async (req, res, next) => {
@@ -172,6 +179,28 @@ const CHAT_PROFANITY_WORDS = [
     'slut',
     'whore'
 ];
+
+// ── Stale client detection middleware ──────────────────────────────────────
+const BUILD_VERSION = '2026-07-09-v1';
+router.use((req, res, next) => {
+    if (req.method === 'OPTIONS') return next();
+    const clientVersion = req.headers['x-build-version'];
+    const path = req.path;
+    // Only check game routes (not static files)
+    if (clientVersion && clientVersion !== BUILD_VERSION && path.startsWith('/api/game/') && !path.startsWith('/api/game/auth/')) {
+        (async () => {
+            try {
+                const db = await getDb();
+                const char = req.user ? await getCurrentCharacter(db, req.user.userId, 'id, name').catch(() => null) : null;
+                await db.execute({
+                    sql: `INSERT INTO stale_clients (user_id, char_name, version, path, created_at) VALUES (?,?,?,?,?)`,
+                    args: [req.user?.userId || 0, char?.name || '', clientVersion || 'unknown', path, Math.floor(Date.now()/1000)]
+                });
+            } catch (e) {}
+        })();
+    }
+    next();
+});
 
 function parseAdminPassword(req) {
     return String(req.query?.password || req.body?.password || '').trim();
@@ -688,6 +717,8 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS server_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`, args: [] }); } catch {}
         // Default SW enabled
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('sw_enabled', '1')`, args: [] }); } catch {}
+        // Stale clients table — logs requests from old app.js versions
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS stale_clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', version TEXT DEFAULT '', path TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
         try {
             const charTable = await dbGet(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name='characters'");
             const charSql = charTable?.sql || '';
@@ -13578,10 +13609,21 @@ async function persistBotFlags(db, botPlayers) {
         const existingFlags = new Set(flaggedRows.rows.map(r => r.char_name));
         for (const [bp, reason] of botPlayers) {
             if (!bp || bp === '?') continue;
+            const reasonType = (reason.split(':')[0] || reason).trim().slice(0, 100);
             if (existingFlags.has(bp)) {
-                await db.execute({ sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?', args: [reason, now, bp] });
+                const cur = await dbGet(db, 'SELECT signal_types, reason FROM flagged_characters WHERE char_name=?', [bp]);
+                const types = cur?.signal_types ? cur.signal_types.split(',').filter(Boolean) : [];
+                const isNewType = !types.includes(reasonType);
+                if (isNewType) types.push(reasonType);
+                await db.execute({
+                    sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
+                    args: [reason, types.join(','), types.length, now, bp]
+                });
             } else {
-                await db.execute({ sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at) VALUES (?,?,?,?)', args: [bp, reason, now, now] });
+                await db.execute({
+                    sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
+                    args: [bp, reason, now, now, reasonType]
+                });
             }
         }
         const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
@@ -13590,7 +13632,7 @@ async function persistBotFlags(db, botPlayers) {
                 await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
             }
         }
-    } catch {}
+    } catch (e) { console.error('[persistBotFlags]', e.message); }
 }
 
 // Admin check endpoint
@@ -13670,10 +13712,22 @@ router.post('/admin/flag-character', auth, async (req, res) => {
         const { char_name, reason } = req.body;
         if (!char_name) return res.status(400).json({ error: 'char_name required' });
         const now = Math.floor(Date.now() / 1000);
-        await db.execute({
-            sql: 'INSERT OR REPLACE INTO flagged_characters (char_name, reason, detected_at, last_seen_at, confirmed) VALUES (?,?,?,?,1)',
-            args: [char_name, reason || 'Manual flag', now, now]
-        });
+        const reasonType = ((reason || 'Manual flag').split(':')[0] || 'Manual flag').trim().slice(0, 100);
+        const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [char_name]);
+        if (existing) {
+            const types = existing.signal_types ? existing.signal_types.split(',').filter(Boolean) : [];
+            const isNewType = !types.includes(reasonType);
+            if (isNewType) types.push(reasonType);
+            await db.execute({
+                sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=?, confirmed=1 WHERE char_name=?',
+                args: [reason || 'Manual flag', types.join(','), types.length, now, char_name]
+            });
+        } else {
+            await db.execute({
+                sql: "INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, confirmed, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,1,?)",
+                args: [char_name, reason || 'Manual flag', now, now, reasonType]
+            });
+        }
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -13689,6 +13743,11 @@ router.get('/admin/csp-violations', auth, async (req, res) => {
 });
 
 // ── Service Worker Admin Toggle ────────────────────────────────────────────
+
+// Public build version endpoint — client sends its version to verify freshness
+router.get('/build-version', async (req, res) => {
+    res.json({ version: '2026-07-09-v1' });
+});
 
 // Public endpoint (no auth) so client can check before SW registration
 router.get('/sw-status', async (req, res) => {
@@ -13732,6 +13791,26 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {
             sql: `INSERT INTO dom_mutations (user_id, char_name, char_id, mutation_type, target_info, detail, url, created_at) VALUES (?,?,?,?,?,?,?,?)`,
             args: [req.user.userId, charName, charId, String(mutation_type).slice(0, 50), String(target_info).slice(0, 500), String(detail).slice(0, 2000), String(req.headers.referer || req.headers.origin || '').slice(0, 500), now]
         });
+        // If untrusted API call — also flag the character in flagged_characters
+        if (mutation_type === 'untrusted_api' && charName) {
+            await ensureFlaggedTable(db);
+            const reasonType = 'untrusted_api';
+            const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
+            if (existing) {
+                const types = existing.signal_types ? existing.signal_types.split(',').filter(Boolean) : [];
+                const isNewType = !types.includes(reasonType);
+                if (isNewType) types.push(reasonType);
+                await db.execute({
+                    sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
+                    args: [String(detail).slice(0, 300), types.join(','), types.length, now, charName]
+                });
+            } else {
+                await db.execute({
+                    sql: 'INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
+                    args: [charName, String(detail).slice(0, 300), now, now, reasonType]
+                });
+            }
+        }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -13741,6 +13820,15 @@ router.get('/admin/dom-mutations', auth, async (req, res) => {
     try {
         const db = await getDb();
         const result = await db.execute({ sql: 'SELECT * FROM dom_mutations ORDER BY id DESC LIMIT 200', args: [] });
+        res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/stale-clients', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT * FROM stale_clients ORDER BY id DESC LIMIT 200', args: [] });
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
