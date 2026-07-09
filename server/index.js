@@ -129,6 +129,33 @@ getDb().then(async (db) => {
     res.status(204).end();
   });
 
+  // Asset manifest for loading screen preload
+  const fs = require('fs');
+  app.get('/api/asset-manifest', (req, res) => {
+    try {
+      const publicDir = path.join(__dirname, '../public');
+      const files = [];
+      function walk(dir) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.name.startsWith('.')) continue;
+          const fullPath = path.join(dir, entry.name);
+          const rel = path.relative(publicDir, fullPath).replace(/\\/g, '/');
+          if (entry.isDirectory()) {
+            if (entry.name === 'test') continue;
+            walk(fullPath);
+          } else {
+            files.push('/' + rel);
+          }
+        }
+      }
+      walk(publicDir);
+      res.json(files);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Tournament routes
   app.use('/api', auth, tournamentModule.router);
   
