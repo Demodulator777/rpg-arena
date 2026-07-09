@@ -1005,14 +1005,25 @@ const LOOT_BOXES = [
     {
         id: 'lootbox_legendary',
         name: 'Legendary Loot Box',
-        emoji: '👑✨',
-        desc: 'Guaranteed legendary item! Plus 4 additional epic/legendary items. 25% chance for a gem!',
-        price: 100,
+        emoji: '⭐',
+        desc: 'Rare loot! High chance for legendary gear, rare materials, and gems.',
+        price: 150,
         priceType: 'gems',
         rarity: 'legendary',
         consumable: true,
         category: 'lootbox',
         lootType: 'legendary'
+    },
+    {
+        id: 'lootbox_mythic',
+        name: 'Mythic Loot Box',
+        emoji: '🌌✨',
+        desc: 'Mythic loot! Guaranteed crafted item, high chance for legendary gear and rare materials.',
+        rarity: 'legendary',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'mythic',
+        isRewardOnly: true
     }
 ];
 
