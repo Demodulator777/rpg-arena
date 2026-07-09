@@ -13658,9 +13658,14 @@ async function persistBotFlags(db, botPlayers) {
         }
         const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
         for (const flagged of flaggedRows.rows) {
-            if (!detectedNames.has(flagged.char_name)) {
-                await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
-            }
+            if (detectedNames.has(flagged.char_name)) continue;
+            const flaggedData = await dbGet(db, 'SELECT reason, signal_types FROM flagged_characters WHERE char_name=?', [flagged.char_name]);
+            if (!flaggedData) continue;
+            // Only clear if ALL signal types are from runBotDetection (not untrusted_api, manual, etc.)
+            const sTypes = (flaggedData.signal_types || '').split(',').filter(Boolean);
+            const nonDetectionTypes = sTypes.filter(t => !['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
+            if (nonDetectionTypes.length > 0) continue;
+            await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
         }
     } catch (e) { console.error('[persistBotFlags]', e.message); }
 }
