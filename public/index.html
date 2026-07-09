@@ -46,6 +46,9 @@
         @keyframes rune-flicker { 0%, 100% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 0.9; transform: scale(1.2); } }
         @media (max-width: 680px) { .loading-rings, .ring-layer, .loading-ring { width: min(363px, 85vw); height: min(361px, calc(85vw * 361 / 363)); } .loading-text { width: 280px; } .loading-title-shimmer { font-size: 1.1rem; letter-spacing: 7px; } }
         @media (max-width: 480px) { .loading-rings, .ring-layer, .loading-ring { width: min(363px, 92vw); height: min(361px, calc(92vw * 361 / 363)); } .loading-text { width: 240px; } .loading-title-shimmer { font-size: 0.95rem; letter-spacing: 5px; } }
+        #loading-bar-track { margin-top: 20px; width: 260px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative; z-index: 9; }
+        #loading-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #6366f1, #a78bfa); border-radius: 4px; transition: width 0.4s ease; }
+        #loading-status { margin-top: 8px; font-family: 'Cinzel', serif; font-size: 0.75rem; color: rgba(168,130,255,0.5); letter-spacing: 3px; text-transform: uppercase; position: relative; z-index: 9; }
     </style>
 </head>
 <body>
@@ -123,6 +126,8 @@
         <canvas id="loading-particles"></canvas>
     </div>
     <div class="loading-text"><span class="loading-title-shimmer">Loading</span><span id="loading-dots"></span></div>
+    <div id="loading-bar-track"><div id="loading-bar-fill"></div></div>
+    <div id="loading-status">Initializing...</div>
 </div>
 <div id="app">
 
