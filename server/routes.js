@@ -13617,15 +13617,25 @@ async function persistBotFlags(db, botPlayers) {
             if (!bp || bp === '?') continue;
             const reasonType = (reason.split(':')[0] || reason).trim().slice(0, 100);
             if (existingFlags.has(bp)) {
-                const cur = await dbGet(db, 'SELECT signal_types, reason FROM flagged_characters WHERE char_name=?', [bp]);
+                const cur = await dbGet(db, 'SELECT signal_types, last_seen_at, reason FROM flagged_characters WHERE char_name=?', [bp]);
                 const types = cur?.signal_types ? cur.signal_types.split(',').filter(Boolean) : [];
                 const isNewType = !types.includes(reasonType);
                 if (isNewType) types.push(reasonType);
-                await db.execute({
-                    sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
-                    args: [reason, types.join(','), types.length, now, bp]
-                });
-                await logFlagEvent(db, bp, reason, reasonType);
+                // Debounce: only count a new event if the type is new or last seen > 2 min ago
+                var isFresh = (cur?.last_seen_at || 0) > now - 120;
+                if (isFresh && !isNewType) {
+                    // Same type, still active — just bump last_seen_at + reason, don't count
+                    await db.execute({
+                        sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?',
+                        args: [reason, now, bp]
+                    });
+                } else {
+                    await db.execute({
+                        sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
+                        args: [reason, types.join(','), types.length, now, bp]
+                    });
+                    await logFlagEvent(db, bp, reason, reasonType);
+                }
             } else {
                 await db.execute({
                     sql: 'INSERT OR IGNORE INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
