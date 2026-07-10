@@ -319,6 +319,40 @@ async function purgeExpiredChatMessages(db) {
     await dbRun(db, 'DELETE FROM chat_messages WHERE created_at < ?', [cutoff]);
 }
 
+async function purgeOldApiLogs(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - 86400 * 7;
+    await dbRun(db, 'DELETE FROM api_log WHERE created_at < ?', [cutoff]);
+}
+
+async function purgeOldDomMutations(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - 86400 * 7;
+    await dbRun(db, 'DELETE FROM dom_mutations WHERE created_at < ?', [cutoff]);
+}
+
+async function purgeOldCspViolations(db) {
+    await dbRun(db, "DELETE FROM csp_violations WHERE reported_at < datetime('now', '-7 days')");
+}
+
+async function purgeOldFlagEvents(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - 86400 * 14;
+    await dbRun(db, 'DELETE FROM flag_events WHERE created_at < ?', [cutoff]);
+}
+
+async function purgeAllOldData(db) {
+    try { await purgeExpiredMessages(db); } catch (e) { console.error('[purge] messages:', e.message); }
+    try { await purgeExpiredChatMessages(db); } catch (e) { console.error('[purge] chat:', e.message); }
+    try { await purgeOldApiLogs(db); } catch (e) { console.error('[purge] api_log:', e.message); }
+    try { await purgeOldDomMutations(db); } catch (e) { console.error('[purge] dom_mutations:', e.message); }
+    try { await purgeOldCspViolations(db); } catch (e) { console.error('[purge] csp_violations:', e.message); }
+    try { await purgeOldFlagEvents(db); } catch (e) { console.error('[purge] flag_events:', e.message); }
+    // Ensure indexes exist for cleanup queries
+    try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_api_log_created ON api_log(created_at)"); } catch {}
+    try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_dom_mutations_created ON dom_mutations(created_at)"); } catch {}
+    try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_flag_events_created ON flag_events(created_at)"); } catch {}
+    try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_messages_sent ON messages(sent_at)"); } catch {}
+    try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at)"); } catch {}
+}
+
 async function queueReferralRewards(db, userId, rewards = {}) {
     if (!userId) return;
     const gold = Math.max(0, Number(rewards.gold || 0));
@@ -19507,5 +19541,6 @@ module.exports = {
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements
+    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
+    purgeAllOldData
 };
