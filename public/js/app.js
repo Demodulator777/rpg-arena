@@ -590,7 +590,8 @@ async function api(method, path, body=null) {
     // Trusted-event check: flag state-changing calls without recent user interaction
     if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && 
         path.indexOf('/auth/') === -1 && 
-        path.indexOf('/missions/tab-viewed') === -1) {
+        path.indexOf('/missions/tab-viewed') === -1 &&
+        window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
             var token2 = localStorage.getItem('rpg_token');
@@ -1497,13 +1498,22 @@ window.addEventListener('DOMContentLoaded', async () => {
             showScreen('game');
             // Check SW status — only preload assets if SW is enabled (to warm cache)
             var swEnabled = false;
+            var botDetectionEnabled = true;
             if ('serviceWorker' in navigator) {
                 try {
                     var swRes = await fetch('/api/game/sw-status');
                     var swData = await swRes.json();
                     swEnabled = swData.enabled;
+                    botDetectionEnabled = swData.botDetectionEnabled !== false;
+                } catch(e) {}
+            } else {
+                try {
+                    var swRes2 = await fetch('/api/game/sw-status');
+                    var swData2 = await swRes2.json();
+                    botDetectionEnabled = swData2.botDetectionEnabled !== false;
                 } catch(e) {}
             }
+            window.__botDetectionEnabled = botDetectionEnabled;
             if (swEnabled) {
                 var manifest = window.ASSET_MANIFEST || [];
                 if (!manifest.length) { console.error('[preload] ASSET_MANIFEST empty or missing'); }
@@ -1536,6 +1546,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // ── Client-side CSP violation reporter ─────────────────────────────────────
 document.addEventListener('securitypolicyviolation', (e) => {
+    if (window.__botDetectionEnabled === false) return;
     const body = {
         blocked_uri: e.blockedURI,
         document_uri: e.documentURI,
@@ -1564,6 +1575,8 @@ document.addEventListener('securitypolicyviolation', (e) => {
     var reportTimer = null;
     function flushReports() {
         if (!reportQueue.length) return;
+        // Skip flushing when bot detection is disabled
+        if (window.__botDetectionEnabled === false) { reportQueue = []; return; }
         var batch = reportQueue.splice(0);
         var token = localStorage.getItem('rpg_token');
         if (!token) return;
@@ -1574,6 +1587,7 @@ document.addEventListener('securitypolicyviolation', (e) => {
         }).catch(function(){});
     }
     function queueReport(type, target, detail) {
+        if (window.__botDetectionEnabled === false) return;
         reportQueue.push({ type: type, target: (target || '').slice(0, 200), detail: (detail || '').slice(0, 500), ts: Date.now() });
         if (!reportTimer) reportTimer = setTimeout(function() { reportTimer = null; flushReports(); }, 10000);
     }
@@ -1593,6 +1607,7 @@ document.addEventListener('securitypolicyviolation', (e) => {
         });
     }
     function startObserver() {
+        if (window.__botDetectionEnabled === false) return;
         var obs = new MutationObserver(function(mutations) {
             mutations.forEach(function(m) {
                 if (m.type === 'childList' && m.addedNodes.length) {
@@ -1627,6 +1642,7 @@ document.addEventListener('securitypolicyviolation', (e) => {
     }
     // Also scan existing scripts at startup for any injected before observer started
     function scanExistingScripts() {
+        if (window.__botDetectionEnabled === false) return;
         var allScripts = document.querySelectorAll('script');
         allScripts.forEach(function(s) {
             var src = s.src || '';
@@ -7913,12 +7929,19 @@ async function loadSquads() {
     }
 }
 
+let _squadSubTab = 'squad';
+
+function switchSquadSubTab(tab) {
+    _squadSubTab = tab;
+    renderSquads();
+}
+window.switchSquadSubTab = switchSquadSubTab;
+
 function renderSquads() {
     _startUpkeepTicker();
     const el = document.getElementById('squads-content');
     if (!el) return;
     const me = squadsData?.me || {};
-    const lb = squadsData?.lb || [];
     const squad = me.squad;
     const members = me.members || [];
     const apps = squadsData?.applications || [];
@@ -7939,7 +7962,101 @@ function renderSquads() {
         return opts.map(([v, l]) => `<option value="${v}" ${v === currentRole ? 'selected' : ''}>${l}</option>`).join('');
     }
 
-    const appsHtml = canManageApps && apps.length > 0 ? `
+    // No squad — show create/join card
+    if (!squad) {
+        el.innerHTML = `
+        <div class="squads-card">
+            <div class="squads-title">🛡️ Squads</div>
+            <div class="squads-meta">Create a squad or join one by invite code.</div>
+            <div class="squads-actions">
+                <input id="squad-name" class="input-field" placeholder="Squad name (3-20 chars)">
+                <button class="btn-primary" ${actionAttrs('createSquad')}>Create</button>
+            </div>
+            <div class="squads-actions" style="margin-top:10px">
+                <input id="squad-code" class="input-field" placeholder="Invite code">
+                <button class="btn-secondary" ${actionAttrs('joinSquad')}>Join</button>
+            </div>
+        </div>`;
+        return;
+    }
+
+    // Squad header
+    const squadHeader = `<div class="squads-card">
+        <div class="squads-card-head">
+            <div>
+                <div class="squads-title">🛡️ ${escHtml(squad.name)}</div>
+                <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
+            </div>
+            <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
+        </div>
+    </div>`;
+
+    // Subtab navigation
+    const subTabsHtml = `<div class="squad-subtabs" style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid #2a2a35;padding-bottom:0;flex-wrap:wrap">
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'squad' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'squad' ? '#c8a86e' : '#2a2a35'};border-bottom:none;border-radius:6px 6px 0 0;color:${_squadSubTab === 'squad' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">📋 Squad</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'members' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'members' ? '#c8a86e' : '#2a2a35'};border-bottom:none;border-radius:6px 6px 0 0;color:${_squadSubTab === 'members' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">👥 Members (${members.length})</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'map' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'map' ? '#c8a86e' : '#2a2a35'};border-bottom:none;border-radius:6px 6px 0 0;color:${_squadSubTab === 'map' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">🗺️ Base Map</button>
+    </div>`;
+
+    // Tab content
+    let tabContent = '';
+
+    if (_squadSubTab === 'squad') {
+        // Squad page: treasury, base info, donation, wars
+        if (clanData.squad_id) {
+            const base = clanData.baseInfo;
+            const treasury = clanData.treasury;
+            const wars = clanData.wars || [];
+            const tierNames = { main: '🏰 Main', large: '🏯 Large', medium: '🏘️ Medium', small: '🛖 Small' };
+
+            if (treasury) {
+                tabContent += `<div class="squads-card" style="margin-top:10px">
+                    <div class="squads-title">💰 Squad Treasury</div>
+                    <div class="squads-members" style="padding:8px 12px">
+                        <span class="squads-meta">💵 ${treasury.gold.toLocaleString()} gold · 💎 ${treasury.gems} gems</span>
+                    </div>
+                </div>`;
+            }
+
+            if (base) {
+                tabContent += `<div class="squads-card" style="margin-top:10px">
+                    <div class="squads-card-head">
+                        <div><div class="squads-title">🏰 ${escHtml(base.name)}</div>
+                        <div class="squads-meta">${tierNames[base.tier] || base.tier} · Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}</div>
+                    </div></div>
+                    ${renderUpkeepStatus(base)}
+                    ${base.upgrade_cost ? `<div class="squads-members" style="padding:8px 12px">
+                        <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
+                        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                            <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
+                        </div>
+                    </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">Base at max level.</span></div>'}
+                    <div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
+                        <div class="squads-meta">Donate to treasury for upgrades:</div>
+                        <div style="display:flex;gap:6px;margin-top:6px">
+                            <input id="clan-donate-gold" class="input-field" type="number" placeholder="Gold" style="width:100px;padding:4px 8px;font-size:0.8rem">
+                            <input id="clan-donate-gems" class="input-field" type="number" placeholder="Gems" style="width:100px;padding:4px 8px;font-size:0.8rem">
+                            <button class="btn-primary btn-sm" ${actionAttrs('donateToBase', base.id)}>Donate</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            wars.forEach(function(w) {
+                tabContent += `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? '#e74c3c44' : '#2ecc7144'}">
+                    <div class="squads-card-head">
+                        <div><div class="squads-title">⚔️ ${w.is_attacker ? 'Attacking' : 'Defending'} ${escHtml(w.base_name)}</div>
+                        <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
+                        <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture' : ''} ${!w.is_npc_war && w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}</div>
+                    </div></div>
+                    <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
+                        ${w.phase !== 'resolved' ? `<button class="btn-primary btn-sm" ${actionAttrs('openWarPanel', w.id)}>⚔️ War Panel</button>` : ''}
+                    </div>
+                </div>`;
+            });
+        }
+    } else if (_squadSubTab === 'members') {
+        const appsHtml = canManageApps && apps.length > 0 ? `
         <div class="squads-card" style="margin-top:10px">
             <div class="squads-title">📋 Pending Applications (${apps.length})</div>
             <div class="squads-members">
@@ -7952,18 +8069,10 @@ function renderSquads() {
                     </span>
                 </div>`).join('')}
             </div>
-        </div>
-    ` : '';
+        </div>` : '';
 
-    const myCard = squad ? `
-        <div class="squads-card">
-            <div class="squads-card-head">
-                <div>
-                    <div class="squads-title">🛡️ ${escHtml(squad.name)}</div>
-                    <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
-                </div>
-                <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
-            </div>
+        tabContent = `<div class="squads-card" style="margin-top:10px">
+            <div class="squads-title">👥 Members (${members.length})</div>
             <div class="squads-members">
                 ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
                     <span>
@@ -7984,23 +8093,12 @@ function renderSquads() {
                 </div>`).join('')}
             </div>
         </div>
-        ${appsHtml}
-    ` : `
-        <div class="squads-card">
-            <div class="squads-title">🛡️ Squads</div>
-            <div class="squads-meta">Create a squad or join one by invite code.</div>
-            <div class="squads-actions">
-                <input id="squad-name" class="input-field" placeholder="Squad name (3-20 chars)">
-                <button class="btn-primary" ${actionAttrs('createSquad')}>Create</button>
-            </div>
-            <div class="squads-actions" style="margin-top:10px">
-                <input id="squad-code" class="input-field" placeholder="Invite code">
-                <button class="btn-secondary" ${actionAttrs('joinSquad')}>Join</button>
-            </div>
-        </div>
-    `;
+        ${appsHtml}`;
+    } else if (_squadSubTab === 'map') {
+        tabContent = renderBaseMapContent();
+    }
 
-    el.innerHTML = `<div class="squads-grid">${myCard}</div>${renderClanContent()}`;
+    el.innerHTML = squadHeader + subTabsHtml + tabContent;
 }
 
 // ── Clan Base / War System ────────────────────────────────────────────────
@@ -8023,15 +8121,10 @@ async function loadClanData() {
     } catch {}
 }
 
-function renderClanContent() {
-    const base = clanData.baseInfo;
-    const treasury = clanData.treasury;
-    const wars = clanData.wars || [];
-    if (!clanData.squad_id) return '';
+function renderBaseMapContent() {
+    if (!clanData.squad_id) return '<div class="squads-meta">Squad has no base.</div>';
     const tierColors = { main: '#ff6b35', large: '#e74c3c', medium: '#f39c12', small: '#3498db' };
-    const tierNames = { main: '🏰 Main', large: '🏯 Large', medium: '🏘️ Medium', small: '🛖 Small' };
-
-    const mapHtml = `<div class="squads-card" style="margin-top:10px">
+    return `<div class="squads-card" style="margin-top:0">
         <div class="squads-title">🗺️ Clan Base Map</div>
         <div class="clan-base-map" style="position:relative;width:100%;height:500px;background:rgba(0,0,0,0.3);border-radius:12px;overflow:hidden;margin-top:8px">
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
@@ -8046,50 +8139,6 @@ function renderClanContent() {
     }).join('')}
         </div>
     </div>`;
-
-    const baseHtml = base ? `<div class="squads-card" style="margin-top:10px">
-        <div class="squads-card-head">
-            <div><div class="squads-title">🏰 ${escHtml(base.name)}</div>
-            <div class="squads-meta">${tierNames[base.tier] || base.tier} · Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}</div>
-        </div></div>
-        ${renderUpkeepStatus(base)}
-        ${base.upgrade_cost ? `<div class="squads-members" style="padding:8px 12px">
-            <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
-            <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-                <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
-            </div>
-        </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">Base at max level.</span></div>'}
-        <div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
-            <div class="squads-meta">Donate to treasury for upgrades:</div>
-            <div style="display:flex;gap:6px;margin-top:6px">
-                <input id="clan-donate-gold" class="input-field" type="number" placeholder="Gold" style="width:100px;padding:4px 8px;font-size:0.8rem">
-                <input id="clan-donate-gems" class="input-field" type="number" placeholder="Gems" style="width:100px;padding:4px 8px;font-size:0.8rem">
-                <button class="btn-primary btn-sm" ${actionAttrs('donateToBase', base.id)}>Donate</button>
-            </div>
-        </div>
-    </div>` : '';
-
-    const treasuryHtml = treasury ? `<div class="squads-card" style="margin-top:10px">
-        <div class="squads-title">💰 Squad Treasury</div>
-        <div class="squads-members" style="padding:8px 12px">
-            <span class="squads-meta">💵 ${treasury.gold.toLocaleString()} gold · 💎 ${treasury.gems} gems</span>
-        </div>
-    </div>` : '';
-
-    const warHtml = wars.length > 0 ? wars.map(w => `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? '#e74c3c44' : '#2ecc7144'}">
-        <div class="squads-card-head">
-            <div><div class="squads-title">⚔️ ${w.is_attacker ? 'Attacking' : 'Defending'} ${escHtml(w.base_name)}</div>
-            <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
-            <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture' : ''} ${!w.is_npc_war && w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}</div>
-        </div></div>
-        <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
-            ${w.phase !== 'resolved' ? `<button class="btn-primary btn-sm" ${actionAttrs('openWarPanel', w.id)}>⚔️ War Panel</button>` : ''}
-        </div>
-    </div>`).join('') : '';
-
-    const startWarBtn = '';
-
-    return mapHtml + baseHtml + treasuryHtml + warHtml + startWarBtn;
 }
 
 function renderUpkeepStatus(base) {
