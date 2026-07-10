@@ -103,10 +103,14 @@ getDb().then(async (db) => {
 
   // CSP violation reporting endpoint (no auth — browsers send these directly)
   // Must be BEFORE app.use('/api', auth, ...) which would require auth
-  app.post('/api/csp-violation', async (req, res) => {    let body = '';
+  app.post('/api/csp-violation', async (req, res) => {
+    let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
+        // Skip storing when bot detection is disabled
+        const botRow = await db.execute({ sql: "SELECT value FROM server_settings WHERE key='bot_detection_enabled'", args: [] });
+        if (botRow.rows.length && botRow.rows[0].value === 'false') return;
         let parsed;
         try { parsed = JSON.parse(body); } catch { parsed = {}; }
         const report = parsed['csp-report'] || parsed.body || parsed;
