@@ -110,8 +110,7 @@ async function ensureMinPlayers(db, t) {
   let targetSize;
   if (mode === 'elimination') {
     targetSize = 8;
-    while (targetSize < participants.length && targetSize < 16) targetSize *= 2;
-    if (targetSize < participants.length) targetSize = 16;
+    while (targetSize < participants.length) targetSize *= 2;
   } else {
     targetSize = Math.max(participants.length, MIN_PLAYERS);
   }
@@ -137,6 +136,7 @@ async function runRoundRobin(db, t, participants, mode, fast, startRound) {
   for (let r = startRound ?? Number(t.current_round || 0); r < schedule.length; r++) {
     const round = schedule[r];
     if (!fast && r > 0) await new Promise(resolve => setTimeout(resolve, ROUND_INTERVAL_MS));
+    if (fast && r > startRound) await new Promise(resolve => setImmediate(resolve));
     for (const [p1Id, p2Id] of round) {
       await fightMatch(db, t.id, r, p1Id, p2Id, participants, mode);
     }
@@ -170,8 +170,13 @@ async function runElimination(db, t, participants, fast, startRound) {
       const nextSurvivors = [];
       for (const pid of survivors) { if (!matchedIds.has(pid)) nextSurvivors.push(pid); }
       for (const m of roundMatches) {
+        // Draws now always have a winner_id due to tiebreaker, but if somehow is_draw is still set, use damage comparison
         if (m.winner_id) nextSurvivors.push(m.winner_id);
-        else { nextSurvivors.push(m.participant1_id); nextSurvivors.push(m.participant2_id); }
+        else if (m.is_draw) {
+          const dmgToA = m.dmg_to_p1 || 0;
+          const dmgToB = m.dmg_to_p2 || 0;
+          nextSurvivors.push(dmgToB >= dmgToA ? m.participant1_id : m.participant2_id);
+        }
       }
       survivors = nextSurvivors;
     }
@@ -215,13 +220,21 @@ async function runElimination(db, t, participants, fast, startRound) {
       const f1 = await buildFighter(db, p1, participants);
       const f2 = await buildFighter(db, p2, participants);
       const result = normalBattle(f1, f2);
-      const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
+      let winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
+      let isDraw = result.isDraw;
+      // Tiebreaker: if draw, resolve via class modifier or damage comparison
+      if (isDraw || !winnerPid) {
+        const tieA = hasClassModifier(f1, 'tie_breaker');
+        const tieB = hasClassModifier(f2, 'tie_breaker');
+        if (tieA && !tieB) winnerPid = p1.id;
+        else if (tieB && !tieA) winnerPid = p2.id;
+        else winnerPid = result.totalDmgToB >= result.totalDmgToA ? p1.id : p2.id;
+        isDraw = false;
+      }
       await dbRun_t(db, `INSERT INTO tournament_matches (tournament_id, round_index, participant1_id, participant2_id, winner_id, is_draw, battle_log, dmg_to_p1, dmg_to_p2, fought_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-        [t.id, roundIndex, p1.id, p2.id, winnerPid, result.isDraw ? 1 : 0, JSON.stringify(result.log), Math.round(result.totalDmgToA), Math.round(result.totalDmgToB)]);
-      if (result.isDraw) {
-        survivors.push(p1Id, p2Id);
-      } else if (winnerPid) {
+        [t.id, roundIndex, p1.id, p2.id, winnerPid, isDraw ? 1 : 0, JSON.stringify(result.log), Math.round(result.totalDmgToA), Math.round(result.totalDmgToB)]);
+      if (winnerPid) {
         const loserPid = winnerPid === p1.id ? p2.id : p1.id;
         await dbRun_t(db, 'UPDATE tournament_participants SET wins = wins + 1 WHERE id = ?', [winnerPid]);
         await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1, losses = losses + 1 WHERE id = ?', [loserPid]);
@@ -421,6 +434,8 @@ async function resumeActiveTournaments() {
       console.log(`✅ Tournament #${t.id} resumed and completed`);
     } catch (e) {
       console.error(`❌ Resume tournament #${t.id} failed:`, e);
+      // Cancel stuck tournaments so they don't keep crashing on every restart
+      try { await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]); } catch {}
     }
   }
 }
