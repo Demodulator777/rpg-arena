@@ -2632,7 +2632,7 @@ function renderCharacter() {
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
 
-    if (p.class === 'warrior') {
+    if (c.class === 'warrior') {
         const strBonus = Math.floor(totalStr / 10);
         finalDmgMin += strBonus;
         finalDmgMax += strBonus;
