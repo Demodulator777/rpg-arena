@@ -40,7 +40,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard } = require('./routes');
+const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -96,6 +96,13 @@ getDb().then(async (db) => {
   }, 600000);
   // Fire once on startup too
   computeWeeklyLeaderboard(db).catch(e => console.error('[WeeklyLB] init failed:', e.message));
+
+  // Periodic table cleanup — every hour, purge old rows from fast-growing tables
+  setInterval(() => {
+    purgeAllOldData(db).catch(e => console.error('[purge] tick failed:', e.message));
+  }, 3600000);
+  // Fire once on startup too
+  purgeAllOldData(db).catch(e => console.error('[purge] init failed:', e.message));
   
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
