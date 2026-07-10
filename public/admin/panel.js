@@ -1025,6 +1025,7 @@ function loadConsole() {
         '<span style="color:#6a6a70;font-size:12px">Auto-refreshing every 3s</span>' +
         '<span style="flex:1"></span>' +
         '<span id="sw-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">SW: <span id="sw-status-text">...</span> <button class="db-btn" id="sw-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
+        '<span id="bot-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">Bot Detection: <span id="bot-status-text">...</span> <button class="db-btn" id="bot-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
         '</div>' +
         '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">Waiting for logs...</div>';
 
@@ -1051,31 +1052,28 @@ function loadConsole() {
     // SW status toggle
     var swText = document.getElementById('sw-status-text');
     var swBtn = document.getElementById('sw-toggle-btn');
+    var botText = document.getElementById('bot-status-text');
+    var botBtn = document.getElementById('bot-toggle-btn');
     var tok = function() { return localStorage.getItem('rpg_token'); };
-    function refreshSwStatus() {
-        fetch('/api/game/admin/sw-status', { headers: { 'Authorization': 'Bearer ' + tok() } }).then(function(r) { return r.json(); }).then(function(s) {
-            swText.textContent = s.enabled ? '✅ ON' : '❌ OFF';
-            swText.style.color = s.enabled ? '#50c878' : '#e06060';
-        }).catch(function() { swText.textContent = '?'; });
+
+    function refreshSettings() {
+        fetch('/api/game/admin/settings', { headers: { 'Authorization': 'Bearer ' + tok() } }).then(function(r) { return r.json(); }).then(function(s) {
+            swText.textContent = s.sw_enabled === 'true' ? '✅ ON' : '❌ OFF';
+            swText.style.color = s.sw_enabled === 'true' ? '#50c878' : '#e06060';
+            botText.textContent = s.bot_detection_enabled === 'true' ? '✅ ON' : '❌ OFF';
+            botText.style.color = s.bot_detection_enabled === 'true' ? '#50c878' : '#e06060';
+        }).catch(function() { swText.textContent = '?'; botText.textContent = '?'; });
     }
-    refreshSwStatus();
+    refreshSettings();
+
     swBtn.addEventListener('click', function() {
         var currentlyOn = swText.textContent.indexOf('ON') !== -1;
-        var turnOn = !currentlyOn;
-        fetch('/api/game/admin/sw-toggle', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: turnOn }) }).then(function(r) { return r.json(); }).then(function(r) {
-            refreshSwStatus();
-            // If turning off, unregister SW + clear caches + reload to release control
-            if (!turnOn && 'serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistration().then(function(reg) {
-                    if (reg) reg.unregister();
-                });
-                caches.keys().then(function(names) {
-                    names.forEach(function(n) { caches.delete(n); });
-                }).then(function() {
-                    location.reload();
-                });
-            }
-        }).catch(function(e) { alert(e.message); });
+        fetch('/api/game/admin/sw-toggle', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function() { refreshSettings(); });
+    });
+    
+    botBtn.addEventListener('click', function() {
+        var currentlyOn = botText.textContent.indexOf('ON') !== -1;
+        fetch('/api/game/admin/settings/bot-detection', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function() { refreshSettings(); });
     });
 }
 
@@ -1108,6 +1106,12 @@ function pollConsole() {
     _consoleTimer = setTimeout(pollConsole, 3000);
 }
 
+function toggleConfirmed(charName, confirmed) {
+    adminApi('POST', '/admin/flagged/' + encodeURIComponent(charName) + '/confirm', { confirmed: confirmed })
+        .then(function() { loadFlagged(); })
+        .catch(function(e) { alert('Failed to update confirmed status: ' + e.message); });
+}
+
 // ── Flagged Characters ───────────────────────────────────────────────
 function loadFlagged() {
     var el = document.getElementById('tab-flagged');
@@ -1133,7 +1137,7 @@ function loadFlagged() {
                 var r = rows[i];
                 var det = r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '?';
                 var seen = r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '?';
-                var confirmed = r.confirmed ? '<span class="badge badge-yes">Yes</span>' : '<span class="badge badge-no">No</span>';
+                var confirmedBtn = '<button class="db-btn ' + (r.confirmed ? 'btn-yes' : 'btn-no') + '" style="font-size:10px;padding:2px 6px" onclick="toggleConfirmed(\'' + esc(r.char_name) + '\', ' + !r.confirmed + ')">' + (r.confirmed ? '✅ Yes' : '❌ No') + '</button>';
                 var signalBadge = (r.distinct_signals || 0) > 1
                     ? '<span style="color:#e06060;font-weight:700">' + (r.distinct_signals || 0) + '</span>'
                     : '<span style="color:#6a6a70">' + (r.distinct_signals || 0) + '</span>';
@@ -1144,7 +1148,7 @@ function loadFlagged() {
                     '<td style="text-align:center;font-size:12px">' + signalBadge + '</td>' +
                     '<td style="font-size:11px">' + det + '</td>' +
                     '<td style="font-size:11px">' + seen + '</td>' +
-                    '<td>' + confirmed + '</td></tr>' +
+                    '<td>' + confirmedBtn + '</td></tr>' +
                     '<tr id="flag-events-' + esc(r.char_name) + '" style="display:none"><td colspan="8"><div style="padding:8px;background:#15151a;border-radius:4px;max-height:300px;overflow-y:auto"><div class="loading" style="padding:8px">Loading events...</div></div></td></tr>';
             }
             html += '</tbody></table></div>';
