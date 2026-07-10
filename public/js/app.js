@@ -2552,7 +2552,7 @@ function getClassThemeBackground(className) {
 function renderDetailSlot(icon, label, value, accent='var(--text-bright)', title='') {
     const titleAttr = title ? ` title="${escHtml(title)}"` : '';
     return `<div class="detail-slot"${titleAttr}>
-        <div class="detail-slot-label">${icon} ${label}</div>
+        <div class="detail-slot-label">${label}</div>
         <div class="detail-slot-value" style="color:${accent}">${value}</div>
     </div>`;
 }
