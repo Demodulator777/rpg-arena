@@ -48,7 +48,7 @@ getDb().then(async (db) => {
   for (const sql of bannerModule.BANNER_MIGRATIONS) {
     try { await db.execute({ sql }); } catch {}
   }
-  
+
   // CSP violations table
   try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS csp_violations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,47 +63,16 @@ getDb().then(async (db) => {
     column_number INTEGER,
     raw_body TEXT
   )` }); } catch {}
-  
+
   // Seed default banner if none exists
   await bannerModule.seedDefaultBanner(db);
-  
-  // Init tournament tables and scheduler
+
+  // Quick DB init only — heavy startup runs after server starts
   await tournamentModule.initTournamentTables();
-  await tournamentModule.resumeActiveTournaments();
   await tournamentModule.createRelevantBrackets();
   tournamentModule.startTournament();
   tournamentModule.startScheduler();
 
-  // Hourly HP regen — fire at each :00
-  const msUntilHour = (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000;
-  setTimeout(() => {
-    runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
-    setInterval(() => {
-      runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
-    }, 3600000);
-  }, msUntilHour);
-  
-  // Auto upkeep — check every 60s for due payments
-  setInterval(() => {
-    autoProcessUpkeep(db).catch(e => console.error('[Upkeep] tick failed:', e.message));
-  }, 60000);
-  // Fire once on startup too
-  autoProcessUpkeep(db).catch(e => console.error('[Upkeep] init failed:', e.message));
-
-  // Weekly leaderboard — check every 10 minutes if a new week needs awarding
-  setInterval(() => {
-    computeWeeklyLeaderboard(db).catch(e => console.error('[WeeklyLB] tick failed:', e.message));
-  }, 600000);
-  // Fire once on startup too
-  computeWeeklyLeaderboard(db).catch(e => console.error('[WeeklyLB] init failed:', e.message));
-
-  // Periodic table cleanup — every hour, purge old rows from fast-growing tables
-  setInterval(() => {
-    purgeAllOldData(db).catch(e => console.error('[purge] tick failed:', e.message));
-  }, 3600000);
-  // Fire once on startup too
-  purgeAllOldData(db).catch(e => console.error('[purge] init failed:', e.message));
-  
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes').router);
@@ -149,107 +118,104 @@ getDb().then(async (db) => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.name.startsWith('.')) continue;
-        const fullPath = path.join(dir, entry.name);
-        const rel = path.relative(publicDir, fullPath).replace(/\\/g, '/');
-        if (entry.isDirectory()) {
-          if (entry.name === 'test') continue;
-          walk(fullPath);
-        } else {
-          files.push('/' + rel);
-        }
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else files.push('/' + path.relative(publicDir, full).replace(/\\/g, '/'));
       }
     }
     walk(publicDir);
-    fs.writeFileSync(path.join(publicDir, 'asset-manifest.js'), 'window.ASSET_MANIFEST=' + JSON.stringify(files) + ';');
-    console.log('[assets] wrote asset-manifest.js (' + files.length + ' files)');
-  } catch (e) {
-    console.error('[assets] failed to write asset-manifest.json:', e.message);
-  }
+    const js = 'window.ASSET_MANIFEST=' + JSON.stringify(files) + ';';
+    fs.writeFileSync(path.join(publicDir, 'asset-manifest.js'), js);
+    console.log(`[assets] wrote asset-manifest.js (${files.length} files)`);
+  } catch (e) { console.error('[assets] error:', e.message); }
 
-  // Tournament routes
-  app.use('/api', auth, tournamentModule.router);
-  
-  // Mount skills router with auth middleware
-  app.use('/skills', auth, skillsModule.router);
-  
-  // Tournament page
-  app.get('/tournaments', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/tournaments.html'));
-  });
-  
-  // Admin pages (must be before API router for the HTML route)
-  app.get('/admin/banner', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/admin/banner.html'));
-  });
-  
-  // Admin panel (HTML page — auth check happens client-side via JS)
+  // Serve static files from /public
+  app.use(express.static(path.join(__dirname, '../public'), {
+    maxAge: '1d',
+    etag: true,
+    lastModified: true,
+  }));
+  // Serve admin panel HTML
   app.get('/admin-panel', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin/panel.html'));
   });
-  
-  // API endpoint to get admin password for password-protected admin pages
-  app.get('/api/game/admin/password', auth, async (req, res) => {
-    if (!req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-    const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
-    res.json({ password: ADMIN_PANEL_PASSWORD });
+
+  // Additional routes (must be before app.listen)
+  app.use('/api', auth, tournamentModule.router);
+  app.use('/skills', auth, skillsModule.router);
+  app.get('/tournaments', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/tournaments.html'));
   });
-  
-  // Mount banner router with auth middleware
-  const { router: bannerRouter, admin: adminRouter, seedDefaultBanner } = require('./banner');
+  app.get('/admin/banner', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/admin/banner.html'));
+  });
+  app.get('/api/game/admin/password', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
+    res.json({ password: process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk' });
+  });
+  const { router: bannerRouter, admin: adminRouter } = require('./banner');
   app.use('/banner', auth, bannerRouter);
   app.use('/admin/banner', adminRouter);
-  
-// Database Admin Panel API
   const dbAdminRouter = require('./db-admin');
   app.use('/api/db', auth, dbAdminRouter);
-
-  // View CSP violations (auth required)
   app.get('/api/csp-violations', auth, async (req, res) => {
-    try {
-      const result = await db.execute({
-        sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200',
-      });
-      res.json(result.rows);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    try { const r = await db.execute({ sql: 'SELECT * FROM csp_violations ORDER BY id DESC LIMIT 200' }); res.json(r.rows); }
+    catch (e) { res.status(500).json({ error: e.message }); }
   });
-  
-// Static files - AFTER API routes
-app.use(express.static(path.join(__dirname, '../public'), {
+  app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, filePath) => {
-        // Let service worker cache static assets. Use must-revalidate so browser
-        // always checks with server but SW can store and serve from cache.
-        if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
-            res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
-        }
-        if (filePath.endsWith('.wasm')) {
-            res.setHeader('Content-Type', 'application/wasm');
-        }
-        if (filePath.endsWith('.data')) {
-            res.setHeader('Content-Type', 'application/octet-stream');
-        }
+      if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js'))
+        res.setHeader('Cache-Control', 'max-age=0, must-revalidate');
+      if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
+      if (filePath.endsWith('.data')) res.setHeader('Content-Type', 'application/octet-stream');
     }
-}));
+  }));
+  app.use('/test', express.static(path.join(__dirname, '../public/test'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
+      if (filePath.endsWith('.data')) res.setHeader('Content-Type', 'application/octet-stream');
+    }
+  }));
 
-// Serve test folder
-app.use('/test', express.static(path.join(__dirname, '../public/test'), {
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.wasm')) {
-            res.setHeader('Content-Type', 'application/wasm');
-        }
-        if (filePath.endsWith('.data')) {
-            res.setHeader('Content-Type', 'application/octet-stream');
-        }
-    }
-}));
-  
   const PORT = process.env.PORT || 3009;
+  // Start listening BEFORE heavy background work
   app.listen(PORT, () => {
-    console.log(`⚔️  RPG Arena running on http://localhost:${PORT}`);
+    console.log(`\u2694\uFE0F  RPG Arena running on http://localhost:${PORT}`);
     // Start bot runner after server is listening
     ensureBotRunner().catch(e => console.error('[BotRunner] init error:', e.message));
   });
+
+  // ── Background startup (runs after server is already listening) ──
+
+  // Resume active tournaments (can be slow with many rounds)
+  tournamentModule.resumeActiveTournaments().catch(e => console.error('[Tournament] resume error:', e.message));
+
+  // Hourly HP regen — fire at each :00
+  const msUntilHour = (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000;
+  setTimeout(() => {
+    runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
+    setInterval(() => {
+      runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
+    }, 3600000);
+  }, msUntilHour);
+
+  // Auto upkeep — check every 60s for due payments
+  setInterval(() => {
+    autoProcessUpkeep(db).catch(e => console.error('[Upkeep] tick failed:', e.message));
+  }, 60000);
+  autoProcessUpkeep(db).catch(e => console.error('[Upkeep] init failed:', e.message));
+
+  // Weekly leaderboard — check every 10 minutes if a new week needs awarding
+  setInterval(() => {
+    computeWeeklyLeaderboard(db).catch(e => console.error('[WeeklyLB] tick failed:', e.message));
+  }, 600000);
+  computeWeeklyLeaderboard(db).catch(e => console.error('[WeeklyLB] init failed:', e.message));
+
+  // Periodic table cleanup — every hour, purge old rows from fast-growing tables
+  setInterval(() => {
+    purgeAllOldData(db).catch(e => console.error('[purge] tick failed:', e.message));
+  }, 3600000);
+  purgeAllOldData(db).catch(e => console.error('[purge] init failed:', e.message));
 }).catch(err => {
   console.error('Failed to initialize database:', err);
   process.exit(1);
