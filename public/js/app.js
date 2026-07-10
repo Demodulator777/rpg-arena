@@ -8639,7 +8639,7 @@ async function openProfile(id) {
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
 
-    if (c.class === 'warrior') {
+    if (p.class === 'warrior') {
             const strBonus = Math.floor(totalStr / 10);
             finalDmgMin += strBonus;
             finalDmgMax += strBonus;
