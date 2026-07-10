@@ -2629,8 +2629,14 @@ function renderCharacter() {
     const baseDmgMax = baseDmgMin + 4;
     const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
     const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
-    const finalDmgMin = baseDmgMin + gearDmgMin;
-    const finalDmgMax = baseDmgMax + gearDmgMax;
+    let finalDmgMin = baseDmgMin + gearDmgMin;
+    let finalDmgMax = baseDmgMax + gearDmgMax;
+
+    if (p.class === 'warrior') {
+        const strBonus = Math.floor(totalStr / 10);
+        finalDmgMin += strBonus;
+        finalDmgMax += strBonus;
+    }
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
     const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
