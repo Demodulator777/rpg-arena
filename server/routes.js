@@ -13810,6 +13810,8 @@ async function runBotDetection(db) {
 async function persistBotFlags(db, botPlayers) {
     const now = Math.floor(Date.now() / 1000);
     try {
+        const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
+        if (setting && setting.value === 'false') return;
         await ensureFlaggedTable(db);
         const flaggedRows = await db.execute('SELECT char_name FROM flagged_characters');
         const existingFlags = new Set(flaggedRows.rows.map(r => r.char_name));
@@ -14021,9 +14023,10 @@ router.get('/build-version', async (req, res) => {
 router.get('/sw-status', async (req, res) => {
     try {
         const db = await getDb();
-        const row = await dbGet(db, "SELECT value FROM server_settings WHERE key='sw_enabled'");
-        res.json({ enabled: row?.value === '1' });
-    } catch (e) { res.json({ enabled: true }); }
+        const swRow = await dbGet(db, "SELECT value FROM server_settings WHERE key='sw_enabled'");
+        const botRow = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
+        res.json({ enabled: swRow?.value === '1', botDetectionEnabled: botRow?.value !== 'false' });
+    } catch (e) { res.json({ enabled: true, botDetectionEnabled: true }); }
 });
 
 router.get('/admin/sw-status', auth, async (req, res) => {
@@ -14050,6 +14053,9 @@ router.post('/admin/sw-toggle', auth, async (req, res) => {
 router.post('/admin/report-dom-mutation', auth, async (req, res) => {
     try {
         const db = await getDb();
+        // Short-circuit when bot detection is disabled — no DB writes at all
+        const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
+        if (setting && setting.value === 'false') return res.json({ success: true });
         const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
         const charName = char?.name || '';
         const charId = char?.id || 0;
