@@ -8406,9 +8406,6 @@ async function showSquadDetail(squadId) {
         if (!s) return;
         const isInSquad = squadsData?.me?.squad != null;
         const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
-        const logoHtml = s.logo
-            ? `<img src="${escHtml(s.logo)}" alt="" style="max-width:120px;max-height:120px;object-fit:contain;border-radius:12px;display:block;margin:0 auto">`
-            : `<div style="width:80px;height:80px;border-radius:16px;margin:0 auto;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:3rem">🛡️</div>`;
         const membersHtml = members.map(m => {
             const splashSrc = `/images/class/${m.class}-st.png`;
             const portraitSrc = `/images/class/${m.class}.png`;
@@ -8426,6 +8423,9 @@ async function showSquadDetail(squadId) {
                 </div>
             </div>`;
         }).join('');
+        const logoBanner = s.logo
+            ? `background-image:url("${escHtml(s.logo)}");background-size:cover;background-position:center`
+            : `background:linear-gradient(135deg,rgba(201,146,42,0.12),rgba(201,146,42,0.03))`;
         let html = `<style>
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 580px; width: 94vw; }
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box .game-dialog-message { overflow: visible !important; max-height: none !important; }
@@ -8433,10 +8433,12 @@ async function showSquadDetail(squadId) {
             @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
         </style>
         <div style="margin:-4px">
-            <div style="text-align:center;padding:24px 16px 20px;background:linear-gradient(135deg,rgba(201,146,42,0.12),rgba(201,146,42,0.03));border-radius:16px;border:1px solid rgba(201,146,42,0.15);margin-bottom:16px">
-                <div style="display:flex;justify-content:center;margin-bottom:12px">${logoHtml}</div>
-                <div class="squads-title" style="font-size:1.3rem;font-weight:700">${escHtml(s.name)}</div>
-                <div class="squads-meta" style="margin-top:4px;font-size:0.8rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
+            <div style="position:relative;overflow:hidden;border-radius:16px;margin-bottom:16px;min-height:140px;display:flex;align-items:flex-end;${logoBanner}">
+                <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.4) 50%,rgba(0,0,0,0.2) 100%);pointer-events:none"></div>
+                <div style="position:relative;z-index:1;padding:20px 18px;width:100%">
+                    <div class="squads-title" style="font-size:1.4rem;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.6)">${escHtml(s.name)}</div>
+                    <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:rgba(255,255,255,0.8)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
+                </div>
             </div>
             <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
             ${!isInSquad ? `<div style="margin-top:14px;text-align:center">
