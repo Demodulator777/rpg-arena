@@ -7886,9 +7886,12 @@ function buildSquadLeaderboardRow(s, idx) {
     const rank = idx + 1;
     const rc = rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
     const rs = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
+    const logoHtml = s.logo
+        ? `<img src="${escHtml(s.logo)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1rem">🛡️</div>`;
     return `<div class="lb-row" ${actionAttrs('showSquadDetail', s.id)}>
         <div class="lb-rank ${rc}">${rs}</div>
-        <div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1rem">🛡️</div>
+        ${logoHtml}
         <div class="lb-info"><div class="lb-name">${escHtml(s.name)}</div>
         <div class="lb-sub">${s.member_count} members · Avg Lv ${s.avg_level} · Avg 💰 ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
         <div class="lb-stats" style="grid-template-columns:1fr">
@@ -7981,13 +7984,23 @@ function renderSquads() {
     }
 
     // Squad header
+    const canChangeLogo = isLeader || isCoLeader;
+    const logoDisplay = squad.logo
+        ? `<img src="${escHtml(squad.logo)}" alt="${escHtml(squad.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+        : `<div style="width:48px;height:48px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.5rem">🛡️</div>`;
     const squadHeader = `<div class="squads-card">
         <div class="squads-card-head">
-            <div>
-                <div class="squads-title">🛡️ ${escHtml(squad.name)}</div>
-                <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
+            <div style="display:flex;align-items:center;gap:12px">
+                ${logoDisplay}
+                <div>
+                    <div class="squads-title">${escHtml(squad.name)}</div>
+                    <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
+                </div>
             </div>
-            <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
+            <div style="display:flex;gap:6px;align-items:center">
+                ${canChangeLogo ? `<button class="btn-secondary btn-sm" onclick="uploadSquadLogo()">📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" onclick="removeSquadLogo()">🗑️</button>` : ''}` : ''}
+                <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
+            </div>
         </div>
     </div>`;
 
@@ -8453,6 +8466,46 @@ async function leaveSquad() {
 }
 window.leaveSquad = leaveSquad;
 
+async function uploadSquadLogo() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        if (file.size > 200 * 1024) {
+            await openGameNoticeDialog({ title: 'Logo', message: 'Image must be under 200KB.' });
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const dataUrl = e.target?.result;
+            if (!dataUrl || typeof dataUrl !== 'string') return;
+            try {
+                await api('POST', '/game/squads/logo', { logo: dataUrl });
+                await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo updated!' });
+                await loadSquads();
+            } catch (err) {
+                await openGameNoticeDialog({ title: 'Logo', message: err.message || String(err) });
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+    input.click();
+}
+window.uploadSquadLogo = uploadSquadLogo;
+
+async function removeSquadLogo() {
+    try {
+        await api('DELETE', '/game/squads/logo');
+        await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo removed.' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Logo', message: e.message || String(e) });
+    }
+}
+window.removeSquadLogo = removeSquadLogo;
+
 async function applyToSquad(squadId) {
     try {
         await api('POST', '/game/squads/apply', { squad_id: squadId });
@@ -8521,10 +8574,13 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const badgeHtml = badges.length
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
         : '';
+    const squadHtml = p.squad_logo
+        ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px"><img src="${escHtml(p.squad_logo)}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover"><span style="font-size:0.7rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
+        : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
+            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements${squadHtml}</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div></div>
@@ -8782,6 +8838,7 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Achievements</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+                ${p.squad_name ? `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Squad</span><span style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--gold)">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover">` : ''}${escHtml(p.squad_name)}</span></div>` : ''}
               </div>
             </div>
           </div>
