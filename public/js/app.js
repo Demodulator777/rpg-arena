@@ -8407,35 +8407,37 @@ async function showSquadDetail(squadId) {
         const isInSquad = squadsData?.me?.squad != null;
         const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
         const logoHtml = s.logo
-            ? `<img src="${escHtml(s.logo)}" alt="" style="width:80px;height:80px;object-fit:contain;flex-shrink:0;border-radius:12px">`
-            : `<div style="width:80px;height:80px;border-radius:12px;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:2.5rem">🛡️</div>`;
+            ? `<img src="${escHtml(s.logo)}" alt="" style="max-width:120px;max-height:120px;object-fit:contain;border-radius:12px;display:block;margin:0 auto">`
+            : `<div style="width:80px;height:80px;border-radius:16px;margin:0 auto;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:3rem">🛡️</div>`;
         const membersHtml = members.map(m => {
-            const classImg = `/images/class/${m.class}.png`;
-            return `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;position:relative;overflow:hidden;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);margin-bottom:6px" ${actionAttrs('openProfile', m.id)}>
-                <img src="${classImg}" alt="" style="position:absolute;right:-10px;top:50%;transform:translateY(-50%);width:60px;height:60px;opacity:0.08;object-fit:contain;pointer-events:none">
-                <span>
-                    <span class="squads-member-name">${escHtml(m.name)}</span>
-                    <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                    <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
-                </span>
+            const splashSrc = `/images/class/${m.class}-st.png`;
+            const portraitSrc = `/images/class/${m.class}.png`;
+            return `<div class="squads-member" style="display:flex;align-items:center;gap:14px;cursor:pointer;position:relative;overflow:hidden;padding:0;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);margin-bottom:8px;min-height:70px" ${actionAttrs('openProfile', m.id)}>
+                <div style="position:relative;width:70px;height:70px;flex-shrink:0;overflow:hidden;border-radius:12px 0 0 12px;background:rgba(0,0,0,0.3)">
+                    <img src="${splashSrc}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center -10px" data-error-hide="true" data-error-next-display="none">
+                    <img src="${portraitSrc}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none" data-error-src="${portraitSrc}" data-error-next-display="block">
+                </div>
+                <div style="flex:1;min-width:0;padding:8px 8px 8px 0">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                        <span class="squads-member-name" style="font-size:0.9rem">${escHtml(m.name)}</span>
+                        <span style="font-size:0.7rem;padding:1px 8px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--text-dim)">${roleLabels[m.role] || '🪖 Member'}</span>
+                    </div>
+                    <div class="squads-member-sub" style="font-size:0.75rem;color:var(--text-dim);margin-top:4px">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</div>
+                </div>
             </div>`;
         }).join('');
         let html = `<style>
-            #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 560px; width: 94vw; }
+            #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 580px; width: 94vw; }
             @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
         </style>
-        <div class="squads-card" style="max-width:100%;border:none;padding:0">
-            <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:16px;background:linear-gradient(135deg,rgba(201,146,42,0.08),rgba(201,146,42,0.02));border-radius:12px;border:1px solid rgba(201,146,42,0.15)">
-                ${logoHtml}
-                <div>
-                    <div class="squads-title" style="font-size:1.3rem">${escHtml(s.name)}</div>
-                    <div class="squads-meta">Members: ${members.length}</div>
-                </div>
+        <div style="margin:-4px">
+            <div style="text-align:center;padding:24px 16px 20px;background:linear-gradient(135deg,rgba(201,146,42,0.12),rgba(201,146,42,0.03));border-radius:16px;border:1px solid rgba(201,146,42,0.15);margin-bottom:16px">
+                <div style="display:flex;justify-content:center;margin-bottom:12px">${logoHtml}</div>
+                <div class="squads-title" style="font-size:1.3rem;font-weight:700">${escHtml(s.name)}</div>
+                <div class="squads-meta" style="margin-top:4px;font-size:0.8rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
             </div>
-            <div class="squads-members" style="padding:0">
-                ${membersHtml}
-            </div>
-            ${!isInSquad ? `<div style="margin-top:12px;padding:0">
+            <div style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
+            ${!isInSquad ? `<div style="margin-top:14px;text-align:center">
                 <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
             </div>` : ''}
         </div>`;
