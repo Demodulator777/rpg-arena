@@ -8443,9 +8443,11 @@ async function showSquadDetail(squadId) {
                 <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
             </div>` : ''}
         </div>`;
+        ensureGameDialogModal();
+        const dialogBox = document.querySelector('#game-dialog-modal .game-dialog-box');
+        if (dialogBox) dialogBox.classList.add('squad-detail-box');
         await openGameNoticeDialog({ title: '', message: html, confirmLabel: 'Close' });
-        const box = document.querySelector('#game-dialog-modal:not(.hidden) .game-dialog-box');
-        if (box) box.classList.add('squad-detail-box');
+        if (dialogBox) dialogBox.classList.remove('squad-detail-box');
     } catch (e) {
         await openGameNoticeDialog({ title: 'Squad Details', message: e.message || String(e), confirmLabel: 'Close' });
     }
