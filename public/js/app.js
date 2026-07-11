@@ -8603,7 +8603,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
         : '';
     const squadHtml = p.squad_logo && p.squad_id
-        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;margin-left:4px"><img src="${escHtml(p.squad_logo)}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover"><span style="font-size:0.75rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
+        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px"><img src="${escHtml(p.squad_logo)}" alt="" class="lb-squad-logo"><span style="font-size:0.8rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
