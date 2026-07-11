@@ -4843,7 +4843,9 @@ ACHIEVEMENTS.push(
 console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 async function buildAchievementMetricSnapshot(db, char) {
-    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow] = await Promise.all([
+    const now = Math.floor(Date.now() / 1000);
+    const weekStart = getCurrentWeekStart(now);
+    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow, weeklyDmgRow] = await Promise.all([
         dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
         dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
         char.user_id
@@ -4857,6 +4859,18 @@ async function buildAchievementMetricSnapshot(db, char) {
             WHERE gm.char_id = ?`, [char.id]),
         dbAll(db, 'SELECT gatekeeper_key FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id]),
         dbGet(db, 'SELECT encounters, defeats, deaths FROM character_crawler_stats WHERE char_id = ?', [char.id]),
+        dbGet(db, `
+            SELECT COALESCE(SUM(dmg), 0) AS total
+            FROM (
+                SELECT COALESCE(total_dmg_dealt, 0) AS dmg
+                FROM battles WHERE attacker_id = ? AND fought_at >= ?
+                UNION ALL
+                SELECT COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg
+                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                    AND json_extract(substr(body, 15), '$.type') = 'mission'
+                    AND receiver_id = ? AND sent_at >= ?
+            )
+        `, [char.id, weekStart, char.id, weekStart]),
     ]);
 
     const missionTotals = {
@@ -4933,28 +4947,11 @@ async function buildAchievementMetricSnapshot(db, char) {
         crawler_encounters: Number(crawlerRow?.encounters || 0),
         crawler_defeats: Number(crawlerRow?.defeats || 0),
         crawler_deaths: Number(crawlerRow?.deaths || 0),
+        total_dmg_dealt: Number(weeklyDmgRow?.total || 0),
         missionTotals,
         monsterTotals,
         gatekeeperTotals,
     };
-}
-
-async function getCharWeeklyDamage(db, charId) {
-    const now = Math.floor(Date.now() / 1000);
-    const weekStart = getCurrentWeekStart(now);
-    const rows = await dbAll(db, `
-        SELECT COALESCE(SUM(dmg), 0) AS total
-        FROM (
-            SELECT COALESCE(total_dmg_dealt, 0) AS dmg
-            FROM battles WHERE attacker_id = ? AND fought_at >= ?
-            UNION ALL
-            SELECT COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg
-            FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                AND json_extract(substr(body, 15), '$.type') = 'mission'
-                AND receiver_id = ? AND sent_at >= ?
-        )
-    `, [charId, weekStart, charId, weekStart]);
-    return Number(rows[0]?.total || 0);
 }
 
 async function getAchievementMetricValue(db, char, achievement, snapshot = null) {
@@ -5066,7 +5063,7 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     }
 
     if (metric === 'total_dmg_dealt') {
-        return await getCharWeeklyDamage(db, char.id);
+        return metrics.total_dmg_dealt || 0;
     }
 
     return 0;
