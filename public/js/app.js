@@ -8428,6 +8428,7 @@ async function showSquadDetail(squadId) {
         }).join('');
         let html = `<style>
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 580px; width: 94vw; }
+            #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box .game-dialog-message { overflow-x: visible; overflow-y: visible; }
             @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
         </style>
         <div style="margin:-4px">
