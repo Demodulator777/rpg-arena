@@ -13149,7 +13149,7 @@ router.get('/leaderboard', auth, async (req, res) => {
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
         const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,
             (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
-            sq.name AS squad_name, sq.logo AS squad_logo
+            sq.id AS squad_id, sq.name AS squad_name, sq.logo AS squad_logo
             FROM characters c 
             LEFT JOIN squad_members sm ON sm.char_id = c.id
             LEFT JOIN squads sq ON sq.id = sm.squad_id
