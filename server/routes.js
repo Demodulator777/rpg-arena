@@ -4939,6 +4939,24 @@ async function buildAchievementMetricSnapshot(db, char) {
     };
 }
 
+async function getCharWeeklyDamage(db, charId) {
+    const now = Math.floor(Date.now() / 1000);
+    const weekStart = getCurrentWeekStart(now);
+    const rows = await dbAll(db, `
+        SELECT COALESCE(SUM(dmg), 0) AS total
+        FROM (
+            SELECT COALESCE(total_dmg_dealt, 0) AS dmg
+            FROM battles WHERE attacker_id = ? AND fought_at >= ?
+            UNION ALL
+            SELECT COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg
+            FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                AND json_extract(substr(body, 15), '$.type') = 'mission'
+                AND receiver_id = ? AND sent_at >= ?
+        )
+    `, [charId, weekStart, charId, weekStart]);
+    return Number(rows[0]?.total || 0);
+}
+
 async function getAchievementMetricValue(db, char, achievement, snapshot = null) {
     const metrics = snapshot || await buildAchievementMetricSnapshot(db, char);
     const metric = achievement.metric;
@@ -5047,6 +5065,10 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
         return metrics.gatekeeperTotals?.keys?.has(achievement.metric_key) ? 1 : 0;
     }
 
+    if (metric === 'total_dmg_dealt') {
+        return await getCharWeeklyDamage(db, char.id);
+    }
+
     return 0;
 }
 
@@ -5108,9 +5130,7 @@ async function getWeeklyTaskProgress(db, char, weeklyState, metric) {
         return Math.max(0, (char.wins || 0) - (weeklyState.wins_base || 0));
     }
     if (metric === 'battles') {
-        const pvpBattles = Math.max(0, ((char.wins || 0) + (char.losses || 0)) - ((weeklyState.wins_base || 0) + (weeklyState.losses_base || 0)));
-        const missionBattles = Math.max(0, (await getMissionFightTotal(db, char.id)) - (weeklyState.mission_fights_base || 0));
-        return pvpBattles + missionBattles;
+        return Math.max(0, ((char.wins || 0) + (char.losses || 0)) - ((weeklyState.wins_base || 0) + (weeklyState.losses_base || 0)));
     }
     return 0;
 }
