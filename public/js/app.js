@@ -8424,7 +8424,7 @@ async function showSquadDetail(squadId) {
             </div>`;
         }).join('');
         const logoBanner = s.logo
-            ? `background-image:url("${escHtml(s.logo)}");background-size:cover;background-position:center`
+            ? `background-image:url('${escHtml(s.logo)}');background-size:cover;background-position:center`
             : `background:linear-gradient(135deg,rgba(201,146,42,0.12),rgba(201,146,42,0.03))`;
         let html = `<style>
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 580px; width: 94vw; }
