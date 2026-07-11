@@ -674,6 +674,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE messages ADD COLUMN reward_claimed INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN system_message INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
+            'ALTER TABLE squads ADD COLUMN logo TEXT DEFAULT NULL',
             `CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 sender_user_id INTEGER NOT NULL,
@@ -9592,7 +9593,7 @@ router.get('/squads/me', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ squad: null, members: [] });
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
             COALESCE((SELECT SUM(gold) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gold_donated,
             COALESCE((SELECT SUM(gems) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gems_donated
@@ -9687,6 +9688,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
             SELECT
                 s.id,
                 s.name,
+                s.logo,
                 COUNT(sm.char_id) AS member_count,
                 CAST(AVG(c.level) AS INTEGER) AS avg_level,
                 CAST(AVG(c.total_gold_earned) AS INTEGER) AS avg_gold_earned,
@@ -9701,6 +9703,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
         res.json(rows.map(r => ({
             id: Number(r.id || 0),
             name: r.name,
+            logo: r.logo || null,
             member_count: Number(r.member_count || 0),
             avg_level: Number(r.avg_level || 0),
             avg_gold_earned: Number(r.avg_gold_earned || 0),
@@ -9893,6 +9896,35 @@ router.post('/squads/reset-invite', auth, async (req, res) => {
         }
         await dbRun(db, 'UPDATE squads SET invite_code=? WHERE id=?', [code, squad.id]);
         res.json({ success: true, invite_code: code });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/logo', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only the squad leader or co-leader can change the logo.' });
+        const logoData = req.body?.logo;
+        if (!logoData || typeof logoData !== 'string') return res.status(400).json({ error: 'No logo data provided.' });
+        const size = Buffer.byteLength(logoData, 'utf8');
+        if (size > 200 * 1024) return res.status(400).json({ error: 'Logo must be under 200KB.' });
+        if (!logoData.startsWith('data:image/')) return res.status(400).json({ error: 'Logo must be a valid image data URL.' });
+        await dbRun(db, 'UPDATE squads SET logo=? WHERE id=?', [logoData, membership.squad_id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/squads/logo', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
+        if (!membership) return res.status(403).json({ error: 'Only the squad leader or co-leader can remove the logo.' });
+        await dbRun(db, 'UPDATE squads SET logo=NULL WHERE id=?', [membership.squad_id]);
+        res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -10181,14 +10213,14 @@ router.get('/squads/:squadId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const squadId = Number(req.params.squadId);
-        const squad = await dbGet(db, 'SELECT id, name, invite_code FROM squads WHERE id=?', [squadId]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo FROM squads WHERE id=?', [squadId]);
         if (!squad) return res.status(404).json({ error: 'Squad not found.' });
         const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
             COALESCE((SELECT SUM(gold) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gold_donated,
             COALESCE((SELECT SUM(gems) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gems_donated
             FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId]);
         res.json({
-            squad: { id: Number(squad.id), name: squad.name },
+            squad: { id: Number(squad.id), name: squad.name, logo: squad.logo || null },
             members: members.map(m => ({
                 id: Number(m.id), name: m.name, level: Number(m.level),
                 class: m.class, role: m.role,
@@ -13116,8 +13148,11 @@ router.get('/leaderboard', auth, async (req, res) => {
         const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
         const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,
-            (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed
+            (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
+            sq.name AS squad_name, sq.logo AS squad_logo
             FROM characters c 
+            LEFT JOIN squad_members sm ON sm.char_id = c.id
+            LEFT JOIN squads sq ON sq.id = sm.squad_id
             ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
         res.json(players.map((p,i) => {
@@ -13309,6 +13344,8 @@ router.get('/player/:id', auth, async (req, res) => {
         const equipped = await getEquippedItems(db, player.id);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
 
+        const squadRow = await dbGet(db, `SELECT sq.name AS squad_name, sq.logo AS squad_logo
+            FROM squad_members sm JOIN squads sq ON sq.id = sm.squad_id WHERE sm.char_id=? LIMIT 1`, [player.id]);
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
             FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
@@ -13335,6 +13372,8 @@ router.get('/player/:id', auth, async (req, res) => {
                 const stats = calcElemStats(er);
                 return { ...er, ...stats };
             })(),
+            squad_name: squadRow?.squad_name || null,
+            squad_logo: squadRow?.squad_logo || null,
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
