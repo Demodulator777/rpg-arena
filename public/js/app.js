@@ -8428,7 +8428,8 @@ async function showSquadDetail(squadId) {
         }).join('');
         let html = `<style>
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 580px; width: 94vw; }
-            #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box .game-dialog-message { overflow-x: visible; overflow-y: visible; }
+            #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box .game-dialog-message { overflow: visible !important; max-height: none !important; }
+            .sd-member-list { overflow: visible !important; }
             @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
         </style>
         <div style="margin:-4px">
@@ -8437,7 +8438,7 @@ async function showSquadDetail(squadId) {
                 <div class="squads-title" style="font-size:1.3rem;font-weight:700">${escHtml(s.name)}</div>
                 <div class="squads-meta" style="margin-top:4px;font-size:0.8rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
+            <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
             ${!isInSquad ? `<div style="margin-top:14px;text-align:center">
                 <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
             </div>` : ''}
