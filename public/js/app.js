@@ -8413,9 +8413,9 @@ async function showSquadDetail(squadId) {
             const splashSrc = `/images/class/${m.class}-st.png`;
             const portraitSrc = `/images/class/${m.class}.png`;
             return `<div class="squads-member" style="display:flex;align-items:center;gap:14px;cursor:pointer;position:relative;overflow:hidden;padding:0;border-radius:12px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);margin-bottom:8px;min-height:70px" ${actionAttrs('openProfile', m.id)}>
-                <div style="position:relative;width:70px;height:70px;flex-shrink:0;overflow:hidden;border-radius:12px 0 0 12px;background:rgba(0,0,0,0.3)">
-                    <img src="${splashSrc}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center -10px" data-error-hide="true" data-error-next-display="none">
-                    <img src="${portraitSrc}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none" data-error-src="${portraitSrc}" data-error-next-display="block">
+                <div style="position:relative;width:70px;min-height:70px;flex-shrink:0;overflow:hidden;border-radius:12px 0 0 12px;background:rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center">
+                    <img src="${splashSrc}" alt="" style="width:100%;height:100%;object-fit:cover" data-error-hide="true" data-error-next-display="none">
+                    <img src="${portraitSrc}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none" data-error-src="${portraitSrc}" data-error-next-display="block">
                 </div>
                 <div style="flex:1;min-width:0;padding:8px 8px 8px 0">
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
