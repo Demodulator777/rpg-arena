@@ -7998,7 +7998,7 @@ function renderSquads() {
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
-                ${canChangeLogo ? `<button class="btn-secondary btn-sm" onclick="uploadSquadLogo()">📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" onclick="removeSquadLogo()">🗑️</button>` : ''}` : ''}
+                ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
             </div>
         </div>
