@@ -8473,27 +8473,52 @@ async function uploadSquadLogo() {
     input.onchange = async () => {
         const file = input.files?.[0];
         if (!file) return;
-        if (file.size > 200 * 1024) {
-            await openGameNoticeDialog({ title: 'Logo', message: 'Image must be under 200KB.' });
-            return;
+        try {
+            const resizedDataUrl = await resizeImage(file, 200 * 1024);
+            await api('POST', '/game/squads/logo', { logo: resizedDataUrl });
+            await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo updated!' });
+            await loadSquads();
+        } catch (err) {
+            await openGameNoticeDialog({ title: 'Logo', message: err.message || String(err) });
         }
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const dataUrl = e.target?.result;
-            if (!dataUrl || typeof dataUrl !== 'string') return;
-            try {
-                await api('POST', '/game/squads/logo', { logo: dataUrl });
-                await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo updated!' });
-                await loadSquads();
-            } catch (err) {
-                await openGameNoticeDialog({ title: 'Logo', message: err.message || String(err) });
-            }
-        };
-        reader.readAsDataURL(file);
     };
     input.click();
 }
 window.uploadSquadLogo = uploadSquadLogo;
+
+function resizeImage(file, maxBytes) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            let w = img.width, h = img.height;
+            const maxDim = 128;
+            if (w > maxDim || h > maxDim) {
+                const ratio = Math.min(maxDim / w, maxDim / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            let quality = 0.8;
+            const tryEncode = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                const approxBytes = Math.round(dataUrl.length * 0.75);
+                if (approxBytes <= maxBytes || quality <= 0.2) {
+                    resolve(dataUrl);
+                } else {
+                    quality = Math.max(0.1, quality - 0.15);
+                    tryEncode();
+                }
+            };
+            tryEncode();
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = URL.createObjectURL(file);
+    });
+}
 
 async function removeSquadLogo() {
     try {
