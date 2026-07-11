@@ -8603,12 +8603,12 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
         : '';
     const squadHtml = p.squad_logo && p.squad_id
-        ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:8px" ${actionAttrs('showSquadDetail', p.squad_id)}><img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover"><span style="font-size:0.75rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
+        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;flex-shrink:0;margin-left:4px"><img src="${escHtml(p.squad_logo)}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover"><span style="font-size:0.75rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
+            <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div></div>
