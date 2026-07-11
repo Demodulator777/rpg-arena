@@ -8406,11 +8406,14 @@ async function showSquadDetail(squadId) {
         if (!s) return;
         const isInSquad = squadsData?.me?.squad != null;
         const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
+        const logoHtml = s.logo
+            ? `<img src="${escHtml(s.logo)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
+            : `<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🛡️</div>`;
         let html = `<div class="squads-card" style="max-width:100%">
             <div class="squads-card-head">
-                <div><div class="squads-title">🛡️ ${escHtml(s.name)}</div>
+                <div style="display:flex;align-items:center;gap:10px">${logoHtml}<div><div class="squads-title">${escHtml(s.name)}</div>
                 <div class="squads-meta">Members: ${members.length}</div>
-            </div></div>
+            </div></div></div>
             <div class="squads-members">
                 ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" ${actionAttrs('openProfile', m.id)}>
                     <span>
@@ -8599,13 +8602,13 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const badgeHtml = badges.length
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
         : '';
-    const squadHtml = p.squad_logo
-        ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:6px"><img src="${escHtml(p.squad_logo)}" alt="" style="width:16px;height:16px;border-radius:50%;object-fit:cover"><span style="font-size:0.7rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
+    const squadHtml = p.squad_logo && p.squad_id
+        ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:8px" ${actionAttrs('showSquadDetail', p.squad_id)}><img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover"><span style="font-size:0.75rem;color:var(--gold)">${escHtml(p.squad_name||'')}</span></span>`
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
-            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements${squadHtml}</div></div>
+            <div class="lb-info"><div class="lb-name">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div></div>
