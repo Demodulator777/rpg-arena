@@ -8407,27 +8407,41 @@ async function showSquadDetail(squadId) {
         const isInSquad = squadsData?.me?.squad != null;
         const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
         const logoHtml = s.logo
-            ? `<img src="${escHtml(s.logo)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-            : `<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🛡️</div>`;
-        let html = `<div class="squads-card" style="max-width:100%">
-            <div class="squads-card-head">
-                <div style="display:flex;align-items:center;gap:10px">${logoHtml}<div><div class="squads-title">${escHtml(s.name)}</div>
-                <div class="squads-meta">Members: ${members.length}</div>
-            </div></div></div>
-            <div class="squads-members">
-                ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" ${actionAttrs('openProfile', m.id)}>
-                    <span>
-                        <span class="squads-member-name">${escHtml(m.name)}</span>
-                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
-                    </span>
-                </div>`).join('')}
+            ? `<img src="${escHtml(s.logo)}" alt="" style="width:80px;height:80px;object-fit:contain;flex-shrink:0;border-radius:12px">`
+            : `<div style="width:80px;height:80px;border-radius:12px;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:2.5rem">🛡️</div>`;
+        const membersHtml = members.map(m => {
+            const classImg = `/images/class/${m.class}.png`;
+            return `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;position:relative;overflow:hidden;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);margin-bottom:6px" ${actionAttrs('openProfile', m.id)}>
+                <img src="${classImg}" alt="" style="position:absolute;right:-10px;top:50%;transform:translateY(-50%);width:60px;height:60px;opacity:0.08;object-fit:contain;pointer-events:none">
+                <span>
+                    <span class="squads-member-name">${escHtml(m.name)}</span>
+                    <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
+                    <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</span>
+                </span>
+            </div>`;
+        }).join('');
+        let html = `<style>
+            #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 560px; width: 94vw; }
+            @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
+        </style>
+        <div class="squads-card" style="max-width:100%;border:none;padding:0">
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:16px;background:linear-gradient(135deg,rgba(201,146,42,0.08),rgba(201,146,42,0.02));border-radius:12px;border:1px solid rgba(201,146,42,0.15)">
+                ${logoHtml}
+                <div>
+                    <div class="squads-title" style="font-size:1.3rem">${escHtml(s.name)}</div>
+                    <div class="squads-meta">Members: ${members.length}</div>
+                </div>
             </div>
-            ${!isInSquad ? `<div class="squads-actions" style="margin-top:12px">
+            <div class="squads-members" style="padding:0">
+                ${membersHtml}
+            </div>
+            ${!isInSquad ? `<div style="margin-top:12px;padding:0">
                 <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
             </div>` : ''}
         </div>`;
-        await openGameNoticeDialog({ title: 'Squad Details', message: html, confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: '', message: html, confirmLabel: 'Close' });
+        const box = document.querySelector('#game-dialog-modal:not(.hidden) .game-dialog-box');
+        if (box) box.classList.add('squad-detail-box');
     } catch (e) {
         await openGameNoticeDialog({ title: 'Squad Details', message: e.message || String(e), confirmLabel: 'Close' });
     }
