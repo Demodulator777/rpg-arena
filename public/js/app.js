@@ -585,7 +585,12 @@ async function api(method, path, body=null) {
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
     opts.headers['X-Build-Version'] = '2026-07-09-v1';
     if (window.tabSession) opts.headers['X-Tab-Session'] = window.tabSession;
-    if (body) opts.body = JSON.stringify(body);
+    if (body instanceof FormData) {
+        opts.body = body;
+        delete opts.headers['Content-Type'];
+    } else if (body) {
+        opts.body = JSON.stringify(body);
+    }
 
     // Trusted-event check: flag state-changing calls without recent user interaction
     if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && 
@@ -8499,8 +8504,10 @@ async function uploadSquadLogo() {
         const file = input.files?.[0];
         if (!file) return;
         try {
-            const resizedDataUrl = await resizeImage(file, 200 * 1024);
-            await api('POST', '/game/squads/logo', { logo: resizedDataUrl });
+            const blob = await resizeImageToBlob(file, 200 * 1024);
+            const fd = new FormData();
+            fd.append('logo', blob, 'logo.jpg');
+            const res = await api('POST', '/game/squads/logo', fd);
             await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo updated!' });
             await loadSquads();
         } catch (err) {
@@ -8511,7 +8518,7 @@ async function uploadSquadLogo() {
 }
 window.uploadSquadLogo = uploadSquadLogo;
 
-function resizeImage(file, maxBytes) {
+function resizeImageToBlob(file, maxBytes) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
@@ -8522,21 +8529,23 @@ function resizeImage(file, maxBytes) {
                 w = Math.round(w * ratio);
                 h = Math.round(h * ratio);
             }
-            let quality = 0.8;
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            // Try high quality first, reduce if too large
+            let quality = 0.9;
             const tryEncode = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                const dataUrl = canvas.toDataURL('image/jpeg', quality);
-                const approxBytes = Math.round(dataUrl.length * 0.75);
-                if (approxBytes <= maxBytes || quality <= 0.2) {
-                    resolve(dataUrl);
-                } else {
-                    quality = Math.max(0.1, quality - 0.15);
-                    tryEncode();
-                }
+                canvas.toBlob(blob => {
+                    if (!blob) return reject(new Error('Failed to encode image'));
+                    if (blob.size <= maxBytes || quality <= 0.2) {
+                        resolve(blob);
+                    } else {
+                        quality = Math.max(0.1, quality - 0.15);
+                        tryEncode();
+                    }
+                }, 'image/jpeg', quality);
             };
             tryEncode();
         };
