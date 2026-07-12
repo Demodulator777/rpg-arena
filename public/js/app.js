@@ -8523,7 +8523,7 @@ function resizeImageToBlob(file, maxBytes) {
         const img = new Image();
         img.onload = () => {
             let w = img.width, h = img.height;
-            const maxDim = 128;
+            const maxDim = 600;
             if (w > maxDim || h > maxDim) {
                 const ratio = Math.min(maxDim / w, maxDim / h);
                 w = Math.round(w * ratio);
@@ -8534,12 +8534,11 @@ function resizeImageToBlob(file, maxBytes) {
             canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, w, h);
-            // Try high quality first, reduce if too large
             let quality = 0.9;
             const tryEncode = () => {
                 canvas.toBlob(blob => {
                     if (!blob) return reject(new Error('Failed to encode image'));
-                    if (blob.size <= maxBytes || quality <= 0.2) {
+                    if (blob.size <= maxBytes || quality <= 0.1) {
                         resolve(blob);
                     } else {
                         quality = Math.max(0.1, quality - 0.15);
