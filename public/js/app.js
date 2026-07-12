@@ -7589,10 +7589,11 @@ function renderShop() {
 
     if (!filtered.length) { el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`; return; }
     el.innerHTML=filtered.map(item=>{
-        const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
-        const gemCost = item.gemCost || 0;
+                const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
+                const gemCost = item.gemCost || 0;
+                const price = item.price || 0;
         const isAvail=character.level>=(item.level||1), classOk=!item.classes||item.classes.includes(character.class);
-        const hasEnoughGold = pt==='gems' ? (character.gems||0)>=item.price : character.gold>=item.price;
+        const hasEnoughGold = pt==='gems' ? (character.gems||0)>=price : character.gold>=price;
         const hasEnoughGems = gemCost === 0 || (character.gems||0) >= gemCost;
         const hasEnough = hasEnoughGold && hasEnoughGems;
         let cardClass='shop-card';
@@ -7636,13 +7637,13 @@ function renderShop() {
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer">
                 <div style="display:flex;flex-direction:column;gap:2px">
-                    <span class="shop-card-price" style="color:${cc}">${ci} ${item.price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
+                    <span class="shop-card-price" style="color:${cc}">${ci} ${price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
                 <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough&&!item._buying?'':'disabled'}>${
             item._buying ? 'Buying...' :
                 !isAvail ? `Level ${item.level}` :
                     !classOk ? 'Class Locked' :
-                        !hasEnoughGold ? `Need ${item.price - (pt==='gems'?(character.gems||0):character.gold)} more` :
+                        !hasEnoughGold ? `Need ${price - (pt==='gems'?(character.gems||0):character.gold)} more` :
                             !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} 💎` :
                                 'Buy'
         }</button>
