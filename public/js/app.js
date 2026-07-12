@@ -8010,10 +8010,10 @@ function renderSquads() {
     </div>`;
 
     // Subtab navigation
-    const subTabsHtml = `<div class="squad-subtabs" style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid #2a2a35;padding-bottom:0;flex-wrap:wrap">
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'squad' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'squad' ? '#c8a86e' : '#2a2a35'};border-bottom:none;border-radius:6px 6px 0 0;color:${_squadSubTab === 'squad' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">📋 Squad</button>
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'members' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'members' ? '#c8a86e' : '#2a2a35'};border-bottom:none;border-radius:6px 6px 0 0;color:${_squadSubTab === 'members' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">👥 Members (${members.length})</button>
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'map' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'map' ? '#c8a86e' : '#2a2a35'};border-bottom:none;border-radius:6px 6px 0 0;color:${_squadSubTab === 'map' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">🗺️ Base Map</button>
+    const subTabsHtml = `<div class="squad-subtabs" style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'squad' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'squad' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'squad' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">Squad</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'members' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'members' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'members' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">Members (${members.length})</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'map' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'map' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'map' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">Base Map</button>
     </div>`;
 
     // Tab content
@@ -8051,7 +8051,7 @@ function renderSquads() {
                     </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">Base at max level.</span></div>'}
                     <div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
                         <div class="squads-meta">Donate to treasury for upgrades:</div>
-                        <div style="display:flex;gap:6px;margin-top:6px">
+                        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center">
                             <input id="clan-donate-gold" class="input-field" type="number" placeholder="Gold" style="width:100px;padding:4px 8px;font-size:0.8rem">
                             <input id="clan-donate-gems" class="input-field" type="number" placeholder="Gems" style="width:100px;padding:4px 8px;font-size:0.8rem">
                             <button class="btn-primary btn-sm" ${actionAttrs('donateToBase', base.id)}>Donate</button>
