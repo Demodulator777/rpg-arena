@@ -6,6 +6,24 @@ const skillsModule = require('./skills');
 const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
+
+const SQUAD_IMG_DIR = path.join(__dirname, '../public/images/squads');
+if (!fs.existsSync(SQUAD_IMG_DIR)) fs.mkdirSync(SQUAD_IMG_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, SQUAD_IMG_DIR),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`)
+});
+const uploadLogo = multer({
+    storage,
+    limits: { fileSize: 200 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files allowed'));
+        cb(null, true);
+    }
+}).single('logo');
 
 // ── Weapon leveling constants ──────────────────────────────────────────────
 const WEAPON_XP_PER_MISSION = 1;
@@ -9899,21 +9917,29 @@ router.post('/squads/reset-invite', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/squads/logo', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id');
-        if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only the squad leader or co-leader can change the logo.' });
-        const logoData = req.body?.logo;
-        if (!logoData || typeof logoData !== 'string') return res.status(400).json({ error: 'No logo data provided.' });
-        const size = Buffer.byteLength(logoData, 'utf8');
-        if (size > 200 * 1024) return res.status(400).json({ error: 'Logo must be under 200KB.' });
-        if (!logoData.startsWith('data:image/')) return res.status(400).json({ error: 'Logo must be a valid image data URL.' });
-        await dbRun(db, 'UPDATE squads SET logo=? WHERE id=?', [logoData, membership.squad_id]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+router.post('/squads/logo', auth, (req, res) => {
+    uploadLogo(req, res, async (err) => {
+        try {
+            if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
+            const db = await getDb();
+            const char = await getCurrentCharacter(db, req.user.userId, 'id');
+            if (!char) return res.status(404).json({ error: 'No character' });
+            const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
+            if (!membership) return res.status(403).json({ error: 'Only the squad leader or co-leader can change the logo.' });
+            if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+            // Delete old logo file if exists
+            const old = await dbGet(db, 'SELECT logo FROM squads WHERE id=?', [membership.squad_id]);
+            if (old?.logo && !old.logo.startsWith('data:')) {
+                const oldPath = path.join(__dirname, '../public', old.logo);
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+            }
+
+            const logoUrl = '/images/squads/' + req.file.filename;
+            await dbRun(db, 'UPDATE squads SET logo=? WHERE id=?', [logoUrl, membership.squad_id]);
+            res.json({ success: true, logo: logoUrl });
+        } catch (e) { res.status(500).json({ error: e.message }); }
+    });
 });
 
 router.delete('/squads/logo', auth, async (req, res) => {
@@ -9923,6 +9949,14 @@ router.delete('/squads/logo', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
         if (!membership) return res.status(403).json({ error: 'Only the squad leader or co-leader can remove the logo.' });
+
+        // Delete the file
+        const old = await dbGet(db, 'SELECT logo FROM squads WHERE id=?', [membership.squad_id]);
+        if (old?.logo && !old.logo.startsWith('data:')) {
+            const oldPath = path.join(__dirname, '../public', old.logo);
+            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+
         await dbRun(db, 'UPDATE squads SET logo=NULL WHERE id=?', [membership.squad_id]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -17663,8 +17697,6 @@ router.post('/shop/reroll', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-const fs = require('fs');
-
 // ── Bug Report to Database with Images ────────────────────────────────────
 router.post('/bug-report', async (req, res) => {
     try {
@@ -19587,6 +19619,30 @@ async function checkAndAwardWeeklyDamageAchievements(db, charId, weeklyDamage) {
     }
 }
 
+async function migrateBase64Logos() {
+    try {
+        const db = await getDb();
+        const rows = await dbAll(db, "SELECT id, logo FROM squads WHERE logo LIKE 'data:%'", []);
+        if (!rows.length) return;
+        console.log(`[Logo Migration] Converting ${rows.length} base64 logo(s) to files...`);
+        for (const row of rows) {
+            try {
+                const matches = row.logo.match(/^data:image\/([^;]+);base64,(.+)$/);
+                if (!matches) continue;
+                const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+                const extJpg = ext === 'jpg' || ext === 'jpeg' ? 'jpg' : ext;
+                const filename = `squad-${row.id}.${extJpg}`;
+                const filePath = path.join(SQUAD_IMG_DIR, filename);
+                const buf = Buffer.from(matches[2], 'base64');
+                fs.writeFileSync(filePath, buf);
+                const logoUrl = '/images/squads/' + filename;
+                await dbRun(db, 'UPDATE squads SET logo=? WHERE id=?', [logoUrl, row.id]);
+                console.log(`  Squad ${row.id}: ${logoUrl}`);
+            } catch (e) { console.error(`  Squad ${row.id}: ${e.message}`); }
+        }
+    } catch (e) { console.error('[Logo Migration] Error:', e.message); }
+}
+
 // Export battle engine for use by tournament module
 module.exports = {
     router, parseAdminPassword, dbGet, getDb,
@@ -19598,5 +19654,5 @@ module.exports = {
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
-    purgeAllOldData
+    purgeAllOldData, migrateBase64Logos
 };
