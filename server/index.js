@@ -40,7 +40,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData } = require('./routes');
+const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -189,6 +189,9 @@ getDb().then(async (db) => {
 
   // Resume active tournaments (can be slow with many rounds)
   tournamentModule.resumeActiveTournaments().catch(e => console.error('[Tournament] resume error:', e.message));
+
+  // Migrate existing base64 squad logos to file storage
+  migrateBase64Logos().catch(e => console.error('[Logo Migration] error:', e.message));
 
   // Hourly HP regen — fire at each :00
   const msUntilHour = (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000;
