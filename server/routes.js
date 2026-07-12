@@ -989,6 +989,15 @@ const WEEKLY_TASKS = [
             claimed_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, week_start, task_id)
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_performance (
+            char_id INTEGER NOT NULL,
+            week_start INTEGER NOT NULL,
+            damage_dealt INTEGER NOT NULL DEFAULT 0,
+            wins INTEGER NOT NULL DEFAULT 0,
+            losses INTEGER NOT NULL DEFAULT 0,
+            battles_fought INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (char_id, week_start)
+        )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS admin_reward_batches (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at INTEGER NOT NULL,
@@ -5135,6 +5144,17 @@ async function ensureWeeklyTaskState(db, char) {
     );
     await dbRun(db, 'DELETE FROM character_weekly_claims WHERE char_id = ? AND week_start <> ?', [char.id, weekStart]);
     return dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
+}
+
+async function incrementWeeklyPerformance(db, charId, damage, won, weekStart) {
+    await dbRun(db, `INSERT INTO character_weekly_performance (char_id, week_start, damage_dealt, wins, losses, battles_fought)
+        VALUES (?, ?, ?, ?, ?, 1)
+        ON CONFLICT(char_id, week_start) DO UPDATE SET
+            damage_dealt = damage_dealt + excluded.damage_dealt,
+            wins = wins + excluded.wins,
+            losses = losses + excluded.losses,
+            battles_fought = battles_fought + 1`,
+        [charId, weekStart, Math.round(damage || 0), won ? 1 : 0, won ? 0 : 1]);
 }
 
 async function getWeeklyTaskProgress(db, char, weeklyState, metric) {
@@ -11386,6 +11406,8 @@ router.post('/missions/collect', auth, async (req, res) => {
 
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
             [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, isDraw ? 1 : 0, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshChar.id]);
+        const weekStart = getCurrentWeekStart();
+        await incrementWeeklyPerformance(db, freshChar.id, battle.totalDmgToB || 0, playerWon, weekStart);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
 
         // ── Skill tree stat tracking ───────────────────────────────────────
@@ -13097,6 +13119,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, freshD.id]);
+        const pvpWeekStart = getCurrentWeekStart();
+        await incrementWeeklyPerformance(db, freshA.id, battle.totalDmgToB || 0, attackerWon || false, pvpWeekStart);
+        await incrementWeeklyPerformance(db, freshD.id, battle.totalDmgToA || 0, (!attackerWon && !isDraw) || false, pvpWeekStart);
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained,total_dmg_dealt,total_dmg_taken) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
                 [freshA.id, freshD.id, isDraw ? 0 : battle.winnerId, freshA.name, freshD.name, JSON.stringify(battle.log), now, 'pvp', xpGained, Math.abs(goldGained), battle.totalDmgToB || 0, battle.totalDmgToA || 0]);
@@ -13211,24 +13236,14 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const weekStart = getCurrentWeekStart(now);
         const prevWeekStart = weekStart - 7 * 86400;
-        const params = [weekStart, now, weekStart, now, weekStart, now];
 
         // Get top 10 current week by damage
         const dmgRows = await dbAll(db, `
-            SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
-            FROM (
-                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
-                FROM battles WHERE fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
-                FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
-                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                    AND json_extract(substr(body, 15), '$.type') = 'mission'
-                    AND sent_at >= ? AND sent_at < ?
-            ) GROUP BY char_id ORDER BY total_dmg DESC LIMIT 10
-        `, params);
+            SELECT wp.char_id, wp.damage_dealt AS total_dmg, wp.battles_fought AS total_battles
+            FROM character_weekly_performance wp
+            WHERE wp.week_start = ? AND wp.damage_dealt > 0
+            ORDER BY wp.damage_dealt DESC LIMIT 10
+        `, [weekStart]);
 
         const currentDmgTop = [];
         for (const r of dmgRows) {
@@ -13243,26 +13258,11 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
 
         // Get top 10 current week by wins
         const winRows = await dbAll(db, `
-            SELECT char_id, SUM(is_win) AS total_wins, SUM(bats) AS total_battles
-            FROM (
-                SELECT attacker_id AS char_id,
-                    CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
-                    1 AS bats
-                FROM battles WHERE fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT defender_id AS char_id,
-                    CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
-                    1 AS bats
-                FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT receiver_id AS char_id,
-                    CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
-                    1 AS bats
-                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                    AND json_extract(substr(body, 15), '$.type') = 'mission'
-                    AND sent_at >= ? AND sent_at < ?
-            ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC LIMIT 10
-        `, params);
+            SELECT wp.char_id, wp.wins AS total_wins, wp.battles_fought AS total_battles
+            FROM character_weekly_performance wp
+            WHERE wp.week_start = ? AND wp.wins > 0
+            ORDER BY wp.wins DESC LIMIT 10
+        `, [weekStart]);
 
         const currentWinTop = [];
         for (const r of winRows) {
@@ -19643,6 +19643,53 @@ async function migrateBase64Logos() {
     } catch (e) { console.error('[Logo Migration] Error:', e.message); }
 }
 
+async function backfillWeeklyPerformance() {
+    try {
+        const db = await getDb();
+        const weekStart = getCurrentWeekStart();
+        const existing = await dbGet(db, 'SELECT 1 FROM character_weekly_performance WHERE week_start=? LIMIT 1', [weekStart]);
+        if (existing) return; // Already has data for this week
+        const now = Math.floor(Date.now() / 1000);
+        console.log('[WeeklyPerf] Backfilling current week performance data...');
+        // Aggregate from battles (PvP)
+        const battleRows = await dbAll(db, `
+            SELECT char_id, SUM(dmg) AS total_dmg, SUM(wins) AS total_wins, SUM(bats) AS total_bats
+            FROM (
+                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt,0) AS dmg,
+                    CASE WHEN COALESCE(winner_id,0)=attacker_id THEN 1 ELSE 0 END AS wins, 1 AS bats
+                FROM battles WHERE fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT defender_id AS char_id, COALESCE(total_dmg_taken,0) AS dmg,
+                    CASE WHEN COALESCE(winner_id,0)=defender_id THEN 1 ELSE 0 END AS wins, 1 AS bats
+                FROM battles WHERE defender_id>0 AND fought_at >= ? AND fought_at < ?
+            ) GROUP BY char_id
+        `, [weekStart, now, weekStart, now]);
+        for (const r of battleRows) {
+            const cid = Number(r.char_id);
+            await incrementWeeklyPerformance(db, cid, Number(r.total_dmg||0), Number(r.total_wins||0)>0, weekStart);
+        }
+        // Aggregate from messages (missions)
+        const msgRows = await dbAll(db, `
+            SELECT receiver_id AS char_id,
+                COALESCE(SUM(json_extract(substr(body,15),'$.totalDmgDealt')),0) AS total_dmg,
+                COALESCE(SUM(CASE WHEN json_extract(substr(body,15),'$.won')=1 THEN 1 ELSE 0 END),0) AS total_wins
+            FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                AND json_extract(substr(body,15),'$.type')='mission'
+                AND sent_at >= ? AND sent_at < ?
+            GROUP BY receiver_id
+        `, [weekStart, now]);
+        for (const r of msgRows) {
+            const cid = Number(r.char_id);
+            const dmg = Number(r.total_dmg||0);
+            const wins = Number(r.total_wins||0);
+            if (dmg > 0 || wins > 0) {
+                await incrementWeeklyPerformance(db, cid, dmg, wins>0, weekStart);
+            }
+        }
+        console.log('[WeeklyPerf] Backfill complete.');
+    } catch (e) { console.error('[WeeklyPerf] Backfill error:', e.message); }
+}
+
 // Export battle engine for use by tournament module
 module.exports = {
     router, parseAdminPassword, dbGet, getDb,
@@ -19654,5 +19701,6 @@ module.exports = {
     getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
-    purgeAllOldData, migrateBase64Logos
+    purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
+    backfillWeeklyPerformance
 };
