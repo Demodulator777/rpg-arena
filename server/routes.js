@@ -12713,7 +12713,7 @@ router.get('/shop/items', auth, async (req, res) => {
         const charLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE char_id=?', [charId]);
         const lastDate = charLastGenRow?.last_date;
 
-        const lootBoxes = LOOT_BOXES.map(box => ({
+        const lootBoxes = LOOT_BOXES.filter(box => !box.isRewardOnly).map(box => ({
             ...box,
             alwaysAvailable: true
         }));
