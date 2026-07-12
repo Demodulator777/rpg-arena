@@ -1007,7 +1007,7 @@ const LOOT_BOXES = [
         name: 'Legendary Loot Box',
         emoji: '⭐',
         desc: 'Rare loot! High chance for legendary gear, rare materials, and gems.',
-        price: 150,
+        price: 100,
         priceType: 'gems',
         rarity: 'legendary',
         consumable: true,
