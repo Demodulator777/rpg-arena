@@ -40,7 +40,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos } = require('./routes');
+const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -192,6 +192,9 @@ getDb().then(async (db) => {
 
   // Migrate existing base64 squad logos to file storage
   migrateBase64Logos().catch(e => console.error('[Logo Migration] error:', e.message));
+
+  // Backfill current week hall of fame performance data from existing battles/messages
+  backfillWeeklyPerformance().catch(e => console.error('[WeeklyPerf] backfill error:', e.message));
 
   // Hourly HP regen — fire at each :00
   const msUntilHour = (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000;
