@@ -3829,7 +3829,7 @@ function renderRoomInfo(room) {
                         <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
                         <button class="deck-arrow deck-arrow-right" data-action="deckNav" data-args='["next"]' ${nextAlive === -1 ? 'disabled' : ''}>▶</button>
                     </div>
-                    <div class="fighter-name" title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}</div>
+                    <div class="fighter-name" data-action="toggleMonsterLore" data-args='[${viewIdx}]' title="${(m.lore || '').replace(/"/g,'&quot;')}">${m.name}</div>
                     <div class="fighter-class">⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}</div>
                     <div style="width:72px;margin:4px auto">
                         ${bossBarsHtml || `<div class="fighter-hp-bar-wrap" style="width:100%;height:5px;margin:0"><div class="fighter-hp-bar monster-hp" style="width:${hpPercent}%"></div></div>`}
