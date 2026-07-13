@@ -1764,6 +1764,8 @@ body.combat-lock #tab-content-area {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  position: relative;
+  min-height: 200px;
 }
 .deck-arrow {
   position: absolute;
@@ -2534,6 +2536,76 @@ body.combat-lock #tab-content-area {
   }
 }
 
+@keyframes combat-player-lunge {
+  0% { transform: translateX(0) rotate(0deg); }
+  20% { transform: translateX(30px) rotate(-4deg); }
+  40% { transform: translateX(40px) rotate(-6deg); }
+  60% { transform: translateX(30px) rotate(-4deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+@keyframes combat-monster-hit {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-8px); }
+  30% { transform: translateX(8px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  75% { transform: translateX(-2px); }
+}
+@keyframes combat-damage-float {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
+}
+
+.combat-anim-player-lunge { animation: combat-player-lunge 0.5s ease-out; }
+.combat-anim-monster-hit { animation: combat-monster-hit 0.4s ease-out; }
+
+@keyframes combat-monster-emerge {
+  0% { transform: translateX(-50%) translateY(80px) scale(0.7); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+}
+@keyframes combat-monster-strike {
+  0%, 100% { transform: translateX(-50%) translateX(0) rotate(0deg); }
+  25% { transform: translateX(-50%) translateX(-50px) rotate(-5deg); }
+  50% { transform: translateX(-50%) translateX(-55px) rotate(-8deg); }
+  75% { transform: translateX(-50%) translateX(-50px) rotate(-5deg); }
+}
+@keyframes combat-monster-retreat {
+  0% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateX(-50%) translateY(80px) scale(0.7); opacity: 0; }
+}
+
+.combat-anim-monster-emerge { animation: combat-monster-emerge 0.35s ease-out forwards; }
+.combat-anim-monster-strike { animation: combat-monster-strike 0.4s ease-out; }
+.combat-anim-monster-retreat { animation: combat-monster-retreat 0.3s ease-in forwards; }
+
+.combat-temp-monster-card {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 120px;
+  pointer-events: none;
+}
+.combat-damage-float {
+  position: absolute;
+  color: #ff6b6b;
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-shadow: 0 0 10px rgba(255,107,107,0.6), 0 2px 4px rgba(0,0,0,0.5);
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  animation: combat-damage-float 0.8s ease-out forwards;
+}
+.combat-damage-float.heal {
+  color: #51cf66;
+  text-shadow: 0 0 10px rgba(81,207,102,0.6), 0 2px 4px rgba(0,0,0,0.5);
+}
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .dungeon-image-container {
@@ -3001,4 +3073,11 @@ body.combat-lock #tab-content-area {
   justify-content: center;
   background: rgba(0,0,0,0.65);
   backdrop-filter: blur(2px);
+}
+
+#skill-check-overlay {
+  cursor: pointer;
+}
+#skill-check-overlay * {
+  pointer-events: none;
 }
