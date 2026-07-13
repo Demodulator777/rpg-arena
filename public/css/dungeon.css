@@ -2555,28 +2555,73 @@ body.combat-lock #tab-content-area {
   0% { opacity: 1; transform: translateY(0) scale(1); }
   100% { opacity: 0; transform: translateY(-60px) scale(1.3); }
 }
+@keyframes combat-monster-strike {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  30% { transform: translateX(-45px) rotate(-6deg); }
+  60% { transform: translateX(-50px) rotate(-8deg); }
+}
 
 .combat-anim-player-lunge { animation: combat-player-lunge 0.5s ease-out; }
 .combat-anim-monster-hit { animation: combat-monster-hit 0.4s ease-out; }
 
-@keyframes combat-monster-emerge {
-  0% { transform: translateX(-50%) translateY(80px) scale(0.7); opacity: 0; }
-  100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
-}
-@keyframes combat-monster-strike {
-  0%, 100% { transform: translateX(-50%) translateX(0) rotate(0deg); }
-  25% { transform: translateX(-50%) translateX(-50px) rotate(-5deg); }
-  50% { transform: translateX(-50%) translateX(-55px) rotate(-8deg); }
-  75% { transform: translateX(-50%) translateX(-50px) rotate(-5deg); }
+@keyframes combat-monster-attack-from-deck {
+  0% { transform: translateX(-50%) translateY(80px) scale(0.6); opacity: 0; }
+  15% { transform: translateX(-50%) translateY(10px) scale(0.9); opacity: 0.8; }
+  30% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+  55% { transform: translateX(-50%) translateX(-55px) rotate(-8deg); }
+  80% { transform: translateX(-50%) translateX(-50px) rotate(-5deg); }
+  100% { transform: translateX(-50%) translateX(0) rotate(0deg); }
 }
 @keyframes combat-monster-retreat {
   0% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(80px) scale(0.7); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(80px) scale(0.6); opacity: 0; }
 }
 
-.combat-anim-monster-emerge { animation: combat-monster-emerge 0.35s ease-out forwards; }
+.combat-anim-monster-attack-from-deck { animation: combat-monster-attack-from-deck 0.7s ease-out forwards; }
 .combat-anim-monster-strike { animation: combat-monster-strike 0.4s ease-out; }
 .combat-anim-monster-retreat { animation: combat-monster-retreat 0.3s ease-in forwards; }
+
+@keyframes combat-player-burst {
+  0% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-12px) rotate(4deg) scale(1.05); }
+  35% { transform: translateX(55px) rotate(-10deg) scale(1.1); }
+  60% { transform: translateX(60px) rotate(-12deg) scale(1.08); }
+  100% { transform: translateX(0) rotate(0deg) scale(1); }
+}
+@keyframes combat-player-ultimate {
+  0% { transform: translateX(0) rotate(0deg) scale(1); }
+  10% { transform: translateX(-20px) rotate(6deg) scale(0.9); }
+  30% { transform: translateX(70px) rotate(-15deg) scale(1.2); }
+  50% { transform: translateX(80px) rotate(-18deg) scale(1.25); }
+  70% { transform: translateX(70px) rotate(-15deg) scale(1.2); }
+  100% { transform: translateX(0) rotate(0deg) scale(1); }
+}
+@keyframes combat-screen-shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-6px); }
+  20% { transform: translateX(6px); }
+  30% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  50% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  70% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+  90% { transform: translateX(-2px); }
+}
+
+.combat-anim-player-burst { animation: combat-player-burst 0.6s ease-out; }
+.combat-anim-player-ultimate { animation: combat-player-ultimate 0.8s ease-out; }
+.combat-anim-screen-shake { animation: combat-screen-shake 0.4s ease-out; }
+
+.combat-damage-float.burst {
+  font-size: 1.8rem;
+  text-shadow: 0 0 15px rgba(255,107,107,0.9), 0 0 30px rgba(255,50,50,0.4), 0 2px 4px rgba(0,0,0,0.5);
+}
+.combat-damage-float.ultimate {
+  font-size: 2.2rem;
+  text-shadow: 0 0 20px rgba(255,200,50,0.9), 0 0 40px rgba(255,150,0,0.5), 0 2px 4px rgba(0,0,0,0.5);
+  color: #ffd700;
+}
 
 .combat-temp-monster-card {
   position: absolute;
