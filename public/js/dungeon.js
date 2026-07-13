@@ -1758,6 +1758,7 @@ function fightRound() {
                 saveState();
                 saveProgressToDB();
                 renderCombatPanel();
+                triggerCombatAnimations();
             })
             .catch(err => {
                 console.error('Crawler fight action failed:', err);
@@ -1765,6 +1766,7 @@ function fightRound() {
                     D.combat.resolving = false;
                     D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
                     renderCombatPanel();
+                    triggerCombatAnimations();
                 }
             });
         return;
@@ -1775,6 +1777,7 @@ function fightRound() {
         if (!D.combat.combatId) {
             D.combat.roundLog.push({ actor: 'monster', text: '⚠️ Still connecting to server combat...' });
             renderCombatPanel();
+            triggerCombatAnimations();
             return;
         }
         D.combat.resolving = true;
@@ -1894,6 +1897,7 @@ function fightRound() {
                 saveState();
                 saveProgressToDB();
                 renderCombatPanel();
+                triggerCombatAnimations();
             })
             .catch(err => {
                 console.error('Server combat action failed:', err);
@@ -1902,11 +1906,12 @@ function fightRound() {
                     D.combat.resolving = false;
                     D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
                     renderCombatPanel();
+                    triggerCombatAnimations();
                 }
             });
         return;
     }
-    
+
     const c = getChar();
     if (!c) return;
     
@@ -1965,9 +1970,11 @@ function fightRound() {
     } else {
         D.combat.currentMonsterIndex = nextIndex;
         renderCombatPanel();
+        triggerCombatAnimations();
     }
 } else {
     renderCombatPanel();
+    triggerCombatAnimations();
 }
 
   function onCrawlerDefeated() {
@@ -3693,7 +3700,178 @@ function renderRoomInfo(room) {
          </div>
     `;
 }
-  function renderLog() {
+
+function triggerCombatAnimations() {
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay || !D.combat) return;
+    const roundLog = D.combat.roundLog;
+    if (!roundLog || roundLog.length < 1) return;
+
+    const lastAnimatedIdx = D.combat._lastAnimatedLogIdx || -1;
+    const newEntries = lastAnimatedIdx < 0 ? [...roundLog] : roundLog.slice(lastAnimatedIdx + 1);
+    if (newEntries.length === 0) return;
+    D.combat._lastAnimatedLogIdx = roundLog.length - 1;
+
+    const playerCard = overlay.querySelector('.combat-fighters > .fighter-card:first-child');
+    const monsterSide = overlay.querySelector('.monster-side');
+    const currentMonsterCard = monsterSide ? monsterSide.querySelector('.monster-combat-card') : null;
+    if (!playerCard || !monsterSide || !currentMonsterCard) return;
+
+    const currentMonster = D.combat.monsters[D.combat.currentMonsterIndex];
+
+    const parseDmg = (text) => {
+        const m = text.match(/(\d+)\s*damage/i) || text.match(/for\s+(\d+)/i) || text.match(/(\d+)!/);
+        return m ? parseInt(m[1]) : null;
+    };
+
+    const spawnDmgFloat = (target, dmg, isHeal) => {
+        if (dmg == null) return;
+        const el = document.createElement('div');
+        el.className = 'combat-damage-float' + (isHeal ? ' heal' : '');
+        el.textContent = isHeal ? `+${dmg}` : `-${dmg}`;
+        const rect = target.getBoundingClientRect();
+        el.style.left = (rect.left + rect.width / 2 - 30) + 'px';
+        el.style.top = (rect.top + 20) + 'px';
+        el.style.position = 'fixed';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 900);
+    };
+
+    const findMonsterByName = (text) => {
+        if (!text) return null;
+        const lower = text.toLowerCase();
+        let best = null, bestIdx = Infinity, bestLen = 0;
+        for (let i = 0; i < D.combat.monsters.length; i++) {
+            const m = D.combat.monsters[i];
+            if (m.currentHp <= 0) continue;
+            const name = m.name.toLowerCase();
+            const idx = lower.indexOf(name);
+            if (idx !== -1 && (idx < bestIdx || (idx === bestIdx && name.length > bestLen))) {
+                best = m;
+                bestIdx = idx;
+                bestLen = name.length;
+            }
+        }
+        return best;
+    };
+
+    // Separate new entries by actor
+    const monsterEntries = newEntries.filter(e => e.actor === 'monster');
+    const playerEntries = newEntries.filter(e => e.actor === 'player');
+
+    // Collect unique monster attackers (preserving order)
+    const monsterAttacks = [];
+    const seen = new Set();
+    for (const entry of monsterEntries) {
+        const mon = findMonsterByName(entry.text);
+        if (mon && !seen.has(mon.name)) {
+            seen.add(mon.name);
+            monsterAttacks.push({ monster: mon, dmg: parseDmg(entry.text) });
+        }
+    }
+
+    const lastPlayerEntry = playerEntries[playerEntries.length - 1];
+    const playerDmg = lastPlayerEntry ? parseDmg(lastPlayerEntry.text) : null;
+
+    // --- Animation sequence ---
+
+    // 1) Player lunge (t=0)
+    playerCard.classList.add('combat-anim-player-lunge');
+    setTimeout(() => playerCard.classList.remove('combat-anim-player-lunge'), 600);
+
+    // 2) Player damage on current monster (t=350ms)
+    if (playerDmg != null) {
+        setTimeout(() => {
+            currentMonsterCard.classList.add('combat-anim-monster-hit');
+            spawnDmgFloat(currentMonsterCard, playerDmg, false);
+            setTimeout(() => currentMonsterCard.classList.remove('combat-anim-monster-hit'), 500);
+        }, 350);
+    }
+
+    // 3) Monster counter-attacks (t=900ms onwards)
+    let baseDelay = 900;
+    for (let i = 0; i < monsterAttacks.length; i++) {
+        const attack = monsterAttacks[i];
+        const isCurrent = attack.monster === currentMonster;
+        const d = baseDelay + i * 750;
+
+        if (isCurrent) {
+            // Current monster strikes in place
+            setTimeout(() => {
+                currentMonsterCard.classList.add('combat-anim-monster-strike');
+                spawnDmgFloat(playerCard, attack.dmg, false);
+                setTimeout(() => {
+                    currentMonsterCard.classList.remove('combat-anim-monster-strike');
+                    currentMonsterCard.classList.add('combat-anim-monster-hit');
+                    setTimeout(() => currentMonsterCard.classList.remove('combat-anim-monster-hit'), 400);
+                }, 400);
+            }, d);
+        } else {
+            // Build temp card for non-current monster
+            const tempCard = buildTempMonsterCard(attack.monster);
+            monsterSide.appendChild(tempCard);
+
+            // Emerge (d)
+            requestAnimationFrame(() => {
+                tempCard.classList.add('combat-anim-monster-emerge');
+            });
+
+            // Strike (d + 400)
+            setTimeout(() => {
+                tempCard.classList.remove('combat-anim-monster-emerge');
+                tempCard.classList.add('combat-anim-monster-strike');
+                spawnDmgFloat(playerCard, attack.dmg, false);
+            }, d + 400);
+
+            // Retreat (d + 900)
+            setTimeout(() => {
+                tempCard.classList.remove('combat-anim-monster-strike');
+                tempCard.classList.add('combat-anim-monster-retreat');
+            }, d + 900);
+
+            // Remove (d + 1300)
+            setTimeout(() => {
+                if (tempCard.parentNode) tempCard.remove();
+            }, d + 1300);
+        }
+    }
+
+    // Also shake player card for monster damage if not already handled above
+    // (monsterAttacks[0] already handles it for the current monster, but if the list
+    //  is empty or starts with a non-current monster, we still need to show player hit)
+    if (monsterAttacks.length > 0 && monsterAttacks[0].monster !== currentMonster) {
+        setTimeout(() => {
+            playerCard.classList.add('combat-anim-monster-hit');
+            setTimeout(() => playerCard.classList.remove('combat-anim-monster-hit'), 400);
+        }, baseDelay);
+    }
+}
+
+function buildTempMonsterCard(monster) {
+    const hasImg = !!monster.image;
+    const iconEl = hasImg
+        ? `<img src="${monster.image}" alt="${monster.name}" style="width:100%;height:100%;object-fit:cover">`
+        : `<span class="battle-fighter-fallback">${monster.icon || '👾'}</span>`;
+    const el = document.createElement('div');
+    el.className = 'combat-temp-monster-card';
+    el.innerHTML = `
+        <div class="fighter-card monster-combat-card" style="border:2px solid rgba(201,146,42,0.35)">
+            <div class="fighter-avatar" style="display:flex;align-items:center;justify-content:center;overflow:hidden;width:80px;height:80px">
+                ${iconEl}
+            </div>
+            <div class="fighter-name">${monster.name}</div>
+            <div class="fighter-class">⚔️ ${monster.atk || 0} · 🛡️ ${monster.def || 0}</div>
+            <div style="width:72px;margin:4px auto">
+                <div class="fighter-hp-bar-wrap" style="width:100%;height:5px;margin:0">
+                    <div class="fighter-hp-bar monster-hp" style="width:${Math.round(monster.currentHp / monster.maxHp * 100)}%"></div>
+                </div>
+            </div>
+            <div class="fighter-stats">${monster.currentHp}/${monster.maxHp}</div>
+        </div>`;
+    return el;
+}
+
+function renderLog() {
     const roomLog = document.querySelector('.dungeon-hud-room-log');
     if (roomLog) {
       roomLog.innerHTML = `<span>${D.dungeonLog[0]?.msg || ''}</span>`;
