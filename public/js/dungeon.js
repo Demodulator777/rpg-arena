@@ -1932,6 +1932,7 @@ function fightRound() {
                     return;
                 }
 
+                D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
 
@@ -1945,10 +1946,6 @@ function fightRound() {
                 const monsterJustDied = !!deadMonster && deadMonster.currentHp <= 0 && nextIdx !== deadIdx;
 
                 if (monsterJustDied) {
-                    // Keep the action buttons locked until the death sequence finishes — otherwise a
-                    // second attack can fire while currentMonsterIndex is still pointed at the dead
-                    // monster, which desyncs the display (defeat message shows up a turn late).
-                    D.combat.resolving = true;
                     const realHp = deadMonster.currentHp;
                     // Temporarily keep the card "alive" (HP 1) so renderCombatPanel doesn't redirect
                     // straight to the next monster — this lets the hit flash + damage number land on
@@ -1972,17 +1969,14 @@ function fightRound() {
                     }, 600);
 
                     // Once the dissolve has played out, swap the view over to the next living monster
-                    // with a normal card entrance (no attack animation attached to this render), then
-                    // unlock the action buttons.
+                    // with a normal card entrance (no attack animation attached to this render).
                     setTimeout(() => {
                         if (!D.combat) return;
                         D.combat.currentMonsterIndex = nextIdx;
-                        D.combat.resolving = false;
                         saveTargetRectForAnim();
                         renderCombatPanel();
                     }, 1600);
                 } else {
-                    D.combat.resolving = false;
                     saveTargetRectForAnim();
                     renderCombatPanel();
                     triggerCombatAnimations();
@@ -2001,10 +1995,8 @@ function fightRound() {
         return;
     }
 
-    if (D.combat.resolving) return;
     const c = getChar();
     if (!c) return;
-    D.combat.resolving = true;
     
     // hp_current can be 0; avoid `||` fallbacks (they "auto-heal" dead characters in UI).
     const currentHp = Number(c.hp_current ?? c.hp ?? 100);
@@ -2029,7 +2021,6 @@ function fightRound() {
     }
     
     if (c.hp_current <= 0) {
-        D.combat.resolving = false;
         onPlayerDeath();
         return;
     }
@@ -2084,7 +2075,6 @@ function fightRound() {
 
         setTimeout(() => {
             if (!D.combat) return;
-            D.combat.resolving = false;
             finishCombat();
         }, 1600);
     } else {
@@ -2112,13 +2102,11 @@ function fightRound() {
         setTimeout(() => {
             if (!D.combat) return;
             D.combat.currentMonsterIndex = nextIndex;
-            D.combat.resolving = false;
             saveTargetRectForAnim();
             renderCombatPanel();
         }, 1600);
     }
 } else {
-    D.combat.resolving = false;
     saveTargetRectForAnim();
     renderCombatPanel();
     triggerCombatAnimations();
@@ -3295,7 +3283,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
             <div class="dungeon-hud-room ${roomHasAliveMonsters ? 'has-monster' : ''}">
               <div class="dungeon-hud-room-title">
                 ${roomLabel}
-                <span class="dungeon-hud-room-id">   Room ${D.playerPos + 1}</span>
+                <span class="dungeon-hud-room-id"> � Room ${D.playerPos + 1}</span>
               </div>
               <div class="dungeon-hud-room-desc">${roomDescription}</div>
               <div class="dungeon-hud-room-progress">${exploredCount}/${totalRoomCount} explored</div>
