@@ -1872,7 +1872,12 @@ function fightRound() {
                     // Dissolve the fallen monster card after the hit
                     setTimeout(() => {
                         const card = document.querySelector('.monster-combat-card');
-                        if (card) card.classList.add('combat-anim-dissolve');
+                        if (card) {
+                            pixelDissolveCard(card);
+                        } else if (D.combat._prevMonsterRect) {
+                            const r = D.combat._prevMonsterRect;
+                            spawnFallbackParticles(r.left + r.width / 2, r.top + r.height / 2, 24);
+                        }
                     }, 600);
                     setTimeout(() => {
                         D.combat = null;
@@ -1996,6 +2001,16 @@ function fightRound() {
         saveTargetRectForAnim();
         renderCombatPanel();
         triggerCombatAnimations();
+        // Dissolve the dead monster at its previous position
+        setTimeout(() => {
+            const pr = D.combat._prevMonsterRect;
+            if (pr) {
+                const ghost = document.createElement('div');
+                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;background:linear-gradient(135deg,#3a2a1a,#2a1a0a);border:2px solid rgba(201,146,42,0.35);border-radius:8px;z-index:999;pointer-events:none`;
+                document.body.appendChild(ghost);
+                pixelDissolveCard(ghost);
+            }
+        }, 600);
     }
 } else {
     saveTargetRectForAnim();
@@ -3911,6 +3926,132 @@ function triggerCombatAnimations() {
             playerCard.classList.add('combat-anim-monster-hit');
             setTimeout(() => playerCard.classList.remove('combat-anim-monster-hit'), 400);
         }, shakeDelay);
+    }
+}
+
+function inlineStyles(src) {
+    const clone = src.cloneNode(true);
+    const walk = (orig, cpy) => {
+        const cs = getComputedStyle(orig);
+        for (let i = 0; i < cs.length; i++) {
+            const prop = cs[i];
+            cpy.style[prop] = cs.getPropertyValue(prop);
+        }
+        for (let i = 0; i < orig.children.length; i++) {
+            if (cpy.children[i]) walk(orig.children[i], cpy.children[i]);
+        }
+    };
+    walk(src, clone);
+    return clone;
+}
+
+function captureElementToCanvas(el) {
+    const rect = el.getBoundingClientRect();
+    const w = Math.ceil(rect.width);
+    const h = Math.ceil(rect.height);
+    if (w <= 0 || h <= 0) return null;
+    const styled = inlineStyles(el);
+    const html = styled.outerHTML
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+        <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden">${html}</div>
+        </foreignObject>
+    </svg>`;
+    const img = new Image();
+    return new Promise(resolve => {
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas);
+        };
+        img.onerror = () => resolve(null);
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    });
+}
+
+function pixelDissolveCard(card) {
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    captureElementToCanvas(card).then(canvas => {
+        if (!canvas) {
+            spawnFallbackParticles(cx, cy, 24);
+            return;
+        }
+        const dataUrl = canvas.toDataURL();
+        const gridCols = 8;
+        const gridRows = 10;
+        const cellW = canvas.width / gridCols;
+        const cellH = canvas.height / gridRows;
+        card.style.opacity = '0';
+
+        for (let r = 0; r < gridRows; r++) {
+            for (let c = 0; c < gridCols; c++) {
+                const p = document.createElement('div');
+                p.style.position = 'fixed';
+                p.style.width = cellW + 'px';
+                p.style.height = cellH + 'px';
+                p.style.left = (rect.left + c * cellW) + 'px';
+                p.style.top = (rect.top + r * cellH) + 'px';
+                p.style.backgroundImage = `url(${dataUrl})`;
+                p.style.backgroundSize = `${canvas.width}px ${canvas.height}px`;
+                p.style.backgroundPosition = `-${c * cellW}px -${r * cellH}px`;
+                p.style.pointerEvents = 'none';
+                p.style.zIndex = '1000';
+                p.style.borderRadius = '1px';
+
+                const angle = Math.random() * 2 * Math.PI;
+                const dist = 30 + Math.random() * 120;
+                const tx = Math.cos(angle) * dist;
+                const ty = Math.sin(angle) * dist - 40;
+                const rot = (Math.random() - 0.5) * 720;
+                const delay = Math.random() * 0.3;
+                p.style.transition = `transform 0.7s cubic-bezier(0.25,0.46,0.45,0.94) ${delay}s, opacity 0.7s ease ${delay}s`;
+                p.style.transform = 'translate(0,0) rotate(0deg)';
+                document.body.appendChild(p);
+                requestAnimationFrame(() => {
+                    p.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
+                    p.style.opacity = '0';
+                });
+                setTimeout(() => p.remove(), 1500);
+            }
+        }
+        // extra sparkle particles
+        spawnFallbackParticles(cx, cy, 12);
+    });
+}
+
+function spawnFallbackParticles(x, y, count) {
+    count = count || 18;
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'combat-dissolve-particle';
+        const angle = Math.random() * 2 * Math.PI;
+        const dist = 40 + Math.random() * 100;
+        const px = Math.cos(angle) * dist;
+        const py = Math.sin(angle) * dist;
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        p.style.setProperty('--px', px + 'px');
+        p.style.setProperty('--py', py + 'px');
+        p.style.background = Math.random() < 0.3
+            ? 'radial-gradient(circle, #ff8c00, #ff4500)'
+            : Math.random() < 0.5
+                ? 'radial-gradient(circle, #ffd700, #ff8c00)'
+                : 'radial-gradient(circle, #fff4e0, #ffd700)';
+        const size = 3 + Math.random() * 5;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
     }
 }
 
