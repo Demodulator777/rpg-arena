@@ -453,9 +453,21 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
             showMsg('skill-tree-msg', `Need ${goldCost} gold for double speed training!`, true);
             return;
         }
-        if (!confirm(`Train "${sk.name}" at 2x speed?\nCost: ${goldCost} gold\nTime: ${hours} hours (2x progress)\nRequires: ${costLine}`)) return;
+        const ok = await openGameConfirmDialog({
+            title: `Train "${sk.name}" at 2x speed?`,
+            message: `Cost: ${goldCost} gold<br>Time: ${hours} hours (2x progress)<br>Requires: ${costLine}`,
+            confirmLabel: 'Train (2x)',
+            cancelLabel: 'Cancel',
+        });
+        if (!ok) return;
     } else {
-        if (!confirm(`Train "${sk.name}"?\nTime: ${hours} hours\nRequires: ${costLine}`)) return;
+        const ok = await openGameConfirmDialog({
+            title: `Train "${sk.name}"?`,
+            message: `Time: ${hours} hours<br>Requires: ${costLine}`,
+            confirmLabel: 'Train',
+            cancelLabel: 'Cancel',
+        });
+        if (!ok) return;
     }
     
      try {
@@ -503,7 +515,14 @@ function formatTime(seconds) {
 }
 
 async function cancelTraining() {
-    if (!confirm('Cancel current training? You will receive a partial gold refund if you paid for double speed.')) return;
+    const ok = await openGameConfirmDialog({
+        title: 'Cancel Training?',
+        message: 'You will receive a partial gold refund if you paid for double speed.',
+        confirmLabel: 'Cancel Training',
+        cancelLabel: 'Keep Training',
+        danger: true,
+    });
+    if (!ok) return;
     try {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
