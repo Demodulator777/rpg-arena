@@ -2565,16 +2565,14 @@ body.combat-lock #tab-content-area {
 .combat-anim-monster-hit { animation: combat-monster-hit 0.4s ease-out; }
 
 @keyframes combat-monster-attack-from-deck {
-  0% { transform: translateX(-50%) translateY(80px) scale(0.6); opacity: 0; }
-  15% { transform: translateX(-50%) translateY(10px) scale(0.9); opacity: 0.8; }
-  30% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
-  55% { transform: translateX(-50%) translateX(-55px) rotate(-8deg); }
-  80% { transform: translateX(-50%) translateX(-50px) rotate(-5deg); }
+  0% { transform: translateX(-50%) translateY(150px) scale(0.6); opacity: 0; }
+  20% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateX(-50%) translateX(-55px) rotate(-8deg); }
   100% { transform: translateX(-50%) translateX(0) rotate(0deg); }
 }
 @keyframes combat-monster-retreat {
   0% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateX(-50%) translateY(80px) scale(0.6); opacity: 0; }
+  100% { transform: translateX(-50%) translateY(150px) scale(0.6); opacity: 0; }
 }
 
 .combat-anim-monster-attack-from-deck { animation: combat-monster-attack-from-deck 0.7s ease-out forwards; }
@@ -2625,12 +2623,42 @@ body.combat-lock #tab-content-area {
 
 .combat-temp-monster-card {
   position: absolute;
-  bottom: 30px;
   left: 50%;
+  top: 0;
   transform: translateX(-50%);
-  z-index: 5;
+  z-index: 1;
   width: 120px;
   pointer-events: none;
+  opacity: 0;
+}
+.monster-combat-card {
+  position: relative;
+  z-index: 2;
+}
+@keyframes combat-dissolve {
+  0% { clip-path: inset(0 0 0 0); opacity: 1; filter: blur(0) brightness(1); }
+  25% { clip-path: inset(0 0 25% 0); opacity: 0.8; filter: blur(0.5px) brightness(1.15); }
+  50% { clip-path: inset(0 0 50% 0); opacity: 0.5; filter: blur(1.5px) brightness(1.3); }
+  75% { clip-path: inset(0 0 75% 0); opacity: 0.2; filter: blur(3px) brightness(1.6); }
+  100% { clip-path: inset(0 0 100% 0); opacity: 0; filter: blur(6px) brightness(2); }
+}
+@keyframes combat-dissolve-glow {
+  0% { opacity: 0; transform: scale(0.4); }
+  25% { opacity: 0.8; transform: scale(0.8); }
+  50% { opacity: 0.4; transform: scale(1.2); filter: blur(4px); }
+  100% { opacity: 0; transform: scale(1.8); filter: blur(12px); }
+}
+.combat-anim-dissolve {
+  animation: combat-dissolve 1.2s ease-in forwards;
+}
+.combat-anim-dissolve::before {
+  content: '';
+  position: absolute;
+  inset: -30px;
+  background: radial-gradient(circle, rgba(255,200,80,0.25) 0%, rgba(255,100,50,0.1) 40%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  animation: combat-dissolve-glow 1.2s ease-out forwards;
 }
 .combat-damage-float {
   position: absolute;
