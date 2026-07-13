@@ -1937,15 +1937,17 @@ function fightRound() {
                 saveProgressToDB();
 
                 // --- Mid-combat monster death handling ---
+                // Server returns `currentMonsterIndex` pointing to the same monster we attacked,
+                // even when it dies — so detect death by HP, not index comparison.
                 const regPrevIdx = D.combat._prevMonsterIdx;
-                const regCurrIdx = D.combat.currentMonsterIndex;
                 const regMonsterJustDied = (
-                    regPrevIdx != null && regCurrIdx !== regPrevIdx &&
+                    regPrevIdx != null &&
                     D.combat.monsters[regPrevIdx]?.currentHp <= 0 &&
                     D.combat.monsters.some(m => m.currentHp > 0)
                 );
 
                 if (regMonsterJustDied) {
+                    const regNextIdx = D.combat.monsters.findIndex(m => m.currentHp > 0);
                     const regOldRect = D.combat._prevMonsterRect;
                     const regOldCard = document.querySelector('.monster-combat-card');
                     const regOldHtml = regOldCard ? regOldCard.outerHTML : null;
@@ -2012,6 +2014,7 @@ function fightRound() {
 
                     setTimeout(() => {
                         if (!D.combat) return;
+                        D.combat.currentMonsterIndex = regNextIdx;
                         renderCombatPanel();
                         D.combat._lastAnimatedLogIdx = regLastPlayerLogIdx;
                         triggerCombatAnimations();
