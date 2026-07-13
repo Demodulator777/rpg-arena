@@ -1843,6 +1843,10 @@ function fightRound() {
                         room.monstersEvaded = false;
                         room.monstersCleared = Date.now();
                     }
+                    // Sync D.combat.monsters HP so dead monsters aren't animated as counter-attackers
+                    if (D.combat && Array.isArray(D.combat.monsters)) {
+                        D.combat.monsters.forEach(m => { m.currentHp = 0; });
+                    }
                     if (Array.isArray(res.lootGranted) && res.lootGranted.length) {
                         for (const it of res.lootGranted) {
                             if (it.type === 'dungeon_gold') log(`💰 +${it.amount} dungeon gold`, 'log-loot');
