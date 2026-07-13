@@ -1787,6 +1787,17 @@ function fightRound() {
         console.log('[SKILL_CHECK] Sending skillCheckMult:', skillCheckMult, 'attackType:', D.combat.attackType);
         apiFetch('POST', '/game/dungeon/combat/act', { combatId: D.combat.combatId, action: 'fight', turnNonce: D.combat.turnNonce, currentMonsterIndex: D.combat.currentMonsterIndex, attackType: D.combat.attackType || 'regular', skillCheckMult })
             .then(res => {
+                // Save pre-update monster card state for animation targeting
+                const oldOverlay = document.getElementById('dungeon-overlay');
+                const oldMside = oldOverlay?.querySelector('.monster-side');
+                const oldMc = oldMside?.querySelector('.monster-combat-card');
+                if (oldMc && D.combat) {
+                    const r = oldMc.getBoundingClientRect();
+                    const oldIdx = D.combat.currentMonsterIndex;
+                    D.combat._prevMonsterRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+                    D.combat._prevMonsterName = D.combat.monsters?.[oldIdx]?.name;
+                    D.combat._prevMonsterIdx = oldIdx;
+                }
                 D.combat._skillCheckDone = false;
                 D.combat.skillCheckMult = undefined;
                 if (!D.combat) return;
@@ -1997,8 +2008,12 @@ function fightRound() {
             onRoomCleared(D.combat.roomIdx);
         }
     } else {
-        D.combat.currentMonsterIndex = nextIndex;
+        // Save defeated monster card info BEFORE switching index or re-rendering
         saveTargetRectForAnim();
+        const defeatedCard = document.querySelector('.monster-combat-card');
+        const defeatedHtml = defeatedCard ? defeatedCard.outerHTML : null;
+
+        D.combat.currentMonsterIndex = nextIndex;
         renderCombatPanel();
         triggerCombatAnimations();
         // Dissolve the dead monster at its previous position
@@ -2006,7 +2021,9 @@ function fightRound() {
             const pr = D.combat._prevMonsterRect;
             if (pr) {
                 const ghost = document.createElement('div');
-                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;background:linear-gradient(135deg,#3a2a1a,#2a1a0a);border:2px solid rgba(201,146,42,0.35);border-radius:8px;z-index:999;pointer-events:none`;
+                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:999;pointer-events:none;overflow:hidden`;
+                if (defeatedHtml) ghost.innerHTML = defeatedHtml;
+                else ghost.style.cssText += ';background:linear-gradient(135deg,#3a2a1a,#2a1a0a);border:2px solid rgba(201,146,42,0.35);border-radius:8px';
                 document.body.appendChild(ghost);
                 pixelDissolveCard(ghost);
             }
