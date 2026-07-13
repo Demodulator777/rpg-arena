@@ -1,7 +1,7 @@
 const sprite = document.getElementById('burstSprite');
+const container = document.getElementById('burstContainer');
 let intervalId = null;
 let currentFrame = 0;
-let isAnimating = false;
 
 function updatePosition() {
     const col = currentFrame % 5;
@@ -16,7 +16,7 @@ function playBurst() {
     intervalId = setInterval(() => {
         updatePosition();
         if (currentFrame >= 25) stopBurst();
-    }, 60); // 60ms per frame = snappy cuts
+    }, 60);
 }
 
 function loopBurst() {
@@ -34,7 +34,7 @@ function slowBurst() {
     intervalId = setInterval(() => {
         if (currentFrame >= 25) currentFrame = 0;
         updatePosition();
-    }, 150); // 150ms per frame = slow motion
+    }, 150);
 }
 
 function stopBurst() {
@@ -44,7 +44,7 @@ function stopBurst() {
 
 function showFrame13() {
     stopBurst();
-    currentFrame = 12; // 0-indexed, 13th frame is 12
+    currentFrame = 12;
     updatePosition();
 }
 
@@ -54,10 +54,18 @@ function resetBurst() {
     sprite.style.backgroundPosition = '0% 0%';
 }
 
+function setSize(height) {
+    container.style.width = height + 'px';
+    container.style.height = height + 'px';
+}
+
 document.getElementById('btnTrigger').addEventListener('click', playBurst);
 document.getElementById('btnLoop').addEventListener('click', loopBurst);
 document.getElementById('btnSlow').addEventListener('click', slowBurst);
 document.getElementById('btnFrame').addEventListener('click', showFrame13);
 document.getElementById('btnReset').addEventListener('click', resetBurst);
+document.getElementById('btnSize60').addEventListener('click', () => setSize(60));
+document.getElementById('btnSize40').addEventListener('click', () => setSize(40));
+document.getElementById('btnSize30').addEventListener('click', () => setSize(30));
 
 window.addEventListener('load', loopBurst);
