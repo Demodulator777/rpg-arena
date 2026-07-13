@@ -31,41 +31,8 @@
             background-image: url('/images/assets/roguelike1.png');
             background-repeat: no-repeat;
             background-size: 500% 500%;
-            /* 🎯 25 frames, hard cuts (steps(1, end)) */
-            animation: burstSeamless 1.2s steps(1, end) infinite;
-        }
-
-        @keyframes burstSeamless {
-            0%   { background-position:   0%   0%; }
-            4%   { background-position:  25%   0%; }
-            8%   { background-position:  50%   0%; }
-            12%  { background-position:  75%   0%; }
-            16%  { background-position: 100%   0%; }
-            
-            20%  { background-position:   0%  25%; }
-            24%  { background-position:  25%  25%; }
-            28%  { background-position:  50%  25%; }
-            32%  { background-position:  75%  25%; }
-            36%  { background-position: 100%  25%; }
-            
-            40%  { background-position:   0%  50%; }
-            44%  { background-position:  25%  50%; }
-            48%  { background-position:  50%  50%; }
-            52%  { background-position:  75%  50%; }
-            56%  { background-position: 100%  50%; }
-            
-            60%  { background-position:   0%  75%; }
-            64%  { background-position:  25%  75%; }
-            68%  { background-position:  50%  75%; }
-            72%  { background-position:  75%  75%; }
-            76%  { background-position: 100%  75%; }
-            
-            80%  { background-position:   0% 100%; }
-            84%  { background-position:  25% 100%; }
-            88%  { background-position:  50% 100%; }
-            92%  { background-position:  75% 100%; }
-            96%  { background-position: 100% 100%; }
-            100% { background-position:   0%   0%; }
+            /* NO CSS ANIMATION - Managed by JS for hard cuts */
+            background-position: 0% 0%;
         }
         
         @keyframes burstGrid {
