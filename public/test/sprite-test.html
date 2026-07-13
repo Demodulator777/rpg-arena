@@ -31,7 +31,12 @@
             background-image: url('/images/assets/roguelike1.png');
             background-repeat: no-repeat;
             background-size: 500% 500%;
-            animation: burstGrid 1.5s steps(5) infinite;
+            animation: burstGrid 1.5s steps(25) infinite;
+        }
+        
+        @keyframes burstGrid {
+            from { background-position: 0% 0%; }
+            to { background-position: 100% 100%; }
         }
         @keyframes burstGrid {
             0% { background-position: 0% 0%; }
