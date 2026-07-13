@@ -133,11 +133,11 @@ const GUILD_RANKS = [
   // ── Mini-Boss Pool ──────────────────────────────────────────
 const MINI_BOSS_POOL = [
     { name:'Shadow Stalker', icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, tokenCost:5,  minFloor:5,  image:'/images/dungeon/monsters/shadow_stalker.jpg', lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
-    { name:'Crystal Golem',  icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/monsters/crystal_golem.jpg' },
-    { name:'Flame Revenant', icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, tokenCost:7,  minFloor:20, image:'/images/dungeon/monsters/flame_revenant.jpg' },
-    { name:'Frost Wyrmling', icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, tokenCost:8,  minFloor:25, image:'/images/dungeon/monsters/frost_wyrmling.jpg' },
-    { name:'Void Stalker',   icon:'🌑', baseHp:500, baseAtk:75, baseDef:28, tokenCost:9,  minFloor:30, image:'/images/dungeon/monsters/void_stalker.jpg' },
-    { name:'Doom Knight',    icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, tokenCost:10, minFloor:35, image:'/images/dungeon/monsters/doom_knight.jpg' },
+    { name:'Crystal Golem',  icon:'💎', baseHp:600, baseAtk:40, baseDef:45, tokenCost:6,  minFloor:15, image:'/images/dungeon/monsters/crystal_golem.jpg', lore:'Crystal Golems are Hard as Diamond and hit with the force of the mountain.' },
+    { name:'Flame Revenant', icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, tokenCost:7,  minFloor:20, image:'/images/dungeon/monsters/flame_revenant.jpg', lore:'Flame Revenants are the burning echoes of fallen pyromancers, wreathed in unquenchable fire that hungers for living kindling.' },
+    { name:'Frost Wyrmling', icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, tokenCost:8,  minFloor:25, image:'/images/dungeon/monsters/frost_wyrmling.jpg', lore:'Frost Wyrmlings are juvenile dragons born in the deepest caverns, where the cold itself whispers ancient draconic secrets.' },
+    { name:'Void Stalker',   icon:'🌑', baseHp:500, baseAtk:75, baseDef:28, tokenCost:9,  minFloor:30, image:'/images/dungeon/monsters/void_stalker.jpg', lore:'Void Stalkers are hunters from the space between worlds, phasing in and out of reality to corner their prey.' },
+    { name:'Doom Knight',    icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, tokenCost:10, minFloor:35, image:'/images/dungeon/monsters/doom_knight.jpg', lore:'Doom Knights are oath-bound to a forgotten god of war, their armor fused to flesh in an eternal pact of slaughter.' },
 ];
 
 const CRAWLER_BASE = {
@@ -337,15 +337,15 @@ function getCrawlerForFloor(floor) {
     { id:'void_wraith', name:'Void Wraith',      icon:'🌑', image:'/images/dungeon/monsters/void_wraith.jpg', hp:130, atk:38, def:10, steal:true,  minFloor:8,  lore:'Void Wraiths are weak beings that exist on the after images of mana. Even a slight scent of mana will cause them to swarm.' },
     { id:'abyssal_eye', name:'Abyssal Eye',      icon:'👁️', image:'/images/dungeon/monsters/abyssal_eye.jpg', hp:100, atk:45, def:5,  steal:false, minFloor:10, lore:'Abyssal Eye is a manifestation of local corruption exposing reality to the watchful eye of the Abyss.' },
     { id:'shadow_lord', name:'Shadow Lord',      icon:'🕷️', image:'/images/dungeon/monsters/shadow_lord.jpg', hp:200, atk:30, def:28, steal:true,  minFloor:12, lore:'Shadow Lords are weak imitations of what lurks in the darkness. Intangible made corporeal.' },
-    { id:'void_titan',  name:'Void Titan',       icon:'💠', image:'/images/dungeon/monsters/void_titan.jpg', hp:250, atk:42, def:35, steal:true,  minFloor:15 },
-    { id:'dread_knight',name:'Dread Knight',     icon:'⚔️', image:'/images/dungeon/monsters/dread_knight.jpg', hp:300, atk:50, def:40, steal:true,  minFloor:20 },
-    { id:'elder_lich',  name:'Elder Lich',       icon:'💜', image:'/images/dungeon/monsters/elder_lich.jpg', hp:220, atk:60, def:20, steal:false, minFloor:25 },
+    { id:'void_titan',  name:'Void Titan',       icon:'💠', image:'/images/dungeon/monsters/void_titan.jpg', hp:250, atk:42, def:35, steal:true,  minFloor:15, lore:'Void Titans are gigantic void touched titans from the netherrealm. Caution is advised.' },
+    { id:'dread_knight',name:'Dread Knight',     icon:'⚔️', image:'/images/dungeon/monsters/dread_knight.jpg', hp:300, atk:50, def:40, steal:true,  minFloor:20, lore:'Dread Knights are fear incarnate. Survivors are often mentally broken from the experience.' },
+    { id:'elder_lich',  name:'Elder Lich',       icon:'💜', image:'/images/dungeon/monsters/elder_lich.jpg', hp:220, atk:60, def:20, steal:false, minFloor:25, lore:'Elder Lich is a long dead Mage that forsook life and turned to undeath in their greed.' },
     { id:'shadow_stalker', name:'Shadow Stalker', icon:'🐺', image:'/images/dungeon/monsters/shadow_stalker.jpg', hp:400, atk:55, def:25, steal:true, minFloor:10, isMiniBoss: true, tokenCost: 5, lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
-    { id:'crystal_golem', name:'Crystal Golem', icon:'💎', image:'/images/dungeon/monsters/crystal_golem.jpg', hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss: true, tokenCost: 6 },
-    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', image:'/images/dungeon/monsters/flame_revenant.jpg', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss: true, tokenCost: 7 },
-    { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', image:'/images/dungeon/monsters/frost_wyrmling.jpg', hp:450, atk:60, def:30, steal:true, minFloor:25, isMiniBoss: true, tokenCost: 8 },
-    { id:'void_stalker', name:'Void Stalker', icon:'🌑', image:'/images/dungeon/monsters/void_stalker.jpg', hp:500, atk:75, def:28, steal:true, minFloor:30, isMiniBoss: true, tokenCost: 9 },
-    { id:'doom_knight', name:'Doom Knight', icon:'⚔️', image:'/images/dungeon/monsters/doom_knight.jpg', hp:700, atk:65, def:50, steal:true, minFloor:35, isMiniBoss: true, tokenCost: 10 },
+    { id:'crystal_golem', name:'Crystal Golem', icon:'💎', image:'/images/dungeon/monsters/crystal_golem.jpg', hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss: true, tokenCost: 6, lore:'Crystal Golems are Hard as Diamond and hit with the force of the mountain.' },
+    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', image:'/images/dungeon/monsters/flame_revenant.jpg', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss: true, tokenCost: 7, lore:'Flame Revenants are the burning echoes of fallen pyromancers, wreathed in unquenchable fire that hungers for living kindling.' },
+    { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', image:'/images/dungeon/monsters/frost_wyrmling.jpg', hp:450, atk:60, def:30, steal:true, minFloor:25, isMiniBoss: true, tokenCost: 8, lore:'Frost Wyrmlings are juvenile dragons born in the deepest caverns, where the cold itself whispers ancient draconic secrets.' },
+    { id:'void_stalker', name:'Void Stalker', icon:'🌑', image:'/images/dungeon/monsters/void_stalker.jpg', hp:500, atk:75, def:28, steal:true, minFloor:30, isMiniBoss: true, tokenCost: 9, lore:'Void Stalkers are hunters from the space between worlds, phasing in and out of reality to corner their prey.' },
+    { id:'doom_knight', name:'Doom Knight', icon:'⚔️', image:'/images/dungeon/monsters/doom_knight.jpg', hp:700, atk:65, def:50, steal:true, minFloor:35, isMiniBoss: true, tokenCost: 10, lore:'Doom Knights are oath-bound to a forgotten god of war, their armor fused to flesh in an eternal pact of slaughter.' },
   ];
 
 const BOSS_POOL = [
@@ -353,8 +353,8 @@ const BOSS_POOL = [
     { name:'Ignarath the Eternal',  icon:'🌋🔥', image:'/images/boss/ignarath.jpg',  baseHp:700,  baseAtk:55, baseDef:25, steal:false, lore:'Ignarath is a fusion of demonic and necrotic energy warped to resemble a human abomination. Win quickly or be forever lost to corruption\'s touch.' },
     { name:'Nyxaroth the Devourer', icon:'🌑👁️', image:'/images/boss/nyxaroth.jpg',  baseHp:800,  baseAtk:65, baseDef:30, steal:true,  lore:'Nyxaroth is a mindless predator of unequal quickness and fury. Few survive to whisper tales of the calamity that follows her wake.' },
     { name:'Vizorax the Unholy',    icon:'👹🔥', image:'/images/boss/vizorax.jpg',    baseHp:850,  baseAtk:60, baseDef:35, steal:true,  lore:'Vizorax the Unholy, a Demon from the depths who adds a piece of each defeated opponent to his living armor. Said to be so magically potent reality bends to his whims.' },
-    { name:'The Hollow King',       icon:'👑💀', image:'/images/boss/hollowking.jpg', baseHp:900,  baseAtk:70, baseDef:35, steal:true  },
-    { name:'Voidborn Colossus',     icon:'💠🌑', image:'/images/boss/voidborn.jpg',   baseHp:1000, baseAtk:80, baseDef:40, steal:false },
+    { name:'The Hollow King',       icon:'👑💀', image:'/images/boss/hollowking.jpg', baseHp:900,  baseAtk:70, baseDef:35, steal:true,  lore:'The Hollow King is a monarch of a fallen kingdom, his crown fused to a skull that still commands legions of the damned.' },
+    { name:'Voidborn Colossus',     icon:'💠🌑', image:'/images/boss/voidborn.jpg',   baseHp:1000, baseAtk:80, baseDef:40, steal:false, lore:'Voidborn Colossi are living fortresses of compressed void matter, each step cracking the fabric of reality.' },
     { name:'The Undying Empress',   icon:'👸🔥', image:'/images/boss/empress.jpg',    baseHp:1100, baseAtk:90, baseDef:45, steal:true,  lore:'The Undying Empress is rumored to have sacrificed an entire civilization to fuel her immortality, pure speculation as none exist to bear witness to the truths of her existence.' },
     { name:'Abyssal Sovereign',     icon:'🌊💀', image:'/images/boss/sovereign.jpg',  baseHp:1200, baseAtk:95, baseDef:50, steal:true,  lore:'An abomination that crawled out of the void, the Abyssal Sovereign desecrates reality with his presence as he seeks to consume all to fuel his existence.' },
 ];
