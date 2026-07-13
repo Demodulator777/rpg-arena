@@ -2031,7 +2031,8 @@ function fightRound() {
     }
     
     if (monsterDead) {
-    const defeatedMonster = D.combat.monsters[currentMonsterIndex];
+    const defeatedIdx = currentMonsterIndex;
+    const defeatedMonster = D.combat.monsters[defeatedIdx];
     log(`✅ ${defeatedMonster.name} defeated!`, 'log-success');
 
     let nextIndex = -1;
@@ -2043,34 +2044,67 @@ function fightRound() {
     }
 
     if (nextIndex === -1 || allMonstersDead) {
-        if (D.combat.isCrawler || defeatedMonster.isCrawler) {
-            onCrawlerDefeated();
-        } else if (defeatedMonster.isBoss) {
-            onBossDefeated();
-        } else {
-            onRoomCleared(D.combat.roomIdx);
-        }
-    } else {
-        // Save defeated monster card info BEFORE switching index or re-rendering
-        saveTargetRectForAnim();
-        const defeatedCard = document.querySelector('.monster-combat-card');
-        const defeatedHtml = defeatedCard ? defeatedCard.outerHTML : null;
-
-        D.combat.currentMonsterIndex = nextIndex;
+        const finishCombat = () => {
+            if (D.combat.isCrawler || defeatedMonster.isCrawler) {
+                onCrawlerDefeated();
+            } else if (defeatedMonster.isBoss) {
+                onBossDefeated();
+            } else {
+                onRoomCleared(D.combat.roomIdx);
+            }
+        };
+        // Show the killing blow + dissolve on the final monster before tearing down combat —
+        // previously this branch jumped straight to teardown with no animation at all.
+        const realHp = defeatedMonster.currentHp;
+        defeatedMonster.currentHp = 1;
+        D.combat.currentMonsterIndex = defeatedIdx;
         renderCombatPanel();
         triggerCombatAnimations();
-        // Dissolve the dead monster at its previous position
+
         setTimeout(() => {
-            const pr = D.combat._prevMonsterRect;
-            if (pr) {
-                const ghost = document.createElement('div');
-                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:999;pointer-events:none;overflow:hidden`;
-                if (defeatedHtml) ghost.innerHTML = defeatedHtml;
-                else ghost.style.cssText += ';background:linear-gradient(135deg,#3a2a1a,#2a1a0a);border:2px solid rgba(201,146,42,0.35);border-radius:8px';
-                document.body.appendChild(ghost);
-                pixelDissolveCard(ghost);
+            if (!D.combat) return;
+            defeatedMonster.currentHp = realHp;
+            const card = document.querySelector('.monster-combat-card');
+            if (card) {
+                pixelDissolveCard(card);
+            } else if (D.combat._prevMonsterRect) {
+                const r = D.combat._prevMonsterRect;
+                spawnFallbackParticles(r.left + r.width / 2, r.top + r.height / 2, 24);
             }
         }, 600);
+
+        setTimeout(() => {
+            if (!D.combat) return;
+            finishCombat();
+        }, 1600);
+    } else {
+        const realHp = defeatedMonster.currentHp;
+        // Keep the defeated monster's own card on screen (force HP to 1 so renderCombatPanel
+        // doesn't redirect to the next monster) so the killing blow + damage number land on the
+        // correct card, and it can dissolve in place before we swap to the next monster.
+        defeatedMonster.currentHp = 1;
+        D.combat.currentMonsterIndex = defeatedIdx;
+        renderCombatPanel();
+        triggerCombatAnimations();
+
+        setTimeout(() => {
+            if (!D.combat) return;
+            defeatedMonster.currentHp = realHp;
+            const card = document.querySelector('.monster-combat-card');
+            if (card) {
+                pixelDissolveCard(card);
+            } else if (D.combat._prevMonsterRect) {
+                const r = D.combat._prevMonsterRect;
+                spawnFallbackParticles(r.left + r.width / 2, r.top + r.height / 2, 24);
+            }
+        }, 600);
+
+        setTimeout(() => {
+            if (!D.combat) return;
+            D.combat.currentMonsterIndex = nextIndex;
+            saveTargetRectForAnim();
+            renderCombatPanel();
+        }, 1600);
     }
 } else {
     saveTargetRectForAnim();
