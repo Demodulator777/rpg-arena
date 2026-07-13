@@ -1935,8 +1935,91 @@ function fightRound() {
                 D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
-                renderCombatPanel();
-                triggerCombatAnimations();
+
+                // --- Mid-combat monster death handling ---
+                const regPrevIdx = D.combat._prevMonsterIdx;
+                const regCurrIdx = D.combat.currentMonsterIndex;
+                const regMonsterJustDied = (
+                    regPrevIdx != null && regCurrIdx !== regPrevIdx &&
+                    D.combat.monsters[regPrevIdx]?.currentHp <= 0 &&
+                    D.combat.monsters.some(m => m.currentHp > 0)
+                );
+
+                if (regMonsterJustDied) {
+                    const regOldRect = D.combat._prevMonsterRect;
+                    const regOldCard = document.querySelector('.monster-combat-card');
+                    const regOldHtml = regOldCard ? regOldCard.outerHTML : null;
+
+                    // 1) Player lunge
+                    const regPCard = document.querySelector('.combat-fighters > .fighter-card:first-child');
+                    if (regPCard) {
+                        const regAtk = D.combat._lastAttackType || 'regular';
+                        if (regAtk === 'ultimate') {
+                            regPCard.classList.add('combat-anim-player-ultimate');
+                            const cp = document.querySelector('.dungeon-combat-panel');
+                            if (cp) { cp.classList.add('combat-anim-screen-shake'); setTimeout(() => cp.classList.remove('combat-anim-screen-shake'), 400); }
+                            setTimeout(() => regPCard.classList.remove('combat-anim-player-ultimate'), 1000);
+                        } else if (regAtk === 'burst') {
+                            regPCard.classList.add('combat-anim-player-burst');
+                            setTimeout(() => regPCard.classList.remove('combat-anim-player-burst'), 800);
+                        } else {
+                            regPCard.classList.add('combat-anim-player-lunge');
+                            setTimeout(() => regPCard.classList.remove('combat-anim-player-lunge'), 600);
+                        }
+                    }
+
+                    // 2) Damage float at old monster position (t=400ms)
+                    const regLastPlayerLog = D.combat.roundLog.slice().reverse().find(e => e.actor === 'player');
+                    const regDmg = regLastPlayerLog
+                        ? (regLastPlayerLog.text.match(/(\d+)\s*damage/i) || regLastPlayerLog.text.match(/for\s+(\d+)/i) || regLastPlayerLog.text.match(/(\d+)!/))
+                        : null;
+                    const regPlayerDmgVal = regDmg ? parseInt(regDmg[1]) : null;
+                    const regAtkType = D.combat._lastAttackType || 'regular';
+                    if (regPlayerDmgVal != null && regOldRect) {
+                        setTimeout(() => {
+                            const el = document.createElement('div');
+                            let cls = 'combat-damage-float';
+                            if (regAtkType === 'ultimate') cls += ' ultimate';
+                            else if (regAtkType === 'burst') cls += ' burst';
+                            el.className = cls;
+                            el.textContent = `-${regPlayerDmgVal}`;
+                            el.style.cssText = `position:fixed;left:${regOldRect.left + regOldRect.width/2 - 30}px;top:${regOldRect.top + 20}px;z-index:500000`;
+                            document.body.appendChild(el);
+                            setTimeout(() => el.remove(), 900);
+                        }, 400);
+                    }
+
+                    // 3) Dissolve old card (t=600ms)
+                    setTimeout(() => {
+                        const pr = D.combat._prevMonsterRect;
+                        if (regOldCard && regOldCard.parentNode) {
+                            pixelDissolveCard(regOldCard);
+                        } else if (pr && regOldHtml) {
+                            const ghost = document.createElement('div');
+                            ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:500000;pointer-events:none;overflow:hidden`;
+                            ghost.innerHTML = regOldHtml;
+                            document.body.appendChild(ghost);
+                            pixelDissolveCard(ghost);
+                        } else if (pr) {
+                            spawnFallbackParticles(pr.left + pr.width/2, pr.top + pr.height/2, 24);
+                        }
+                    }, 600);
+
+                    // 4) After dissolve, swap to next monster + play counter-attacks (t=1800ms)
+                    const regPreRoundLen = D.combat.roundLog.length - (Array.isArray(res.log) ? res.log.length : 0);
+                    const regPlayerCount = (Array.isArray(res.log) ? res.log : []).filter(e => e.actor === 'player').length;
+                    const regLastPlayerLogIdx = regPreRoundLen + regPlayerCount - 1;
+
+                    setTimeout(() => {
+                        if (!D.combat) return;
+                        renderCombatPanel();
+                        D.combat._lastAnimatedLogIdx = regLastPlayerLogIdx;
+                        triggerCombatAnimations();
+                    }, 1800);
+                } else {
+                    renderCombatPanel();
+                    triggerCombatAnimations();
+                }
             })
             .catch(err => {
                 console.error('Server combat action failed:', err);
@@ -2009,24 +2092,77 @@ function fightRound() {
     } else {
         // Save defeated monster card info BEFORE switching index or re-rendering
         saveTargetRectForAnim();
-        const defeatedCard = document.querySelector('.monster-combat-card');
-        const defeatedHtml = defeatedCard ? defeatedCard.outerHTML : null;
+        const clDefeatedCard = document.querySelector('.monster-combat-card');
+        const clDefeatedHtml = clDefeatedCard ? clDefeatedCard.outerHTML : null;
+        const clOldRect = D.combat._prevMonsterRect;
 
-        D.combat.currentMonsterIndex = nextIndex;
-        renderCombatPanel();
-        triggerCombatAnimations();
-        // Dissolve the dead monster at its previous position
+        // 1) Player lunge
+        const clPCard = document.querySelector('.combat-fighters > .fighter-card:first-child');
+        if (clPCard) {
+            const clAtk = D.combat._lastAttackType || 'regular';
+            if (clAtk === 'ultimate') {
+                clPCard.classList.add('combat-anim-player-ultimate');
+                const cp = document.querySelector('.dungeon-combat-panel');
+                if (cp) { cp.classList.add('combat-anim-screen-shake'); setTimeout(() => cp.classList.remove('combat-anim-screen-shake'), 400); }
+                setTimeout(() => clPCard.classList.remove('combat-anim-player-ultimate'), 1000);
+            } else if (clAtk === 'burst') {
+                clPCard.classList.add('combat-anim-player-burst');
+                setTimeout(() => clPCard.classList.remove('combat-anim-player-burst'), 800);
+            } else {
+                clPCard.classList.add('combat-anim-player-lunge');
+                setTimeout(() => clPCard.classList.remove('combat-anim-player-lunge'), 600);
+            }
+        }
+
+        // 2) Damage float at old monster position (t=400ms)
+        const clLastPlayerLog = D.combat.roundLog.slice().reverse().find(e => e.actor === 'player');
+        const clDmg = clLastPlayerLog
+            ? (clLastPlayerLog.text.match(/(\d+)\s*damage/i) || clLastPlayerLog.text.match(/for\s+(\d+)/i) || clLastPlayerLog.text.match(/(\d+)!/))
+            : null;
+        const clPlayerDmgVal = clDmg ? parseInt(clDmg[1]) : null;
+        const clAtkType = D.combat._lastAttackType || 'regular';
+        if (clPlayerDmgVal != null && clOldRect) {
+            setTimeout(() => {
+                const el = document.createElement('div');
+                let cls = 'combat-damage-float';
+                if (clAtkType === 'ultimate') cls += ' ultimate';
+                else if (clAtkType === 'burst') cls += ' burst';
+                el.className = cls;
+                el.textContent = `-${clPlayerDmgVal}`;
+                el.style.cssText = `position:fixed;left:${clOldRect.left + clOldRect.width/2 - 30}px;top:${clOldRect.top + 20}px;z-index:500000`;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 900);
+            }, 400);
+        }
+
+        // 3) Dissolve old card (t=600ms)
         setTimeout(() => {
             const pr = D.combat._prevMonsterRect;
-            if (pr) {
+            if (clDefeatedCard && clDefeatedCard.parentNode) {
+                pixelDissolveCard(clDefeatedCard);
+            } else if (pr && clDefeatedHtml) {
                 const ghost = document.createElement('div');
                 ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:500000;pointer-events:none;overflow:hidden`;
-                if (defeatedHtml) ghost.innerHTML = defeatedHtml;
-                else ghost.style.cssText += ';background:linear-gradient(135deg,#3a2a1a,#2a1a0a);border:2px solid rgba(201,146,42,0.35);border-radius:8px';
+                ghost.innerHTML = clDefeatedHtml;
                 document.body.appendChild(ghost);
                 pixelDissolveCard(ghost);
+            } else if (pr) {
+                spawnFallbackParticles(pr.left + pr.width/2, pr.top + pr.height/2, 24);
             }
         }, 600);
+
+        // 4) After dissolve, swap to next monster + play counter-attacks (t=1800ms)
+        const clPlayerCount = roundLog.filter(e => e.actor === 'player').length;
+        const clPreRoundLen = D.combat.roundLog.length - roundLog.length;
+        const clLastPlayerLogIdx = clPreRoundLen + clPlayerCount - 1;
+
+        setTimeout(() => {
+            if (!D.combat) return;
+            D.combat.currentMonsterIndex = nextIndex;
+            renderCombatPanel();
+            D.combat._lastAnimatedLogIdx = clLastPlayerLogIdx;
+            triggerCombatAnimations();
+        }, 1800);
     }
 } else {
     saveTargetRectForAnim();
@@ -3868,19 +4004,21 @@ function triggerCombatAnimations() {
     // --- Animation sequence ---
 
     // 1) Player attack (t=0)
-    if (attackType === 'ultimate') {
-        playerCard.classList.add('combat-anim-player-ultimate');
-        if (combatPanel) {
-            setTimeout(() => combatPanel.classList.add('combat-anim-screen-shake'), 200);
-            setTimeout(() => combatPanel.classList.remove('combat-anim-screen-shake'), 600);
+    if (playerEntries.length > 0) {
+        if (attackType === 'ultimate') {
+            playerCard.classList.add('combat-anim-player-ultimate');
+            if (combatPanel) {
+                setTimeout(() => combatPanel.classList.add('combat-anim-screen-shake'), 200);
+                setTimeout(() => combatPanel.classList.remove('combat-anim-screen-shake'), 600);
+            }
+            setTimeout(() => playerCard.classList.remove('combat-anim-player-ultimate'), 1000);
+        } else if (attackType === 'burst') {
+            playerCard.classList.add('combat-anim-player-burst');
+            setTimeout(() => playerCard.classList.remove('combat-anim-player-burst'), 800);
+        } else {
+            playerCard.classList.add('combat-anim-player-lunge');
+            setTimeout(() => playerCard.classList.remove('combat-anim-player-lunge'), 600);
         }
-        setTimeout(() => playerCard.classList.remove('combat-anim-player-ultimate'), 1000);
-    } else if (attackType === 'burst') {
-        playerCard.classList.add('combat-anim-player-burst');
-        setTimeout(() => playerCard.classList.remove('combat-anim-player-burst'), 800);
-    } else {
-        playerCard.classList.add('combat-anim-player-lunge');
-        setTimeout(() => playerCard.classList.remove('combat-anim-player-lunge'), 600);
     }
 
     // 2) Player damage on current monster (t=400ms)
