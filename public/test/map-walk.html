@@ -5,23 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map Walk</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; background: #000; color: #fff; overflow: hidden; font-family: sans-serif; touch-action: none; }
         #game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
         #map { position: absolute; width: 2000px; height: 2000px; background: #222; background-image: radial-gradient(#333 1px, transparent 1px); background-size: 50px 50px; }
-        #player { position: absolute; width: 120px; height: 120px; background: #0af; border-radius: 50%; transition: transform 0.1s linear; z-index: 10; }
         
-        /* Joystick */
-        #joystick-area { position: absolute; bottom: 30px; left: 30px; width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; }
-        #joystick-knob { position: absolute; width: 50px; height: 50px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 35px; left: 35px; }
+        #player { position: absolute; width: 120px; height: 120px; z-index: 10; pointer-events: none; }
+        .player-sprite { width: 100%; height: 100%; background-image: url('/images/assets/roguelike1.png'); background-repeat: no-repeat; background-size: 500% 500%; }
+
+        /* Joystick - Responsive */
+        #joystick-area { position: absolute; bottom: 50px; left: 50px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; }
+        #joystick-knob { position: absolute; width: 60px; height: 60px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 45px; left: 45px; }
 
         /* Action Button */
-        #action-btn { position: absolute; bottom: 30px; right: 30px; width: 100px; height: 100px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1.2rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); }
+        #action-btn { position: absolute; bottom: 50px; right: 50px; width: 120px; height: 120px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1.2rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); }
+        
+        @media (max-width: 600px) {
+            #joystick-area { width: 120px; height: 120px; bottom: 20px; left: 20px; }
+            #joystick-knob { width: 40px; height: 40px; top: 40px; left: 40px; }
+            #action-btn { width: 90px; height: 90px; bottom: 20px; right: 20px; }
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <div id="map"></div>
-        <div id="player"></div>
+        <div id="player"><div class="player-sprite" id="playerSprite"></div></div>
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
     </div>
