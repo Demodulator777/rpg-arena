@@ -1675,6 +1675,7 @@ function startCombat(roomIdx) {
 
 function fightRound() {
     if (!D.combat) return;
+    D.combat._lastAttackType = D.combat.attackType || 'regular';
 
     const atkType = D.combat.attackType || 'regular';
 
@@ -1853,11 +1854,17 @@ function fightRound() {
                     if (room && room.id) {
                         apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true }).catch(() => {});
                     }
-                    D.combat = null;
-                    saveState();
-                    saveProgressToDB();
-                    refreshCharacter();
-        renderDungeonView();
+                    // Play final round animations then clean up
+                    D.combat.resolving = false;
+                    renderCombatPanel();
+                    triggerCombatAnimations();
+                    setTimeout(() => {
+                        D.combat = null;
+                        saveState();
+                        saveProgressToDB();
+                        refreshCharacter();
+                        renderDungeonView();
+                    }, 3500);
                     return;
                 }
 
@@ -3718,16 +3725,22 @@ function triggerCombatAnimations() {
     if (!playerCard || !monsterSide || !currentMonsterCard) return;
 
     const currentMonster = D.combat.monsters[D.combat.currentMonsterIndex];
+    const attackType = D.combat._lastAttackType || 'regular';
+    const isBigAttack = attackType === 'burst' || attackType === 'ultimate';
 
     const parseDmg = (text) => {
         const m = text.match(/(\d+)\s*damage/i) || text.match(/for\s+(\d+)/i) || text.match(/(\d+)!/);
         return m ? parseInt(m[1]) : null;
     };
 
-    const spawnDmgFloat = (target, dmg, isHeal) => {
+    const spawnDmgFloat = (target, dmg, isHeal, styleType) => {
         if (dmg == null) return;
         const el = document.createElement('div');
-        el.className = 'combat-damage-float' + (isHeal ? ' heal' : '');
+        let cls = 'combat-damage-float';
+        if (isHeal) cls += ' heal';
+        if (styleType === 'ultimate') cls += ' ultimate';
+        else if (styleType === 'burst') cls += ' burst';
+        el.className = cls;
         el.textContent = isHeal ? `+${dmg}` : `-${dmg}`;
         const rect = target.getBoundingClientRect();
         el.style.left = (rect.left + rect.width / 2 - 30) + 'px';
@@ -3773,30 +3786,43 @@ function triggerCombatAnimations() {
     const lastPlayerEntry = playerEntries[playerEntries.length - 1];
     const playerDmg = lastPlayerEntry ? parseDmg(lastPlayerEntry.text) : null;
 
+    const combatPanel = overlay.querySelector('.dungeon-combat-panel');
+
     // --- Animation sequence ---
 
-    // 1) Player lunge (t=0)
-    playerCard.classList.add('combat-anim-player-lunge');
-    setTimeout(() => playerCard.classList.remove('combat-anim-player-lunge'), 600);
+    // 1) Player attack (t=0)
+    if (attackType === 'ultimate') {
+        playerCard.classList.add('combat-anim-player-ultimate');
+        if (combatPanel) {
+            setTimeout(() => combatPanel.classList.add('combat-anim-screen-shake'), 200);
+            setTimeout(() => combatPanel.classList.remove('combat-anim-screen-shake'), 600);
+        }
+        setTimeout(() => playerCard.classList.remove('combat-anim-player-ultimate'), 1000);
+    } else if (attackType === 'burst') {
+        playerCard.classList.add('combat-anim-player-burst');
+        setTimeout(() => playerCard.classList.remove('combat-anim-player-burst'), 800);
+    } else {
+        playerCard.classList.add('combat-anim-player-lunge');
+        setTimeout(() => playerCard.classList.remove('combat-anim-player-lunge'), 600);
+    }
 
-    // 2) Player damage on current monster (t=350ms)
+    // 2) Player damage on current monster (t=400ms)
     if (playerDmg != null) {
         setTimeout(() => {
             currentMonsterCard.classList.add('combat-anim-monster-hit');
-            spawnDmgFloat(currentMonsterCard, playerDmg, false);
+            spawnDmgFloat(currentMonsterCard, playerDmg, false, attackType);
             setTimeout(() => currentMonsterCard.classList.remove('combat-anim-monster-hit'), 500);
-        }, 350);
+        }, 400);
     }
 
-    // 3) Monster counter-attacks (t=900ms onwards)
-    let baseDelay = 900;
+    // 3) Monster counter-attacks (t=1100ms onwards)
+    let baseDelay = 1100;
     for (let i = 0; i < monsterAttacks.length; i++) {
         const attack = monsterAttacks[i];
         const isCurrent = attack.monster === currentMonster;
-        const d = baseDelay + i * 750;
+        const d = baseDelay + i * 900;
 
         if (isCurrent) {
-            // Current monster strikes in place
             setTimeout(() => {
                 currentMonsterCard.classList.add('combat-anim-monster-strike');
                 spawnDmgFloat(playerCard, attack.dmg, false);
@@ -3807,43 +3833,39 @@ function triggerCombatAnimations() {
                 }, 400);
             }, d);
         } else {
-            // Build temp card for non-current monster
             const tempCard = buildTempMonsterCard(attack.monster);
             monsterSide.appendChild(tempCard);
 
-            // Emerge (d)
+            // Attack from deck: emerges + strikes in one motion (d)
             requestAnimationFrame(() => {
-                tempCard.classList.add('combat-anim-monster-emerge');
+                tempCard.classList.add('combat-anim-monster-attack-from-deck');
             });
 
-            // Strike (d + 400)
+            // Damage float at peak of strike (d + 350)
             setTimeout(() => {
-                tempCard.classList.remove('combat-anim-monster-emerge');
-                tempCard.classList.add('combat-anim-monster-strike');
                 spawnDmgFloat(playerCard, attack.dmg, false);
-            }, d + 400);
+            }, d + 350);
 
-            // Retreat (d + 900)
+            // Retreat after attack completes (d + 700)
             setTimeout(() => {
-                tempCard.classList.remove('combat-anim-monster-strike');
+                tempCard.classList.remove('combat-anim-monster-attack-from-deck');
                 tempCard.classList.add('combat-anim-monster-retreat');
-            }, d + 900);
+            }, d + 700);
 
-            // Remove (d + 1300)
+            // Remove (d + 1000)
             setTimeout(() => {
                 if (tempCard.parentNode) tempCard.remove();
-            }, d + 1300);
+            }, d + 1000);
         }
     }
 
-    // Also shake player card for monster damage if not already handled above
-    // (monsterAttacks[0] already handles it for the current monster, but if the list
-    //  is empty or starts with a non-current monster, we still need to show player hit)
+    // Player shake if first monster attacker is non-current (handles solo monster hits)
     if (monsterAttacks.length > 0 && monsterAttacks[0].monster !== currentMonster) {
+        const shakeDelay = baseDelay + 350;
         setTimeout(() => {
             playerCard.classList.add('combat-anim-monster-hit');
             setTimeout(() => playerCard.classList.remove('combat-anim-monster-hit'), 400);
-        }, baseDelay);
+        }, shakeDelay);
     }
 }
 
