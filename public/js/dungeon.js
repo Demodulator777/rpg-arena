@@ -1935,9 +1935,52 @@ function fightRound() {
                 D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
-                saveTargetRectForAnim();
-                renderCombatPanel();
-                triggerCombatAnimations();
+
+                // Detect a monster that died this turn but combat continues (other monsters remain alive).
+                // The server already advances currentMonsterIndex to the next monster, but we don't want to
+                // jump the card to it immediately — we want to show the killing blow + dissolve on the
+                // monster that actually died first, THEN swap to the next monster.
+                const deadIdx = D.combat._prevMonsterIdx;
+                const nextIdx = D.combat.currentMonsterIndex;
+                const deadMonster = (deadIdx != null) ? D.combat.monsters[deadIdx] : null;
+                const monsterJustDied = !!deadMonster && deadMonster.currentHp <= 0 && nextIdx !== deadIdx;
+
+                if (monsterJustDied) {
+                    const realHp = deadMonster.currentHp;
+                    // Temporarily keep the card "alive" (HP 1) so renderCombatPanel doesn't redirect
+                    // straight to the next monster — this lets the hit flash + damage number land on
+                    // the correct (dying) card.
+                    deadMonster.currentHp = 1;
+                    D.combat.currentMonsterIndex = deadIdx;
+                    renderCombatPanel();
+                    triggerCombatAnimations();
+
+                    // Now drop it to its real (dead) HP and dissolve the card in place.
+                    setTimeout(() => {
+                        if (!D.combat) return;
+                        deadMonster.currentHp = realHp;
+                        const card = document.querySelector('.monster-combat-card');
+                        if (card) {
+                            pixelDissolveCard(card);
+                        } else if (D.combat._prevMonsterRect) {
+                            const r = D.combat._prevMonsterRect;
+                            spawnFallbackParticles(r.left + r.width / 2, r.top + r.height / 2, 24);
+                        }
+                    }, 600);
+
+                    // Once the dissolve has played out, swap the view over to the next living monster
+                    // with a normal card entrance (no attack animation attached to this render).
+                    setTimeout(() => {
+                        if (!D.combat) return;
+                        D.combat.currentMonsterIndex = nextIdx;
+                        saveTargetRectForAnim();
+                        renderCombatPanel();
+                    }, 1600);
+                } else {
+                    saveTargetRectForAnim();
+                    renderCombatPanel();
+                    triggerCombatAnimations();
+                }
             })
             .catch(err => {
                 console.error('Server combat action failed:', err);
