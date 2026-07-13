@@ -64,8 +64,8 @@ document.getElementById('btnLoop').addEventListener('click', loopBurst);
 document.getElementById('btnSlow').addEventListener('click', slowBurst);
 document.getElementById('btnFrame').addEventListener('click', showFrame13);
 document.getElementById('btnReset').addEventListener('click', resetBurst);
-document.getElementById('btnSize60').addEventListener('click', () => setSize(60));
-document.getElementById('btnSize40').addEventListener('click', () => setSize(40));
-document.getElementById('btnSize30').addEventListener('click', () => setSize(30));
+document.getElementById('btnSize80').addEventListener('click', () => setSize(80));
+document.getElementById('btnSize100').addEventListener('click', () => setSize(100));
+document.getElementById('btnSize120').addEventListener('click', () => setSize(120));
 
 window.addEventListener('load', loopBurst);
