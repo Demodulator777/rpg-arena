@@ -1,30 +1,56 @@
 const sprite = document.getElementById('burstSprite');
+let intervalId = null;
+let currentFrame = 0;
+let isAnimating = false;
+
+function updatePosition() {
+    const col = currentFrame % 5;
+    const row = Math.floor(currentFrame / 5);
+    sprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
+    currentFrame++;
+}
 
 function playBurst() {
-    sprite.style.animation = 'none';
-    void sprite.offsetHeight;
-    sprite.style.animation = 'burstSeamless 1.2s steps(5) forwards';
+    stopBurst();
+    currentFrame = 0;
+    intervalId = setInterval(() => {
+        updatePosition();
+        if (currentFrame >= 25) stopBurst();
+    }, 60); // 60ms per frame = snappy cuts
 }
 
 function loopBurst() {
-    sprite.style.animation = 'none';
-    void sprite.offsetHeight;
-    sprite.style.animation = 'burstSeamless 1.2s steps(5) infinite';
+    stopBurst();
+    currentFrame = 0;
+    intervalId = setInterval(() => {
+        if (currentFrame >= 25) currentFrame = 0;
+        updatePosition();
+    }, 60);
 }
 
 function slowBurst() {
-    sprite.style.animation = 'none';
-    void sprite.offsetHeight;
-    sprite.style.animation = 'burstSeamless 3s steps(5) infinite';
+    stopBurst();
+    currentFrame = 0;
+    intervalId = setInterval(() => {
+        if (currentFrame >= 25) currentFrame = 0;
+        updatePosition();
+    }, 150); // 150ms per frame = slow motion
+}
+
+function stopBurst() {
+    clearInterval(intervalId);
+    intervalId = null;
 }
 
 function showFrame13() {
-    sprite.style.animation = 'none';
-    sprite.style.backgroundPosition = '50% 50%';
+    stopBurst();
+    currentFrame = 12; // 0-indexed, 13th frame is 12
+    updatePosition();
 }
 
 function resetBurst() {
-    sprite.style.animation = 'none';
+    stopBurst();
+    currentFrame = 0;
     sprite.style.backgroundPosition = '0% 0%';
 }
 
