@@ -8772,7 +8772,7 @@ async function openProfile(id) {
     try {
         character = await api('GET','/game/character');
         const p=await api('GET',`/game/player/${id}`);
-        const classIcon={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'}[p.class]||'⚔️';
+        const classIconHtml = classRuneHtml(p.class);
         const name=p.name||'Unknown', level=p.level??'?';
         const isMe=p.user_id===character?.user_id;
         const wins=p.wins??0, losses=p.losses??0, draws=p.draws??0, wr=(wins+losses>0)?Math.round((wins/(wins+losses))*100):0;
@@ -8870,7 +8870,7 @@ async function openProfile(id) {
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
               <img src="/images/class/${p.profile_pic || p.class + '.png'}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
-              <div><div class="profile-name">${classIcon} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
+              <div><div class="profile-name">${classIconHtml} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
             </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
@@ -9186,7 +9186,7 @@ async function findOpponent(direction='similar') {
         const p = await api('GET', `/game/matchmaking?direction=${direction}`);
         _matchmakingTarget = p;
         if (!p) { if (box) box.innerHTML = '<p class="empty">No available opponents right now.</p>'; return; }
-        const ci={warrior:'🛡️',mage:'🔮',rogue:'🗡️',paladin:'✨'};
+        const ciHtml = classRuneHtml(p.class);
         const power = (p.strength||0)+(p.defense||0)+(p.agility||0)+(p.magic||0)+p.level*5;
         const myPower = character ? (character.strength+character.defense+character.agility+character.magic+character.level*5) : 0;
         const powerDiff = power - myPower;
@@ -9205,7 +9205,7 @@ async function findOpponent(direction='similar') {
                 <div style="display:flex;align-items:center;gap:14px">
                     <img src="/images/class/${p.class}.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
                     <div style="flex:1">
-                        <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ci[p.class]||'⚔️'} ${escHtml(p.name)}</div>
+                        <div style="font-size:1rem;font-weight:700;color:#fff;cursor:pointer" ${actionAttrs('openProfile', p.id)}>${ciHtml} ${escHtml(p.name)}</div>
                         <div style="font-size:0.78rem;color:var(--text-dim)">Lv.${p.level} ${capitalize(p.class)} · ${p.wins}W/${p.losses}L${(p.draws||0)?`/${p.draws}D`:''}</div>
                         <div style="font-size:0.72rem;margin-top:3px;color:var(--gold)">${diffLabel} · Power ${power}</div>
                     </div>
@@ -10916,6 +10916,10 @@ function formatDate(ts) {
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
 }
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+function classRuneHtml(className) {
+    const c = String(className || '').toLowerCase();
+    return `<img src="/images/class/${c}rune.png" style="height:20px;width:auto;vertical-align:middle;display:inline-block" alt="${c}">`;
+}
 
 // Global game message logging function
 function gameLog(msg, type = 'info', duration = 3000) {
