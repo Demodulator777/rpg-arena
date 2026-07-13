@@ -371,7 +371,14 @@ if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
     </div>`;
 }
 async function stCancelLegacy() {
-    if (!confirm('Cancel current training?')) return;
+    const ok = await openGameConfirmDialog({
+        title: 'Cancel Training?',
+        message: 'Cancel current training?',
+        confirmLabel: 'Cancel Training',
+        cancelLabel: 'Keep Training',
+        danger: true,
+    });
+    if (!ok) return;
     try {
         await api('POST', '/skills/cancel');
         hideTrainingOverlay();           // ← Important
@@ -548,7 +555,14 @@ async function stCollect() {
 }
 
 async function stCancel() {
-    if (!confirm('Cancel training? You will receive a partial gold refund (pro-rated by time remaining). Materials are NOT returned.')) return;
+    const ok = await openGameConfirmDialog({
+        title: 'Cancel Training?',
+        message: 'You will receive a partial gold refund (pro-rated by time remaining). Materials are NOT returned.',
+        confirmLabel: 'Cancel Training',
+        cancelLabel: 'Keep Training',
+        danger: true,
+    });
+    if (!ok) return;
     try {
         const d = await api('POST', '/skills/cancel');
         showMsg('skill-tree-msg', d.message);
