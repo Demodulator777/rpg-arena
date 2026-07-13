@@ -31,23 +31,12 @@
             background-image: url('/images/assets/roguelike1.png');
             background-repeat: no-repeat;
             background-size: 500% 500%;
-            animation: burstGrid 1.5s steps(25) infinite;
+            animation: burstGrid 1.5s steps(25, start) infinite;
         }
         
         @keyframes burstGrid {
             from { background-position: 0% 0%; }
             to { background-position: 100% 100%; }
-        }
-        @keyframes burstGrid {
-            0% { background-position: 0% 0%; }
-            20% { background-position: 100% 0%; }
-            25% { background-position: 0% 25%; }
-            45% { background-position: 100% 25%; }
-            50% { background-position: 0% 50%; }
-            70% { background-position: 100% 50%; }
-            75% { background-position: 0% 75%; }
-            95% { background-position: 100% 75%; }
-            100% { background-position: 0% 100%; }
         }
         .controls { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
         .btn { padding: 14px 35px; font-size: 18px; font-weight: bold; border: none; border-radius: 50px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; text-transform: uppercase; letter-spacing: 1px; }
