@@ -3,19 +3,19 @@ const sprite = document.getElementById('burstSprite');
 function playBurst() {
     sprite.style.animation = 'none';
     void sprite.offsetHeight;
-    sprite.style.animation = 'burstGrid 1.2s steps(5) forwards';
+    sprite.style.animation = 'burstSeamless 1.2s steps(5) forwards';
 }
 
 function loopBurst() {
     sprite.style.animation = 'none';
     void sprite.offsetHeight;
-    sprite.style.animation = 'burstGrid 1.5s steps(5) infinite';
+    sprite.style.animation = 'burstSeamless 1.2s steps(5) infinite';
 }
 
 function slowBurst() {
     sprite.style.animation = 'none';
     void sprite.offsetHeight;
-    sprite.style.animation = 'burstGrid 3s steps(5) infinite';
+    sprite.style.animation = 'burstSeamless 3s steps(5) infinite';
 }
 
 function showFrame13() {
