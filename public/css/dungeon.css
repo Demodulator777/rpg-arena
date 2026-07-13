@@ -2637,10 +2637,10 @@ body.combat-lock #tab-content-area {
 }
 @keyframes combat-dissolve {
   0% { clip-path: inset(0 0 0 0); opacity: 1; filter: blur(0) brightness(1); }
-  25% { clip-path: inset(0 0 25% 0); opacity: 0.8; filter: blur(0.5px) brightness(1.15); }
-  50% { clip-path: inset(0 0 50% 0); opacity: 0.5; filter: blur(1.5px) brightness(1.3); }
-  75% { clip-path: inset(0 0 75% 0); opacity: 0.2; filter: blur(3px) brightness(1.6); }
-  100% { clip-path: inset(0 0 100% 0); opacity: 0; filter: blur(6px) brightness(2); }
+  25% { clip-path: inset(25% 0 0 0); opacity: 0.8; filter: blur(0.5px) brightness(1.15); }
+  50% { clip-path: inset(50% 0 0 0); opacity: 0.5; filter: blur(1.5px) brightness(1.3); }
+  75% { clip-path: inset(75% 0 0 0); opacity: 0.2; filter: blur(3px) brightness(1.6); }
+  100% { clip-path: inset(100% 0 0 0); opacity: 0; filter: blur(6px) brightness(2); }
 }
 @keyframes combat-dissolve-glow {
   0% { opacity: 0; transform: scale(0.4); }
@@ -2659,6 +2659,21 @@ body.combat-lock #tab-content-area {
   pointer-events: none;
   z-index: -1;
   animation: combat-dissolve-glow 1.2s ease-out forwards;
+}
+
+@keyframes combat-particle-fly {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) scale(0); }
+}
+.combat-dissolve-particle {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1000;
+  background: radial-gradient(circle, #ffd700, #ff6a00);
+  animation: combat-particle-fly 0.8s ease-out forwards;
 }
 .combat-damage-float {
   position: absolute;
