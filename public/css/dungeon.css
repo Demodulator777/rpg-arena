@@ -2671,7 +2671,7 @@ body.combat-lock #tab-content-area {
   height: 6px;
   border-radius: 50%;
   pointer-events: none;
-  z-index: 1000;
+  z-index: 500000;
   background: radial-gradient(circle, #ffd700, #ff6a00);
   animation: combat-particle-fly 0.8s ease-out forwards;
 }
@@ -2682,7 +2682,7 @@ body.combat-lock #tab-content-area {
   font-weight: 800;
   text-shadow: 0 0 10px rgba(255,107,107,0.6), 0 2px 4px rgba(0,0,0,0.5);
   pointer-events: none;
-  z-index: 100;
+  z-index: 500000;
   white-space: nowrap;
   left: 50%;
   top: 30%;
