@@ -1935,7 +1935,6 @@ function fightRound() {
                 D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
-                saveTargetRectForAnim();
                 renderCombatPanel();
                 triggerCombatAnimations();
             })
@@ -2021,7 +2020,7 @@ function fightRound() {
             const pr = D.combat._prevMonsterRect;
             if (pr) {
                 const ghost = document.createElement('div');
-                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:999;pointer-events:none;overflow:hidden`;
+                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:500000;pointer-events:none;overflow:hidden`;
                 if (defeatedHtml) ghost.innerHTML = defeatedHtml;
                 else ghost.style.cssText += ';background:linear-gradient(135deg,#3a2a1a,#2a1a0a);border:2px solid rgba(201,146,42,0.35);border-radius:8px';
                 document.body.appendChild(ghost);
@@ -4022,7 +4021,7 @@ function pixelDissolveCard(card) {
                 p.style.backgroundSize = `${canvas.width}px ${canvas.height}px`;
                 p.style.backgroundPosition = `-${c * cellW}px -${r * cellH}px`;
                 p.style.pointerEvents = 'none';
-                p.style.zIndex = '1000';
+                p.style.zIndex = '500000';
                 p.style.borderRadius = '1px';
 
                 const angle = Math.random() * 2 * Math.PI;
