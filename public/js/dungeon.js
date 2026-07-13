@@ -3917,7 +3917,7 @@ function triggerCombatAnimations() {
     const roundLog = D.combat.roundLog;
     if (!roundLog || roundLog.length < 1) return;
 
-    const lastAnimatedIdx = D.combat._lastAnimatedLogIdx || -1;
+    const lastAnimatedIdx = D.combat._lastAnimatedLogIdx ?? -1;
     const newEntries = lastAnimatedIdx < 0 ? [...roundLog] : roundLog.slice(lastAnimatedIdx + 1);
     if (newEntries.length === 0) return;
     D.combat._lastAnimatedLogIdx = roundLog.length - 1;
