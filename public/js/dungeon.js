@@ -2325,7 +2325,9 @@ function tryRun(roomIdx) {
                 D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
+                saveTargetRectForAnim();
                 renderCombatPanel();
+                triggerCombatAnimations();
             })
             .catch(err => {
                 console.error('Crawler flee action failed:', err);
@@ -2381,7 +2383,9 @@ function tryRun(roomIdx) {
                 D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
+                saveTargetRectForAnim();
                 renderCombatPanel();
+                triggerCombatAnimations();
             })
             .catch(err => {
                 console.error('Server flee failed:', err);
