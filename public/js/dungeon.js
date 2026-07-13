@@ -2513,28 +2513,34 @@ function onPlayerDeath() {
     document.body.classList.remove('modal-lock');
     document.body.classList.remove('combat-lock');
     
-    // Release room entry and lock
-    if (D.combat && D.combat.roomIdx !== undefined) {
-        apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: D.combat.roomIdx })
-            .catch(e => console.error('Failed to exit room:', e));
-    }
-    stopLockRefresh();
-    
-    D.savedProgress['tower'] = {
-      floor: D.floor,
-      pos: D.playerPos,
-      rooms: D.rooms,
-      explored: [...D.exploredRooms],
-      crawler: D.crawler,
-      floorRunId: D.floorRunId,
-    };
-    D.combat = null;
-    D._combatPrefetch = null;
-    D.activeDungeon = null;
-    global.__dungeonActive = false;
-    saveState();
-    saveProgressToDB();
-    setTimeout(() => renderDungeonList(), 1500);
+    // Play player card dissolve before cleanup
+    const pCard = document.querySelector('.combat-fighters > .fighter-card:first-child');
+    if (pCard) pixelDissolveCard(pCard);
+
+    setTimeout(() => {
+        // Release room entry and lock
+        if (D.combat && D.combat.roomIdx !== undefined) {
+            apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: D.combat.roomIdx })
+                .catch(e => console.error('Failed to exit room:', e));
+        }
+        stopLockRefresh();
+        
+        D.savedProgress['tower'] = {
+          floor: D.floor,
+          pos: D.playerPos,
+          rooms: D.rooms,
+          explored: [...D.exploredRooms],
+          crawler: D.crawler,
+          floorRunId: D.floorRunId,
+        };
+        D.combat = null;
+        D._combatPrefetch = null;
+        D.activeDungeon = null;
+        global.__dungeonActive = false;
+        saveState();
+        saveProgressToDB();
+        setTimeout(() => renderDungeonList(), 1500);
+    }, 800);
 }
 
 async function fightBoss(roomIdx) {
