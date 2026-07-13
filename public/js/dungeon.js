@@ -1843,10 +1843,6 @@ function fightRound() {
                         room.monstersEvaded = false;
                         room.monstersCleared = Date.now();
                     }
-                    // Sync D.combat.monsters HP so dead monsters aren't animated as counter-attackers
-                    if (D.combat && Array.isArray(D.combat.monsters)) {
-                        D.combat.monsters.forEach(m => { m.currentHp = 0; });
-                    }
                     if (Array.isArray(res.lootGranted) && res.lootGranted.length) {
                         for (const it of res.lootGranted) {
                             if (it.type === 'dungeon_gold') log(`💰 +${it.amount} dungeon gold`, 'log-loot');
@@ -1860,6 +1856,12 @@ function fightRound() {
                     }
                     // Play final round animations then clean up
                     D.combat.resolving = false;
+                    saveTargetRectForAnim();
+                    // Ensure at least one monster has HP > 0 so the card renders for the death animation
+                    if (D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
+                        const anyAlive = D.combat.monsters.some(m => m.currentHp > 0);
+                        if (!anyAlive) D.combat.monsters[D.combat.monsters.length - 1].currentHp = 1;
+                    }
                     renderCombatPanel();
                     // Set D.combat.monsters HP to 0 AFTER rendering (so monster card shows)
                     // but BEFORE triggerCombatAnimations (so dead monsters aren't counter-attackers)
@@ -1917,6 +1919,7 @@ function fightRound() {
                 D.combat.resolving = false;
                 saveState();
                 saveProgressToDB();
+                saveTargetRectForAnim();
                 renderCombatPanel();
                 triggerCombatAnimations();
             })
@@ -1990,10 +1993,12 @@ function fightRound() {
         }
     } else {
         D.combat.currentMonsterIndex = nextIndex;
+        saveTargetRectForAnim();
         renderCombatPanel();
         triggerCombatAnimations();
     }
 } else {
+    saveTargetRectForAnim();
     renderCombatPanel();
     triggerCombatAnimations();
 }
@@ -3722,6 +3727,20 @@ function renderRoomInfo(room) {
     `;
 }
 
+function saveTargetRectForAnim() {
+    if (!D.combat) return;
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay) return;
+    const monsterSide = overlay.querySelector('.monster-side');
+    const card = monsterSide ? monsterSide.querySelector('.monster-combat-card') : null;
+    if (card) {
+        const r = card.getBoundingClientRect();
+        D.combat._prevMonsterRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+        D.combat._prevMonsterName = D.combat.monsters?.[D.combat.currentMonsterIndex]?.name;
+        D.combat._prevMonsterIdx = D.combat.currentMonsterIndex;
+    }
+}
+
 function triggerCombatAnimations() {
     const overlay = document.getElementById('dungeon-overlay');
     if (!overlay || !D.combat) return;
@@ -3735,8 +3754,16 @@ function triggerCombatAnimations() {
 
     const playerCard = overlay.querySelector('.combat-fighters > .fighter-card:first-child');
     const monsterSide = overlay.querySelector('.monster-side');
-    const currentMonsterCard = monsterSide ? monsterSide.querySelector('.monster-combat-card') : null;
-    if (!playerCard || !monsterSide || !currentMonsterCard) return;
+    let currentMonsterCard = monsterSide ? monsterSide.querySelector('.monster-combat-card') : null;
+
+    const prevRect = D.combat._prevMonsterRect;
+    const prevName = D.combat._prevMonsterName;
+    const prevIdx = D.combat._prevMonsterIdx;
+    const monsterChanged = prevRect && prevIdx != null && (
+        !currentMonsterCard || D.combat.currentMonsterIndex !== prevIdx
+    );
+
+    if (!playerCard || !monsterSide || (!currentMonsterCard && !monsterChanged)) return;
 
     const currentMonster = D.combat.monsters[D.combat.currentMonsterIndex];
     const attackType = D.combat._lastAttackType || 'regular';
@@ -3756,9 +3783,14 @@ function triggerCombatAnimations() {
         else if (styleType === 'burst') cls += ' burst';
         el.className = cls;
         el.textContent = isHeal ? `+${dmg}` : `-${dmg}`;
-        const rect = target.getBoundingClientRect();
-        el.style.left = (rect.left + rect.width / 2 - 30) + 'px';
-        el.style.top = (rect.top + 20) + 'px';
+        if (monsterChanged && target === currentMonsterCard && prevRect) {
+            el.style.left = (prevRect.left + prevRect.width / 2 - 30) + 'px';
+            el.style.top = (prevRect.top + 20) + 'px';
+        } else {
+            const rect = target.getBoundingClientRect();
+            el.style.left = (rect.left + rect.width / 2 - 30) + 'px';
+            el.style.top = (rect.top + 20) + 'px';
+        }
         el.style.position = 'fixed';
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 900);
