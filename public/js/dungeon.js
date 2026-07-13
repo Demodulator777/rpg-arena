@@ -1861,6 +1861,11 @@ function fightRound() {
                     // Play final round animations then clean up
                     D.combat.resolving = false;
                     renderCombatPanel();
+                    // Set D.combat.monsters HP to 0 AFTER rendering (so monster card shows)
+                    // but BEFORE triggerCombatAnimations (so dead monsters aren't counter-attackers)
+                    if (D.combat && Array.isArray(D.combat.monsters)) {
+                        D.combat.monsters.forEach(m => { m.currentHp = 0; });
+                    }
                     triggerCombatAnimations();
                     // Dissolve the fallen monster card after the hit
                     setTimeout(() => {
