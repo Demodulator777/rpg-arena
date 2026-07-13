@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>5×5 Grid Burst Animation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .burst-container {
+            width: 400px;
+            height: 400px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 60px rgba(255, 200, 50, 0.3), 0 0 120px rgba(255, 100, 0, 0.1);
+            background: #000;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .burst-sprite {
+            width: 100%;
+            height: 100%;
+            background-image: url('/assets/roguelike1.png');
+            background-repeat: no-repeat;
+            background-size: 500% 500%;
+            animation: burstGrid 1.5s steps(5) infinite;
+        }
+
+        @keyframes burstGrid {
+            0% { background-position: 0% 0%; }
+            20% { background-position: 100% 0%; }
+            25% { background-position: 0% 25%; }
+            45% { background-position: 100% 25%; }
+            50% { background-position: 0% 50%; }
+            70% { background-position: 100% 50%; }
+            75% { background-position: 0% 75%; }
+            95% { background-position: 100% 75%; }
+            100% { background-position: 0% 100%; }
+        }
+
+        @keyframes burstGridSmooth {
+            0% { background-position: 0% 0%; }
+            4% { background-position: 100% 0%; }
+            8% { background-position: 0% 25%; }
+            12% { background-position: 100% 25%; }
+            16% { background-position: 0% 50%; }
+            20% { background-position: 100% 50%; }
+            24% { background-position: 0% 75%; }
+            28% { background-position: 100% 75%; }
+            32% { background-position: 0% 100%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 14px 35px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-trigger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            box-shadow: 0 4px 25px rgba(238, 90, 36, 0.4);
+        }
+
+        .btn-loop {
+            background: linear-gradient(135deg, #4a6fa5, #2d4a7a);
+            color: white;
+            box-shadow: 0 4px 25px rgba(74, 111, 165, 0.4);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #666, #333);
+            color: white;
+            box-shadow: 0 4px 25px rgba(0,0,0,0.4);
+        }
+
+        .btn-slow {
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            box-shadow: 0 4px 25px rgba(108, 92, 231, 0.4);
+        }
+
+        .btn-frame {
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+            box-shadow: 0 4px 25px rgba(0, 206, 201, 0.4);
+        }
+
+        .info {
+            color: #888;
+            margin-top: 15px;
+            font-size: 14px;
+            text-align: center;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+            max-width: 600px;
+        }
+
+        .info span {
+            color: #ffd700;
+            font-weight: bold;
+        }
+
+        .info .highlight {
+            color: #6c5ce7;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="burst-container">
+        <div class="burst-sprite" id="burstSprite"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-trigger" onclick="playBurst()">⚡ Trigger Burst</button>
+        <button class="btn btn-loop" onclick="loopBurst()">🔄 Loop</button>
+        <button class="btn btn-slow" onclick="slowBurst()">🐢 Slow Mo</button>
+        <button class="btn btn-frame" onclick="showFrame13()">🎯 Frame 13</button>
+        <button class="btn btn-reset" onclick="resetBurst()">⏹ Reset</button>
+    </div>
+
+    <div class="info">
+        🎬 <span>25 Frames</span> | 5×5 Grid | <code>/assets/roguelike1.png</code><br>
+        Each frame: <span>204.8×204.8px</span> |
+        Click <span>Trigger Burst</span> to play once &amp; stop
+    </div>
+
+    <script>
+        const sprite = document.getElementById('burstSprite');
+
+        function playBurst() {
+            sprite.style.animation = 'none';
+            void sprite.offsetHeight;
+            sprite.style.animation = 'burstGrid 1.2s steps(5) forwards';
+        }
+
+        function loopBurst() {
+            sprite.style.animation = 'none';
+            void sprite.offsetHeight;
+            sprite.style.animation = 'burstGrid 1.5s steps(5) infinite';
+        }
+
+        function slowBurst() {
+            sprite.style.animation = 'none';
+            void sprite.offsetHeight;
+            sprite.style.animation = 'burstGrid 3s steps(5) infinite';
+        }
+
+        function showFrame13() {
+            sprite.style.animation = 'none';
+            sprite.style.backgroundPosition = '50% 50%';
+        }
+
+        function resetBurst() {
+            sprite.style.animation = 'none';
+            sprite.style.backgroundPosition = '0% 0%';
+        }
+
+        window.addEventListener('load', () => {
+            loopBurst();
+        });
+    </script>
+
+</body>
+</html>
