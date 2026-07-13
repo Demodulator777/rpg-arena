@@ -1858,13 +1858,18 @@ function fightRound() {
                     D.combat.resolving = false;
                     renderCombatPanel();
                     triggerCombatAnimations();
+                    // Dissolve the fallen monster card after the hit
+                    setTimeout(() => {
+                        const card = document.querySelector('.monster-combat-card');
+                        if (card) card.classList.add('combat-anim-dissolve');
+                    }, 600);
                     setTimeout(() => {
                         D.combat = null;
                         saveState();
                         saveProgressToDB();
                         refreshCharacter();
                         renderDungeonView();
-                    }, 3500);
+                    }, 2200);
                     return;
                 }
 
@@ -3815,12 +3820,12 @@ function triggerCombatAnimations() {
         }, 400);
     }
 
-    // 3) Monster counter-attacks (t=1100ms onwards)
+    // 3) Monster counter-attacks (t=1100ms onwards, sequential)
     let baseDelay = 1100;
     for (let i = 0; i < monsterAttacks.length; i++) {
         const attack = monsterAttacks[i];
         const isCurrent = attack.monster === currentMonster;
-        const d = baseDelay + i * 900;
+        const d = baseDelay + i * 1100;
 
         if (isCurrent) {
             setTimeout(() => {
@@ -3833,29 +3838,28 @@ function triggerCombatAnimations() {
                 }, 400);
             }, d);
         } else {
-            const tempCard = buildTempMonsterCard(attack.monster);
-            monsterSide.appendChild(tempCard);
-
-            // Attack from deck: emerges + strikes in one motion (d)
-            requestAnimationFrame(() => {
+            // Delay DOM insertion until this monster's turn
+            setTimeout(() => {
+                const tempCard = buildTempMonsterCard(attack.monster);
+                monsterSide.appendChild(tempCard);
+                void tempCard.offsetHeight;
                 tempCard.classList.add('combat-anim-monster-attack-from-deck');
-            });
+                setTimeout(() => spawnDmgFloat(playerCard, attack.dmg, false), 350);
 
-            // Damage float at peak of strike (d + 350)
-            setTimeout(() => {
-                spawnDmgFloat(playerCard, attack.dmg, false);
-            }, d + 350);
-
-            // Retreat after attack completes (d + 700)
-            setTimeout(() => {
-                tempCard.classList.remove('combat-anim-monster-attack-from-deck');
-                tempCard.classList.add('combat-anim-monster-retreat');
-            }, d + 700);
-
-            // Remove (d + 1000)
-            setTimeout(() => {
-                if (tempCard.parentNode) tempCard.remove();
-            }, d + 1000);
+                tempCard.addEventListener('animationend', function onEnd(e) {
+                    if (e.animationName === 'combat-monster-attack-from-deck') {
+                        tempCard.removeEventListener('animationend', onEnd);
+                        tempCard.classList.remove('combat-anim-monster-attack-from-deck');
+                        tempCard.classList.add('combat-anim-monster-retreat');
+                        tempCard.addEventListener('animationend', function onRetreat(e2) {
+                            if (e2.animationName === 'combat-monster-retreat') {
+                                tempCard.removeEventListener('animationend', onRetreat);
+                                if (tempCard.parentNode) tempCard.remove();
+                            }
+                        });
+                    }
+                });
+            }, d);
         }
     }
 
