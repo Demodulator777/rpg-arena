@@ -230,21 +230,6 @@ function triggerBurst() {
         }
     }
 
-    // Lunge 20px in facing direction
-    const lunge = 20;
-    let lx = 0, ly = 0;
-    switch (currentDir) {
-        case 'right': lx = lunge; break;
-        case 'left': lx = -lunge; break;
-        case 'down': ly = lunge; break;
-        case 'up': ly = -lunge; break;
-    }
-    if (!checkCollision(lx, 0)) playerWX += lx;
-    if (!checkCollision(0, ly)) playerWY += ly;
-    playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
-    playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
-    player.style.left = playerWX + 'px';
-    player.style.top = playerWY + 'px';
 }
 
 // Interact prompt
@@ -291,6 +276,25 @@ function update(timestamp) {
             if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
             else playerSprite.style.transform = 'scaleX(1)';
             playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
+
+            // Lunge frames 10-16
+            if (burstFrame >= 10 && burstFrame <= 16) {
+                const step = 20 / 7;
+                let lx = 0, ly = 0;
+                switch (currentDir) {
+                    case 'right': lx = step; break;
+                    case 'left': lx = -step; break;
+                    case 'down': ly = step; break;
+                    case 'up': ly = -step; break;
+                }
+                if (!checkCollision(lx, 0)) playerWX += lx;
+                if (!checkCollision(0, ly)) playerWY += ly;
+                playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
+                playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+                player.style.left = playerWX + 'px';
+                player.style.top = playerWY + 'px';
+            }
+
             burstFrame++;
             if (burstFrame >= 25) {
                 isBursting = false;
