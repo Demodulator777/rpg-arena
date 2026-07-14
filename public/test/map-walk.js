@@ -215,7 +215,8 @@ async function loadLevel(level, spawnAt) {
         const res = await fetch(`/api/game/maps/${level}`);
         if (!res.ok) {
             if (res.status === 404) {
-                loadingEl.textContent = `Level ${level} not found. Create it in the map builder.`;
+                loadingEl.textContent = `Level ${level} not found`;
+                loadingEl.classList.add('hide');
                 return;
             }
             throw new Error((await res.json()).error);
@@ -317,6 +318,7 @@ async function loadLevel(level, spawnAt) {
         loadingEl.textContent = 'Loading level...';
     } catch (e) {
         loadingEl.textContent = 'Error: ' + e.message;
+        loadingEl.classList.add('hide');
     }
 }
 
