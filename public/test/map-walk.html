@@ -37,7 +37,9 @@
 
         #level-label { position: fixed; top: max(20px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 14px; z-index: 200; pointer-events: none; }
         #exit-zone { position: absolute; width: 60px; height: 60px; border: 3px dashed #3a6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #3a6; z-index: 3; pointer-events: none; animation: pulse-exit 2s ease-in-out infinite; }
+        #entrance-zone { position: absolute; width: 60px; height: 60px; border: 3px dashed #a6a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #a6a; z-index: 3; pointer-events: none; animation: pulse-entrance 2s ease-in-out infinite; }
         @keyframes pulse-exit { 0%,100% { opacity: 0.6; box-shadow: 0 0 10px rgba(60,170,100,0.3); } 50% { opacity: 1; box-shadow: 0 0 25px rgba(60,170,100,0.6); } }
+        @keyframes pulse-entrance { 0%,100% { opacity: 0.6; box-shadow: 0 0 10px rgba(170,100,170,0.3); } 50% { opacity: 1; box-shadow: 0 0 25px rgba(170,100,170,0.6); } }
 
         #fog { position: fixed; inset: 0; z-index: 50; pointer-events: none; background: #000; }
 
@@ -59,7 +61,6 @@
         </div>
         <div id="player-hp-outer"><div id="player-hp-inner"></div></div>
         <div id="level-label">Level 1</div>
-        <div id="debug-dir" style="position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);padding:4px 12px;border-radius:4px;font-size:14px;z-index:300;pointer-events:none;">—</div>
         <div id="interact-prompt">Open</div>
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
