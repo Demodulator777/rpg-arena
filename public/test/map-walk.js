@@ -6,8 +6,8 @@ const joystickKnob = document.getElementById('joystick-knob');
 const actionBtn = document.getElementById('action-btn');
 
 // Initial map offset to center player
-let mapX = (2000 - window.innerWidth) / 2;
-let mapY = (2000 - window.innerHeight) / 2;
+let mapX = (5000 - window.innerWidth) / 2;
+let mapY = (5000 - window.innerHeight) / 2;
 
 let dx = 0, dy = 0;
 const speed = 7;
@@ -15,13 +15,13 @@ const walls = [];
 
 // Generate Maze
 function generateMaze() {
-    const center = { x: 1000, y: 1000 };
-    const safeRadius = 200; // Increased safety area
-    for (let i = 0; i < 60; i++) { // Fewer obstacles
-        const w = 40 + Math.random() * 100; // Smaller obstacles
-        const h = 40 + Math.random() * 100;
-        const x = Math.random() * (2000 - w);
-        const y = Math.random() * (2000 - h);
+    const center = { x: 2500, y: 2500 };
+    const safeRadius = 300; 
+    for (let i = 0; i < 200; i++) {
+        const w = 50 + Math.random() * 200;
+        const h = 50 + Math.random() * 200;
+        const x = Math.random() * (5000 - w);
+        const y = Math.random() * (5000 - h);
         
         // Ensure spawn area is clear
         if (x < center.x + safeRadius && x + w > center.x - safeRadius && 
@@ -102,7 +102,7 @@ function handleJoystick(e) {
 function checkCollision(nx, ny) {
     const playerMapX = mapX + window.innerWidth / 2 - 30 + nx;
     const playerMapY = mapY + window.innerHeight / 2 - 30 + ny;
-    const buffer = 2;
+    const buffer = 5;
     return walls.some(w => 
         playerMapX + 60 - buffer > w.x && 
         playerMapX + buffer < w.x + w.w && 
@@ -119,8 +119,8 @@ function update() {
     if (!checkCollision(dx * speed, 0)) mapX = nx;
     if (!checkCollision(0, dy * speed)) mapY = ny;
 
-    mapX = Math.max(0, Math.min(mapX, 2000 - window.innerWidth));
-    mapY = Math.max(0, Math.min(mapY, 2000 - window.innerHeight));
+    mapX = Math.max(0, Math.min(mapX, 5000 - window.innerWidth));
+    mapY = Math.max(0, Math.min(mapY, 5000 - window.innerHeight));
 
     map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
     requestAnimationFrame(update);
