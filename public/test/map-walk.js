@@ -146,6 +146,26 @@ function monsterWallHit(mx, my) {
     );
 }
 
+function hasLineOfSight(x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.hypot(dx, dy);
+    const steps = Math.max(1, Math.ceil(dist / 8));
+    for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const px = x1 + dx * t;
+        const py = y1 + dy * t;
+        const b = 20;
+        for (const w of walls) {
+            if (px > w.x + b && px < w.x + b + w.w &&
+                py > w.y + b && py < w.y + b + w.h) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 // Burst
 let burstDamaged = new Set();
 
@@ -166,6 +186,7 @@ function triggerBurst() {
 // Interact prompt
 function openNearChest() {
     if (!nearChest || nearChest.found) return;
+    if (!hasLineOfSight(playerWX, playerWY, nearChest.x, nearChest.y)) return;
     nearChest.found = true;
     nearChest.el.classList.add('found');
     nearChest = null;
@@ -352,7 +373,7 @@ function update(timestamp) {
             // Continuous damage check every frame during burst
             for (const m of monsters) {
                 if (m.hp <= 0 || burstDamaged.has(m)) continue;
-                if (Math.abs(playerWX - m.x) < 60 && Math.abs(playerWY - m.y) < 60) {
+                if (Math.abs(playerWX - m.x) < 60 && Math.abs(playerWY - m.y) < 60 && hasLineOfSight(playerWX, playerWY, m.x, m.y)) {
                     m.hp -= 10;
                     burstDamaged.add(m);
                     m.hpFill.style.width = Math.max(0, m.hp / MONSTER_HP * 100) + '%';
@@ -458,7 +479,7 @@ function update(timestamp) {
 
         m.attackTimer -= dt;
         if (m.attackTimer <= 0 && dist < 100) {
-            if (checkOverlap(playerWX, playerWY, 15, 30, m.x, m.y, 20, 20)) {
+            if (checkOverlap(playerWX, playerWY, 15, 30, m.x, m.y, 20, 20) && hasLineOfSight(m.x, m.y, playerWX, playerWY)) {
                 m.animFrame = 0;
                 m.animTimer = MONSTER_ANIM_MS;
                 const f = MONSTER_ATTACK_FRAMES[0];
@@ -487,7 +508,7 @@ function update(timestamp) {
     for (const ch of chests) {
         if (ch.found) continue;
         const d = Math.hypot(playerWX - ch.x, playerWY - ch.y);
-        if (d < closestDist) {
+        if (d < closestDist && hasLineOfSight(playerWX, playerWY, ch.x, ch.y)) {
             closestDist = d;
             closest = ch;
         }
