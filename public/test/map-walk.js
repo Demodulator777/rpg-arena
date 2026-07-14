@@ -44,10 +44,50 @@ generateMaze();
 // Sprite animation state
 let currentFrame = 0;
 let animationInterval = null;
+let walkInterval = null;
+let currentDir = 'down';
+
+const ROW = { down: 0, right: 25, skip: 50, left: 75, up: 100 };
+
+function setWalkFrame(rowPct, colIdx) {
+    playerSprite.style.backgroundImage = 'url(/images/assets/roguelike3.png)';
+    playerSprite.style.backgroundPosition = `${colIdx * 25}% ${rowPct}%`;
+}
+
+function getDir() {
+    if (dy > 0) return 'down';
+    if (dy < 0) return 'up';
+    if (dx > 0) return 'right';
+    if (dx < 0) return 'left';
+    return currentDir;
+}
+
+function startWalkAnim() {
+    if (animationInterval) return; // burst is playing
+    if (walkInterval) return;
+    let f = 0;
+    walkInterval = setInterval(() => {
+        const dir = getDir();
+        currentDir = dir;
+        setWalkFrame(ROW[dir], f);
+        f = (f + 1) % 5;
+    }, 150);
+}
+
+function stopWalkAnim() {
+    clearInterval(walkInterval);
+    walkInterval = null;
+    setWalkFrame(ROW.skip, 0);
+}
 
 function updateSpriteAnimation() {
+    // burst-only: steps through roguelike1.png all 25 frames
     const col = currentFrame % 5;
     const row = Math.floor(currentFrame / 5);
+    playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+    // Flip burst sprite based on last direction
+    if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
+    else playerSprite.style.transform = 'scaleX(1)';
     playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
     currentFrame++;
 }
@@ -119,9 +159,9 @@ function update() {
     if (!checkCollision(dx * speed, 0)) mapX = nx;
     if (!checkCollision(0, dy * speed)) mapY = ny;
 
-    // Flip sprite based on direction
-    if (dx < 0) playerSprite.style.transform = 'scaleX(-1)';
-    else if (dx > 0) playerSprite.style.transform = 'scaleX(1)';
+    // Walking animation
+    if (dx !== 0 || dy !== 0) startWalkAnim();
+    else stopWalkAnim();
 
     mapX = Math.max(-(window.innerWidth / 2 - 15), Math.min(mapX, 5000 - window.innerWidth / 2 - 15));
     mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
@@ -133,6 +173,7 @@ function update() {
 // Burst action
 function triggerBurst() {
     if (animationInterval) return;
+    stopWalkAnim();
     playerSprite.style.filter = 'brightness(2) contrast(2)';
     currentFrame = 0;
     animationInterval = setInterval(() => {
@@ -141,8 +182,9 @@ function triggerBurst() {
             clearInterval(animationInterval);
             animationInterval = null;
             currentFrame = 0;
-            updateSpriteAnimation();
             playerSprite.style.filter = 'none';
+            // Restore walking sprite
+            setWalkFrame(ROW.skip, 0);
         }
     }, 60);
 }
