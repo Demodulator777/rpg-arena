@@ -199,7 +199,7 @@ interactPrompt.addEventListener('click', openNearChest);
 interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); openNearChest(); });
 
 // ---- Level loading ----
-async function loadLevel(level, spawnAt) {
+async function loadLevel(level) {
     loadingEl.classList.remove('hide');
     // Clear existing
     document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone').forEach(el => el.remove());
@@ -215,8 +215,7 @@ async function loadLevel(level, spawnAt) {
         const res = await fetch(`/api/game/maps/${level}`);
         if (!res.ok) {
             if (res.status === 404) {
-                loadingEl.textContent = `Level ${level} not found`;
-                loadingEl.classList.add('hide');
+                loadingEl.textContent = `Level ${level} not found. Create it in the map builder.`;
                 return;
             }
             throw new Error((await res.json()).error);
@@ -228,16 +227,8 @@ async function loadLevel(level, spawnAt) {
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
 
         // Player start
-        if (spawnAt === 'exit' && mapInfo.exit) {
-            playerWX = mapInfo.exit.x;
-            playerWY = mapInfo.exit.y;
-        } else if (spawnAt === 'entrance' && mapInfo.entrance) {
-            playerWX = mapInfo.entrance.x;
-            playerWY = mapInfo.entrance.y;
-        } else {
-            playerWX = mapInfo.playerStart.x;
-            playerWY = mapInfo.playerStart.y;
-        }
+        playerWX = mapInfo.playerStart.x;
+        playerWY = mapInfo.playerStart.y;
         player.style.left = playerWX + 'px';
         player.style.top = playerWY + 'px';
         playerHP = PLAYER_MAX_HP;
@@ -318,7 +309,6 @@ async function loadLevel(level, spawnAt) {
         loadingEl.textContent = 'Loading level...';
     } catch (e) {
         loadingEl.textContent = 'Error: ' + e.message;
-        loadingEl.classList.add('hide');
     }
 }
 
@@ -331,7 +321,7 @@ async function checkExit() {
     if (d < 40) {
         exiting = true;
         const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
-        await loadLevel(nextLevel, 'entrance');
+        await loadLevel(nextLevel);
         exiting = false;
     }
 }
@@ -342,7 +332,7 @@ async function checkEntrance() {
     if (d < 40) {
         exiting = true;
         const prevLevel = mapInfo.entrance.targetLevel || (currentLevel - 1);
-        await loadLevel(prevLevel, 'exit');
+        await loadLevel(prevLevel);
         exiting = false;
     }
 }
@@ -599,7 +589,7 @@ document.getElementById('hide-hint')?.addEventListener('click', () => {
     controlsHint.classList.remove('show');
 });
 
-loadLevel(startLevel, 'start').then(() => {
+loadLevel(startLevel).then(() => {
     setWalkFrame(ROW.down, 0);
     requestAnimationFrame(update);
 }).catch(e => {
