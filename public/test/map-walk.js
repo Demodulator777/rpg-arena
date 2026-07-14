@@ -6,78 +6,27 @@ const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 const actionBtn = document.getElementById('action-btn');
 const interactPrompt = document.getElementById('interact-prompt');
+const levelLabel = document.getElementById('level-label');
+const loadingEl = document.getElementById('loading');
 
 // Camera - always shows ~400 world units horizontally
 const REF_W = 400;
 const REF_H = 700;
 let worldScale = 1;
-let playerWX = 2500; // player's world X
-let playerWY = 2500; // player's world Y
+let playerWX = 2500;
+let playerWY = 2500;
 
 let dx = 0, dy = 0;
 const speed = 1.75;
 const walls = [];
 
-function generateMaze() {
-    const center = { x: 2500, y: 2500 };
-    const safeRadius = 300; 
-    for (let i = 0; i < 200; i++) {
-        const w = 50 + Math.random() * 200;
-        const h = 50 + Math.random() * 200;
-        const x = Math.random() * (5000 - w);
-        const y = Math.random() * (5000 - h);
-        if (x < center.x + safeRadius && x + w > center.x - safeRadius && 
-            y < center.y + safeRadius && y + h > center.y - safeRadius) {
-            continue; 
-        }
-        const wall = document.createElement('div');
-        wall.className = 'wall';
-        wall.style.width = w + 'px';
-        wall.style.height = h + 'px';
-        wall.style.left = x + 'px';
-        wall.style.top = y + 'px';
-        map.appendChild(wall);
-        walls.push({ x, y, w, h });
-    }
-}
-generateMaze();
+// Map data from DB
+let currentLevel = 1;
+let mapInfo = { name: '', playerStart: { x: 2500, y: 2500 }, exit: null };
 
 // Chests
-const CHEST_COUNT = 10;
-const CHEST_MIN_DIST = 400;
 const chests = [];
 let nearChest = null;
-
-function generateChests() {
-    const center = { x: 2500, y: 2500 };
-    for (let i = 0; i < CHEST_COUNT; i++) {
-        let placed = false;
-        for (let attempt = 0; attempt < 200 && !placed; attempt++) {
-            const cx = 60 + Math.random() * (5000 - 120);
-            const cy = 60 + Math.random() * (5000 - 120);
-            if (Math.abs(cx - center.x) < 300 && Math.abs(cy - center.y) < 300) continue;
-            let tooClose = false;
-            for (const c of chests) {
-                if (Math.hypot(c.x - cx, c.y - cy) < CHEST_MIN_DIST) { tooClose = true; break; }
-            }
-            if (tooClose) continue;
-            let onWall = false;
-            for (const w of walls) {
-                if (cx + 20 > w.x + 20 && cx - 20 < w.x + 20 + w.w &&
-                    cy + 16 > w.y + 20 && cy - 16 < w.y + 20 + w.h) { onWall = true; break; }
-            }
-            if (onWall) continue;
-            const el = document.createElement('div');
-            el.className = 'chest';
-            el.style.left = cx + 'px';
-            el.style.top = cy + 'px';
-            map.appendChild(el);
-            chests.push({ x: cx, y: cy, el, found: false });
-            placed = true;
-        }
-    }
-}
-generateChests();
 
 // Monsters
 const MONSTER_CHASE = 200;
@@ -85,7 +34,6 @@ const MONSTER_RETREAT = 200;
 const MONSTER_SPEED = 0.8;
 const MONSTER_HP = 20;
 const MONSTER_DMG = 5;
-const BURST_RANGE = 40;
 const MONSTER_ATTACK_FRAMES = [
     { row: 50, col: 75 }, { row: 50, col: 100 },
     { row: 75, col: 0 },  { row: 75, col: 25 }
@@ -95,38 +43,8 @@ const monsters = [];
 let playerHP = 100;
 const PLAYER_MAX_HP = 100;
 
-function generateMonsters() {
-    const guarded = [...chests].sort(() => Math.random() - 0.5).slice(0, 5);
-    for (const chest of guarded) {
-        const count = 3 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < count; i++) {
-            let mx = chest.x + (Math.random() - 0.5) * 80;
-            let my = chest.y + (Math.random() - 0.5) * 80;
-            mx = Math.max(20, Math.min(5000 - 20, mx));
-            my = Math.max(20, Math.min(5000 - 20, my));
-            const el = document.createElement('div');
-            el.className = 'monster';
-            el.style.left = mx + 'px';
-            el.style.top = my + 'px';
-            el.style.backgroundPosition = '0% 0%';
-            const hpBar = document.createElement('div');
-            hpBar.className = 'monster-hp';
-            const hpFill = document.createElement('div');
-            hpFill.className = 'monster-hp-fill';
-            hpFill.style.width = '100%';
-            hpBar.appendChild(hpFill);
-            el.appendChild(hpBar);
-            map.appendChild(el);
-            monsters.push({
-                x: mx, y: my, spawnX: mx, spawnY: my,
-                hp: MONSTER_HP, el, hpFill, state: 'idle',
-                attackTimer: 2000 + Math.random() * 3000, hitTimer: 0,
-                animFrame: 0, animTimer: 0
-            });
-        }
-    }
-}
-generateMonsters();
+// Exit zone
+let exitEl = null;
 
 function checkOverlap(ax, ay, ahw, ahh, bx, by, bhw, bhh) {
     return Math.abs(ax - bx) < ahw + bhw && Math.abs(ay - by) < ahh + bhh;
@@ -140,9 +58,6 @@ let frameAccum = 0;
 let lastTime = 0;
 let currentDir = 'down';
 let isBursting = false;
-
-const burstImg = new Image();
-burstImg.src = '/images/assets/roguelike1.png';
 
 const ROW = { down: 0, right: 25, skip: 50, left: 75, up: 100 };
 const WALK_MS = 150;
@@ -248,6 +163,125 @@ function openNearChest() {
 
 interactPrompt.addEventListener('click', openNearChest);
 interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); openNearChest(); });
+
+// ---- Level loading ----
+async function loadLevel(level) {
+    loadingEl.classList.remove('hide');
+    // Clear existing
+    document.querySelectorAll('.wall, .chest, .monster, #exit-zone').forEach(el => el.remove());
+    walls.length = 0;
+    chests.length = 0;
+    monsters.length = 0;
+    nearChest = null;
+    exitEl = null;
+    interactPrompt.classList.remove('show');
+
+    try {
+        const res = await fetch(`/api/game/maps/${level}`);
+        if (!res.ok) {
+            if (res.status === 404) {
+                loadingEl.textContent = `Level ${level} not found. Create it in the map builder.`;
+                return;
+            }
+            throw new Error((await res.json()).error);
+        }
+        const row = await res.json();
+        const d = row.data;
+        mapInfo = { name: row.name || '', playerStart: d.playerStart || { x: 2500, y: 2500 }, exit: d.exit || null };
+        currentLevel = row.level;
+        levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
+
+        // Player start
+        playerWX = mapInfo.playerStart.x;
+        playerWY = mapInfo.playerStart.y;
+        player.style.left = playerWX + 'px';
+        player.style.top = playerWY + 'px';
+        playerHP = PLAYER_MAX_HP;
+        document.getElementById('player-hp-inner').style.width = '100%';
+
+        // Walls
+        if (d.walls) {
+            for (const w of d.walls) {
+                const el = document.createElement('div');
+                el.className = 'wall';
+                el.style.cssText = `left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px;`;
+                map.appendChild(el);
+                walls.push({ x: w.x, y: w.y, w: w.width, h: w.height });
+            }
+        }
+
+        // Chests
+        if (d.chests) {
+            for (const c of d.chests) {
+                const el = document.createElement('div');
+                el.className = 'chest';
+                el.style.cssText = `left:${c.x}px;top:${c.y}px;`;
+                map.appendChild(el);
+                chests.push({ x: c.x, y: c.y, el, found: false });
+            }
+        }
+
+        // Monster spawns
+        if (d.monsterSpawns) {
+            for (const sp of d.monsterSpawns) {
+                for (let i = 0; i < sp.count; i++) {
+                    let mx = sp.x + (Math.random() - 0.5) * 60;
+                    let my = sp.y + (Math.random() - 0.5) * 60;
+                    mx = Math.max(20, Math.min(5000 - 20, mx));
+                    my = Math.max(20, Math.min(5000 - 20, my));
+                    const el = document.createElement('div');
+                    el.className = 'monster';
+                    el.style.left = mx + 'px';
+                    el.style.top = my + 'px';
+                    el.style.backgroundPosition = '0% 0%';
+                    const hpBar = document.createElement('div');
+                    hpBar.className = 'monster-hp';
+                    const hpFill = document.createElement('div');
+                    hpFill.className = 'monster-hp-fill';
+                    hpFill.style.width = '100%';
+                    hpBar.appendChild(hpFill);
+                    el.appendChild(hpBar);
+                    map.appendChild(el);
+                    monsters.push({
+                        x: mx, y: my, spawnX: sp.x, spawnY: sp.y,
+                        hp: MONSTER_HP, el, hpFill, state: 'idle',
+                        attackTimer: 2000 + Math.random() * 3000, hitTimer: 0,
+                        animFrame: 0, animTimer: 0
+                    });
+                }
+            }
+        }
+
+        // Exit zone
+        if (mapInfo.exit) {
+            exitEl = document.createElement('div');
+            exitEl.id = 'exit-zone';
+            exitEl.textContent = '→';
+            exitEl.style.cssText = `left:${mapInfo.exit.x - 30}px;top:${mapInfo.exit.y - 30}px;`;
+            map.appendChild(exitEl);
+        }
+
+        loadingEl.classList.add('hide');
+        loadingEl.textContent = 'Loading level...';
+    } catch (e) {
+        loadingEl.textContent = 'Error: ' + e.message;
+    }
+}
+
+// Exit proximity + transition
+let exiting = false;
+
+async function checkExit() {
+    if (!mapInfo.exit || exiting) return;
+    const d = Math.hypot(playerWX - mapInfo.exit.x, playerWY - mapInfo.exit.y);
+    if (d < 40) {
+        exiting = true;
+        const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
+        // Clear all monsters before transition
+        await loadLevel(nextLevel);
+        exiting = false;
+    }
+}
 
 // Game Loop
 function update(timestamp) {
@@ -374,7 +408,7 @@ function update(timestamp) {
         m.el.style.left = m.x + 'px';
         m.el.style.top = m.y + 'px';
 
-        // Face the player (goblin faces left by default → flip when monster is left of player)
+        // Face the player (goblin faces left by default -> flip when monster is left of player)
         m.el.style.transform = m.x < playerWX ? 'scaleX(-1)' : 'scaleX(1)';
 
         // Attack animation
@@ -410,12 +444,15 @@ function update(timestamp) {
                 m.animTimer = MONSTER_ANIM_MS;
                 const f = MONSTER_ATTACK_FRAMES[0];
                 m.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
+                const dir = playerWX < m.x ? 'RIGHT' : 'LEFT';
                 playerHP = Math.max(0, playerHP - MONSTER_DMG);
                 document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+                document.getElementById('debug-dir').textContent = `Hit from ${dir}  PX=${playerWX} MX=${m.x} DX=${playerWX-m.x}`;
                 playerSprite.style.filter = 'brightness(3) saturate(0)';
                 setTimeout(() => { if (!isBursting) playerSprite.style.filter = 'none'; }, 150);
                 if (playerHP <= 0) {
-                    playerWX = 2500; playerWY = 2500;
+                    playerWX = mapInfo.playerStart.x;
+                    playerWY = mapInfo.playerStart.y;
                     playerHP = PLAYER_MAX_HP;
                     document.getElementById('player-hp-inner').style.width = '100%';
                 }
@@ -424,7 +461,7 @@ function update(timestamp) {
         }
     }
 
-    // Chest proximity – position prompt in screen coords
+    // Chest proximity
     const range = 50;
     let closest = null;
     let closestDist = range;
@@ -447,6 +484,9 @@ function update(timestamp) {
         nearChest = null;
         interactPrompt.classList.remove('show');
     }
+
+    // Exit check
+    checkExit();
 
     requestAnimationFrame(update);
 }
@@ -476,10 +516,15 @@ window.addEventListener('touchend', (e) => {
 });
 
 // Init
-setWalkFrame(ROW.down, 0);
-player.style.left = playerWX + 'px';
-player.style.top = playerWY + 'px';
-requestAnimationFrame(update);
+const params = new URLSearchParams(window.location.search);
+const startLevel = Number(params.get('level')) || 1;
+
+loadLevel(startLevel).then(() => {
+    setWalkFrame(ROW.down, 0);
+    requestAnimationFrame(update);
+}).catch(e => {
+    loadingEl.textContent = 'Failed to load: ' + e.message;
+});
 
 function fixViewportHeight() {
     document.getElementById('game-container').style.height = window.innerHeight + 'px';
