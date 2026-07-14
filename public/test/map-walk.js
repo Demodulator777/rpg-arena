@@ -11,6 +11,10 @@ const loadingEl = document.getElementById('loading');
 const fogEl = document.getElementById('fog');
 const controlsHint = document.getElementById('controls-hint');
 
+// Preload burst + monster sprites so first use isn't blank
+(new Image()).src = '/images/assets/roguelike1.png';
+(new Image()).src = '/images/assets/goblin.png';
+
 // Camera - always shows ~400 world units horizontally
 const REF_W = 400;
 const REF_H = 700;
