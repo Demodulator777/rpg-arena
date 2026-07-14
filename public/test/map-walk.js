@@ -16,10 +16,10 @@ const walls = [];
 // Generate Maze
 function generateMaze() {
     const center = { x: 1000, y: 1000 };
-    const safeRadius = 150;
-    for (let i = 0; i < 100; i++) {
-        const w = 50 + Math.random() * 150;
-        const h = 50 + Math.random() * 150;
+    const safeRadius = 200; // Increased safety area
+    for (let i = 0; i < 60; i++) { // Fewer obstacles
+        const w = 40 + Math.random() * 100; // Smaller obstacles
+        const h = 40 + Math.random() * 100;
         const x = Math.random() * (2000 - w);
         const y = Math.random() * (2000 - h);
         
