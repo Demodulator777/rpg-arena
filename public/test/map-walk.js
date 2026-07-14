@@ -205,6 +205,8 @@ function update(timestamp) {
     if (!checkCollision(0, dy * speed)) playerWY = ny;
     playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
     playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+    player.style.left = playerWX + 'px';
+    player.style.top = playerWY + 'px';
 
     // Camera transform
     worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
@@ -312,6 +314,8 @@ window.addEventListener('touchend', (e) => {
 
 // Init
 setWalkFrame(ROW.down, 0);
+player.style.left = playerWX + 'px';
+player.style.top = playerWY + 'px';
 requestAnimationFrame(update);
 
 function fixViewportHeight() {
