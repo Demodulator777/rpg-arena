@@ -377,7 +377,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     };
     setStatus('Saving...');
     try {
-        const res = await fetch('/maps', {
+        const res = await fetch('/api/game/maps', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -394,7 +394,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
     const level = Number(levelInput.value) || 1;
     setStatus('Loading...');
     try {
-        const res = await fetch(`/maps/${level}`);
+        const res = await fetch(`/api/game/maps/${level}`);
         if (res.status === 404) {
             setStatus('Map not found — create a new one');
             return;
