@@ -1196,6 +1196,14 @@ const WEEKLY_TASKS = [
             gems INTEGER NOT NULL DEFAULT 0,
             created_at INTEGER NOT NULL
         )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_donations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            squad_id INTEGER NOT NULL,
+            char_id INTEGER NOT NULL,
+            gold INTEGER NOT NULL DEFAULT 0,
+            gems INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_wars (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             attacker_squad_id INTEGER NOT NULL,
@@ -1235,6 +1243,14 @@ const WEEKLY_TASKS = [
             squad_id INTEGER PRIMARY KEY,
             gold INTEGER NOT NULL DEFAULT 0,
             gems INTEGER NOT NULL DEFAULT 0
+        )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS maps (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            level INTEGER NOT NULL UNIQUE,
+            name TEXT NOT NULL DEFAULT '',
+            data TEXT NOT NULL DEFAULT '{}',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
         )`, args: [] });
         // Add phase deadline columns to clan_wars
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN scout_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
@@ -9633,10 +9649,10 @@ router.get('/squads/me', auth, async (req, res) => {
         if (!membership) return res.json({ squad: null, members: [] });
         const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
-            COALESCE((SELECT SUM(gold) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gold_donated,
-            COALESCE((SELECT SUM(gems) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gems_donated
+            COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
+            COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
             FROM squad_members sm JOIN characters c ON c.id = sm.char_id
-            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id]);
+            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id]);
         res.json({ squad, members });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -10162,9 +10178,7 @@ router.post('/squads/bases/:baseId/capture', auth, async (req, res) => {
         if (Number(memberCount?.c || 0) < cfg.min_members) {
             return res.status(400).json({ error: `Need at least ${cfg.min_members} squad members to capture a ${base.tier} base (current: ${memberCount?.c || 0}).` });
         }
-        // Check for existing war or owned base
-        const attackerOwned = await dbGet(db, 'SELECT 1 FROM clan_bases WHERE owner_squad_id=? LIMIT 1', [membership.squad_id]);
-        if (attackerOwned) return res.status(400).json({ error: 'Your squad already owns a base.' });
+        // Check for existing war
         const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND is_npc_war=1 LIMIT 1",
             [membership.squad_id, membership.squad_id]);
         if (activeWar) return res.status(400).json({ error: 'Your squad already has an active NPC war.' });
@@ -10232,6 +10246,33 @@ router.get('/squads/treasury', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/squads/treasury/donate', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        let { gold, gems } = req.body;
+        gold = Math.max(0, Math.floor(Number(gold || 0)));
+        gems = Math.max(0, Math.floor(Number(gems || 0)));
+        if (gold <= 0 && gems <= 0) return res.status(400).json({ error: 'Donate at least 1 gold or gem.' });
+        if (char.gold < gold) return res.status(400).json({ error: 'Not enough gold.' });
+        if (char.gems < gems) return res.status(400).json({ error: 'Not enough gems.' });
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, 'UPDATE characters SET gold=gold-?, gems=gems-? WHERE id=?', [gold, gems, char.id]);
+        await dbRun(db, 'INSERT INTO squad_donations (squad_id, char_id, gold, gems, created_at) VALUES (?,?,?,?,?)',
+            [membership.squad_id, char.id, gold, gems, now]);
+        const donateResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+?, gems=gems+? WHERE squad_id=?',
+            [gold, gems, membership.squad_id]);
+        if (!(donateResult?.rowsAffected ?? donateResult?.changes ?? 0)) {
+            await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,?)',
+                [membership.squad_id, gold, gems]);
+        }
+        res.json({ success: true, donated: { gold, gems } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Squad Base Info ─────────────────────────────────────────────────────────
 
 router.get('/squads/base-info', auth, async (req, res) => {
@@ -10270,9 +10311,9 @@ router.get('/squads/:squadId', auth, async (req, res) => {
         const squad = await dbGet(db, 'SELECT id, name, invite_code, logo FROM squads WHERE id=?', [squadId]);
         if (!squad) return res.status(404).json({ error: 'Squad not found.' });
         const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
-            COALESCE((SELECT SUM(gold) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gold_donated,
-            COALESCE((SELECT SUM(gems) FROM squad_base_donations WHERE char_id=c.id AND squad_id=?),0) AS gems_donated
-            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId]);
+            COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
+            COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
+            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId, squadId, squadId]);
         res.json({
             squad: { id: Number(squad.id), name: squad.name, logo: squad.logo || null },
             members: members.map(m => ({
@@ -10340,11 +10381,21 @@ async function resolveWarBattle(db, war) {
     }
     const capturedBase = attackerWins >= 5; // Always need all 5 to capture
     if (capturedBase) {
+        const oldUpgrade = await dbGet(db, 'SELECT upgrade_level FROM squad_base_upgrades WHERE base_id=?', [war.base_id]);
+        const prevLevel = oldUpgrade ? Number(oldUpgrade.upgrade_level) : 0;
         await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE id=?', [war.base_id]);
         await dbRun(db, 'DELETE FROM squad_base_upgrades WHERE base_id=?', [war.base_id]);
+        // Release attacker's old base if they own one, reducing its upgrade level by 1
+        const oldBase = await dbGet(db, 'SELECT id FROM clan_bases WHERE owner_squad_id=? AND id!=? LIMIT 1', [war.attacker_squad_id, war.base_id]);
+        if (oldBase) {
+            await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE id=?', [Number(oldBase.id)]);
+            await dbRun(db, 'UPDATE squad_base_upgrades SET upgrade_level=MAX(0, upgrade_level-1) WHERE squad_id=? AND base_id=?',
+                [war.attacker_squad_id, Number(oldBase.id)]);
+        }
         await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=?, occupied_at=? WHERE id=?', [war.attacker_squad_id, Math.floor(Date.now() / 1000), war.base_id]);
-        await dbRun(db, 'INSERT INTO squad_base_upgrades (squad_id, base_id, upgrade_level) VALUES (?,?,1) ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=1',
-            [war.attacker_squad_id, war.base_id]);
+        const newLevel = Math.max(1, prevLevel - 1);
+        await dbRun(db, 'INSERT INTO squad_base_upgrades (squad_id, base_id, upgrade_level) VALUES (?,?,?) ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=?',
+            [war.attacker_squad_id, war.base_id, newLevel, newLevel]);
     }
     // Loot requires at least 3 wins (PvP only)
     const isNpcWar = Number(war.is_npc_war || 0) === 1;
@@ -10392,8 +10443,6 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         const targetBase = await dbGet(db, 'SELECT * FROM clan_bases WHERE id=?', [baseId]);
         if (!targetBase) return res.status(404).json({ error: 'Base not found.' });
         if (!targetBase.owner_squad_id) return res.status(400).json({ error: 'Base is not occupied.' });
-        const attackerOwned = await dbGet(db, 'SELECT 1 FROM clan_bases WHERE owner_squad_id=? LIMIT 1', [membership.squad_id]);
-        if (attackerOwned) return res.status(400).json({ error: 'Your squad already owns a base. You must abandon it first.' });
         if (Number(targetBase.owner_squad_id) === membership.squad_id) return res.status(400).json({ error: 'You cannot attack your own base.' });
         const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND base_id=? LIMIT 1",
             [membership.squad_id, membership.squad_id, baseId]);
@@ -19490,6 +19539,52 @@ router.post('/elemental/assign-stats', auth, async (req, res) => {
         const stats = calcElemStats(updated);
         const xpNext = elemXpForLevel(updated.level);
         res.json({ message: 'Stats assigned!', elemental: { ...updated, ...stats, xpNext } });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Map builder routes (no auth for dev access)
+router.get('/maps', async (req, res) => {
+    try {
+        const db = await getDb();
+        const rows = await dbAll(db, 'SELECT id, level, name, data, updated_at FROM maps ORDER BY level ASC', []);
+        for (const r of rows) {
+            try { r.data = JSON.parse(r.data); } catch { r.data = {}; }
+        }
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/maps/:level', async (req, res) => {
+    try {
+        const db = await getDb();
+        const row = await dbGet(db, 'SELECT * FROM maps WHERE level=?', [Number(req.params.level)]);
+        if (!row) return res.status(404).json({ error: 'Map not found' });
+        try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/maps', async (req, res) => {
+    try {
+        const db = await getDb();
+        const { level, name, data } = req.body;
+        if (!level || !data) return res.status(400).json({ error: 'level and data required' });
+        const now = Math.floor(Date.now() / 1000);
+        const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
+        await dbRun(db, `INSERT INTO maps (level, name, data, created_at, updated_at) VALUES (?,?,?,?,?)
+            ON CONFLICT(level) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
+            [Number(level), name || '', jsonData, now, now]);
+        const row = await dbGet(db, 'SELECT * FROM maps WHERE level=?', [Number(level)]);
+        try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
+        res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/maps/:level', async (req, res) => {
+    try {
+        const db = await getDb();
+        await dbRun(db, 'DELETE FROM maps WHERE level=?', [Number(req.params.level)]);
+        res.json({ message: 'Map deleted' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
