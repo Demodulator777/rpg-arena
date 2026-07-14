@@ -98,7 +98,7 @@ function handleJoystick(e) {
     dy = (moveY / maxDist);
 }
 
-// Collision detection - character is 30x60 centered in 120x120 sprite, account for 20px map border
+// Collision detection - character is ~30x60 centered in 120x120 sprite, account for 20px map border
 function checkCollision(nx, ny) {
     const b = 20; // map border
     const cx = mapX + window.innerWidth / 2 + nx; // char center X (map coords)
@@ -161,3 +161,11 @@ window.addEventListener('touchend', () => { active = false; dx = dy = 0; joystic
 // Init
 updateSpriteAnimation();
 update();
+
+// Mobile viewport height fix (account for browser chrome)
+function fixViewportHeight() {
+    const container = document.getElementById('game-container');
+    container.style.height = window.innerHeight + 'px';
+}
+fixViewportHeight();
+window.addEventListener('resize', fixViewportHeight);
