@@ -98,16 +98,15 @@ function handleJoystick(e) {
     dy = (moveY / maxDist);
 }
 
-// Collision detection
+// Collision detection - exact AABB
 function checkCollision(nx, ny) {
     const playerMapX = mapX + window.innerWidth / 2 - 30 + nx;
     const playerMapY = mapY + window.innerHeight / 2 - 30 + ny;
-    const buffer = 5;
     return walls.some(w => 
-        playerMapX + 60 - buffer > w.x && 
-        playerMapX + buffer < w.x + w.w && 
-        playerMapY + 60 - buffer > w.y && 
-        playerMapY + buffer < w.y + w.h
+        playerMapX + 60 > w.x && 
+        playerMapX < w.x + w.w && 
+        playerMapY + 60 > w.y && 
+        playerMapY < w.y + w.h
     );
 }
 
