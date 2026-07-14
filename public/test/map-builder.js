@@ -9,7 +9,8 @@ let mapData = {
     walls: [],
     chests: [],
     monsterSpawns: [],
-    exit: null
+    exit: null,
+    entrance: null
 };
 let selectedItem = null;
 let items = []; // DOM elements for selection tracking
@@ -56,7 +57,8 @@ function setTool(tool) {
     document.querySelectorAll('#toolbar button[data-tool]').forEach(b =>
         b.classList.toggle('active', b.dataset.tool === tool));
     document.getElementById('info-tool').textContent = `Tool: ${tool.charAt(0).toUpperCase() + tool.slice(1)}`;
-    gameWorld.style.cursor = tool === 'select' ? 'default' : 'crosshair';
+    const cursors = { select: 'default', pan: 'grab', wall: 'crosshair', chest: 'crosshair', monster: 'crosshair', exit: 'crosshair', entrance: 'crosshair', start: 'crosshair' };
+    gameWorld.style.cursor = cursors[tool] || 'crosshair';
     propsPanel.style.display = 'none';
 }
 
@@ -97,10 +99,20 @@ function showProps(data) {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
         addProp('Target Level', data.targetLevel, v => { data.targetLevel = Math.floor(Number(v) || 1); });
+    } else if (data.type === 'entrance') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Target Level', data.targetLevel, v => { data.targetLevel = Math.floor(Number(v) || 1); });
     } else if (data.type === 'start') {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
     }
+    // Delete button
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.style.cssText = 'background:#c33;border-color:#a22;margin-top:4px;';
+    delBtn.addEventListener('click', () => removeItem(data));
+    propsPanel.appendChild(delBtn);
 }
 
 function addProp(label, value, onChange) {
@@ -133,6 +145,9 @@ function renderItem(data) {
         }
     } else if (data.type === 'exit') {
         el = document.querySelector(`.exit[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
+    } else if (data.type === 'entrance') {
+        el = document.querySelector(`.entrance[data-id="${data._id}"]`);
         if (el) el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
     } else if (data.type === 'start') {
         el = document.querySelector('.player-start');
@@ -170,6 +185,13 @@ function createItemElement(data) {
         el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
         el.textContent = '→';
         gameWorld.appendChild(el);
+    } else if (data.type === 'entrance') {
+        el = document.createElement('div');
+        el.className = 'entrance';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
+        el.textContent = '←';
+        gameWorld.appendChild(el);
     } else if (data.type === 'start') {
         el = document.querySelector('.player-start');
         if (!el) {
@@ -204,8 +226,9 @@ function addItem(data) {
     if (data.type === 'wall') mapData.walls.push(data);
     else if (data.type === 'chest') mapData.chests.push(data);
     else if (data.type === 'monster') mapData.monsterSpawns.push(data);
-    else if (data.type === 'exit') mapData.exit = data;
-    else if (data.type === 'start') mapData.playerStart = data;
+    else if (data.type === 'exit') { if (mapData.exit) removeItem(mapData.exit); mapData.exit = data; }
+    else if (data.type === 'entrance') { if (mapData.entrance) removeItem(mapData.entrance); mapData.entrance = data; }
+    else if (data.type === 'start') { if (mapData.playerStart) removeItem(mapData.playerStart); mapData.playerStart = data; }
     createItemElement(data);
     updateInfo();
     return data;
@@ -217,6 +240,7 @@ function removeItem(data) {
     else if (data.type === 'chest') mapData.chests = mapData.chests.filter(c => c !== data);
     else if (data.type === 'monster') mapData.monsterSpawns = mapData.monsterSpawns.filter(m => m !== data);
     else if (data.type === 'exit') { mapData.exit = null; }
+    else if (data.type === 'entrance') { mapData.entrance = null; }
     else if (data.type === 'start') { mapData.playerStart = { x: 2500, y: 2500 }; }
     const el = document.querySelector(`[data-id="${data._id}"]`) || document.querySelector('.player-start');
     if (el) el.remove();
@@ -240,6 +264,12 @@ function clientToWorld(clientX, clientY) {
 // Click handler
 gameWorld.addEventListener('mousedown', e => {
     if (currentTool === 'select') return;
+    if (currentTool === 'pan') {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        return;
+    }
     const pos = clientToWorld(e.clientX, e.clientY);
     const sx = snap(pos.x);
     const sy = snap(pos.y);
@@ -260,6 +290,9 @@ gameWorld.addEventListener('mousedown', e => {
     } else if (currentTool === 'exit') {
         if (mapData.exit) removeItem(mapData.exit);
         addItem({ type: 'exit', x: sx, y: sy, targetLevel: 2 });
+    } else if (currentTool === 'entrance') {
+        if (mapData.entrance) removeItem(mapData.entrance);
+        addItem({ type: 'entrance', x: sx, y: sy, targetLevel: 1 });
     } else if (currentTool === 'start') {
         if (mapData.playerStart) removeItem(mapData.playerStart);
         addItem({ type: 'start', x: sx, y: sy });
@@ -269,6 +302,19 @@ gameWorld.addEventListener('mousedown', e => {
 gameWorld.addEventListener('mousemove', e => {
     const pos = clientToWorld(e.clientX, e.clientY);
     infoPos.textContent = `X: ${Math.round(pos.x)} Y: ${Math.round(pos.y)}  Grid: ${snap(pos.x)}, ${snap(pos.y)}`;
+
+    if (isDragging && currentTool === 'pan') {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        const rect = gameWorld.getBoundingClientRect();
+        const scale = rect.width / WORLD_SIZE;
+        camTargetX -= dx / scale;
+        camTargetY -= dy / scale;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        updateCamera();
+        return;
+    }
 
     if (isDragging && rubberBand) {
         const sx = snap(pos.x);
@@ -291,6 +337,11 @@ gameWorld.addEventListener('mousemove', e => {
 });
 
 gameWorld.addEventListener('mouseup', e => {
+    if (currentTool === 'pan') {
+        isDragging = false;
+        dragItem = null;
+        return;
+    }
     if (rubberBand) {
         const pos = clientToWorld(e.clientX, e.clientY);
         const sx = snap(pos.x);
@@ -322,27 +373,39 @@ document.addEventListener('keydown', e => {
     if (e.key === '3') setTool('chest');
     if (e.key === '4') setTool('monster');
     if (e.key === '5') setTool('exit');
-    if (e.key === '6') setTool('start');
+    if (e.key === '6') setTool('entrance');
+    if (e.key === '7') setTool('start');
+    if (e.key === '8') setTool('pan');
 });
 
 function updateInfo() {
     infoItems.textContent = `Walls: ${mapData.walls.length} | Chests: ${mapData.chests.length} | Monsters: ${mapData.monsterSpawns.length}`;
 }
 
+
 function setStatus(msg) {
     statusEl.textContent = msg;
 }
 
-// Camera
-function centerCamera() {
+// Camera with pan support
+let camTargetX = WORLD_SIZE / 2;
+let camTargetY = WORLD_SIZE / 2;
+
+function updateCamera() {
     const scale = Math.min(window.innerWidth / 800, window.innerHeight / 900);
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${scale}) translate(${-WORLD_SIZE / 2}px, ${-WORLD_SIZE / 2}px)`;
+    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${scale}) translate(${-camTargetX}px, ${-camTargetY}px)`;
 }
 
-window.addEventListener('resize', centerCamera);
-centerCamera();
+function centerCamera() {
+    camTargetX = WORLD_SIZE / 2;
+    camTargetY = WORLD_SIZE / 2;
+    updateCamera();
+}
+
+window.addEventListener('resize', updateCamera);
+updateCamera();
 
 // Save / Load / New
 document.getElementById('btn-new').addEventListener('click', () => {
@@ -355,7 +418,8 @@ document.getElementById('btn-new').addEventListener('click', () => {
         walls: [],
         chests: [],
         monsterSpawns: [],
-        exit: null
+        exit: null,
+        entrance: null
     };
     addItem({ type: 'start', x: mapData.playerStart.x, y: mapData.playerStart.y });
     setStatus('New map');
@@ -372,7 +436,8 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             walls: mapData.walls.map(w => ({ x: w.x, y: w.y, width: w.width, height: w.height })),
             chests: mapData.chests.map(c => ({ x: c.x, y: c.y })),
             monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count })),
-            exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null
+            exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
+            entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null
         }
     };
     setStatus('Saving...');
@@ -410,12 +475,14 @@ document.getElementById('btn-load').addEventListener('click', async () => {
             walls: [],
             chests: [],
             monsterSpawns: [],
-            exit: null
+            exit: null,
+            entrance: null
         };
         if (d.walls) d.walls.forEach(w => addItem({ type: 'wall', x: w.x, y: w.y, width: w.width, height: w.height }));
         if (d.chests) d.chests.forEach(c => addItem({ type: 'chest', x: c.x, y: c.y }));
         if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count }));
         if (d.exit) addItem({ type: 'exit', x: d.exit.x, y: d.exit.y, targetLevel: d.exit.targetLevel });
+        if (d.entrance) addItem({ type: 'entrance', x: d.entrance.x, y: d.entrance.y, targetLevel: d.entrance.targetLevel });
         addItem({ type: 'start', x: mapData.playerStart.x, y: mapData.playerStart.y });
         nameInput.value = mapData.name;
         levelInput.value = mapData.level;
@@ -426,11 +493,11 @@ document.getElementById('btn-load').addEventListener('click', async () => {
 });
 
 function clearAll() {
-    document.querySelectorAll('.wall, .chest, .monster-spawn, .exit').forEach(el => el.remove());
+    document.querySelectorAll('.wall, .chest, .monster-spawn, .exit, .entrance').forEach(el => el.remove());
     const ps = document.querySelector('.player-start');
     if (ps) ps.remove();
     deselectAll();
-    mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, playerStart: { x: 2500, y: 2500 } };
+    mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 } };
 }
 
 // Initial: show player start marker
