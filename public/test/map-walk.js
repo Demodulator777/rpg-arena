@@ -9,6 +9,7 @@ const interactPrompt = document.getElementById('interact-prompt');
 const levelLabel = document.getElementById('level-label');
 const loadingEl = document.getElementById('loading');
 const fogEl = document.getElementById('fog');
+const controlsHint = document.getElementById('controls-hint');
 
 // Camera - always shows ~400 world units horizontally
 const REF_W = 400;
@@ -579,6 +580,14 @@ window.addEventListener('touchend', (e) => {
 // Init
 const params = new URLSearchParams(window.location.search);
 const startLevel = Number(params.get('level')) || 1;
+
+// Controls hint: show on non-touch, hide button persists
+if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) {
+    controlsHint.classList.add('show');
+}
+document.getElementById('hide-hint')?.addEventListener('click', () => {
+    controlsHint.classList.remove('show');
+});
 
 loadLevel(startLevel).then(() => {
     setWalkFrame(ROW.down, 0);
