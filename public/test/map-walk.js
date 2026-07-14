@@ -23,7 +23,7 @@ const walls = [];
 
 // Map data from DB
 let currentLevel = 1;
-let mapInfo = { name: '', playerStart: { x: 2500, y: 2500 }, exit: null };
+let mapInfo = { name: '', playerStart: { x: 2500, y: 2500 }, exit: null, entrance: null };
 
 // Chests
 const chests = [];
@@ -46,6 +46,7 @@ const PLAYER_MAX_HP = 100;
 
 // Exit zone
 let exitEl = null;
+let entranceEl = null;
 
 function checkOverlap(ax, ay, ahw, ahh, bx, by, bhw, bhh) {
     return Math.abs(ax - bx) < ahw + bhw && Math.abs(ay - by) < ahh + bhh;
@@ -200,12 +201,13 @@ interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); ope
 async function loadLevel(level) {
     loadingEl.classList.remove('hide');
     // Clear existing
-    document.querySelectorAll('.wall, .chest, .monster, #exit-zone').forEach(el => el.remove());
+    document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone').forEach(el => el.remove());
     walls.length = 0;
     chests.length = 0;
     monsters.length = 0;
     nearChest = null;
     exitEl = null;
+    entranceEl = null;
     interactPrompt.classList.remove('show');
 
     try {
@@ -219,7 +221,7 @@ async function loadLevel(level) {
         }
         const row = await res.json();
         const d = row.data;
-        mapInfo = { name: row.name || '', playerStart: d.playerStart || { x: 2500, y: 2500 }, exit: d.exit || null };
+        mapInfo = { name: row.name || '', playerStart: d.playerStart || { x: 2500, y: 2500 }, exit: d.exit || null, entrance: d.entrance || null };
         currentLevel = row.level;
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
 
@@ -284,13 +286,22 @@ async function loadLevel(level) {
             }
         }
 
-        // Exit zone
+        // Exit zone (forward)
         if (mapInfo.exit) {
             exitEl = document.createElement('div');
             exitEl.id = 'exit-zone';
             exitEl.textContent = '→';
             exitEl.style.cssText = `left:${mapInfo.exit.x - 30}px;top:${mapInfo.exit.y - 30}px;`;
             map.appendChild(exitEl);
+        }
+
+        // Entrance zone (backward)
+        if (mapInfo.entrance) {
+            entranceEl = document.createElement('div');
+            entranceEl.id = 'entrance-zone';
+            entranceEl.textContent = '←';
+            entranceEl.style.cssText = `left:${mapInfo.entrance.x - 30}px;top:${mapInfo.entrance.y - 30}px;border-color:#a6a;`;
+            map.appendChild(entranceEl);
         }
 
         loadingEl.classList.add('hide');
@@ -309,8 +320,18 @@ async function checkExit() {
     if (d < 40) {
         exiting = true;
         const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
-        // Clear all monsters before transition
         await loadLevel(nextLevel);
+        exiting = false;
+    }
+}
+
+async function checkEntrance() {
+    if (!mapInfo.entrance || exiting) return;
+    const d = Math.hypot(playerWX - mapInfo.entrance.x, playerWY - mapInfo.entrance.y);
+    if (d < 40) {
+        exiting = true;
+        const prevLevel = mapInfo.entrance.targetLevel || (currentLevel - 1);
+        await loadLevel(prevLevel);
         exiting = false;
     }
 }
@@ -487,7 +508,6 @@ function update(timestamp) {
                 const dir = playerWX < m.x ? 'RIGHT' : 'LEFT';
                 playerHP = Math.max(0, playerHP - MONSTER_DMG);
                 document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
-                document.getElementById('debug-dir').textContent = `Hit from ${dir}  PX=${playerWX} MX=${m.x} DX=${playerWX-m.x}`;
                 playerSprite.style.filter = 'brightness(3) saturate(0)';
                 setTimeout(() => { if (!isBursting) playerSprite.style.filter = 'none'; }, 150);
                 if (playerHP <= 0) {
@@ -527,6 +547,7 @@ function update(timestamp) {
 
     // Exit check
     checkExit();
+    checkEntrance();
 
     requestAnimationFrame(update);
 }
