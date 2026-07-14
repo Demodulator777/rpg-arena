@@ -199,7 +199,7 @@ interactPrompt.addEventListener('click', openNearChest);
 interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); openNearChest(); });
 
 // ---- Level loading ----
-async function loadLevel(level) {
+async function loadLevel(level, spawnAt) {
     loadingEl.classList.remove('hide');
     try {
         // Clear existing
@@ -227,9 +227,14 @@ async function loadLevel(level) {
         currentLevel = row.level;
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
 
-        // Player start
-        playerWX = mapInfo.playerStart.x;
-        playerWY = mapInfo.playerStart.y;
+        // Player start — spawnAt='exit' places at the exit point (backward transition)
+        if (spawnAt === 'exit' && mapInfo.exit) {
+            playerWX = mapInfo.exit.x;
+            playerWY = mapInfo.exit.y;
+        } else {
+            playerWX = mapInfo.playerStart.x;
+            playerWY = mapInfo.playerStart.y;
+        }
         player.style.left = playerWX + 'px';
         player.style.top = playerWY + 'px';
         playerHP = PLAYER_MAX_HP;
@@ -334,7 +339,7 @@ async function checkEntrance() {
     if (d < 40) {
         exiting = true;
         const prevLevel = mapInfo.entrance.targetLevel || (currentLevel - 1);
-        await loadLevel(prevLevel);
+        await loadLevel(prevLevel, 'exit');
         exiting = false;
     }
 }
