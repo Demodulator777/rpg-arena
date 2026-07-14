@@ -79,6 +79,45 @@ function generateChests() {
 }
 generateChests();
 
+// Monsters
+const MONSTER_CHASE = 200;
+const MONSTER_RETREAT = 200;
+const MONSTER_SPEED = 0.8;
+const MONSTER_HP = 20;
+const MONSTER_DMG = 5;
+const BURST_RANGE = 40;
+const monsters = [];
+let playerHP = 100;
+const PLAYER_MAX_HP = 100;
+
+function generateMonsters() {
+    const guarded = [...chests].sort(() => Math.random() - 0.5).slice(0, 5);
+    for (const chest of guarded) {
+        const count = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+            let mx = chest.x + (Math.random() - 0.5) * 80;
+            let my = chest.y + (Math.random() - 0.5) * 80;
+            mx = Math.max(20, Math.min(5000 - 20, mx));
+            my = Math.max(20, Math.min(5000 - 20, my));
+            const el = document.createElement('div');
+            el.className = 'monster';
+            el.style.left = mx + 'px';
+            el.style.top = my + 'px';
+            map.appendChild(el);
+            monsters.push({
+                x: mx, y: my, spawnX: mx, spawnY: my,
+                hp: MONSTER_HP, el, state: 'idle',
+                attackTimer: 2000 + Math.random() * 3000, hitTimer: 0
+            });
+        }
+    }
+}
+generateMonsters();
+
+function checkOverlap(ax, ay, ahw, ahh, bx, by, bhw, bhh) {
+    return Math.abs(ax - bx) < ahw + bhw && Math.abs(ay - by) < ahh + bhh;
+}
+
 // Animation state
 let walkFrame = 0;
 let burstFrame = 0;
@@ -179,6 +218,17 @@ function triggerBurst() {
     else playerSprite.style.transform = 'scaleX(1)';
     playerSprite.style.backgroundPosition = '0% 0%';
     burstFrame++;
+
+    // Damage monsters in burst range
+    const hb = BURST_RANGE / 2, hm = 20;
+    for (const m of monsters) {
+        if (m.hp <= 0) continue;
+        if (Math.abs(playerWX - m.x) < hb + hm && Math.abs(playerWY - m.y) < hb + hm) {
+            m.hp -= 10;
+            m.hitTimer = 200;
+            if (m.hp <= 0) m.el.classList.add('dead');
+        }
+    }
 }
 
 // Interact prompt
@@ -259,6 +309,55 @@ function update(timestamp) {
             currentDir = dir;
             walkFrame = 0;
             setWalkFrame(ROW[dir], 0);
+        }
+    }
+
+    // Monster AI
+    for (const m of monsters) {
+        if (m.hp <= 0) continue;
+        const dist = Math.hypot(playerWX - m.x, playerWY - m.y);
+
+        if (m.state === 'idle' && dist < MONSTER_CHASE) m.state = 'chase';
+        if (m.state === 'chase' && dist > MONSTER_RETREAT) m.state = 'idle';
+
+        if (m.state === 'chase') {
+            const a = Math.atan2(playerWY - m.y, playerWX - m.x);
+            m.x += Math.cos(a) * MONSTER_SPEED;
+            m.y += Math.sin(a) * MONSTER_SPEED;
+        } else {
+            const d = Math.hypot(m.spawnX - m.x, m.spawnY - m.y);
+            if (d > 1) {
+                const a = Math.atan2(m.spawnY - m.y, m.spawnX - m.x);
+                m.x += Math.cos(a) * MONSTER_SPEED;
+                m.y += Math.sin(a) * MONSTER_SPEED;
+            }
+        }
+        m.x = Math.max(20, Math.min(5000 - 20, m.x));
+        m.y = Math.max(20, Math.min(5000 - 20, m.y));
+        m.el.style.left = m.x + 'px';
+        m.el.style.top = m.y + 'px';
+
+        if (m.hitTimer > 0) {
+            m.hitTimer -= dt;
+            m.el.style.opacity = Math.floor(m.hitTimer / 50) % 2 ? '1' : '0.3';
+        } else {
+            m.el.style.opacity = '1';
+        }
+
+        m.attackTimer -= dt;
+        if (m.attackTimer <= 0 && dist < 100) {
+            if (checkOverlap(playerWX, playerWY, 15, 30, m.x, m.y, 20, 20)) {
+                playerHP = Math.max(0, playerHP - MONSTER_DMG);
+                document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+                playerSprite.style.filter = 'brightness(3) saturate(0)';
+                setTimeout(() => { if (!isBursting) playerSprite.style.filter = 'none'; }, 150);
+                if (playerHP <= 0) {
+                    playerWX = 2500; playerWY = 2500;
+                    playerHP = PLAYER_MAX_HP;
+                    document.getElementById('player-hp-inner').style.width = '100%';
+                }
+            }
+            m.attackTimer = 3000 + Math.random() * 2000;
         }
     }
 
