@@ -5,7 +5,6 @@ const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 const actionBtn = document.getElementById('action-btn');
 
-// Initial map offset to center player
 let mapX = (5000 - window.innerWidth) / 2;
 let mapY = (5000 - window.innerHeight) / 2;
 
@@ -13,7 +12,6 @@ let dx = 0, dy = 0;
 const speed = 7;
 const walls = [];
 
-// Generate Maze
 function generateMaze() {
     const center = { x: 2500, y: 2500 };
     const safeRadius = 300; 
@@ -38,14 +36,18 @@ function generateMaze() {
 }
 generateMaze();
 
-// Sprite animation state
-let currentFrame = 0;
-let burstInterval = null;
-let walkInterval = null;
+// Animation state
+let walkFrame = 0;
+let burstFrame = 0;
+let burstTimer = 0;
+let frameAccum = 0;
+let lastTime = 0;
 let currentDir = 'down';
 let isBursting = false;
 
 const ROW = { down: 0, right: 25, skip: 50, left: 75, up: 100 };
+const WALK_MS = 150;
+const BURST_MS = 60;
 
 function setWalkFrame(rowPct, colIdx) {
     if (isBursting) return;
@@ -62,43 +64,7 @@ function getDir() {
     return currentDir;
 }
 
-function startWalkAnim() {
-    if (isBursting) return;
-    const dir = getDir();
-    currentDir = dir;
-    setWalkFrame(ROW[dir], 0);
-    if (walkInterval) return;
-    let f = 1;
-    walkInterval = setInterval(() => {
-        if (isBursting) return;
-        const dir2 = getDir();
-        currentDir = dir2;
-        setWalkFrame(ROW[dir2], f);
-        f = (f + 1) % 5;
-    }, 150);
-}
-
-function stopWalkAnim() {
-    if (isBursting) return;
-    clearInterval(walkInterval);
-    walkInterval = null;
-    const dir = getDir();
-    currentDir = dir;
-    setWalkFrame(ROW[dir], 0);
-}
-
-// Burst frame stepper
-function burstStep() {
-    const col = currentFrame % 5;
-    const row = Math.floor(currentFrame / 5);
-    playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
-    if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
-    else playerSprite.style.transform = 'scaleX(1)';
-    playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
-    currentFrame++;
-}
-
-// Input handling
+// Input
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
 function updateInput() {
@@ -116,7 +82,7 @@ window.addEventListener('keyup', (e) => {
     updateInput();
 });
 
-// Joystick handling
+// Joystick
 let active = false;
 
 function handleJoystick(e) {
@@ -139,7 +105,6 @@ function handleJoystick(e) {
     dy = (moveY / maxDist);
 }
 
-// Collision detection
 function checkCollision(nx, ny) {
     const b = 20;
     const cx = mapX + window.innerWidth / 2 + nx;
@@ -152,59 +117,91 @@ function checkCollision(nx, ny) {
     );
 }
 
+// Burst
+function triggerBurst() {
+    if (isBursting) return;
+    isBursting = true;
+    burstFrame = 0;
+    burstTimer = 0;
+    playerSprite.style.filter = 'brightness(2) contrast(2)';
+}
+
 // Game Loop
-function update() {
+function update(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const dt = Math.min(timestamp - lastTime, 50);
+    lastTime = timestamp;
+
     let nx = mapX + dx * speed;
     let ny = mapY + dy * speed;
     if (!checkCollision(dx * speed, 0)) mapX = nx;
     if (!checkCollision(0, dy * speed)) mapY = ny;
-
-    if (dx !== 0 || dy !== 0) startWalkAnim();
-    else stopWalkAnim();
-
     mapX = Math.max(-(window.innerWidth / 2 - 15), Math.min(mapX, 5000 - window.innerWidth / 2 - 15));
     mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
     map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
+
+    if (isBursting) {
+        burstTimer += dt;
+        while (burstTimer >= BURST_MS) {
+            burstTimer -= BURST_MS;
+            const col = burstFrame % 5;
+            const row = Math.floor(burstFrame / 5);
+            playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+            if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
+            else playerSprite.style.transform = 'scaleX(1)';
+            playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
+            burstFrame++;
+            if (burstFrame >= 25) {
+                isBursting = false;
+                playerSprite.style.filter = 'none';
+                walkFrame = 0;
+                frameAccum = 0;
+                const dir = getDir();
+                currentDir = dir;
+                setWalkFrame(ROW[dir], 0);
+                break;
+            }
+        }
+    } else if (dx !== 0 || dy !== 0) {
+        frameAccum += dt;
+        const dir = getDir();
+        if (dir !== currentDir) {
+            currentDir = dir;
+            walkFrame = 0;
+            frameAccum = 0;
+            setWalkFrame(ROW[dir], 0);
+        } else {
+            while (frameAccum >= WALK_MS) {
+                frameAccum -= WALK_MS;
+                walkFrame = (walkFrame + 1) % 5;
+                setWalkFrame(ROW[currentDir], walkFrame);
+            }
+        }
+    } else {
+        frameAccum = 0;
+        const dir = getDir();
+        if (dir !== currentDir || walkFrame !== 0) {
+            currentDir = dir;
+            walkFrame = 0;
+            setWalkFrame(ROW[dir], 0);
+        }
+    }
+
     requestAnimationFrame(update);
 }
 
-// Burst action
-function triggerBurst() {
-    if (burstInterval) return;
-    isBursting = true;
-    stopWalkAnim();
-    playerSprite.style.filter = 'brightness(2) contrast(2)';
-    currentFrame = 0;
-    burstInterval = setInterval(() => {
-        burstStep();
-        if (currentFrame >= 25) {
-            clearInterval(burstInterval);
-            burstInterval = null;
-            currentFrame = 0;
-            playerSprite.style.filter = 'none';
-            isBursting = false;
-            const dir = getDir();
-            currentDir = dir;
-            setWalkFrame(ROW[dir], 0);
-        }
-    }, 60);
-}
-
 actionBtn.addEventListener('click', triggerBurst);
-
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
-
 joystickArea.addEventListener('touchstart', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('touchmove', handleJoystick);
 window.addEventListener('touchend', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
 
 // Init
 setWalkFrame(ROW.down, 0);
-update();
+requestAnimationFrame(update);
 
-// Mobile viewport height fix
 function fixViewportHeight() {
     document.getElementById('game-container').style.height = window.innerHeight + 'px';
 }
