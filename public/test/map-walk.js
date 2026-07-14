@@ -203,19 +203,25 @@ function update(timestamp) {
     requestAnimationFrame(update);
 }
 
-actionBtn.addEventListener('click', triggerBurst);
+actionBtn.addEventListener('pointerdown', triggerBurst);
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
 joystickArea.addEventListener('touchstart', (e) => { active = true; joystickTouchId = e.changedTouches[0].identifier; handleJoystick(e); });
 window.addEventListener('touchmove', handleJoystick);
+window.addEventListener('touchcancel', () => {
+    active = false;
+    joystickTouchId = null;
+    dx = dy = 0;
+    joystickKnob.style.transform = 'translate(0, 0)';
+});
 window.addEventListener('touchend', (e) => {
     for (let t of e.changedTouches) {
         if (t.identifier === joystickTouchId) {
             active = false;
             joystickTouchId = null;
             dx = dy = 0;
-            joystickKnob.style.transform = `translate(0, 0)`;
+            joystickKnob.style.transform = 'translate(0, 0)';
             break;
         }
     }
