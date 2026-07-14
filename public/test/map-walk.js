@@ -199,7 +199,7 @@ interactPrompt.addEventListener('click', openNearChest);
 interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); openNearChest(); });
 
 // ---- Level loading ----
-async function loadLevel(level) {
+async function loadLevel(level, spawnAt) {
     loadingEl.classList.remove('hide');
     // Clear existing
     document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone').forEach(el => el.remove());
@@ -227,8 +227,16 @@ async function loadLevel(level) {
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
 
         // Player start
-        playerWX = mapInfo.playerStart.x;
-        playerWY = mapInfo.playerStart.y;
+        if (spawnAt === 'exit' && mapInfo.exit) {
+            playerWX = mapInfo.exit.x;
+            playerWY = mapInfo.exit.y;
+        } else if (spawnAt === 'entrance' && mapInfo.entrance) {
+            playerWX = mapInfo.entrance.x;
+            playerWY = mapInfo.entrance.y;
+        } else {
+            playerWX = mapInfo.playerStart.x;
+            playerWY = mapInfo.playerStart.y;
+        }
         player.style.left = playerWX + 'px';
         player.style.top = playerWY + 'px';
         playerHP = PLAYER_MAX_HP;
@@ -321,7 +329,7 @@ async function checkExit() {
     if (d < 40) {
         exiting = true;
         const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
-        await loadLevel(nextLevel);
+        await loadLevel(nextLevel, 'entrance');
         exiting = false;
     }
 }
@@ -332,7 +340,7 @@ async function checkEntrance() {
     if (d < 40) {
         exiting = true;
         const prevLevel = mapInfo.entrance.targetLevel || (currentLevel - 1);
-        await loadLevel(prevLevel);
+        await loadLevel(prevLevel, 'exit');
         exiting = false;
     }
 }
@@ -589,7 +597,7 @@ document.getElementById('hide-hint')?.addEventListener('click', () => {
     controlsHint.classList.remove('show');
 });
 
-loadLevel(startLevel).then(() => {
+loadLevel(startLevel, 'start').then(() => {
     setWalkFrame(ROW.down, 0);
     requestAnimationFrame(update);
 }).catch(e => {
