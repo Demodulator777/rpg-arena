@@ -1,12 +1,18 @@
+const gameWorld = document.getElementById('game-world');
 const map = document.getElementById('map');
 const player = document.getElementById('player');
 const playerSprite = document.getElementById('playerSprite');
 const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 const actionBtn = document.getElementById('action-btn');
+const interactPrompt = document.getElementById('interact-prompt');
 
-let mapX = (5000 - window.innerWidth) / 2;
-let mapY = (5000 - window.innerHeight) / 2;
+// Camera - always shows ~400 world units horizontally
+const REF_W = 400;
+const REF_H = 700;
+let worldScale = 1;
+let playerWX = 2500; // player's world X
+let playerWY = 2500; // player's world Y
 
 let dx = 0, dy = 0;
 const speed = 1.75;
@@ -40,6 +46,7 @@ generateMaze();
 const CHEST_COUNT = 10;
 const CHEST_MIN_DIST = 400;
 const chests = [];
+let nearChest = null;
 
 function generateChests() {
     const center = { x: 2500, y: 2500 };
@@ -81,7 +88,6 @@ let lastTime = 0;
 let currentDir = 'down';
 let isBursting = false;
 
-// Preload burst sprite
 const burstImg = new Image();
 burstImg.src = '/images/assets/roguelike1.png';
 
@@ -107,7 +113,6 @@ function getDir() {
     return currentDir;
 }
 
-// Input
 const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
 function updateInput() {
@@ -151,8 +156,8 @@ function handleJoystick(e) {
 
 function checkCollision(nx, ny) {
     const b = 20;
-    const cx = mapX + window.innerWidth / 2 + nx;
-    const cy = mapY + window.innerHeight / 2 + ny;
+    const cx = playerWX + nx;
+    const cy = playerWY + ny;
     return walls.some(w => 
         cx + 13 > w.x + b &&
         cx - 13 < w.x + b + w.w &&
@@ -175,19 +180,37 @@ function triggerBurst() {
     burstFrame++;
 }
 
+// Interact prompt
+function openNearChest() {
+    if (!nearChest || nearChest.found) return;
+    nearChest.found = true;
+    nearChest.el.classList.add('found');
+    nearChest = null;
+    interactPrompt.classList.remove('show');
+}
+
+interactPrompt.addEventListener('click', openNearChest);
+interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); openNearChest(); });
+
 // Game Loop
 function update(timestamp) {
     if (!lastTime) lastTime = timestamp;
     const dt = Math.min(timestamp - lastTime, 50);
     lastTime = timestamp;
 
-    let nx = mapX + dx * speed;
-    let ny = mapY + dy * speed;
-    if (!checkCollision(dx * speed, 0)) mapX = nx;
-    if (!checkCollision(0, dy * speed)) mapY = ny;
-    mapX = Math.max(-(window.innerWidth / 2 - 15), Math.min(mapX, 5000 - window.innerWidth / 2 - 15));
-    mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
-    map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
+    // Movement (world coords)
+    let nx = playerWX + dx * speed;
+    let ny = playerWY + dy * speed;
+    if (!checkCollision(dx * speed, 0)) playerWX = nx;
+    if (!checkCollision(0, dy * speed)) playerWY = ny;
+    playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
+    playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+
+    // Camera transform
+    worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-playerWX}px, ${-playerWY}px)`;
 
     if (isBursting) {
         burstTimer += dt;
@@ -236,36 +259,34 @@ function update(timestamp) {
         }
     }
 
-    // Chest proximity check
-    if (!chestModal.classList.contains('show')) {
-        const pcx = mapX + window.innerWidth / 2;
-        const pcy = mapY + window.innerHeight / 2;
-        for (const ch of chests) {
-            if (ch.found) continue;
-            if (Math.hypot(pcx - ch.x, pcy - ch.y) < 50) {
-                currentChest = ch;
-                chestModal.classList.add('show');
-                break;
-            }
+    // Chest proximity – position prompt in screen coords
+    const range = 50;
+    let closest = null;
+    let closestDist = range;
+    for (const ch of chests) {
+        if (ch.found) continue;
+        const d = Math.hypot(playerWX - ch.x, playerWY - ch.y);
+        if (d < closestDist) {
+            closestDist = d;
+            closest = ch;
         }
+    }
+    if (closest) {
+        nearChest = closest;
+        const sx = (closest.x - playerWX) * worldScale + window.innerWidth / 2;
+        const sy = (closest.y - playerWY) * worldScale + window.innerHeight / 2 - 16;
+        interactPrompt.style.left = sx + 'px';
+        interactPrompt.style.top = sy + 'px';
+        interactPrompt.classList.add('show');
+    } else {
+        nearChest = null;
+        interactPrompt.classList.remove('show');
     }
 
     requestAnimationFrame(update);
 }
 
 actionBtn.addEventListener('pointerdown', triggerBurst);
-
-// Chest modal
-let currentChest = null;
-const chestModal = document.getElementById('chest-modal');
-document.getElementById('chest-open-btn').addEventListener('click', () => {
-    if (currentChest) {
-        currentChest.found = true;
-        currentChest.el.classList.add('found');
-        currentChest = null;
-    }
-    chestModal.classList.remove('show');
-});
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
