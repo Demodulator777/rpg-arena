@@ -8,27 +8,23 @@
         body { margin: 0; background: #000; color: #fff; overflow: hidden; font-family: sans-serif; touch-action: none; }
         #game-container { position: relative; width: 100vw; height: 100dvh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 
-        #game-world { position: relative; transform-origin: center center; }
+        #game-world { position: relative; transform-origin: 0 0; }
         #map { position: absolute; width: 5000px; height: 5000px; background: #1a1a1a; border: 20px solid #555; box-sizing: border-box; }
         .wall { position: absolute; background: #444; border: 1px solid #222; box-sizing: border-box; }
         
         #player { position: absolute; width: 120px; height: 120px; z-index: 10; pointer-events: none; transform: translate(-50%, -50%); }
         .player-sprite { width: 100%; height: 100%; background-image: url('/images/assets/roguelike3.png'); background-repeat: no-repeat; background-size: 500% 500%; background-position: 0% 0%; clip-path: inset(21px 18px 9px 18px); }
 
-        /* Chests */
         .chest { position: absolute; width: 40px; height: 32px; background: #c8943c; border: 2px solid #8b5e3c; border-radius: 4px; z-index: 5; box-shadow: inset 0 -6px 0 #8b5e3c, 0 0 8px rgba(200,148,60,0.4); pointer-events: auto; }
         .chest::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 8px; height: 6px; background: #8b5e3c; border-radius: 2px; box-shadow: 0 0 4px #f0c840; }
         .chest.found { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
         
-        /* Interact prompt (screen-space) */
         #interact-prompt { display: none; position: fixed; z-index: 100; padding: 6px 16px; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; font-size: 14px; font-weight: bold; pointer-events: auto; cursor: pointer; transform: translate(-50%, -100%); white-space: nowrap; }
         #interact-prompt.show { display: block; }
 
-        /* Joystick */
         #joystick-area { position: fixed; bottom: max(30px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; z-index: 200; }
         #joystick-knob { position: absolute; width: 56px; height: 56px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 37px; left: 37px; }
 
-        /* Action Button */
         #action-btn { position: fixed; bottom: max(30px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); width: 90px; height: 90px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); z-index: 200; }
         
         @media (max-width: 600px) {
