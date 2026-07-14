@@ -119,8 +119,8 @@ function update() {
     if (!checkCollision(dx * speed, 0)) mapX = nx;
     if (!checkCollision(0, dy * speed)) mapY = ny;
 
-    mapX = Math.max(0, Math.min(mapX, 5000 - window.innerWidth));
-    mapY = Math.max(0, Math.min(mapY, 5000 - window.innerHeight));
+    mapX = Math.max(-(window.innerWidth / 2 - 30), Math.min(mapX, 5000 - window.innerWidth / 2 - 30));
+    mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
 
     map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
     requestAnimationFrame(update);
