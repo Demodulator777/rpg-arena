@@ -45,6 +45,10 @@ let lastTime = 0;
 let currentDir = 'down';
 let isBursting = false;
 
+// Preload burst sprite
+const burstImg = new Image();
+burstImg.src = '/images/assets/roguelike1.png';
+
 const ROW = { down: 0, right: 25, skip: 50, left: 75, up: 100 };
 const WALK_MS = 150;
 const BURST_MS = 60;
@@ -128,6 +132,11 @@ function triggerBurst() {
     burstFrame = 0;
     burstTimer = 0;
     playerSprite.style.filter = 'brightness(2) contrast(2)';
+    playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+    if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
+    else playerSprite.style.transform = 'scaleX(1)';
+    playerSprite.style.backgroundPosition = '0% 0%';
+    burstFrame++;
 }
 
 // Game Loop
