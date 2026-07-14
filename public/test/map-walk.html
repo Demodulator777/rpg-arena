@@ -27,10 +27,10 @@
         #interact-prompt { display: none; position: fixed; z-index: 100; padding: 6px 16px; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; font-size: 14px; font-weight: bold; pointer-events: auto; cursor: pointer; transform: translate(-50%, -100%); white-space: nowrap; }
         #interact-prompt.show { display: block; }
 
-        #joystick-area { position: fixed; bottom: max(30px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; z-index: 200; }
-        #joystick-knob { position: absolute; width: 56px; height: 56px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 37px; left: 37px; }
+        #joystick-area { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); left: max(30px, env(safe-area-inset-left)); width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; z-index: 200; }
+        #joystick-knob { position: absolute; width: 64px; height: 64px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 43px; left: 43px; }
 
-        #action-btn { position: fixed; bottom: max(30px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); width: 90px; height: 90px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); z-index: 200; }
+        #action-btn { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); right: max(30px, env(safe-area-inset-right)); width: 100px; height: 100px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); z-index: 200; }
 
         #player-hp-outer { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 200px; height: 16px; background: #222; border: 2px solid #555; border-radius: 8px; z-index: 200; overflow: hidden; }
         #player-hp-inner { height: 100%; background: #e33; border-radius: 6px; width: 100%; }
@@ -47,9 +47,9 @@
         #loading.hide { display: none; }
 
         @media (max-width: 600px) {
-            #joystick-area { width: 100px; height: 100px; bottom: max(15px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); }
-            #joystick-knob { width: 40px; height: 40px; top: 30px; left: 30px; }
-            #action-btn { width: 70px; height: 70px; bottom: max(15px, env(safe-area-inset-bottom)); right: max(10px, env(safe-area-inset-right)); font-size: 0.85rem; }
+            #joystick-area { width: 120px; height: 120px; bottom: max(60px, env(safe-area-inset-bottom)); left: max(20px, env(safe-area-inset-left)); }
+            #joystick-knob { width: 50px; height: 50px; top: 35px; left: 35px; }
+            #action-btn { width: 80px; height: 80px; bottom: max(60px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); font-size: 0.85rem; }
         }
     </style>
 </head>
