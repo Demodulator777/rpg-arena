@@ -104,10 +104,10 @@ function checkCollision(nx, ny) {
     const cx = mapX + window.innerWidth / 2 + nx; // char center X (map coords)
     const cy = mapY + window.innerHeight / 2 + ny; // char center Y (map coords)
     return walls.some(w => 
-        cx + 15 > w.x + b &&
-        cx - 15 < w.x + b + w.w &&
-        cy + 30 > w.y + b &&
-        cy - 30 < w.y + b + w.h
+        cx + 13 > w.x + b &&
+        cx - 13 < w.x + b + w.w &&
+        cy + 26 > w.y + b &&
+        cy - 26 < w.y + b + w.h
     );
 }
 
