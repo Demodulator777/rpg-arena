@@ -98,15 +98,16 @@ function handleJoystick(e) {
     dy = (moveY / maxDist);
 }
 
-// Collision detection - full player div (120x120)
+// Collision detection - character is 30x60 centered in 120x120 sprite, account for 20px map border
 function checkCollision(nx, ny) {
-    const playerMapX = mapX + window.innerWidth / 2 - 60 + nx;
-    const playerMapY = mapY + window.innerHeight / 2 - 60 + ny;
+    const b = 20; // map border
+    const cx = mapX + window.innerWidth / 2 + nx; // char center X (map coords)
+    const cy = mapY + window.innerHeight / 2 + ny; // char center Y (map coords)
     return walls.some(w => 
-        playerMapX + 120 > w.x && 
-        playerMapX < w.x + w.w && 
-        playerMapY + 120 > w.y && 
-        playerMapY < w.y + w.h
+        cx + 15 > w.x + b &&
+        cx - 15 < w.x + b + w.w &&
+        cy + 30 > w.y + b &&
+        cy - 30 < w.y + b + w.h
     );
 }
 
@@ -122,7 +123,7 @@ function update() {
     if (dx < 0) playerSprite.style.transform = 'scaleX(-1)';
     else if (dx > 0) playerSprite.style.transform = 'scaleX(1)';
 
-    mapX = Math.max(-(window.innerWidth / 2 - 30), Math.min(mapX, 5000 - window.innerWidth / 2 - 30));
+    mapX = Math.max(-(window.innerWidth / 2 - 15), Math.min(mapX, 5000 - window.innerWidth / 2 - 15));
     mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
 
     map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
