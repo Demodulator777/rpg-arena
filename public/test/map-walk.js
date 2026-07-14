@@ -87,6 +87,7 @@ window.addEventListener('keyup', (e) => {
 
 // Joystick
 let active = false;
+let joystickTouchId = null;
 
 function handleJoystick(e) {
     if (!active) return;
@@ -197,9 +198,19 @@ actionBtn.addEventListener('click', triggerBurst);
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
-joystickArea.addEventListener('touchstart', (e) => { active = true; handleJoystick(e); });
+joystickArea.addEventListener('touchstart', (e) => { active = true; joystickTouchId = e.changedTouches[0].identifier; handleJoystick(e); });
 window.addEventListener('touchmove', handleJoystick);
-window.addEventListener('touchend', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
+window.addEventListener('touchend', (e) => {
+    for (let t of e.changedTouches) {
+        if (t.identifier === joystickTouchId) {
+            active = false;
+            joystickTouchId = null;
+            dx = dy = 0;
+            joystickKnob.style.transform = `translate(0, 0)`;
+            break;
+        }
+    }
+});
 
 // Init
 setWalkFrame(ROW.down, 0);
