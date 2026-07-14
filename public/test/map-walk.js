@@ -63,13 +63,17 @@ function getDir() {
 }
 
 function startWalkAnim() {
-    if (animationInterval) return; // burst is playing
+    if (animationInterval) return;
+    const dir = getDir();
+    currentDir = dir;
+    // Immediately show first frame
+    setWalkFrame(ROW[dir], 0);
     if (walkInterval) return;
-    let f = 0;
+    let f = 1; // next frame
     walkInterval = setInterval(() => {
-        const dir = getDir();
-        currentDir = dir;
-        setWalkFrame(ROW[dir], f);
+        const dir2 = getDir();
+        currentDir = dir2;
+        setWalkFrame(ROW[dir2], f);
         f = (f + 1) % 5;
     }, 150);
 }
@@ -77,7 +81,10 @@ function startWalkAnim() {
 function stopWalkAnim() {
     clearInterval(walkInterval);
     walkInterval = null;
-    setWalkFrame(ROW.skip, 0);
+    // Stay on first frame of last direction
+    const dir = getDir();
+    currentDir = dir;
+    setWalkFrame(ROW[dir], 0);
 }
 
 function updateSpriteAnimation() {
