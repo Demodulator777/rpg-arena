@@ -57,10 +57,13 @@ function setWalkFrame(rowPct, colIdx) {
 }
 
 function getDir() {
-    if (dy > 0) return 'down';
-    if (dy < 0) return 'up';
-    if (dx > 0) return 'right';
-    if (dx < 0) return 'left';
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) return 'right';
+        if (dx < 0) return 'left';
+    } else if (dy !== 0) {
+        if (dy > 0) return 'down';
+        if (dy < 0) return 'up';
+    }
     return currentDir;
 }
 
