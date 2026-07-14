@@ -227,10 +227,13 @@ async function loadLevel(level, spawnAt) {
         currentLevel = row.level;
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
 
-        // Player start — spawnAt='exit' places at the exit point (backward transition)
+        // Player start
         if (spawnAt === 'exit' && mapInfo.exit) {
             playerWX = mapInfo.exit.x;
             playerWY = mapInfo.exit.y;
+        } else if (spawnAt === 'entrance' && mapInfo.entrance) {
+            playerWX = mapInfo.entrance.x;
+            playerWY = mapInfo.entrance.y;
         } else {
             playerWX = mapInfo.playerStart.x;
             playerWY = mapInfo.playerStart.y;
@@ -328,7 +331,7 @@ async function checkExit() {
     if (d < 40) {
         exiting = true;
         const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
-        await loadLevel(nextLevel);
+        await loadLevel(nextLevel, 'entrance');
         exiting = false;
     }
 }
