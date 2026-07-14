@@ -229,6 +229,22 @@ function triggerBurst() {
             if (m.hp <= 0) m.el.classList.add('dead');
         }
     }
+
+    // Lunge 20px in facing direction
+    const lunge = 20;
+    let lx = 0, ly = 0;
+    switch (currentDir) {
+        case 'right': lx = lunge; break;
+        case 'left': lx = -lunge; break;
+        case 'down': ly = lunge; break;
+        case 'up': ly = -lunge; break;
+    }
+    if (!checkCollision(lx, 0)) playerWX += lx;
+    if (!checkCollision(0, ly)) playerWY += ly;
+    playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
+    playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+    player.style.left = playerWX + 'px';
+    player.style.top = playerWY + 'px';
 }
 
 // Interact prompt
