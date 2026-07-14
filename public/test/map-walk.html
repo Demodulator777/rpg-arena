@@ -39,6 +39,8 @@
         #exit-zone { position: absolute; width: 60px; height: 60px; border: 3px dashed #3a6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #3a6; z-index: 3; pointer-events: none; animation: pulse-exit 2s ease-in-out infinite; }
         @keyframes pulse-exit { 0%,100% { opacity: 0.6; box-shadow: 0 0 10px rgba(60,170,100,0.3); } 50% { opacity: 1; box-shadow: 0 0 25px rgba(60,170,100,0.6); } }
 
+        #fog { position: fixed; inset: 0; z-index: 50; pointer-events: none; background: #000; }
+
         #loading { display: flex; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; font-size: 20px; color: #aaa; }
         #loading.hide { display: none; }
 
@@ -62,6 +64,7 @@
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
         <div id="loading">Loading level...</div>
+        <div id="fog"></div>
     </div>
     <script src="map-walk.js"></script>
 </body>
