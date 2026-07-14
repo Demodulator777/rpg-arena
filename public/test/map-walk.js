@@ -36,6 +36,42 @@ function generateMaze() {
 }
 generateMaze();
 
+// Chests
+const CHEST_COUNT = 10;
+const CHEST_MIN_DIST = 400;
+const chests = [];
+
+function generateChests() {
+    const center = { x: 2500, y: 2500 };
+    for (let i = 0; i < CHEST_COUNT; i++) {
+        let placed = false;
+        for (let attempt = 0; attempt < 200 && !placed; attempt++) {
+            const cx = 60 + Math.random() * (5000 - 120);
+            const cy = 60 + Math.random() * (5000 - 120);
+            if (Math.abs(cx - center.x) < 300 && Math.abs(cy - center.y) < 300) continue;
+            let tooClose = false;
+            for (const c of chests) {
+                if (Math.hypot(c.x - cx, c.y - cy) < CHEST_MIN_DIST) { tooClose = true; break; }
+            }
+            if (tooClose) continue;
+            let onWall = false;
+            for (const w of walls) {
+                if (cx + 20 > w.x + 20 && cx - 20 < w.x + 20 + w.w &&
+                    cy + 16 > w.y + 20 && cy - 16 < w.y + 20 + w.h) { onWall = true; break; }
+            }
+            if (onWall) continue;
+            const el = document.createElement('div');
+            el.className = 'chest';
+            el.style.left = cx + 'px';
+            el.style.top = cy + 'px';
+            map.appendChild(el);
+            chests.push({ x: cx, y: cy, el, found: false });
+            placed = true;
+        }
+    }
+}
+generateChests();
+
 // Animation state
 let walkFrame = 0;
 let burstFrame = 0;
@@ -200,10 +236,36 @@ function update(timestamp) {
         }
     }
 
+    // Chest proximity check
+    if (!chestModal.classList.contains('show')) {
+        const pcx = mapX + window.innerWidth / 2;
+        const pcy = mapY + window.innerHeight / 2;
+        for (const ch of chests) {
+            if (ch.found) continue;
+            if (Math.hypot(pcx - ch.x, pcy - ch.y) < 50) {
+                currentChest = ch;
+                chestModal.classList.add('show');
+                break;
+            }
+        }
+    }
+
     requestAnimationFrame(update);
 }
 
 actionBtn.addEventListener('pointerdown', triggerBurst);
+
+// Chest modal
+let currentChest = null;
+const chestModal = document.getElementById('chest-modal');
+document.getElementById('chest-open-btn').addEventListener('click', () => {
+    if (currentChest) {
+        currentChest.found = true;
+        currentChest.el.classList.add('found');
+        currentChest = null;
+    }
+    chestModal.classList.remove('show');
+});
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
