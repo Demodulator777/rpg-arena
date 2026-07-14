@@ -221,9 +221,12 @@ function checkCollision(nx, ny) {
 }
 
 // Burst
+let burstDamaged = new Set();
+
 function triggerBurst() {
     if (isBursting) return;
     isBursting = true;
+    burstDamaged = new Set();
     burstFrame = 0;
     burstTimer = 0;
     playerSprite.style.filter = 'brightness(2) contrast(2)';
@@ -232,19 +235,6 @@ function triggerBurst() {
     else playerSprite.style.transform = 'scaleX(1)';
     playerSprite.style.backgroundPosition = '0% 0%';
     burstFrame++;
-
-    // Damage monsters in burst range
-    const hb = BURST_RANGE / 2, hm = 20;
-    for (const m of monsters) {
-        if (m.hp <= 0) continue;
-        if (Math.abs(playerWX - m.x) < hb + hm && Math.abs(playerWY - m.y) < hb + hm) {
-            m.hp -= 10;
-            m.hpFill.style.width = Math.max(0, m.hp / MONSTER_HP * 100) + '%';
-            m.hitTimer = 200;
-            if (m.hp <= 0) m.el.classList.add('dead');
-        }
-    }
-
 }
 
 // Interact prompt
@@ -310,6 +300,18 @@ function update(timestamp) {
                 player.style.top = playerWY + 'px';
             }
 
+            // Continuous damage check every frame during burst
+            for (const m of monsters) {
+                if (m.hp <= 0 || burstDamaged.has(m)) continue;
+                if (Math.abs(playerWX - m.x) < 60 && Math.abs(playerWY - m.y) < 60) {
+                    m.hp -= 10;
+                    burstDamaged.add(m);
+                    m.hpFill.style.width = Math.max(0, m.hp / MONSTER_HP * 100) + '%';
+                    m.hitTimer = 200;
+                    if (m.hp <= 0) m.el.classList.add('dead');
+                }
+            }
+
             burstFrame++;
             if (burstFrame >= 25) {
                 isBursting = false;
@@ -371,6 +373,9 @@ function update(timestamp) {
         m.y = Math.max(20, Math.min(5000 - 20, m.y));
         m.el.style.left = m.x + 'px';
         m.el.style.top = m.y + 'px';
+
+        // Face the player (goblin faces left by default → flip when monster is left of player)
+        m.el.style.transform = m.x < playerWX ? 'scaleX(-1)' : 'scaleX(1)';
 
         // Attack animation
         if (m.animTimer > 0) {
