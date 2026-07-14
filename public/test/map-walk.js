@@ -11,6 +11,26 @@ let mapY = (2000 - window.innerHeight) / 2;
 
 let dx = 0, dy = 0;
 const speed = 7;
+const walls = [];
+
+// Generate Maze
+function generateMaze() {
+    for (let i = 0; i < 100; i++) {
+        const wall = document.createElement('div');
+        wall.className = 'wall';
+        const w = 50 + Math.random() * 150;
+        const h = 50 + Math.random() * 150;
+        const x = Math.random() * 1800;
+        const y = Math.random() * 1800;
+        wall.style.width = w + 'px';
+        wall.style.height = h + 'px';
+        wall.style.left = x + 'px';
+        wall.style.top = y + 'px';
+        map.appendChild(wall);
+        walls.push({ x, y, w, h });
+    }
+}
+generateMaze();
 
 // Sprite animation state
 let currentFrame = 0;
@@ -23,8 +43,23 @@ function updateSpriteAnimation() {
     currentFrame++;
 }
 
-// Joystick handling
-let active = false;
+// Input handling
+const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+
+function updateInput() {
+    dx = (keys.d || keys.ArrowRight ? 1 : 0) - (keys.a || keys.ArrowLeft ? 1 : 0);
+    dy = (keys.s || keys.ArrowDown ? 1 : 0) - (keys.w || keys.ArrowUp ? 1 : 0);
+}
+
+window.addEventListener('keydown', (e) => {
+    if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+    if (e.key === 'z' || e.key === 'Z') triggerBurst();
+    updateInput();
+});
+window.addEventListener('keyup', (e) => {
+    if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+    updateInput();
+});
 
 function handleJoystick(e) {
     if (!active) return;
@@ -47,33 +82,36 @@ function handleJoystick(e) {
     }
     
     joystickKnob.style.transform = `translate(${moveX}px, ${moveY}px)`;
-    
-    // Normalize movement
     dx = (moveX / maxDist);
     dy = (moveY / maxDist);
 }
 
+// Collision detection
+function checkCollision(nx, ny) {
+    const px = 2000/2 - mapX + nx; // Player absolute position
+    const py = 2000/2 - mapY + ny;
+    return walls.some(w => px + 60 > w.x && px < w.x + w.w && py + 60 > w.y && py < w.y + w.h);
+}
+
 // Game Loop
 function update() {
-    // Move map in opposite direction of joystick to simulate camera follow
-    mapX += dx * speed;
-    mapY += dy * speed;
+    let nx = mapX + dx * speed;
+    let ny = mapY + dy * speed;
 
-    // Clamp map position
+    if (!checkCollision(dx * speed, 0)) mapX = nx;
+    if (!checkCollision(0, dy * speed)) mapY = ny;
+
     mapX = Math.max(0, Math.min(mapX, 2000 - window.innerWidth));
     mapY = Math.max(0, Math.min(mapY, 2000 - window.innerHeight));
 
     map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
-
     requestAnimationFrame(update);
 }
 
 // Burst action
-actionBtn.addEventListener('click', () => {
+function triggerBurst() {
     if (animationInterval) return;
-    
     playerSprite.style.filter = 'brightness(2) contrast(2)';
-    
     currentFrame = 0;
     animationInterval = setInterval(() => {
         updateSpriteAnimation();
@@ -85,9 +123,12 @@ actionBtn.addEventListener('click', () => {
             playerSprite.style.filter = 'none';
         }
     }, 60);
-});
+}
+
+actionBtn.addEventListener('click', triggerBurst);
 
 // Event Listeners for Joystick
+let active = false;
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
