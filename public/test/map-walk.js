@@ -86,6 +86,11 @@ const MONSTER_SPEED = 0.8;
 const MONSTER_HP = 20;
 const MONSTER_DMG = 5;
 const BURST_RANGE = 40;
+const MONSTER_ATTACK_FRAMES = [
+    { row: 50, col: 75 }, { row: 50, col: 100 },
+    { row: 75, col: 0 },  { row: 75, col: 25 }
+];
+const MONSTER_ANIM_MS = 150;
 const monsters = [];
 let playerHP = 100;
 const PLAYER_MAX_HP = 100;
@@ -103,11 +108,20 @@ function generateMonsters() {
             el.className = 'monster';
             el.style.left = mx + 'px';
             el.style.top = my + 'px';
+            el.style.backgroundPosition = '0% 0%';
+            const hpBar = document.createElement('div');
+            hpBar.className = 'monster-hp';
+            const hpFill = document.createElement('div');
+            hpFill.className = 'monster-hp-fill';
+            hpFill.style.width = '100%';
+            hpBar.appendChild(hpFill);
+            el.appendChild(hpBar);
             map.appendChild(el);
             monsters.push({
                 x: mx, y: my, spawnX: mx, spawnY: my,
-                hp: MONSTER_HP, el, state: 'idle',
-                attackTimer: 2000 + Math.random() * 3000, hitTimer: 0
+                hp: MONSTER_HP, el, hpFill, state: 'idle',
+                attackTimer: 2000 + Math.random() * 3000, hitTimer: 0,
+                animFrame: 0, animTimer: 0
             });
         }
     }
@@ -225,6 +239,7 @@ function triggerBurst() {
         if (m.hp <= 0) continue;
         if (Math.abs(playerWX - m.x) < hb + hm && Math.abs(playerWY - m.y) < hb + hm) {
             m.hp -= 10;
+            m.hpFill.style.width = Math.max(0, m.hp / MONSTER_HP * 100) + '%';
             m.hitTimer = 200;
             if (m.hp <= 0) m.el.classList.add('dead');
         }
@@ -357,6 +372,25 @@ function update(timestamp) {
         m.el.style.left = m.x + 'px';
         m.el.style.top = m.y + 'px';
 
+        // Attack animation
+        if (m.animTimer > 0) {
+            m.animTimer -= dt;
+            if (m.animTimer <= 0) {
+                m.animFrame++;
+                if (m.animFrame >= MONSTER_ATTACK_FRAMES.length) {
+                    m.animFrame = 0;
+                    m.animTimer = 0;
+                    m.el.style.backgroundPosition = '0% 0%';
+                } else {
+                    m.animTimer = MONSTER_ANIM_MS;
+                    const f = MONSTER_ATTACK_FRAMES[m.animFrame];
+                    m.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
+                }
+            }
+        } else {
+            m.el.style.backgroundPosition = '0% 0%';
+        }
+
         if (m.hitTimer > 0) {
             m.hitTimer -= dt;
             m.el.style.opacity = Math.floor(m.hitTimer / 50) % 2 ? '1' : '0.3';
@@ -367,6 +401,10 @@ function update(timestamp) {
         m.attackTimer -= dt;
         if (m.attackTimer <= 0 && dist < 100) {
             if (checkOverlap(playerWX, playerWY, 15, 30, m.x, m.y, 20, 20)) {
+                m.animFrame = 0;
+                m.animTimer = MONSTER_ANIM_MS;
+                const f = MONSTER_ATTACK_FRAMES[0];
+                m.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
                 playerHP = Math.max(0, playerHP - MONSTER_DMG);
                 document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
                 playerSprite.style.filter = 'brightness(3) saturate(0)';
