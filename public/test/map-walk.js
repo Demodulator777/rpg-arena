@@ -229,11 +229,11 @@ async function loadLevel(level, spawnAt) {
 
         // Player start
         if (spawnAt === 'exit' && mapInfo.exit) {
-            playerWX = mapInfo.exit.x;
-            playerWY = mapInfo.exit.y;
+            playerWX = mapInfo.exit.x + 20;
+            playerWY = mapInfo.exit.y + 45;
         } else if (spawnAt === 'entrance' && mapInfo.entrance) {
-            playerWX = mapInfo.entrance.x;
-            playerWY = mapInfo.entrance.y;
+            playerWX = mapInfo.entrance.x - 20;
+            playerWY = mapInfo.entrance.y + 45;
         } else {
             playerWX = mapInfo.playerStart.x;
             playerWY = mapInfo.playerStart.y;
@@ -324,25 +324,28 @@ async function loadLevel(level, spawnAt) {
 
 // Exit proximity + transition
 let exiting = false;
+let transitionCooldown = 0;
 
 async function checkExit() {
-    if (!mapInfo.exit || exiting) return;
+    if (!mapInfo.exit || exiting || Date.now() < transitionCooldown) return;
     const d = Math.hypot(playerWX - mapInfo.exit.x, playerWY - mapInfo.exit.y);
     if (d < 40) {
         exiting = true;
         const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
         await loadLevel(nextLevel, 'entrance');
+        transitionCooldown = Date.now() + 500;
         exiting = false;
     }
 }
 
 async function checkEntrance() {
-    if (!mapInfo.entrance || exiting) return;
+    if (!mapInfo.entrance || exiting || Date.now() < transitionCooldown) return;
     const d = Math.hypot(playerWX - mapInfo.entrance.x, playerWY - mapInfo.entrance.y);
     if (d < 40) {
         exiting = true;
         const prevLevel = mapInfo.entrance.targetLevel || (currentLevel - 1);
         await loadLevel(prevLevel, 'exit');
+        transitionCooldown = Date.now() + 500;
         exiting = false;
     }
 }
