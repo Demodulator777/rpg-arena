@@ -121,6 +121,7 @@ function updateInput() {
 }
 
 window.addEventListener('keydown', (e) => {
+    if (e.key === ' ') { e.preventDefault(); openNearChest(); return; }
     if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
     if (e.key === 'z' || e.key === 'Z') triggerBurst();
     updateInput();
