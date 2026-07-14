@@ -98,15 +98,15 @@ function handleJoystick(e) {
     dy = (moveY / maxDist);
 }
 
-// Collision detection - tight box around character (skip empty sprite edges)
+// Collision detection - full player div (120x120)
 function checkCollision(nx, ny) {
-    const playerMapX = mapX + window.innerWidth / 2 - 60 + nx; // center of 120px sprite → offset -60
+    const playerMapX = mapX + window.innerWidth / 2 - 60 + nx;
     const playerMapY = mapY + window.innerHeight / 2 - 60 + ny;
     return walls.some(w => 
-        playerMapX + 90 > w.x &&   // right edge of character (120-30)
-        playerMapX + 30 < w.x + w.w &&  // left edge of character (+30)
-        playerMapY + 90 > w.y &&
-        playerMapY + 30 < w.y + w.h
+        playerMapX + 120 > w.x && 
+        playerMapX < w.x + w.w && 
+        playerMapY + 120 > w.y && 
+        playerMapY < w.y + w.h
     );
 }
 
