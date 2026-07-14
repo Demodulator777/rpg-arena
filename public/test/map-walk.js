@@ -8,6 +8,7 @@ const actionBtn = document.getElementById('action-btn');
 const interactPrompt = document.getElementById('interact-prompt');
 const levelLabel = document.getElementById('level-label');
 const loadingEl = document.getElementById('loading');
+const fogEl = document.getElementById('fog');
 
 // Camera - always shows ~400 world units horizontally
 const REF_W = 400;
@@ -132,6 +133,16 @@ function checkCollision(nx, ny) {
         cx - 13 < w.x + b + w.w &&
         cy + 26 > w.y + b &&
         cy - 26 < w.y + b + w.h
+    );
+}
+
+function monsterWallHit(mx, my) {
+    const b = 20;
+    return walls.some(w =>
+        mx + 20 > w.x + b &&
+        mx - 20 < w.x + b + w.w &&
+        my + 20 > w.y + b &&
+        my - 20 < w.y + b + w.h
     );
 }
 
@@ -305,6 +316,10 @@ function update(timestamp) {
     const cy = window.innerHeight / 2;
     gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-playerWX}px, ${-playerWY}px)`;
 
+    // Fog of war – radial mask centered on player (always at screen center)
+    const fogRadius = 250 * worldScale;
+    fogEl.style.cssText = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%)`;
+
     if (isBursting) {
         burstTimer += dt;
         while (burstTimer >= BURST_MS) {
@@ -393,14 +408,18 @@ function update(timestamp) {
 
         if (m.state === 'chase') {
             const a = Math.atan2(playerWY - m.y, playerWX - m.x);
-            m.x += Math.cos(a) * MONSTER_SPEED;
-            m.y += Math.sin(a) * MONSTER_SPEED;
+            const sx = Math.cos(a) * MONSTER_SPEED;
+            const sy = Math.sin(a) * MONSTER_SPEED;
+            if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
+            if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
         } else {
             const d = Math.hypot(m.spawnX - m.x, m.spawnY - m.y);
             if (d > 1) {
                 const a = Math.atan2(m.spawnY - m.y, m.spawnX - m.x);
-                m.x += Math.cos(a) * MONSTER_SPEED;
-                m.y += Math.sin(a) * MONSTER_SPEED;
+                const sx = Math.cos(a) * MONSTER_SPEED;
+                const sy = Math.sin(a) * MONSTER_SPEED;
+                if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
+                if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
             }
         }
         m.x = Math.max(20, Math.min(5000 - 20, m.x));
