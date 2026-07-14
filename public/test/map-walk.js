@@ -51,6 +51,7 @@ function setWalkFrame(rowPct, colIdx) {
     if (isBursting) return;
     playerSprite.style.backgroundImage = 'url(/images/assets/roguelike3.png)';
     playerSprite.style.backgroundPosition = `${colIdx * 25}% ${rowPct}%`;
+    playerSprite.style.transform = 'scaleX(1)';
 }
 
 function getDir() {
