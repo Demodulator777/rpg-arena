@@ -119,6 +119,10 @@ function update() {
     if (!checkCollision(dx * speed, 0)) mapX = nx;
     if (!checkCollision(0, dy * speed)) mapY = ny;
 
+    // Flip sprite based on direction
+    if (dx < 0) playerSprite.style.transform = 'scaleX(-1)';
+    else if (dx > 0) playerSprite.style.transform = 'scaleX(1)';
+
     mapX = Math.max(-(window.innerWidth / 2 - 30), Math.min(mapX, 5000 - window.innerWidth / 2 - 30));
     mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
 
