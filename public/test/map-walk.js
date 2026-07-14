@@ -22,13 +22,10 @@ function generateMaze() {
         const h = 50 + Math.random() * 200;
         const x = Math.random() * (5000 - w);
         const y = Math.random() * (5000 - h);
-        
-        // Ensure spawn area is clear
         if (x < center.x + safeRadius && x + w > center.x - safeRadius && 
             y < center.y + safeRadius && y + h > center.y - safeRadius) {
             continue; 
         }
-
         const wall = document.createElement('div');
         wall.className = 'wall';
         wall.style.width = w + 'px';
@@ -43,7 +40,7 @@ generateMaze();
 
 // Sprite animation state
 let currentFrame = 0;
-let animationInterval = null;
+let burstInterval = null;
 let walkInterval = null;
 let currentDir = 'down';
 let isBursting = false;
@@ -89,56 +86,11 @@ function stopWalkAnim() {
     setWalkFrame(ROW[dir], 0);
 }
 
-function updateSpriteAnimation() {
-    // burst-only: steps through roguelike1.png all 25 frames
+// Burst frame stepper
+function burstStep() {
     const col = currentFrame % 5;
     const row = Math.floor(currentFrame / 5);
     playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
-    if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
-    else playerSprite.style.transform = 'scaleX(1)';
-    playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
-    currentFrame++;
-}
-
-function getDir() {
-    if (dy > 0) return 'down';
-    if (dy < 0) return 'up';
-    if (dx > 0) return 'right';
-    if (dx < 0) return 'left';
-    return currentDir;
-}
-
-function startWalkAnim() {
-    if (animationInterval) return;
-    const dir = getDir();
-    currentDir = dir;
-    // Immediately show first frame
-    setWalkFrame(ROW[dir], 0);
-    if (walkInterval) return;
-    let f = 1; // next frame
-    walkInterval = setInterval(() => {
-        const dir2 = getDir();
-        currentDir = dir2;
-        setWalkFrame(ROW[dir2], f);
-        f = (f + 1) % 5;
-    }, 150);
-}
-
-function stopWalkAnim() {
-    clearInterval(walkInterval);
-    walkInterval = null;
-    // Stay on first frame of last direction
-    const dir = getDir();
-    currentDir = dir;
-    setWalkFrame(ROW[dir], 0);
-}
-
-function updateSpriteAnimation() {
-    // burst-only: steps through roguelike1.png all 25 frames
-    const col = currentFrame % 5;
-    const row = Math.floor(currentFrame / 5);
-    playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
-    // Flip burst sprite based on last direction
     if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
     else playerSprite.style.transform = 'scaleX(1)';
     playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
@@ -171,31 +123,26 @@ function handleJoystick(e) {
     const rect = joystickArea.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    
     let moveX = clientX - centerX;
     let moveY = clientY - centerY;
-    
     const dist = Math.sqrt(moveX*moveX + moveY*moveY);
     const maxDist = 45;
-    
     if (dist > maxDist) {
         moveX = (moveX / dist) * maxDist;
         moveY = (moveY / dist) * maxDist;
     }
-    
     joystickKnob.style.transform = `translate(${moveX}px, ${moveY}px)`;
     dx = (moveX / maxDist);
     dy = (moveY / maxDist);
 }
 
-// Collision detection - character is ~30x60 centered in 120x120 sprite, account for 20px map border
+// Collision detection
 function checkCollision(nx, ny) {
-    const b = 20; // map border
-    const cx = mapX + window.innerWidth / 2 + nx; // char center X (map coords)
-    const cy = mapY + window.innerHeight / 2 + ny; // char center Y (map coords)
+    const b = 20;
+    const cx = mapX + window.innerWidth / 2 + nx;
+    const cy = mapY + window.innerHeight / 2 + ny;
     return walls.some(w => 
         cx + 13 > w.x + b &&
         cx - 13 < w.x + b + w.w &&
@@ -208,37 +155,33 @@ function checkCollision(nx, ny) {
 function update() {
     let nx = mapX + dx * speed;
     let ny = mapY + dy * speed;
-
     if (!checkCollision(dx * speed, 0)) mapX = nx;
     if (!checkCollision(0, dy * speed)) mapY = ny;
 
-    // Walking animation
     if (dx !== 0 || dy !== 0) startWalkAnim();
     else stopWalkAnim();
 
     mapX = Math.max(-(window.innerWidth / 2 - 15), Math.min(mapX, 5000 - window.innerWidth / 2 - 15));
     mapY = Math.max(-(window.innerHeight / 2 - 30), Math.min(mapY, 5000 - window.innerHeight / 2 - 30));
-
     map.style.transform = `translate(${-mapX}px, ${-mapY}px)`;
     requestAnimationFrame(update);
 }
 
 // Burst action
 function triggerBurst() {
-    if (animationInterval) return;
+    if (burstInterval) return;
     isBursting = true;
     stopWalkAnim();
     playerSprite.style.filter = 'brightness(2) contrast(2)';
     currentFrame = 0;
-    animationInterval = setInterval(() => {
-        updateSpriteAnimation();
+    burstInterval = setInterval(() => {
+        burstStep();
         if (currentFrame >= 25) {
-            clearInterval(animationInterval);
-            animationInterval = null;
+            clearInterval(burstInterval);
+            burstInterval = null;
             currentFrame = 0;
             playerSprite.style.filter = 'none';
             isBursting = false;
-            // Restore walking sprite
             const dir = getDir();
             currentDir = dir;
             setWalkFrame(ROW[dir], 0);
@@ -248,7 +191,6 @@ function triggerBurst() {
 
 actionBtn.addEventListener('click', triggerBurst);
 
-// Event Listeners for Joystick
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
@@ -258,13 +200,12 @@ window.addEventListener('touchmove', handleJoystick);
 window.addEventListener('touchend', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
 
 // Init
-updateSpriteAnimation();
+setWalkFrame(ROW.down, 0);
 update();
 
-// Mobile viewport height fix (account for browser chrome)
+// Mobile viewport height fix
 function fixViewportHeight() {
-    const container = document.getElementById('game-container');
-    container.style.height = window.innerHeight + 'px';
+    document.getElementById('game-container').style.height = window.innerHeight + 'px';
 }
 fixViewportHeight();
 window.addEventListener('resize', fixViewportHeight);
