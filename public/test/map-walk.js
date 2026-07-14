@@ -9,7 +9,7 @@ let mapX = (5000 - window.innerWidth) / 2;
 let mapY = (5000 - window.innerHeight) / 2;
 
 let dx = 0, dy = 0;
-const speed = 7;
+const speed = 1.75;
 const walls = [];
 
 function generateMaze() {
