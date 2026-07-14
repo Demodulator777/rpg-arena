@@ -15,13 +15,22 @@ const walls = [];
 
 // Generate Maze
 function generateMaze() {
+    const center = { x: 1000, y: 1000 };
+    const safeRadius = 150;
     for (let i = 0; i < 100; i++) {
-        const wall = document.createElement('div');
-        wall.className = 'wall';
         const w = 50 + Math.random() * 150;
         const h = 50 + Math.random() * 150;
-        const x = Math.random() * 1800;
-        const y = Math.random() * 1800;
+        const x = Math.random() * (2000 - w);
+        const y = Math.random() * (2000 - h);
+        
+        // Ensure spawn area is clear
+        if (x < center.x + safeRadius && x + w > center.x - safeRadius && 
+            y < center.y + safeRadius && y + h > center.y - safeRadius) {
+            continue; 
+        }
+
+        const wall = document.createElement('div');
+        wall.className = 'wall';
         wall.style.width = w + 'px';
         wall.style.height = h + 'px';
         wall.style.left = x + 'px';
@@ -61,6 +70,9 @@ window.addEventListener('keyup', (e) => {
     updateInput();
 });
 
+// Joystick handling
+let active = false;
+
 function handleJoystick(e) {
     if (!active) return;
     const rect = joystickArea.getBoundingClientRect();
@@ -88,9 +100,15 @@ function handleJoystick(e) {
 
 // Collision detection
 function checkCollision(nx, ny) {
-    const px = 2000/2 - mapX + nx; // Player absolute position
-    const py = 2000/2 - mapY + ny;
-    return walls.some(w => px + 60 > w.x && px < w.x + w.w && py + 60 > w.y && py < w.y + w.h);
+    const playerMapX = mapX + window.innerWidth / 2 - 30 + nx;
+    const playerMapY = mapY + window.innerHeight / 2 - 30 + ny;
+    const buffer = 2;
+    return walls.some(w => 
+        playerMapX + 60 - buffer > w.x && 
+        playerMapX + buffer < w.x + w.w && 
+        playerMapY + 60 - buffer > w.y && 
+        playerMapY + buffer < w.y + w.h
+    );
 }
 
 // Game Loop
@@ -128,7 +146,6 @@ function triggerBurst() {
 actionBtn.addEventListener('click', triggerBurst);
 
 // Event Listeners for Joystick
-let active = false;
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
@@ -140,5 +157,3 @@ window.addEventListener('touchend', () => { active = false; dx = dy = 0; joystic
 // Init
 updateSpriteAnimation();
 update();
-
-
