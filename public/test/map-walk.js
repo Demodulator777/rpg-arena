@@ -201,21 +201,22 @@ interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); ope
 // ---- Level loading ----
 async function loadLevel(level) {
     loadingEl.classList.remove('hide');
-    // Clear existing
-    document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone').forEach(el => el.remove());
-    walls.length = 0;
-    chests.length = 0;
-    monsters.length = 0;
-    nearChest = null;
-    exitEl = null;
-    entranceEl = null;
-    interactPrompt.classList.remove('show');
-
     try {
+        // Clear existing
+        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone').forEach(el => el.remove());
+        walls.length = 0;
+        chests.length = 0;
+        monsters.length = 0;
+        nearChest = null;
+        exitEl = null;
+        entranceEl = null;
+        interactPrompt.classList.remove('show');
+
         const res = await fetch(`/api/game/maps/${level}`);
         if (!res.ok) {
             if (res.status === 404) {
-                loadingEl.textContent = `Level ${level} not found. Create it in the map builder.`;
+                loadingEl.textContent = `Level ${level} not found`;
+                loadingEl.classList.add('hide');
                 return;
             }
             throw new Error((await res.json()).error);
@@ -309,6 +310,7 @@ async function loadLevel(level) {
         loadingEl.textContent = 'Loading level...';
     } catch (e) {
         loadingEl.textContent = 'Error: ' + e.message;
+        loadingEl.classList.add('hide');
     }
 }
 
