@@ -11285,6 +11285,15 @@ router.post('/missions/collect', auth, async (req, res) => {
             }
         }
 
+        // Warrior class: deduct flat +1 dmg per 10 STR from NPC so the bonus actually helps
+        if (freshChar.class === 'warrior') {
+            const strBonus = Math.floor((freshChar.strength || 0) / 10);
+            if (strBonus > 0) {
+                npc.dmgMin = Math.max(1, npc.dmgMin - strBonus);
+                npc.dmgMax = Math.max(npc.dmgMin + 1, npc.dmgMax - strBonus);
+            }
+        }
+
         // Stat variance pass — different ranges per stat for better variety
         // HP stays close to base, hit/crit can vary widely, others moderate
         if (mission.map_type !== 'abyss') {
