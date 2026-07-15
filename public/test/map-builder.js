@@ -118,6 +118,37 @@ function showProps(data) {
         addProp('Height', data.height, v => { data.height = Math.max(GRID, snap(v)); renderItem(data); });
         addProp('Color', data.color, v => { data.color = v; renderItem(data); }, 'text');
         addProp('Layer', data.layer, v => { data.layer = v; renderItem(data); }, 'text');
+        // Image upload
+        const fileLabel = document.createElement('label');
+        fileLabel.textContent = 'Image';
+        const fileInp = document.createElement('input');
+        fileInp.type = 'file';
+        fileInp.accept = 'image/*';
+        fileInp.style.cssText = 'font-size:11px;width:100%;';
+        fileInp.addEventListener('change', async () => {
+            const file = fileInp.files[0];
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('image', file);
+            try {
+                const res = await fetch('/api/game/maps/decal-upload', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error((await res.json()).error);
+                const { url } = await res.json();
+                data.image = url;
+                renderItem(data);
+                setStatus('Image uploaded');
+            } catch (e) { setStatus('Upload error: ' + e.message); }
+        });
+        propsPanel.appendChild(fileLabel);
+        propsPanel.appendChild(fileInp);
+        // Clear image button
+        if (data.image) {
+            const clearBtn = document.createElement('button');
+            clearBtn.textContent = 'Remove Image';
+            clearBtn.style.cssText = 'background:#666;border-color:#888;margin-top:2px;';
+            clearBtn.addEventListener('click', () => { data.image = null; renderItem(data); clearBtn.remove(); });
+            propsPanel.appendChild(clearBtn);
+        }
     } else if (data.type === 'trap') {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
@@ -184,7 +215,12 @@ function renderItem(data) {
         if (el) el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
     } else if (data.type === 'decal') {
         el = document.querySelector(`.decal[data-id="${data._id}"]`);
-        if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;background:${data.color};`;
+        if (el) {
+            let css = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+            if (data.image) css += `background-image:url(${data.image});background-size:cover;background-position:center;`;
+            else css += `background:${data.color};`;
+            el.style.cssText = css;
+        }
     } else if (data.type === 'trap') {
         el = document.querySelector(`.trap[data-id="${data._id}"]`);
         if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
@@ -254,7 +290,10 @@ function createItemElement(data) {
         el = document.createElement('div');
         el.className = 'decal';
         el.dataset.id = data._id;
-        el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;background:${data.color};`;
+        let css = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+        if (data.image) css += `background-image:url(${data.image});background-size:cover;background-position:center;`;
+        else css += `background:${data.color};`;
+        el.style.cssText = css;
         gameWorld.appendChild(el);
     } else if (data.type === 'trap') {
         el = document.createElement('div');
