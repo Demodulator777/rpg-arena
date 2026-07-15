@@ -669,8 +669,8 @@ function update(timestamp) {
             if (d < 30) {
                 const target = teleports.find(t => t.id === tp.targetId);
                 if (target) {
-                    playerWX = target.x;
-                    playerWY = target.y;
+                    playerWX = target.x + 20;
+                    playerWY = target.y + 45;
                     player.style.left = playerWX + 'px';
                     player.style.top = playerWY + 'px';
                     teleportCooldown = Date.now() + 500;
