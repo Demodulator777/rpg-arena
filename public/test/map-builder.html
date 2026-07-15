@@ -33,6 +33,15 @@
         .entrance.selected { outline: 2px solid #fc0; z-index: 10; }
         .player-start { position: absolute; width: 30px; height: 30px; background: #48f; border: 2px solid #26d; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; z-index: 4; }
 
+        .decal { position: absolute; pointer-events: auto; opacity: 0.7; }
+        .decal.selected { outline: 2px solid #fc0; z-index: 10; }
+        .trap { position: absolute; background: rgba(255,0,0,0.2); border: 2px dashed #c33; pointer-events: auto; }
+        .trap.selected { outline: 2px solid #fc0; z-index: 10; }
+        .teleport { position: absolute; width: 30px; height: 30px; background: #6cf; border: 2px solid #4af; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; z-index: 4; }
+        .teleport.selected { outline: 2px solid #fc0; z-index: 10; }
+        .beam { position: absolute; background: rgba(255,255,0,0.15); border: 1px solid rgba(255,255,0,0.4); pointer-events: auto; transform-origin: center center; }
+        .beam.selected { outline: 2px solid #fc0; z-index: 10; }
+
         #info-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 28px; background: #222; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #888; z-index: 500; border-top: 1px solid #444; gap: 16px; }
         #info-bar span { color: #aaa; }
 
@@ -54,6 +63,10 @@
         <button id="btn-exit" data-tool="exit">Exit →</button>
         <button id="btn-entrance" data-tool="entrance">Entrance ←</button>
         <button id="btn-start" data-tool="start">Start</button>
+        <button id="btn-decal" data-tool="decal">Decal</button>
+        <button id="btn-trap" data-tool="trap">Trap</button>
+        <button id="btn-teleport" data-tool="teleport">Portal</button>
+        <button id="btn-beam" data-tool="beam">Beam</button>
         <button id="btn-pan" data-tool="pan">Pan</button>
         <div class="sep"></div>
         <label>Level:</label>
@@ -79,7 +92,7 @@
     <div id="info-bar">
         <span id="info-pos">X: 0 Y: 0</span>
         <span id="info-tool">Tool: Select</span>
-        <span id="info-items">Walls: 0 | Chests: 0 | Monsters: 0</span>
+        <span id="info-items">Walls: 0 | Chests: 0 | Monsters: 0 | Decals: 0 | Traps: 0 | Portals: 0 | Beams: 0</span>
     </div>
 
     <script src="map-builder.js"></script>
