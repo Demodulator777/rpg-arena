@@ -55,6 +55,15 @@ const PLAYER_MAX_HP = 100;
 let exitEl = null;
 let entranceEl = null;
 
+// Decals, traps, teleports, beams
+let decals = [];
+let traps = [];
+let trapTimers = [];
+let teleports = [];
+let teleportCooldown = 0;
+let beams = [];
+let lastBeamDmg = 0;
+
 function checkOverlap(ax, ay, ahw, ahh, bx, by, bhw, bhh) {
     return Math.abs(ax - bx) < ahw + bhw && Math.abs(ay - by) < ahh + bhh;
 }
@@ -209,7 +218,7 @@ async function loadLevel(level, spawnAt) {
     loadingEl.classList.remove('hide');
     try {
         // Clear existing
-        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone').forEach(el => el.remove());
+        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
         walls.length = 0;
         chests.length = 0;
         monsters.length = 0;
@@ -217,6 +226,11 @@ async function loadLevel(level, spawnAt) {
         exitEl = null;
         entranceEl = null;
         interactPrompt.classList.remove('show');
+        decals.length = 0;
+        traps.length = 0;
+        trapTimers.length = 0;
+        teleports.length = 0;
+        beams.length = 0;
 
         const res = await fetch(`/api/game/maps/${level}`);
         if (!res.ok) {
@@ -329,6 +343,56 @@ async function loadLevel(level, spawnAt) {
             entranceEl.textContent = '←';
             entranceEl.style.cssText = `left:${mapInfo.entrance.x - 30}px;top:${mapInfo.entrance.y - 30}px;border-color:#a6a;`;
             map.appendChild(entranceEl);
+        }
+
+        // Decals
+        if (d.decals) {
+            for (const dc of d.decals) {
+                const el = document.createElement('div');
+                el.className = 'decal';
+                el.style.cssText = `left:${dc.x}px;top:${dc.y}px;width:${dc.width}px;height:${dc.height}px;background:${dc.color};opacity:0.7;position:absolute;pointer-events:none;z-index:${dc.layer === 'wall' ? 3 : 1};`;
+                map.appendChild(el);
+                decals.push(el);
+            }
+        }
+
+        // Traps
+        if (d.traps) {
+            for (const tr of d.traps) {
+                const el = document.createElement('div');
+                el.className = 'trap-zone';
+                el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;position:absolute;background:rgba(255,0,0,0.08);border:1px dashed rgba(255,0,0,0.3);pointer-events:none;z-index:2;`;
+                map.appendChild(el);
+                traps.push({ x: tr.x, y: tr.y, w: tr.width, h: tr.height, damage: tr.damage || 10 });
+                trapTimers.push(0);
+            }
+        }
+
+        // Teleports
+        if (d.teleports) {
+            for (const tp of d.teleports) {
+                const el = document.createElement('div');
+                el.className = 'teleport-zone';
+                el.textContent = '◉';
+                el.style.cssText = `left:${tp.x - 20}px;top:${tp.y - 20}px;width:40px;height:40px;position:absolute;background:rgba(100,200,255,0.3);border:2px solid #6cf;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#6cf;z-index:4;animation:pulse-teleport 2s ease-in-out infinite;`;
+                map.appendChild(el);
+                teleports.push({ x: tp.x, y: tp.y, id: tp.id, targetId: tp.targetId });
+            }
+        }
+
+        // Beams
+        if (d.beams) {
+            for (const bm of d.beams) {
+                const el = document.createElement('div');
+                el.className = 'beam-line';
+                const cx = (bm.x1 + bm.x2) / 2;
+                const cy = (bm.y1 + bm.y2) / 2;
+                const w = Math.abs(bm.x2 - bm.x1) + 6;
+                const h = Math.abs(bm.y2 - bm.y1) + 6;
+                el.style.cssText = `left:${cx - w/2}px;top:${cy - h/2}px;width:${w}px;height:${h}px;position:absolute;background:rgba(255,255,0,0.08);border:1px solid rgba(255,255,0,0.2);pointer-events:none;z-index:2;transform-origin:center;transform:rotate(${Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1)}rad);`;
+                map.appendChild(el);
+                beams.push({ x1: bm.x1, y1: bm.y1, x2: bm.x2, y2: bm.y2, damage: bm.damage || 5, interval: bm.interval || 800, lastDmg: 0, el });
+            }
         }
 
         loadingEl.classList.add('hide');
@@ -576,6 +640,79 @@ function update(timestamp) {
     } else {
         nearChest = null;
         interactPrompt.classList.remove('show');
+    }
+
+    // Traps
+    for (let i = 0; i < traps.length; i++) {
+        const tr = traps[i];
+        if (playerWX + 13 > tr.x && playerWX - 13 < tr.x + tr.w &&
+            playerWY + 26 > tr.y && playerWY - 26 < tr.y + tr.h) {
+            if (trapTimers[i] <= 0) {
+                playerHP = Math.max(0, playerHP - tr.damage);
+                document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+                trapTimers[i] = 1000;
+                if (playerHP <= 0) {
+                    playerWX = mapInfo.playerStart.x;
+                    playerWY = mapInfo.playerStart.y;
+                    playerHP = PLAYER_MAX_HP;
+                    document.getElementById('player-hp-inner').style.width = '100%';
+                }
+            }
+        }
+        if (trapTimers[i] > 0) trapTimers[i] -= dt;
+    }
+
+    // Teleports
+    if (Date.now() > teleportCooldown) {
+        for (const tp of teleports) {
+            const d = Math.hypot(playerWX - tp.x, playerWY - tp.y);
+            if (d < 30) {
+                const target = teleports.find(t => t.id === tp.targetId);
+                if (target) {
+                    playerWX = target.x;
+                    playerWY = target.y;
+                    player.style.left = playerWX + 'px';
+                    player.style.top = playerWY + 'px';
+                    teleportCooldown = Date.now() + 500;
+                }
+                break;
+            }
+        }
+    }
+
+    // Beams: animate particles + damage
+    for (const bm of beams) {
+        const now = Date.now();
+        // Particle animation
+        const t = ((now % bm.interval) / bm.interval);
+        const px = bm.x1 + (bm.x2 - bm.x1) * t;
+        const py = bm.y1 + (bm.y2 - bm.y1) * t;
+        bm.el.style.background = `radial-gradient(circle 4px at ${(t * 100)}% 50%, rgba(255,255,100,0.9), transparent)`;
+        // Line-rect collision: player as rect 26x52 (half-width x half-height)
+        const dx = bm.x2 - bm.x1;
+        const dy = bm.y2 - bm.y1;
+        const len = Math.hypot(dx, dy);
+        if (len > 1) {
+            const ux = dx / len;
+            const uy = dy / len;
+            const ex = playerWX - bm.x1;
+            const ey = playerWY - bm.y1;
+            const proj = Math.max(0, Math.min(len, ex * ux + ey * uy));
+            const closestX = bm.x1 + ux * proj;
+            const closestY = bm.y1 + uy * proj;
+            const dist = Math.hypot(playerWX - closestX, playerWY - closestY);
+            if (dist < 26 && now - bm.lastDmg > (bm.interval / 2)) {
+                playerHP = Math.max(0, playerHP - bm.damage);
+                document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+                bm.lastDmg = now;
+                if (playerHP <= 0) {
+                    playerWX = mapInfo.playerStart.x;
+                    playerWY = mapInfo.playerStart.y;
+                    playerHP = PLAYER_MAX_HP;
+                    document.getElementById('player-hp-inner').style.width = '100%';
+                }
+            }
+        }
     }
 
     // Exit check
