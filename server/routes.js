@@ -38,7 +38,7 @@ const uploadDecal = multer({
         if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files allowed'));
         cb(null, true);
     }
-});
+}).single('image');
 
 // ── Weapon leveling constants ──────────────────────────────────────────────
 const WEAPON_XP_PER_MISSION = 1;
