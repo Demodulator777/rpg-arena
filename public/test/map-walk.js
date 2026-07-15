@@ -10,6 +10,8 @@ const levelLabel = document.getElementById('level-label');
 const loadingEl = document.getElementById('loading');
 const fogEl = document.getElementById('fog');
 const controlsHint = document.getElementById('controls-hint');
+const levelInput = document.getElementById('level-input');
+const levelGo = document.getElementById('level-go');
 
 // Preload burst + monster sprites so first use isn't blank
 (new Image()).src = '/images/assets/roguelike1.png';
@@ -219,7 +221,17 @@ async function loadLevel(level, spawnAt) {
         const res = await fetch(`/api/game/maps/${level}`);
         if (!res.ok) {
             if (res.status === 404) {
-                loadingEl.textContent = `Level ${level} not found`;
+                loadingEl.textContent = `Level ${level} not found — empty`;
+                mapInfo = { name: '', playerStart: { x: 2500, y: 2500 }, exit: null, entrance: null };
+                currentLevel = level;
+                levelLabel.textContent = `Level ${level} (empty)`;
+                levelInput.value = level;
+                playerWX = 2500;
+                playerWY = 2500;
+                player.style.left = playerWX + 'px';
+                player.style.top = playerWY + 'px';
+                playerHP = PLAYER_MAX_HP;
+                document.getElementById('player-hp-inner').style.width = '100%';
                 loadingEl.classList.add('hide');
                 return;
             }
@@ -230,6 +242,7 @@ async function loadLevel(level, spawnAt) {
         mapInfo = { name: row.name || '', playerStart: d.playerStart || { x: 2500, y: 2500 }, exit: d.exit || null, entrance: d.entrance || null };
         currentLevel = row.level;
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
+        levelInput.value = currentLevel;
 
         // Player start
         if (spawnAt === 'exit' && mapInfo.exit) {
@@ -336,6 +349,7 @@ async function checkExit() {
     if (d < 40) {
         exiting = true;
         const nextLevel = mapInfo.exit.targetLevel || (currentLevel + 1);
+        console.log(`checkExit: level ${currentLevel} → ${nextLevel} (targetLevel=${mapInfo.exit.targetLevel})`);
         await loadLevel(nextLevel, 'entrance');
         transitionCooldown = Date.now() + 500;
         exiting = false;
@@ -348,6 +362,7 @@ async function checkEntrance() {
     if (d < 40) {
         exiting = true;
         const prevLevel = mapInfo.entrance.targetLevel || (currentLevel - 1);
+        console.log(`checkEntrance: level ${currentLevel} → ${prevLevel} (targetLevel=${mapInfo.entrance.targetLevel})`);
         await loadLevel(prevLevel, 'exit');
         transitionCooldown = Date.now() + 500;
         exiting = false;
@@ -605,6 +620,17 @@ if (!('ontouchstart' in window) && navigator.maxTouchPoints === 0) {
 document.getElementById('hide-hint')?.addEventListener('click', () => {
     controlsHint.classList.remove('show');
 });
+
+// Level selector
+function goToLevel() {
+    const lvl = parseInt(levelInput.value);
+    if (!lvl || lvl < 1) return;
+    loadLevel(lvl).then(() => {
+        setWalkFrame(ROW.down, 0);
+    });
+}
+levelGo.addEventListener('click', goToLevel);
+levelInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') goToLevel(); });
 
 loadLevel(startLevel).then(() => {
     setWalkFrame(ROW.down, 0);
