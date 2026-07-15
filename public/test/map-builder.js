@@ -23,7 +23,6 @@ let dragItem = null;
 let dragOffX = 0, dragOffY = 0;
 let rubberBand = null;
 let beamStart = null;
-let rubberBand = null;
 
 // Grid snap
 function snap(v) { return Math.round(v / GRID) * GRID; }
