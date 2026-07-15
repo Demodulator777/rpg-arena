@@ -36,6 +36,10 @@
         #player-hp-inner { height: 100%; background: #e33; border-radius: 6px; width: 100%; }
 
         #level-label { position: fixed; top: max(20px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 14px; z-index: 200; pointer-events: none; }
+        #level-selector { position: fixed; top: max(20px, env(safe-area-inset-top)); left: max(160px, env(safe-area-inset-left)); z-index: 200; display: flex; gap: 4px; align-items: center; }
+        #level-selector input { width: 48px; background: rgba(0,0,0,0.6); border: 1px solid #555; color: #fff; padding: 3px 6px; border-radius: 3px; font-size: 13px; }
+        #level-selector button { background: #444; border: 1px solid #666; color: #fff; padding: 3px 8px; border-radius: 3px; font-size: 13px; cursor: pointer; }
+        #level-selector button:hover { background: #666; }
         #exit-zone { position: absolute; width: 60px; height: 60px; border: 3px dashed #3a6; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #3a6; z-index: 3; pointer-events: none; animation: pulse-exit 2s ease-in-out infinite; }
         #entrance-zone { position: absolute; width: 60px; height: 60px; border: 3px dashed #a6a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #a6a; z-index: 3; pointer-events: none; animation: pulse-entrance 2s ease-in-out infinite; }
         @keyframes pulse-exit { 0%,100% { opacity: 0.6; box-shadow: 0 0 10px rgba(60,170,100,0.3); } 50% { opacity: 1; box-shadow: 0 0 25px rgba(60,170,100,0.6); } }
@@ -74,6 +78,7 @@
         </div>
         <div id="player-hp-outer"><div id="player-hp-inner"></div></div>
         <div id="level-label">Level 1</div>
+        <div id="level-selector"><input type="number" id="level-input" min="1" value="1"><button id="level-go">Go</button></div>
         <div id="interact-prompt">Open</div>
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
