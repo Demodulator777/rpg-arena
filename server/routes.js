@@ -74,19 +74,40 @@ async function grantWeaponXP(db, charId, xpAmount) {
 // Import skill tree functions
 const {
     applyClassUpgradeCostModifier,
-    applyClassUpgradeStatMultiplier,
-    processSkillEffects,
-    canAffordSkill,
-    getAffordableSkills,
-    gainSkill,
-    getTrainingRefund
-} = skillsModule;
+    computePassiveBonuses,
+    computeActiveCombatEffects,
+    computeClassModifiers,
+    rogueHasDualWield,
+    // NEW progressive functions
+    computePassiveBonusesWithProgress,
+    computeActiveCombatEffectsWithProgress,
+    computeClassModifiersWithProgress
+} = require('./skills');
 
-function clampToBounds(v, limit) {
-    return Math.max(0, Math.min(limit, v));
+BigInt.prototype.toJSON = function() { return Number(this); };
+
+const router = express.Router();
+const _missionStartLock = new Set();
+const _upgradeLock = new Set();
+const _weeklyClaimableCountCache = new Map();
+const _missionsTabView = new Map(); // userId → last tab view timestamp
+
+// ── API Log Middleware ──────────────────────────────────────────────
+async function ensureApiLogTable(db) {
+    await db.execute(`CREATE TABLE IF NOT EXISTS api_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL DEFAULT 0,
+        username TEXT NOT NULL DEFAULT '',
+        char_name TEXT NOT NULL DEFAULT '',
+        method TEXT NOT NULL,
+        path TEXT NOT NULL,
+        status INTEGER NOT NULL DEFAULT 0,
+        req_body TEXT,
+        tab_viewed INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+    )`);
 }
 
-// ── Flagged characters ─────────────────────────────────────────────────────
 async function ensureFlaggedTable(db) {
     await db.execute({ sql: `CREATE TABLE IF NOT EXISTS flagged_characters (id INTEGER PRIMARY KEY AUTOINCREMENT, char_name TEXT NOT NULL UNIQUE, reason TEXT NOT NULL DEFAULT '', detected_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0, signal_count INTEGER NOT NULL DEFAULT 0, distinct_signals INTEGER NOT NULL DEFAULT 0, signal_types TEXT NOT NULL DEFAULT '')`, args: [] });
     // Migration: add signal tracking columns to existing tables
