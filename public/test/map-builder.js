@@ -1,100 +1,635 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map Builder</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; background: #111; color: #eee; overflow: hidden; font-family: sans-serif; }
-        
-        #toolbar { position: fixed; top: 0; left: 0; right: 0; height: 48px; background: #222; display: flex; align-items: center; gap: 4px; padding: 0 8px; z-index: 500; border-bottom: 1px solid #444; }
-        #toolbar button, #toolbar select, #toolbar input { background: #333; color: #eee; border: 1px solid #555; padding: 4px 10px; border-radius: 4px; font-size: 13px; cursor: pointer; height: 30px; }
-        #toolbar button:hover { background: #444; }
-        #toolbar button.active { background: #4a7; border-color: #6c9; }
-        #toolbar .sep { width: 1px; height: 28px; background: #444; margin: 0 4px; }
-        #toolbar label { font-size: 12px; color: #999; margin-right: 2px; }
+const GRID = 20;
+const WORLD_SIZE = 5000;
 
-        #game-container { position: absolute; top: 48px; left: 0; right: 0; bottom: 0; overflow: hidden; }
-        #game-world { position: relative; width: 5000px; height: 5000px; transform-origin: 0 0; }
-        #map-bg { position: absolute; width: 5000px; height: 5000px; background: #1a1a1a; border: 20px solid #444; box-sizing: border-box; }
+let currentTool = 'select';
+let mapData = {
+    name: '',
+    level: 1,
+    playerStart: { x: 2500, y: 2500 },
+    walls: [],
+    chests: [],
+    monsterSpawns: [],
+    exit: null,
+    entrance: null,
+    decals: [],
+    traps: [],
+    teleports: [],
+    beams: []
+};
+let selectedItem = null;
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let dragItem = null;
+let dragOffX = 0, dragOffY = 0;
+let rubberBand = null;
+let beamStart = null;
+let rubberBand = null;
 
-        .grid-line { position: absolute; background: rgba(255,255,255,0.04); pointer-events: none; }
-        .wall { position: absolute; background: #666; border: 1px solid #444; box-sizing: border-box; }
-        .wall.selected { outline: 2px solid #fc0; z-index: 10; }
-        .chest { position: absolute; width: 40px; height: 32px; background: #c8943c; border: 2px solid #8b5e3c; border-radius: 4px; box-shadow: inset 0 -6px 0 #8b5e3c, 0 0 8px rgba(200,148,60,0.4); }
-        .chest::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 8px; height: 6px; background: #8b5e3c; border-radius: 2px; box-shadow: 0 0 4px #f0c840; }
-        .chest.selected { outline: 2px solid #fc0; z-index: 10; }
-        .monster-spawn { position: absolute; width: 30px; height: 30px; background: #c33; border: 2px solid #a22; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #fff; }
-        .monster-spawn.selected { outline: 2px solid #fc0; z-index: 10; }
-        .exit { position: absolute; width: 40px; height: 40px; background: #3a6; border: 2px solid #284; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; z-index: 4; }
-        .exit.selected { outline: 2px solid #fc0; z-index: 10; }
-        .entrance { position: absolute; width: 40px; height: 40px; background: #a6a; border: 2px solid #848; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; z-index: 4; }
-        .entrance.selected { outline: 2px solid #fc0; z-index: 10; }
-        .player-start { position: absolute; width: 30px; height: 30px; background: #48f; border: 2px solid #26d; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; z-index: 4; }
+// Grid snap
+function snap(v) { return Math.round(v / GRID) * GRID; }
 
-        .decal { position: absolute; pointer-events: auto; opacity: 0.7; }
-        .decal.selected { outline: 2px solid #fc0; z-index: 10; }
-        .trap { position: absolute; background: rgba(255,0,0,0.2); border: 2px dashed #c33; pointer-events: auto; }
-        .trap.selected { outline: 2px solid #fc0; z-index: 10; }
-        .teleport { position: absolute; width: 30px; height: 30px; background: #6cf; border: 2px solid #4af; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; z-index: 4; }
-        .teleport.selected { outline: 2px solid #fc0; z-index: 10; }
-        .beam { position: absolute; background: rgba(255,255,0,0.15); border: 1px solid rgba(255,255,0,0.4); pointer-events: auto; transform-origin: center center; }
-        .beam.selected { outline: 2px solid #fc0; z-index: 10; }
+// DOM refs
+const gameWorld = document.getElementById('game-world');
+const mapBg = document.getElementById('map-bg');
+const statusEl = document.getElementById('status');
+const infoPos = document.getElementById('info-pos');
+const infoItems = document.getElementById('info-items');
+const levelInput = document.getElementById('level-input');
+const nameInput = document.getElementById('name-input');
+const propsPanel = document.getElementById('props-panel');
 
-        #info-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 28px; background: #222; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #888; z-index: 500; border-top: 1px solid #444; gap: 16px; }
-        #info-bar span { color: #aaa; }
+// Grid overlay
+function buildGrid() {
+    for (let x = 0; x < WORLD_SIZE; x += GRID) {
+        const el = document.createElement('div');
+        el.className = 'grid-line';
+        el.style.cssText = `left:${x}px;top:0;width:1px;height:100%;`;
+        mapBg.appendChild(el);
+    }
+    for (let y = 0; y < WORLD_SIZE; y += GRID) {
+        const el = document.createElement('div');
+        el.className = 'grid-line';
+        el.style.cssText = `left:0;top:${y}px;width:100%;height:1px;`;
+        mapBg.appendChild(el);
+    }
+}
+buildGrid();
 
-        #props-panel { position: fixed; top: 54px; right: 8px; background: #222; border: 1px solid #444; border-radius: 6px; padding: 8px; z-index: 500; display: none; flex-direction: column; gap: 6px; min-width: 160px; }
-        #props-panel label { font-size: 12px; color: #999; }
-        #props-panel input, #props-panel select { background: #333; color: #eee; border: 1px solid #555; padding: 3px 6px; border-radius: 3px; font-size: 12px; width: 100%; }
+// Tool selection
+function setTool(tool) {
+    currentTool = tool;
+    beamStart = null;
+    deselectAll();
+    document.querySelectorAll('#toolbar button[data-tool]').forEach(b =>
+        b.classList.toggle('active', b.dataset.tool === tool));
+    document.getElementById('info-tool').textContent = `Tool: ${tool.charAt(0).toUpperCase() + tool.slice(1)}`;
+    const cursors = { select: 'default', pan: 'grab', wall: 'crosshair', chest: 'crosshair', monster: 'crosshair', exit: 'crosshair', entrance: 'crosshair', start: 'crosshair', decal: 'crosshair', trap: 'crosshair', teleport: 'crosshair', beam: 'crosshair' };
+    gameWorld.style.cursor = cursors[tool] || 'crosshair';
+    propsPanel.style.display = 'none';
+}
 
-        #status { color: #6c9; }
+document.querySelectorAll('#toolbar button[data-tool]').forEach(btn =>
+    btn.addEventListener('click', () => setTool(btn.dataset.tool)));
 
-        .rubber-band { position: absolute; border: 1px dashed #fc0; background: rgba(255,204,0,0.08); pointer-events: none; z-index: 100; }
-    </style>
-</head>
-<body>
-    <div id="toolbar">
-        <button id="btn-select" class="active" data-tool="select">Select</button>
-        <button id="btn-wall" data-tool="wall">Wall</button>
-        <button id="btn-chest" data-tool="chest">Chest</button>
-        <button id="btn-monster" data-tool="monster">Monster</button>
-        <button id="btn-exit" data-tool="exit">Exit →</button>
-        <button id="btn-entrance" data-tool="entrance">Entrance ←</button>
-        <button id="btn-start" data-tool="start">Start</button>
-        <button id="btn-decal" data-tool="decal">Decal</button>
-        <button id="btn-trap" data-tool="trap">Trap</button>
-        <button id="btn-teleport" data-tool="teleport">Portal</button>
-        <button id="btn-beam" data-tool="beam">Beam</button>
-        <button id="btn-pan" data-tool="pan">Pan</button>
-        <div class="sep"></div>
-        <label>Level:</label>
-        <input type="number" id="level-input" value="1" min="1" style="width:50px">
-        <label>Name:</label>
-        <input type="text" id="name-input" value="" style="width:120px">
-        <div class="sep"></div>
-        <button id="btn-new">New</button>
-        <button id="btn-load">Load</button>
-        <button id="btn-save" style="background:#4a7;border-color:#6c9">Save</button>
-        <div class="sep"></div>
-        <span id="status">Ready</span>
-    </div>
+// Selection
+function deselectAll() {
+    document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+    selectedItem = null;
+    propsPanel.style.display = 'none';
+}
 
-    <div id="game-container">
-        <div id="game-world">
-            <div id="map-bg"></div>
-        </div>
-    </div>
+function selectItem(el, data) {
+    deselectAll();
+    el.classList.add('selected');
+    selectedItem = { el, data };
+    showProps(data);
+}
 
-    <div id="props-panel"></div>
+// Property panel
+function showProps(data) {
+    propsPanel.style.display = 'flex';
+    propsPanel.innerHTML = '';
+    if (data.type === 'wall') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Width', data.width, v => { data.width = Math.max(GRID, snap(v)); renderItem(data); });
+        addProp('Height', data.height, v => { data.height = Math.max(GRID, snap(v)); renderItem(data); });
+    } else if (data.type === 'chest') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+    } else if (data.type === 'monster') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Count', data.count, v => { data.count = Math.max(1, Math.floor(Number(v) || 1)); renderItem(data); });
+    } else if (data.type === 'exit') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Target Level', data.targetLevel, v => { data.targetLevel = Math.floor(Number(v) || 1); });
+    } else if (data.type === 'entrance') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Target Level', data.targetLevel, v => { data.targetLevel = Math.floor(Number(v) || 1); });
+    } else if (data.type === 'start') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+    } else if (data.type === 'decal') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Width', data.width, v => { data.width = Math.max(GRID, snap(v)); renderItem(data); });
+        addProp('Height', data.height, v => { data.height = Math.max(GRID, snap(v)); renderItem(data); });
+        addProp('Color', data.color, v => { data.color = v; renderItem(data); }, 'text');
+        addProp('Layer', data.layer, v => { data.layer = v; renderItem(data); }, 'text');
+    } else if (data.type === 'trap') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('Width', data.width, v => { data.width = Math.max(GRID, snap(v)); renderItem(data); });
+        addProp('Height', data.height, v => { data.height = Math.max(GRID, snap(v)); renderItem(data); });
+        addProp('Damage', data.damage, v => { data.damage = Math.floor(Number(v) || 1); });
+    } else if (data.type === 'teleport') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+        addProp('ID', data.id, v => { data.id = Math.floor(Number(v) || 0); });
+        addProp('Target ID', data.targetId, v => { data.targetId = Math.floor(Number(v) || 0); });
+    } else if (data.type === 'beam') {
+        addProp('X1', data.x1, v => { data.x1 = snap(v); renderItem(data); });
+        addProp('Y1', data.y1, v => { data.y1 = snap(v); renderItem(data); });
+        addProp('X2', data.x2, v => { data.x2 = snap(v); renderItem(data); });
+        addProp('Y2', data.y2, v => { data.y2 = snap(v); renderItem(data); });
+        addProp('Damage', data.damage, v => { data.damage = Math.floor(Number(v) || 1); });
+        addProp('Interval (ms)', data.interval, v => { data.interval = Math.max(100, Math.floor(Number(v) || 800)); });
+    }
+    // Delete button
+    const delBtn = document.createElement('button');
+    delBtn.textContent = 'Delete';
+    delBtn.style.cssText = 'background:#c33;border-color:#a22;margin-top:4px;';
+    delBtn.addEventListener('click', () => removeItem(data));
+    propsPanel.appendChild(delBtn);
+}
 
-    <div id="info-bar">
-        <span id="info-pos">X: 0 Y: 0</span>
-        <span id="info-tool">Tool: Select</span>
-        <span id="info-items">Walls: 0 | Chests: 0 | Monsters: 0 | Decals: 0 | Traps: 0 | Portals: 0 | Beams: 0</span>
-    </div>
+function addProp(label, value, onChange, type) {
+    const lbl = document.createElement('label');
+    lbl.textContent = label;
+    const inp = document.createElement('input');
+    inp.type = type === 'text' ? 'text' : 'number';
+    inp.value = value;
+    inp.addEventListener('input', () => onChange(inp.value));
+    propsPanel.appendChild(lbl);
+    propsPanel.appendChild(inp);
+}
 
-    <script src="map-builder.js"></script>
-</body>
-</html>
+// Render helpers
+function renderItem(data) {
+    let el;
+    if (data.type === 'wall') {
+        el = document.querySelector(`.wall[data-id="${data._id}"]`);
+        if (el) {
+            el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+        }
+    } else if (data.type === 'chest') {
+        el = document.querySelector(`.chest[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;`;
+    } else if (data.type === 'monster') {
+        el = document.querySelector(`.monster-spawn[data-id="${data._id}"]`);
+        if (el) {
+            el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
+            el.textContent = data.count;
+        }
+    } else if (data.type === 'exit') {
+        el = document.querySelector(`.exit[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
+    } else if (data.type === 'entrance') {
+        el = document.querySelector(`.entrance[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
+    } else if (data.type === 'start') {
+        el = document.querySelector('.player-start');
+        if (el) el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
+    } else if (data.type === 'decal') {
+        el = document.querySelector(`.decal[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;background:${data.color};`;
+    } else if (data.type === 'trap') {
+        el = document.querySelector(`.trap[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+    } else if (data.type === 'teleport') {
+        el = document.querySelector(`.teleport[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
+    } else if (data.type === 'beam') {
+        el = document.querySelector(`.beam[data-id="${data._id}"]`);
+        if (el) {
+            const cx = (data.x1 + data.x2) / 2 - (Math.abs(data.x2 - data.x1) + 4) / 2;
+            const cy = (data.y1 + data.y2) / 2 - (Math.abs(data.y2 - data.y1) + 4) / 2;
+            const w = Math.abs(data.x2 - data.x1) + 4;
+            const h = Math.abs(data.y2 - data.y1) + 4;
+            el.style.cssText = `left:${cx}px;top:${cy}px;width:${w}px;height:${h}px;`;
+            el.style.transform = `rotate(${Math.atan2(data.y2 - data.y1, data.x2 - data.x1)}rad)`;
+        }
+    }
+    updateInfo();
+}
+
+// Create DOM element for a data item
+function createItemElement(data) {
+    let el;
+    if (data.type === 'wall') {
+        el = document.createElement('div');
+        el.className = 'wall';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+        gameWorld.appendChild(el);
+    } else if (data.type === 'chest') {
+        el = document.createElement('div');
+        el.className = 'chest';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x}px;top:${data.y}px;`;
+        gameWorld.appendChild(el);
+    } else if (data.type === 'monster') {
+        el = document.createElement('div');
+        el.className = 'monster-spawn';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
+        el.textContent = data.count;
+        gameWorld.appendChild(el);
+    } else if (data.type === 'exit') {
+        el = document.createElement('div');
+        el.className = 'exit';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
+        el.textContent = '→';
+        gameWorld.appendChild(el);
+    } else if (data.type === 'entrance') {
+        el = document.createElement('div');
+        el.className = 'entrance';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x - 20}px;top:${data.y - 20}px;`;
+        el.textContent = '←';
+        gameWorld.appendChild(el);
+    } else if (data.type === 'start') {
+        el = document.querySelector('.player-start');
+        if (!el) {
+            el = document.createElement('div');
+            el.className = 'player-start';
+            el.textContent = 'S';
+            gameWorld.appendChild(el);
+        }
+        el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
+    } else if (data.type === 'decal') {
+        el = document.createElement('div');
+        el.className = 'decal';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;background:${data.color};`;
+        gameWorld.appendChild(el);
+    } else if (data.type === 'trap') {
+        el = document.createElement('div');
+        el.className = 'trap';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+        gameWorld.appendChild(el);
+    } else if (data.type === 'teleport') {
+        el = document.createElement('div');
+        el.className = 'teleport';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
+        el.textContent = '◉';
+        gameWorld.appendChild(el);
+    } else if (data.type === 'beam') {
+        el = document.createElement('div');
+        el.className = 'beam';
+        el.dataset.id = data._id;
+        const cx = (data.x1 + data.x2) / 2;
+        const cy = (data.y1 + data.y2) / 2;
+        const w = Math.abs(data.x2 - data.x1) + 4;
+        const h = Math.abs(data.y2 - data.y1) + 4;
+        el.style.cssText = `left:${cx - w/2}px;top:${cy - h/2}px;width:${w}px;height:${h}px;`;
+        el.style.transform = `rotate(${Math.atan2(data.y2 - data.y1, data.x2 - data.x1)}rad)`;
+        gameWorld.appendChild(el);
+    }
+    if (el) {
+        el.addEventListener('mousedown', e => {
+            if (currentTool !== 'select') return;
+            e.stopPropagation();
+            selectItem(el, data);
+            isDragging = true;
+            dragItem = { el, data };
+            const rect = gameWorld.getBoundingClientRect();
+            const scale = rect.width / WORLD_SIZE;
+            dragOffX = (e.clientX - rect.left) / scale - data.x;
+            dragOffY = (e.clientY - rect.top) / scale - data.y;
+        });
+    }
+    return el;
+}
+
+// Add item to map data + DOM
+let nextId = 1;
+
+function addItem(data) {
+    data._id = nextId++;
+    if (data.type === 'wall') mapData.walls.push(data);
+    else if (data.type === 'chest') mapData.chests.push(data);
+    else if (data.type === 'monster') mapData.monsterSpawns.push(data);
+    else if (data.type === 'exit') { if (mapData.exit) removeItem(mapData.exit); mapData.exit = data; }
+    else if (data.type === 'entrance') { if (mapData.entrance) removeItem(mapData.entrance); mapData.entrance = data; }
+    else if (data.type === 'start') { if (mapData.playerStart) removeItem(mapData.playerStart); mapData.playerStart = data; }
+    else if (data.type === 'decal') mapData.decals.push(data);
+    else if (data.type === 'trap') mapData.traps.push(data);
+    else if (data.type === 'teleport') mapData.teleports.push(data);
+    else if (data.type === 'beam') mapData.beams.push(data);
+    createItemElement(data);
+    updateInfo();
+    return data;
+}
+
+// Remove item
+function removeItem(data) {
+    if (data.type === 'wall') mapData.walls = mapData.walls.filter(w => w !== data);
+    else if (data.type === 'chest') mapData.chests = mapData.chests.filter(c => c !== data);
+    else if (data.type === 'monster') mapData.monsterSpawns = mapData.monsterSpawns.filter(m => m !== data);
+    else if (data.type === 'exit') { mapData.exit = null; }
+    else if (data.type === 'entrance') { mapData.entrance = null; }
+    else if (data.type === 'start') { mapData.playerStart = { x: 2500, y: 2500 }; }
+    else if (data.type === 'decal') mapData.decals = mapData.decals.filter(d => d !== data);
+    else if (data.type === 'trap') mapData.traps = mapData.traps.filter(t => t !== data);
+    else if (data.type === 'teleport') mapData.teleports = mapData.teleports.filter(t => t !== data);
+    else if (data.type === 'beam') mapData.beams = mapData.beams.filter(b => b !== data);
+    const el = document.querySelector(`[data-id="${data._id}"]`) || document.querySelector('.player-start');
+    if (el) el.remove();
+    deselectAll();
+    updateInfo();
+    if (data.type === 'start') {
+        createItemElement(mapData.playerStart);
+    }
+}
+
+// Convert mouse/pointer coords to world coords
+function clientToWorld(clientX, clientY) {
+    const rect = gameWorld.getBoundingClientRect();
+    const scale = rect.width / WORLD_SIZE;
+    return {
+        x: (clientX - rect.left) / scale,
+        y: (clientY - rect.top) / scale
+    };
+}
+
+// Click handler
+gameWorld.addEventListener('mousedown', e => {
+    if (currentTool === 'select') return;
+    if (currentTool === 'pan') {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        return;
+    }
+    const pos = clientToWorld(e.clientX, e.clientY);
+    const sx = snap(pos.x);
+    const sy = snap(pos.y);
+
+    if (currentTool === 'wall') {
+        // Start rubber band
+        isDragging = true;
+        dragStartX = sx;
+        dragStartY = sy;
+        rubberBand = document.createElement('div');
+        rubberBand.className = 'rubber-band';
+        rubberBand.style.cssText = `left:${sx}px;top:${sy}px;width:0;height:0;`;
+        gameWorld.appendChild(rubberBand);
+    } else if (currentTool === 'chest') {
+        addItem({ type: 'chest', x: sx, y: sy });
+    } else if (currentTool === 'monster') {
+        addItem({ type: 'monster', x: sx, y: sy, count: 3 });
+    } else if (currentTool === 'exit') {
+        if (mapData.exit) removeItem(mapData.exit);
+        addItem({ type: 'exit', x: sx, y: sy, targetLevel: 2 });
+    } else if (currentTool === 'entrance') {
+        if (mapData.entrance) removeItem(mapData.entrance);
+        addItem({ type: 'entrance', x: sx, y: sy, targetLevel: 1 });
+    } else if (currentTool === 'start') {
+        if (mapData.playerStart) removeItem(mapData.playerStart);
+        addItem({ type: 'start', x: sx, y: sy });
+    } else if (currentTool === 'decal') {
+        addItem({ type: 'decal', x: sx, y: sy, width: 40, height: 40, color: '#888', layer: 'floor' });
+    } else if (currentTool === 'trap') {
+        isDragging = true;
+        dragStartX = sx;
+        dragStartY = sy;
+        rubberBand = document.createElement('div');
+        rubberBand.className = 'rubber-band';
+        rubberBand.style.cssText = `left:${sx}px;top:${sy}px;width:0;height:0;`;
+        gameWorld.appendChild(rubberBand);
+    } else if (currentTool === 'teleport') {
+        addItem({ type: 'teleport', x: sx, y: sy, id: Date.now(), targetId: 0 });
+    } else if (currentTool === 'beam') {
+        if (!beamStart) {
+            beamStart = { x: sx, y: sy };
+            setStatus('Click second endpoint');
+        } else {
+            addItem({ type: 'beam', x1: beamStart.x, y1: beamStart.y, x2: sx, y2: sy, damage: 5, interval: 800 });
+            beamStart = null;
+            setStatus('Ready');
+        }
+    }
+});
+
+gameWorld.addEventListener('mousemove', e => {
+    const pos = clientToWorld(e.clientX, e.clientY);
+    infoPos.textContent = `X: ${Math.round(pos.x)} Y: ${Math.round(pos.y)}  Grid: ${snap(pos.x)}, ${snap(pos.y)}`;
+
+    if (isDragging && currentTool === 'pan') {
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        const rect = gameWorld.getBoundingClientRect();
+        const scale = rect.width / WORLD_SIZE;
+        camTargetX -= dx / scale;
+        camTargetY -= dy / scale;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        updateCamera();
+        return;
+    }
+
+    if (isDragging && rubberBand) {
+        const sx = snap(pos.x);
+        const sy = snap(pos.y);
+        const x = Math.min(dragStartX, sx);
+        const y = Math.min(dragStartY, sy);
+        const w = Math.max(GRID, Math.abs(sx - dragStartX));
+        const h = Math.max(GRID, Math.abs(sy - dragStartY));
+        rubberBand.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
+    }
+
+    if (isDragging && dragItem) {
+        const nx = snap(pos.x - dragOffX);
+        const ny = snap(pos.y - dragOffY);
+        dragItem.data.x = Math.max(0, Math.min(WORLD_SIZE, nx));
+        dragItem.data.y = Math.max(0, Math.min(WORLD_SIZE, ny));
+        renderItem(dragItem.data);
+        if (selectedItem && selectedItem.data === dragItem.data) showProps(dragItem.data);
+    }
+});
+
+gameWorld.addEventListener('mouseup', e => {
+    if (currentTool === 'pan') {
+        isDragging = false;
+        dragItem = null;
+        return;
+    }
+    if (rubberBand) {
+        const pos = clientToWorld(e.clientX, e.clientY);
+        const sx = snap(pos.x);
+        const sy = snap(pos.y);
+        const x = Math.min(dragStartX, sx);
+        const y = Math.min(dragStartY, sy);
+        const w = Math.max(GRID, Math.abs(sx - dragStartX));
+        const h = Math.max(GRID, Math.abs(sy - dragStartY));
+        if (w >= GRID && h >= GRID) {
+            if (currentTool === 'wall') addItem({ type: 'wall', x, y, width: w, height: h });
+            else if (currentTool === 'trap') addItem({ type: 'trap', x, y, width: w, height: h, damage: 10 });
+        }
+        rubberBand.remove();
+        rubberBand = null;
+    }
+    isDragging = false;
+    dragItem = null;
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedItem) {
+            removeItem(selectedItem.data);
+            e.preventDefault();
+        }
+    }
+    if (e.key === '1') setTool('select');
+    if (e.key === '2') setTool('wall');
+    if (e.key === '3') setTool('chest');
+    if (e.key === '4') setTool('monster');
+    if (e.key === '5') setTool('exit');
+    if (e.key === '6') setTool('entrance');
+    if (e.key === '7') setTool('start');
+    if (e.key === '8') setTool('pan');
+    if (e.key === '9') setTool('decal');
+    if (e.key === '0') setTool('trap');
+    if (e.key === '-') setTool('teleport');
+    if (e.key === '=') setTool('beam');
+});
+
+function updateInfo() {
+    infoItems.textContent = `Walls: ${mapData.walls.length} | Chests: ${mapData.chests.length} | Monsters: ${mapData.monsterSpawns.length} | Decals: ${mapData.decals.length} | Traps: ${mapData.traps.length} | Portals: ${mapData.teleports.length} | Beams: ${mapData.beams.length}`;
+}
+
+
+function setStatus(msg) {
+    statusEl.textContent = msg;
+}
+
+// Camera with pan support
+let camTargetX = WORLD_SIZE / 2;
+let camTargetY = WORLD_SIZE / 2;
+
+function updateCamera() {
+    const scale = Math.min(window.innerWidth / 800, window.innerHeight / 900);
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${scale}) translate(${-camTargetX}px, ${-camTargetY}px)`;
+}
+
+function centerCamera() {
+    camTargetX = WORLD_SIZE / 2;
+    camTargetY = WORLD_SIZE / 2;
+    updateCamera();
+}
+
+window.addEventListener('resize', updateCamera);
+updateCamera();
+
+// Save / Load / New
+document.getElementById('btn-new').addEventListener('click', () => {
+    if (!confirm('Clear the map? Unsaved changes will be lost.')) return;
+    clearAll();
+    mapData = {
+        name: '',
+        level: Number(levelInput.value) || 1,
+        playerStart: { x: 2500, y: 2500 },
+        walls: [],
+        chests: [],
+        monsterSpawns: [],
+        exit: null,
+        entrance: null,
+        decals: [],
+        traps: [],
+        teleports: [],
+        beams: []
+    };
+    addItem({ type: 'start', x: mapData.playerStart.x, y: mapData.playerStart.y });
+    setStatus('New map');
+});
+
+document.getElementById('btn-save').addEventListener('click', async () => {
+    mapData.name = nameInput.value;
+    mapData.level = Number(levelInput.value) || 1;
+    const payload = {
+        level: mapData.level,
+        name: mapData.name,
+        data: {
+            playerStart: mapData.playerStart,
+            walls: mapData.walls.map(w => ({ x: w.x, y: w.y, width: w.width, height: w.height })),
+            chests: mapData.chests.map(c => ({ x: c.x, y: c.y })),
+            monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count })),
+            exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
+            entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null,
+            decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer })),
+            traps: mapData.traps.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage })),
+            teleports: mapData.teleports.map(t => ({ x: t.x, y: t.y, id: t.id, targetId: t.targetId })),
+            beams: mapData.beams.map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval }))
+        }
+    };
+    setStatus('Saving...');
+    try {
+        const res = await fetch('/api/game/maps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        setStatus('Saved!');
+        setTimeout(() => setStatus('Ready'), 2000);
+    } catch (e) {
+        setStatus('Error: ' + e.message);
+    }
+});
+
+document.getElementById('btn-load').addEventListener('click', async () => {
+    const level = Number(levelInput.value) || 1;
+    setStatus('Loading...');
+    try {
+        const res = await fetch(`/api/game/maps/${level}`);
+        if (res.status === 404) {
+            setStatus('Map not found — create a new one');
+            return;
+        }
+        if (!res.ok) throw new Error((await res.json()).error);
+        const row = await res.json();
+        const d = row.data;
+        clearAll();
+        mapData = {
+            name: row.name || '',
+            level: row.level,
+            playerStart: d.playerStart || { x: 2500, y: 2500 },
+            walls: [],
+            chests: [],
+            monsterSpawns: [],
+            exit: null,
+            entrance: null,
+            decals: [],
+            traps: [],
+            teleports: [],
+            beams: []
+        };
+        if (d.walls) d.walls.forEach(w => addItem({ type: 'wall', x: w.x, y: w.y, width: w.width, height: w.height }));
+        if (d.chests) d.chests.forEach(c => addItem({ type: 'chest', x: c.x, y: c.y }));
+        if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count }));
+        if (d.exit) addItem({ type: 'exit', x: d.exit.x, y: d.exit.y, targetLevel: d.exit.targetLevel });
+        if (d.entrance) addItem({ type: 'entrance', x: d.entrance.x, y: d.entrance.y, targetLevel: d.entrance.targetLevel });
+        if (d.decals) d.decals.forEach(x => addItem({ type: 'decal', x: x.x, y: x.y, width: x.width, height: x.height, color: x.color, layer: x.layer }));
+        if (d.traps) d.traps.forEach(x => addItem({ type: 'trap', x: x.x, y: x.y, width: x.width, height: x.height, damage: x.damage }));
+        if (d.teleports) d.teleports.forEach(x => addItem({ type: 'teleport', x: x.x, y: x.y, id: x.id, targetId: x.targetId }));
+        if (d.beams) d.beams.forEach(x => addItem({ type: 'beam', x1: x.x1, y1: x.y1, x2: x.x2, y2: x.y2, damage: x.damage, interval: x.interval }));
+        addItem({ type: 'start', x: mapData.playerStart.x, y: mapData.playerStart.y });
+        nameInput.value = mapData.name;
+        levelInput.value = mapData.level;
+        setStatus('Loaded level ' + level);
+    } catch (e) {
+        setStatus('Error: ' + e.message);
+    }
+});
+
+function clearAll() {
+    document.querySelectorAll('.wall, .chest, .monster-spawn, .exit, .entrance, .decal, .trap, .teleport, .beam').forEach(el => el.remove());
+    const ps = document.querySelector('.player-start');
+    if (ps) ps.remove();
+    deselectAll();
+    mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 }, decals: [], traps: [], teleports: [], beams: [] };
+}
+
+// Initial: show player start marker
+addItem({ type: 'start', x: mapData.playerStart.x, y: mapData.playerStart.y });
+setStatus('Ready — start building!');
