@@ -350,7 +350,10 @@ async function loadLevel(level, spawnAt) {
             for (const dc of d.decals) {
                 const el = document.createElement('div');
                 el.className = 'decal';
-                el.style.cssText = `left:${dc.x}px;top:${dc.y}px;width:${dc.width}px;height:${dc.height}px;background:${dc.color};opacity:0.7;position:absolute;pointer-events:none;z-index:${dc.layer === 'wall' ? 3 : 1};`;
+                let css = `left:${dc.x}px;top:${dc.y}px;width:${dc.width}px;height:${dc.height}px;opacity:0.7;position:absolute;pointer-events:none;z-index:${dc.layer === 'wall' ? 3 : 1};`;
+                if (dc.image) css += `background-image:url(${dc.image});background-size:cover;background-position:center;`;
+                else css += `background:${dc.color};`;
+                el.style.cssText = css;
                 map.appendChild(el);
                 decals.push(el);
             }
