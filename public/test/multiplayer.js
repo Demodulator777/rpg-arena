@@ -292,6 +292,9 @@ function applyState(msg) {
   // Update local player
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
+      if (Math.abs(myPlayer.x - sp.x) > 100 || Math.abs(myPlayer.y - sp.y) > 100) {
+          console.log('Player jumped significantly', myPlayer.x, sp.x, myPlayer.y, sp.y);
+      }
       myPlayer = sp;
       playerEl.style.left = sp.x + 'px';
       playerEl.style.top = sp.y + 'px';
@@ -386,27 +389,26 @@ function showMessage(text) {
 }
 
 // ---- Camera ----
+const REF_W = 400;
+const REF_H = 700;
+
 function updateCamera() {
   if (!myPlayer) return;
-  const cx = window.innerWidth / 2 - myPlayer.x * worldScale;
-  const cy = window.innerHeight / 2 - myPlayer.y * worldScale;
-  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale})`;
+  worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-myPlayer.x}px, ${-myPlayer.y}px)`;
 }
-
-window.addEventListener('wheel', (e) => {
-  worldScale = Math.max(0.2, Math.min(4, worldScale - e.deltaY * 0.001));
-  e.preventDefault();
-}, { passive: false });
 
 // ---- Fog ----
 function updateFog() {
   if (!myPlayer) return;
   const fogEl = document.getElementById('fog');
   if (!fogEl) return;
-  const fogRadius = 180 / worldScale;
+  const fogRadius = 250 * worldScale; // Increased to match map-walk
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
-  fogEl.style.cssText = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 50%,rgba(0,0,0,0.4) 65%,rgba(0,0,0,0.8) 80%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 50%,rgba(0,0,0,0.4) 65%,rgba(0,0,0,0.8) 80%,#000 90%,#000 100%);`;
+  fogEl.style.cssText = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%)`;
 }
 
 // ---- Input ----
