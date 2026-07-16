@@ -28,6 +28,10 @@ let playerWY = 2500;
 
 let dx = 0, dy = 0;
 const speed = 0.1; // px per ms (was 1.75 px/frame at ~60fps)
+
+// Screen shake
+let shakeUntil = 0;
+let shakeIntensity = 0;
 const walls = [];
 
 // Map data from DB
@@ -721,10 +725,6 @@ function update(timestamp) {
             }
         }
     }
-
-// Screen shake
-let shakeUntil = 0;
-let shakeIntensity = 0;
 
 function triggerShake(intensity) {
     shakeUntil = Date.now() + 200;
