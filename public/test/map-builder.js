@@ -2,6 +2,7 @@ const GRID = 20;
 const WORLD_SIZE = 5000;
 
 let currentTool = 'select';
+let monsterType = 'melee';
 let mapData = {
     name: '',
     level: 1,
@@ -62,7 +63,10 @@ function setTool(tool) {
     deselectAll();
     document.querySelectorAll('#toolbar button[data-tool]').forEach(b =>
         b.classList.toggle('active', b.dataset.tool === tool));
-    document.getElementById('info-tool').textContent = `Tool: ${tool.charAt(0).toUpperCase() + tool.slice(1)}`;
+    const monsterSelect = document.getElementById('btn-monster');
+    if (monsterSelect) monsterSelect.style.outline = tool === 'monster' ? '2px solid #4a7' : 'none';
+    const toolName = tool === 'monster' ? `Monster (${monsterType})` : tool.charAt(0).toUpperCase() + tool.slice(1);
+    document.getElementById('info-tool').textContent = `Tool: ${toolName}`;
     const cursors = { select: 'default', pan: 'grab', wall: 'crosshair', chest: 'crosshair', monster: 'crosshair', exit: 'crosshair', entrance: 'crosshair', start: 'crosshair', decal: 'crosshair', trap: 'crosshair', teleport: 'crosshair', beam: 'crosshair' };
     gameWorld.style.cursor = cursors[tool] || 'crosshair';
     propsPanel.style.display = 'none';
@@ -70,6 +74,11 @@ function setTool(tool) {
 
 document.querySelectorAll('#toolbar button[data-tool]').forEach(btn =>
     btn.addEventListener('click', () => setTool(btn.dataset.tool)));
+
+document.getElementById('btn-monster').addEventListener('change', function() {
+    monsterType = this.value;
+    setTool('monster');
+});
 
 // Selection
 function deselectAll() {
@@ -461,7 +470,7 @@ gameWorld.addEventListener('mousedown', e => {
     } else if (currentTool === 'chest') {
         addItem({ type: 'chest', x: sx, y: sy });
     } else if (currentTool === 'monster') {
-        addItem({ type: 'monster', x: sx, y: sy, count: 3, monsterType: 'melee' });
+        addItem({ type: 'monster', x: sx, y: sy, count: 3, monsterType: monsterType });
     } else if (currentTool === 'exit') {
         if (mapData.exit) removeItem(mapData.exit);
         addItem({ type: 'exit', x: sx, y: sy, targetLevel: 2 });
@@ -568,7 +577,7 @@ document.addEventListener('keydown', e => {
     if (e.key === '1') setTool('select');
     if (e.key === '2') setTool('wall');
     if (e.key === '3') setTool('chest');
-    if (e.key === '4') setTool('monster');
+    if (e.key === '4') { setTool('monster'); document.getElementById('btn-monster').focus(); }
     if (e.key === '5') setTool('exit');
     if (e.key === '6') setTool('entrance');
     if (e.key === '7') setTool('start');
