@@ -343,6 +343,7 @@ async function loadLevel(level, spawnAt) {
                     let my = sp.y + (Math.random() - 0.5) * 60;
                     mx = Math.max(20, Math.min(5000 - 20, mx));
                     my = Math.max(20, Math.min(5000 - 20, my));
+                    const monsterType = sp.monsterType || 'melee';
                     const el = document.createElement('div');
                     el.className = 'monster';
                     el.style.left = mx + 'px';
@@ -357,7 +358,6 @@ async function loadLevel(level, spawnAt) {
                     hpBar.appendChild(hpFill);
                     el.appendChild(hpBar);
                     map.appendChild(el);
-                    const monsterType = sp.monsterType || 'melee';
                     monsters.push({
                         x: mx, y: my, spawnX: sp.x, spawnY: sp.y,
                         type: monsterType,
