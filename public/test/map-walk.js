@@ -5,6 +5,7 @@ const playerSprite = document.getElementById('playerSprite');
 const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 const actionBtn = document.getElementById('action-btn');
+const scanBtn = document.getElementById('scan-btn');
 const interactPrompt = document.getElementById('interact-prompt');
 const levelLabel = document.getElementById('level-label');
 const loadingEl = document.getElementById('loading');
@@ -110,6 +111,7 @@ window.addEventListener('keydown', (e) => {
     if (e.key === ' ') { e.preventDefault(); openNearChest(); return; }
     if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
     if (e.key === 'z' || e.key === 'Z') triggerBurst();
+    if (e.key === 'x' || e.key === 'X') triggerScan();
     updateInput();
 });
 window.addEventListener('keyup', (e) => {
@@ -367,14 +369,14 @@ async function loadLevel(level, spawnAt) {
             }
         }
 
-        // Traps
+        // Traps (hidden until scanned)
         if (d.traps) {
             for (const tr of d.traps) {
                 const el = document.createElement('div');
                 el.className = 'trap-zone';
-                el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;position:absolute;background:rgba(255,0,0,0.08);border:1px dashed rgba(255,0,0,0.3);pointer-events:none;z-index:2;`;
+                el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;position:absolute;background:rgba(255,0,0,0.08);border:1px dashed rgba(255,0,0,0.3);pointer-events:none;z-index:2;opacity:0;`;
                 map.appendChild(el);
-                traps.push({ x: tr.x, y: tr.y, w: tr.width, h: tr.height, damage: tr.damage || 10 });
+                traps.push({ x: tr.x, y: tr.y, w: tr.width, h: tr.height, damage: tr.damage || 10, el });
                 trapTimers.push(0);
             }
         }
@@ -400,7 +402,7 @@ async function loadLevel(level, spawnAt) {
                 const cy = (bm.y1 + bm.y2) / 2;
                 const w = Math.abs(bm.x2 - bm.x1) + 6;
                 const h = Math.abs(bm.y2 - bm.y1) + 6;
-                el.style.cssText = `left:${cx - w/2}px;top:${cy - h/2}px;width:${w}px;height:${h}px;position:absolute;background:rgba(255,255,0,0.08);border:1px solid rgba(255,255,0,0.2);pointer-events:none;z-index:2;transform-origin:center;transform:rotate(${Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1)}rad);`;
+                el.style.cssText = `left:${cx - w/2}px;top:${cy - h/2}px;width:${w}px;height:${h}px;position:absolute;pointer-events:none;z-index:2;transform-origin:center;transform:rotate(${Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1)}rad);`;
                 map.appendChild(el);
                 beams.push({ x1: bm.x1, y1: bm.y1, x2: bm.x2, y2: bm.y2, damage: bm.damage || 5, interval: bm.interval || 800, lastDmg: 0, el });
             }
@@ -547,6 +549,8 @@ function update(timestamp) {
             setWalkFrame(ROW[dir], 0);
         }
     }
+
+    updateScanDisplay();
 
     // Monster AI
     for (const m of monsters) {
@@ -733,7 +737,50 @@ function update(timestamp) {
     requestAnimationFrame(update);
 }
 
+// Scan
+const SCAN_COOLDOWN = 30000;
+const SCAN_RADIUS = 150;
+const SCAN_REVEAL_MS = 3000;
+let scanCooldownUntil = 0;
+let trapRevealUntil = 0;
+
+function triggerScan() {
+    const now = Date.now();
+    if (now < scanCooldownUntil) return;
+    scanCooldownUntil = now + SCAN_COOLDOWN;
+    trapRevealUntil = now + SCAN_REVEAL_MS;
+    scanBtn.disabled = true;
+    scanBtn.textContent = Math.ceil(SCAN_COOLDOWN / 1000) + 's';
+    // Reveal traps within range
+    for (const tr of traps) {
+        if (!tr.el) continue;
+        const cx = tr.x + tr.w / 2;
+        const cy = tr.y + tr.h / 2;
+        const d = Math.hypot(playerWX - cx, playerWY - cy);
+        tr.el.style.opacity = d <= SCAN_RADIUS ? '1' : '0';
+    }
+}
+
+// Update scan cooldown display + trap visibility
+function updateScanDisplay() {
+    const now = Date.now();
+    if (now >= trapRevealUntil && trapRevealUntil > 0) {
+        trapRevealUntil = 0;
+        for (const tr of traps) {
+            if (tr.el) tr.el.style.opacity = '0';
+        }
+    }
+    if (scanCooldownUntil > now) {
+        const remaining = Math.ceil((scanCooldownUntil - now) / 1000);
+        scanBtn.textContent = remaining + 's';
+    } else {
+        scanBtn.disabled = false;
+        scanBtn.textContent = 'SCAN';
+    }
+}
+
 actionBtn.addEventListener('pointerdown', triggerBurst);
+scanBtn.addEventListener('pointerdown', triggerScan);
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
