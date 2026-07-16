@@ -321,13 +321,19 @@ function showMessage(text) {
 }
 
 // ---- Camera ----
+let worldScale = 1;
+
 function updateCamera() {
   if (!myPlayer) return;
-  const scale = Math.min(window.innerWidth / WORLD_SIZE, window.innerHeight / WORLD_SIZE) * 2;
-  const cx = window.innerWidth / 2 - myPlayer.x * scale;
-  const cy = window.innerHeight / 2 - myPlayer.y * scale;
-  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${scale})`;
+  const cx = window.innerWidth / 2 - myPlayer.x * worldScale;
+  const cy = window.innerHeight / 2 - myPlayer.y * worldScale;
+  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale})`;
 }
+
+window.addEventListener('wheel', (e) => {
+  worldScale = Math.max(0.2, Math.min(4, worldScale - e.deltaY * 0.001));
+  e.preventDefault();
+}, { passive: false });
 
 // ---- Input ----
 function sendInput() {
