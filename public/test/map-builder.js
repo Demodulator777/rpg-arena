@@ -594,7 +594,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count })),
             exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
             entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null,
-            decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer })),
+            decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer, image: d.image || null })),
             traps: mapData.traps.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage })),
             teleports: mapData.teleports.map(t => ({ x: t.x, y: t.y, id: t.id, targetId: t.targetId })),
             beams: mapData.beams.map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval }))
