@@ -782,6 +782,7 @@ function spawnExplosion(x, y) {
             bm.lastDmg = now;
             spawnExplosion(px, py);
             triggerShake(12);
+            bm.animOffset = -(now % (bm.interval * 3)) - 100; // reset particle to beam start
             if (playerHP <= 0) {
                 playerWX = mapInfo.playerStart.x;
                 playerWY = mapInfo.playerStart.y;
