@@ -34,7 +34,7 @@ const WORLD_SIZE = 5000;
 function connectToRoom(code, level, name, isCreate) {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = location.host;
-  ws = new WebSocket(`${proto}//${host}`);
+  ws = new WebSocket(`${proto}//${host}/ws`);
 
   ws.onopen = () => {
     if (isCreate) {
@@ -52,6 +52,11 @@ function connectToRoom(code, level, name, isCreate) {
   ws.onclose = () => {
     lobbyError.textContent = 'Disconnected';
     lobby.classList.remove('hide');
+  };
+
+  ws.onerror = (e) => {
+    console.error('WebSocket error:', e);
+    lobbyError.textContent = 'Connection failed — check server';
   };
 }
 
