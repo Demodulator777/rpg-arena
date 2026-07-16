@@ -339,9 +339,15 @@ async function loadLevel(level, spawnAt) {
         if (mapInfo.exit) {
             exitEl = document.createElement('div');
             exitEl.id = 'exit-zone';
-            exitEl.textContent = '→';
             exitEl.style.cssText = `left:${mapInfo.exit.x - 30}px;top:${mapInfo.exit.y - 30}px;`;
             map.appendChild(exitEl);
+        }
+        // Entrance zone (backward)
+        if (mapInfo.entrance) {
+            entranceEl = document.createElement('div');
+            entranceEl.id = 'entrance-zone';
+            entranceEl.style.cssText = `left:${mapInfo.entrance.x - 30}px;top:${mapInfo.entrance.y - 30}px;border-color:#a6a;`;
+            map.appendChild(entranceEl);
         }
 
         // Entrance zone (backward)
