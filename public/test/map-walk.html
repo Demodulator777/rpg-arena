@@ -27,6 +27,13 @@
         #interact-prompt { display: none; position: fixed; z-index: 100; padding: 6px 16px; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; font-size: 14px; font-weight: bold; pointer-events: auto; cursor: pointer; transform: translate(-50%, -100%); white-space: nowrap; }
         #interact-prompt.show { display: block; }
 
+        #message { display: none; position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid #f0c840; border-radius: 8px; padding: 8px 20px; font-size: 15px; color: #f0c840; z-index: 300; white-space: nowrap; pointer-events: none; }
+        #message.show { display: block; }
+
+        #inventory-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,20,20,0.95); border: 1px solid #555; border-radius: 8px; padding: 16px; z-index: 250; min-width: 220px; color: #eee; font-size: 14px; }
+        #inventory-panel.show { display: block; }
+        .inv-row { display: flex; align-items: center; margin: 4px 0; }
+
         #joystick-area { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); left: max(60px, env(safe-area-inset-left)); width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; z-index: 200; }
         #joystick-knob { position: absolute; width: 64px; height: 64px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 43px; left: 43px; }
 
@@ -49,6 +56,10 @@
         @keyframes pulse-teleport { 0%,100% { opacity: 0.6; box-shadow: 0 0 8px rgba(100,200,255,0.3); } 50% { opacity: 1; box-shadow: 0 0 20px rgba(100,200,255,0.6); } }
 
         #fog { position: fixed; inset: 0; z-index: 50; pointer-events: none; background: #000; }
+
+        #scan-field { position: absolute; border-radius: 50%; pointer-events: none; z-index: 8; border: 3px solid rgba(100,200,255,0.6); box-shadow: 0 0 30px rgba(100,200,255,0.2), inset 0 0 30px rgba(100,200,255,0.05); opacity: 0; transition: opacity 0.3s; }
+        #scan-field.show { opacity: 1; animation: scan-pulse 1.5s ease-in-out infinite; }
+        @keyframes scan-pulse { 0%,100% { border-color: rgba(100,200,255,0.4); box-shadow: 0 0 20px rgba(100,200,255,0.15), inset 0 0 20px rgba(100,200,255,0.03); } 50% { border-color: rgba(100,200,255,0.8); box-shadow: 0 0 40px rgba(100,200,255,0.3), inset 0 0 40px rgba(100,200,255,0.08); } }
 
         #loading { display: flex; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; font-size: 20px; color: #aaa; }
         #loading.hide { display: none; }
@@ -78,6 +89,7 @@
     <div id="game-container">
         <div id="game-world">
             <div id="map"></div>
+            <div id="scan-field"></div>
             <div id="player"><div class="player-sprite" id="playerSprite"></div></div>
         </div>
         <div id="player-hp-outer"><div id="player-hp-inner"></div></div>
@@ -89,7 +101,9 @@
         <button id="scan-btn">SCAN</button>
         <div id="loading">Loading level...</div>
         <div id="fog"></div>
-        <div id="controls-hint"><span>WASD / Arrows = Move&nbsp;&nbsp;|&nbsp;&nbsp;Z = Burst&nbsp;&nbsp;|&nbsp;&nbsp;Space = Open</span><button class="hide-btn" id="hide-hint">✕</button></div>
+        <div id="controls-hint"><span>WASD / Arrows = Move&nbsp;&nbsp;|&nbsp;&nbsp;Z = Burst&nbsp;&nbsp;|&nbsp;&nbsp;Space = Open&nbsp;&nbsp;|&nbsp;&nbsp;I = Inventory</span><button class="hide-btn" id="hide-hint">✕</button></div>
+        <div id="message"></div>
+        <div id="inventory-panel"></div>
     </div>
     <script src="map-walk.js"></script>
 </body>
