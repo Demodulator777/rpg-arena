@@ -170,6 +170,25 @@ function monsterWallHit(mx, my) {
     );
 }
 
+function pushOutOfWall(m) {
+    if (!monsterWallHit(m.x, m.y)) return;
+    const dirs = [
+        [0,-1],[0,1],[-1,0],[1,0],
+        [-1,-1],[1,-1],[-1,1],[1,1]
+    ];
+    for (let step = 2; step <= 30; step += 2) {
+        for (const [dx, dy] of dirs) {
+            const nx = m.x + dx * step;
+            const ny = m.y + dy * step;
+            if (!monsterWallHit(nx, ny)) {
+                m.x = Math.max(20, Math.min(5000 - 20, nx));
+                m.y = Math.max(20, Math.min(5000 - 20, ny));
+                return;
+            }
+        }
+    }
+}
+
 
 function hasLineOfSight(x1, y1, x2, y2) {
     const dx = x2 - x1;
@@ -339,6 +358,7 @@ async function loadLevel(level, spawnAt) {
                         attackTimer: 2000 + Math.random() * 3000, hitTimer: 0,
                         animFrame: 0, animTimer: 0
                     });
+                    pushOutOfWall(monsters[monsters.length - 1]);
                 }
             }
         }
@@ -633,6 +653,7 @@ function update(timestamp) {
     }
     // Per-monster rendering
     for (const m of monsters) {
+        pushOutOfWall(m);
         m.el.style.left = m.x + 'px';
         m.el.style.top = m.y + 'px';
 
