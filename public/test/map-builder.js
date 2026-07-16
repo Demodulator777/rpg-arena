@@ -598,6 +598,7 @@ const bgRemoveBtn = document.getElementById('btn-bg-remove');
 
 function applyBackgroundImage(url) {
     const bg = document.getElementById('map-bg');
+    if (!bg) return;
     if (url) {
         bg.style.background = `url(${url}) repeat`;
         bg.style.backgroundSize = 'auto';
@@ -730,12 +731,12 @@ document.getElementById('btn-load').addEventListener('click', async () => {
         // Restore background
         if (mapData.backgroundImage) {
             applyBackgroundImage(mapData.backgroundImage);
-            bgRemoveBtn.style.display = '';
-            bgBtn.textContent = 'Bg ✓';
+            if (bgRemoveBtn) bgRemoveBtn.style.display = '';
+            if (bgBtn) bgBtn.textContent = 'Bg ✓';
         } else {
             applyBackgroundImage(null);
-            bgRemoveBtn.style.display = 'none';
-            bgBtn.textContent = 'Bg';
+            if (bgRemoveBtn) bgRemoveBtn.style.display = 'none';
+            if (bgBtn) bgBtn.textContent = 'Bg';
         }
         nameInput.value = mapData.name;
         levelInput.value = mapData.level;
@@ -752,8 +753,8 @@ function clearAll() {
     deselectAll();
     mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 }, decals: [], traps: [], teleports: [], beams: [], backgroundImage: null };
     applyBackgroundImage(null);
-    bgRemoveBtn.style.display = 'none';
-    bgBtn.textContent = 'Bg';
+    if (bgRemoveBtn) bgRemoveBtn.style.display = 'none';
+    if (bgBtn) bgBtn.textContent = 'Bg';
 }
 
 // Initial: show player start marker
