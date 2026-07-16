@@ -170,6 +170,14 @@ function monsterWallHit(mx, my) {
     );
 }
 
+function monsterStackHit(mx, my, excludeIdx) {
+    return monsters.some((m, i) =>
+        i !== excludeIdx && m.hp > 0 &&
+        Math.abs(mx - m.x) < 36 &&
+        Math.abs(my - m.y) < 36
+    );
+}
+
 function hasLineOfSight(x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -581,7 +589,8 @@ function update(timestamp) {
     updateScanDisplay();
 
     // Monster AI
-    for (const m of monsters) {
+    for (let mi = 0; mi < monsters.length; mi++) {
+        const m = monsters[mi];
         if (m.hp <= 0) continue;
         const dist = Math.hypot(playerWX - m.x, playerWY - m.y);
 
@@ -593,8 +602,8 @@ function update(timestamp) {
             const mStep = MONSTER_SPEED * dt;
             const sx = Math.cos(a) * mStep;
             const sy = Math.sin(a) * mStep;
-            if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
-            if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
+            if (!monsterWallHit(m.x + sx, m.y) && !monsterStackHit(m.x + sx, m.y, mi)) m.x += sx;
+            if (!monsterWallHit(m.x, m.y + sy) && !monsterStackHit(m.x, m.y + sy, mi)) m.y += sy;
         } else {
             const d = Math.hypot(m.spawnX - m.x, m.spawnY - m.y);
             if (d > 1) {
@@ -602,8 +611,8 @@ function update(timestamp) {
                 const mStep = MONSTER_SPEED * dt;
                 const sx = Math.cos(a) * mStep;
                 const sy = Math.sin(a) * mStep;
-                if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
-                if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
+                if (!monsterWallHit(m.x + sx, m.y) && !monsterStackHit(m.x + sx, m.y, mi)) m.x += sx;
+                if (!monsterWallHit(m.x, m.y + sy) && !monsterStackHit(m.x, m.y + sy, mi)) m.y += sy;
             }
         }
         m.x = Math.max(20, Math.min(5000 - 20, m.x));
