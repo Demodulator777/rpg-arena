@@ -19,6 +19,10 @@
         .chest::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 8px; height: 6px; background: #8b5e3c; border-radius: 2px; box-shadow: 0 0 4px #f0c840; }
         .chest.found { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
         
+        .shop { position: absolute; width: 36px; height: 36px; background: #484; border: 2px solid #6a6; border-radius: 6px; z-index: 5; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; pointer-events: auto; animation: pulse-shop 2s ease-in-out infinite; }
+        .shop::before { content: '$'; font-weight: bold; }
+        @keyframes pulse-shop { 0%,100% { box-shadow: 0 0 8px rgba(80,180,80,0.3); } 50% { box-shadow: 0 0 20px rgba(80,180,80,0.6); } }
+        
         .monster { position: absolute; width: 40px; height: 40px; background-repeat: no-repeat; background-size: 500% 500%; background-position: 0% 0%; z-index: 5; }
         .monster.dead { display: none; }
         .monster-hp { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; background: #222; border: 1px solid #111; border-radius: 2px; z-index: 6; overflow: hidden; }
@@ -34,6 +38,14 @@
         #inventory-panel.show { display: block; }
         .inv-row { display: flex; align-items: center; margin: 4px 0; }
 
+        #shop-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,20,20,0.95); border: 2px solid #6a6; border-radius: 8px; padding: 16px; z-index: 260; min-width: 240px; color: #eee; font-size: 14px; }
+        #shop-panel.show { display: block; }
+        #shop-panel h3 { margin: 0 0 10px 0; color: #8c8; }
+        .shop-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #333; }
+        .shop-item:last-child { border-bottom: none; }
+        .shop-item button { background: #484; border: 1px solid #6a6; color: #fff; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .shop-item button:disabled { background: #444; border-color: #555; cursor: default; }
+
         #joystick-area { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); left: max(60px, env(safe-area-inset-left)); width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; z-index: 200; }
         #joystick-knob { position: absolute; width: 64px; height: 64px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 43px; left: 43px; }
 
@@ -43,6 +55,9 @@
 
         #player-hp-outer { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 200px; height: 16px; background: #222; border: 2px solid #555; border-radius: 8px; z-index: 200; overflow: hidden; }
         #player-hp-inner { height: 100%; background: #e33; border-radius: 6px; width: 100%; }
+
+        #inv-btn { position: fixed; top: max(16px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: 44px; height: 44px; background: rgba(30,30,30,0.85); border: 2px solid #888; border-radius: 8px; color: #eee; font-size: 18px; z-index: 200; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        #inv-btn:hover { background: rgba(50,50,50,0.9); border-color: #aaa; }
 
         #level-label { position: fixed; top: max(20px, env(safe-area-inset-top)); left: max(10px, env(safe-area-inset-left)); background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 14px; z-index: 200; pointer-events: none; }
         #level-selector { position: fixed; top: max(20px, env(safe-area-inset-top)); left: max(160px, env(safe-area-inset-left)); z-index: 200; display: flex; gap: 4px; align-items: center; }
@@ -99,11 +114,13 @@
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
         <button id="scan-btn">SCAN</button>
+        <button id="inv-btn">Inv</button>
         <div id="loading">Loading level...</div>
         <div id="fog"></div>
         <div id="controls-hint"><span>WASD / Arrows = Move&nbsp;&nbsp;|&nbsp;&nbsp;Z = Burst&nbsp;&nbsp;|&nbsp;&nbsp;Space = Open&nbsp;&nbsp;|&nbsp;&nbsp;I = Inventory</span><button class="hide-btn" id="hide-hint">✕</button></div>
         <div id="message"></div>
         <div id="inventory-panel"></div>
+        <div id="shop-panel"></div>
     </div>
     <script src="map-walk.js"></script>
 </body>
