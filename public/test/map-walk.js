@@ -18,6 +18,7 @@ const levelGo = document.getElementById('level-go');
 // Preload burst + monster sprites so first use isn't blank
 (new Image()).src = '/images/assets/roguelike1.png';
 (new Image()).src = '/images/assets/goblin.png';
+(new Image()).src = '/images/assets/archergoblin.png';
 
 // Camera - always shows ~400 world units horizontally
 const REF_W = 400;
@@ -52,6 +53,11 @@ const MONSTER_ATTACK_FRAMES = [
     { row: 50, col: 75 }, { row: 50, col: 100 },
     { row: 75, col: 0 },  { row: 75, col: 25 }
 ];
+const ARCHER_ATTACK_FRAMES = [
+    { row: 25, col: 0 },  { row: 25, col: 25 },
+    { row: 25, col: 50 }, { row: 25, col: 75 },
+    { row: 0, col: 100 }
+];
 const MONSTER_ANIM_MS = 150;
 const monsters = [];
 let playerHP = 100;
@@ -69,6 +75,7 @@ let teleports = [];
 let teleportCooldown = 0;
 let beams = [];
 let lastBeamDmg = 0;
+let rangedProjectiles = [];
 
 function checkOverlap(ax, ay, ahw, ahh, bx, by, bhw, bhh) {
     return Math.abs(ax - bx) < ahw + bhw && Math.abs(ay - by) < ahh + bhh;
@@ -245,19 +252,16 @@ async function loadLevel(level, spawnAt) {
     loadingEl.classList.remove('hide');
     try {
         // Clear existing
-        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line, .beam-particle, .beam-orbiter').forEach(el => el.remove());
+        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line, .beam-particle, .beam-orbiter, .range-projectile').forEach(el => el.remove());
         walls.length = 0;
         chests.length = 0;
         monsters.length = 0;
-        nearChest = null;
-        exitEl = null;
-        entranceEl = null;
-        interactPrompt.classList.remove('show');
         decals.length = 0;
         traps.length = 0;
         trapTimers.length = 0;
         teleports.length = 0;
         beams.length = 0;
+        rangedProjectiles.length = 0;
 
         const res = await fetch(`/api/game/maps/${level}`);
         if (!res.ok) {
@@ -344,6 +348,7 @@ async function loadLevel(level, spawnAt) {
                     el.style.left = mx + 'px';
                     el.style.top = my + 'px';
                     el.style.backgroundPosition = '0% 0%';
+                    el.style.backgroundImage = `url(/images/assets/${monsterType === 'ranged' ? 'archer' : ''}goblin.png)`;
                     const hpBar = document.createElement('div');
                     hpBar.className = 'monster-hp';
                     const hpFill = document.createElement('div');
@@ -352,11 +357,14 @@ async function loadLevel(level, spawnAt) {
                     hpBar.appendChild(hpFill);
                     el.appendChild(hpBar);
                     map.appendChild(el);
+                    const monsterType = sp.monsterType || 'melee';
                     monsters.push({
                         x: mx, y: my, spawnX: sp.x, spawnY: sp.y,
+                        type: monsterType,
                         hp: MONSTER_HP, el, hpFill, state: 'idle',
                         attackTimer: 2000 + Math.random() * 3000, hitTimer: 0,
-                        animFrame: 0, animTimer: 0
+                        animFrame: 0, animTimer: 0,
+                        nextShotTime: Date.now() + 3000 + Math.random() * 2000
                     });
                     pushOutOfWall(monsters[monsters.length - 1]);
                 }
@@ -606,12 +614,36 @@ function update(timestamp) {
         const m = monsters[mi];
         if (m.hp <= 0) continue;
         const dist = Math.hypot(playerWX - m.x, playerWY - m.y);
+        const isRanged = m.type === 'ranged';
 
         if (m.state === 'idle' && dist < MONSTER_CHASE) m.state = 'chase';
         if (m.state === 'chase' && dist > MONSTER_RETREAT) m.state = 'idle';
 
         if (m.state === 'chase') {
-            const a = Math.atan2(playerWY - m.y, playerWX - m.x);
+            let targetX, targetY;
+            if (isRanged) {
+                // Archer keeps 150-250 distance from player
+                const preferred = 200;
+                if (dist < 120) {
+                    // Too close — back away
+                    const a = Math.atan2(m.y - playerWY, m.x - playerWX);
+                    targetX = m.x + Math.cos(a) * 50;
+                    targetY = m.y + Math.sin(a) * 50;
+                } else if (dist > 300) {
+                    // Too far — approach
+                    targetX = playerWX;
+                    targetY = playerWY;
+                } else {
+                    // Good range — strafe perpendicular
+                    const a = Math.atan2(playerWY - m.y, playerWX - m.x);
+                    targetX = m.x + Math.cos(a + Math.PI / 2) * 30;
+                    targetY = m.y + Math.sin(a + Math.PI / 2) * 30;
+                }
+            } else {
+                targetX = playerWX;
+                targetY = playerWY;
+            }
+            const a = Math.atan2(targetY - m.y, targetX - m.x);
             const mStep = MONSTER_SPEED * dt;
             let sx = Math.cos(a) * mStep;
             let sy = Math.sin(a) * mStep;
@@ -661,17 +693,18 @@ function update(timestamp) {
         m.el.style.transform = m.x < playerWX ? 'scaleX(-1)' : 'scaleX(1)';
 
         // Attack animation
+        const attFrames = m.type === 'ranged' ? ARCHER_ATTACK_FRAMES : MONSTER_ATTACK_FRAMES;
         if (m.animTimer > 0) {
             m.animTimer -= dt;
             if (m.animTimer <= 0) {
                 m.animFrame++;
-                if (m.animFrame >= MONSTER_ATTACK_FRAMES.length) {
+                if (m.animFrame >= attFrames.length) {
                     m.animFrame = 0;
                     m.animTimer = 0;
                     m.el.style.backgroundPosition = '0% 0%';
                 } else {
                     m.animTimer = MONSTER_ANIM_MS;
-                    const f = MONSTER_ATTACK_FRAMES[m.animFrame];
+                    const f = attFrames[m.animFrame];
                     m.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
                 }
             }
@@ -688,7 +721,7 @@ function update(timestamp) {
 
         m.attackTimer -= dt;
         const dist = Math.hypot(playerWX - m.x, playerWY - m.y);
-        if (m.attackTimer <= 0 && dist < 100) {
+        if (m.type !== 'ranged' && m.attackTimer <= 0 && dist < 100) {
             if (checkOverlap(playerWX, playerWY, 15, 30, m.x, m.y, 20, 20) && hasLineOfSight(m.x, m.y, playerWX, playerWY)) {
                 m.animFrame = 0;
                 m.animTimer = MONSTER_ANIM_MS;
@@ -707,6 +740,68 @@ function update(timestamp) {
                 }
             }
             m.attackTimer = 3000 + Math.random() * 2000;
+        }
+        // Ranged attack
+        if (m.type === 'ranged' && (Date.now() > (m.nextShotTime || 0))) {
+            const rDist = Math.hypot(playerWX - m.x, playerWY - m.y);
+            if (rDist < 300 && hasLineOfSight(m.x, m.y, playerWX, playerWY)) {
+                // Trigger shoot animation
+                m.animFrame = 0;
+                m.animTimer = MONSTER_ANIM_MS;
+                const f = ARCHER_ATTACK_FRAMES[0];
+                m.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
+                const projEl = document.createElement('div');
+                projEl.className = 'range-projectile';
+                projEl.style.cssText = 'position:absolute;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:4;';
+                map.appendChild(projEl);
+                rangedProjectiles.push({
+                    x: m.x, y: m.y,
+                    targetX: playerWX, targetY: playerWY,
+                    startX: m.x, startY: m.y,
+                    el: projEl,
+                    speed: 0.15,
+                    damage: MONSTER_DMG,
+                    progress: 0,
+                    startTime: Date.now()
+                });
+                m.nextShotTime = Date.now() + 3000 + Math.random() * 2000;
+            } else {
+                m.nextShotTime = Date.now() + 500;
+            }
+        }
+    }
+
+    // Ranged projectiles
+    for (let pi = rangedProjectiles.length - 1; pi >= 0; pi--) {
+        const p = rangedProjectiles[pi];
+        const dx = p.targetX - p.startX;
+        const dy = p.targetY - p.startY;
+        const totalDist = Math.hypot(dx, dy);
+        const elapsed = Date.now() - p.startTime;
+        p.progress = Math.min(1, (elapsed * p.speed) / totalDist);
+        p.x = p.startX + dx * p.progress;
+        p.y = p.startY + dy * p.progress;
+        const glowIntensity = 0.6 + 0.4 * Math.sin(Date.now() / 100);
+        p.el.style.cssText = `left:${p.x - 3}px;top:${p.y - 3}px;width:6px;height:6px;position:absolute;border-radius:50%;background:radial-gradient(circle, #fff 20%, #fa6 60%, transparent);box-shadow:0 0 ${4 + glowIntensity * 6}px #fa6,0 0 ${8 + glowIntensity * 12}px #f84;pointer-events:none;z-index:4;`;
+        if (p.progress >= 1) {
+            p.el.remove();
+            rangedProjectiles.splice(pi, 1);
+            continue;
+        }
+        const pDist = Math.hypot(playerWX - p.x, playerWY - p.y);
+        if (pDist < 20) {
+            playerHP = Math.max(0, playerHP - p.damage);
+            document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+            spawnExplosion(p.x, p.y);
+            triggerShake(8);
+            p.el.remove();
+            rangedProjectiles.splice(pi, 1);
+            if (playerHP <= 0) {
+                playerWX = mapInfo.playerStart.x;
+                playerWY = mapInfo.playerStart.y;
+                playerHP = PLAYER_MAX_HP;
+                document.getElementById('player-hp-inner').style.width = '100%';
+            }
         }
     }
 
