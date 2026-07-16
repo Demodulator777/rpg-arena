@@ -67,7 +67,7 @@ function setTool(tool) {
     if (monsterSelect) monsterSelect.style.outline = tool === 'monster' ? '2px solid #4a7' : 'none';
     const toolName = tool === 'monster' ? `Monster (${monsterType})` : tool.charAt(0).toUpperCase() + tool.slice(1);
     document.getElementById('info-tool').textContent = `Tool: ${toolName}`;
-    const cursors = { select: 'default', pan: 'grab', wall: 'crosshair', chest: 'crosshair', monster: 'crosshair', exit: 'crosshair', entrance: 'crosshair', start: 'crosshair', decal: 'crosshair', trap: 'crosshair', teleport: 'crosshair', beam: 'crosshair' };
+    const cursors = { select: 'default', pan: 'grab', wall: 'crosshair', chest: 'crosshair', shop: 'crosshair', monster: 'crosshair', exit: 'crosshair', entrance: 'crosshair', start: 'crosshair', decal: 'crosshair', trap: 'crosshair', teleport: 'crosshair', beam: 'crosshair' };
     gameWorld.style.cursor = cursors[tool] || 'crosshair';
     propsPanel.style.display = 'none';
 }
@@ -104,6 +104,9 @@ function showProps(data) {
         addProp('Width', data.width, v => { data.width = Math.max(GRID, snap(v)); renderItem(data); });
         addProp('Height', data.height, v => { data.height = Math.max(GRID, snap(v)); renderItem(data); });
     } else if (data.type === 'chest') {
+        addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
+        addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
+    } else if (data.type === 'shop') {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
     } else if (data.type === 'monster') {
@@ -248,6 +251,9 @@ function renderItem(data) {
     } else if (data.type === 'chest') {
         el = document.querySelector(`.chest[data-id="${data._id}"]`);
         if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;`;
+    } else if (data.type === 'shop') {
+        el = document.querySelector(`.shop[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x - 18}px;top:${data.y - 18}px;`;
     } else if (data.type === 'monster') {
         el = document.querySelector(`.monster-spawn[data-id="${data._id}"]`);
         if (el) {
@@ -309,6 +315,12 @@ function createItemElement(data) {
         el.className = 'chest';
         el.dataset.id = data._id;
         el.style.cssText = `left:${data.x}px;top:${data.y}px;`;
+        gameWorld.appendChild(el);
+    } else if (data.type === 'shop') {
+        el = document.createElement('div');
+        el.className = 'shop';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x - 18}px;top:${data.y - 18}px;`;
         gameWorld.appendChild(el);
     } else if (data.type === 'monster') {
         el = document.createElement('div');
@@ -401,6 +413,7 @@ function addItem(data) {
     data._id = nextId++;
     if (data.type === 'wall') mapData.walls.push(data);
     else if (data.type === 'chest') mapData.chests.push(data);
+    else if (data.type === 'shop') mapData.shops.push(data);
     else if (data.type === 'monster') mapData.monsterSpawns.push(data);
     else if (data.type === 'exit') { if (mapData.exit) removeItem(mapData.exit); mapData.exit = data; }
     else if (data.type === 'entrance') { if (mapData.entrance) removeItem(mapData.entrance); mapData.entrance = data; }
@@ -418,6 +431,7 @@ function addItem(data) {
 function removeItem(data) {
     if (data.type === 'wall') mapData.walls = mapData.walls.filter(w => w !== data);
     else if (data.type === 'chest') mapData.chests = mapData.chests.filter(c => c !== data);
+    else if (data.type === 'shop') mapData.shops = mapData.shops.filter(s => s !== data);
     else if (data.type === 'monster') mapData.monsterSpawns = mapData.monsterSpawns.filter(m => m !== data);
     else if (data.type === 'exit') { mapData.exit = null; }
     else if (data.type === 'entrance') { mapData.entrance = null; }
@@ -469,6 +483,8 @@ gameWorld.addEventListener('mousedown', e => {
         gameWorld.appendChild(rubberBand);
     } else if (currentTool === 'chest') {
         addItem({ type: 'chest', x: sx, y: sy });
+    } else if (currentTool === 'shop') {
+        addItem({ type: 'shop', x: sx, y: sy });
     } else if (currentTool === 'monster') {
         addItem({ type: 'monster', x: sx, y: sy, count: 3, monsterType: monsterType });
     } else if (currentTool === 'exit') {
@@ -577,6 +593,7 @@ document.addEventListener('keydown', e => {
     if (e.key === '1') setTool('select');
     if (e.key === '2') setTool('wall');
     if (e.key === '3') setTool('chest');
+    if (e.key === '!') setTool('shop'); // Shift+1
     if (e.key === '4') { setTool('monster'); document.getElementById('btn-monster').focus(); }
     if (e.key === '5') setTool('exit');
     if (e.key === '6') setTool('entrance');
@@ -589,7 +606,7 @@ document.addEventListener('keydown', e => {
 });
 
 function updateInfo() {
-    infoItems.textContent = `Walls: ${mapData.walls.length} | Chests: ${mapData.chests.length} | Monsters: ${mapData.monsterSpawns.length} | Decals: ${mapData.decals.length} | Traps: ${mapData.traps.length} | Portals: ${mapData.teleports.length} | Beams: ${mapData.beams.length}`;
+    infoItems.textContent = `Walls: ${mapData.walls.length} | Chests: ${mapData.chests.length} | Shops: ${mapData.shops.length} | Monsters: ${mapData.monsterSpawns.length} | Decals: ${mapData.decals.length} | Traps: ${mapData.traps.length} | Portals: ${mapData.teleports.length} | Beams: ${mapData.beams.length}`;
 }
 
 
@@ -670,6 +687,7 @@ document.getElementById('btn-new').addEventListener('click', () => {
         playerStart: { x: 2500, y: 2500 },
         walls: [],
         chests: [],
+        shops: [],
         monsterSpawns: [],
         exit: null,
         entrance: null,
@@ -692,6 +710,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             playerStart: mapData.playerStart,
             walls: mapData.walls.map(w => ({ x: w.x, y: w.y, width: w.width, height: w.height })),
             chests: mapData.chests.map(c => ({ x: c.x, y: c.y })),
+            shops: mapData.shops.map(s => ({ x: s.x, y: s.y })),
             monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count, monsterType: m.monsterType || 'melee' })),
             exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
             entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null,
@@ -736,7 +755,8 @@ document.getElementById('btn-load').addEventListener('click', async () => {
             playerStart: d.playerStart || { x: 2500, y: 2500 },
             walls: [],
             chests: [],
-            monsterSpawns: [],
+    monsterSpawns: [],
+    shops: [],
             exit: null,
             entrance: null,
             decals: [],
@@ -747,6 +767,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
         };
         if (d.walls) d.walls.forEach(w => addItem({ type: 'wall', x: w.x, y: w.y, width: w.width, height: w.height }));
         if (d.chests) d.chests.forEach(c => addItem({ type: 'chest', x: c.x, y: c.y }));
+        if (d.shops) d.shops.forEach(s => addItem({ type: 'shop', x: s.x, y: s.y }));
         if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count, monsterType: m.monsterType || 'melee' }));
         if (d.exit) addItem({ type: 'exit', x: d.exit.x, y: d.exit.y, targetLevel: d.exit.targetLevel });
         if (d.entrance) addItem({ type: 'entrance', x: d.entrance.x, y: d.entrance.y, targetLevel: d.entrance.targetLevel });
@@ -774,11 +795,11 @@ document.getElementById('btn-load').addEventListener('click', async () => {
 });
 
 function clearAll() {
-    document.querySelectorAll('.wall, .chest, .monster-spawn, .exit, .entrance, .decal, .trap, .teleport, .beam').forEach(el => el.remove());
+    document.querySelectorAll('.wall, .chest, .shop, .monster-spawn, .exit, .entrance, .decal, .trap, .teleport, .beam').forEach(el => el.remove());
     const ps = document.querySelector('.player-start');
     if (ps) ps.remove();
     deselectAll();
-    mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 }, decals: [], traps: [], teleports: [], beams: [], backgroundImage: null };
+    mapData = { walls: [], chests: [], shops: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 }, decals: [], traps: [], teleports: [], beams: [], backgroundImage: null };
     applyBackgroundImage(null);
     if (bgRemoveBtn) bgRemoveBtn.style.display = 'none';
     if (bgBtn) bgBtn.textContent = 'Bg';
