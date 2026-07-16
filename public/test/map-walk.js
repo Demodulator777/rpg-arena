@@ -258,6 +258,14 @@ async function loadLevel(level, spawnAt) {
         levelLabel.textContent = `Level ${currentLevel}${mapInfo.name ? ' - ' + mapInfo.name : ''}`;
         levelInput.value = currentLevel;
 
+        // Background image
+        if (d.backgroundImage) {
+            map.style.background = `url(${d.backgroundImage}) repeat`;
+            map.style.backgroundSize = 'auto';
+        } else {
+            map.style.background = '#1a1a1a';
+        }
+
         // Player start
         if (spawnAt === 'exit' && mapInfo.exit) {
             playerWX = mapInfo.exit.x + 20;
