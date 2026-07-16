@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Dungeon</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #000; color: #fff; overflow: hidden; font-family: sans-serif; touch-action: none; }
+        #game-container { position: relative; width: 100vw; height: 100dvh; overflow: hidden; }
+
+        #lobby { display: flex; position: fixed; inset: 0; background: #111; z-index: 500; align-items: center; justify-content: center; flex-direction: column; gap: 12px; }
+        #lobby.hide { display: none; }
+        #lobby input { background: #222; border: 1px solid #555; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 16px; width: 220px; }
+        #lobby input.code { width: 120px; text-align: center; text-transform: uppercase; font-size: 22px; letter-spacing: 6px; }
+        #lobby button { background: #4a7; border: none; color: #fff; padding: 10px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; }
+        #lobby button:hover { background: #5c9; }
+        #lobby button.secondary { background: #555; }
+        #lobby button.secondary:hover { background: #777; }
+        #lobby .status { color: #999; font-size: 14px; }
+        #lobby .error { color: #f55; font-size: 14px; }
+
+        #game-world { position: relative; width: 5000px; height: 5000px; transform-origin: 0 0; }
+        #map { position: absolute; width: 5000px; height: 5000px; background: #1a1a1a; border: 20px solid #555; box-sizing: border-box; }
+        .wall { position: absolute; background: #444; border: 1px solid #222; box-sizing: border-box; }
+
+        .player-avatar { position: absolute; width: 40px; height: 40px; border-radius: 50%; z-index: 10; pointer-events: none; transform: translate(-50%,-50%); display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: bold; }
+        .player-avatar.local { z-index: 11; }
+
+        .monster { position: absolute; width: 40px; height: 40px; background-repeat: no-repeat; background-size: 500% 500%; background-position: 0% 0%; z-index: 5; }
+        .monster.dead { display: none; }
+        .monster-hp { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; background: #222; border: 1px solid #111; border-radius: 2px; z-index: 6; overflow: hidden; }
+        .monster-hp-fill { height: 100%; background: #0c0; border-radius: 1px; }
+
+        .chest { position: absolute; width: 40px; height: 32px; background: #c8943c; border: 2px solid #8b5e3c; border-radius: 4px; z-index: 5; box-shadow: inset 0 -6px 0 #8b5e3c, 0 0 8px rgba(200,148,60,0.4); pointer-events: auto; }
+        .chest::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 8px; height: 6px; background: #8b5e3c; border-radius: 2px; box-shadow: 0 0 4px #f0c840; }
+        .chest.found { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
+
+        #hud { position: fixed; top: 0; left: 0; right: 0; z-index: 200; display: flex; justify-content: space-between; padding: 8px 12px; pointer-events: none; }
+        #hud > * { pointer-events: auto; }
+        .hp-bar { width: 160px; height: 14px; background: #222; border: 1px solid #555; border-radius: 6px; overflow: hidden; }
+        .hp-bar-fill { height: 100%; background: #e33; border-radius: 4px; transition: width 0.2s; }
+        #room-code { background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 13px; color: #aaa; }
+
+        #player-list { position: fixed; top: 0; right: 0; z-index: 200; padding: 8px; pointer-events: none; }
+        #player-list > div { pointer-events: auto; background: rgba(0,0,0,0.6); border-radius: 4px; padding: 4px 10px; margin: 2px 0; font-size: 12px; color: #ccc; }
+
+        #interact-area { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        #interact-btn { display: none; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; padding: 6px 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        #interact-btn.show { display: block; }
+
+        #inv-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,20,20,0.95); border: 1px solid #555; border-radius: 8px; padding: 16px; z-index: 300; min-width: 200px; color: #eee; font-size: 14px; }
+        #inv-panel.show { display: block; }
+
+        #controls { position: fixed; bottom: 80px; left: 10px; z-index: 100; display: none; }
+        #controls.show { display: flex; gap: 4px; }
+        #controls button { width: 60px; height: 60px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; font-size: 18px; cursor: pointer; touch-action: none; }
+        #controls .dpad { display: grid; grid-template-columns: 60px 60px 60px; gap: 2px; }
+        #controls .dpad button { width: 60px; height: 60px; }
+        #controls .dpad .blank { visibility: hidden; }
+    </style>
+</head>
+<body>
+    <div id="lobby">
+        <h2>Multiplayer Dungeon</h2>
+        <input id="lobby-name" placeholder="Your name" maxlength="20" value="Adventurer">
+        <div style="display:flex;gap:10px">
+            <button id="btn-create">Create Room</button>
+            <button id="btn-join" class="secondary">Join Room</button>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+            <input id="lobby-code" class="code" placeholder="CODE" maxlength="4">
+        </div>
+        <div class="status">Level: <input id="lobby-level" type="number" min="1" value="1" style="width:50px;font-size:14px;padding:4px"></div>
+        <div id="lobby-error" class="error"></div>
+    </div>
+
+    <div id="game-container">
+        <div id="game-world">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <div id="hud">
+        <div><div class="hp-bar"><div id="my-hp" class="hp-bar-fill"></div></div></div>
+        <div id="room-code"></div>
+        <button id="inv-btn" style="pointer-events:auto;background:rgba(30,30,30,0.85);border:2px solid #888;border-radius:6px;color:#eee;padding:4px 10px;cursor:pointer;font-size:12px">Inv</button>
+    </div>
+    <div id="player-list"></div>
+    <div id="interact-area"><button id="interact-btn">Open</button></div>
+    <div id="inv-panel"></div>
+    <div id="controls"><div class="dpad"><button class="blank"></button><button id="ctrl-up">▲</button><button class="blank"></button><button id="ctrl-left">◄</button><button id="ctrl-down">▼</button><button id="ctrl-right">►</button></div></div>
+
+    <script src="multiplayer.js"></script>
+</body>
+</html>
