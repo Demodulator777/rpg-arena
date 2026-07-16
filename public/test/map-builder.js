@@ -101,6 +101,7 @@ function showProps(data) {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
         addProp('Count', data.count, v => { data.count = Math.max(1, Math.floor(Number(v) || 1)); renderItem(data); });
+        addProp('Type', data.monsterType || 'melee', v => { data.monsterType = v; renderItem(data); }, 'select', ['melee','ranged']);
     } else if (data.type === 'exit') {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
@@ -201,15 +202,30 @@ function showProps(data) {
     propsPanel.appendChild(delBtn);
 }
 
-function addProp(label, value, onChange, type) {
+function addProp(label, value, onChange, type, options) {
     const lbl = document.createElement('label');
     lbl.textContent = label;
-    const inp = document.createElement('input');
-    inp.type = type === 'text' ? 'text' : 'number';
-    inp.value = value;
-    inp.addEventListener('input', () => onChange(inp.value));
-    propsPanel.appendChild(lbl);
-    propsPanel.appendChild(inp);
+    if (type === 'select') {
+        const sel = document.createElement('select');
+        sel.style.cssText = 'font-size:11px;width:100%;';
+        for (const opt of options) {
+            const o = document.createElement('option');
+            o.value = opt;
+            o.textContent = opt;
+            if (opt === value) o.selected = true;
+            sel.appendChild(o);
+        }
+        sel.addEventListener('change', () => onChange(sel.value));
+        propsPanel.appendChild(lbl);
+        propsPanel.appendChild(sel);
+    } else {
+        const inp = document.createElement('input');
+        inp.type = type === 'text' ? 'text' : 'number';
+        inp.value = value;
+        inp.addEventListener('input', () => onChange(inp.value));
+        propsPanel.appendChild(lbl);
+        propsPanel.appendChild(inp);
+    }
 }
 
 // Render helpers
@@ -227,7 +243,8 @@ function renderItem(data) {
         el = document.querySelector(`.monster-spawn[data-id="${data._id}"]`);
         if (el) {
             el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
-            el.textContent = data.count;
+            const mt = data.monsterType || 'melee';
+            el.textContent = data.count + (mt === 'ranged' ? ' A' : '');
         }
     } else if (data.type === 'exit') {
         el = document.querySelector(`.exit[data-id="${data._id}"]`);
@@ -289,7 +306,8 @@ function createItemElement(data) {
         el.className = 'monster-spawn';
         el.dataset.id = data._id;
         el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
-        el.textContent = data.count;
+        const mt = data.monsterType || 'melee';
+        el.textContent = data.count + (mt === 'ranged' ? ' A' : '');
         gameWorld.appendChild(el);
     } else if (data.type === 'exit') {
         el = document.createElement('div');
@@ -443,7 +461,7 @@ gameWorld.addEventListener('mousedown', e => {
     } else if (currentTool === 'chest') {
         addItem({ type: 'chest', x: sx, y: sy });
     } else if (currentTool === 'monster') {
-        addItem({ type: 'monster', x: sx, y: sy, count: 3 });
+        addItem({ type: 'monster', x: sx, y: sy, count: 3, monsterType: 'melee' });
     } else if (currentTool === 'exit') {
         if (mapData.exit) removeItem(mapData.exit);
         addItem({ type: 'exit', x: sx, y: sy, targetLevel: 2 });
@@ -665,7 +683,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             playerStart: mapData.playerStart,
             walls: mapData.walls.map(w => ({ x: w.x, y: w.y, width: w.width, height: w.height })),
             chests: mapData.chests.map(c => ({ x: c.x, y: c.y })),
-            monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count })),
+            monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count, monsterType: m.monsterType || 'melee' })),
             exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
             entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null,
             decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer, image: d.image || null, flipH: d.flipH || false, flipV: d.flipV || false })),
@@ -720,7 +738,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
         };
         if (d.walls) d.walls.forEach(w => addItem({ type: 'wall', x: w.x, y: w.y, width: w.width, height: w.height }));
         if (d.chests) d.chests.forEach(c => addItem({ type: 'chest', x: c.x, y: c.y }));
-        if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count }));
+        if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count, monsterType: m.monsterType || 'melee' }));
         if (d.exit) addItem({ type: 'exit', x: d.exit.x, y: d.exit.y, targetLevel: d.exit.targetLevel });
         if (d.entrance) addItem({ type: 'entrance', x: d.entrance.x, y: d.entrance.y, targetLevel: d.entrance.targetLevel });
         if (d.decals) d.decals.forEach(x => addItem({ type: 'decal', x: x.x, y: x.y, width: x.width, height: x.height, color: x.color, layer: x.layer, image: x.image || null, flipH: x.flipH || false, flipV: x.flipV || false }));
