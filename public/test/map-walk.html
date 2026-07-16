@@ -31,6 +31,8 @@
         #joystick-knob { position: absolute; width: 64px; height: 64px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 43px; left: 43px; }
 
         #action-btn { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); right: max(30px, env(safe-area-inset-right)); width: 100px; height: 100px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); z-index: 200; }
+        #scan-btn { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); right: max(150px, env(safe-area-inset-right)); width: 70px; height: 70px; background: #48f; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 0.8rem; box-shadow: 0 0 15px rgba(68,136,255,0.4); z-index: 200; cursor: pointer; }
+        #scan-btn:disabled { background: #555; box-shadow: none; cursor: default; }
 
         #player-hp-outer { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 200px; height: 16px; background: #222; border: 2px solid #555; border-radius: 8px; z-index: 200; overflow: hidden; }
         #player-hp-inner { height: 100%; background: #e33; border-radius: 6px; width: 100%; }
@@ -68,6 +70,7 @@
             #joystick-area { width: 120px; height: 120px; bottom: max(60px, env(safe-area-inset-bottom)); left: max(40px, env(safe-area-inset-left)); }
             #joystick-knob { width: 50px; height: 50px; top: 35px; left: 35px; }
             #action-btn { width: 80px; height: 80px; bottom: max(60px, env(safe-area-inset-bottom)); right: max(20px, env(safe-area-inset-right)); font-size: 0.85rem; }
+            #scan-btn { width: 56px; height: 56px; bottom: max(60px, env(safe-area-inset-bottom)); right: max(110px, env(safe-area-inset-right)); font-size: 0.7rem; }
         }
     </style>
 </head>
@@ -83,6 +86,7 @@
         <div id="interact-prompt">Open</div>
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
+        <button id="scan-btn">SCAN</button>
         <div id="loading">Loading level...</div>
         <div id="fog"></div>
         <div id="controls-hint"><span>WASD / Arrows = Move&nbsp;&nbsp;|&nbsp;&nbsp;Z = Burst&nbsp;&nbsp;|&nbsp;&nbsp;Space = Open</span><button class="hide-btn" id="hide-hint">✕</button></div>
