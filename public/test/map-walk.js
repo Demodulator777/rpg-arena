@@ -1,4 +1,5 @@
 const gameWorld = document.getElementById('game-world');
+const gameContainer = document.getElementById('game-container');
 const map = document.getElementById('map');
 const player = document.getElementById('player');
 const playerSprite = document.getElementById('playerSprite');
@@ -26,7 +27,7 @@ let playerWX = 2500;
 let playerWY = 2500;
 
 let dx = 0, dy = 0;
-const speed = 1.75;
+const speed = 0.1; // px per ms (was 1.75 px/frame at ~60fps)
 const walls = [];
 
 // Map data from DB
@@ -468,10 +469,11 @@ function update(timestamp) {
     lastTime = timestamp;
 
     // Movement (world coords)
-    let nx = playerWX + dx * speed;
-    let ny = playerWY + dy * speed;
-    if (!checkCollision(dx * speed, 0)) playerWX = nx;
-    if (!checkCollision(0, dy * speed)) playerWY = ny;
+    const step = speed * dt;
+    let nx = playerWX + dx * step;
+    let ny = playerWY + dy * step;
+    if (!checkCollision(dx * step, 0)) playerWX = nx;
+    if (!checkCollision(0, dy * step)) playerWY = ny;
     playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
     playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
     player.style.left = playerWX + 'px';
@@ -482,6 +484,13 @@ function update(timestamp) {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-playerWX}px, ${-playerWY}px)`;
+    // Screen shake on game container
+    if (Date.now() < shakeUntil) {
+        const intensity = shakeIntensity * (1 - (shakeUntil - Date.now()) / 200);
+        gameContainer.style.transform = `translate(${(Math.random() - 0.5) * intensity}px, ${(Math.random() - 0.5) * intensity}px)`;
+    } else {
+        gameContainer.style.transform = '';
+    }
 
     // Fog of war – radial mask centered on player (always at screen center)
     const fogRadius = 250 * worldScale;
@@ -577,16 +586,18 @@ function update(timestamp) {
 
         if (m.state === 'chase') {
             const a = Math.atan2(playerWY - m.y, playerWX - m.x);
-            const sx = Math.cos(a) * MONSTER_SPEED;
-            const sy = Math.sin(a) * MONSTER_SPEED;
+            const mStep = MONSTER_SPEED * dt;
+            const sx = Math.cos(a) * mStep;
+            const sy = Math.sin(a) * mStep;
             if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
             if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
         } else {
             const d = Math.hypot(m.spawnX - m.x, m.spawnY - m.y);
             if (d > 1) {
                 const a = Math.atan2(m.spawnY - m.y, m.spawnX - m.x);
-                const sx = Math.cos(a) * MONSTER_SPEED;
-                const sy = Math.sin(a) * MONSTER_SPEED;
+                const mStep = MONSTER_SPEED * dt;
+                const sx = Math.cos(a) * mStep;
+                const sy = Math.sin(a) * mStep;
                 if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
                 if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
             }
@@ -681,6 +692,7 @@ function update(timestamp) {
                 playerHP = Math.max(0, playerHP - tr.damage);
                 document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
                 trapTimers[i] = 1000;
+                triggerShake(8);
                 if (playerHP <= 0) {
                     playerWX = mapInfo.playerStart.x;
                     playerWY = mapInfo.playerStart.y;
@@ -709,6 +721,26 @@ function update(timestamp) {
             }
         }
     }
+
+// Screen shake
+let shakeUntil = 0;
+let shakeIntensity = 0;
+
+function triggerShake(intensity) {
+    shakeUntil = Date.now() + 200;
+    shakeIntensity = intensity;
+}
+
+function spawnExplosion(x, y) {
+    const el = document.createElement('div');
+    el.style.cssText = `left:${x - 15}px;top:${y - 15}px;width:30px;height:30px;position:absolute;border-radius:50%;background:radial-gradient(circle, #fff, #fc0, transparent);pointer-events:none;z-index:10;transform:scale(0);transition:all 300ms ease-out;`;
+    map.appendChild(el);
+    requestAnimationFrame(() => {
+        el.style.transform = 'scale(3)';
+        el.style.opacity = '0';
+    });
+    setTimeout(() => el.remove(), 300);
+}
 
     // Beams: animate particles + damage
     for (const bm of beams) {
@@ -742,29 +774,19 @@ function update(timestamp) {
                 orb.el.style.cssText = `left:${ox - 1.5}px;top:${oy - 1.5}px;width:3px;height:3px;position:absolute;border-radius:50%;background:#8ef;box-shadow:0 0 4px #6cf;opacity:${fade};pointer-events:none;z-index:3;`;
             }
         }
-        // Line-rect collision: player as rect 26x52 (half-width x half-height)
-        const dx = bm.x2 - bm.x1;
-        const dy = bm.y2 - bm.y1;
-        const len = Math.hypot(dx, dy);
-        if (len > 1) {
-            const ux = dx / len;
-            const uy = dy / len;
-            const ex = playerWX - bm.x1;
-            const ey = playerWY - bm.y1;
-            const proj = Math.max(0, Math.min(len, ex * ux + ey * uy));
-            const closestX = bm.x1 + ux * proj;
-            const closestY = bm.y1 + uy * proj;
-            const dist = Math.hypot(playerWX - closestX, playerWY - closestY);
-            if (dist < 26 && now - bm.lastDmg > (bm.interval / 2)) {
-                playerHP = Math.max(0, playerHP - bm.damage);
-                document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
-                bm.lastDmg = now;
-                if (playerHP <= 0) {
-                    playerWX = mapInfo.playerStart.x;
-                    playerWY = mapInfo.playerStart.y;
-                    playerHP = PLAYER_MAX_HP;
-                    document.getElementById('player-hp-inner').style.width = '100%';
-                }
+        // Particle-player collision
+        const particleDist = Math.hypot(playerWX - px, playerWY - py);
+        if (particleDist < 20 && now - bm.lastDmg > (bm.interval / 2)) {
+            playerHP = Math.max(0, playerHP - bm.damage);
+            document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+            bm.lastDmg = now;
+            spawnExplosion(px, py);
+            triggerShake(12);
+            if (playerHP <= 0) {
+                playerWX = mapInfo.playerStart.x;
+                playerWY = mapInfo.playerStart.y;
+                playerHP = PLAYER_MAX_HP;
+                document.getElementById('player-hp-inner').style.width = '100%';
             }
         }
     }
