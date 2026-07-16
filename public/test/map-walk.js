@@ -45,7 +45,7 @@ let nearChest = null;
 // Monsters
 const MONSTER_CHASE = 200;
 const MONSTER_RETREAT = 200;
-const MONSTER_SPEED = 0.8;
+const MONSTER_SPEED = 0.05; // px per ms (was 0.8 px/frame)
 const MONSTER_HP = 20;
 const MONSTER_DMG = 5;
 const MONSTER_ATTACK_FRAMES = [
