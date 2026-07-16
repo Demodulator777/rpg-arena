@@ -622,22 +622,22 @@ function update(timestamp) {
         if (m.state === 'chase') {
             let targetX, targetY;
             if (isRanged) {
-                // Archer keeps 150-250 distance from player
-                const preferred = 200;
-                if (dist < 120) {
+                // Archer maintains constant attack range
+                const preferred = 280;
+                if (dist < preferred - 40) {
                     // Too close — back away
                     const a = Math.atan2(m.y - playerWY, m.x - playerWX);
                     targetX = m.x + Math.cos(a) * 50;
                     targetY = m.y + Math.sin(a) * 50;
-                } else if (dist > 300) {
+                } else if (dist > preferred + 40) {
                     // Too far — approach
                     targetX = playerWX;
                     targetY = playerWY;
                 } else {
-                    // Good range — strafe perpendicular
+                    // Perfect range — small strafe
                     const a = Math.atan2(playerWY - m.y, playerWX - m.x);
-                    targetX = m.x + Math.cos(a + Math.PI / 2) * 30;
-                    targetY = m.y + Math.sin(a + Math.PI / 2) * 30;
+                    targetX = m.x + Math.cos(a + Math.PI / 2) * 20;
+                    targetY = m.y + Math.sin(a + Math.PI / 2) * 20;
                 }
             } else {
                 targetX = playerWX;
@@ -685,6 +685,7 @@ function update(timestamp) {
     }
     // Per-monster rendering
     for (const m of monsters) {
+        if (m.hp <= 0) continue;
         pushOutOfWall(m);
         m.el.style.left = m.x + 'px';
         m.el.style.top = m.y + 'px';
