@@ -335,7 +335,7 @@ animate();
 
 function update() {
   updateCamera();
-  updateFog();
+  // updateFog(); // Temporarily disabled to check if this is the cause
   requestAnimationFrame(update);
 }
 
