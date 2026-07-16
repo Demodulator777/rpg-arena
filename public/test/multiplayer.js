@@ -8,12 +8,15 @@ const btnCreate = document.getElementById('btn-create');
 const btnJoin = document.getElementById('btn-join');
 const gameWorld = document.getElementById('game-world');
 const mapEl = document.getElementById('map');
-const myHp = document.getElementById('my-hp');
+const playerEl = document.getElementById('player');
+const playerSprite = document.getElementById('playerSprite');
+const hpInner = document.getElementById('player-hp-inner');
 const roomCodeEl = document.getElementById('room-code');
 const playerListEl = document.getElementById('player-list');
 const interactBtn = document.getElementById('interact-btn');
 const invBtn = document.getElementById('inv-btn');
 const invPanel = document.getElementById('inv-panel');
+const scanBtn = document.getElementById('scan-btn');
 const controls = document.getElementById('controls');
 
 // ---- State ----
@@ -25,23 +28,18 @@ let players = {};
 let monsters = {};
 let chests = {};
 let mapData = null;
-let stateTick = 0;
 let keys = { up: false, down: false, left: false, right: false };
 let inventoryOpen = false;
+let worldScale = 1;
 const WORLD_SIZE = 5000;
 
 // ---- Connection ----
 function connectToRoom(code, level, name, isCreate) {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = location.host;
-  ws = new WebSocket(`${proto}//${host}/ws`);
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
 
   ws.onopen = () => {
-    if (isCreate) {
-      ws.send(JSON.stringify({ type: 'create_room', name, level }));
-    } else {
-      ws.send(JSON.stringify({ type: 'join_room', code, name }));
-    }
+    ws.send(JSON.stringify({ type: isCreate ? 'create_room' : 'join_room', name, level, code }));
   };
 
   ws.onmessage = (e) => {
@@ -49,15 +47,8 @@ function connectToRoom(code, level, name, isCreate) {
     handleMessage(msg);
   };
 
-  ws.onclose = () => {
-    lobbyError.textContent = 'Disconnected';
-    lobby.classList.remove('hide');
-  };
-
-  ws.onerror = (e) => {
-    console.error('WebSocket error:', e);
-    lobbyError.textContent = 'Connection failed — check server';
-  };
+  ws.onclose = () => { lobbyError.textContent = 'Disconnected'; lobby.classList.remove('hide'); };
+  ws.onerror = () => { lobbyError.textContent = 'Connection failed'; };
 }
 
 function handleMessage(msg) {
@@ -73,10 +64,12 @@ function handleMessage(msg) {
       initWorld(msg.state);
       break;
     case 'player_joined':
-      addPlayer(msg.player);
+      addOtherPlayer(msg.player);
+      updatePlayerList();
       break;
     case 'player_left':
-      removePlayer(msg.playerId);
+      removeOtherPlayer(msg.playerId);
+      updatePlayerList();
       break;
     case 'state':
       applyState(msg);
@@ -90,8 +83,15 @@ function handleMessage(msg) {
         myPlayer.coins = (myPlayer.coins || 0) + msg.coins;
         if (msg.potion) myPlayer.potions = (myPlayer.potions || 0) + 1;
       }
-      showMessage(`+${msg.coins} coins${msg.potion ? ', +1 potion' : ''}`);
+      showMessage(`+${msg.coins} silver coins${msg.potion ? ', +1 potion' : ''}`);
       updateInventoryUI();
+      break;
+    case 'show_interact':
+      interactBtn.textContent = msg.action || 'Open';
+      interactBtn.classList.toggle('show', true);
+      break;
+    case 'hide_interact':
+      interactBtn.classList.toggle('show', false);
       break;
     case 'error':
       lobbyError.textContent = msg.message;
@@ -101,7 +101,11 @@ function handleMessage(msg) {
 
 // ---- World ----
 async function initWorld(state) {
-  // Load map data from API
+  // Preload sprites
+  (new Image()).src = '/images/assets/roguelike3.png';
+  (new Image()).src = '/images/assets/goblin.png';
+  (new Image()).src = '/images/assets/archergoblin.png';
+
   const level = lobbyLevel.value || 1;
   let d;
   try {
@@ -134,6 +138,67 @@ async function initWorld(state) {
     }
   }
 
+  // Decals
+  if (d.decals) {
+    for (const dc of d.decals) {
+      const el = document.createElement('div');
+      el.className = 'decal';
+      let css = `left:${dc.x}px;top:${dc.y}px;width:${dc.width}px;height:${dc.height}px;`;
+      if (dc.image) css += `background-image:url(${dc.image});background-size:cover;background-position:center;`;
+      else css += `background:${dc.color};`;
+      const flipX = dc.flipH ? -1 : 1;
+      const flipY = dc.flipV ? -1 : 1;
+      if (flipX !== 1 || flipY !== 1) css += `transform:scale(${flipX},${flipY});`;
+      if (dc.layer === 'ceiling') css += 'z-index:15;';
+      el.style.cssText = css;
+      mapEl.appendChild(el);
+    }
+  }
+
+  // Traps
+  if (d.traps) {
+    for (const tr of d.traps) {
+      const el = document.createElement('div');
+      el.className = 'trap-zone';
+      el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;`;
+      mapEl.appendChild(el);
+    }
+  }
+
+  // Teleports
+  if (d.teleports) {
+    for (const tp of d.teleports) {
+      const el = document.createElement('div');
+      el.className = 'teleport-zone';
+      el.style.cssText = `left:${tp.x - 15}px;top:${tp.y - 15}px;`;
+      mapEl.appendChild(el);
+    }
+  }
+
+  // Beams
+  if (d.beams) {
+    for (const bm of d.beams) {
+      const el = document.createElement('div');
+      el.className = 'beam-line';
+      const dx = bm.x2 - bm.x1;
+      const dy = bm.y2 - bm.y1;
+      const len = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+      el.style.cssText = `left:${bm.x1}px;top:${bm.y1}px;width:${len}px;height:4px;transform-origin:0 2px;transform:rotate(${angle}deg);`;
+      mapEl.appendChild(el);
+    }
+  }
+
+  // Shops
+  if (d.shops) {
+    for (const s of d.shops) {
+      const el = document.createElement('div');
+      el.className = 'shop';
+      el.style.cssText = `left:${s.x - 18}px;top:${s.y - 18}px;`;
+      mapEl.appendChild(el);
+    }
+  }
+
   // Monsters
   if (state.monsters) {
     for (let i = 0; i < state.monsters.length; i++) {
@@ -156,12 +221,14 @@ async function initWorld(state) {
 
   // Other players
   for (const p of state.players) {
-    if (p.id !== myPlayerId) addPlayer(p);
+    if (p.id !== myPlayerId) addOtherPlayer(p);
   }
 
-  // Local player
-  addPlayer(myPlayer, true);
-  updateHud();
+  // Position local player
+  playerEl.style.left = myPlayer.x + 'px';
+  playerEl.style.top = myPlayer.y + 'px';
+
+  updatePlayerList();
 }
 
 function createMonsterEl(index, m) {
@@ -184,26 +251,32 @@ function createMonsterEl(index, m) {
   monsters[index] = { el, hpFill, alive: true };
 }
 
-// ---- Players ----
-function addPlayer(p, isLocal) {
-  const existing = document.getElementById('p-' + p.id);
-  if (existing) { existing.remove(); }
-
-  const el = document.createElement('div');
-  el.id = 'p-' + p.id;
-  el.className = 'player-avatar' + (isLocal ? ' local' : '');
+// ---- Other players ----
+function addOtherPlayer(p) {
+  removeOtherPlayer(p.id);
+  const container = document.createElement('div');
+  container.id = 'op-' + p.id;
+  container.className = 'other-player';
+  const sprite = document.createElement('div');
+  sprite.className = 'player-sprite';
+  sprite.style.cssText = 'width:100%;height:100%;background-image:url(/images/assets/roguelike3.png);background-repeat:no-repeat;background-size:500% 500%;background-position:0% 0%;clip-path:inset(21px 18px 9px 18px);';
   const hue = hashHue(p.id);
-  el.style.background = `hsl(${hue}, 60%, 40%)`;
-  el.style.border = `2px solid hsl(${hue}, 70%, 60%)`;
-  el.textContent = p.name.charAt(0).toUpperCase();
-  el.style.left = p.x + 'px';
-  el.style.top = p.y + 'px';
-  mapEl.appendChild(el);
-  players[p.id] = { el, p };
+  sprite.style.filter = `hue-rotate(${hue}deg) brightness(0.8)`;
+  container.appendChild(sprite);
+  const tag = document.createElement('div');
+  tag.className = 'name-tag';
+  tag.textContent = p.name;
+  tag.style.borderColor = `hsl(${hue}, 60%, 50%)`;
+  tag.style.border = '1px solid';
+  container.appendChild(tag);
+  container.style.left = p.x + 'px';
+  container.style.top = p.y + 'px';
+  mapEl.appendChild(container);
+  players[p.id] = { el: container, p };
 }
 
-function removePlayer(id) {
-  const el = document.getElementById('p-' + id);
+function removeOtherPlayer(id) {
+  const el = document.getElementById('op-' + id);
   if (el) el.remove();
   delete players[id];
 }
@@ -211,24 +284,25 @@ function removePlayer(id) {
 function hashHue(id) {
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return Math.abs(hash) % 360;
+  return hash % 360;
 }
 
 // ---- State apply ----
 function applyState(msg) {
-  stateTick = msg.tick;
-
-  // Update players
+  // Update local player
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
       myPlayer = sp;
-      updateHud();
-    }
-    const entry = players[sp.id];
-    if (entry) {
-      entry.p = sp;
-      entry.el.style.left = sp.x + 'px';
-      entry.el.style.top = sp.y + 'px';
+      playerEl.style.left = sp.x + 'px';
+      playerEl.style.top = sp.y + 'px';
+      hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
+    } else {
+      const entry = players[sp.id];
+      if (entry) {
+        entry.p = sp;
+        entry.el.style.left = sp.x + 'px';
+        entry.el.style.top = sp.y + 'px';
+      }
     }
   }
 
@@ -239,13 +313,9 @@ function applyState(msg) {
     if (!local) continue;
     local.el.style.left = (sm.x - 20) + 'px';
     local.el.style.top = (sm.y - 20) + 'px';
-    if (sm.alive && !local.alive) {
-      local.alive = true;
-      local.el.classList.remove('dead');
-    } else if (!sm.alive && local.alive) {
-      local.alive = false;
-      local.el.classList.add('dead');
-    }
+    const wasDead = !local.alive;
+    local.alive = sm.alive;
+    local.el.classList.toggle('dead', !sm.alive);
     if (local.hpFill) {
       local.hpFill.style.width = Math.max(0, (sm.hp / sm.maxHp) * 100) + '%';
     }
@@ -261,22 +331,18 @@ function applyState(msg) {
     }
   }
 
-  // Player list
-  updatePlayerList(msg.players);
+  updatePlayerList();
 }
 
 // ---- HUD ----
-function updateHud() {
-  if (myPlayer) {
-    myHp.style.width = (myPlayer.hp / myPlayer.maxHp * 100) + '%';
-  }
-}
-
-function updatePlayerList(allPlayers) {
+function updatePlayerList() {
+  if (!ws) return;
+  // We don't have the full list, so just show IDs we know
   let html = '';
-  for (const p of allPlayers) {
-    const isMe = p.id === myPlayerId;
-    html += `<div style="color:${isMe ? '#4f4' : '#ccc'}">${isMe ? '▶ ' : ''}${p.name} HP:${p.hp}</div>`;
+  if (myPlayer) html += `<div style="color:#4f4">▶ ${myPlayer.name} HP:${myPlayer.hp}</div>`;
+  for (const id in players) {
+    const entry = players[id];
+    if (entry && entry.p) html += `<div style="color:#ccc">${entry.p.name} HP:${entry.p.hp}</div>`;
   }
   playerListEl.innerHTML = html;
 }
@@ -289,7 +355,6 @@ function toggleInventory() {
 }
 
 function updateInventoryUI() {
-  if (!invPanel) return;
   const coins = myPlayer ? (myPlayer.coins || 0) : 0;
   const potions = myPlayer ? (myPlayer.potions || 0) : 0;
   invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -321,8 +386,6 @@ function showMessage(text) {
 }
 
 // ---- Camera ----
-let worldScale = 1;
-
 function updateCamera() {
   if (!myPlayer) return;
   const cx = window.innerWidth / 2 - myPlayer.x * worldScale;
@@ -335,6 +398,17 @@ window.addEventListener('wheel', (e) => {
   e.preventDefault();
 }, { passive: false });
 
+// ---- Fog ----
+function updateFog() {
+  if (!myPlayer) return;
+  const fogEl = document.getElementById('fog');
+  if (!fogEl) return;
+  const fogRadius = 180 / worldScale;
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  fogEl.style.cssText = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 50%,rgba(0,0,0,0.4) 65%,rgba(0,0,0,0.8) 80%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 50%,rgba(0,0,0,0.4) 65%,rgba(0,0,0,0.8) 80%,#000 90%,#000 100%);`;
+}
+
 // ---- Input ----
 function sendInput() {
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -342,18 +416,19 @@ function sendInput() {
   }
 }
 
-// Keyboard
 document.addEventListener('keydown', (e) => {
+  if (e.key === undefined) return;
   const k = e.key.toLowerCase();
   if (k === 'w' || k === 'arrowup') { keys.up = true; e.preventDefault(); }
   if (k === 's' || k === 'arrowdown') { keys.down = true; e.preventDefault(); }
   if (k === 'a' || k === 'arrowleft') { keys.left = true; e.preventDefault(); }
   if (k === 'd' || k === 'arrowright') { keys.right = true; e.preventDefault(); }
-  if (k === ' ' || k === 'e' || k === 'enter') { e.preventDefault(); interactAction(); }
+  if (k === ' ') { e.preventDefault(); interactAction(); }
   if (k === 'i') toggleInventory();
   sendInput();
 });
 document.addEventListener('keyup', (e) => {
+  if (e.key === undefined) return;
   const k = e.key.toLowerCase();
   if (k === 'w' || k === 'arrowup') { keys.up = false; e.preventDefault(); sendInput(); }
   if (k === 's' || k === 'arrowdown') { keys.down = false; e.preventDefault(); sendInput(); }
@@ -365,9 +440,9 @@ document.addEventListener('keyup', (e) => {
 ['up','down','left','right'].forEach(dir => {
   const btn = document.getElementById('ctrl-' + dir);
   if (!btn) return;
-  btn.addEventListener('pointerdown', (e) => { e.preventDefault(); keys[dir] = true; sendInput(); });
-  btn.addEventListener('pointerup', (e) => { e.preventDefault(); keys[dir] = false; sendInput(); });
-  btn.addEventListener('pointerleave', (e) => { e.preventDefault(); keys[dir] = false; sendInput(); });
+  btn.addEventListener('pointerdown', () => { keys[dir] = true; sendInput(); });
+  btn.addEventListener('pointerup', () => { keys[dir] = false; sendInput(); });
+  btn.addEventListener('pointerleave', () => { keys[dir] = false; sendInput(); });
 });
 
 // Lobby
@@ -393,11 +468,35 @@ lobbyCode.addEventListener('keydown', (e) => {
 interactBtn.addEventListener('click', interactAction);
 invBtn.addEventListener('click', toggleInventory);
 
+// ---- Scan ----
+function performScan() {
+  const sf = document.getElementById('scan-field');
+  sf.style.left = myPlayer.x + 'px';
+  sf.style.top = myPlayer.y + 'px';
+  sf.classList.add('show');
+  setTimeout(() => sf.classList.remove('show'), 3000);
+}
+
+scanBtn.addEventListener('click', performScan);
+
+// ---- Animation ----
+let frame = 0;
+function animate() {
+  frame = (frame + 1) % 4; // 4-frame walk
+  const pos = `-${frame * 25}% 0%`;
+  playerSprite.style.backgroundPosition = pos;
+  for (const id in players) {
+    players[id].el.querySelector('.player-sprite').style.backgroundPosition = pos;
+  }
+  requestAnimationFrame(animate);
+}
+animate();
+
 // Game loop
 function update() {
   updateCamera();
+  updateFog();
   requestAnimationFrame(update);
 }
 
-// Start
 update();
