@@ -606,30 +606,32 @@ function applyBackgroundImage(url) {
     }
 }
 
-bgBtn.addEventListener('click', () => bgUpload.click());
-bgUpload.addEventListener('change', async () => {
-    const file = bgUpload.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
-    try {
-        const res = await fetch('/api/game/maps/decal-upload', { method: 'POST', body: formData });
-        if (!res.ok) throw new Error((await res.json()).error);
-        const { url } = await res.json();
-        mapData.backgroundImage = url;
-        applyBackgroundImage(url);
-        bgRemoveBtn.style.display = '';
-        bgBtn.textContent = 'Bg ✓';
-        setStatus('Background set');
-    } catch (e) { setStatus('Bg error: ' + e.message); }
-});
-bgRemoveBtn.addEventListener('click', () => {
-    mapData.backgroundImage = null;
-    applyBackgroundImage(null);
-    bgRemoveBtn.style.display = 'none';
-    bgBtn.textContent = 'Bg';
-    setStatus('Background removed');
-});
+if (bgBtn) {
+    bgBtn.addEventListener('click', () => bgUpload.click());
+    bgUpload.addEventListener('change', async () => {
+        const file = bgUpload.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('image', file);
+        try {
+            const res = await fetch('/api/game/maps/decal-upload', { method: 'POST', body: formData });
+            if (!res.ok) throw new Error((await res.json()).error);
+            const { url } = await res.json();
+            mapData.backgroundImage = url;
+            applyBackgroundImage(url);
+            bgRemoveBtn.style.display = '';
+            bgBtn.textContent = 'Bg ✓';
+            setStatus('Background set');
+        } catch (e) { setStatus('Bg error: ' + e.message); }
+    });
+    bgRemoveBtn.addEventListener('click', () => {
+        mapData.backgroundImage = null;
+        applyBackgroundImage(null);
+        bgRemoveBtn.style.display = 'none';
+        bgBtn.textContent = 'Bg';
+        setStatus('Background removed');
+    });
+}
 
 document.getElementById('btn-new').addEventListener('click', () => {
     if (!confirm('Clear the map? Unsaved changes will be lost.')) return;
