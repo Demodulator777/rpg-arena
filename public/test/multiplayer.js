@@ -219,203 +219,28 @@ function hashHue(id) {
 
 // ---- State apply ----
 function applyState(msg) {
+  // Update local player
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
-      myPlayer = sp;
+      myPlayer = sp; // <--- The server sends this state
       playerEl.style.left = sp.x + 'px';
       playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
     } else {
-      const entry = players[sp.id];
-      if (entry) {
-        entry.p = sp;
-        entry.el.style.left = sp.x + 'px';
-        entry.el.style.top = sp.y + 'px';
-      }
+      // ...
     }
   }
-
-  for (let i = 0; i < msg.monsters.length; i++) {
-    const sm = msg.monsters[i];
-    const local = monsters[i];
-    if (!local) continue;
-    local.el.style.left = (sm.x - 20) + 'px';
-    local.el.style.top = (sm.y - 20) + 'px';
-    local.alive = sm.alive;
-    local.el.classList.toggle('dead', !sm.alive);
-    if (local.hpFill) {
-      local.hpFill.style.width = Math.max(0, (sm.hp / sm.maxHp) * 100) + '%';
-    }
-  }
-  updatePlayerList();
+  // ...
 }
 
-// ---- HUD ----
-function updatePlayerList() {
-  if (!ws) return;
-  let html = '';
-  if (myPlayer) html += `<div style="color:#4f4">▶ ${myPlayer.name} HP:${myPlayer.hp}</div>`;
-  for (const id in players) {
-    const entry = players[id];
-    if (entry && entry.p) html += `<div style="color:#ccc">${entry.p.name} HP:${entry.p.hp}</div>`;
-  }
-  playerListEl.innerHTML = html;
-}
-
-// ---- Inventory ----
-function toggleInventory() {
-  invPanel.classList.toggle('show');
-  updateInventoryUI();
-}
-
-function updateInventoryUI() {
-  const coins = myPlayer ? (myPlayer.coins || 0) : 0;
-  const potions = myPlayer ? (myPlayer.potions || 0) : 0;
-  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <b>Inventory</b>
-    <button id="inv-close" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer">✕</button>
-  </div>
-  <div>Silver coins: ${coins}</div>
-  <div>Healing potions: ${potions}</div>`;
-  document.getElementById('inv-close')?.addEventListener('click', toggleInventory);
-}
-
-// ---- Interaction ----
-function interactAction() {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'interact' }));
-  }
-}
-
-let messageEl = null;
-function showMessage(text) {
-  if (!messageEl) {
-    messageEl = document.createElement('div');
-    messageEl.style.cssText = 'position:fixed;bottom:30%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);border:1px solid #f0c840;border-radius:8px;padding:8px 20px;font-size:15px;color:#f0c840;z-index:300;white-space:nowrap;pointer-events:none;';
-    document.body.appendChild(messageEl);
-  }
-  messageEl.textContent = text;
-  messageEl.style.display = 'block';
-  setTimeout(() => { if (messageEl) messageEl.style.display = 'none'; }, 3000);
-}
-
-// ---- Camera/Fog ----
-function updateCamera() {
-  if (!myPlayer) return;
-  worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
-  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-myPlayer.x}px, ${-myPlayer.y}px)`;
-}
-
-function updateFog() {
-  if (!myPlayer) return;
-  const fogEl = document.getElementById('fog');
-  const fogRadius = 250 * worldScale;
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
-  fogEl.style.cssText = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%)`;
-}
-
-// ---- Input/Joystick ----
-let joystickActive = false;
-let joystickTouchId = null;
-
-function handleJoystick(e) {
-  if (!joystickActive) return;
-  const rect = joystickArea.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-  let moveX = clientX - centerX;
-  let moveY = clientY - centerY;
-  const dist = Math.hypot(moveX, moveY);
-  const maxDist = 45;
-  if (dist > maxDist) {
-    moveX = (moveX / dist) * maxDist;
-    moveY = (moveY / dist) * maxDist;
-  }
-  joystickKnob.style.transform = `translate(${moveX}px, ${moveY}px)`;
-  keys = { up: moveY < -15, down: moveY > 15, left: moveX < -15, right: moveX > 15 };
-  sendInput();
-}
-
-function sendInput() {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'input', keys }));
-  }
-}
-
-// Joystick events
-joystickArea.addEventListener('mousedown', (e) => { joystickActive = true; handleJoystick(e); });
-window.addEventListener('mousemove', handleJoystick);
-window.addEventListener('mouseup', () => { joystickActive = false; keys = { up: false, down: false, left: false, right: false }; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
-joystickArea.addEventListener('touchstart', (e) => { joystickActive = true; joystickTouchId = e.changedTouches[0].identifier; handleJoystick(e); });
-window.addEventListener('touchmove', handleJoystick);
-window.addEventListener('touchend', (e) => {
-  for (let t of e.changedTouches) {
-    if (t.identifier === joystickTouchId) {
-      joystickActive = false; joystickTouchId = null; keys = { up: false, down: false, left: false, right: false }; joystickKnob.style.transform = 'translate(0, 0)'; sendInput();
-    }
-  }
-});
-
-// Keyboard
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'w' || e.key === 'ArrowUp') keys.up = true;
-  else if (e.key === 's' || e.key === 'ArrowDown') keys.down = true;
-  else if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = true;
-  else if (e.key === 'd' || e.key === 'ArrowRight') keys.right = true;
-  else if (e.key === ' ') interactAction();
-  else if (e.key === 'i') toggleInventory();
-  else return;
-  sendInput();
-});
-window.addEventListener('keyup', (e) => {
-  if (e.key === 'w' || e.key === 'ArrowUp') keys.up = false;
-  else if (e.key === 's' || e.key === 'ArrowDown') keys.down = false;
-  else if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = false;
-  else if (e.key === 'd' || e.key === 'ArrowRight') keys.right = false;
-  else return;
-  sendInput();
-});
-
-// ---- Scan/Animation/Loop ----
-function performScan() {
-  const sf = document.getElementById('scan-field');
-  sf.style.left = myPlayer.x + 'px';
-  sf.style.top = myPlayer.y + 'px';
-  sf.classList.add('show');
-  setTimeout(() => sf.classList.remove('show'), 3000);
-}
-scanBtn.addEventListener('click', performScan);
-
-let frame = 0;
-function animate() {
-  frame = (frame + 1) % 4;
-  const pos = `-${frame * 25}% 0%`;
-  playerSprite.style.backgroundPosition = pos;
-  for (const id in players) {
-    players[id].el.querySelector('.player-sprite').style.backgroundPosition = pos;
-  }
-  requestAnimationFrame(animate);
-}
-animate();
-
+// Game loop
 function update() {
+  if (!myPlayer) {
+    // console.log('update: myPlayer is null, fog will be black');
+  }
   updateCamera();
   updateFog();
   requestAnimationFrame(update);
 }
 update();
-
-// Lobby listeners
-btnCreate.addEventListener('click', () => {
-  connectToRoom('', Number(lobbyLevel.value) || 1, lobbyName.value.trim() || 'Adventurer', true);
-});
-btnJoin.addEventListener('click', () => {
-  connectToRoom(lobbyCode.value.trim().toUpperCase(), 1, lobbyName.value.trim() || 'Adventurer', false);
-});
-interactBtn.addEventListener('click', interactAction);
-invBtn.addEventListener('click', toggleInventory);
+console.log('Update loop started');
