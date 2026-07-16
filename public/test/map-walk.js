@@ -7,6 +7,7 @@ const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 const actionBtn = document.getElementById('action-btn');
 const scanBtn = document.getElementById('scan-btn');
+const invBtn = document.getElementById('inv-btn');
 const interactPrompt = document.getElementById('interact-prompt');
 const levelLabel = document.getElementById('level-label');
 const loadingEl = document.getElementById('loading');
@@ -78,6 +79,7 @@ let teleports = [];
 let teleportCooldown = 0;
 let beams = [];
 let lastBeamDmg = 0;
+let shops = [];
 let rangedProjectiles = [];
 
 function checkOverlap(ax, ay, ahw, ahh, bx, by, bhw, bhh) {
@@ -128,6 +130,7 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'z' || e.key === 'Z') triggerBurst();
     if (e.key === 'x' || e.key === 'X') triggerScan();
     if (e.key === 'i' || e.key === 'I') toggleInventory();
+    if (e.key === 'Escape') { if (shopOpen) closeShop(); if (inventoryOpen) toggleInventory(); }
     updateInput();
 });
 window.addEventListener('keyup', (e) => {
@@ -240,6 +243,12 @@ function triggerBurst() {
 
 // Interact prompt
 function openNearChest() {
+    // Check shop first
+    const nearShop = interactPrompt._shop;
+    if (nearShop && interactPrompt.textContent === 'Shop') {
+        openShop(nearShop);
+        return;
+    }
     if (!nearChest || nearChest.found) return;
     if (!hasLineOfSight(playerWX, playerWY, nearChest.x, nearChest.y)) return;
     nearChest.found = true;
@@ -266,6 +275,53 @@ function usePotion() {
     document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
     showMessage('Used healing potion +30 HP');
     updateInventoryUI();
+}
+
+const SHOP_ITEMS = [
+    { name: 'Healing Potion', desc: 'Restore 30 HP', price: 15, action: () => {
+        if (inventory.coins < 15) return false;
+        if (playerHP >= PLAYER_MAX_HP) { showMessage('HP is already full'); return false; }
+        inventory.coins -= 15;
+        inventory.potions++;
+        updateInventoryUI();
+        renderShop();
+        showMessage('Bought Healing Potion');
+        return true;
+    }}
+];
+
+let shopOpen = false;
+function openShop(shop) {
+    shopOpen = true;
+    renderShop();
+}
+
+function closeShop() {
+    shopOpen = false;
+    document.getElementById('shop-panel').classList.remove('show');
+}
+
+function renderShop() {
+    const panel = document.getElementById('shop-panel');
+    if (!panel) return;
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Shop</h3>
+        <span style="color:#f0c840">💰 ${inventory.coins} coins</span>
+        <button id="shop-close" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer">✕</button>
+    </div>`;
+    for (const item of SHOP_ITEMS) {
+        html += `<div class="shop-item">
+            <div><b>${item.name}</b><br><span style="font-size:12px;color:#999">${item.desc}</span></div>
+            <div><button id="buy-${SHOP_ITEMS.indexOf(item)}" ${inventory.coins >= item.price ? '' : 'disabled'}>${item.price}g</button></div>
+        </div>`;
+    }
+    panel.innerHTML = html;
+    panel.classList.add('show');
+    document.getElementById('shop-close')?.addEventListener('click', closeShop);
+    for (const item of SHOP_ITEMS) {
+        const btn = document.getElementById(`buy-${SHOP_ITEMS.indexOf(item)}`);
+        if (btn) btn.addEventListener('click', item.action);
+    }
 }
 
 function toggleInventory() {
@@ -304,11 +360,14 @@ interactPrompt.addEventListener('pointerdown', (e) => { e.stopPropagation(); ope
 // ---- Level loading ----
 async function loadLevel(level, spawnAt) {
     loadingEl.classList.remove('hide');
+    if (shopOpen) closeShop();
+    if (inventoryOpen) toggleInventory();
     try {
         // Clear existing
-        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line, .beam-particle, .beam-orbiter, .range-projectile').forEach(el => el.remove());
+        document.querySelectorAll('.wall, .chest, .shop, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line, .beam-particle, .beam-orbiter, .range-projectile').forEach(el => el.remove());
         walls.length = 0;
         chests.length = 0;
+        shops.length = 0;
         monsters.length = 0;
         decals.length = 0;
         traps.length = 0;
@@ -386,6 +445,17 @@ async function loadLevel(level, spawnAt) {
                 el.style.cssText = `left:${c.x}px;top:${c.y}px;`;
                 map.appendChild(el);
                 chests.push({ x: c.x, y: c.y, el, found: false });
+            }
+        }
+
+        // Shops
+        if (d.shops) {
+            for (const s of d.shops) {
+                const el = document.createElement('div');
+                el.className = 'shop';
+                el.style.cssText = `left:${s.x - 18}px;top:${s.y - 18}px;`;
+                map.appendChild(el);
+                shops.push({ x: s.x, y: s.y, el });
             }
         }
 
@@ -874,6 +944,7 @@ function update(timestamp) {
     }
     if (closest) {
         nearChest = closest;
+        interactPrompt.textContent = 'Open';
         const sx = (closest.x - playerWX) * worldScale + window.innerWidth / 2;
         const sy = (closest.y - playerWY) * worldScale + window.innerHeight / 2 - 16;
         interactPrompt.style.left = sx + 'px';
@@ -881,7 +952,28 @@ function update(timestamp) {
         interactPrompt.classList.add('show');
     } else {
         nearChest = null;
-        interactPrompt.classList.remove('show');
+        // Check shop proximity
+        let nearShop = null;
+        let shopDist = range;
+        for (const s of shops) {
+            const d = Math.hypot(playerWX - s.x, playerWY - s.y);
+            if (d < shopDist && hasLineOfSight(playerWX, playerWY, s.x, s.y)) {
+                shopDist = d;
+                nearShop = s;
+            }
+        }
+        if (nearShop) {
+            const sx = (nearShop.x - playerWX) * worldScale + window.innerWidth / 2;
+            const sy = (nearShop.y - playerWY) * worldScale + window.innerHeight / 2 - 16;
+            interactPrompt.textContent = 'Shop';
+            interactPrompt.style.left = sx + 'px';
+            interactPrompt.style.top = sy + 'px';
+            interactPrompt.classList.add('show');
+            interactPrompt._shop = nearShop;
+        } else {
+            interactPrompt.classList.remove('show');
+            interactPrompt._shop = null;
+        }
     }
 
     // Traps
@@ -1051,6 +1143,7 @@ function updateScanDisplay() {
 
 actionBtn.addEventListener('pointerdown', triggerBurst);
 scanBtn.addEventListener('pointerdown', triggerScan);
+invBtn.addEventListener('pointerdown', toggleInventory);
 joystickArea.addEventListener('mousedown', (e) => { active = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { active = false; dx = dy = 0; joystickKnob.style.transform = `translate(0, 0)`; });
