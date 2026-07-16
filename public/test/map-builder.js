@@ -14,7 +14,8 @@ let mapData = {
     decals: [],
     traps: [],
     teleports: [],
-    beams: []
+    beams: [],
+    backgroundImage: null
 };
 let selectedItem = null;
 let isDragging = false;
@@ -590,6 +591,46 @@ window.addEventListener('resize', updateCamera);
 updateCamera();
 
 // Save / Load / New
+// Background image
+const bgUpload = document.getElementById('bg-upload');
+const bgBtn = document.getElementById('btn-bg');
+const bgRemoveBtn = document.getElementById('btn-bg-remove');
+
+function applyBackgroundImage(url) {
+    const bg = document.getElementById('map-bg');
+    if (url) {
+        bg.style.background = `url(${url}) repeat`;
+        bg.style.backgroundSize = 'auto';
+    } else {
+        bg.style.background = '#1a1a1a';
+    }
+}
+
+bgBtn.addEventListener('click', () => bgUpload.click());
+bgUpload.addEventListener('change', async () => {
+    const file = bgUpload.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+        const res = await fetch('/api/game/maps/decal-upload', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error((await res.json()).error);
+        const { url } = await res.json();
+        mapData.backgroundImage = url;
+        applyBackgroundImage(url);
+        bgRemoveBtn.style.display = '';
+        bgBtn.textContent = 'Bg ✓';
+        setStatus('Background set');
+    } catch (e) { setStatus('Bg error: ' + e.message); }
+});
+bgRemoveBtn.addEventListener('click', () => {
+    mapData.backgroundImage = null;
+    applyBackgroundImage(null);
+    bgRemoveBtn.style.display = 'none';
+    bgBtn.textContent = 'Bg';
+    setStatus('Background removed');
+});
+
 document.getElementById('btn-new').addEventListener('click', () => {
     if (!confirm('Clear the map? Unsaved changes will be lost.')) return;
     clearAll();
@@ -627,7 +668,8 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer, image: d.image || null, flipH: d.flipH || false, flipV: d.flipV || false })),
             traps: mapData.traps.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage })),
             teleports: mapData.teleports.map(t => ({ x: t.x, y: t.y, id: t.id, targetId: t.targetId })),
-            beams: mapData.beams.map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval }))
+            beams: mapData.beams.map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval })),
+            backgroundImage: mapData.backgroundImage || null
         }
     };
     setStatus('Saving...');
@@ -670,7 +712,8 @@ document.getElementById('btn-load').addEventListener('click', async () => {
             decals: [],
             traps: [],
             teleports: [],
-            beams: []
+            beams: [],
+            backgroundImage: d.backgroundImage || null
         };
         if (d.walls) d.walls.forEach(w => addItem({ type: 'wall', x: w.x, y: w.y, width: w.width, height: w.height }));
         if (d.chests) d.chests.forEach(c => addItem({ type: 'chest', x: c.x, y: c.y }));
@@ -682,6 +725,16 @@ document.getElementById('btn-load').addEventListener('click', async () => {
         if (d.teleports) d.teleports.forEach(x => addItem({ type: 'teleport', x: x.x, y: x.y, id: x.id, targetId: x.targetId }));
         if (d.beams) d.beams.forEach(x => addItem({ type: 'beam', x1: x.x1, y1: x.y1, x2: x.x2, y2: x.y2, damage: x.damage, interval: x.interval }));
         addItem({ type: 'start', x: mapData.playerStart.x, y: mapData.playerStart.y });
+        // Restore background
+        if (mapData.backgroundImage) {
+            applyBackgroundImage(mapData.backgroundImage);
+            bgRemoveBtn.style.display = '';
+            bgBtn.textContent = 'Bg ✓';
+        } else {
+            applyBackgroundImage(null);
+            bgRemoveBtn.style.display = 'none';
+            bgBtn.textContent = 'Bg';
+        }
         nameInput.value = mapData.name;
         levelInput.value = mapData.level;
         setStatus('Loaded level ' + level);
@@ -695,7 +748,10 @@ function clearAll() {
     const ps = document.querySelector('.player-start');
     if (ps) ps.remove();
     deselectAll();
-    mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 }, decals: [], traps: [], teleports: [], beams: [] };
+    mapData = { walls: [], chests: [], monsterSpawns: [], exit: null, entrance: null, playerStart: { x: 2500, y: 2500 }, decals: [], traps: [], teleports: [], beams: [], backgroundImage: null };
+    applyBackgroundImage(null);
+    bgRemoveBtn.style.display = 'none';
+    bgBtn.textContent = 'Bg';
 }
 
 // Initial: show player start marker
