@@ -419,7 +419,7 @@ function wallHit(mx, my, walls) {
 function pushOutOfWall(m, walls) {
   if (!wallHit(m.x, m.y, walls)) return;
   const dirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
-  for (let step = 2; step <= 30; step += 2) {
+  for (let step = 2; step <= 200; step += 10) {
     for (const [dx, dy] of dirs) {
       const nx = m.x + dx * step;
       const ny = m.y + dy * step;
