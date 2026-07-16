@@ -170,13 +170,6 @@ function monsterWallHit(mx, my) {
     );
 }
 
-function monsterStackHit(mx, my, excludeIdx) {
-    return monsters.some((m, i) =>
-        i !== excludeIdx && m.hp > 0 &&
-        Math.abs(mx - m.x) < 36 &&
-        Math.abs(my - m.y) < 36
-    );
-}
 
 function hasLineOfSight(x1, y1, x2, y2) {
     const dx = x2 - x1;
@@ -600,23 +593,46 @@ function update(timestamp) {
         if (m.state === 'chase') {
             const a = Math.atan2(playerWY - m.y, playerWX - m.x);
             const mStep = MONSTER_SPEED * dt;
-            const sx = Math.cos(a) * mStep;
-            const sy = Math.sin(a) * mStep;
-            if (!monsterWallHit(m.x + sx, m.y) && !monsterStackHit(m.x + sx, m.y, mi)) m.x += sx;
-            if (!monsterWallHit(m.x, m.y + sy) && !monsterStackHit(m.x, m.y + sy, mi)) m.y += sy;
+            let sx = Math.cos(a) * mStep;
+            let sy = Math.sin(a) * mStep;
+            if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
+            if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
         } else {
             const d = Math.hypot(m.spawnX - m.x, m.spawnY - m.y);
             if (d > 1) {
                 const a = Math.atan2(m.spawnY - m.y, m.spawnX - m.x);
                 const mStep = MONSTER_SPEED * dt;
-                const sx = Math.cos(a) * mStep;
-                const sy = Math.sin(a) * mStep;
-                if (!monsterWallHit(m.x + sx, m.y) && !monsterStackHit(m.x + sx, m.y, mi)) m.x += sx;
-                if (!monsterWallHit(m.x, m.y + sy) && !monsterStackHit(m.x, m.y + sy, mi)) m.y += sy;
+                let sx = Math.cos(a) * mStep;
+                let sy = Math.sin(a) * mStep;
+                if (!monsterWallHit(m.x + sx, m.y)) m.x += sx;
+                if (!monsterWallHit(m.x, m.y + sy)) m.y += sy;
             }
         }
-        m.x = Math.max(20, Math.min(5000 - 20, m.x));
-        m.y = Math.max(20, Math.min(5000 - 20, m.y));
+    }
+    // Separate overlapping monsters
+    for (let i = 0; i < monsters.length; i++) {
+        const a = monsters[i];
+        if (a.hp <= 0) continue;
+        for (let j = i + 1; j < monsters.length; j++) {
+            const b = monsters[j];
+            if (b.hp <= 0) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const d = Math.hypot(dx, dy);
+            const minDist = 36;
+            if (d < minDist && d > 0.1) {
+                const push = (minDist - d) / 2;
+                const nx = dx / d;
+                const ny = dy / d;
+                a.x -= nx * push;
+                a.y -= ny * push;
+                b.x += nx * push;
+                b.y += ny * push;
+            }
+        }
+    }
+    // Per-monster rendering
+    for (const m of monsters) {
         m.el.style.left = m.x + 'px';
         m.el.style.top = m.y + 'px';
 
@@ -650,6 +666,7 @@ function update(timestamp) {
         }
 
         m.attackTimer -= dt;
+        const dist = Math.hypot(playerWX - m.x, playerWY - m.y);
         if (m.attackTimer <= 0 && dist < 100) {
             if (checkOverlap(playerWX, playerWY, 15, 30, m.x, m.y, 20, 20) && hasLineOfSight(m.x, m.y, playerWX, playerWY)) {
                 m.animFrame = 0;
