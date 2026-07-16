@@ -217,7 +217,7 @@ function broadcast(room, msg, excludeWs) {
 
 function createPlayer(id, name, mapData) {
   const spawn = mapData.playerStart || { x: 2500, y: 2500 };
-  return {
+  const player = {
     id,
     name,
     x: spawn.x,
@@ -229,6 +229,8 @@ function createPlayer(id, name, mapData) {
     input: {},
     host: false
   };
+  pushOutOfWall(player, mapData.walls || []);
+  return player;
 }
 
 function createGameState(mapData) {
