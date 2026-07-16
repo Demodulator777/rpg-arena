@@ -350,15 +350,6 @@ async function loadLevel(level, spawnAt) {
             map.appendChild(entranceEl);
         }
 
-        // Entrance zone (backward)
-        if (mapInfo.entrance) {
-            entranceEl = document.createElement('div');
-            entranceEl.id = 'entrance-zone';
-            entranceEl.textContent = '←';
-            entranceEl.style.cssText = `left:${mapInfo.entrance.x - 30}px;top:${mapInfo.entrance.y - 30}px;border-color:#a6a;`;
-            map.appendChild(entranceEl);
-        }
-
         // Decals
         if (d.decals) {
             for (const dc of d.decals) {
