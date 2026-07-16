@@ -220,7 +220,7 @@ async function loadLevel(level, spawnAt) {
     loadingEl.classList.remove('hide');
     try {
         // Clear existing
-        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
+        document.querySelectorAll('.wall, .chest, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line, .beam-particle, .beam-orbiter').forEach(el => el.remove());
         walls.length = 0;
         chests.length = 0;
         monsters.length = 0;
@@ -404,7 +404,22 @@ async function loadLevel(level, spawnAt) {
                 const h = Math.abs(bm.y2 - bm.y1) + 6;
                 el.style.cssText = `left:${cx - w/2}px;top:${cy - h/2}px;width:${w}px;height:${h}px;position:absolute;pointer-events:none;z-index:2;transform-origin:center;transform:rotate(${Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1)}rad);`;
                 map.appendChild(el);
-                beams.push({ x1: bm.x1, y1: bm.y1, x2: bm.x2, y2: bm.y2, damage: bm.damage || 5, interval: bm.interval || 800, lastDmg: 0, el });
+                // Main glowing particle
+                const particleEl = document.createElement('div');
+                particleEl.className = 'beam-particle';
+                particleEl.style.cssText = 'position:absolute;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:3;';
+                map.appendChild(particleEl);
+                // Orbiting particles
+                const orbiterCount = 4;
+                const orbiters = [];
+                for (let i = 0; i < orbiterCount; i++) {
+                    const orbEl = document.createElement('div');
+                    orbEl.className = 'beam-orbiter';
+                    orbEl.style.cssText = 'position:absolute;width:3px;height:3px;border-radius:50%;pointer-events:none;z-index:3;';
+                    map.appendChild(orbEl);
+                    orbiters.push({ el: orbEl, angleOffset: (Math.PI * 2 / orbiterCount) * i, radius: 6 + Math.random() * 6 });
+                }
+                beams.push({ x1: bm.x1, y1: bm.y1, x2: bm.x2, y2: bm.y2, damage: bm.damage || 5, interval: bm.interval || 800, lastDmg: 0, el, particleEl, orbiters, animOffset: Math.random() * 2000 });
             }
         }
 
@@ -698,11 +713,35 @@ function update(timestamp) {
     // Beams: animate particles + damage
     for (const bm of beams) {
         const now = Date.now();
-        // Particle animation
-        const t = ((now % bm.interval) / bm.interval);
+        // Main particle position — slower visual speed (3x interval)
+        const visualPeriod = bm.interval * 3;
+        const t = (((now + bm.animOffset) % visualPeriod) / visualPeriod);
         const px = bm.x1 + (bm.x2 - bm.x1) * t;
         const py = bm.y1 + (bm.y2 - bm.y1) * t;
-        bm.el.style.background = `radial-gradient(circle 4px at ${(t * 100)}% 50%, rgba(255,255,100,0.9), transparent)`;
+        // Electric glow
+        const glowIntensity = 0.6 + 0.4 * Math.sin(now / 100);
+        bm.particleEl.style.cssText = `left:${px - 4}px;top:${py - 4}px;width:8px;height:8px;position:absolute;border-radius:50%;background:radial-gradient(circle, #fff 20%, #6cf 60%, transparent);box-shadow:0 0 ${6 + glowIntensity * 8}px #6cf,0 0 ${12 + glowIntensity * 16}px #48f;pointer-events:none;z-index:3;`;
+        // Orbiting particles — spawn from main, orbit outward, fade
+        const orbCycle = 2000; // 2-second spawn/orbit/fade cycle
+        const orbT = ((now + bm.animOffset * 1.3) % orbCycle) / orbCycle;
+        for (let i = 0; i < bm.orbiters.length; i++) {
+            const orb = bm.orbiters[i];
+            const angle = orbT * Math.PI * 2 + orb.angleOffset;
+            const spawnRadius = orbT * orb.radius; // start at center, expand outward
+            const ox = px + Math.cos(angle) * spawnRadius;
+            const oy = py + Math.sin(angle) * spawnRadius;
+            // Fade in early, hold, then fade out
+            let fade;
+            if (orbT < 0.2) fade = orbT / 0.2;
+            else if (orbT < 0.7) fade = 1;
+            else fade = 1 - ((orbT - 0.7) / 0.3);
+            if (fade < 0.05) {
+                orb.el.style.display = 'none';
+            } else {
+                orb.el.style.display = '';
+                orb.el.style.cssText = `left:${ox - 1.5}px;top:${oy - 1.5}px;width:3px;height:3px;position:absolute;border-radius:50%;background:#8ef;box-shadow:0 0 4px #6cf;opacity:${fade};pointer-events:none;z-index:3;`;
+            }
+        }
         // Line-rect collision: player as rect 26x52 (half-width x half-height)
         const dx = bm.x2 - bm.x1;
         const dy = bm.y2 - bm.y1;
