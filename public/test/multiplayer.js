@@ -55,7 +55,6 @@ function connectToRoom(code, level, name, isCreate) {
 }
 
 function handleMessage(msg) {
-  console.log('Received message:', msg.type);
   switch (msg.type) {
     case 'room_created':
     case 'room_joined':
@@ -63,7 +62,6 @@ function handleMessage(msg) {
       roomCode = msg.code;
       myPlayerId = msg.playerId;
       myPlayer = msg.player;
-      console.log('Player initialized:', myPlayer);
       roomCodeEl.textContent = 'Room: ' + roomCode;
       initWorld(msg.state);
       if (!isRunning) { isRunning = true; update(); }
@@ -125,11 +123,14 @@ async function initWorld(state) {
 
   if (d.backgroundImage) {
     mapEl.style.background = `url(${d.backgroundImage}) repeat`;
+    mapEl.style.backgroundSize = 'auto';
   }
 
+  // Monsters
   if (state.monsters) {
     for (let i = 0; i < state.monsters.length; i++) createMonsterEl(i, state.monsters[i]);
   }
+  // Chests
   if (state.chests) {
     for (let i = 0; i < state.chests.length; i++) {
       const c = state.chests[i];
@@ -141,6 +142,7 @@ async function initWorld(state) {
       chests[i] = { ...c, el };
     }
   }
+  // Other players
   for (const p of state.players) {
     if (p.id !== myPlayerId) addOtherPlayer(p);
   }
@@ -335,7 +337,7 @@ animate();
 
 function update() {
   updateCamera();
-  // updateFog(); // Temporarily disabled to check if this is the cause
+  updateFog();
   requestAnimationFrame(update);
 }
 
