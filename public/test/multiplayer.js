@@ -103,6 +103,7 @@ function handleMessage(msg) {
 
 // ---- World ----
 async function initWorld(state) {
+  console.log('initWorld starting...');
   // Preload sprites
   (new Image()).src = '/images/assets/roguelike3.png';
   (new Image()).src = '/images/assets/goblin.png';
@@ -114,14 +115,17 @@ async function initWorld(state) {
     const res = await fetch(`/api/game/maps/${level}`);
     if (!res.ok) throw new Error('Map not found');
     const row = await res.json();
+    console.log('Map loaded:', row);
     d = row.data;
     if (typeof d === 'string') d = JSON.parse(d);
   } catch (e) {
-    lobbyError.textContent = 'Failed to load map';
+    console.error('Map load error:', e);
+    lobbyError.textContent = 'Failed to load map: ' + e.message;
     lobby.classList.remove('hide');
     return;
   }
   mapData = d;
+  console.log('World initialized');
 
   // Background
   if (d.backgroundImage) {
