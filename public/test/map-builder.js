@@ -149,6 +149,30 @@ function showProps(data) {
             clearBtn.addEventListener('click', () => { data.image = null; renderItem(data); clearBtn.remove(); });
             propsPanel.appendChild(clearBtn);
         }
+        // Flip buttons
+        const flipRow = document.createElement('div');
+        flipRow.style.cssText = 'display:flex;gap:4px;margin-top:4px;';
+        const flipHBtn = document.createElement('button');
+        flipHBtn.textContent = data.flipH ? '↔ Flipped' : '↔ Flip H';
+        flipHBtn.style.cssText = data.flipH ? 'background:#558;border-color:#88a;flex:1;' : 'flex:1;';
+        flipHBtn.addEventListener('click', () => { data.flipH = !data.flipH; flipHBtn.textContent = data.flipH ? '↔ Flipped' : '↔ Flip H'; flipHBtn.style.background = data.flipH ? '#558' : ''; renderItem(data); });
+        flipRow.appendChild(flipHBtn);
+        const flipVBtn = document.createElement('button');
+        flipVBtn.textContent = data.flipV ? '↕ Flipped' : '↕ Flip V';
+        flipVBtn.style.cssText = data.flipV ? 'background:#558;border-color:#88a;flex:1;' : 'flex:1;';
+        flipVBtn.addEventListener('click', () => { data.flipV = !data.flipV; flipVBtn.textContent = data.flipV ? '↕ Flipped' : '↕ Flip V'; flipVBtn.style.background = data.flipV ? '#558' : ''; renderItem(data); });
+        flipRow.appendChild(flipVBtn);
+        propsPanel.appendChild(flipRow);
+        // Duplicate button
+        const dupBtn = document.createElement('button');
+        dupBtn.textContent = 'Duplicate Decal';
+        dupBtn.style.cssText = 'background:#585;border-color:#8a8;margin-top:4px;';
+        dupBtn.addEventListener('click', () => {
+            const copy = { ...data, _id: nextId++, x: data.x + GRID, y: data.y + GRID };
+            addItem(copy);
+            selectItem(copy);
+        });
+        propsPanel.appendChild(dupBtn);
     } else if (data.type === 'trap') {
         addProp('X', data.x, v => { data.x = snap(v); renderItem(data); });
         addProp('Y', data.y, v => { data.y = snap(v); renderItem(data); });
@@ -219,6 +243,9 @@ function renderItem(data) {
             let css = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
             if (data.image) css += `background-image:url(${data.image});background-size:cover;background-position:center;`;
             else css += `background:${data.color};`;
+            const flipX = data.flipH ? -1 : 1;
+            const flipY = data.flipV ? -1 : 1;
+            css += `transform:scale(${flipX},${flipY});`;
             el.style.cssText = css;
         }
     } else if (data.type === 'trap') {
@@ -293,6 +320,9 @@ function createItemElement(data) {
         let css = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
         if (data.image) css += `background-image:url(${data.image});background-size:cover;background-position:center;`;
         else css += `background:${data.color};`;
+        const flipX = data.flipH ? -1 : 1;
+        const flipY = data.flipV ? -1 : 1;
+        css += `transform:scale(${flipX},${flipY});`;
         el.style.cssText = css;
         gameWorld.appendChild(el);
     } else if (data.type === 'trap') {
@@ -594,7 +624,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             monsterSpawns: mapData.monsterSpawns.map(m => ({ x: m.x, y: m.y, count: m.count })),
             exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
             entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null,
-            decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer, image: d.image || null })),
+            decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer, image: d.image || null, flipH: d.flipH || false, flipV: d.flipV || false })),
             traps: mapData.traps.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage })),
             teleports: mapData.teleports.map(t => ({ x: t.x, y: t.y, id: t.id, targetId: t.targetId })),
             beams: mapData.beams.map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval }))
@@ -647,7 +677,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
         if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count }));
         if (d.exit) addItem({ type: 'exit', x: d.exit.x, y: d.exit.y, targetLevel: d.exit.targetLevel });
         if (d.entrance) addItem({ type: 'entrance', x: d.entrance.x, y: d.entrance.y, targetLevel: d.entrance.targetLevel });
-        if (d.decals) d.decals.forEach(x => addItem({ type: 'decal', x: x.x, y: x.y, width: x.width, height: x.height, color: x.color, layer: x.layer }));
+        if (d.decals) d.decals.forEach(x => addItem({ type: 'decal', x: x.x, y: x.y, width: x.width, height: x.height, color: x.color, layer: x.layer, image: x.image || null, flipH: x.flipH || false, flipV: x.flipV || false }));
         if (d.traps) d.traps.forEach(x => addItem({ type: 'trap', x: x.x, y: x.y, width: x.width, height: x.height, damage: x.damage }));
         if (d.teleports) d.teleports.forEach(x => addItem({ type: 'teleport', x: x.x, y: x.y, id: x.id, targetId: x.targetId }));
         if (d.beams) d.beams.forEach(x => addItem({ type: 'beam', x1: x.x1, y1: x.y1, x2: x.x2, y2: x.y2, damage: x.damage, interval: x.interval }));
