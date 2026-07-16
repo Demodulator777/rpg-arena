@@ -14,6 +14,7 @@ const fogEl = document.getElementById('fog');
 const controlsHint = document.getElementById('controls-hint');
 const levelInput = document.getElementById('level-input');
 const levelGo = document.getElementById('level-go');
+const scanField = document.getElementById('scan-field');
 
 // Preload burst + monster sprites so first use isn't blank
 (new Image()).src = '/images/assets/roguelike1.png';
@@ -42,6 +43,8 @@ let mapInfo = { name: '', playerStart: { x: 2500, y: 2500 }, exit: null, entranc
 // Chests
 const chests = [];
 let nearChest = null;
+const inventory = { coins: 0, potions: 0 };
+let inventoryOpen = false;
 
 // Monsters
 const MONSTER_CHASE = 200;
@@ -124,6 +127,7 @@ window.addEventListener('keydown', (e) => {
     if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
     if (e.key === 'z' || e.key === 'Z') triggerBurst();
     if (e.key === 'x' || e.key === 'X') triggerScan();
+    if (e.key === 'i' || e.key === 'I') toggleInventory();
     updateInput();
 });
 window.addEventListener('keyup', (e) => {
@@ -240,8 +244,58 @@ function openNearChest() {
     if (!hasLineOfSight(playerWX, playerWY, nearChest.x, nearChest.y)) return;
     nearChest.found = true;
     nearChest.el.classList.add('found');
+    // Random loot
+    const coins = 5 + Math.floor(Math.random() * 16);
+    inventory.coins += coins;
+    let msg = `+${coins} silver coins`;
+    if (Math.random() < 0.5) {
+        inventory.potions++;
+        msg += ', +1 healing potion';
+    }
     nearChest = null;
     interactPrompt.classList.remove('show');
+    showMessage(msg);
+    updateInventoryUI();
+}
+
+function usePotion() {
+    if (inventory.potions <= 0) return;
+    if (playerHP >= PLAYER_MAX_HP) return;
+    inventory.potions--;
+    playerHP = Math.min(PLAYER_MAX_HP, playerHP + 30);
+    document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+    showMessage('Used healing potion +30 HP');
+    updateInventoryUI();
+}
+
+function toggleInventory() {
+    inventoryOpen = !inventoryOpen;
+    document.getElementById('inventory-panel').classList.toggle('show', inventoryOpen);
+    updateInventoryUI();
+}
+
+function updateInventoryUI() {
+    const panel = document.getElementById('inventory-panel');
+    if (panel) {
+        panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <b>Inventory</b>
+            <button id="inv-close" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer">✕</button>
+        </div>
+        <div class="inv-row">💰 Silver coins: <span id="inv-coins">${inventory.coins}</span></div>
+        <div class="inv-row">🧪 Healing potions: <span id="inv-potions">${inventory.potions}</span>
+            <button id="use-potion-btn" ${inventory.potions > 0 && playerHP < PLAYER_MAX_HP ? '' : 'disabled'} style="margin-left:8px;padding:2px 8px;background:#484;border:1px solid #6a6;border-radius:4px;color:#fff;cursor:pointer;font-size:11px">Use</button>
+        </div>`;
+        document.getElementById('inv-close')?.addEventListener('click', toggleInventory);
+        document.getElementById('use-potion-btn')?.addEventListener('click', usePotion);
+    }
+}
+
+const msgEl = document.getElementById('message');
+let msgTimer = 0;
+function showMessage(text) {
+    msgEl.textContent = text;
+    msgEl.classList.add('show');
+    msgTimer = 3000;
 }
 
 interactPrompt.addEventListener('click', openNearChest);
@@ -935,6 +989,12 @@ function spawnExplosion(x, y) {
         }
     }
 
+    // Message timer
+    if (msgTimer > 0) {
+        msgTimer -= dt;
+        if (msgTimer <= 0) msgEl.classList.remove('show');
+    }
+
     // Exit check
     checkExit();
     checkEntrance();
@@ -956,6 +1016,11 @@ function triggerScan() {
     trapRevealUntil = now + SCAN_REVEAL_MS;
     scanBtn.disabled = true;
     scanBtn.textContent = Math.ceil(SCAN_COOLDOWN / 1000) + 's';
+    // Force field visual
+    const size = SCAN_RADIUS * 2;
+    scanField.style.cssText = `left:${playerWX - SCAN_RADIUS}px;top:${playerWY - SCAN_RADIUS}px;width:${size}px;height:${size}px;`;
+    scanField.classList.add('show');
+    setTimeout(() => scanField.classList.remove('show'), 1500);
     // Reveal traps within range
     for (const tr of traps) {
         if (!tr.el) continue;
