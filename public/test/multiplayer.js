@@ -1,6 +1,7 @@
 // ---- Global error logging ----
 window.addEventListener('error', (e) => console.error('[GLOBAL]', e.error || e.message));
 window.addEventListener('unhandledrejection', (e) => console.error('[UNHANDLED]', e.reason));
+console.log('[multiplayer.js] loaded');
 
 // ---- DOM refs ----
 const lobby = document.getElementById('lobby');
