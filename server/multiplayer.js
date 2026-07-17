@@ -561,6 +561,40 @@ function gameTick(room) {
     }
   }
 
+  // Chest/shop proximity (for interact prompt)
+  for (const [ws, p] of room.players) {
+    let nearInteract = null;
+    let interactAction = null;
+    for (const ch of room.state.chests) {
+      if (ch.found) continue;
+      const d = Math.hypot(p.x - ch.x, p.y - ch.y);
+      if (d < 50 && hasLineOfSight(p.x, p.y, ch.x, ch.y, walls)) {
+        nearInteract = ch;
+        interactAction = 'Open';
+        break;
+      }
+    }
+    if (!nearInteract && room.mapData.shops) {
+      for (const s of room.mapData.shops) {
+        const d = Math.hypot(p.x - s.x, p.y - s.y);
+        if (d < 50 && hasLineOfSight(p.x, p.y, s.x, s.y, walls)) {
+          nearInteract = s;
+          interactAction = 'Shop';
+          break;
+        }
+      }
+    }
+    const wasNear = p._nearInteract;
+    p._nearInteract = nearInteract;
+    if (nearInteract && (!wasNear || p._interactAction !== interactAction)) {
+      p._interactAction = interactAction;
+      try { ws.send(JSON.stringify({ type: 'show_interact', action: interactAction })); } catch {}
+    } else if (!nearInteract && wasNear) {
+      p._interactAction = null;
+      try { ws.send(JSON.stringify({ type: 'hide_interact' })); } catch {}
+    }
+  }
+
   // Auto exit/entrance
   for (const [, p] of room.players) {
     if (room.mapData.exit && !room._transitioning &&
