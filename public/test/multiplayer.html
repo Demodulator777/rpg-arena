@@ -30,10 +30,12 @@
         .other-player .player-sprite { opacity: 0.7; }
         .other-player .name-tag { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 1px 6px; border-radius: 3px; font-size: 11px; color: #fff; white-space: nowrap; pointer-events: none; }
 
-        .monster { position: absolute; width: 40px; height: 40px; background-repeat: no-repeat; background-size: 500% 500%; background-position: 0% 0%; z-index: 5; }
+        .monster { position: absolute; width: 40px; height: 40px; background-repeat: no-repeat; background-size: 500% 500%; background-position: 0% 0%; z-index: 5; transition: filter 0.1s; }
         .monster.dead { display: none; }
+        .monster.monster-hit { filter: brightness(2) hue-rotate(180deg); }
         .monster-hp { position: absolute; bottom: 44px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; background: #222; border: 1px solid #111; border-radius: 2px; z-index: 6; overflow: hidden; }
         .monster-hp-fill { height: 100%; background: #0c0; border-radius: 1px; transition: width 0.15s; }
+        #player.hit-flash .player-sprite { filter: brightness(2) saturate(0) !important; }
 
         .chest { position: absolute; width: 40px; height: 32px; background: #c8943c; border: 2px solid #8b5e3c; border-radius: 4px; z-index: 5; box-shadow: inset 0 -6px 0 #8b5e3c, 0 0 8px rgba(200,148,60,0.4); pointer-events: auto; }
         .chest::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 8px; height: 6px; background: #8b5e3c; border-radius: 2px; box-shadow: 0 0 4px #f0c840; }
