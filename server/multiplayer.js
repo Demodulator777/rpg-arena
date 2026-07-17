@@ -669,24 +669,30 @@ function wallHit(mx, my, walls, halfW, halfH) {
   });
 }
 
+function lineIntersectsRect(ax, ay, bx, by, rx, ry, rw, rh) {
+  const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+  const dx = bx - ax, dy = by - ay;
+  let tmin = 0, tmax = 1;
+  if (dx !== 0) {
+    let t1 = (left - ax) / dx, t2 = (right - ax) / dx;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    tmin = Math.max(tmin, t1);
+    tmax = Math.min(tmax, t2);
+  }
+  if (dy !== 0) {
+    let t1 = (top - ay) / dy, t2 = (bottom - ay) / dy;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    tmin = Math.max(tmin, t1);
+    tmax = Math.min(tmax, t2);
+  }
+  return tmax > tmin && tmax > 0 && tmin < 1;
+}
+
 function hasLineOfSight(x1, y1, x2, y2, walls) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const dist = Math.hypot(dx, dy);
-  const steps = Math.max(1, Math.ceil(dist / 8));
-  const b = 20;
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps;
-    const px = x1 + dx * t;
-    const py = y1 + dy * t;
-    for (const w of walls) {
-      const ww = w.w || w.width || 0;
-      const wh = w.h || w.height || 0;
-      if (px > w.x + b && px < w.x + b + ww &&
-          py > w.y + b && py < w.y + b + wh) {
-        return false;
-      }
-    }
+  for (const w of walls) {
+    const ww = w.w || w.width || 0;
+    const wh = w.h || w.height || 0;
+    if (lineIntersectsRect(x1, y1, x2, y2, w.x, w.y, ww, wh)) return false;
   }
   return true;
 }
