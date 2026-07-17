@@ -22,6 +22,7 @@ const interactBtn = document.getElementById('interact-btn');
 const invBtn = document.getElementById('inv-btn');
 const invPanel = document.getElementById('inv-panel');
 const scanBtn = document.getElementById('scan-btn');
+const actionBtn = document.getElementById('action-btn');
 const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 
@@ -187,6 +188,20 @@ async function initWorld(state) {
         el.style.cssText = `left:${s.x - 18}px;top:${s.y - 18}px;`;
         mapEl.appendChild(el);
       }
+    }
+
+    // Exit/entrance zones
+    if (d.exit) {
+      const exitEl = document.createElement('div');
+      exitEl.id = 'exit-zone';
+      exitEl.style.cssText = `left:${d.exit.x - 30}px;top:${d.exit.y - 30}px;`;
+      mapEl.appendChild(exitEl);
+    }
+    if (d.entrance) {
+      const entranceEl = document.createElement('div');
+      entranceEl.id = 'entrance-zone';
+      entranceEl.style.cssText = `left:${d.entrance.x - 30}px;top:${d.entrance.y - 30}px;border-color:#a6a;`;
+      mapEl.appendChild(entranceEl);
     }
 
     // Local player position
@@ -379,6 +394,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 's' || e.key === 'ArrowDown') keys.down = true;
   else if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = true;
   else if (e.key === 'd' || e.key === 'ArrowRight') keys.right = true;
+  else if (e.key === 'z' || e.key === 'Z') performBurst();
   else if (e.key === ' ') interactAction();
   else if (e.key === 'i') toggleInventory();
   else return;
@@ -403,13 +419,67 @@ function performScan() {
 }
 scanBtn.addEventListener('click', performScan);
 
-function animate() {
-  const pos = `-${(Date.now() / 150 % 4 | 0) * 25}% 0%`;
-  playerSprite.style.backgroundPosition = pos;
-  for (const id in players) players[id].el.querySelector('.player-sprite').style.backgroundPosition = pos;
+// Sprite animation
+const ROW = { down: 0, right: 25, left: 75, up: 100 };
+const WALK_MS = 150;
+let walkFrame = 0;
+let frameAccum = 0;
+let lastAnimTime = 0;
+let currentDir = 'down';
+
+function setWalkFrame(rowPct, colIdx) {
+  playerSprite.style.backgroundPosition = `${colIdx * 25}% ${rowPct}%`;
+}
+
+function getDirFromKeys() {
+  if (keys.right) return 'right';
+  if (keys.left) return 'left';
+  if (keys.up) return 'up';
+  if (keys.down) return 'down';
+  return currentDir;
+}
+
+function animate(time) {
+  if (!lastAnimTime) lastAnimTime = time;
+  const dt = Math.min(time - lastAnimTime, 50);
+  lastAnimTime = time;
+
+  const moving = keys.up || keys.down || keys.left || keys.right;
+  const dir = getDirFromKeys();
+  if (dir !== currentDir) {
+    currentDir = dir;
+    walkFrame = 0;
+    frameAccum = 0;
+    setWalkFrame(ROW[dir], 0);
+  } else if (moving) {
+    frameAccum += dt;
+    while (frameAccum >= WALK_MS) {
+      frameAccum -= WALK_MS;
+      walkFrame = (walkFrame + 1) % 5;
+      setWalkFrame(ROW[currentDir], walkFrame);
+    }
+  } else {
+    frameAccum = 0;
+    walkFrame = 0;
+    setWalkFrame(ROW[currentDir], 0);
+  }
+
+  for (const id in players) {
+    const s = players[id].el.querySelector('.player-sprite');
+    if (s) s.style.backgroundPosition = playerSprite.style.backgroundPosition;
+  }
   requestAnimationFrame(animate);
 }
 animate();
+
+// Burst action
+function performBurst() {
+  if (!myPlayer) return;
+  playerSprite.style.filter = 'brightness(2) contrast(2)';
+  setTimeout(() => { playerSprite.style.filter = 'none'; }, 200);
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'burst' }));
+}
+actionBtn.addEventListener('click', performBurst);
 
 function update() {
   updateCamera();
