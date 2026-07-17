@@ -22,6 +22,7 @@ const invBtn = document.getElementById('inv-btn');
 const invPanel = document.getElementById('inv-panel');
 const scanBtn = document.getElementById('scan-btn');
 const actionBtn = document.getElementById('action-btn');
+const potionBtn = document.getElementById('potion-btn');
 const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
 const msgEl = document.getElementById('message');
@@ -110,6 +111,7 @@ const WALK_MS = 150;
 let walkFrame = 0;
 let frameAccum = 0;
 let lastAnimTime = 0;
+let lastPosTime = 0;
 
 function setWalkFrame(rowPct, colIdx) {
   if (isBursting) return;
@@ -299,8 +301,10 @@ function addOtherPlayer(p) {
   const hue = hashHue(p.id);
   sprite.style.filter = `hue-rotate(${hue}deg) brightness(0.8)`;
   container.appendChild(sprite);
-  container.style.left = p.x + 'px';
-  container.style.top = p.y + 'px';
+  const ox = p.clientX != null ? p.clientX : p.x;
+  const oy = p.clientY != null ? p.clientY : p.y;
+  container.style.left = ox + 'px';
+  container.style.top = oy + 'px';
   mapEl.appendChild(container);
   players[p.id] = { el: container, p };
 }
@@ -329,8 +333,10 @@ function applyState(msg) {
       needListUpdate = true;
     } else if (players[sp.id]) {
       players[sp.id].p = sp;
-      players[sp.id].el.style.left = sp.x + 'px';
-      players[sp.id].el.style.top = sp.y + 'px';
+      const ox = sp.clientX != null ? sp.clientX : sp.x;
+      const oy = sp.clientY != null ? sp.clientY : sp.y;
+      players[sp.id].el.style.left = ox + 'px';
+      players[sp.id].el.style.top = oy + 'px';
       needListUpdate = true;
     }
   }
@@ -501,7 +507,7 @@ function handleJoystick(e) {
   sendInput();
 }
 function sendInput() {
-  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', keys }));
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', keys, x: playerWX, y: playerWY }));
 }
 
 joystickArea.addEventListener('mousedown', (e) => { joystickActive = true; handleJoystick(e); });
@@ -514,6 +520,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'd' || e.key === 'ArrowRight') { keys.right = true; sendInput(); }
   else if (e.key === 'z' || e.key === 'Z') triggerBurst();
   else if (e.key === 'x' || e.key === 'X') performScan();
+  else if (e.key === 'c' || e.key === 'C') usePotion();
   else if (e.key === ' ') { e.preventDefault(); interactAction(); }
   else if (e.key === 'i' || e.key === 'I') toggleInventory();
 });
@@ -555,6 +562,12 @@ function gameLoop(timestamp) {
   playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
   playerEl.style.left = playerWX + 'px';
   playerEl.style.top = playerWY + 'px';
+
+  // Send position to server periodically
+  if (!lastPosTime || timestamp - lastPosTime > 100) {
+    lastPosTime = timestamp;
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'pos', x: playerWX, y: playerWY }));
+  }
 
   // Camera
   worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
@@ -668,5 +681,6 @@ function gameLoop(timestamp) {
 btnCreate.addEventListener('click', () => connectToRoom('', Number(lobbyLevel.value) || 1, lobbyName.value.trim() || 'Adventurer', true));
 btnJoin.addEventListener('click', () => connectToRoom(lobbyCode.value.trim().toUpperCase(), 1, lobbyName.value.trim() || 'Adventurer', false));
 interactBtn.addEventListener('click', interactAction);
+potionBtn.addEventListener('click', usePotion);
 invBtn.addEventListener('click', toggleInventory);
 actionBtn.addEventListener('click', triggerBurst);
