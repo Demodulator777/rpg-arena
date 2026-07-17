@@ -434,6 +434,13 @@ function handleMessage(msg) {
     case 'state':
       applyState(msg);
       break;
+    case 'show_interact':
+      interactBtn.textContent = msg.action || 'Open';
+      interactBtn.classList.add('show');
+      break;
+    case 'hide_interact':
+      interactBtn.classList.remove('show');
+      break;
     case 'chest_opened':
       const ch = chests[msg.chestIndex];
       if (ch) { ch.found = true; ch.el.classList.add('found'); }
