@@ -80,6 +80,7 @@ function handleMessage(ws, msg) {
     case 'interact': return handleInteract(ws, msg);
     case 'burst': return handleBurst(ws, msg);
     case 'use_potion': return handleUsePotion(ws, msg);
+    case 'pos': return handlePos(ws, msg);
   }
 }
 
@@ -188,20 +189,31 @@ function handleInput(ws, msg) {
   if (!ws._room || !ws._player) return;
   const p = ws._player;
   p.input = msg.keys || {};
+  if (typeof msg.x === 'number') { p.clientX = msg.x; p.clientY = msg.y; }
+}
+
+function handlePos(ws, msg) {
+  if (!ws._room || !ws._player) return;
+  if (typeof msg.x === 'number') {
+    ws._player.clientX = msg.x;
+    ws._player.clientY = msg.y;
+  }
 }
 
 function handleInteract(ws) {
   if (!ws._room || !ws._player) return;
   const room = ws._room;
   const p = ws._player;
+  const px = p.clientX != null ? p.clientX : p.x;
+  const py = p.clientY != null ? p.clientY : p.y;
 
   // Check exit/entrance (prevent double-trigger with auto-detect)
-  if (!room._transitioning && room.mapData.exit && Math.hypot(p.x - room.mapData.exit.x, p.y - room.mapData.exit.y) < 50) {
+  if (!room._transitioning && room.mapData.exit && Math.hypot(px - room.mapData.exit.x, py - room.mapData.exit.y) < 50) {
     const nextLevel = room.mapData.exit.targetLevel || (room.level + 1);
     transitionLevel(room, ws, p, nextLevel, 'entrance').catch(e => console.error('[MP] transition error:', e.message));
     return;
   }
-  if (!room._transitioning && room.mapData.entrance && Math.hypot(p.x - room.mapData.entrance.x, p.y - room.mapData.entrance.y) < 50) {
+  if (!room._transitioning && room.mapData.entrance && Math.hypot(px - room.mapData.entrance.x, py - room.mapData.entrance.y) < 50) {
     const prevLevel = room.mapData.entrance.targetLevel || (room.level - 1);
     transitionLevel(room, ws, p, prevLevel, 'exit').catch(e => console.error('[MP] transition error:', e.message));
     return;
@@ -210,7 +222,7 @@ function handleInteract(ws) {
   // Check teleports
   if (room.mapData.teleports) {
     for (const tp of room.mapData.teleports) {
-      if (Math.hypot(p.x - tp.x, p.y - tp.y) < 40) {
+      if (Math.hypot(px - tp.x, py - tp.y) < 40) {
         const target = room.mapData.teleports.find(t => t.id === tp.targetId);
         if (target) {
           p.x = target.x + 20;
@@ -225,7 +237,7 @@ function handleInteract(ws) {
   // Check chests
   for (const ch of room.state.chests) {
     if (ch.found) continue;
-    const d = Math.hypot(p.x - ch.x, p.y - ch.y);
+    const d = Math.hypot(px - ch.x, py - ch.y);
     if (d < 50) {
       ch.found = true;
       ch.openedAt = Date.now();
@@ -274,6 +286,8 @@ async function transitionLevel(room, ws, player, newLevel, spawnAt) {
   for (const [, p] of room.players) {
     p.x = spawn.x;
     p.y = spawn.y;
+    p.clientX = spawn.x;
+    p.clientY = spawn.y;
     p.hp = p.maxHp;
   }
 
@@ -293,10 +307,12 @@ function handleBurst(ws) {
   const room = ws._room;
   const p = ws._player;
   const walls = room.mapData.walls || [];
+  const bx = p.clientX != null ? p.clientX : p.x;
+  const by = p.clientY != null ? p.clientY : p.y;
   for (const m of room.state.monsters) {
     if (!m.alive) continue;
-    if (Math.hypot(p.x - m.x, p.y - m.y) < 100 &&
-        hasLineOfSight(p.x, p.y, m.x, m.y, walls)) {
+    if (Math.hypot(bx - m.x, by - m.y) < 100 &&
+        hasLineOfSight(bx, by, m.x, m.y, walls)) {
       m.hp -= 15;
       if (m.hp <= 0) { m.hp = 0; m.alive = false; }
     }
@@ -345,6 +361,8 @@ function createPlayer(id, name, mapData) {
     name,
     x: spawn.x,
     y: spawn.y,
+    clientX: spawn.x,
+    clientY: spawn.y,
     hp: 100,
     maxHp: 100,
     coins: 0,
@@ -423,13 +441,15 @@ function gameTick(room) {
 
   // Trap damage + teleport + exit/entrance auto-trigger
   for (const [, p] of room.players) {
+    const tpx = p.clientX != null ? p.clientX : p.x;
+    const tpy = p.clientY != null ? p.clientY : p.y;
     // Traps
     if (room.mapData.traps) {
       for (const tr of room.mapData.traps) {
         const tw = tr.w || tr.width || 40;
         const th = tr.h || tr.height || 40;
-        if (p.x + 13 > tr.x && p.x - 13 < tr.x + tw &&
-            p.y + 26 > tr.y && p.y - 26 < tr.y + th) {
+        if (tpx + 13 > tr.x && tpx - 13 < tr.x + tw &&
+            tpy + 26 > tr.y && tpy - 26 < tr.y + th) {
           if (!p._trapTimer || p._trapTimer < now) {
             p.hp = Math.max(0, p.hp - (tr.damage || 10));
             p.hitFlash = 200;
@@ -444,7 +464,7 @@ function gameTick(room) {
         const cx = (bm.x1 + bm.x2) / 2;
         const cy = (bm.y1 + bm.y2) / 2;
         const halfLen = Math.hypot(bm.x2 - bm.x1, bm.y2 - bm.y1) / 2;
-        if (Math.hypot(p.x - cx, p.y - cy) < halfLen + 20) {
+        if (Math.hypot(tpx - cx, tpy - cy) < halfLen + 20) {
           if (!p._beamTimer || p._beamTimer < now) {
             p.hp = Math.max(0, p.hp - (bm.damage || 5));
             p.hitFlash = 200;
@@ -457,7 +477,9 @@ function gameTick(room) {
     if (room.mapData.teleports) {
       for (const tp of room.mapData.teleports) {
         if (!p._teleportCd || p._teleportCd < now) {
-          if (Math.hypot(p.x - tp.x, p.y - tp.y) < 25) {
+          const atx = p.clientX != null ? p.clientX : p.x;
+          const aty = p.clientY != null ? p.clientY : p.y;
+          if (Math.hypot(atx - tp.x, aty - tp.y) < 25) {
             const target = room.mapData.teleports.find(t => t.id === tp.targetId);
             if (target) {
               p.x = target.x + 20;
@@ -478,10 +500,14 @@ function gameTick(room) {
     let closestPlayer = null;
     let closestDist = Infinity;
     for (const [, p] of room.players) {
-      const d = Math.hypot(p.x - m.x, p.y - m.y);
+      const cx = p.clientX != null ? p.clientX : p.x;
+      const cy = p.clientY != null ? p.clientY : p.y;
+      const d = Math.hypot(cx - m.x, cy - m.y);
       if (d < closestDist) { closestDist = d; closestPlayer = p; }
     }
     if (!closestPlayer) continue;
+    const cpx = closestPlayer.clientX != null ? closestPlayer.clientX : closestPlayer.x;
+    const cpy = closestPlayer.clientY != null ? closestPlayer.clientY : closestPlayer.y;
 
     // Track previous HP for hit detection
     const prevHp = closestPlayer.hp;
@@ -496,20 +522,20 @@ function gameTick(room) {
       if (m.type === 'ranged') {
         const preferred = 280;
         if (closestDist < preferred - 40) {
-          const a = Math.atan2(m.y - closestPlayer.y, m.x - closestPlayer.x);
+          const a = Math.atan2(m.y - cpy, m.x - cpx);
           targetX = m.x + Math.cos(a) * 50;
           targetY = m.y + Math.sin(a) * 50;
         } else if (closestDist > preferred + 40) {
-          targetX = closestPlayer.x;
-          targetY = closestPlayer.y;
+          targetX = cpx;
+          targetY = cpy;
         } else {
-          const a = Math.atan2(closestPlayer.y - m.y, closestPlayer.x - m.x);
+          const a = Math.atan2(cpy - m.y, cpx - m.x);
           targetX = m.x + Math.cos(a + Math.PI / 2) * 20;
           targetY = m.y + Math.sin(a + Math.PI / 2) * 20;
         }
       } else {
-        targetX = closestPlayer.x;
-        targetY = closestPlayer.y;
+        targetX = cpx;
+        targetY = cpy;
       }
       const a = Math.atan2(targetY - m.y, targetX - m.x);
       const mStep = MONSTER_SPEED * dt;
@@ -534,7 +560,7 @@ function gameTick(room) {
     // Monster attack (melee)
     m.attackTimer -= dt;
     if (m.type !== 'ranged' && m.attackTimer <= 0 && closestDist < 100 && closestPlayer &&
-        hasLineOfSight(m.x, m.y, closestPlayer.x, closestPlayer.y, walls)) {
+        hasLineOfSight(m.x, m.y, cpx, cpy, walls)) {
       closestPlayer.hp = Math.max(0, closestPlayer.hp - MONSTER_DMG);
       closestPlayer.hitFlash = 200;
       m.attackTimer = MONSTER_ATTACK_COOLDOWN;
@@ -543,7 +569,7 @@ function gameTick(room) {
 
     // Monster attack (ranged)
     if (m.type === 'ranged' && Date.now() > m.nextShotTime && closestDist < 300 && closestPlayer &&
-        hasLineOfSight(m.x, m.y, closestPlayer.x, closestPlayer.y, walls)) {
+        hasLineOfSight(m.x, m.y, cpx, cpy, walls)) {
       m.nextShotTime = Date.now() + 3000 + Math.random() * 2000;
       closestPlayer.hp = Math.max(0, closestPlayer.hp - MONSTER_DMG);
       closestPlayer.hitFlash = 200;
@@ -591,12 +617,14 @@ function gameTick(room) {
 
   // Chest/shop proximity (for interact prompt)
   for (const [ws, p] of room.players) {
+    const px = p.clientX != null ? p.clientX : p.x;
+    const py = p.clientY != null ? p.clientY : p.y;
     let nearInteract = null;
     let interactAction = null;
     for (const ch of room.state.chests) {
       if (ch.found) continue;
-      const d = Math.hypot(p.x - ch.x, p.y - ch.y);
-      const los = hasLineOfSight(p.x, p.y, ch.x, ch.y, walls);
+      const d = Math.hypot(ch.x - px, ch.y - py);
+      const los = hasLineOfSight(px, py, ch.x, ch.y, walls);
       if (d < 50 && los) {
         nearInteract = ch;
         interactAction = 'Open';
@@ -605,8 +633,8 @@ function gameTick(room) {
     }
     if (!nearInteract && room.mapData.shops) {
       for (const s of room.mapData.shops) {
-        const d = Math.hypot(p.x - s.x, p.y - s.y);
-        if (d < 50 && hasLineOfSight(p.x, p.y, s.x, s.y, walls)) {
+        const d = Math.hypot(s.x - px, s.y - py);
+        if (d < 50 && hasLineOfSight(px, py, s.x, s.y, walls)) {
           nearInteract = s;
           interactAction = 'Shop';
           break;
@@ -626,8 +654,10 @@ function gameTick(room) {
 
   // Auto exit/entrance
   for (const [, p] of room.players) {
+    const aex = p.clientX != null ? p.clientX : p.x;
+    const aey = p.clientY != null ? p.clientY : p.y;
     if (room.mapData.exit && !room._transitioning &&
-        Math.hypot(p.x - room.mapData.exit.x, p.y - room.mapData.exit.y) < 40) {
+        Math.hypot(aex - room.mapData.exit.x, aey - room.mapData.exit.y) < 40) {
       room._transitioning = true;
       const nextLevel = room.mapData.exit.targetLevel || (room.level + 1);
       transitionLevel(room, null, p, nextLevel, 'entrance')
@@ -636,7 +666,7 @@ function gameTick(room) {
       break;
     }
     if (room.mapData.entrance && !room._transitioning &&
-        Math.hypot(p.x - room.mapData.entrance.x, p.y - room.mapData.entrance.y) < 40) {
+        Math.hypot(aex - room.mapData.entrance.x, aey - room.mapData.entrance.y) < 40) {
       room._transitioning = true;
       const prevLevel = room.mapData.entrance.targetLevel || (room.level - 1);
       transitionLevel(room, null, p, prevLevel, 'exit')
