@@ -46,8 +46,12 @@ function connectToRoom(code, level, name, isCreate) {
   };
 
   ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    handleMessage(msg);
+    try {
+      const msg = JSON.parse(e.data);
+      handleMessage(msg);
+    } catch (err) {
+      console.error('ws.onmessage error:', err);
+    }
   };
 
   ws.onclose = () => { lobbyError.textContent = 'Disconnected'; lobby.classList.remove('hide'); isRunning = false; };
@@ -121,90 +125,95 @@ async function initWorld(state) {
     return;
   }
 
-  // Render Map Elements
-  if (d.backgroundImage) mapEl.style.background = `url(${d.backgroundImage}) repeat`;
-  else mapEl.style.background = '#1a1a1a';
-  
-  if (d.walls) {
-    for (const w of d.walls) {
-      const el = document.createElement('div');
-      el.className = 'wall';
-      el.style.cssText = `left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px;`;
-      mapEl.appendChild(el);
+  try {
+    // Render Map Elements
+    if (d.backgroundImage) mapEl.style.background = `url(${d.backgroundImage}) repeat`;
+    else mapEl.style.background = '#1a1a1a';
+    
+    if (d.walls) {
+      for (const w of d.walls) {
+        const el = document.createElement('div');
+        el.className = 'wall';
+        el.style.cssText = `left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px;`;
+        mapEl.appendChild(el);
+      }
     }
-  }
-  if (d.decals) {
-    for (const dc of d.decals) {
-      const el = document.createElement('div');
-      el.className = 'decal';
-      let css = `left:${dc.x}px;top:${dc.y}px;width:${dc.width}px;height:${dc.height}px;`;
-      if (dc.image) css += `background-image:url(${dc.image});background-size:cover;background-position:center;`;
-      else css += `background:${dc.color};`;
-      el.style.cssText = css;
-      mapEl.appendChild(el);
+    if (d.decals) {
+      for (const dc of d.decals) {
+        const el = document.createElement('div');
+        el.className = 'decal';
+        let css = `left:${dc.x}px;top:${dc.y}px;width:${dc.width}px;height:${dc.height}px;`;
+        if (dc.image) css += `background-image:url(${dc.image});background-size:cover;background-position:center;`;
+        else css += `background:${dc.color};`;
+        el.style.cssText = css;
+        mapEl.appendChild(el);
+      }
     }
-  }
-  if (d.traps) {
-    for (const tr of d.traps) {
-      const el = document.createElement('div');
-      el.className = 'trap-zone';
-      el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;`;
-      mapEl.appendChild(el);
+    if (d.traps) {
+      for (const tr of d.traps) {
+        const el = document.createElement('div');
+        el.className = 'trap-zone';
+        el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;`;
+        mapEl.appendChild(el);
+      }
     }
-  }
-  if (d.teleports) {
-    for (const tp of d.teleports) {
-      const el = document.createElement('div');
-      el.className = 'teleport-zone';
-      el.style.cssText = `left:${tp.x - 15}px;top:${tp.y - 15}px;`;
-      mapEl.appendChild(el);
+    if (d.teleports) {
+      for (const tp of d.teleports) {
+        const el = document.createElement('div');
+        el.className = 'teleport-zone';
+        el.style.cssText = `left:${tp.x - 15}px;top:${tp.y - 15}px;`;
+        mapEl.appendChild(el);
+      }
     }
-  }
-  if (d.beams) {
-    for (const bm of d.beams) {
-      const el = document.createElement('div');
-      el.className = 'beam-line';
-      const len = Math.hypot(bm.x2 - bm.x1, bm.y2 - bm.y1);
-      const angle = Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1) * 180 / Math.PI;
-      el.style.cssText = `left:${bm.x1}px;top:${bm.y1}px;width:${len}px;height:4px;transform-origin:0 2px;transform:rotate(${angle}deg);`;
-      mapEl.appendChild(el);
+    if (d.beams) {
+      for (const bm of d.beams) {
+        const el = document.createElement('div');
+        el.className = 'beam-line';
+        const len = Math.hypot(bm.x2 - bm.x1, bm.y2 - bm.y1);
+        const angle = Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1) * 180 / Math.PI;
+        el.style.cssText = `left:${bm.x1}px;top:${bm.y1}px;width:${len}px;height:4px;transform-origin:0 2px;transform:rotate(${angle}deg);`;
+        mapEl.appendChild(el);
+      }
     }
-  }
-  if (d.shops) {
-    for (const s of d.shops) {
-      const el = document.createElement('div');
-      el.className = 'shop';
-      el.style.cssText = `left:${s.x - 18}px;top:${s.y - 18}px;`;
-      mapEl.appendChild(el);
+    if (d.shops) {
+      for (const s of d.shops) {
+        const el = document.createElement('div');
+        el.className = 'shop';
+        el.style.cssText = `left:${s.x - 18}px;top:${s.y - 18}px;`;
+        mapEl.appendChild(el);
+      }
     }
-  }
 
-  // Local player position
-  if (myPlayer) {
-    playerEl.style.left = myPlayer.x + 'px';
-    playerEl.style.top = myPlayer.y + 'px';
-    hpInner.style.width = (myPlayer.hp / myPlayer.maxHp * 100) + '%';
-  }
-
-  // Monsters/Chests/Players
-  if (state.monsters) {
-    for (let i = 0; i < state.monsters.length; i++) createMonsterEl(i, state.monsters[i]);
-  }
-  if (state.chests) {
-    for (let i = 0; i < state.chests.length; i++) {
-      const c = state.chests[i];
-      const el = document.createElement('div');
-      el.className = 'chest';
-      el.style.cssText = `left:${c.x}px;top:${c.y}px;`;
-      if (c.found) el.classList.add('found');
-      mapEl.appendChild(el);
-      chests[i] = { ...c, el };
+    // Local player position
+    if (myPlayer) {
+      playerEl.style.left = myPlayer.x + 'px';
+      playerEl.style.top = myPlayer.y + 'px';
+      hpInner.style.width = (myPlayer.hp / myPlayer.maxHp * 100) + '%';
     }
+
+    // Monsters/Chests/Players
+    if (state.monsters) {
+      for (let i = 0; i < state.monsters.length; i++) createMonsterEl(i, state.monsters[i]);
+    }
+    if (state.chests) {
+      for (let i = 0; i < state.chests.length; i++) {
+        const c = state.chests[i];
+        const el = document.createElement('div');
+        el.className = 'chest';
+        el.style.cssText = `left:${c.x}px;top:${c.y}px;`;
+        if (c.found) el.classList.add('found');
+        mapEl.appendChild(el);
+        chests[i] = { ...c, el };
+      }
+    }
+    for (const p of state.players) {
+      if (p.id !== myPlayerId) addOtherPlayer(p);
+    }
+    updatePlayerList();
+  } catch (e) {
+    lobbyError.textContent = 'Failed to render world: ' + e.message;
+    lobby.classList.remove('hide');
   }
-  for (const p of state.players) {
-    if (p.id !== myPlayerId) addOtherPlayer(p);
-  }
-  updatePlayerList();
 }
 
 
@@ -257,6 +266,7 @@ function hashHue(id) {
 }
 
 function applyState(msg) {
+  if (!msg.players || !msg.monsters) return;
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
       myPlayer = sp;
@@ -380,6 +390,7 @@ window.addEventListener('keyup', (e) => {
 
 // Scan/Animation/Loop
 function performScan() {
+  if (!myPlayer) return;
   const sf = document.getElementById('scan-field');
   sf.style.left = myPlayer.x + 'px'; sf.style.top = myPlayer.y + 'px';
   sf.classList.add('show');
