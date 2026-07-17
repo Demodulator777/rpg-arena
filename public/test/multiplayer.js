@@ -47,7 +47,9 @@ let chests = {};
 const keys = { up: false, down: false, left: false, right: false };
 let isRunning = false;
 let currentDir = 'down';
-let localX = 0, localY = 0; // interpolated position
+const PLAYER_SPEED = 0.1;
+let playerWX = 2500, playerWY = 2500;
+let localWalls = [];
 
 // Screen shake
 let shakeUntil = 0;
@@ -56,6 +58,18 @@ let shakeIntensity = 0;
 function triggerShake(intensity) {
   shakeUntil = Date.now() + 200;
   shakeIntensity = intensity;
+}
+
+function checkCollision(nx, ny) {
+  const b = 20;
+  const cx = playerWX + nx;
+  const cy = playerWY + ny;
+  return localWalls.some(w =>
+    cx + 13 > w.x + b &&
+    cx - 13 < w.x + b + w.w &&
+    cy + 26 > w.y + b &&
+    cy - 26 < w.y + b + w.h
+  );
 }
 
 // ---- Connection ----
@@ -152,12 +166,14 @@ async function initWorld(state, worldLevel) {
     if (d.backgroundImage) mapEl.style.background = `url(${d.backgroundImage}) repeat`;
     else mapEl.style.background = '#1a1a1a';
 
+    localWalls = [];
     if (d.walls) {
       for (const w of d.walls) {
         const el = document.createElement('div');
         el.className = 'wall';
         el.style.cssText = `left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px;`;
         mapEl.appendChild(el);
+        localWalls.push({ x: w.x, y: w.y, w: w.width, h: w.height });
       }
     }
     if (d.decals) {
@@ -222,8 +238,11 @@ async function initWorld(state, worldLevel) {
     }
 
     if (myPlayer) {
-      playerEl.style.left = myPlayer.x + 'px';
-      playerEl.style.top = myPlayer.y + 'px';
+      const myState = Array.isArray(state.players) ? state.players.find(p => p.id === myPlayerId) : null;
+      if (myState) { myPlayer = myState; }
+      playerWX = myPlayer.x; playerWY = myPlayer.y;
+      playerEl.style.left = playerWX + 'px';
+      playerEl.style.top = playerWY + 'px';
       hpInner.style.width = (myPlayer.hp / myPlayer.maxHp * 100) + '%';
     }
 
@@ -303,14 +322,13 @@ function applyState(msg) {
   let needListUpdate = false;
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
-      if (myPlayer && (Math.abs(sp.x - myPlayer.x) > 200 || Math.abs(sp.y - myPlayer.y) > 200)) {
-        localX = sp.x; localY = sp.y;
+      if (sp.hitFlash > 0) playerSprite.style.filter = 'brightness(3) saturate(0)';
+      else if (!isBursting) playerSprite.style.filter = 'none';
+      if (myPlayer && (Math.abs(sp.x - playerWX) > 300 || Math.abs(sp.y - playerWY) > 300)) {
+        playerWX = sp.x; playerWY = sp.y;
       }
       myPlayer = sp;
-      playerEl.style.left = sp.x + 'px';
-      playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
-      playerEl.classList.toggle('hit-flash', sp.hitFlash > 0);
       needListUpdate = true;
     } else if (players[sp.id]) {
       players[sp.id].p = sp;
@@ -402,8 +420,8 @@ function handleMessage(msg) {
       roomCode = msg.code;
       myPlayerId = msg.playerId;
       myPlayer = msg.player;
-      localX = msg.player.x;
-      localY = msg.player.y;
+      playerWX = msg.player.x;
+      playerWY = msg.player.y;
       roomCodeEl.textContent = 'Room: ' + roomCode;
       initWorld(msg.state);
       if (!isRunning) { isRunning = true; requestAnimationFrame(gameLoop); }
@@ -510,20 +528,28 @@ function gameLoop(timestamp) {
   const dt = Math.min(timestamp - lastAnimTime, 50);
   lastAnimTime = timestamp;
 
-  // Smooth camera interpolation
-  if (myPlayer) {
-    if (localX === 0 && localY === 0) { localX = myPlayer.x; localY = myPlayer.y; }
-    localX += (myPlayer.x - localX) * 0.25;
-    localY += (myPlayer.y - localY) * 0.25;
-  }
+  // Client-side movement (instant, like map-walk)
+  let dx = 0, dy = 0;
+  if (keys.right) dx = 1;
+  if (keys.left) dx = -1;
+  if (keys.down) dy = 1;
+  if (keys.up) dy = -1;
+  if (dx && dy) { dx *= 0.707; dy *= 0.707; }
+  const step = PLAYER_SPEED * dt;
+  let nx = playerWX + dx * step;
+  let ny = playerWY + dy * step;
+  if (!checkCollision(dx * step, 0)) playerWX = nx;
+  if (!checkCollision(0, dy * step)) playerWY = ny;
+  playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
+  playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+  playerEl.style.left = playerWX + 'px';
+  playerEl.style.top = playerWY + 'px';
 
-  // Camera (use local position for smoothness)
-  if (myPlayer) {
-    worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
-    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-localX}px, ${-localY}px)`;
-  }
+  // Camera
+  worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-playerWX}px, ${-playerWY}px)`;
 
   // Screen shake
   if (Date.now() < shakeUntil) {
