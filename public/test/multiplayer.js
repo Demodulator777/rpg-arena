@@ -349,7 +349,7 @@ function applyState(msg) {
         entry._movingUntil = Date.now() + 100;
       }
       const s = entry.el.querySelector('.player-sprite');
-      if (s) {
+      if (s && !entry._burst) {
         const row = { down: 0, left: 1, right: 2, up: 3 }[entry._dir || 'down'] || 0;
         if (Date.now() < (entry._movingUntil || 0)) {
           const frame = Math.floor(Date.now() / 180) % 4;
