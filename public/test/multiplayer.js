@@ -307,6 +307,8 @@ function applyState(msg) {
         localX = sp.x; localY = sp.y;
       }
       myPlayer = sp;
+      playerEl.style.left = sp.x + 'px';
+      playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
       playerEl.classList.toggle('hit-flash', sp.hitFlash > 0);
       needListUpdate = true;
@@ -508,10 +510,11 @@ function gameLoop(timestamp) {
   const dt = Math.min(timestamp - lastAnimTime, 50);
   lastAnimTime = timestamp;
 
-  // Smooth interpolation toward server position
+  // Smooth camera interpolation
   if (myPlayer) {
-    localX += (myPlayer.x - localX) * 0.2;
-    localY += (myPlayer.y - localY) * 0.2;
+    if (localX === 0 && localY === 0) { localX = myPlayer.x; localY = myPlayer.y; }
+    localX += (myPlayer.x - localX) * 0.25;
+    localY += (myPlayer.y - localY) * 0.25;
   }
 
   // Camera (use local position for smoothness)
@@ -519,9 +522,7 @@ function gameLoop(timestamp) {
     worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    const camX = localX || myPlayer.x;
-    const camY = localY || myPlayer.y;
-    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-camX}px, ${-camY}px)`;
+    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-localX}px, ${-localY}px)`;
   }
 
   // Screen shake
