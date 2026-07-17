@@ -74,8 +74,8 @@
         #player-list { position: fixed; top: 44px; left: 8px; z-index: 200; padding: 4px 10px; background: rgba(0,0,0,0.5); border-radius: 6px; pointer-events: none; font-size: 12px; }
         #player-list div { margin: 2px 0; }
 
-        #interact-area { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; }
-        #interact-btn { display: none; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; padding: 6px 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        #interact-area { position: absolute; z-index: 100; pointer-events: none; font-size: 14px; }
+        #interact-btn { display: none; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; padding: 4px 14px; font-size: 14px; font-weight: bold; cursor: pointer; pointer-events: auto; white-space: nowrap; }
         #interact-btn.show { display: block; }
 
         #inv-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,20,20,0.95); border: 1px solid #555; border-radius: 8px; padding: 16px; z-index: 300; min-width: 220px; color: #eee; font-size: 14px; }
@@ -85,6 +85,9 @@
         #message.show { display: block; }
 
         #scan-btn:disabled { background: #555; box-shadow: none; cursor: default; }
+        @media (hover: hover) and (pointer: fine) {
+            #scan-btn, #inv-btn { display: none; }
+        }
 
         #controls { position: fixed; bottom: 80px; left: 10px; z-index: 100; display: none; }
         #controls.show { display: flex; gap: 4px; }
@@ -113,11 +116,11 @@
             <div id="map"></div>
             <div id="scan-field"></div>
             <div id="player"><div class="player-sprite" id="playerSprite"></div></div>
+            <div id="interact-area"><button id="interact-btn">Open</button></div>
         </div>
         <div id="player-hp-outer"><div id="player-hp-inner"></div></div>
         <div id="room-code"></div>
         <div id="player-list"></div>
-        <div id="interact-area"><button id="interact-btn">Open</button></div>
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
         <button id="scan-btn">SCAN</button>
