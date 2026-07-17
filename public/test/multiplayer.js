@@ -476,15 +476,7 @@ function handleMessage(msg) {
       break;
     case 'other_burst':
       if (players[msg.playerId]) {
-        const el = players[msg.playerId].el.querySelector('.player-sprite');
-        if (el) {
-          el.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
-          el.style.backgroundSize = '500% 500%';
-          setTimeout(() => {
-            el.style.backgroundImage = '';
-            el.style.backgroundSize = '';
-          }, 1500);
-        }
+        players[msg.playerId]._burst = { frame: 0, timer: 0, el: players[msg.playerId].el.querySelector('.player-sprite') };
         triggerShake(6);
       }
       break;
@@ -696,6 +688,30 @@ function gameLoop(timestamp) {
       if (walkFrame !== 0) {
         walkFrame = 0;
         setWalkFrame(ROW[currentDir], 0);
+      }
+    }
+  }
+
+  // Other player burst animation
+  for (const id in players) {
+    const entry = players[id];
+    if (!entry._burst) continue;
+    const b = entry._burst;
+    b.timer += dt;
+    while (b.timer >= 60) {
+      b.timer -= 60;
+      const col = b.frame % 5;
+      const row = Math.floor(b.frame / 5);
+      if (b.el) {
+        b.el.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+        b.el.style.backgroundSize = '500% 500%';
+        b.el.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
+      }
+      b.frame++;
+      if (b.frame >= 25) {
+        if (b.el) { b.el.style.backgroundImage = ''; b.el.style.backgroundSize = ''; }
+        delete entry._burst;
+        break;
       }
     }
   }
