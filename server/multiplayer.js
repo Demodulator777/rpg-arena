@@ -502,6 +502,8 @@ function gameTick(room) {
       }
     }
 
+    pushOutOfWall(m, walls);
+
     // Monster attack (melee)
     m.attackTimer -= dt;
     if (m.type !== 'ranged' && m.attackTimer <= 0 && closestDist < 100 && closestPlayer &&
@@ -542,6 +544,10 @@ function gameTick(room) {
         b.y += ny * push;
       }
     }
+  }
+  // Push monsters out of walls after separation
+  for (const m of room.state.monsters) {
+    if (m.alive) pushOutOfWall(m, walls);
   }
 
   // Check player deaths
