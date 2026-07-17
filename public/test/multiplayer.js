@@ -1,7 +1,5 @@
-// ---- Global error logging ----
 window.addEventListener('error', (e) => console.error('[GLOBAL]', e.error || e.message));
 window.addEventListener('unhandledrejection', (e) => console.error('[UNHANDLED]', e.reason));
-console.log('[multiplayer.js] loaded');
 
 // ---- DOM refs ----
 const lobby = document.getElementById('lobby');
@@ -11,6 +9,7 @@ const lobbyLevel = document.getElementById('lobby-level');
 const lobbyError = document.getElementById('lobby-error');
 const btnCreate = document.getElementById('btn-create');
 const btnJoin = document.getElementById('btn-join');
+const gameContainer = document.getElementById('game-container');
 const gameWorld = document.getElementById('game-world');
 const mapEl = document.getElementById('map');
 const playerEl = document.getElementById('player');
@@ -25,6 +24,12 @@ const scanBtn = document.getElementById('scan-btn');
 const actionBtn = document.getElementById('action-btn');
 const joystickArea = document.getElementById('joystick-area');
 const joystickKnob = document.getElementById('joystick-knob');
+const msgEl = document.getElementById('message');
+const fogEl = document.getElementById('fog');
+
+// ---- Preload sprites ----
+const preloadImages = ['/images/assets/roguelike3.png','/images/assets/roguelike1.png','/images/assets/goblin.png','/images/assets/archergoblin.png'];
+preloadImages.forEach(s => { (new Image()).src = s; });
 
 // ---- Camera Constants ----
 const REF_W = 400;
@@ -39,93 +44,88 @@ let myPlayer = null;
 let players = {};
 let monsters = {};
 let chests = {};
-let keys = { up: false, down: false, left: false, right: false };
+const keys = { up: false, down: false, left: false, right: false };
 let isRunning = false;
+let currentDir = 'down';
+
+// Screen shake
+let shakeUntil = 0;
+let shakeIntensity = 0;
+
+function triggerShake(intensity) {
+  shakeUntil = Date.now() + 200;
+  shakeIntensity = intensity;
+}
 
 // ---- Connection ----
 function connectToRoom(code, level, name, isCreate) {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
-
   ws.onopen = () => {
     ws.send(JSON.stringify({ type: isCreate ? 'create_room' : 'join_room', name, level, code }));
   };
-
   ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data);
-      handleMessage(msg);
-    } catch (err) {
-      console.error('ws.onmessage error:', err);
-    }
+    try { handleMessage(JSON.parse(e.data)); }
+    catch (err) { console.error('ws.onmessage error:', err); }
   };
-
-  ws.onclose = (e) => { lobbyError.textContent = 'Disconnected (code:' + e.code + ' reason:' + e.reason + ')'; lobby.classList.remove('hide'); isRunning = false; console.error('[WS] close:', e.code, e.reason); };
-  ws.onerror = (e) => { lobbyError.textContent = 'Connection failed'; console.error('[WS] error:', e.message, e.error); };
+  ws.onclose = (e) => { lobbyError.textContent = 'Disconnected (code:' + e.code + ' reason:' + e.reason + ')'; lobby.classList.remove('hide'); isRunning = false; };
+  ws.onerror = () => { lobbyError.textContent = 'Connection failed'; };
 }
 
-function handleMessage(msg) {
-  switch (msg.type) {
-    case 'room_created':
-    case 'room_joined':
-      lobby.classList.add('hide');
-      roomCode = msg.code;
-      myPlayerId = msg.playerId;
-      myPlayer = msg.player;
-      roomCodeEl.textContent = 'Room: ' + roomCode;
-      initWorld(msg.state);
-      if (!isRunning) { isRunning = true; update(); }
-      break;
-    case 'player_joined':
-      addOtherPlayer(msg.player);
-      updatePlayerList();
-      break;
-    case 'player_left':
-      removeOtherPlayer(msg.playerId);
-      updatePlayerList();
-      break;
-    case 'state':
-      applyState(msg);
-      break;
-    case 'chest_opened':
-      const ch = chests[msg.chestIndex];
-      if (ch) { ch.found = true; ch.el.classList.add('found'); }
-      break;
-    case 'loot':
-      if (myPlayer) {
-        myPlayer.coins = (myPlayer.coins || 0) + msg.coins;
-        if (msg.potion) myPlayer.potions = (myPlayer.potions || 0) + 1;
-      }
-      showMessage(`+${msg.coins} silver coins${msg.potion ? ', +1 potion' : ''}`);
-      updateInventoryUI();
-      break;
-    case 'show_interact':
-      interactBtn.textContent = msg.action || 'Open';
-      interactBtn.classList.toggle('show', true);
-      break;
-    case 'hide_interact':
-      interactBtn.classList.toggle('show', false);
-      break;
-    case 'level_change':
-      roomCodeEl.textContent = 'Room: ' + roomCode + ' Lv.' + msg.level;
-      document.querySelectorAll('.wall, .chest, .shop, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
-      monsters = {};
-      chests = {};
-      players = {};
-      initWorld(msg.state, msg.level);
-      break;
-    case 'error':
-      lobbyError.textContent = msg.message;
-      break;
-  }
+// ---- Burst ----
+const BURST_MS = 60;
+const BURST_COLS = 5;
+const BURST_TOTAL = 25;
+let isBursting = false;
+let burstFrame = 0;
+let burstTimer = 0;
+let burstDamaged = new Set();
+
+// ---- Animation state ----
+const ROW = { down: 0, right: 25, left: 75, up: 100 };
+const WALK_MS = 150;
+let walkFrame = 0;
+let frameAccum = 0;
+let lastAnimTime = 0;
+
+function setWalkFrame(rowPct, colIdx) {
+  if (isBursting) return;
+  playerSprite.style.backgroundImage = 'url(/images/assets/roguelike3.png)';
+  playerSprite.style.backgroundPosition = `${colIdx * 25}% ${rowPct}%`;
+  playerSprite.style.transform = 'scaleX(1)';
 }
+
+function getDirFromKeys() {
+  if (keys.right) return 'right';
+  if (keys.left) return 'left';
+  if (keys.up) return 'up';
+  if (keys.down) return 'down';
+  return currentDir;
+}
+
+function triggerBurst() {
+  if (isBursting) return;
+  isBursting = true;
+  burstDamaged = new Set();
+  burstFrame = 0;
+  burstTimer = 0;
+  playerSprite.style.filter = 'brightness(2) contrast(2)';
+  playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+  if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
+  else playerSprite.style.transform = 'scaleX(1)';
+  playerSprite.style.backgroundPosition = '0% 0%';
+  burstFrame++;
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'burst' }));
+}
+
+// ---- Animations ----
+const MONSTER_ATTACK_FRAMES = [{row:50,col:75},{row:50,col:100},{row:75,col:0},{row:75,col:25}];
+const ARCHER_ATTACK_FRAMES = [{row:50,col:0},{row:50,col:25},{row:50,col:50},{row:50,col:75},{row:50,col:100}];
+const MONSTER_ANIM_MS = 150;
+let msgTimer = 0;
 
 // ---- World ----
 async function initWorld(state, worldLevel) {
-  (new Image()).src = '/images/assets/roguelike3.png';
-  (new Image()).src = '/images/assets/goblin.png';
-  (new Image()).src = '/images/assets/archergoblin.png';
-
   const level = worldLevel || lobbyLevel.value || 1;
   let d;
   try {
@@ -140,10 +140,9 @@ async function initWorld(state, worldLevel) {
   }
 
   try {
-    // Render Map Elements
     if (d.backgroundImage) mapEl.style.background = `url(${d.backgroundImage}) repeat`;
     else mapEl.style.background = '#1a1a1a';
-    
+
     if (d.walls) {
       for (const w of d.walls) {
         const el = document.createElement('div');
@@ -183,9 +182,11 @@ async function initWorld(state, worldLevel) {
       for (const bm of d.beams) {
         const el = document.createElement('div');
         el.className = 'beam-line';
-        const len = Math.hypot(bm.x2 - bm.x1, bm.y2 - bm.y1);
-        const angle = Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1) * 180 / Math.PI;
-        el.style.cssText = `left:${bm.x1}px;top:${bm.y1}px;width:${len}px;height:4px;transform-origin:0 2px;transform:rotate(${angle}deg);`;
+        const cx = (bm.x1 + bm.x2) / 2;
+        const cy = (bm.y1 + bm.y2) / 2;
+        const w = Math.abs(bm.x2 - bm.x1) + 6;
+        const h = Math.abs(bm.y2 - bm.y1) + 6;
+        el.style.cssText = `left:${cx - w/2}px;top:${cy - h/2}px;width:${w}px;height:${h}px;position:absolute;pointer-events:none;z-index:2;transform-origin:center;transform:rotate(${Math.atan2(bm.y2 - bm.y1, bm.x2 - bm.x1)}rad);`;
         mapEl.appendChild(el);
       }
     }
@@ -198,7 +199,6 @@ async function initWorld(state, worldLevel) {
       }
     }
 
-    // Exit/entrance zones
     if (d.exit) {
       const exitEl = document.createElement('div');
       exitEl.id = 'exit-zone';
@@ -212,14 +212,12 @@ async function initWorld(state, worldLevel) {
       mapEl.appendChild(entranceEl);
     }
 
-    // Local player position
     if (myPlayer) {
       playerEl.style.left = myPlayer.x + 'px';
       playerEl.style.top = myPlayer.y + 'px';
       hpInner.style.width = (myPlayer.hp / myPlayer.maxHp * 100) + '%';
     }
 
-    // Monsters/Chests/Players
     if (state.monsters) {
       for (let i = 0; i < state.monsters.length; i++) createMonsterEl(i, state.monsters[i]);
     }
@@ -244,8 +242,6 @@ async function initWorld(state, worldLevel) {
   }
 }
 
-
-
 function createMonsterEl(index, m) {
   const el = document.createElement('div');
   el.className = 'monster';
@@ -261,7 +257,7 @@ function createMonsterEl(index, m) {
   hpBar.appendChild(hpFill);
   el.appendChild(hpBar);
   mapEl.appendChild(el);
-  monsters[index] = { el, hpFill, alive: true };
+  monsters[index] = { el, hpFill, alive: true, animFrame: 0, animTimer: 0, hitTimer: 0, _type: m.type };
 }
 
 function addOtherPlayer(p) {
@@ -293,24 +289,15 @@ function hashHue(id) {
   return hash % 360;
 }
 
-const MONSTER_ATTACK_FRAMES = [{row:50,col:75},{row:50,col:100},{row:75,col:0},{row:75,col:25}];
-const ARCHER_ATTACK_FRAMES = [{row:50,col:0},{row:50,col:25},{row:50,col:50},{row:50,col:75},{row:50,col:100}];
-let monsterAnimTimers = {};
-
 function applyState(msg) {
   if (!msg.players || !msg.monsters) return;
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
-      const prevHp = myPlayer ? myPlayer.hp : sp.hp;
       myPlayer = sp;
       playerEl.style.left = sp.x + 'px';
       playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
-      if (sp.hitFlash > 0) {
-        playerEl.classList.add('hit-flash');
-      } else {
-        playerEl.classList.remove('hit-flash');
-      }
+      playerEl.classList.toggle('hit-flash', sp.hitFlash > 0);
     } else if (players[sp.id]) {
       players[sp.id].p = sp;
       players[sp.id].el.style.left = sp.x + 'px';
@@ -325,23 +312,14 @@ function applyState(msg) {
     local.el.style.top = (sm.y - 20) + 'px';
     local.alive = sm.alive;
     local.el.classList.toggle('dead', !sm.alive);
+    local.el.style.transform = sm.x < myPlayer?.x ? 'scaleX(-1)' : 'scaleX(1)';
     if (local.hpFill) local.hpFill.style.width = Math.max(0, (sm.hp / sm.maxHp) * 100) + '%';
-    local.el.classList.toggle('monster-hit', sm.hp < sm.maxHp);
-
-    if (sm.attacking && !local._attacking) {
-      local._attacking = true;
+    if (sm.attacking && local.animTimer <= 0) {
+      local.animFrame = 0;
+      local.animTimer = MONSTER_ANIM_MS;
       const frames = sm.type === 'ranged' ? ARCHER_ATTACK_FRAMES : MONSTER_ATTACK_FRAMES;
-      let fi = 0;
-      local._attackAnim = setInterval(() => {
-        const f = frames[fi];
-        local.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
-        fi++;
-        if (fi >= frames.length) {
-          clearInterval(local._attackAnim);
-          local._attacking = false;
-          local.el.style.backgroundPosition = '0% 0%';
-        }
-      }, 150);
+      const f = frames[0];
+      local.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
     }
   }
 }
@@ -361,10 +339,21 @@ function toggleInventory() {
   updateInventoryUI();
 }
 
+function usePotion() {
+  if (!myPlayer || myPlayer.potions <= 0 || myPlayer.hp >= myPlayer.maxHp) return;
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'use_potion' }));
+  }
+}
+
 function updateInventoryUI() {
-  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>Inventory</b><button id="inv-close">✕</button></div>
-  <div>Silver coins: ${myPlayer?.coins || 0}</div><div>Healing potions: ${myPlayer?.potions || 0}</div>`;
+  invPanel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>Inventory</b><button id="inv-close" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer">✕</button></div>
+  <div class="inv-row">💰 Silver coins: ${myPlayer?.coins || 0}</div>
+  <div class="inv-row">🧪 Healing potions: ${myPlayer?.potions || 0}
+    <button id="use-potion-btn" ${myPlayer?.potions > 0 && myPlayer?.hp < myPlayer?.maxHp ? '' : 'disabled'} style="margin-left:8px;padding:2px 8px;background:#484;border:1px solid #6a6;border-radius:4px;color:#fff;cursor:pointer;font-size:11px">Use</button>
+  </div>`;
   document.getElementById('inv-close')?.addEventListener('click', toggleInventory);
+  document.getElementById('use-potion-btn')?.addEventListener('click', usePotion);
 }
 
 function interactAction() {
@@ -372,22 +361,9 @@ function interactAction() {
 }
 
 function showMessage(text) {
-  const el = document.getElementById('message') || (function(){
-    const e = document.createElement('div'); e.id = 'message';
-    e.style.cssText = 'position:fixed;bottom:30%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);padding:8px 20px;color:#f0c840;z-index:300;';
-    document.body.appendChild(e); return e;
-  })();
-  el.textContent = text;
-  el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3000);
-}
-
-function updateCamera() {
-  if (!myPlayer) return;
-  worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
-  const cx = window.innerWidth / 2;
-  const cy = window.innerHeight / 2;
-  gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-myPlayer.x}px, ${-myPlayer.y}px)`;
+  msgEl.textContent = text;
+  msgEl.classList.add('show');
+  msgTimer = 3000;
 }
 
 let lastFogCSS = '';
@@ -397,14 +373,63 @@ function updateFog() {
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
   const css = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%)`;
-  if (css !== lastFogCSS) {
-    lastFogCSS = css;
-    document.getElementById('fog').style.cssText = css;
-  }
+  if (css !== lastFogCSS) { lastFogCSS = css; fogEl.style.cssText = css; }
 }
 window.addEventListener('resize', () => { lastFogCSS = ''; });
 
-// Input/Joystick
+// ---- Message handler ----
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'room_created':
+    case 'room_joined':
+      lobby.classList.add('hide');
+      roomCode = msg.code;
+      myPlayerId = msg.playerId;
+      myPlayer = msg.player;
+      roomCodeEl.textContent = 'Room: ' + roomCode;
+      initWorld(msg.state);
+      if (!isRunning) { isRunning = true; requestAnimationFrame(gameLoop); }
+      break;
+    case 'player_joined':
+      addOtherPlayer(msg.player);
+      updatePlayerList();
+      break;
+    case 'player_left':
+      removeOtherPlayer(msg.playerId);
+      updatePlayerList();
+      break;
+    case 'state':
+      applyState(msg);
+      break;
+    case 'chest_opened':
+      const ch = chests[msg.chestIndex];
+      if (ch) { ch.found = true; ch.el.classList.add('found'); }
+      break;
+    case 'loot':
+      if (myPlayer) {
+        myPlayer.coins = (myPlayer.coins || 0) + (msg.coins || 0);
+        if (msg.potion) myPlayer.potions = (myPlayer.potions || 0) + 1;
+      }
+      showMessage(`${msg.coins ? '+' + msg.coins + ' silver coins' : ''}${msg.coins && msg.potion ? ', ' : ''}${msg.potion ? '+1 potion' : ''}`);
+      updateInventoryUI();
+      break;
+    case 'level_change':
+      roomCodeEl.textContent = 'Room: ' + roomCode + ' Lv.' + msg.level;
+      document.querySelectorAll('.wall, .chest, .shop, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
+      monsters = {}; chests = {}; players = {};
+      initWorld(msg.state, msg.level);
+      break;
+    case 'potion_used':
+      showMessage('Used healing potion +30 HP');
+      updateInventoryUI();
+      break;
+    case 'error':
+      lobbyError.textContent = msg.message;
+      break;
+  }
+}
+
+// ---- Joystick ----
 let joystickActive = false;
 function handleJoystick(e) {
   if (!joystickActive) return;
@@ -419,7 +444,7 @@ function handleJoystick(e) {
   const maxDist = 45;
   if (dist > maxDist) { moveX = (moveX / dist) * maxDist; moveY = (moveY / dist) * maxDist; }
   joystickKnob.style.transform = `translate(${moveX}px, ${moveY}px)`;
-  keys = { up: moveY < -15, down: moveY > 15, left: moveX < -15, right: moveX > 15 };
+  keys.up = moveY < -15; keys.down = moveY > 15; keys.left = moveX < -15; keys.right = moveX > 15;
   sendInput();
 }
 function sendInput() {
@@ -428,28 +453,24 @@ function sendInput() {
 
 joystickArea.addEventListener('mousedown', (e) => { joystickActive = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
-window.addEventListener('mouseup', () => { joystickActive = false; keys = { up:false,down:false,left:false,right:false }; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
+window.addEventListener('mouseup', () => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'w' || e.key === 'ArrowUp') keys.up = true;
-  else if (e.key === 's' || e.key === 'ArrowDown') keys.down = true;
-  else if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = true;
-  else if (e.key === 'd' || e.key === 'ArrowRight') keys.right = true;
-  else if (e.key === 'z' || e.key === 'Z') performBurst();
-  else if (e.key === ' ') interactAction();
-  else if (e.key === 'i') toggleInventory();
-  else return;
-  sendInput();
+  if (e.key === 'w' || e.key === 'ArrowUp') { keys.up = true; sendInput(); }
+  else if (e.key === 's' || e.key === 'ArrowDown') { keys.down = true; sendInput(); }
+  else if (e.key === 'a' || e.key === 'ArrowLeft') { keys.left = true; sendInput(); }
+  else if (e.key === 'd' || e.key === 'ArrowRight') { keys.right = true; sendInput(); }
+  else if (e.key === 'z' || e.key === 'Z') triggerBurst();
+  else if (e.key === ' ') { e.preventDefault(); interactAction(); }
+  else if (e.key === 'i' || e.key === 'I') toggleInventory();
 });
 window.addEventListener('keyup', (e) => {
-  if (e.key === 'w' || e.key === 'ArrowUp') keys.up = false;
-  else if (e.key === 's' || e.key === 'ArrowDown') keys.down = false;
-  else if (e.key === 'a' || e.key === 'ArrowLeft') keys.left = false;
-  else if (e.key === 'd' || e.key === 'ArrowRight') keys.right = false;
-  else return;
-  sendInput();
+  if (e.key === 'w' || e.key === 'ArrowUp') { keys.up = false; sendInput(); }
+  else if (e.key === 's' || e.key === 'ArrowDown') { keys.down = false; sendInput(); }
+  else if (e.key === 'a' || e.key === 'ArrowLeft') { keys.left = false; sendInput(); }
+  else if (e.key === 'd' || e.key === 'ArrowRight') { keys.right = false; sendInput(); }
 });
 
-// Scan/Animation/Loop
+// ---- Scan ----
 function performScan() {
   if (!myPlayer) return;
   const sf = document.getElementById('scan-field');
@@ -459,76 +480,125 @@ function performScan() {
 }
 scanBtn.addEventListener('click', performScan);
 
-// Sprite animation
-const ROW = { down: 0, right: 25, left: 75, up: 100 };
-const WALK_MS = 150;
-let walkFrame = 0;
-let frameAccum = 0;
-let lastAnimTime = 0;
-let currentDir = 'down';
+// ---- Game Loop ----
+function gameLoop(timestamp) {
+  if (!lastAnimTime) lastAnimTime = timestamp;
+  const dt = Math.min(timestamp - lastAnimTime, 50);
+  lastAnimTime = timestamp;
 
-function setWalkFrame(rowPct, colIdx) {
-  playerSprite.style.backgroundPosition = `${colIdx * 25}% ${rowPct}%`;
-}
-
-function getDirFromKeys() {
-  if (keys.right) return 'right';
-  if (keys.left) return 'left';
-  if (keys.up) return 'up';
-  if (keys.down) return 'down';
-  return currentDir;
-}
-
-function animate(time) {
-  if (!lastAnimTime) lastAnimTime = time;
-  const dt = Math.min(time - lastAnimTime, 50);
-  lastAnimTime = time;
-
-  const moving = keys.up || keys.down || keys.left || keys.right;
-  const dir = getDirFromKeys();
-  if (dir !== currentDir) {
-    currentDir = dir;
-    walkFrame = 0;
-    frameAccum = 0;
-    setWalkFrame(ROW[dir], 0);
-  } else if (moving) {
-    frameAccum += dt;
-    while (frameAccum >= WALK_MS) {
-      frameAccum -= WALK_MS;
-      walkFrame = (walkFrame + 1) % 5;
-      setWalkFrame(ROW[currentDir], walkFrame);
-    }
-  } else {
-    frameAccum = 0;
-    walkFrame = 0;
-    setWalkFrame(ROW[currentDir], 0);
+  // Camera
+  if (myPlayer) {
+    worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-myPlayer.x}px, ${-myPlayer.y}px)`;
   }
 
+  // Screen shake
+  if (Date.now() < shakeUntil) {
+    const intensity = shakeIntensity * (1 - (shakeUntil - Date.now()) / 200);
+    gameContainer.style.transform = `translate(${(Math.random() - 0.5) * intensity}px, ${(Math.random() - 0.5) * intensity}px)`;
+  } else {
+    gameContainer.style.transform = '';
+  }
+
+  updateFog();
+
+  // Burst animation
+  if (isBursting) {
+    burstTimer += dt;
+    while (burstTimer >= BURST_MS) {
+      burstTimer -= BURST_MS;
+      const col = burstFrame % BURST_COLS;
+      const row = Math.floor(burstFrame / BURST_COLS);
+      playerSprite.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+      if (currentDir === 'left') playerSprite.style.transform = 'scaleX(-1)';
+      else playerSprite.style.transform = 'scaleX(1)';
+      playerSprite.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
+
+      // Visual shake on burst
+      if (burstFrame >= 5 && burstFrame <= 15) triggerShake(4);
+      burstFrame++;
+      if (burstFrame >= BURST_TOTAL) {
+        isBursting = false;
+        playerSprite.style.filter = 'none';
+        walkFrame = 0; frameAccum = 0;
+        const dir = getDirFromKeys();
+        currentDir = dir;
+        setWalkFrame(ROW[dir], 0);
+        break;
+      }
+    }
+  } else {
+    // Walk animation
+    const moving = keys.up || keys.down || keys.left || keys.right;
+    const dir = getDirFromKeys();
+    if (dir !== currentDir) {
+      currentDir = dir;
+      walkFrame = 0; frameAccum = 0;
+      setWalkFrame(ROW[dir], 0);
+    } else if (moving) {
+      frameAccum += dt;
+      while (frameAccum >= WALK_MS) {
+        frameAccum -= WALK_MS;
+        walkFrame = (walkFrame + 1) % 5;
+        setWalkFrame(ROW[currentDir], walkFrame);
+      }
+    } else {
+      frameAccum = 0;
+      if (walkFrame !== 0) {
+        walkFrame = 0;
+        setWalkFrame(ROW[currentDir], 0);
+      }
+    }
+  }
+
+  // Other player sprites follow
   for (const id in players) {
     const s = players[id].el.querySelector('.player-sprite');
     if (s) s.style.backgroundPosition = playerSprite.style.backgroundPosition;
   }
-  requestAnimationFrame(animate);
-}
-animate();
 
-// Burst action
-function performBurst() {
-  if (!myPlayer) return;
-  playerSprite.style.filter = 'brightness(2) contrast(2)';
-  setTimeout(() => { playerSprite.style.filter = 'none'; }, 200);
-  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'burst' }));
-}
-actionBtn.addEventListener('click', performBurst);
+  // Monster animation + hit flash (client-side tick)
+  for (const i in monsters) {
+    const local = monsters[i];
+    if (!local || !local.alive) continue;
+    if (local.animTimer > 0) {
+      local.animTimer -= dt;
+      if (local.animTimer <= 0) {
+        local.animFrame++;
+        const attFrames = local._type === 'ranged' ? ARCHER_ATTACK_FRAMES : MONSTER_ATTACK_FRAMES;
+        if (local.animFrame >= attFrames.length) {
+          local.animFrame = 0;
+          local.animTimer = 0;
+          local.el.style.backgroundPosition = '0% 0%';
+        } else {
+          local.animTimer = MONSTER_ANIM_MS;
+          const f = attFrames[local.animFrame];
+          local.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
+        }
+      }
+    }
+    if (local.hitTimer > 0) {
+      local.hitTimer -= dt;
+      local.el.style.opacity = Math.floor(local.hitTimer / 50) % 2 ? '1' : '0.3';
+    } else {
+      local.el.style.opacity = '1';
+    }
+  }
 
-function update() {
-  updateCamera();
-  updateFog();
-  requestAnimationFrame(update);
+  // Message timer
+  if (msgTimer > 0) {
+    msgTimer -= dt;
+    if (msgTimer <= 0) msgEl.classList.remove('show');
+  }
+
+  requestAnimationFrame(gameLoop);
 }
 
-// Lobby listeners
+// ---- Lobby listeners ----
 btnCreate.addEventListener('click', () => connectToRoom('', Number(lobbyLevel.value) || 1, lobbyName.value.trim() || 'Adventurer', true));
 btnJoin.addEventListener('click', () => connectToRoom(lobbyCode.value.trim().toUpperCase(), 1, lobbyName.value.trim() || 'Adventurer', false));
 interactBtn.addEventListener('click', interactAction);
 invBtn.addEventListener('click', toggleInventory);
+actionBtn.addEventListener('click', triggerBurst);
