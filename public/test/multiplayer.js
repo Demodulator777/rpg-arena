@@ -106,6 +106,15 @@ function handleMessage(msg) {
     case 'hide_interact':
       interactBtn.classList.toggle('show', false);
       break;
+    case 'level_change':
+      roomCodeEl.textContent = 'Room: ' + roomCode + ' Lv.' + msg.level;
+      // Re-init world with new state
+      document.querySelectorAll('.wall, .chest, .shop, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
+      monsters = {};
+      chests = {};
+      players = {};
+      initWorld(msg.state);
+      break;
     case 'error':
       lobbyError.textContent = msg.message;
       break;
@@ -355,14 +364,19 @@ function updateCamera() {
   gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-myPlayer.x}px, ${-myPlayer.y}px)`;
 }
 
+let lastFogCSS = '';
 function updateFog() {
   if (!myPlayer) return;
-  const fogEl = document.getElementById('fog');
   const fogRadius = 250 * worldScale;
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
-  fogEl.style.cssText = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%)`;
+  const css = `position:fixed;inset:0;z-index:50;pointer-events:none;background:#000;-webkit-mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%);mask-image:radial-gradient(circle ${fogRadius}px at ${cx}px ${cy}px,transparent 0%,transparent 55%,rgba(0,0,0,0.4) 70%,#000 90%,#000 100%)`;
+  if (css !== lastFogCSS) {
+    lastFogCSS = css;
+    document.getElementById('fog').style.cssText = css;
+  }
 }
+window.addEventListener('resize', () => { lastFogCSS = ''; });
 
 // Input/Joystick
 let joystickActive = false;
