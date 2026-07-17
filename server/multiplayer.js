@@ -327,7 +327,7 @@ function createPlayer(id, name, mapData) {
     host: false,
     hitFlash: 0
   };
-  pushOutOfWall(player, mapData.walls || []);
+  pushOutOfWall(player, mapData.walls || [], 13, 26);
   return player;
 }
 
@@ -386,8 +386,8 @@ function gameTick(room) {
     const speed = PLAYER_SPEED * dt;
     const nx = p.x + dx * speed;
     const ny = p.y + dy * speed;
-    if (!wallHit(nx, p.y, walls)) p.x = nx;
-    if (!wallHit(p.x, ny, walls)) p.y = ny;
+    if (!wallHit(nx, p.y, walls, 13, 26)) p.x = nx;
+    if (!wallHit(p.x, ny, walls, 13, 26)) p.y = ny;
     p.x = Math.max(20, Math.min(WORLD_SIZE - 20, p.x));
     p.y = Math.max(20, Math.min(WORLD_SIZE - 20, p.y));
 
@@ -595,15 +595,17 @@ function gameTick(room) {
   });
 }
 
-function wallHit(mx, my, walls) {
+function wallHit(mx, my, walls, halfW, halfH) {
   const b = 20;
+  const hw = halfW || 20;
+  const hh = halfH || 20;
   return walls.some(w => {
     const ww = w.w || w.width || 0;
     const wh = w.h || w.height || 0;
-    return mx + 20 > w.x + b &&
-      mx - 20 < w.x + b + ww &&
-      my + 20 > w.y + b &&
-      my - 20 < w.y + b + wh;
+    return mx + hw > w.x + b &&
+      mx - hw < w.x + b + ww &&
+      my + hh > w.y + b &&
+      my - hh < w.y + b + wh;
   });
 }
 
@@ -629,14 +631,14 @@ function hasLineOfSight(x1, y1, x2, y2, walls) {
   return true;
 }
 
-function pushOutOfWall(m, walls) {
-  if (!wallHit(m.x, m.y, walls)) return;
+function pushOutOfWall(m, walls, halfW, halfH) {
+  if (!wallHit(m.x, m.y, walls, halfW, halfH)) return;
   const dirs = [[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
   for (let step = 2; step <= 200; step += 10) {
     for (const [dx, dy] of dirs) {
       const nx = m.x + dx * step;
       const ny = m.y + dy * step;
-      if (!wallHit(nx, ny, walls)) {
+      if (!wallHit(nx, ny, walls, halfW, halfH)) {
         m.x = Math.max(20, Math.min(WORLD_SIZE - 20, nx));
         m.y = Math.max(20, Math.min(WORLD_SIZE - 20, ny));
         return;
