@@ -706,6 +706,7 @@ function gameLoop(timestamp) {
         b.el.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
         b.el.style.backgroundSize = '500% 500%';
         b.el.style.backgroundPosition = `${col * 25}% ${row * 25}%`;
+        b.el.style.transform = entry._dir === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
       }
       b.frame++;
       if (b.frame >= 25) {
