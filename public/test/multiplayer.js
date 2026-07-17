@@ -1,3 +1,7 @@
+// ---- Global error logging ----
+window.addEventListener('error', (e) => console.error('[GLOBAL]', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => console.error('[UNHANDLED]', e.reason));
+
 // ---- DOM refs ----
 const lobby = document.getElementById('lobby');
 const lobbyName = document.getElementById('lobby-name');
@@ -54,8 +58,8 @@ function connectToRoom(code, level, name, isCreate) {
     }
   };
 
-  ws.onclose = () => { lobbyError.textContent = 'Disconnected'; lobby.classList.remove('hide'); isRunning = false; };
-  ws.onerror = () => { lobbyError.textContent = 'Connection failed'; };
+  ws.onclose = (e) => { lobbyError.textContent = 'Disconnected (code:' + e.code + ' reason:' + e.reason + ')'; lobby.classList.remove('hide'); isRunning = false; console.error('[WS] close:', e.code, e.reason); };
+  ws.onerror = (e) => { lobbyError.textContent = 'Connection failed'; console.error('[WS] error:', e.message, e.error); };
 }
 
 function handleMessage(msg) {
