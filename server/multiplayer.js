@@ -185,19 +185,36 @@ async function handleJoinRoom(ws, msg) {
   }, ws);
 }
 
+const WORLD_BOUND = 20;
+function validateAndSetClientPos(p, x, y, walls) {
+  x = Math.max(WORLD_BOUND, Math.min(5000 - WORLD_BOUND, x));
+  y = Math.max(WORLD_BOUND, Math.min(5000 - WORLD_BOUND, y));
+  const now = Date.now();
+  const dt = p._lastPosTime ? now - p._lastPosTime : 0;
+  const maxDist = PLAYER_SPEED * dt + 15;
+  if (dt > 0 && Math.hypot(x - p.clientX, y - p.clientY) > maxDist) return;
+  if (dt > 0 && walls) {
+    for (const w of walls) {
+      const ww = w.w || w.width || 0;
+      const wh = w.h || w.height || 0;
+      if (lineIntersectsRect(p.clientX, p.clientY, x, y, w.x, w.y, ww, wh)) return;
+    }
+  }
+  p.clientX = x;
+  p.clientY = y;
+  p._lastPosTime = now;
+}
+
 function handleInput(ws, msg) {
   if (!ws._room || !ws._player) return;
   const p = ws._player;
   p.input = msg.keys || {};
-  if (typeof msg.x === 'number') { p.clientX = msg.x; p.clientY = msg.y; }
+  if (typeof msg.x === 'number') validateAndSetClientPos(p, msg.x, msg.y, ws._room.mapData.walls);
 }
 
 function handlePos(ws, msg) {
   if (!ws._room || !ws._player) return;
-  if (typeof msg.x === 'number') {
-    ws._player.clientX = msg.x;
-    ws._player.clientY = msg.y;
-  }
+  if (typeof msg.x === 'number') validateAndSetClientPos(ws._player, msg.x, msg.y, ws._room.mapData.walls);
 }
 
 function handleInteract(ws) {
@@ -369,7 +386,8 @@ function createPlayer(id, name, mapData) {
     potions: 0,
     input: {},
     host: false,
-    hitFlash: 0
+    hitFlash: 0,
+    _lastPosTime: Date.now()
   };
   pushOutOfWall(player, mapData.walls || [], 13, 26);
   return player;
