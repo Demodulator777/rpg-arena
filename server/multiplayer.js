@@ -58,6 +58,7 @@ function handleMessage(ws, msg) {
     case 'input': return handleInput(ws, msg);
     case 'interact': return handleInteract(ws, msg);
     case 'burst': return handleBurst(ws, msg);
+    case 'use_potion': return handleUsePotion(ws, msg);
   }
 }
 
@@ -272,6 +273,15 @@ function handleBurst(ws) {
       if (m.hp <= 0) { m.hp = 0; m.alive = false; }
     }
   }
+}
+
+function handleUsePotion(ws) {
+  if (!ws._room || !ws._player) return;
+  const p = ws._player;
+  if (p.potions <= 0 || p.hp >= p.maxHp) return;
+  p.potions--;
+  p.hp = Math.min(p.maxHp, p.hp + 30);
+  ws.send(JSON.stringify({ type: 'potion_used', hp: p.hp, maxHp: p.maxHp, potions: p.potions }));
 }
 
 function leaveRoom(ws, room, player) {
@@ -492,7 +502,8 @@ function gameTick(room) {
 
     // Monster attack (melee)
     m.attackTimer -= dt;
-    if (m.type !== 'ranged' && m.attackTimer <= 0 && closestDist < 100 && closestPlayer) {
+    if (m.type !== 'ranged' && m.attackTimer <= 0 && closestDist < 100 && closestPlayer &&
+        hasLineOfSight(m.x, m.y, closestPlayer.x, closestPlayer.y, walls)) {
       closestPlayer.hp = Math.max(0, closestPlayer.hp - MONSTER_DMG);
       closestPlayer.hitFlash = 200;
       m.attackTimer = MONSTER_ATTACK_COOLDOWN;
@@ -500,7 +511,8 @@ function gameTick(room) {
     }
 
     // Monster attack (ranged)
-    if (m.type === 'ranged' && Date.now() > m.nextShotTime && closestDist < 300 && closestPlayer) {
+    if (m.type === 'ranged' && Date.now() > m.nextShotTime && closestDist < 300 && closestPlayer &&
+        hasLineOfSight(m.x, m.y, closestPlayer.x, closestPlayer.y, walls)) {
       m.nextShotTime = Date.now() + 3000 + Math.random() * 2000;
       closestPlayer.hp = Math.max(0, closestPlayer.hp - MONSTER_DMG);
       closestPlayer.hitFlash = 200;
@@ -577,12 +589,36 @@ function gameTick(room) {
 
 function wallHit(mx, my, walls) {
   const b = 20;
-  return walls.some(w =>
-    mx + 20 > w.x + b &&
-    mx - 20 < w.x + b + w.w &&
-    my + 20 > w.y + b &&
-    my - 20 < w.y + b + w.h
-  );
+  return walls.some(w => {
+    const ww = w.w || w.width || 0;
+    const wh = w.h || w.height || 0;
+    return mx + 20 > w.x + b &&
+      mx - 20 < w.x + b + ww &&
+      my + 20 > w.y + b &&
+      my - 20 < w.y + b + wh;
+  });
+}
+
+function hasLineOfSight(x1, y1, x2, y2, walls) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+  const steps = Math.max(1, Math.ceil(dist / 8));
+  const b = 20;
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const px = x1 + dx * t;
+    const py = y1 + dy * t;
+    for (const w of walls) {
+      const ww = w.w || w.width || 0;
+      const wh = w.h || w.height || 0;
+      if (px > w.x + b && px < w.x + b + ww &&
+          py > w.y + b && py < w.y + b + wh) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function pushOutOfWall(m, walls) {
