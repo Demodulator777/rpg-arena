@@ -437,6 +437,8 @@ function handleMessage(msg) {
     case 'show_interact':
       interactBtn.textContent = msg.action || 'Open';
       interactBtn.classList.add('show');
+      interactBtn.parentElement.style.left = (msg.x - 20) + 'px';
+      interactBtn.parentElement.style.top = (msg.y - 48) + 'px';
       break;
     case 'hide_interact':
       interactBtn.classList.remove('show');
