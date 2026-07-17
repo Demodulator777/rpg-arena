@@ -617,7 +617,7 @@ function gameTick(room) {
     p._nearInteract = nearInteract;
     if (nearInteract && (!wasNear || p._interactAction !== interactAction)) {
       p._interactAction = interactAction;
-      try { ws.send(JSON.stringify({ type: 'show_interact', action: interactAction })); } catch (e) { console.error('[MP] send show_interact error:', e.message); }
+      try { ws.send(JSON.stringify({ type: 'show_interact', action: interactAction, x: nearInteract.x, y: nearInteract.y })); } catch (e) { console.error('[MP] send show_interact error:', e.message); }
     } else if (!nearInteract && wasNear) {
       p._interactAction = null;
       try { ws.send(JSON.stringify({ type: 'hide_interact' })); } catch (e) { console.error('[MP] send hide_interact error:', e.message); }
