@@ -482,7 +482,7 @@ function handleMessage(msg) {
           bEl.style.backgroundSize = '500% 500%';
           bEl.style.backgroundPosition = '0% 0%';
           bEl.style.transform = (players[msg.playerId]._dir || 'down') === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
-          players[msg.playerId]._burst = { frame: 1, timer: 0 };
+          players[msg.playerId]._burst = { frame: 1, timer: 0, el: bEl };
         }
         triggerShake(6);
       }
