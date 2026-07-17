@@ -42,11 +42,11 @@ let roomCode = '';
 let myPlayerId = '';
 let myPlayer = null;
 let players = {};
-let monsters = {};
 let chests = {};
 const keys = { up: false, down: false, left: false, right: false };
 let isRunning = false;
 let currentDir = 'down';
+let localX = 0, localY = 0; // interpolated position
 
 // Screen shake
 let shakeUntil = 0;
@@ -58,11 +58,19 @@ function triggerShake(intensity) {
 }
 
 // ---- Connection ----
-function connectToRoom(code, level, name, isCreate) {
+async function connectToRoom(code, level, name, isCreate) {
+  let mapData = {};
+  try {
+    const res = await fetch(`/api/game/maps/${level}`);
+    if (res.ok) {
+      const row = await res.json();
+      mapData = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+    }
+  } catch (e) { /* fallback - server can use its own DB */ }
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
   ws.onopen = () => {
-    ws.send(JSON.stringify({ type: isCreate ? 'create_room' : 'join_room', name, level, code }));
+    ws.send(JSON.stringify({ type: isCreate ? 'create_room' : 'join_room', name, level, code, mapData }));
   };
   ws.onmessage = (e) => {
     try { handleMessage(JSON.parse(e.data)); }
@@ -294,9 +302,10 @@ function applyState(msg) {
   let needListUpdate = false;
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
+      if (myPlayer && (Math.abs(sp.x - myPlayer.x) > 200 || Math.abs(sp.y - myPlayer.y) > 200)) {
+        localX = sp.x; localY = sp.y;
+      }
       myPlayer = sp;
-      playerEl.style.left = sp.x + 'px';
-      playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
       playerEl.classList.toggle('hit-flash', sp.hitFlash > 0);
       needListUpdate = true;
@@ -390,6 +399,8 @@ function handleMessage(msg) {
       roomCode = msg.code;
       myPlayerId = msg.playerId;
       myPlayer = msg.player;
+      localX = msg.player.x;
+      localY = msg.player.y;
       roomCodeEl.textContent = 'Room: ' + roomCode;
       initWorld(msg.state);
       if (!isRunning) { isRunning = true; requestAnimationFrame(gameLoop); }
@@ -496,12 +507,20 @@ function gameLoop(timestamp) {
   const dt = Math.min(timestamp - lastAnimTime, 50);
   lastAnimTime = timestamp;
 
-  // Camera
+  // Smooth interpolation toward server position
+  if (myPlayer) {
+    localX += (myPlayer.x - localX) * 0.2;
+    localY += (myPlayer.y - localY) * 0.2;
+  }
+
+  // Camera (use local position for smoothness)
   if (myPlayer) {
     worldScale = Math.min(window.innerWidth / REF_W, window.innerHeight / REF_H);
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-myPlayer.x}px, ${-myPlayer.y}px)`;
+    const camX = localX || myPlayer.x;
+    const camY = localY || myPlayer.y;
+    gameWorld.style.transform = `translate(${cx}px, ${cy}px) scale(${worldScale}) translate(${-camX}px, ${-camY}px)`;
   }
 
   // Screen shake
