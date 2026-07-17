@@ -85,6 +85,9 @@
         #message { display: none; position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid #f0c840; border-radius: 8px; padding: 8px 20px; font-size: 15px; color: #f0c840; z-index: 300; white-space: nowrap; pointer-events: none; }
         #message.show { display: block; }
 
+        #joystick-area { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); left: max(60px, env(safe-area-inset-left)); width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.2); touch-action: none; z-index: 200; }
+        #joystick-knob { position: absolute; width: 64px; height: 64px; background: rgba(255,255,255,0.5); border-radius: 50%; top: 43px; left: 43px; transition: none; }
+        @media (hover: hover) and (pointer: fine) { #joystick-area { display: none; } }
         #scan-btn:disabled { background: #555; box-shadow: none; cursor: default; }
         @media (hover: hover) and (pointer: fine) {
             #scan-btn, #inv-btn, #potion-btn { display: none; }
