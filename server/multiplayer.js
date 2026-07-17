@@ -1,5 +1,24 @@
 const { WebSocketServer, WebSocket } = require('ws');
 const { getDb } = require('./db');
+const http = require('http');
+let _serverPort = 3009;
+
+function fetchMapViaHTTP(level) {
+  return new Promise((resolve, reject) => {
+    http.get(`http://localhost:${_serverPort}/api/game/maps/${level}`, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        if (res.statusCode !== 200) { resolve(null); return; }
+        try {
+          const row = JSON.parse(data);
+          const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+          resolve(d);
+        } catch { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
 
 const rooms = new Map();
 const TICK_MS = 50;
@@ -20,6 +39,8 @@ function generateCode() {
 }
 
 function setupMultiplayer(server) {
+  const addr = server.address();
+  if (addr) _serverPort = addr.port;
   const wss = new WebSocketServer({ server, path: '/ws' });
 
   console.log('[Multiplayer] WebSocket attached on /ws');
@@ -66,16 +87,18 @@ async function handleCreateRoom(ws, msg) {
   const level = msg.level || 1;
   const name = (msg.name || 'Player').slice(0, 20);
 
-  const db = await getDb();
-  const row = await db.execute({ sql: 'SELECT * FROM maps WHERE level=?', args: [level] });
-  if (!row.rows.length) {
-    ws.send(JSON.stringify({ type: 'error', message: 'Map not found' }));
-    return;
-  }
-
-  let mapData;
-  try { const raw = row.rows[0].data; mapData = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { mapData = {}; }
+  let mapData = msg.mapData || {};
   if (!mapData.walls) mapData.walls = [];
+  if (Object.keys(mapData).length === 0) {
+    const db = await getDb();
+    const row = await db.execute({ sql: 'SELECT * FROM maps WHERE level=?', args: [level] });
+    if (!row.rows.length) {
+      ws.send(JSON.stringify({ type: 'error', message: 'Map not found' }));
+      return;
+    }
+    try { const raw = row.rows[0].data; mapData = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { mapData = {}; }
+    if (!mapData.walls) mapData.walls = [];
+  }
 
   let code = generateCode();
   while (rooms.has(code)) code = generateCode();
@@ -224,11 +247,13 @@ function handleInteract(ws) {
 }
 
 async function transitionLevel(room, ws, player, newLevel, spawnAt) {
-  const db = await getDb();
-  const row = await db.execute({ sql: 'SELECT * FROM maps WHERE level=?', args: [newLevel] });
-  if (!row.rows.length) return;
-  let newMapData;
-  try { const raw = row.rows[0].data; newMapData = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return; }
+  let newMapData = await fetchMapViaHTTP(newLevel);
+  if (!newMapData) {
+    const db = await getDb();
+    const row = await db.execute({ sql: 'SELECT * FROM maps WHERE level=?', args: [newLevel] });
+    if (!row.rows.length) return;
+    try { const raw = row.rows[0].data; newMapData = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return; }
+  }
   if (!newMapData.walls) newMapData.walls = [];
 
   room.level = newLevel;
@@ -568,7 +593,8 @@ function gameTick(room) {
     for (const ch of room.state.chests) {
       if (ch.found) continue;
       const d = Math.hypot(p.x - ch.x, p.y - ch.y);
-      if (d < 50 && hasLineOfSight(p.x, p.y, ch.x, ch.y, walls)) {
+      const los = hasLineOfSight(p.x, p.y, ch.x, ch.y, walls);
+      if (d < 50 && los) {
         nearInteract = ch;
         interactAction = 'Open';
         break;
@@ -588,10 +614,10 @@ function gameTick(room) {
     p._nearInteract = nearInteract;
     if (nearInteract && (!wasNear || p._interactAction !== interactAction)) {
       p._interactAction = interactAction;
-      try { ws.send(JSON.stringify({ type: 'show_interact', action: interactAction })); } catch {}
+      try { ws.send(JSON.stringify({ type: 'show_interact', action: interactAction })); } catch (e) { console.error('[MP] send show_interact error:', e.message); }
     } else if (!nearInteract && wasNear) {
       p._interactAction = null;
-      try { ws.send(JSON.stringify({ type: 'hide_interact' })); } catch {}
+      try { ws.send(JSON.stringify({ type: 'hide_interact' })); } catch (e) { console.error('[MP] send hide_interact error:', e.message); }
     }
   }
 
