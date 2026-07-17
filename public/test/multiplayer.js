@@ -324,9 +324,6 @@ function applyState(msg) {
     if (sp.id === myPlayerId) {
       if (sp.hitFlash > 0) playerSprite.style.filter = 'brightness(3) saturate(0)';
       else if (!isBursting) playerSprite.style.filter = 'none';
-      if (myPlayer && (Math.abs(sp.x - playerWX) > 300 || Math.abs(sp.y - playerWY) > 300)) {
-        playerWX = sp.x; playerWY = sp.y;
-      }
       myPlayer = sp;
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
       needListUpdate = true;
@@ -449,6 +446,11 @@ function handleMessage(msg) {
       showMessage(`${msg.coins ? '+' + msg.coins + ' silver coins' : ''}${msg.coins && msg.potion ? ', ' : ''}${msg.potion ? '+1 potion' : ''}`);
       updateInventoryUI();
       break;
+    case 'teleported':
+      playerWX = msg.x; playerWY = msg.y;
+      playerEl.style.left = playerWX + 'px';
+      playerEl.style.top = playerWY + 'px';
+      break;
     case 'level_change':
       roomCodeEl.textContent = 'Room: ' + roomCode + ' Lv.' + msg.level;
       document.querySelectorAll('.wall, .chest, .shop, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
@@ -502,6 +504,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'a' || e.key === 'ArrowLeft') { keys.left = true; sendInput(); }
   else if (e.key === 'd' || e.key === 'ArrowRight') { keys.right = true; sendInput(); }
   else if (e.key === 'z' || e.key === 'Z') triggerBurst();
+  else if (e.key === 'x' || e.key === 'X') performScan();
   else if (e.key === ' ') { e.preventDefault(); interactAction(); }
   else if (e.key === 'i' || e.key === 'I') toggleInventory();
 });
@@ -514,9 +517,8 @@ window.addEventListener('keyup', (e) => {
 
 // ---- Scan ----
 function performScan() {
-  if (!myPlayer) return;
   const sf = document.getElementById('scan-field');
-  sf.style.left = myPlayer.x + 'px'; sf.style.top = myPlayer.y + 'px';
+  sf.style.left = playerWX + 'px'; sf.style.top = playerWY + 'px';
   sf.classList.add('show');
   setTimeout(() => sf.classList.remove('show'), 3000);
 }
