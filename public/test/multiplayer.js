@@ -108,12 +108,11 @@ function handleMessage(msg) {
       break;
     case 'level_change':
       roomCodeEl.textContent = 'Room: ' + roomCode + ' Lv.' + msg.level;
-      // Re-init world with new state
       document.querySelectorAll('.wall, .chest, .shop, .monster, #exit-zone, #entrance-zone, .decal, .trap-zone, .teleport-zone, .beam-line').forEach(el => el.remove());
       monsters = {};
       chests = {};
       players = {};
-      initWorld(msg.state);
+      initWorld(msg.state, msg.level);
       break;
     case 'error':
       lobbyError.textContent = msg.message;
@@ -122,12 +121,12 @@ function handleMessage(msg) {
 }
 
 // ---- World ----
-async function initWorld(state) {
+async function initWorld(state, worldLevel) {
   (new Image()).src = '/images/assets/roguelike3.png';
   (new Image()).src = '/images/assets/goblin.png';
   (new Image()).src = '/images/assets/archergoblin.png';
 
-  const level = lobbyLevel.value || 1;
+  const level = worldLevel || lobbyLevel.value || 1;
   let d;
   try {
     const res = await fetch(`/api/game/maps/${level}`);
@@ -294,14 +293,24 @@ function hashHue(id) {
   return hash % 360;
 }
 
+const MONSTER_ATTACK_FRAMES = [{row:50,col:75},{row:50,col:100},{row:75,col:0},{row:75,col:25}];
+const ARCHER_ATTACK_FRAMES = [{row:50,col:0},{row:50,col:25},{row:50,col:50},{row:50,col:75},{row:50,col:100}];
+let monsterAnimTimers = {};
+
 function applyState(msg) {
   if (!msg.players || !msg.monsters) return;
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
+      const prevHp = myPlayer ? myPlayer.hp : sp.hp;
       myPlayer = sp;
       playerEl.style.left = sp.x + 'px';
       playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
+      if (sp.hitFlash > 0) {
+        playerEl.classList.add('hit-flash');
+      } else {
+        playerEl.classList.remove('hit-flash');
+      }
     } else if (players[sp.id]) {
       players[sp.id].p = sp;
       players[sp.id].el.style.left = sp.x + 'px';
@@ -317,6 +326,23 @@ function applyState(msg) {
     local.alive = sm.alive;
     local.el.classList.toggle('dead', !sm.alive);
     if (local.hpFill) local.hpFill.style.width = Math.max(0, (sm.hp / sm.maxHp) * 100) + '%';
+    local.el.classList.toggle('monster-hit', sm.hp < sm.maxHp);
+
+    if (sm.attacking && !local._attacking) {
+      local._attacking = true;
+      const frames = sm.type === 'ranged' ? ARCHER_ATTACK_FRAMES : MONSTER_ATTACK_FRAMES;
+      let fi = 0;
+      local._attackAnim = setInterval(() => {
+        const f = frames[fi];
+        local.el.style.backgroundPosition = `${f.col}% ${f.row}%`;
+        fi++;
+        if (fi >= frames.length) {
+          clearInterval(local._attackAnim);
+          local._attacking = false;
+          local.el.style.backgroundPosition = '0% 0%';
+        }
+      }, 150);
+    }
   }
 }
 
