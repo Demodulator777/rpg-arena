@@ -332,11 +332,34 @@ function applyState(msg) {
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
       needListUpdate = true;
     } else if (players[sp.id]) {
-      players[sp.id].p = sp;
+      const entry = players[sp.id];
+      const oldX = entry.p.clientX != null ? entry.p.clientX : entry.p.x;
+      const oldY = entry.p.clientY != null ? entry.p.clientY : entry.p.y;
+      entry.p = sp;
       const ox = sp.clientX != null ? sp.clientX : sp.x;
       const oy = sp.clientY != null ? sp.clientY : sp.y;
-      players[sp.id].el.style.left = ox + 'px';
-      players[sp.id].el.style.top = oy + 'px';
+      entry.el.style.left = ox + 'px';
+      entry.el.style.top = oy + 'px';
+      const ddx = ox - oldX, ddy = oy - oldY;
+      if (Math.abs(ddx) > 0.5 || Math.abs(ddy) > 0.5) {
+        let dir = entry._dir || 'down';
+        if (Math.abs(ddx) > Math.abs(ddy)) dir = ddx > 0 ? 'right' : 'left';
+        else dir = ddy > 0 ? 'down' : 'up';
+        entry._dir = dir;
+        entry._movingUntil = Date.now() + 100;
+      }
+      const s = entry.el.querySelector('.player-sprite');
+      if (s) {
+        const row = { down: 0, left: 1, right: 2, up: 3 }[entry._dir || 'down'] || 0;
+        if (Date.now() < (entry._movingUntil || 0)) {
+          const frame = Math.floor(Date.now() / 180) % 4;
+          s.style.backgroundPosition = `${frame * 25}% ${row * 25}%`;
+        } else {
+          s.style.backgroundPosition = `0% ${row * 25}%`;
+        }
+        
+        s.style.transform = entry._dir === 'left' ? 'scaleX(-1)' : '';
+      }
       needListUpdate = true;
     }
   }
@@ -450,6 +473,20 @@ function handleMessage(msg) {
       break;
     case 'hide_interact':
       interactBtn.classList.remove('show');
+      break;
+    case 'other_burst':
+      if (players[msg.playerId]) {
+        const el = players[msg.playerId].el.querySelector('.player-sprite');
+        if (el) {
+          el.style.backgroundImage = 'url(/images/assets/roguelike1.png)';
+          el.style.backgroundSize = '500% 500%';
+          setTimeout(() => {
+            el.style.backgroundImage = '';
+            el.style.backgroundSize = '';
+          }, 1500);
+        }
+        triggerShake(6);
+      }
       break;
     case 'chest_opened':
       const ch = chests[msg.chestIndex];
@@ -661,36 +698,6 @@ function gameLoop(timestamp) {
         setWalkFrame(ROW[currentDir], 0);
       }
     }
-  }
-
-  // Animate other players based on their own movement
-  for (const id in players) {
-    const entry = players[id];
-    const s = entry.el.querySelector('.player-sprite');
-    if (!s) continue;
-    const curX = entry.p.clientX != null ? entry.p.clientX : entry.p.x;
-    const curY = entry.p.clientY != null ? entry.p.clientY : entry.p.y;
-    if (entry._px !== undefined) {
-      const ddx = curX - entry._px;
-      const ddy = curY - entry._py;
-      if (Math.abs(ddx) > 1 || Math.abs(ddy) > 1) {
-        let dir = entry._dir || 'down';
-        if (Math.abs(ddx) > Math.abs(ddy)) dir = ddx > 0 ? 'right' : 'left';
-        else dir = ddy > 0 ? 'down' : 'up';
-        entry._dir = dir;
-        const row = { down: 0, left: 1, right: 2, up: 3 }[dir] || 0;
-        const frame = Math.floor(Date.now() / 200) % 4;
-        s.style.backgroundPosition = `${frame * 25}% ${row * 25}%`;
-        s.style.transform = dir === 'left' ? 'scaleX(-1)' : '';
-      } else {
-        const row = { down: 0, left: 1, right: 2, up: 3 }[entry._dir || 'down'] || 0;
-        s.style.backgroundPosition = `0% ${row * 25}%`;
-      }
-    } else {
-      s.style.backgroundPosition = '0% 0%';
-    }
-    entry._px = curX;
-    entry._py = curY;
   }
 
   // Monster animation + hit flash (client-side tick)
