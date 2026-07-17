@@ -42,6 +42,7 @@ let roomCode = '';
 let myPlayerId = '';
 let myPlayer = null;
 let players = {};
+let monsters = {};
 let chests = {};
 const keys = { up: false, down: false, left: false, right: false };
 let isRunning = false;
