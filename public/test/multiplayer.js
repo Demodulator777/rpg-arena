@@ -351,6 +351,8 @@ function applyState(msg) {
     local.el.classList.toggle('dead', !sm.alive);
     local.el.style.transform = sm.x < myPlayer?.x ? 'scaleX(-1)' : 'scaleX(1)';
     if (local.hpFill) local.hpFill.style.width = Math.max(0, (sm.hp / sm.maxHp) * 100) + '%';
+    if (local._prevHp !== undefined && sm.hp < local._prevHp) local.hitTimer = 200;
+    local._prevHp = sm.hp;
     if (sm.attacking && local.animTimer <= 0) {
       local.animFrame = 0;
       local.animTimer = MONSTER_ANIM_MS;
@@ -662,9 +664,13 @@ function gameLoop(timestamp) {
     }
     if (local.hitTimer > 0) {
       local.hitTimer -= dt;
-      local.el.style.opacity = Math.floor(local.hitTimer / 50) % 2 ? '1' : '0.3';
+      const pct = local.hitTimer / 200;
+      const intensity = 1 + pct * 3;
+      const sat = 1 - pct;
+      const hueShift = pct * 180;
+      local.el.style.filter = `brightness(${intensity}) saturate(${sat}) hue-rotate(${hueShift}deg)`;
     } else {
-      local.el.style.opacity = '1';
+      local.el.style.filter = '';
     }
   }
 
