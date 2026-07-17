@@ -291,6 +291,7 @@ function hashHue(id) {
 
 function applyState(msg) {
   if (!msg.players || !msg.monsters) return;
+  let needListUpdate = false;
   for (const sp of msg.players) {
     if (sp.id === myPlayerId) {
       myPlayer = sp;
@@ -298,12 +299,15 @@ function applyState(msg) {
       playerEl.style.top = sp.y + 'px';
       hpInner.style.width = (sp.hp / sp.maxHp * 100) + '%';
       playerEl.classList.toggle('hit-flash', sp.hitFlash > 0);
+      needListUpdate = true;
     } else if (players[sp.id]) {
       players[sp.id].p = sp;
       players[sp.id].el.style.left = sp.x + 'px';
       players[sp.id].el.style.top = sp.y + 'px';
+      needListUpdate = true;
     }
   }
+  if (needListUpdate) updatePlayerList();
   for (let i = 0; i < msg.monsters.length; i++) {
     const sm = msg.monsters[i];
     const local = monsters[i];
@@ -420,6 +424,12 @@ function handleMessage(msg) {
       initWorld(msg.state, msg.level);
       break;
     case 'potion_used':
+      if (myPlayer) {
+        myPlayer.hp = msg.hp;
+        myPlayer.maxHp = msg.maxHp;
+        myPlayer.potions = msg.potions;
+        hpInner.style.width = (msg.hp / msg.maxHp * 100) + '%';
+      }
       showMessage('Used healing potion +30 HP');
       updateInventoryUI();
       break;
