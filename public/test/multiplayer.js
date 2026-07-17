@@ -492,13 +492,25 @@ function handleMessage(msg) {
 
 // ---- Joystick ----
 let joystickActive = false;
+let joystickTouchId = null;
 function handleJoystick(e) {
   if (!joystickActive) return;
   const rect = joystickArea.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  let clientX, clientY;
+  if (e.touches) {
+    let t = null;
+    if (joystickTouchId != null) {
+      for (const touch of e.touches) {
+        if (touch.identifier === joystickTouchId) { t = touch; break; }
+      }
+    }
+    if (!t) t = e.touches[0];
+    clientX = t.clientX; clientY = t.clientY;
+  } else {
+    clientX = e.clientX; clientY = e.clientY;
+  }
   let moveX = clientX - centerX;
   let moveY = clientY - centerY;
   const dist = Math.hypot(moveX, moveY);
@@ -515,10 +527,21 @@ function sendInput() {
 joystickArea.addEventListener('mousedown', (e) => { joystickActive = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
-joystickArea.addEventListener('touchstart', (e) => { e.preventDefault(); joystickActive = true; handleJoystick(e); });
-window.addEventListener('touchmove', (e) => { if (joystickActive) handleJoystick(e); });
-window.addEventListener('touchcancel', () => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
-window.addEventListener('touchend', (e) => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
+joystickArea.addEventListener('touchstart', (e) => { joystickActive = true; joystickTouchId = e.changedTouches[0].identifier; handleJoystick(e); });
+window.addEventListener('touchmove', handleJoystick);
+window.addEventListener('touchcancel', () => { joystickActive = false; joystickTouchId = null; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
+window.addEventListener('touchend', (e) => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joystickTouchId) {
+      joystickActive = false;
+      joystickTouchId = null;
+      keys.up = keys.down = keys.left = keys.right = false;
+      joystickKnob.style.transform = 'translate(0, 0)';
+      sendInput();
+      break;
+    }
+  }
+});
 window.addEventListener('keydown', (e) => {
   if (e.key === 'w' || e.key === 'ArrowUp') { keys.up = true; sendInput(); }
   else if (e.key === 's' || e.key === 'ArrowDown') { keys.down = true; sendInput(); }
@@ -544,7 +567,7 @@ function performScan() {
   sf.classList.add('show');
   setTimeout(() => sf.classList.remove('show'), 3000);
 }
-scanBtn.addEventListener('click', performScan);
+scanBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); performScan(); });
 
 // ---- Game Loop ----
 function gameLoop(timestamp) {
@@ -691,6 +714,6 @@ function gameLoop(timestamp) {
 btnCreate.addEventListener('click', () => connectToRoom('', Number(lobbyLevel.value) || 1, lobbyName.value.trim() || 'Adventurer', true));
 btnJoin.addEventListener('click', () => connectToRoom(lobbyCode.value.trim().toUpperCase(), 1, lobbyName.value.trim() || 'Adventurer', false));
 interactBtn.addEventListener('click', interactAction);
-potionBtn.addEventListener('click', usePotion);
-invBtn.addEventListener('click', toggleInventory);
-actionBtn.addEventListener('click', triggerBurst);
+potionBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); usePotion(); });
+invBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); toggleInventory(); });
+actionBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); triggerBurst(); });
