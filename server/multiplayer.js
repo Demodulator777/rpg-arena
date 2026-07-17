@@ -215,6 +215,7 @@ function handleInteract(ws) {
         if (target) {
           p.x = target.x + 20;
           p.y = target.y + 20;
+          ws.send(JSON.stringify({ type: 'teleported', x: p.x, y: p.y }));
         }
         return;
       }
@@ -400,7 +401,7 @@ function gameTick(room) {
   const now = Date.now();
 
   // Players
-  for (const [, p] of room.players) {
+  for (const [wss, p] of room.players) {
     const keys = p.input || {};
     let dx = 0, dy = 0;
     if (keys.right) dx = 1;
@@ -462,6 +463,7 @@ function gameTick(room) {
               p.x = target.x + 20;
               p.y = target.y + 20;
               p._teleportCd = now + 500;
+              wss.send(JSON.stringify({ type: 'teleported', x: p.x, y: p.y }));
             }
           }
         }
@@ -576,13 +578,14 @@ function gameTick(room) {
   }
 
   // Check player deaths
-  for (const [, p] of room.players) {
+  for (const [wss2, p] of room.players) {
     if (p.hp <= 0) {
       const spawn = room.mapData.playerStart || { x: 2500, y: 2500 };
       p.x = spawn.x;
       p.y = spawn.y;
       p.hp = p.maxHp;
       p.hitFlash = 0;
+      wss2.send(JSON.stringify({ type: 'teleported', x: p.x, y: p.y }));
     }
   }
 
