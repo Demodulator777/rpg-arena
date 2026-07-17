@@ -515,6 +515,10 @@ function sendInput() {
 joystickArea.addEventListener('mousedown', (e) => { joystickActive = true; handleJoystick(e); });
 window.addEventListener('mousemove', handleJoystick);
 window.addEventListener('mouseup', () => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
+joystickArea.addEventListener('touchstart', (e) => { e.preventDefault(); joystickActive = true; handleJoystick(e); });
+window.addEventListener('touchmove', (e) => { if (joystickActive) handleJoystick(e); });
+window.addEventListener('touchcancel', () => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
+window.addEventListener('touchend', (e) => { joystickActive = false; keys.up = keys.down = keys.left = keys.right = false; joystickKnob.style.transform = 'translate(0, 0)'; sendInput(); });
 window.addEventListener('keydown', (e) => {
   if (e.key === 'w' || e.key === 'ArrowUp') { keys.up = true; sendInput(); }
   else if (e.key === 's' || e.key === 'ArrowDown') { keys.down = true; sendInput(); }
