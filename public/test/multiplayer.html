@@ -63,9 +63,9 @@
 
         #hud { position: fixed; top: 0; left: 0; right: 0; z-index: 200; display: flex; justify-content: space-between; padding: 8px 12px; pointer-events: none; }
         #hud > * { pointer-events: auto; }
-        #player-hp-outer { width: 200px; height: 16px; background: #222; border: 2px solid #555; border-radius: 8px; overflow: hidden; }
+        #player-hp-outer { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: 200px; height: 16px; background: #222; border: 2px solid #555; border-radius: 8px; z-index: 200; overflow: hidden; }
         #player-hp-inner { height: 100%; background: #e33; border-radius: 6px; width: 100%; transition: width 0.2s; }
-        #room-code { background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 13px; color: #aaa; }
+        #room-code { position: fixed; top: max(20px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); margin-top: 24px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; font-size: 13px; color: #aaa; z-index: 200; pointer-events: none; }
         .hud-btn { position: fixed; top: 8px; right: 8px; z-index: 200; background: rgba(30,30,30,0.85); border: 2px solid #888; border-radius: 6px; color: #eee; padding: 4px 10px; cursor: pointer; font-size: 12px; }
         #scan-btn { position: fixed; top: auto; bottom: max(80px, env(safe-area-inset-bottom)); right: max(30px, env(safe-area-inset-right)); z-index: 200; width: 70px; height: 70px; background: #48f; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 0.8rem; box-shadow: 0 0 15px rgba(68,136,255,0.4); cursor: pointer; }
         #action-btn { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); right: max(110px, env(safe-area-inset-right)); z-index: 200; width: 80px; height: 80px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 0.85rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); cursor: pointer; }
@@ -78,8 +78,11 @@
         #interact-btn { display: none; background: rgba(0,0,0,0.75); border: 1px solid #f0c840; border-radius: 6px; color: #f0c840; padding: 6px 20px; font-size: 14px; font-weight: bold; cursor: pointer; }
         #interact-btn.show { display: block; }
 
-        #inv-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,20,20,0.95); border: 1px solid #555; border-radius: 8px; padding: 16px; z-index: 300; min-width: 200px; color: #eee; font-size: 14px; }
+        #inv-panel { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(20,20,20,0.95); border: 1px solid #555; border-radius: 8px; padding: 16px; z-index: 300; min-width: 220px; color: #eee; font-size: 14px; }
         #inv-panel.show { display: block; }
+        .inv-row { display: flex; align-items: center; margin: 4px 0; }
+        #message { display: none; position: fixed; bottom: 30%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid #f0c840; border-radius: 8px; padding: 8px 20px; font-size: 15px; color: #f0c840; z-index: 300; white-space: nowrap; pointer-events: none; }
+        #message.show { display: block; }
 
         #scan-btn:disabled { background: #555; box-shadow: none; cursor: default; }
 
@@ -121,6 +124,7 @@
         <button id="inv-btn">Inv</button>
         <div id="fog"></div>
         <div id="inv-panel"></div>
+        <div id="message"></div>
     </div>
 
     <script src="multiplayer.js"></script>
