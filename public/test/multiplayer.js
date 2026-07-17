@@ -179,6 +179,13 @@ async function initWorld(state) {
     }
   }
 
+  // Local player position
+  if (myPlayer) {
+    playerEl.style.left = myPlayer.x + 'px';
+    playerEl.style.top = myPlayer.y + 'px';
+    hpInner.style.width = (myPlayer.hp / myPlayer.maxHp * 100) + '%';
+  }
+
   // Monsters/Chests/Players
   if (state.monsters) {
     for (let i = 0; i < state.monsters.length; i++) createMonsterEl(i, state.monsters[i]);
