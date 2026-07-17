@@ -328,6 +328,11 @@ function handleBurst(ws) {
       if (m.hp <= 0) { m.hp = 0; m.alive = false; }
     }
   }
+  broadcast(room, {
+    type: 'other_burst',
+    playerId: p.id,
+    x: bx, y: by
+  }, ws);
 }
 
 function handleUsePotion(ws) {
