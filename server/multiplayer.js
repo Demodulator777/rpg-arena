@@ -193,13 +193,7 @@ function validateAndSetClientPos(p, x, y, walls) {
   const dt = p._lastPosTime ? now - p._lastPosTime : 0;
   const maxDist = PLAYER_SPEED * dt + 15;
   if (dt > 0 && Math.hypot(x - p.clientX, y - p.clientY) > maxDist) return;
-  if (dt > 0 && walls) {
-    for (const w of walls) {
-      const ww = w.w || w.width || 0;
-      const wh = w.h || w.height || 0;
-      if (lineIntersectsRect(p.clientX, p.clientY, x, y, w.x, w.y, ww, wh)) return;
-    }
-  }
+  if (walls && wallHit(x, y, walls, 13, 26)) return;
   p.clientX = x;
   p.clientY = y;
   p._lastPosTime = now;
