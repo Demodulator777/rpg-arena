@@ -1,4 +1,4 @@
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const { getDb } = require('./db');
 
 const rooms = new Map();
@@ -33,8 +33,12 @@ function setupMultiplayer(server) {
         const msg = JSON.parse(data.toString());
         handleMessage(ws, msg);
       } catch (e) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Invalid message' }));
+        try { ws.send(JSON.stringify({ type: 'error', message: 'Invalid message' })); } catch (_) {}
       }
+    });
+
+    ws.on('error', (err) => {
+      console.error('[Multiplayer] ws error:', err.message);
     });
 
     ws.on('close', () => {
@@ -209,8 +213,8 @@ function leaveRoom(ws, room, player) {
 function broadcast(room, msg, excludeWs) {
   const data = JSON.stringify(msg);
   for (const [client] of room.players) {
-    if (client !== excludeWs && client.readyState === WebSocketServer.OPEN) {
-      client.send(data);
+    if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
+      try { client.send(data); } catch (e) { console.error('[Multiplayer] broadcast send error:', e.message); }
     }
   }
 }
