@@ -69,6 +69,7 @@
         .hud-btn { position: fixed; top: 8px; right: 8px; z-index: 200; background: rgba(30,30,30,0.85); border: 2px solid #888; border-radius: 6px; color: #eee; padding: 4px 10px; cursor: pointer; font-size: 12px; }
         #scan-btn { position: fixed; top: auto; bottom: max(80px, env(safe-area-inset-bottom)); right: max(30px, env(safe-area-inset-right)); z-index: 200; width: 70px; height: 70px; background: #48f; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 0.8rem; box-shadow: 0 0 15px rgba(68,136,255,0.4); cursor: pointer; }
         #action-btn { position: fixed; bottom: max(80px, env(safe-area-inset-bottom)); right: max(110px, env(safe-area-inset-right)); z-index: 200; width: 80px; height: 80px; background: #f33; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 0.85rem; box-shadow: 0 0 20px rgba(255,0,0,0.5); cursor: pointer; }
+        #potion-btn { position: fixed; bottom: max(170px, calc(80px + 90px)); right: max(110px, env(safe-area-inset-right)); z-index: 200; width: 70px; height: 70px; background: #282; border-radius: 50%; border: none; color: white; font-weight: bold; font-size: 1.4rem; box-shadow: 0 0 15px rgba(40,200,40,0.4); cursor: pointer; display: none; }
         #inv-btn { position: fixed; top: max(16px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 200; width: 44px; height: 44px; background: rgba(30,30,30,0.85); border: 2px solid #888; border-radius: 8px; color: #eee; font-size: 14px; cursor: pointer; }
 
         #player-list { position: fixed; top: 44px; left: 8px; z-index: 200; padding: 4px 10px; background: rgba(0,0,0,0.5); border-radius: 6px; pointer-events: none; font-size: 12px; }
@@ -86,7 +87,10 @@
 
         #scan-btn:disabled { background: #555; box-shadow: none; cursor: default; }
         @media (hover: hover) and (pointer: fine) {
-            #scan-btn, #inv-btn { display: none; }
+            #scan-btn, #inv-btn, #potion-btn { display: none; }
+        }
+        @media (hover: none) and (pointer: coarse) {
+            #potion-btn { display: flex; align-items: center; justify-content: center; }
         }
 
         #controls { position: fixed; bottom: 80px; left: 10px; z-index: 100; display: none; }
@@ -124,6 +128,7 @@
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <button id="action-btn">BURST</button>
         <button id="scan-btn">SCAN</button>
+        <button id="potion-btn">🧪</button>
         <button id="inv-btn">Inv</button>
         <div id="fog"></div>
         <div id="inv-panel"></div>
