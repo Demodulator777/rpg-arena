@@ -171,13 +171,13 @@ function handleInteract(ws) {
   const room = ws._room;
   const p = ws._player;
 
-  // Check exit/entrance
-  if (room.mapData.exit && Math.hypot(p.x - room.mapData.exit.x, p.y - room.mapData.exit.y) < 50) {
+  // Check exit/entrance (prevent double-trigger with auto-detect)
+  if (!room._transitioning && room.mapData.exit && Math.hypot(p.x - room.mapData.exit.x, p.y - room.mapData.exit.y) < 50) {
     const nextLevel = room.mapData.exit.targetLevel || (room.level + 1);
     transitionLevel(room, ws, p, nextLevel, 'entrance').catch(e => console.error('[MP] transition error:', e.message));
     return;
   }
-  if (room.mapData.entrance && Math.hypot(p.x - room.mapData.entrance.x, p.y - room.mapData.entrance.y) < 50) {
+  if (!room._transitioning && room.mapData.entrance && Math.hypot(p.x - room.mapData.entrance.x, p.y - room.mapData.entrance.y) < 50) {
     const prevLevel = room.mapData.entrance.targetLevel || (room.level - 1);
     transitionLevel(room, ws, p, prevLevel, 'exit').catch(e => console.error('[MP] transition error:', e.message));
     return;
@@ -312,7 +312,8 @@ function createPlayer(id, name, mapData) {
     coins: 0,
     potions: 0,
     input: {},
-    host: false
+    host: false,
+    hitFlash: 0
   };
   pushOutOfWall(player, mapData.walls || []);
   return player;
@@ -359,6 +360,7 @@ function gameTick(room) {
   const dt = Date.now() - room.lastTick;
   room.lastTick = Date.now();
   const walls = room.mapData.walls || [];
+  const now = Date.now();
 
   // Players
   for (const [, p] of room.players) {
@@ -376,13 +378,64 @@ function gameTick(room) {
     if (!wallHit(p.x, ny, walls)) p.y = ny;
     p.x = Math.max(20, Math.min(WORLD_SIZE - 20, p.x));
     p.y = Math.max(20, Math.min(WORLD_SIZE - 20, p.y));
+
+    // Decay hit flash
+    if (p.hitFlash > 0) p.hitFlash -= dt;
+  }
+
+  // Trap damage + teleport + exit/entrance auto-trigger
+  for (const [, p] of room.players) {
+    // Traps
+    if (room.mapData.traps) {
+      for (const tr of room.mapData.traps) {
+        const tw = tr.w || tr.width || 40;
+        const th = tr.h || tr.height || 40;
+        if (p.x + 13 > tr.x && p.x - 13 < tr.x + tw &&
+            p.y + 26 > tr.y && p.y - 26 < tr.y + th) {
+          if (!p._trapTimer || p._trapTimer < now) {
+            p.hp = Math.max(0, p.hp - (tr.damage || 10));
+            p.hitFlash = 200;
+            p._trapTimer = now + 1000;
+          }
+        }
+      }
+    }
+    // Beams
+    if (room.mapData.beams) {
+      for (const bm of room.mapData.beams) {
+        const cx = (bm.x1 + bm.x2) / 2;
+        const cy = (bm.y1 + bm.y2) / 2;
+        const halfLen = Math.hypot(bm.x2 - bm.x1, bm.y2 - bm.y1) / 2;
+        if (Math.hypot(p.x - cx, p.y - cy) < halfLen + 20) {
+          if (!p._beamTimer || p._beamTimer < now) {
+            p.hp = Math.max(0, p.hp - (bm.damage || 5));
+            p.hitFlash = 200;
+            p._beamTimer = now + (bm.interval || 800);
+          }
+        }
+      }
+    }
+    // Auto-teleport
+    if (room.mapData.teleports) {
+      for (const tp of room.mapData.teleports) {
+        if (!p._teleportCd || p._teleportCd < now) {
+          if (Math.hypot(p.x - tp.x, p.y - tp.y) < 25) {
+            const target = room.mapData.teleports.find(t => t.id === tp.targetId);
+            if (target) {
+              p.x = target.x + 20;
+              p.y = target.y + 20;
+              p._teleportCd = now + 500;
+            }
+          }
+        }
+      }
+    }
   }
 
   // Monsters
   for (const m of room.state.monsters) {
     if (!m.alive) continue;
 
-    // Find closest player
     let closestPlayer = null;
     let closestDist = Infinity;
     for (const [, p] of room.players) {
@@ -391,8 +444,13 @@ function gameTick(room) {
     }
     if (!closestPlayer) continue;
 
+    // Track previous HP for hit detection
+    const prevHp = closestPlayer.hp;
+
     if (m.state === 'idle' && closestDist < MONSTER_CHASE) m.state = 'chase';
     if (m.state === 'chase' && closestDist > MONSTER_RETREAT) m.state = 'idle';
+
+    m.attacking = false;
 
     if (m.state === 'chase') {
       let targetX, targetY;
@@ -436,14 +494,17 @@ function gameTick(room) {
     m.attackTimer -= dt;
     if (m.type !== 'ranged' && m.attackTimer <= 0 && closestDist < 100 && closestPlayer) {
       closestPlayer.hp = Math.max(0, closestPlayer.hp - MONSTER_DMG);
+      closestPlayer.hitFlash = 200;
       m.attackTimer = MONSTER_ATTACK_COOLDOWN;
+      m.attacking = true;
     }
 
     // Monster attack (ranged)
     if (m.type === 'ranged' && Date.now() > m.nextShotTime && closestDist < 300 && closestPlayer) {
       m.nextShotTime = Date.now() + 3000 + Math.random() * 2000;
-      // Projectile logic: dealt on client via event
       closestPlayer.hp = Math.max(0, closestPlayer.hp - MONSTER_DMG);
+      closestPlayer.hitFlash = 200;
+      m.attacking = true;
     }
   }
 
@@ -476,6 +537,29 @@ function gameTick(room) {
       p.x = spawn.x;
       p.y = spawn.y;
       p.hp = p.maxHp;
+      p.hitFlash = 0;
+    }
+  }
+
+  // Auto exit/entrance
+  for (const [, p] of room.players) {
+    if (room.mapData.exit && !room._transitioning &&
+        Math.hypot(p.x - room.mapData.exit.x, p.y - room.mapData.exit.y) < 40) {
+      room._transitioning = true;
+      const nextLevel = room.mapData.exit.targetLevel || (room.level + 1);
+      transitionLevel(room, null, p, nextLevel, 'entrance')
+        .catch(e => console.error('[MP] auto exit error:', e.message))
+        .finally(() => { room._transitioning = false; });
+      break;
+    }
+    if (room.mapData.entrance && !room._transitioning &&
+        Math.hypot(p.x - room.mapData.entrance.x, p.y - room.mapData.entrance.y) < 40) {
+      room._transitioning = true;
+      const prevLevel = room.mapData.entrance.targetLevel || (room.level - 1);
+      transitionLevel(room, null, p, prevLevel, 'exit')
+        .catch(e => console.error('[MP] auto entrance error:', e.message))
+        .finally(() => { room._transitioning = false; });
+      break;
     }
   }
 
