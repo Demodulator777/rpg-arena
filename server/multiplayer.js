@@ -57,6 +57,7 @@ function handleMessage(ws, msg) {
     case 'join_room': return handleJoinRoom(ws, msg);
     case 'input': return handleInput(ws, msg);
     case 'interact': return handleInteract(ws, msg);
+    case 'burst': return handleBurst(ws, msg);
   }
 }
 
@@ -72,7 +73,7 @@ async function handleCreateRoom(ws, msg) {
   }
 
   let mapData;
-  try { mapData = JSON.parse(row.rows[0].data); } catch { mapData = {}; }
+  try { const raw = row.rows[0].data; mapData = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { mapData = {}; }
   if (!mapData.walls) mapData.walls = [];
 
   let code = generateCode();
@@ -169,6 +170,34 @@ function handleInteract(ws) {
   if (!ws._room || !ws._player) return;
   const room = ws._room;
   const p = ws._player;
+
+  // Check exit/entrance
+  if (room.mapData.exit && Math.hypot(p.x - room.mapData.exit.x, p.y - room.mapData.exit.y) < 50) {
+    const nextLevel = room.mapData.exit.targetLevel || (room.level + 1);
+    transitionLevel(room, ws, p, nextLevel, 'entrance').catch(e => console.error('[MP] transition error:', e.message));
+    return;
+  }
+  if (room.mapData.entrance && Math.hypot(p.x - room.mapData.entrance.x, p.y - room.mapData.entrance.y) < 50) {
+    const prevLevel = room.mapData.entrance.targetLevel || (room.level - 1);
+    transitionLevel(room, ws, p, prevLevel, 'exit').catch(e => console.error('[MP] transition error:', e.message));
+    return;
+  }
+
+  // Check teleports
+  if (room.mapData.teleports) {
+    for (const tp of room.mapData.teleports) {
+      if (Math.hypot(p.x - tp.x, p.y - tp.y) < 40) {
+        const target = room.mapData.teleports.find(t => t.id === tp.targetId);
+        if (target) {
+          p.x = target.x + 20;
+          p.y = target.y + 20;
+        }
+        return;
+      }
+    }
+  }
+
+  // Check chests
   for (const ch of room.state.chests) {
     if (ch.found) continue;
     const d = Math.hypot(p.x - ch.x, p.y - ch.y);
@@ -189,6 +218,58 @@ function handleInteract(ws) {
         chestIndex: room.state.chests.indexOf(ch)
       });
       return;
+    }
+  }
+}
+
+async function transitionLevel(room, ws, player, newLevel, spawnAt) {
+  const db = await getDb();
+  const row = await db.execute({ sql: 'SELECT * FROM maps WHERE level=?', args: [newLevel] });
+  if (!row.rows.length) return;
+  let newMapData;
+  try { const raw = row.rows[0].data; newMapData = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return; }
+  if (!newMapData.walls) newMapData.walls = [];
+
+  room.level = newLevel;
+  room.mapData = newMapData;
+  room.state = createGameState(newMapData);
+  room.tick = 0;
+
+  // Reposition all players
+  let spawn;
+  if (spawnAt === 'exit' && newMapData.exit) {
+    spawn = { x: newMapData.exit.x + 20, y: newMapData.exit.y + 45 };
+  } else if (spawnAt === 'entrance' && newMapData.entrance) {
+    spawn = { x: newMapData.entrance.x - 20, y: newMapData.entrance.y + 45 };
+  } else {
+    spawn = newMapData.playerStart || { x: 2500, y: 2500 };
+  }
+  for (const [, p] of room.players) {
+    p.x = spawn.x;
+    p.y = spawn.y;
+    p.hp = p.maxHp;
+  }
+
+  broadcast(room, {
+    type: 'level_change',
+    level: newLevel,
+    state: {
+      players: [...room.players.values()],
+      monsters: room.state.monsters,
+      chests: room.state.chests
+    }
+  });
+}
+
+function handleBurst(ws) {
+  if (!ws._room || !ws._player) return;
+  const room = ws._room;
+  const p = ws._player;
+  for (const m of room.state.monsters) {
+    if (!m.alive) continue;
+    if (Math.hypot(p.x - m.x, p.y - m.y) < 100) {
+      m.hp -= 15;
+      if (m.hp <= 0) { m.hp = 0; m.alive = false; }
     }
   }
 }
