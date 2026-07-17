@@ -266,9 +266,11 @@ function handleBurst(ws) {
   if (!ws._room || !ws._player) return;
   const room = ws._room;
   const p = ws._player;
+  const walls = room.mapData.walls || [];
   for (const m of room.state.monsters) {
     if (!m.alive) continue;
-    if (Math.hypot(p.x - m.x, p.y - m.y) < 100) {
+    if (Math.hypot(p.x - m.x, p.y - m.y) < 100 &&
+        hasLineOfSight(p.x, p.y, m.x, m.y, walls)) {
       m.hp -= 15;
       if (m.hp <= 0) { m.hp = 0; m.alive = false; }
     }
