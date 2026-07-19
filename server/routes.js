@@ -1264,6 +1264,7 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN looted_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN is_npc_war INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN defender_npc_count INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN intent TEXT NOT NULL DEFAULT 'capture'`, args: [] }); } catch {}
 
         // Seed clan bases if empty
         try {
@@ -10373,7 +10374,12 @@ async function resolveWarBattle(db, war) {
     const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? ORDER BY outpost_index ASC', [warId]);
     let attackerWins = 0, defenderWins = 0;
     let carryOver = 0;
+    const isLootRaid = war.intent === 'loot';
+
     for (const op of outposts) {
+        // Loot raid ends early once attacker hits 3 wins
+        if (isLootRaid && attackerWins >= 3) break;
+
         const defPower = Number(op.defender_power || 0);
         const assignedPower = Number(op.attacker_power || 0);
         const totalAtkPower = assignedPower + carryOver;
@@ -10390,7 +10396,6 @@ async function resolveWarBattle(db, war) {
             winner = atkRoll >= defRoll ? 'attacker' : 'defender';
         }
         if (winner === 'attacker') {
-            // Survivors carry to next outpost
             const consumedRatio = Math.min(1, defPower / Math.max(1, totalAtkPower)) * (0.6 + Math.random() * 0.4);
             carryOver = Math.floor(totalAtkPower * (1 - consumedRatio));
             attackerWins++;
@@ -10400,13 +10405,34 @@ async function resolveWarBattle(db, war) {
         }
         await dbRun(db, 'UPDATE clan_war_outposts SET winner=? WHERE id=?', [winner, op.id]);
     }
-    const capturedBase = attackerWins >= 5; // Always need all 5 to capture
+
+    // ---- Loot Raid resolution ----
+    if (isLootRaid) {
+        if (attackerWins >= 3) {
+            const defTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.defender_squad_id]);
+            const defGold = Number(defTreasury?.gold || 0);
+            const loot = Math.floor(defGold * 0.2);
+            if (loot > 0) {
+                const warLootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
+                if (!(warLootResult?.rowsAffected ?? warLootResult?.changes ?? 0)) {
+                    await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
+                }
+                await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [loot, war.defender_squad_id]);
+            }
+        }
+        const now = Math.floor(Date.now() / 1000);
+        await dbRun(db, "UPDATE clan_wars SET status='completed', phase='resolved', attacker_wins=?, defender_wins=?, resolved_at=? WHERE id=?",
+            [attackerWins, defenderWins, now, warId]);
+        return;
+    }
+
+    // ---- Capture war resolution ----
+    const capturedBase = attackerWins >= 5;
     if (capturedBase) {
         const oldUpgrade = await dbGet(db, 'SELECT upgrade_level FROM squad_base_upgrades WHERE base_id=?', [war.base_id]);
         const prevLevel = oldUpgrade ? Number(oldUpgrade.upgrade_level) : 0;
         await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE id=?', [war.base_id]);
         await dbRun(db, 'DELETE FROM squad_base_upgrades WHERE base_id=?', [war.base_id]);
-        // Release attacker's old base if they own one, reducing its upgrade level by 1
         const oldBase = await dbGet(db, 'SELECT id FROM clan_bases WHERE owner_squad_id=? AND id!=? LIMIT 1', [war.attacker_squad_id, war.base_id]);
         if (oldBase) {
             await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE id=?', [Number(oldBase.id)]);
@@ -10418,19 +10444,17 @@ async function resolveWarBattle(db, war) {
         await dbRun(db, 'INSERT INTO squad_base_upgrades (squad_id, base_id, upgrade_level) VALUES (?,?,?) ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=?',
             [war.attacker_squad_id, war.base_id, newLevel, newLevel]);
     }
-    // Loot requires at least 3 wins (PvP only)
-    const isNpcWar = Number(war.is_npc_war || 0) === 1;
-    if (!isNpcWar && attackerWins >= 3) {
-        const loot = calcWarLoot(attackerWins, war.defender_squad_id);
-        const warLootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
-        if (!(warLootResult?.rowsAffected ?? warLootResult?.changes ?? 0)) {
-            await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
-        }
+    // Consolation loot: 3-4 outpost wins = 10% of defender treasury
+    if (attackerWins >= 3) {
         const defTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.defender_squad_id]);
         const defGold = Number(defTreasury?.gold || 0);
-        const deductedLoot = Math.min(loot, defGold);
-        if (deductedLoot > 0) {
-            await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [deductedLoot, war.defender_squad_id]);
+        const loot = Math.floor(defGold * 0.1);
+        if (loot > 0) {
+            const warLootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
+            if (!(warLootResult?.rowsAffected ?? warLootResult?.changes ?? 0)) {
+                await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
+            }
+            await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [loot, war.defender_squad_id]);
         }
     }
     const now = Math.floor(Date.now() / 1000);
@@ -10471,10 +10495,12 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
             [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
         if (cooldown) return res.status(400).json({ error: 'Your squad must wait 24h between wars.' });
+        const intent = req.body.intent === 'loot' ? 'loot' : 'capture';
         const now = Math.floor(Date.now() / 1000);
         const scoutEndsAt = now + 43200; // 12 hours
-        const warIns = await dbRun(db, 'INSERT INTO clan_wars (attacker_squad_id, defender_squad_id, base_id, status, phase, created_at, scout_ends_at) VALUES (?,?,?,?,?,?,?)',
-            [membership.squad_id, targetBase.owner_squad_id, baseId, 'preparation', 'scout', now, scoutEndsAt]);
+        const attackEndsAt = now + 86400; // 24 hours total
+        const warIns = await dbRun(db, 'INSERT INTO clan_wars (attacker_squad_id, defender_squad_id, base_id, status, phase, created_at, scout_ends_at, attack_ends_at, intent) VALUES (?,?,?,?,?,?,?,?,?)',
+            [membership.squad_id, targetBase.owner_squad_id, baseId, 'preparation', 'scout', now, scoutEndsAt, attackEndsAt, intent]);
         const warId = Number(warIns.lastInsertRowid || 0);
         for (let i = 0; i < 5; i++) {
             await dbRun(db, 'INSERT INTO clan_war_outposts (war_id, outpost_index, attacker_power, defender_power) VALUES (?,?,0,0)', [warId, i]);
