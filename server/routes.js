@@ -10590,6 +10590,7 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
             enemyMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
                 [isAttacker ? war.defender_squad_id : war.attacker_squad_id]);
         }
+        const capturedArr = JSON.parse(war.attackers_captured || '[]');
         res.json({
             war: {
                 id: Number(war.id), base_name: war.base_name, base_tier: war.base_tier,
@@ -10597,7 +10598,7 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
                 scout_ends_at: Number(war.scout_ends_at || 0), attack_ends_at: Number(war.attack_ends_at || 0),
                 attacker_name: war.attacker_name, defender_name: war.defender_name || 'NPC Defenders',
                 attacker_wins: Number(war.attacker_wins || 0), defender_wins: Number(war.defender_wins || 0),
-                attackers_captured: JSON.parse(war.attackers_captured || '[]'),
+                attackers_captured: capturedArr,
                 is_attacker: isAttacker, is_npc_war: isNpcWar,
                 created_at: Number(war.created_at), resolved_at: Number(war.resolved_at || 0),
                 npc_info: npcInfo,
