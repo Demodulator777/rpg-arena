@@ -8218,7 +8218,7 @@ async function showClanBaseDetail(baseId) {
             </div></div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
-                ${b.can_attack ? `<button class="btn-danger btn-sm" ${actionAttrs('declareWar', b.id)}>⚔️ Capture Base</button>` : ''}
+                ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-success btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}
                 ${b.can_loot ? `<button class="btn-success btn-sm" ${actionAttrs('lootBase', b.id)}>💰 Loot Base (10% Gold)</button>` : ''}
             </div>
         </div>`;
@@ -8240,16 +8240,18 @@ async function captureBase(baseId) {
 }
 window.captureBase = captureBase;
 
-async function declareWar(baseId) {
+async function startBaseWar(baseId, intent) {
     try {
-        const res = await api('POST', '/game/squads/wars/start', { base_id: baseId });
-        await openGameNoticeDialog({ title: '⚔️ War Declared', message: `War started! Scout phase ends in 12h. Assign fighters before the attack phase.` });
+        const label = intent === 'loot' ? 'Loot Raid' : 'Capture';
+        const res = await api('POST', '/game/squads/wars/start', { base_id: baseId, intent });
+        const timeLabel = intent === 'loot' ? '~10 minutes' : '24 hours';
+        await openGameNoticeDialog({ title: `⚔️ ${label}`, message: `${label} started! Phases complete in ${timeLabel}. Assign fighters from the War Panel.` });
         await loadClanData(); renderSquads();
     } catch (e) {
         await openGameNoticeDialog({ title: '⚔️ War Failed', message: e.message || String(e) });
     }
 }
-window.declareWar = declareWar;
+window.startBaseWar = startBaseWar;
 
 async function lootBase(baseId) {
     try {
