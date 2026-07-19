@@ -16,7 +16,7 @@ if (!fs.existsSync(DECAL_IMG_DIR)) fs.mkdirSync(DECAL_IMG_DIR, { recursive: true
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, SQUAD_IMG_DIR),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`)
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname)}`)
 });
 const uploadLogo = multer({
     storage,
