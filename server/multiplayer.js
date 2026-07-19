@@ -81,6 +81,7 @@ function handleMessage(ws, msg) {
     case 'burst': return handleBurst(ws, msg);
     case 'use_potion': return handleUsePotion(ws, msg);
     case 'pos': return handlePos(ws, msg);
+    case 'scan': return handleScan(ws, msg);
   }
 }
 
@@ -254,13 +255,15 @@ function handleInteract(ws) {
       ch.openedAt = Date.now();
       const coins = 5 + Math.floor(Math.random() * 16);
       const potion = Math.random() < 0.5;
-      p.coins += coins;
-      if (potion) p.potions++;
-      ws.send(JSON.stringify({
-        type: 'loot',
-        coins,
-        potion
-      }));
+      // Shared loot: every player in the room gets the same loot
+      for (const [wss, pl] of room.players) {
+        pl.coins += coins;
+        if (potion) pl.potions++;
+        try {
+          wss.send(JSON.stringify({ type: 'loot', coins, potion }));
+        } catch (e) { console.error('[MP] send loot error:', e.message); }
+      }
+      // Broadcast chest opened visual for all clients
       broadcast(room, {
         type: 'chest_opened',
         chestIndex: room.state.chests.indexOf(ch)
@@ -333,6 +336,23 @@ function handleBurst(ws) {
     playerId: p.id,
     x: bx, y: by
   }, ws);
+}
+
+function handleScan(ws) {
+  if (!ws._room || !ws._player) return;
+  const room = ws._room;
+  const p = ws._player;
+  const now = Date.now();
+  const cooldown = 15000;
+  if (p._lastScanTime && now - p._lastScanTime < cooldown) {
+    const remaining = Math.ceil((cooldown - (now - p._lastScanTime)) / 1000);
+    ws.send(JSON.stringify({ type: 'scan_cooldown', remaining }));
+    return;
+  }
+  p._lastScanTime = now;
+  const sx = p.clientX != null ? p.clientX : p.x;
+  const sy = p.clientY != null ? p.clientY : p.y;
+  broadcast(room, { type: 'scan_effect', x: sx, y: sy, playerId: p.id });
 }
 
 function handleUsePotion(ws) {
