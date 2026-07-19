@@ -8574,9 +8574,18 @@ async function uploadSquadLogo() {
         const file = input.files?.[0];
         if (!file) return;
         try {
-            const blob = await resizeImageToBlob(file, 200 * 1024);
+            const isGif = file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif');
+            let blob, filename;
+            if (isGif) {
+                if (file.size > 200 * 1024) throw new Error('GIF must be under 200KB');
+                blob = file;
+                filename = 'logo.gif';
+            } else {
+                blob = await resizeImageToBlob(file, 200 * 1024);
+                filename = 'logo.jpg';
+            }
             const fd = new FormData();
-            fd.append('logo', blob, 'logo.jpg');
+            fd.append('logo', blob, filename);
             const res = await api('POST', '/game/squads/logo', fd);
             await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo updated!' });
             await loadSquads();
