@@ -8321,14 +8321,22 @@ async function openWarPanel(warId) {
             </div></div>
             <div class="squads-members" style="padding:8px 12px">
                 <div class="squads-title" style="font-size:0.8rem">Outposts</div>
-                ${w.outposts.map((o, i) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
+                ${w.outposts.map((o, i) => {
+                    let info = `<span>Attacker: ${o.attacker_power.toLocaleString()} · Defender: ${o.defender_power.toLocaleString()}</span>`;
+                    if (w.is_attacker && w.phase === 'attacking') {
+                        info += `<span style="font-size:0.7rem;color:#888"> 👥 ${o.defender_count} defenders`;
+                        if (o.scouted_power != null) info += ` · ⚡ ${o.scouted_power.toLocaleString()} power`;
+                        info += `</span>`;
+                    }
+                    return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
                     <span>Outpost ${i + 1}</span>
-                    <span>Attacker: ${o.attacker_power.toLocaleString()} · Defender: ${o.defender_power.toLocaleString()}</span>
+                    ${info}
                     <span>${o.winner ? (o.winner === 'attacker' ? '✅ Won' : '❌ Lost') : '⏳ Pending'}</span>
-                </div>`).join('')}
+                </div>`;
+                }).join('')}
             </div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
-                ${w.phase === 'scout' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
+                ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
                 ${w.phase === 'attacking' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('startWarBattle', w.id)}>⚔️ Start Battle</button>` : ''}
             </div>
@@ -8339,6 +8347,47 @@ async function openWarPanel(warId) {
     }
 }
 window.openWarPanel = openWarPanel;
+
+async function scoutOutpost(warId) {
+    const pick = await openGameNoticeDialog({
+        title: 'Scout Outpost',
+        message: `<div style="display:flex;flex-direction:column;gap:6px">
+            ${[0,1,2,3,4].map(i => `
+                <div style="display:flex;gap:4px">
+                    <button class="btn-primary btn-sm" onclick="doScout(${warId},${i},'count')" style="flex:1">👀 Outpost ${i+1} — Count</button>
+                    <button class="btn-primary btn-sm" onclick="doScout(${warId},${i},'power')" style="flex:1">⚡ Outpost ${i+1} — Power (risky)</button>
+                </div>
+            `).join('')}
+        </div>`,
+        confirmLabel: 'Cancel'
+    });
+}
+window.scoutOutpost = scoutOutpost;
+
+async function doScout(warId, outpostIdx, type) {
+    try {
+        const res = await api('POST', `/game/squads/wars/${warId}/scout`, { outpost_index: outpostIdx, type });
+        if (res.type === 'count') {
+            await openGameNoticeDialog({
+                title: 'Count Report',
+                message: `${res.message}`,
+                confirmLabel: 'OK'
+            });
+        } else if (res.status === 'captured') {
+            await openGameNoticeDialog({ title: 'Captured!', message: res.message, confirmLabel: 'OK' });
+        } else {
+            await openGameNoticeDialog({
+                title: 'Intel Received',
+                message: `${res.message}`,
+                confirmLabel: 'OK'
+            });
+        }
+        openWarPanel(warId);
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Scout Failed', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.doScout = doScout;
 
 async function assignToOutpost(warId) {
     try {
