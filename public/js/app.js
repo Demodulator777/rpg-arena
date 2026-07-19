@@ -8498,9 +8498,9 @@ async function showSquadDetail(squadId) {
                 </div>
             </div>`;
         }).join('');
-        const logoBanner = s.logo
-            ? `background-image:url('${escHtml(s.logo)}');background-size:cover;background-position:center`
-            : `background:linear-gradient(135deg,rgba(201,146,42,0.12),rgba(201,146,42,0.03))`;
+        const logoEl = s.logo
+            ? `<img src="${escHtml(s.logo)}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(255,255,255,0.1)">`
+            : `<div style="width:64px;height:64px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.6rem;border:2px solid rgba(255,255,255,0.1)">🛡️</div>`;
         let html = `<style>
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 580px; width: 94vw; }
             #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box .game-dialog-message { overflow: visible !important; max-height: none !important; }
@@ -8508,11 +8508,11 @@ async function showSquadDetail(squadId) {
             @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
         </style>
         <div style="margin:-4px">
-            <div style="position:relative;overflow:hidden;border-radius:16px;margin-bottom:16px;min-height:140px;display:flex;align-items:flex-end;${logoBanner}">
-                <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.4) 50%,rgba(0,0,0,0.2) 100%);pointer-events:none"></div>
-                <div style="position:relative;z-index:1;padding:20px 18px;width:100%">
-                    <div class="squads-title" style="font-size:1.4rem;font-weight:700;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.6)">${escHtml(s.name)}</div>
-                    <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:rgba(255,255,255,0.8)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
+            <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px;padding:16px;border-radius:16px;background:linear-gradient(135deg,rgba(201,146,42,0.08),rgba(201,146,42,0.02))">
+                ${logoEl}
+                <div style="flex:1;min-width:0">
+                    <div class="squads-title" style="font-size:1.4rem;font-weight:700;color:#fff">${escHtml(s.name)}</div>
+                    <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
                 </div>
             </div>
             <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
