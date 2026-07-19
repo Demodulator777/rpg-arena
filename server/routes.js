@@ -1265,6 +1265,7 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN is_npc_war INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN defender_npc_count INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN intent TEXT NOT NULL DEFAULT 'capture'`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_power REAL DEFAULT NULL`, args: [] }); } catch {}
 
         // Seed clan bases if empty
         try {
@@ -10567,6 +10568,10 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
         const isAttacker = Number(war.attacker_squad_id) === membership.squad_id;
         const isNpcWar = Number(war.is_npc_war || 0) === 1;
         const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? ORDER BY outpost_index', [warId]);
+        const defCounts = await dbAll(db, `SELECT wa.outpost_id, COUNT(*) AS c FROM clan_war_assignments wa
+            WHERE wa.war_id=? AND wa.side='defender' GROUP BY wa.outpost_id`, [warId]);
+        const defCountMap = {};
+        for (const d of defCounts) defCountMap[Number(d.outpost_id)] = Number(d.c);
         const scouts = await dbAll(db, "SELECT * FROM clan_war_scouts WHERE war_id=?", [warId]);
         const squadMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
             [isAttacker ? war.attacker_squad_id : war.defender_squad_id]);
@@ -10593,6 +10598,8 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
                 outposts: outposts.map(o => ({
                     id: Number(o.id), outpost_index: Number(o.outpost_index),
                     attacker_power: Number(o.attacker_power), defender_power: Number(o.defender_power),
+                    scouted_power: o.scouted_power != null ? Number(o.scouted_power) : null,
+                    defender_count: defCountMap[Number(o.id)] || 0,
                     winner: o.winner,
                 })),
                 scouts: scouts.map(s => ({
@@ -10615,37 +10622,57 @@ router.post('/squads/wars/:warId/scout', auth, async (req, res) => {
         const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
         const warId = Number(req.params.warId);
-        const war = await dbGet(db, "SELECT * FROM clan_wars WHERE id=? AND attacker_squad_id=? AND phase='scout' AND status='preparation'", [warId, membership.squad_id]);
-        if (!war) return res.status(400).json({ error: 'War not found or not in scout phase.' });
+        const war = await dbGet(db, "SELECT * FROM clan_wars WHERE id=? AND attacker_squad_id=? AND phase='attacking' AND status='preparation'", [warId, membership.squad_id]);
+        if (!war) return res.status(400).json({ error: 'War not found or not in attack phase.' });
         const outpostIdx = Number(req.body.outpost_index);
         if (outpostIdx < 0 || outpostIdx > 4) return res.status(400).json({ error: 'Outpost index must be 0-4.' });
-        const existing = await dbGet(db, "SELECT 1 FROM clan_war_scouts WHERE war_id=? AND char_id=? AND status='scouting' LIMIT 1", [warId, char.id]);
-        if (existing) return res.status(400).json({ error: 'This character is already scouting.' });
-        const scoutCount = await dbGet(db, "SELECT COUNT(*) AS c FROM clan_war_scouts WHERE war_id=? AND status='scouting'", [warId]);
-        if (Number(scoutCount?.c || 0) >= 3) return res.status(400).json({ error: 'Maximum 3 scouts per war.' });
+        // Check if this character was already captured
+        const capturedArr = JSON.parse(war.attackers_captured || '[]');
+        if (capturedArr.includes(Number(char.id))) return res.status(400).json({ error: 'This character has been captured and cannot scout.' });
+        // Each character can only scout once per war
+        const existing = await dbGet(db, "SELECT 1 FROM clan_war_scouts WHERE war_id=? AND char_id=? LIMIT 1", [warId, char.id]);
+        if (existing) return res.status(400).json({ error: 'This character has already scouted.' });
+        const totalScouts = await dbGet(db, "SELECT COUNT(*) AS c FROM clan_war_scouts WHERE war_id=?", [warId]);
+        if (Number(totalScouts?.c || 0) >= 3) return res.status(400).json({ error: 'Maximum 3 scouts per war.' });
+        const type = req.body.type === 'power' ? 'power' : 'count';
+        const outpost = await dbGet(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? AND outpost_index=?', [warId, outpostIdx]);
+        if (!outpost) return res.status(400).json({ error: 'Outpost not found.' });
+        if (type === 'count') {
+            // Safe scout — count how many defenders are assigned to this outpost
+            const defCount = await dbGet(db, `SELECT COUNT(*) AS c FROM clan_war_assignments wa
+                WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
+            await dbRun(db, `INSERT INTO clan_war_scouts (war_id, char_id, outpost_index, status) VALUES (?,?,?,?)`,
+                [warId, char.id, outpostIdx, 'returned']);
+            return res.json({
+                success: true, type: 'count',
+                outpost_index: outpostIdx,
+                defender_count: Number(defCount?.c || 0),
+                message: `${char.name} spotted ${Number(defCount?.c || 0)} defender(s) at outpost ${outpostIdx + 1}.`
+            });
+        }
+        // Power scout — risky: compare agility vs ALL defenders on this outpost
         const charAgi = Number(char.agility || 0);
         const defenders = await dbAll(db, `SELECT c.agility FROM clan_war_assignments wa
             JOIN characters c ON c.id = wa.char_id
-            WHERE wa.war_id=? AND wa.side='defender'`, [warId]);
-        let defTotalAgi = 0;
-        for (const d of defenders) defTotalAgi += Number(d.agility || 0);
-        const defAvgAgi = defenders.length > 0 ? defTotalAgi / defenders.length : 0;
-        const captured = charAgi <= defAvgAgi;
-        await dbRun(db, `INSERT INTO clan_war_scouts (war_id, char_id, outpost_index, status) VALUES (?,?,?,?)`,
-            [warId, char.id, outpostIdx, captured ? 'captured' : 'returned']);
-        if (captured) {
-            const capturedArr = JSON.parse(war.attackers_captured || '[]');
-            capturedArr.push(char.id);
+            WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
+        const caught = defenders.some(d => Number(d.agility || 0) >= charAgi);
+        if (caught) {
+            capturedArr.push(Number(char.id));
             await dbRun(db, 'UPDATE clan_wars SET attackers_captured=? WHERE id=?', [JSON.stringify(capturedArr), warId]);
-            return res.json({ success: true, status: 'captured', message: `${char.name} was captured by defenders!` });
+            await dbRun(db, `INSERT INTO clan_war_scouts (war_id, char_id, outpost_index, status) VALUES (?,?,?,?)`,
+                [warId, char.id, outpostIdx, 'captured']);
+            return res.json({ success: true, type: 'power', status: 'captured', message: `${char.name} was captured while scouting outpost ${outpostIdx + 1}!` });
         }
-        // Scout returned — reveal defender power on this outpost
-        const outpost = await dbGet(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? AND outpost_index=?', [warId, outpostIdx]);
+        // Scout escaped with intel
+        const defPower = Math.round(Number(outpost.defender_power || 0));
+        await dbRun(db, 'UPDATE clan_war_outposts SET scouted_power=? WHERE id=?', [defPower, outpost.id]);
+        await dbRun(db, `INSERT INTO clan_war_scouts (war_id, char_id, outpost_index, status) VALUES (?,?,?,?)`,
+            [warId, char.id, outpostIdx, 'returned']);
         res.json({
-            success: true, status: 'returned',
+            success: true, type: 'power', status: 'returned',
             outpost_index: outpostIdx,
-            defender_power: Math.round(Number(outpost?.defender_power || 0)),
-            message: `${char.name} returned with intel on outpost ${outpostIdx + 1}.`,
+            defender_power: defPower,
+            message: `${char.name} escaped with intel on outpost ${outpostIdx + 1}: ${defPower.toLocaleString()} power.`,
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
