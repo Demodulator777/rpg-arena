@@ -8337,7 +8337,7 @@ async function openWarPanel(warId) {
             </div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
-                ${w.phase === 'attacking' || w.phase === 'defense' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
+                ${w.phase === 'attacking' || w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('startWarBattle', w.id)}>⚔️ Start Battle</button>` : ''}
             </div>
         </div>`;
@@ -8394,7 +8394,7 @@ async function assignToOutpost(warId) {
         const res = await api('GET', `/game/squads/wars/${warId}`);
         const w = res.war;
         if (!w) return;
-        if (w.phase !== 'attacking' && w.phase !== 'defense') {
+        if (w.phase !== 'attacking' && w.phase !== 'defense' && w.phase !== 'scout') {
             return await openGameNoticeDialog({ title: 'Assign', message: 'Cannot assign fighters at this phase.', confirmLabel: 'Close' });
         }
         const isAttacker = w.is_attacker;
