@@ -487,6 +487,14 @@ function handleMessage(msg) {
         triggerShake(6);
       }
       break;
+    case 'scan_effect':
+      showScanEffect(msg.x, msg.y);
+      break;
+    case 'scan_cooldown':
+      scanCooldownUntil = Date.now() + msg.remaining * 1000;
+      updateScanBtn();
+      showMessage('Scan on cooldown: ' + msg.remaining + 's');
+      break;
     case 'chest_opened':
       const ch = chests[msg.chestIndex];
       if (ch) { ch.found = true; ch.el.classList.add('found'); }
@@ -597,11 +605,40 @@ window.addEventListener('keyup', (e) => {
 });
 
 // ---- Scan ----
+let scanCooldownUntil = 0;
 function performScan() {
-  const sf = document.getElementById('scan-field');
-  sf.style.left = playerWX + 'px'; sf.style.top = playerWY + 'px';
-  sf.classList.add('show');
-  setTimeout(() => sf.classList.remove('show'), 3000);
+  const now = Date.now();
+  if (now < scanCooldownUntil) {
+    const s = Math.ceil((scanCooldownUntil - now) / 1000);
+    showMessage('Scan cooldown: ' + s + 's');
+    return;
+  }
+  scanCooldownUntil = now + 15000;
+  updateScanBtn();
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'scan' }));
+  }
+}
+function showScanEffect(x, y) {
+  const div = document.createElement('div');
+  div.className = '';
+  div.style.cssText = 'position:absolute;width:300px;height:300px;border-radius:50%;border:3px solid rgba(0,200,255,0.6);background:rgba(0,200,255,0.06);z-index:8;pointer-events:none;transform:translate(-50%,-50%);opacity:1;box-shadow:0 0 40px rgba(0,200,255,0.15),inset 0 0 40px rgba(0,200,255,0.08);animation:scan-pulse 0.4s ease-in-out infinite alternate;';
+  div.style.left = x + 'px';
+  div.style.top = y + 'px';
+  gameWorld.appendChild(div);
+  setTimeout(() => div.remove(), 3000);
+}
+function updateScanBtn() {
+  const now = Date.now();
+  if (now < scanCooldownUntil) {
+    const s = Math.ceil((scanCooldownUntil - now) / 1000);
+    scanBtn.textContent = s + 's';
+    scanBtn.disabled = true;
+    setTimeout(updateScanBtn, 500);
+  } else {
+    scanBtn.textContent = 'SCAN';
+    scanBtn.disabled = false;
+  }
 }
 scanBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); performScan(); });
 
