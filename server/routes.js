@@ -1216,7 +1216,7 @@ const WEEKLY_TASKS = [
             defender_squad_id INTEGER NOT NULL,
             base_id INTEGER NOT NULL,
             status TEXT NOT NULL DEFAULT 'preparation',
-            phase TEXT NOT NULL DEFAULT 'scout',
+            phase TEXT NOT NULL DEFAULT 'defense',
             attacker_wins INTEGER NOT NULL DEFAULT 0,
             defender_wins INTEGER NOT NULL DEFAULT 0,
             attackers_captured TEXT DEFAULT '[]',
@@ -10357,7 +10357,7 @@ async function autoAdvanceWar(db, war) {
     const attackEnds = Number(war.attack_ends_at || 0);
     let changed = false;
     if (war.status !== 'preparation') return false;
-    if (war.phase === 'scout' && scoutEnds > 0 && now >= scoutEnds) {
+    if (war.phase === 'defense' && scoutEnds > 0 && now >= scoutEnds) {
         const attackEnd = attackEnds > 0 ? attackEnds : (now + 43200);
         await dbRun(db, "UPDATE clan_wars SET phase='attacking', attack_ends_at=? WHERE id=?", [attackEnd, war.id]);
         war.phase = 'attacking';
@@ -10501,7 +10501,7 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         const scoutEndsAt = now + 43200; // 12 hours
         const attackEndsAt = now + 86400; // 24 hours total
         const warIns = await dbRun(db, 'INSERT INTO clan_wars (attacker_squad_id, defender_squad_id, base_id, status, phase, created_at, scout_ends_at, attack_ends_at, intent) VALUES (?,?,?,?,?,?,?,?,?)',
-            [membership.squad_id, targetBase.owner_squad_id, baseId, 'preparation', 'scout', now, scoutEndsAt, attackEndsAt, intent]);
+            [membership.squad_id, targetBase.owner_squad_id, baseId, 'preparation', 'defense', now, scoutEndsAt, attackEndsAt, intent]);
         const warId = Number(warIns.lastInsertRowid || 0);
         for (let i = 0; i < 5; i++) {
             await dbRun(db, 'INSERT INTO clan_war_outposts (war_id, outpost_index, attacker_power, defender_power) VALUES (?,?,0,0)', [warId, i]);
@@ -10575,6 +10575,12 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
         const scouts = await dbAll(db, "SELECT * FROM clan_war_scouts WHERE war_id=?", [warId]);
         const squadMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
             [isAttacker ? war.attacker_squad_id : war.defender_squad_id]);
+        const side = isAttacker ? 'attacker' : 'defender';
+        const ourAssignments = await dbAll(db, `SELECT wa.char_id, o.outpost_index FROM clan_war_assignments wa
+            JOIN clan_war_outposts o ON o.id = wa.outpost_id
+            WHERE wa.war_id=? AND wa.side=?`, [warId, side]);
+        const assignMap = {};
+        for (const a of ourAssignments) assignMap[Number(a.char_id)] = Number(a.outpost_index);
         let enemyMembers = [];
         let npcInfo = null;
         if (isNpcWar) {
@@ -10606,8 +10612,9 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
                     id: Number(s.id), char_id: Number(s.char_id), outpost_index: Number(s.outpost_index), status: s.status,
                 })),
                 squad_members: squadMembers.map(c => ({ id: Number(c.id), name: c.name, class: c.class, level: Number(c.level),
-                    power: calcFighterPower(c) })),
-                enemy_members: war.phase !== 'scout' ? enemyMembers.map(c => ({ id: Number(c.id), name: c.name, class: c.class, level: Number(c.level),
+                    power: calcFighterPower(c), assigned_outpost: assignMap[Number(c.id)] != null ? assignMap[Number(c.id)] : -1,
+                    captured: capturedArr.includes(Number(c.id)) })),
+                enemy_members: war.phase !== 'defense' ? enemyMembers.map(c => ({ id: Number(c.id), name: c.name, class: c.class, level: Number(c.level),
                     power: calcFighterPower(c) })) : [],
             }
         });
@@ -10690,7 +10697,7 @@ router.post('/squads/wars/:warId/assign', auth, async (req, res) => {
         const isAttacker = Number(war.attacker_squad_id) === membership.squad_id;
         // Defenders assign during scout phase; attackers assign during attack phase
         if (isAttacker && war.phase !== 'attacking') return res.status(400).json({ error: 'Attackers can only assign fighters during the attack phase.' });
-        if (!isAttacker && war.phase !== 'scout') return res.status(400).json({ error: 'Defenders can only assign fighters during the scout phase.' });
+        if (!isAttacker && war.phase !== 'defense') return res.status(400).json({ error: 'Defenders can only assign fighters during the defense phase.' });
         const assignments = req.body.assignments; // [{ outpost_index, char_id }]
         if (!Array.isArray(assignments) || assignments.length === 0) return res.status(400).json({ error: 'Assignments array required.' });
         for (const a of assignments) {
