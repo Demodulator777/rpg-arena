@@ -8050,16 +8050,21 @@ function renderSquads() {
                             <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
                         </div>
                     </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">Base at max level.</span></div>'}
-                    <div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">
-                        <div class="squads-meta">Donate to treasury for upgrades:</div>
-                        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center">
-                            <input id="clan-donate-gold" class="input-field" type="number" placeholder="Gold" style="width:100px;padding:4px 8px;font-size:0.8rem">
-                            <input id="clan-donate-gems" class="input-field" type="number" placeholder="Gems" style="width:100px;padding:4px 8px;font-size:0.8rem">
-                            <button class="btn-primary btn-sm" ${actionAttrs('donateToBase', base.id)}>Donate</button>
-                        </div>
-                    </div>
                 </div>`;
             }
+
+            // Donation form — always visible when in a squad
+            tabContent += `<div class="squads-card" style="margin-top:10px">
+                <div class="squads-title">💰 Donate to Treasury</div>
+                <div class="squads-members" style="padding:8px 12px">
+                    <div class="squads-meta">Contribute gold or gems to the squad treasury for upgrades and upkeep:</div>
+                    <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center">
+                        <input id="clan-donate-gold" class="input-field" type="number" placeholder="Gold" style="width:100px;padding:4px 8px;font-size:0.8rem">
+                        <input id="clan-donate-gems" class="input-field" type="number" placeholder="Gems" style="width:100px;padding:4px 8px;font-size:0.8rem">
+                        <button class="btn-primary btn-sm" ${actionAttrs('donateToTreasury')}>Donate</button>
+                    </div>
+                </div>
+            </div>`;
 
             wars.forEach(function(w) {
                 tabContent += `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? '#e74c3c44' : '#2ecc7144'}">
@@ -8213,6 +8218,7 @@ async function showClanBaseDetail(baseId) {
             </div></div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
+                ${b.can_attack ? `<button class="btn-danger btn-sm" ${actionAttrs('declareWar', b.id)}>⚔️ Capture Base</button>` : ''}
                 ${b.can_loot ? `<button class="btn-success btn-sm" ${actionAttrs('lootBase', b.id)}>💰 Loot Base (10% Gold)</button>` : ''}
             </div>
         </div>`;
@@ -8234,6 +8240,17 @@ async function captureBase(baseId) {
 }
 window.captureBase = captureBase;
 
+async function declareWar(baseId) {
+    try {
+        const res = await api('POST', '/game/squads/wars/start', { base_id: baseId });
+        await openGameNoticeDialog({ title: '⚔️ War Declared', message: `War started! Scout phase ends in 12h. Assign fighters before the attack phase.` });
+        await loadClanData(); renderSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '⚔️ War Failed', message: e.message || String(e) });
+    }
+}
+window.declareWar = declareWar;
+
 async function lootBase(baseId) {
     try {
         const res = await api('POST', `/game/squads/bases/${baseId}/loot`);
@@ -8245,12 +8262,12 @@ async function lootBase(baseId) {
 }
 window.lootBase = lootBase;
 
-async function donateToBase(baseId) {
+async function donateToTreasury() {
     const gold = parseInt(document.getElementById('clan-donate-gold')?.value || '0');
     const gems = parseInt(document.getElementById('clan-donate-gems')?.value || '0');
     if (gold <= 0 && gems <= 0) return;
     try {
-        await api('POST', `/game/squads/bases/${baseId}/donate`, { gold, gems });
+        await api('POST', '/game/squads/treasury/donate', { gold, gems });
         document.getElementById('clan-donate-gold').value = '';
         document.getElementById('clan-donate-gems').value = '';
         if (character) { character.gold = Math.max(0, (character.gold || 0) - gold); character.gems = Math.max(0, (character.gems || 0) - gems); renderTopBar(); }
@@ -8259,7 +8276,7 @@ async function donateToBase(baseId) {
         await openGameNoticeDialog({ title: 'Donate Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
-window.donateToBase = donateToBase;
+window.donateToTreasury = donateToTreasury;
 
 async function payBaseUpkeep(baseId) {
     try {
