@@ -8315,7 +8315,7 @@ async function openWarPanel(warId) {
                 <div class="squads-meta">${w.is_attacker ? `Attacking ${escHtml(w.defender_name)}` : `Defending vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
                 <div class="squads-meta" style="font-size:0.65rem">
                     ${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture this base' : ''}
-                    ${!w.is_npc_war && w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''}
+                    ${!w.is_npc_war && w.scout_ends_at ? `Defense ends: ${formatDate(w.scout_ends_at)}` : ''}
                     ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}
                 </div>
             </div></div>
@@ -8337,7 +8337,7 @@ async function openWarPanel(warId) {
             </div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
-                ${w.phase === 'attacking' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
+                ${w.phase === 'attacking' || w.phase === 'defense' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('startWarBattle', w.id)}>⚔️ Start Battle</button>` : ''}
             </div>
         </div>`;
@@ -8394,7 +8394,7 @@ async function assignToOutpost(warId) {
         const res = await api('GET', `/game/squads/wars/${warId}`);
         const w = res.war;
         if (!w) return;
-        if (w.phase !== 'attacking' && w.phase !== 'scout') {
+        if (w.phase !== 'attacking' && w.phase !== 'defense') {
             return await openGameNoticeDialog({ title: 'Assign', message: 'Cannot assign fighters at this phase.', confirmLabel: 'Close' });
         }
         const isAttacker = w.is_attacker;
@@ -8402,6 +8402,7 @@ async function assignToOutpost(warId) {
             return await openGameNoticeDialog({ title: 'Assign', message: 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
         }
         const members = w.squad_members || [];
+        const isCaptured = (m) => m.captured || false;
         let html = `<div class="squads-card" style="max-width:100%">
             <div class="squads-card-head">
                 <div><div class="squads-title">📋 Assign Fighters</div>
@@ -8415,13 +8416,13 @@ async function assignToOutpost(warId) {
                         <th style="text-align:center;padding:4px">Outpost</th>
                     </tr>
                     ${members.map(m => `
-                    <tr style="border-bottom:1px solid #ffffff11">
-                        <td style="padding:4px">${escHtml(m.name)}</td>
+                    <tr style="border-bottom:1px solid #ffffff11${isCaptured(m) ? ';opacity:0.5;text-decoration:line-through' : ''}">
+                        <td style="padding:4px">${escHtml(m.name)}${isCaptured(m) ? ' (captured)' : ''}</td>
                         <td style="text-align:center;padding:4px">${m.power.toLocaleString()}</td>
                         <td style="text-align:center;padding:4px">
-                            <select class="input-field" id="assign-${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem">
+                            <select class="input-field" id="assign-${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem" ${isCaptured(m) ? 'disabled' : ''}>
                                 <option value="-1">— Unassigned —</option>
-                                ${[0,1,2,3,4].map(i => `<option value="${i}">Outpost ${i+1}</option>`).join('')}
+                                ${[0,1,2,3,4].map(i => `<option value="${i}" ${m.assigned_outpost === i ? 'selected' : ''}>Outpost ${i+1}</option>`).join('')}
                             </select>
                         </td>
                     </tr>`).join('')}
