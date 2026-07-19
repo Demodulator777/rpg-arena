@@ -8508,10 +8508,10 @@ async function showSquadDetail(squadId) {
             @media (max-width: 640px) { #game-dialog-modal:not(.hidden) .game-dialog-box.squad-detail-box { max-width: 96vw; } }
         </style>
         <div style="margin:-4px">
-            <div style="position:relative;overflow:hidden;border-radius:16px;margin-bottom:12px;min-height:120px;${logoBanner}">
+            <div style="position:relative;overflow:hidden;border-radius:16px;margin-bottom:16px;min-height:140px;display:flex;align-items:flex-end;${logoBanner}">
                 <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.4) 50%,rgba(0,0,0,0.2) 100%);pointer-events:none"></div>
             </div>
-            <div style="margin-bottom:16px;padding:0 4px">
+            <div style="padding:0 4px 16px">
                 <div class="squads-title" style="font-size:1.4rem;font-weight:700;color:#fff">${escHtml(s.name)}</div>
                 <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
             </div>
