@@ -643,7 +643,8 @@ function deathmatchBattle(fighterA, fighterB) {
   let winnerId = null, roundsCompleted = 0;
   let maxHitToA = 0, maxHitToB = 0;
 
-  for (let round = 1; ; round++) {
+  const MAX_ROUNDS = 100;
+  for (let round = 1; round <= MAX_ROUNDS; round++) {
     const idx = (round - 1) % 10;
     const atkZoneA = (fighterA.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
     const blkZoneA = (fighterA.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
@@ -779,9 +780,24 @@ function deathmatchBattle(fighterA, fighterB) {
     log.push('---');
   }
 
+  // Tiebreaker if round cap reached (both still alive)
+  if (!winnerId) {
+    if (totalDmgToB > totalDmgToA) {
+      winnerId = fighterB.id;
+      log.push(`Round ${roundsCompleted}: Both survive — ${fighterB.name} dealt more damage (${Math.round(totalDmgToB)} vs ${Math.round(totalDmgToA)})`);
+    } else if (totalDmgToA > totalDmgToB) {
+      winnerId = fighterA.id;
+      log.push(`Round ${roundsCompleted}: Both survive — ${fighterA.name} dealt more damage (${Math.round(totalDmgToA)} vs ${Math.round(totalDmgToB)})`);
+    } else {
+      winnerId = Math.random() < 0.5 ? fighterA.id : fighterB.id;
+      log.push(`Round ${roundsCompleted}: Both survive, equal damage — ${winnerId === fighterA.id ? fighterA.name : fighterB.name} wins the coin toss!`);
+    }
+  }
+
   log.push('---');
   if (winnerId === fighterA.id) log.push(`After ${roundsCompleted} rounds — ${fighterA.name} wins!`);
-  else log.push(`After ${roundsCompleted} rounds — ${fighterB.name} wins!`);
+  else if (winnerId === fighterB.id) log.push(`After ${roundsCompleted} rounds — ${fighterB.name} wins!`);
+  else log.push(`After ${roundsCompleted} rounds — Draw!`);
 
   return {
     log, winnerId, isDraw: winnerId === 0,
