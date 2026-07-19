@@ -751,6 +751,7 @@ const WEEKLY_TASKS = [
                 win_reward_sent INTEGER NOT NULL DEFAULT 0,
                 win_top10_data TEXT NOT NULL DEFAULT '[]'
             )`,
+            `ALTER TABLE characters ADD COLUMN last_gatekeeper_time INTEGER DEFAULT 0`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -12290,6 +12291,12 @@ router.post('/travel/start', auth, async (req, res) => {
             return res.status(400).json({ error: `Please challenge "${prereq.guardianName}" first.` });
         }
         const now = Math.floor(Date.now() / 1000);
+        // Gatekeeper cooldown: once per day per gatekeeper
+        const targetUnlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
+        if (!targetUnlocked && character.last_gatekeeper_time > now - 86400) {
+            const remaining = Math.ceil((character.last_gatekeeper_time + 86400 - now) / 3600);
+            return res.status(400).json({ error: `Gatekeeper challenge on cooldown. Try again in ${remaining} hour(s).` });
+        }
         if (character.travel_end_time > now) return res.status(400).json({ error: 'Already traveling' });
         const allowedNodes = travelUnlockSet;
         allowedNodes.add(character.location);
@@ -12379,17 +12386,18 @@ router.get('/travel/status', auth, async (req, res) => {
                     // Tutorial Check: Don't deplete HP for the first 4 battles
                     const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
+                    const gkNow = Math.floor(Date.now() / 1000);
                     if (playerWon) {
                         await unlockTravelZone(db, freshChar, targetZone, currentMap);
                         await recordGatekeeperDefeat(db, freshChar.id, `${currentMap}:${targetZone}`);
                         invalidateWeeklyClaimableCountCache(freshChar.id);
-                        await dbRun(db, 'UPDATE characters SET location=?, hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
-                            [targetZone, newHp, freshChar.id]);
+                        await dbRun(db, 'UPDATE characters SET location=?, hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, last_gatekeeper_time=? WHERE id=?',
+                            [targetZone, newHp, gkNow, freshChar.id]);
                         character.unlocked_zones = freshChar.unlocked_zones;
                         character.location = targetZone;
                     } else {
-                        await dbRun(db, 'UPDATE characters SET hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0 WHERE id=?',
-                            [newHp, freshChar.id]);
+                        await dbRun(db, 'UPDATE characters SET hp_current=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, last_gatekeeper_time=? WHERE id=?',
+                            [newHp, gkNow, freshChar.id]);
                     }
 
                     if (playerFighter._elementalFighter) {
@@ -18943,6 +18951,12 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
         const shadowfenUnlocked = abyssUnlocks.has('shadowfen');
 
         if (!shadowfenUnlocked) {
+            // Gatekeeper cooldown check
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            if (character.last_gatekeeper_time > nowSeconds - 86400) {
+                const remaining = Math.ceil((character.last_gatekeeper_time + 86400 - nowSeconds) / 3600);
+                return res.status(400).json({ error: `Gatekeeper challenge on cooldown. Try again in ${remaining} hour(s).` });
+            }
             const confirmChallenge = !!req.body?.confirmChallenge;
             if (!confirmChallenge) {
                 return res.status(400).json({
@@ -18980,8 +18994,9 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
 
             const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
 
+            const gkNow = Math.floor(Date.now() / 1000);
             if (!playerWon) {
-                await dbRun(db, 'UPDATE characters SET hp_current=? WHERE id=?', [newHp, freshChar.id]);
+                await dbRun(db, 'UPDATE characters SET hp_current=?, last_gatekeeper_time=? WHERE id=?', [newHp, gkNow, freshChar.id]);
                 return res.status(400).json({
                     error: 'Defeated by the Abyss Gatekeeper',
                     battleLog: battle.log,
@@ -18993,7 +19008,7 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
             await unlockTravelZone(db, freshChar, 'shadowfen', 'abyss');
             await recordGatekeeperDefeat(db, freshChar.id, `abyss:shadowfen`);
             invalidateWeeklyClaimableCountCache(freshChar.id);
-            await dbRun(db, 'UPDATE characters SET current_map=?, location=?, hp_current=? WHERE id=?', ['abyss', 'shadowfen', newHp, freshChar.id]);
+            await dbRun(db, 'UPDATE characters SET current_map=?, location=?, hp_current=?, last_gatekeeper_time=? WHERE id=?', ['abyss', 'shadowfen', newHp, gkNow, freshChar.id]);
 
             return res.json({
                 success: true,
