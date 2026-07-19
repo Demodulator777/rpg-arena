@@ -10114,6 +10114,20 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 [membership.squad_id, baseId]);
             if (lootableWar) canLoot = true;
         }
+        // Can attack? Must be occupied by another squad, user is officer+, no active war for this base, and 24h cooldown passed
+        let canAttack = false;
+        if (isOccupied) {
+            const officerCheck = await dbGet(db, "SELECT 1 FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
+            if (officerCheck) {
+                const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND base_id=? LIMIT 1",
+                    [membership.squad_id, membership.squad_id, baseId]);
+                if (!activeWar) {
+                    const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
+                        [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
+                    if (!cooldown) canAttack = true;
+                }
+            }
+        }
 
         res.json({
             base: {
@@ -10123,6 +10137,7 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 is_owned: isOwned, is_occupied: isOccupied,
                 can_capture: !base.owner_squad_id,
                 can_loot: canLoot,
+                can_attack: canAttack,
             }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
