@@ -8355,24 +8355,42 @@ async function openWarPanel(warId) {
 window.openWarPanel = openWarPanel;
 
 async function scoutOutpost(warId) {
-    await openGameNoticeDialog({
-        title: 'Scout Outpost',
-        message: `<div style="display:flex;flex-direction:column;gap:6px">
-            ${[0,1,2,3,4].map(i => `
-                <div style="display:flex;gap:4px">
-                    <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, i, 'count')} style="flex:1">👀 Outpost ${i+1} — Count</button>
-                    <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, i, 'power')} style="flex:1">⚡ Outpost ${i+1} — Power (risky)</button>
-                </div>
-            `).join('')}
-        </div>`,
-        confirmLabel: 'Cancel'
-    });
+    const res = await api('GET', `/game/squads/wars/${warId}`);
+    const w = res.war;
+    if (!w) return;
+    const eligible = (w.squad_members || []).filter(m => !m.captured);
+    const scoutedCharIds = new Set((w.scouts || []).map(s => s.char_id));
+    if (eligible.length === 0) return await openGameNoticeDialog({ title: 'Scout', message: 'No eligible squad members to send.', confirmLabel: 'Close' });
+    let html = `<div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:4px">Choose a scout:</div>`;
+    for (const m of eligible) {
+        const alreadyScouted = scoutedCharIds.has(m.id);
+        html += `<button class="btn-primary btn-sm" ${actionAttrs('showScoutOptions', warId, m.id, m.name)} style="width:100%;text-align:left${alreadyScouted ? ';opacity:0.5' : ''}" ${alreadyScouted ? 'disabled' : ''}>
+            ${escHtml(m.name)} · ⚡${m.power.toLocaleString()}${alreadyScouted ? ' (already scouted)' : ''}
+        </button>`;
+    }
+    html += `</div>`;
+    await openGameNoticeDialog({ title: 'Select Scout', message: html, confirmLabel: 'Cancel' });
 }
 window.scoutOutpost = scoutOutpost;
 
-async function doScout(warId, outpostIdx, type) {
+async function showScoutOptions(warId, charId, charName) {
+    const html = `<div style="display:flex;flex-direction:column;gap:6px">
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:4px">Sending <strong>${escHtml(charName)}</strong> — pick target:</div>
+        ${[0,1,2,3,4].map(i => `
+            <div style="display:flex;gap:4px">
+                <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, charId, i, 'count')} style="flex:1">👀 Outpost ${i+1} — Count</button>
+                <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, charId, i, 'power')} style="flex:1">⚡ Outpost ${i+1} — Power (risky)</button>
+            </div>
+        `).join('')}
+    </div>`;
+    await openGameNoticeDialog({ title: 'Scout Outpost', message: html, confirmLabel: 'Cancel' });
+}
+window.showScoutOptions = showScoutOptions;
+
+async function doScout(warId, charId, outpostIdx, type) {
     try {
-        const res = await api('POST', `/game/squads/wars/${warId}/scout`, { outpost_index: outpostIdx, type });
+        const res = await api('POST', `/game/squads/wars/${warId}/scout`, { char_id: charId, outpost_index: outpostIdx, type });
         if (res.type === 'count') {
             await openGameNoticeDialog({
                 title: 'Count Report',
