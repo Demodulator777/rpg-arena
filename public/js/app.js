@@ -8347,9 +8347,9 @@ async function openWarPanel(warId) {
                 ${w.phase === 'attacking' || w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
             </div>
         </div>`;
-        await openGameNoticeDialog({ title: 'War Panel', message: html, confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: 'War Panel', message: html, confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'War Panel', message: e.message || String(e), confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: 'War Panel', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.openWarPanel = openWarPanel;
@@ -8370,7 +8370,7 @@ async function scoutOutpost(warId) {
         </button>`;
     }
     html += `</div>`;
-    await openGameNoticeDialog({ title: 'Select Scout', message: html, confirmLabel: 'Cancel' });
+    openGameNoticeDialog({ title: 'Select Scout', message: html, confirmLabel: 'Cancel' });
 }
 window.scoutOutpost = scoutOutpost;
 
@@ -8384,7 +8384,7 @@ async function showScoutOptions(warId, charId, charName) {
             </div>
         `).join('')}
     </div>`;
-    await openGameNoticeDialog({ title: 'Scout Outpost', message: html, confirmLabel: 'Cancel' });
+    openGameNoticeDialog({ title: 'Scout Outpost', message: html, confirmLabel: 'Cancel' });
 }
 window.showScoutOptions = showScoutOptions;
 
@@ -8392,23 +8392,15 @@ async function doScout(warId, charId, outpostIdx, type) {
     try {
         const res = await api('POST', `/game/squads/wars/${warId}/scout`, { char_id: charId, outpost_index: outpostIdx, type });
         if (res.type === 'count') {
-            await openGameNoticeDialog({
-                title: 'Count Report',
-                message: `${res.message}`,
-                confirmLabel: 'OK'
-            });
+            openGameNoticeDialog({ title: 'Count Report', message: `${res.message}`, confirmLabel: 'OK' });
         } else if (res.status === 'captured') {
-            await openGameNoticeDialog({ title: 'Captured!', message: res.message, confirmLabel: 'OK' });
+            openGameNoticeDialog({ title: 'Captured!', message: res.message, confirmLabel: 'OK' });
         } else {
-            await openGameNoticeDialog({
-                title: 'Intel Received',
-                message: `${res.message}`,
-                confirmLabel: 'OK'
-            });
+            openGameNoticeDialog({ title: 'Intel Received', message: `${res.message}`, confirmLabel: 'OK' });
         }
         openWarPanel(warId);
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Scout Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: 'Scout Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.doScout = doScout;
@@ -8423,7 +8415,7 @@ async function assignToOutpost(warId) {
         }
         const isAttacker = w.is_attacker;
         if (w.is_npc_war && !isAttacker) {
-            return await openGameNoticeDialog({ title: 'Assign', message: 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
+            return openGameNoticeDialog({ title: 'Assign', message: 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
         }
         const members = w.squad_members || [];
         const isCaptured = (m) => m.captured || false;
