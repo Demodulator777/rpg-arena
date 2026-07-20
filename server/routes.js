@@ -1268,6 +1268,10 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_power REAL DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_count INTEGER DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `UPDATE clan_wars SET phase='defense' WHERE phase='scout'`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_level INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_expires_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_reason TEXT DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN banned_by INTEGER DEFAULT NULL`, args: [] }); } catch {}
 
         // Seed clan bases if empty
         try {
@@ -14198,8 +14202,54 @@ router.get('/admin/users', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
-        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator FROM users ORDER BY username', args: [] });
+        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator, ban_level, ban_expires_at, ban_reason, banned_by FROM users ORDER BY username', args: [] });
         res.json(result.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/users/:userId/ban', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const targetId = Number(req.params.userId);
+        if (!targetId) return res.status(400).json({ error: 'Invalid user ID' });
+        if (targetId === req.user.userId) return res.status(400).json({ error: 'Cannot ban yourself.' });
+
+        // Check target is not an admin (moderators cannot ban admins)
+        const target = await dbGet(db, 'SELECT id, is_admin FROM users WHERE id=?', [targetId]);
+        if (!target) return res.status(404).json({ error: 'User not found' });
+        if (Number(target.is_admin) === 1 && !req.user.isAdmin) return res.status(403).json({ error: 'Moderators cannot ban admins.' });
+
+        const { level, reason, duration_minutes } = req.body;
+        const banLevel = Number(level) || 1;
+        if (banLevel < 1 || banLevel > 3) return res.status(400).json({ error: 'Ban level must be 1 (warning), 2 (temporary), or 3 (permanent).' });
+
+        let expiresAt = null;
+        if (banLevel === 2) {
+            const mins = Number(duration_minutes) || 0;
+            if (mins <= 0) return res.status(400).json({ error: 'Duration required for temporary ban.' });
+            expiresAt = Math.floor(Date.now() / 1000) + mins * 60;
+        }
+
+        await dbRun(db, 'UPDATE users SET ban_level=?, ban_expires_at=?, ban_reason=?, banned_by=? WHERE id=?',
+            [banLevel, expiresAt, reason || null, req.user.userId, targetId]);
+        res.json({ success: true, ban_level: banLevel, ban_expires_at: expiresAt });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/users/:userId/unban', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const targetId = Number(req.params.userId);
+        if (!targetId) return res.status(400).json({ error: 'Invalid user ID' });
+
+        const target = await dbGet(db, 'SELECT id, is_admin FROM users WHERE id=?', [targetId]);
+        if (!target) return res.status(404).json({ error: 'User not found' });
+        if (Number(target.is_admin) === 1 && !req.user.isAdmin) return res.status(403).json({ error: 'Moderators cannot unban admins.' });
+
+        await dbRun(db, 'UPDATE users SET ban_level=0, ban_expires_at=NULL, ban_reason=NULL, banned_by=NULL WHERE id=?', [targetId]);
+        res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
