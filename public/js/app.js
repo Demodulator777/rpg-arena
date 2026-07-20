@@ -8322,12 +8322,16 @@ async function openWarPanel(warId) {
             <div class="squads-members" style="padding:8px 12px">
                 <div class="squads-title" style="font-size:0.8rem">Outposts</div>
                 ${w.outposts.map((o, i) => {
-                    let info = `<span>Attacker: ${o.attacker_power.toLocaleString()} · Defender: ${o.defender_power.toLocaleString()}</span>`;
+                    let info = `<span>Attacker: ${o.attacker_power.toLocaleString()}`;
                     if (w.is_attacker && w.phase === 'attacking') {
-                        info += `<span style="font-size:0.7rem;color:#888"> 👥 ${o.defender_count} defenders`;
-                        if (o.scouted_power != null) info += ` · ⚡ ${o.scouted_power.toLocaleString()} power`;
-                        info += `</span>`;
+                        const parts = [];
+                        if (o.scouted_count != null) parts.push(`👥 ${o.scouted_count} defenders`);
+                        if (o.scouted_power != null) parts.push(`⚡ ${o.scouted_power.toLocaleString()} power`);
+                        info += parts.length ? ` · ${parts.join(' · ')}` : ' · 🔍 ?';
+                    } else {
+                        info += ` · Defender: ${o.defender_power.toLocaleString()}`;
                     }
+                    info += `</span>`;
                     return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
                     <span>Outpost ${i + 1}</span>
                     ${info}
@@ -8338,7 +8342,6 @@ async function openWarPanel(warId) {
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
                 ${w.phase === 'attacking' || w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
-                ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('startWarBattle', w.id)}>⚔️ Start Battle</button>` : ''}
             </div>
         </div>`;
         await openGameNoticeDialog({ title: 'War Panel', message: html, confirmLabel: 'Close' });
