@@ -81,6 +81,12 @@ module.exports = async (req, res, next) => {
             };
         }
 
+        // Update IP address on each request (non-blocking)
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection?.remoteAddress || '';
+        if (clientIp) {
+            db.execute({ sql: 'UPDATE users SET ip_address=? WHERE id=? AND (ip_address IS NULL OR ip_address!=?)', args: [clientIp, user.rows[0].id, clientIp] }).catch(() => {});
+        }
+
         next();
     } catch (error) {
         console.error('Auth error:', error);
