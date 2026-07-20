@@ -10629,11 +10629,21 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
 router.post('/squads/wars/:warId/scout', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId);
+        const warId = Number(req.params.warId);
+        // Accept char_id from body, or fall back to active character
+        let char;
+        if (req.body.char_id) {
+            char = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [Number(req.body.char_id)]);
+            if (!char) return res.status(404).json({ error: 'Character not found.' });
+            // Verify this char belongs to the requesting user
+            const userChar = await dbGet(db, 'SELECT id FROM characters WHERE id=? AND user_id=?', [char.id, req.user.userId]);
+            if (!userChar) return res.status(403).json({ error: 'Not your character.' });
+        } else {
+            char = await getCurrentCharacter(db, req.user.userId);
+        }
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
-        const warId = Number(req.params.warId);
         const war = await dbGet(db, "SELECT * FROM clan_wars WHERE id=? AND attacker_squad_id=? AND phase='attacking' AND status='preparation'", [warId, membership.squad_id]);
         if (!war) return res.status(400).json({ error: 'War not found or not in attack phase.' });
         const outpostIdx = Number(req.body.outpost_index);
