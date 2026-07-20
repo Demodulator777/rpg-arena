@@ -1272,6 +1272,7 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_expires_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_reason TEXT DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN banned_by INTEGER DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ip_address TEXT DEFAULT NULL`, args: [] }); } catch {}
 
         // Seed clan bases if empty
         try {
@@ -14202,7 +14203,7 @@ router.get('/admin/users', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
-        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator, ban_level, ban_expires_at, ban_reason, banned_by FROM users ORDER BY username', args: [] });
+        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator, ban_level, ban_expires_at, ban_reason, banned_by, ip_address FROM users ORDER BY username', args: [] });
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -14250,6 +14251,17 @@ router.post('/admin/users/:userId/unban', auth, async (req, res) => {
 
         await dbRun(db, 'UPDATE users SET ban_level=0, ban_expires_at=NULL, ban_reason=NULL, banned_by=NULL WHERE id=?', [targetId]);
         res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/users-by-ip', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const ip = req.query.ip?.trim();
+        if (!ip) return res.status(400).json({ error: 'IP parameter required' });
+        const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator, ban_level, ban_expires_at, ban_reason, ip_address FROM users WHERE ip_address=? ORDER BY username', args: [ip] });
+        res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
