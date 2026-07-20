@@ -8315,23 +8315,26 @@ async function openWarPanel(warId) {
                 <div class="squads-meta">${w.is_attacker ? `Attacking ${escHtml(w.defender_name)}` : `Defending vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
                 <div class="squads-meta" style="font-size:0.65rem">
                     ${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture this base' : ''}
-                    ${!w.is_npc_war && w.scout_ends_at ? `Defense ends: ${formatDate(w.scout_ends_at)}` : ''}
-                    ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}
+                    ${!w.is_npc_war && w.scout_ends_at ? `Defense phase ends: ${formatDate(w.scout_ends_at)}` : ''}
+                    ${w.attack_ends_at ? `· Auto-resolve: ${formatDate(w.attack_ends_at)}` : ''}
                 </div>
             </div></div>
             <div class="squads-members" style="padding:8px 12px">
                 <div class="squads-title" style="font-size:0.8rem">Outposts</div>
                 ${w.outposts.map((o, i) => {
-                    let info = `<span>Attacker: ${o.attacker_power.toLocaleString()}`;
-                    if (w.is_attacker && w.phase === 'attacking') {
-                        const parts = [];
-                        if (o.scouted_count != null) parts.push(`👥 ${o.scouted_count} defenders`);
-                        if (o.scouted_power != null) parts.push(`⚡ ${o.scouted_power.toLocaleString()} power`);
-                        info += parts.length ? ` · ${parts.join(' · ')}` : ' · 🔍 ?';
+                    let info;
+                    if (w.is_attacker) {
+                        info = `<span>Attacker: ${o.attacker_power.toLocaleString()}`;
+                        if (w.phase === 'attacking') {
+                            const parts = [];
+                            if (o.scouted_count != null) parts.push(`👥 ${o.scouted_count} defenders`);
+                            if (o.scouted_power != null) parts.push(`⚡ ${o.scouted_power.toLocaleString()} power`);
+                            info += parts.length ? ` · ${parts.join(' · ')}` : ' · 🔍 ?';
+                        }
+                        info += `</span>`;
                     } else {
-                        info += ` · Defender: ${o.defender_power.toLocaleString()}`;
+                        info = `<span>Defender: ${o.defender_power.toLocaleString()} · Attacker: ???</span>`;
                     }
-                    info += `</span>`;
                     return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
                     <span>Outpost ${i + 1}</span>
                     ${info}
@@ -8352,13 +8355,13 @@ async function openWarPanel(warId) {
 window.openWarPanel = openWarPanel;
 
 async function scoutOutpost(warId) {
-    const pick = await openGameNoticeDialog({
+    await openGameNoticeDialog({
         title: 'Scout Outpost',
         message: `<div style="display:flex;flex-direction:column;gap:6px">
             ${[0,1,2,3,4].map(i => `
                 <div style="display:flex;gap:4px">
-                    <button class="btn-primary btn-sm" onclick="doScout(${warId},${i},'count')" style="flex:1">👀 Outpost ${i+1} — Count</button>
-                    <button class="btn-primary btn-sm" onclick="doScout(${warId},${i},'power')" style="flex:1">⚡ Outpost ${i+1} — Power (risky)</button>
+                    <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, i, 'count')} style="flex:1">👀 Outpost ${i+1} — Count</button>
+                    <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, i, 'power')} style="flex:1">⚡ Outpost ${i+1} — Power (risky)</button>
                 </div>
             `).join('')}
         </div>`,
