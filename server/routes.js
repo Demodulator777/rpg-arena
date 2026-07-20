@@ -10635,9 +10635,6 @@ router.post('/squads/wars/:warId/scout', auth, async (req, res) => {
         if (req.body.char_id) {
             char = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [Number(req.body.char_id)]);
             if (!char) return res.status(404).json({ error: 'Character not found.' });
-            // Verify this char belongs to the requesting user
-            const userChar = await dbGet(db, 'SELECT id FROM characters WHERE id=? AND user_id=?', [char.id, req.user.userId]);
-            if (!userChar) return res.status(403).json({ error: 'Not your character.' });
         } else {
             char = await getCurrentCharacter(db, req.user.userId);
         }
