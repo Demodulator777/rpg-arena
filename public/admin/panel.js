@@ -1354,7 +1354,9 @@ function loadBans() {
                 return;
             }
             var h = '<div class="table-wrap"><table><thead><tr>' +
-                '<th>ID</th><th>Username</th><th>Role</th><th>Ban Level</th><th>Reason</th><th>Expires</th><th>Banned By</th><th>Actions</th>' +
+                '<th>ID</th><th>Username</th><th>Role</th><th>Ban Level</th><th>Reason</th><th>Expires</th><th>Banned By</th>' +
+                (window._isAdmin ? '<th>IP</th>' : '') +
+                '<th>Actions</th>' +
                 '</tr></thead><tbody>';
             for (var i = 0; i < users.length; i++) {
                 var u = users[i];
@@ -1371,6 +1373,9 @@ function loadBans() {
                     '<td>' + reason + '</td>' +
                     '<td style="font-size:11px">' + expires + '</td>' +
                     '<td>' + (u.banned_by || '—') + '</td>' +
+                    (window._isAdmin
+                        ? '<td>' + (u.ip_address ? '<a href="#" data-ip-action="search" data-ip="' + escHtml(u.ip_address) + '" style="color:#8ab4f8;text-decoration:none;font-size:11px">' + escHtml(u.ip_address) + '</a>' : '<span style="color:#555">—</span>') + '</td>'
+                        : '') +
                     '<td style="white-space:nowrap">' +
                         (u.ban_level > 0
                             ? '<button class="db-btn btn-yes" data-ban-action="unban" data-user-id="' + u.id + '" style="font-size:10px;padding:2px 6px">Unban</button>'
@@ -1452,6 +1457,44 @@ function unbanUser(userId) {
     }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
+function loadUsersByIp(ip) {
+    var el = document.getElementById('tab-bans');
+    el.innerHTML = '<div class="loading">Searching IP: ' + escHtml(ip) + '...</div>';
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/users-by-ip?ip=' + encodeURIComponent(ip), { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(users) {
+            if (!users || !users.length) {
+                el.innerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No users found with IP: ' + escHtml(ip) + '</p>' +
+                    '<div style="margin-top:10px;text-align:center"><button class="db-btn" data-ban-action="cancel" style="font-size:11px;padding:4px 12px">← Back</button></div></div>';
+                return;
+            }
+            var h = '<div style="margin-bottom:8px"><button class="db-btn" data-ban-action="cancel" style="font-size:11px;padding:4px 10px">← Back</button> <span style="color:#8ab4f8;font-size:12px">IP: ' + escHtml(ip) + ' (' + users.length + ' users)</span></div>';
+            h += '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Ban Level</th><th>Reason</th><th>Actions</th></tr></thead><tbody>';
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                var role = u.is_admin ? '👑 Admin' : u.is_moderator ? '⭐ Mod' : 'User';
+                var banLvl = ['None', '⚠️ Warning', '🔒 Temp', '🔒 Permanent'][u.ban_level] || 'Unknown';
+                var reason = esc(u.ban_reason || '—');
+                var canAct = !u.is_admin || window._isAdmin;
+                h += '<tr style="' + (u.ban_level > 0 ? 'background:rgba(224,96,96,0.08)' : '') + '">' +
+                    '<td>' + u.id + '</td>' +
+                    '<td>' + esc(u.username) + '</td>' +
+                    '<td>' + role + '</td>' +
+                    '<td>' + banLvl + '</td>' +
+                    '<td>' + reason + '</td>' +
+                    '<td>' +
+                        (canAct
+                            ? '<button class="db-btn" data-ban-action="show-dialog" data-user-id="' + u.id + '" data-username="' + escHtml(u.username) + '" style="font-size:10px;padding:2px 6px">Ban</button>'
+                            : '<span style="color:#6a6a70;font-size:10px">Protected</span>') +
+                    '</td></tr>';
+            }
+            h += '</tbody></table></div>';
+            el.innerHTML = h;
+        })
+        .catch(function(e) { el.innerHTML = '<div class="error">' + e.message + '</div>'; });
+}
+
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('[data-ban-action]');
     if (!btn) return;
@@ -1472,6 +1515,14 @@ document.addEventListener('click', function(e) {
             loadBans();
             break;
     }
+});
+
+document.addEventListener('click', function(e) {
+    var link = e.target.closest('[data-ip-action="search"]');
+    if (!link) return;
+    e.preventDefault();
+    var ip = link.getAttribute('data-ip');
+    if (ip) loadUsersByIp(ip);
 });
 
 init();
