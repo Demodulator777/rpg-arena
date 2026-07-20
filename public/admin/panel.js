@@ -1373,10 +1373,10 @@ function loadBans() {
                     '<td>' + (u.banned_by || '—') + '</td>' +
                     '<td style="white-space:nowrap">' +
                         (u.ban_level > 0
-                            ? '<button class="db-btn btn-yes" style="font-size:10px;padding:2px 6px" onclick="unbanUser(' + u.id + ')">Unban</button>'
+                            ? '<button class="db-btn btn-yes" data-ban-action="unban" data-user-id="' + u.id + '" style="font-size:10px;padding:2px 6px">Unban</button>'
                             : '') +
                         (canAct
-                            ? ' <button class="db-btn" style="font-size:10px;padding:2px 6px" onclick="showBanDialog(' + u.id + ',\'' + esc(u.username) + '\')">Ban</button>'
+                            ? ' <button class="db-btn" data-ban-action="show-dialog" data-user-id="' + u.id + '" data-username="' + escHtml(u.username) + '" style="font-size:10px;padding:2px 6px">Ban</button>'
                             : ' <span style="color:#6a6a70;font-size:10px">Protected</span>') +
                     '</td></tr>';
             }
@@ -1403,8 +1403,8 @@ function showBanDialog(userId, username) {
             '<input id="ban-duration" type="number" min="1" value="60" style="display:block;width:100%;margin-top:2px;padding:4px;background:#14141e;color:#e0dcd0;border:1px solid #2a2a35;border-radius:4px">' +
         '</label>' +
         '<div style="display:flex;gap:6px">' +
-            '<button class="db-btn btn-yes" style="font-size:11px;padding:4px 12px" onclick="applyBan(' + userId + ')">Apply</button>' +
-            '<button class="db-btn" style="font-size:11px;padding:4px 12px" onclick="loadBans()">Cancel</button>' +
+            '<button class="db-btn btn-yes" data-ban-action="apply" data-user-id="' + userId + '" style="font-size:11px;padding:4px 12px">Apply</button>' +
+            '<button class="db-btn" data-ban-action="cancel" style="font-size:11px;padding:4px 12px">Cancel</button>' +
         '</div></div>';
     // Insert above table
     var existing = el.querySelector('.table-wrap');
@@ -1451,5 +1451,27 @@ function unbanUser(userId) {
         loadBans();
     }).catch(function(e) { alert('Error: ' + e.message); });
 }
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-ban-action]');
+    if (!btn) return;
+    e.preventDefault();
+    var action = btn.getAttribute('data-ban-action');
+    var userId = parseInt(btn.getAttribute('data-user-id'));
+    switch (action) {
+        case 'show-dialog':
+            showBanDialog(userId, btn.getAttribute('data-username'));
+            break;
+        case 'apply':
+            applyBan(userId);
+            break;
+        case 'unban':
+            unbanUser(userId);
+            break;
+        case 'cancel':
+            loadBans();
+            break;
+    }
+});
 
 init();
