@@ -1266,6 +1266,7 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN defender_npc_count INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN intent TEXT NOT NULL DEFAULT 'capture'`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_power REAL DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_count INTEGER DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `UPDATE clan_wars SET phase='defense' WHERE phase='scout'`, args: [] }); } catch {}
 
         // Seed clan bases if empty
@@ -10605,8 +10606,10 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
                 npc_info: npcInfo,
                 outposts: outposts.map(o => ({
                     id: Number(o.id), outpost_index: Number(o.outpost_index),
-                    attacker_power: Number(o.attacker_power), defender_power: Number(o.defender_power),
+                    attacker_power: Number(o.attacker_power),
+                    defender_power: isAttacker ? 0 : Number(o.defender_power),
                     scouted_power: o.scouted_power != null ? Number(o.scouted_power) : null,
+                    scouted_count: o.scouted_count != null ? Number(o.scouted_count) : null,
                     defender_count: defCountMap[Number(o.id)] || 0,
                     winner: o.winner,
                 })),
@@ -10650,13 +10653,15 @@ router.post('/squads/wars/:warId/scout', auth, async (req, res) => {
             // Safe scout — count how many defenders are assigned to this outpost
             const defCount = await dbGet(db, `SELECT COUNT(*) AS c FROM clan_war_assignments wa
                 WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
+            const count = Number(defCount?.c || 0);
+            await dbRun(db, 'UPDATE clan_war_outposts SET scouted_count=? WHERE id=?', [count, outpost.id]);
             await dbRun(db, `INSERT INTO clan_war_scouts (war_id, char_id, outpost_index, status) VALUES (?,?,?,?)`,
                 [warId, char.id, outpostIdx, 'returned']);
             return res.json({
                 success: true, type: 'count',
                 outpost_index: outpostIdx,
-                defender_count: Number(defCount?.c || 0),
-                message: `${char.name} spotted ${Number(defCount?.c || 0)} defender(s) at outpost ${outpostIdx + 1}.`
+                defender_count: count,
+                message: `${char.name} spotted ${count} defender(s) at outpost ${outpostIdx + 1}.`
             });
         }
         // Power scout — risky: compare agility vs ALL defenders on this outpost
