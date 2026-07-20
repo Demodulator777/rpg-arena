@@ -633,7 +633,7 @@ async function api(method, path, body=null) {
                         ? 'Your account is temporarily locked.'
                         : 'Your account has been permanently banned.';
                     if (banData.ban_reason) banMsg += '<br><br><strong>Reason:</strong> ' + escHtml(banData.ban_reason);
-                    if (banData.ban_level === 2 && banData.ban_expires_at) {
+                    if (banData.ban_expires_at) {
                         var remainingSecs = banData.ban_expires_at - Math.floor(Date.now() / 1000);
                         if (remainingSecs > 0) {
                             var mins = Math.ceil(remainingSecs / 60);
@@ -1783,9 +1783,11 @@ async function login() {
             ]);
             character = charData;
             showScreen('game');
-        } catch {
-            await loadCharacterRoster();
-            showScreen('create');
+        } catch(e) {
+            if (e.message === 'No character found') {
+                await loadCharacterRoster();
+                showScreen('create');
+            }
         }
     } catch(e) { setError('auth-error',e.message); }
 }
