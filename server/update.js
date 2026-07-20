@@ -1,6 +1,12 @@
-try {
-  await db.execute({ 
-    sql: `UPDATE clan_wars SET phase='defense' WHERE phase='scout'`, 
-    args: [] 
-  });
-} catch {}
+async function updateClanWars() {
+  try {
+    await db.execute({ 
+      sql: `UPDATE clan_wars SET phase='defense' WHERE phase='scout'`, 
+      args: [] 
+    });
+  } catch (error) {
+    // Handle error
+  }
+}
+
+updateClanWars();
