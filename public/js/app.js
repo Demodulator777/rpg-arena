@@ -8071,7 +8071,7 @@ function renderSquads() {
                     <div class="squads-card-head">
                         <div><div class="squads-title">⚔️ ${w.is_attacker ? 'Attacking' : 'Defending'} ${escHtml(w.base_name)}</div>
                         <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
-                        <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture' : ''} ${!w.is_npc_war && w.scout_ends_at ? `Scout ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Attack ends: ${formatDate(w.attack_ends_at)}` : ''}</div>
+                        <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture' : ''} ${!w.is_npc_war && w.scout_ends_at ? `Defense phase ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Auto-resolve: ${formatDate(w.attack_ends_at)}` : ''}</div>
                     </div></div>
                     <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                         ${w.phase !== 'resolved' ? `<button class="btn-primary btn-sm" ${actionAttrs('openWarPanel', w.id)}>⚔️ War Panel</button>` : ''}
