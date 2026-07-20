@@ -623,18 +623,34 @@ async function api(method, path, body=null) {
         }
         // Check for ban rejection (level 2/3)
         if (res.status === 403) {
-            try { const ed = JSON.parse(text); if (ed.ban) {
+            var banData = null;
+            try { var _bd = JSON.parse(text); if (_bd.ban) banData = _bd; } catch (_) {}
+            if (banData) {
                 if (!window.__banLockShown) {
                     window.__banLockShown = true;
-                    var banTitle = ed.ban_level === 2 ? '🔒 Account Locked' : '🔒 Account Banned';
-                    var banMsg = ed.ban_level === 2
-                        ? 'Your account is temporarily locked.<br><br><strong>Reason:</strong> ' + escHtml(ed.ban_reason || 'N/A')
-                        : 'Your account has been permanently banned.<br><br><strong>Reason:</strong> ' + escHtml(ed.ban_reason || 'N/A');
+                    var banTitle = banData.ban_level === 2 ? '🔒 Account Locked' : '🔒 Account Banned';
+                    var banMsg = banData.ban_level === 2
+                        ? 'Your account is temporarily locked.'
+                        : 'Your account has been permanently banned.';
+                    if (banData.ban_reason) banMsg += '<br><br><strong>Reason:</strong> ' + escHtml(banData.ban_reason);
+                    if (banData.ban_level === 2 && banData.ban_expires_at) {
+                        var remainingSecs = banData.ban_expires_at - Math.floor(Date.now() / 1000);
+                        if (remainingSecs > 0) {
+                            var mins = Math.ceil(remainingSecs / 60);
+                            if (mins >= 60) {
+                                var hrs = Math.floor(mins / 60);
+                                mins = mins % 60;
+                                banMsg += '<br><br><strong>Time remaining:</strong> ' + hrs + 'h ' + mins + 'm';
+                            } else {
+                                banMsg += '<br><br><strong>Time remaining:</strong> ' + mins + ' minutes';
+                            }
+                        }
+                    }
                     setTimeout(function() { openGameNoticeDialog({ title: banTitle, message: banMsg, confirmLabel: 'OK' }); }, 100);
-                    logout();
                 }
-                return {}; // Don't throw, return empty to avoid cascading errors
-            }} catch (pe) { /* not a ban response, continue */ }
+                logout();
+                throw new Error(banData.error || 'Account banned');
+            }
         }
         if (!res.ok) {
             console.error('[API ERROR]', res.status, text.substring(0, 300));
