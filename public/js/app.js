@@ -613,6 +613,28 @@ async function api(method, path, body=null) {
     try {
         const res = await fetch(fullUrl, opts);
         const text = await res.text();
+
+        // Check for ban warning header (level 1 warning)
+        const banWarning = res.headers.get('X-Ban-Warning');
+        if (banWarning && !window.__banWarningShown) {
+            window.__banWarningShown = true;
+            const msg = decodeURIComponent(banWarning);
+            setTimeout(function() { openGameNoticeDialog({ title: '⚠️ Warning', message: 'You have been detected violating the Terms of Service.<br><br><strong>Reason:</strong> ' + escHtml(msg), confirmLabel: 'I Understand' }); }, 100);
+        }
+        // Check for ban rejection (level 2/3)
+        if (res.status === 403) {
+            try { const ed = JSON.parse(text); if (ed.ban) {
+                if (!window.__banLockShown) {
+                    window.__banLockShown = true;
+                    var banTitle = ed.ban_level === 2 ? '🔒 Account Locked' : '🔒 Account Banned';
+                    var banMsg = ed.ban_level === 2
+                        ? 'Your account is temporarily locked.<br><br><strong>Reason:</strong> ' + escHtml(ed.ban_reason || 'N/A')
+                        : 'Your account has been permanently banned.<br><br><strong>Reason:</strong> ' + escHtml(ed.ban_reason || 'N/A');
+                    setTimeout(function() { openGameNoticeDialog({ title: banTitle, message: banMsg, confirmLabel: 'OK' }); }, 100);
+                }
+                return {}; // Don't throw, return empty to avoid cascading errors
+            }} catch (pe) { /* not a ban response, continue */ }
+        }
         if (!res.ok) {
             console.error('[API ERROR]', res.status, text.substring(0, 300));
             let errMsg;
