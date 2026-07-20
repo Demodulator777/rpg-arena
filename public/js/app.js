@@ -631,6 +631,7 @@ async function api(method, path, body=null) {
                         ? 'Your account is temporarily locked.<br><br><strong>Reason:</strong> ' + escHtml(ed.ban_reason || 'N/A')
                         : 'Your account has been permanently banned.<br><br><strong>Reason:</strong> ' + escHtml(ed.ban_reason || 'N/A');
                     setTimeout(function() { openGameNoticeDialog({ title: banTitle, message: banMsg, confirmLabel: 'OK' }); }, 100);
+                    logout();
                 }
                 return {}; // Don't throw, return empty to avoid cascading errors
             }} catch (pe) { /* not a ban response, continue */ }
