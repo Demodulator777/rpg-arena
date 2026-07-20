@@ -34,6 +34,7 @@ function renderLayout() {
         { id: 'bugs', label: 'Bug Reports' },
         { id: 'actions', label: 'Action Log' },
         { id: 'flagged', label: 'Flagged' },
+        { id: 'bans', label: 'Bans' },
     ];
     if (!isModOnly) {
         tabs.push(
@@ -82,6 +83,7 @@ function loadTab(name) {
     else if (name === 'console') loadConsole();
     else if (name === 'moderators') loadModerators();
     else if (name === 'weekly') loadWeekly();
+    else if (name === 'bans') loadBans();
 }
 
 function loadDbAdmin() {
@@ -1335,6 +1337,118 @@ function revokeModerator(userId, username) {
     if (!confirm('Revoke moderator from ' + username + '?')) return;
     API('/admin/set-moderator', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('rpg_token')}, body:JSON.stringify({userId:userId, moderator:false}) }).then(function() {
         loadModerators();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+// ── Bans ──────────────────────────────────────────────────────────────
+function loadBans() {
+    var el = document.getElementById('tab-bans');
+    el.innerHTML = '<div class="loading">Loading users...</div>';
+    var token = localStorage.getItem('rpg_token');
+    var headers = { 'Authorization': 'Bearer ' + token };
+    fetch('/api/game/admin/users', { headers: headers })
+        .then(function(r) { return r.json(); })
+        .then(function(users) {
+            if (!users || !users.length) {
+                el.innerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No users found.</p></div>';
+                return;
+            }
+            var h = '<div class="table-wrap"><table><thead><tr>' +
+                '<th>ID</th><th>Username</th><th>Role</th><th>Ban Level</th><th>Reason</th><th>Expires</th><th>Banned By</th><th>Actions</th>' +
+                '</tr></thead><tbody>';
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                var role = u.is_admin ? '👑 Admin' : u.is_moderator ? '⭐ Mod' : 'User';
+                var banLvl = ['None', '⚠️ Warning', '🔒 Temp', '🔒 Permanent'][u.ban_level] || 'Unknown';
+                var expires = u.ban_expires_at ? new Date(u.ban_expires_at * 1000).toLocaleString() : '—';
+                var reason = esc(u.ban_reason || '—');
+                var canAct = !u.is_admin || window._isAdmin;
+                h += '<tr style="' + (u.ban_level > 0 ? 'background:rgba(224,96,96,0.08)' : '') + '">' +
+                    '<td>' + u.id + '</td>' +
+                    '<td>' + esc(u.username) + '</td>' +
+                    '<td>' + role + '</td>' +
+                    '<td>' + banLvl + '</td>' +
+                    '<td>' + reason + '</td>' +
+                    '<td style="font-size:11px">' + expires + '</td>' +
+                    '<td>' + (u.banned_by || '—') + '</td>' +
+                    '<td style="white-space:nowrap">' +
+                        (u.ban_level > 0
+                            ? '<button class="db-btn btn-yes" style="font-size:10px;padding:2px 6px" onclick="unbanUser(' + u.id + ')">Unban</button>'
+                            : '') +
+                        (canAct
+                            ? ' <button class="db-btn" style="font-size:10px;padding:2px 6px" onclick="showBanDialog(' + u.id + ',\'' + esc(u.username) + '\')">Ban</button>'
+                            : ' <span style="color:#6a6a70;font-size:10px">Protected</span>') +
+                    '</td></tr>';
+            }
+            h += '</tbody></table></div>';
+            el.innerHTML = h;
+        })
+        .catch(function(e) { el.innerHTML = '<div class="error">' + e.message + '</div>'; });
+}
+
+function showBanDialog(userId, username) {
+    var el = document.getElementById('tab-bans');
+    var html = '<div class="card-compact" style="margin-bottom:10px;border-color:#c8a86e44">' +
+        '<div style="font-size:14px;font-weight:600;margin-bottom:8px">Ban: ' + esc(username) + '</div>' +
+        '<label style="display:block;margin-bottom:6px;font-size:12px">Level:' +
+            '<select id="ban-level" style="display:block;width:100%;margin-top:2px;padding:4px;background:#14141e;color:#e0dcd0;border:1px solid #2a2a35;border-radius:4px">' +
+                '<option value="1">⚠️ Warning</option>' +
+                '<option value="2">🔒 Temporary Lock</option>' +
+                '<option value="3">🔒 Permanent Ban</option>' +
+            '</select></label>' +
+        '<label style="display:block;margin-bottom:6px;font-size:12px">Reason:' +
+            '<input id="ban-reason" type="text" style="display:block;width:100%;margin-top:2px;padding:4px;background:#14141e;color:#e0dcd0;border:1px solid #2a2a35;border-radius:4px" placeholder="ToS violation...">' +
+        '</label>' +
+        '<label id="ban-duration-group" style="display:block;margin-bottom:8px;font-size:12px">Duration (minutes):' +
+            '<input id="ban-duration" type="number" min="1" value="60" style="display:block;width:100%;margin-top:2px;padding:4px;background:#14141e;color:#e0dcd0;border:1px solid #2a2a35;border-radius:4px">' +
+        '</label>' +
+        '<div style="display:flex;gap:6px">' +
+            '<button class="db-btn btn-yes" style="font-size:11px;padding:4px 12px" onclick="applyBan(' + userId + ')">Apply</button>' +
+            '<button class="db-btn" style="font-size:11px;padding:4px 12px" onclick="loadBans()">Cancel</button>' +
+        '</div></div>';
+    // Insert above table
+    var existing = el.querySelector('.table-wrap');
+    if (existing) {
+        existing.insertAdjacentHTML('beforebegin', html);
+    } else {
+        el.innerHTML = html + el.innerHTML;
+    }
+    // Toggle duration field based on level
+    document.getElementById('ban-level').addEventListener('change', function() {
+        var grp = document.getElementById('ban-duration-group');
+        grp.style.display = this.value === '2' ? 'block' : 'none';
+    });
+    if (document.getElementById('ban-level').value !== '2') {
+        document.getElementById('ban-duration-group').style.display = 'none';
+    }
+}
+
+function applyBan(userId) {
+    var level = parseInt(document.getElementById('ban-level').value);
+    var reason = document.getElementById('ban-reason').value;
+    var duration = parseInt(document.getElementById('ban-duration').value) || 60;
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/users/' + userId + '/ban', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ level: level, reason: reason, duration_minutes: duration })
+    }).then(function(r) { return r.json(); })
+    .then(function(res) {
+        if (res.error) { alert('Error: ' + res.error); return; }
+        loadBans();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+function unbanUser(userId) {
+    if (!confirm('Unban this user?')) return;
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/users/' + userId + '/unban', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+    }).then(function(r) { return r.json(); })
+    .then(function(res) {
+        if (res.error) { alert('Error: ' + res.error); return; }
+        loadBans();
     }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
