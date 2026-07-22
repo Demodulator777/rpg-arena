@@ -327,16 +327,16 @@ const STAT_LABELS = {
 
 // ── Hit & Block Zone Definitions ──────────────────────────────────────────
 const HIT_ZONES = {
-    head:         { label: 'Head',         dmgMult: 1.5,  hitChance: 0.60, desc: 'High risk, high reward. Devastating if it lands.' },
-    throat:       { label: 'Throat',       dmgMult: 1.3,  hitChance: 0.65, desc: 'Strong damage with decent accuracy.' },
-    chest:        { label: 'Chest',        dmgMult: 1.0,  hitChance: 0.85, desc: 'Reliable and consistent. The safe default.' },
-    heart:        { label: 'Heart',        dmgMult: 1.75, hitChance: 0.45, desc: 'Highest damage in the game. Very hard to land.' },
-    solar_plexus: { label: 'Solar Plexus', dmgMult: 1.2,  hitChance: 0.75, desc: 'Good balance of damage and accuracy.' },
-    stomach:      { label: 'Stomach',      dmgMult: 1.1,  hitChance: 0.80, desc: 'Safe and reliable with solid damage.' },
-    left_arm:     { label: 'Left Arm',     dmgMult: 0.8,  hitChance: 0.90, desc: 'Low damage but very consistent. Beats most guards.' },
-    right_arm:    { label: 'Right Arm',    dmgMult: 0.8,  hitChance: 0.90, desc: 'Mirror of left arm. Consistent and safe.' },
-    left_leg:     { label: 'Left Leg',     dmgMult: 0.7,  hitChance: 0.92, desc: 'Nearly guaranteed to connect. Counters turtling.' },
-    right_leg:    { label: 'Right Leg',    dmgMult: 0.7,  hitChance: 0.92, desc: 'Mirror of left leg. Reliable chip damage.' }
+    head:         { label: 'Head',         dmgMult: 1.5,  hitChance: 0.80, desc: 'High risk, high reward. Devastating if it lands.' },
+    throat:       { label: 'Throat',       dmgMult: 1.3,  hitChance: 0.85, desc: 'Strong damage with decent accuracy.' },
+    chest:        { label: 'Chest',        dmgMult: 1.0,  hitChance: 1.00, desc: 'Reliable and consistent. The safe default.' },
+    heart:        { label: 'Heart',        dmgMult: 1.75, hitChance: 0.75, desc: 'Highest damage in the game. Hard to land.' },
+    solar_plexus: { label: 'Solar Plexus', dmgMult: 1.2,  hitChance: 0.90, desc: 'Good balance of damage and accuracy.' },
+    stomach:      { label: 'Stomach',      dmgMult: 1.1,  hitChance: 0.95, desc: 'Safe and reliable with solid damage.' },
+    left_arm:     { label: 'Left Arm',     dmgMult: 0.8,  hitChance: 1.10, desc: 'Low damage but very accurate. Beats most guards.' },
+    right_arm:    { label: 'Right Arm',    dmgMult: 0.8,  hitChance: 1.10, desc: 'Mirror of left arm. Consistent and safe.' },
+    left_leg:     { label: 'Left Leg',     dmgMult: 0.7,  hitChance: 1.25, desc: 'Nearly guaranteed to connect. Counters turtling.' },
+    right_leg:    { label: 'Right Leg',    dmgMult: 0.7,  hitChance: 1.25, desc: 'Mirror of left leg. Reliable chip damage.' }
 };
 
 const BLOCK_ZONES = {
