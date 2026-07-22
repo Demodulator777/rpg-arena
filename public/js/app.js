@@ -326,7 +326,7 @@ const STAT_LABELS = {
 };
 
 const STAT_ICON_ASSETS = {
-    dmg_min:'dmg_min', dmg_max:'dmg_max',     armor:'defense', hp_max:'vitality',
+    dmg_min:'strength', dmg_max:'strength', armor:'defense', hp_max:'vitality',
     defense:'defense', strength:'strength', agility:'agility', magic:'magic', vitality:'vitality',
     hit_chance:'accuracy', crit_chance:'critical',
     pyro_dmg:'pyro', water_dmg:'hydro', wind_dmg:'wind', electro_dmg:'electro',
