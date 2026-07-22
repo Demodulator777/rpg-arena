@@ -6294,7 +6294,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
-    const zoneAdjustedHitStat = totalHitStat * hit.hitChance;
+    // Soulcleaver weapon: +5% of hit_chance per round, caps at +25%
+    let soulcleaverBonus = 0;
+    if (attacker.weapon?.id === 'marsh_reaper_weapon') {
+        const pct = Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
+        soulcleaverBonus = Math.floor(totalHitStat * pct);
+    }
+    const zoneAdjustedHitStat = (totalHitStat + soulcleaverBonus) * hit.hitChance;
     let atkHitChance = Math.max(0, Math.min(1.0, (zoneAdjustedHitStat - defAgi + 100) / 100));
     if (atkPenalty) atkHitChance = Math.max(0, atkHitChance * 0.85);
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
