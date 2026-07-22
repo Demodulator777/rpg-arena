@@ -315,15 +315,32 @@ const STAT_LABELS = {
     vitality:       '❤️ Vitality',
     hit_chance:     '🎯 Hit Chance',
     crit_chance:    '💥 Crit Chance',
-    pyro_dmg:       '🔥 Fire Dmg',
-    water_dmg:      '💧 Water Dmg',
-    wind_dmg:       '🌀 Wind Dmg',
-    electro_dmg:    '⚡ Electro Dmg',
-    pyro_resist:    '🔥 Fire Resist',
-    water_resist:   '💧 Water Resist',
-    wind_resist:    '🌀 Wind Resist',
-    electro_resist: '⚡ Electro Resist',
+    pyro_dmg:       'Fire Dmg',
+    water_dmg:      'Water Dmg',
+    wind_dmg:       'Wind Dmg',
+    electro_dmg:    'Electro Dmg',
+    pyro_resist:    'Fire Resist',
+    water_resist:   'Water Resist',
+    wind_resist:    'Wind Resist',
+    electro_resist: 'Electro Resist',
 };
+
+const STAT_ICON_ASSETS = {
+    dmg_min:'dmg_min', dmg_max:'dmg_max', armor:'armor', hp_max:'hp_max',
+    defense:'defense', strength:'strength', agility:'agility', magic:'magic', vitality:'vitality',
+    hit_chance:'hit_chance', crit_chance:'crit_chance',
+    pyro_dmg:'pyro', water_dmg:'hydro', wind_dmg:'wind', electro_dmg:'electro',
+    pyro_resist:'pyro', water_resist:'hydro', wind_resist:'wind', electro_resist:'electro',
+};
+
+function statLabelHtml(stat) {
+    var asset = STAT_ICON_ASSETS[stat];
+    if (asset) {
+        var label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="lazy" decoding="async" data-error-hide="true" style="width:16px;height:16px;vertical-align:middle;margin-right:3px"> ' + label;
+    }
+    return STAT_LABELS[stat] || stat.replace(/_/g,' ');
+}
 
 // ── Hit & Block Zone Definitions ──────────────────────────────────────────
 const HIT_ZONES = {
@@ -6119,7 +6136,7 @@ function showItemTooltip(event, itemId) {
         const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
-        const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        const label = statLabelHtml(stat);
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
@@ -6274,7 +6291,7 @@ function showItemTooltip(event, itemId) {
         const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
-        const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        const label = statLabelHtml(stat);
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
@@ -6337,7 +6354,7 @@ function showEqTooltip(event, itemJson) {
         .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
         .filter(([,v]) => typeof v === 'number' && v !== 0)
         .map(([k,v]) => {
-            const label = STAT_LABELS[k] || k.replace(/_/g,' ');
+            const label = statLabelHtml(k);
             const total = v + (item.wp_stats?.[k] || 0);
             return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${total>0?'#2ecc71':'#e74c3c'}">${total>0?'+':''}${total}</span></div>`;
         }).join('');
@@ -6400,7 +6417,7 @@ function showForgeItemTooltip(event, itemJson) {
             const diff = nv - ov;
             const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
             const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
-            const label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
+        const label = statLabelHtml(stat);
             return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv > 0 ? '+' : ''}${nv}</span>${equippedItem && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
         }).join('');
 
@@ -7648,7 +7665,7 @@ function renderShop() {
             .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
             .filter(([,v]) => typeof v === 'number' && v !== 0)
             .map(([k,v]) => {
-                const label = STAT_LABELS[k] || k.replace(/_/g,' ');
+                const label = statLabelHtml(k);
                 return `<div class="shop-card-stat"><span class="shop-card-stat-label">${label}</span><span class="shop-card-stat-value ${v>0?'positive':'negative'}">${v>0?'+':''}${v}</span></div>`;
             }).join('') : '';
 
@@ -11603,7 +11620,7 @@ function showShopItemTooltip(event, itemJson) {
 
         const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
         const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
-        const label = STAT_LABELS[stat] || stat.replace(/_/g, ' ');
+        const label = statLabelHtml(stat);
 
         statsHtml += `
             <div class="tt-stat">
