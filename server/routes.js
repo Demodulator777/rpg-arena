@@ -12285,7 +12285,8 @@ function scaleItemToLevel(recipe, playerLevel) {
         } else if (stat === 'hit_chance') {
             scaledValue = Math.floor(value * level / 100);
         } else if (stat === 'crit_chance') {
-            scaledValue = Math.floor(value * level / 100);
+            scaledValue = Math.floor(value + (level * 0.15 * qualityScale));
+            scaledValue = Math.min(Math.floor(level / 2), scaledValue);
         } else if (stat.includes('_dmg')) {
             scaledValue = Math.floor(value + (level * 0.24 * qualityScale));
             scaledValue = Math.min(Math.max(70, Math.floor(level * 0.6)), scaledValue);
