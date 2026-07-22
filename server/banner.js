@@ -22,7 +22,7 @@ function scaleItemToLevel(recipe, playerLevel) {
         else if (stat === 'defense') v = Math.min(140, Math.floor(value + level * 0.68 * qualityScale));
         else if (stat === 'armor') v = Math.min(70, Math.floor(value + level * 0.42 * qualityScale));
         else if (stat === 'hit_chance') v = Math.floor(value * level / 100);
-        else if (stat === 'crit_chance') v = Math.floor(value * level / 100);
+        else if (stat === 'crit_chance') v = Math.min(15, Math.floor(value + level * 0.05 * qualityScale));
         else if (stat === 'hp_max') v = Math.min(300, Math.floor(value + level * 0.50 * qualityScale));
         else if (stat === 'block_chance') v = Math.min(20, Math.floor(value + level * 0.06 * qualityScale));
         else if (stat.endsWith('_resist')) v = Math.min(80, Math.floor(value + level * 0.10 * qualityScale));
