@@ -306,15 +306,15 @@ async function loadAbyssData() {
 const STAT_LABELS = {
     dmg_min:        'Min Dmg',
     dmg_max:        'Max Dmg',
-    armor:          '🛡 Armor',
-    hp_max:         '❤️ HP',
-    defense:        '🛡️ Defense',
-    strength:       '💪 Strength',
-    agility:        '⚡ Agility',
-    magic:          '✨ Magic',
-    vitality:       '❤️ Vitality',
-    hit_chance:     '🎯 Hit Chance',
-    crit_chance:    '💥 Crit Chance',
+    armor:          'Armor',
+    hp_max:         'HP',
+    defense:        'Defense',
+    strength:       'Strength',
+    agility:        'Agility',
+    magic:          'Magic',
+    vitality:       'Vitality',
+    hit_chance:     'Hit Chance',
+    crit_chance:    'Crit Chance',
     pyro_dmg:       'Fire Dmg',
     water_dmg:      'Water Dmg',
     wind_dmg:       'Wind Dmg',
@@ -6227,10 +6227,10 @@ function hoverElemTooltip(el, event) {
             <div class="tt-name" style="color:#a855f7">${escHtml(d.name)}</div>
             <div class="tt-meta">${elEmoji} ${d.element} · Lv.${d.level}</div>
             <div class="tt-stats">
-                <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.strength}</span><span class="tt-stat-val">${d.str}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.defense}</span><span class="tt-stat-val">${d.def}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.magic}</span><span class="tt-stat-val">${d.mag}</span></div>
-                <div class="tt-stat"><span class="tt-stat-name">${STAT_LABELS.vitality}</span><span class="tt-stat-val">${d.vit}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">${statLabelHtml('strength')}</span><span class="tt-stat-val">${d.str}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">${statLabelHtml('defense')}</span><span class="tt-stat-val">${d.def}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">${statLabelHtml('magic')}</span><span class="tt-stat-val">${d.mag}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">${statLabelHtml('vitality')}</span><span class="tt-stat-val">${d.vit}</span></div>
             </div>
         </div>`;
     tooltip.classList.remove('hidden');
