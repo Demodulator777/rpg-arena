@@ -6801,9 +6801,15 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const blockFails = rageActive || randomBlockPen;
 
             const elemDmgs = attacker.elem_dmg || {};
+            // Blade of the First Scream: +5% pyro damage per round, cap +25%
+            let firstScreamPyroMult = 1.0;
+            if (attacker.weapon?.id === 'first_scream_weapon') {
+                firstScreamPyroMult = 1.0 + Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
+            }
             for (const elem of ELEMENTS) {
                 let ed = (elemDmgs[elem] || 0) + magicFlatBonus;
                 if (ed <= 0) continue;
+                if (elem === 'pyro') ed = Math.floor(ed * firstScreamPyroMult);
                 ed = Math.floor(ed * magicElemMult);
                 if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
                     const critElemMult = magicToElemental ? 1.2 : 1.1;
