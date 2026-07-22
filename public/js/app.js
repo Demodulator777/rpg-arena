@@ -328,7 +328,7 @@ const STAT_LABELS = {
 const STAT_ICON_ASSETS = {
     dmg_min:'dmg_min', dmg_max:'dmg_max', armor:'armor', hp_max:'hp_max',
     defense:'defense', strength:'strength', agility:'agility', magic:'magic', vitality:'vitality',
-    hit_chance:'hit_chance', crit_chance:'crit_chance',
+    hit_chance:'accuracy', crit_chance:'critical',
     pyro_dmg:'pyro', water_dmg:'hydro', wind_dmg:'wind', electro_dmg:'electro',
     pyro_resist:'pyro', water_resist:'hydro', wind_resist:'wind', electro_resist:'electro',
 };
