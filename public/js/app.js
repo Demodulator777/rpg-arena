@@ -337,7 +337,7 @@ function statLabelHtml(stat) {
     var asset = STAT_ICON_ASSETS[stat];
     if (asset) {
         var label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
-        return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="lazy" decoding="async" data-error-hide="true" style="width:16px;height:16px;vertical-align:middle;margin-right:3px"> ' + label;
+        return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="lazy" decoding="async" data-error-hide="true" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;display:inline-block"> ' + label;
     }
     return STAT_LABELS[stat] || stat.replace(/_/g,' ');
 }
