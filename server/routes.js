@@ -6460,6 +6460,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         attacker.rageReady = false;
         attacker.rageHits = 0;
         atkHitChance = Math.min(1.0, atkHitChance * 1.5);
+        atkBonusDmg *= 1.25;
     }
 
     // Paladin Holy Strike "burst": when your force field shatters, your next hit gains 2× hit chance
