@@ -1380,16 +1380,16 @@ console.log('Keys:', Object.keys(COMPONENT_UPGRADE_VALUES || {}));
 
 // ── Zone-based battle constants ───────────────────────────────────────────
 const HIT_ZONES = {
-    head:         { dmgMult: 1.50, hitChance: 0.60 },
-    throat:       { dmgMult: 1.30, hitChance: 0.65 },
-    chest:        { dmgMult: 1.00, hitChance: 0.85 },
-    heart:        { dmgMult: 1.75, hitChance: 0.45 },
-    solar_plexus: { dmgMult: 1.20, hitChance: 0.75 },
-    stomach:      { dmgMult: 1.10, hitChance: 0.80 },
-    left_arm:     { dmgMult: 0.80, hitChance: 0.90 },
-    right_arm:    { dmgMult: 0.80, hitChance: 0.90 },
-    left_leg:     { dmgMult: 0.70, hitChance: 0.92 },
-    right_leg:    { dmgMult: 0.70, hitChance: 0.92 },
+    head:         { dmgMult: 1.50, hitChance: 0.80 },
+    throat:       { dmgMult: 1.30, hitChance: 0.85 },
+    chest:        { dmgMult: 1.00, hitChance: 1.00 },
+    heart:        { dmgMult: 1.75, hitChance: 0.75 },
+    solar_plexus: { dmgMult: 1.20, hitChance: 0.90 },
+    stomach:      { dmgMult: 1.10, hitChance: 0.95 },
+    left_arm:     { dmgMult: 0.80, hitChance: 1.10 },
+    right_arm:    { dmgMult: 0.80, hitChance: 1.10 },
+    left_leg:     { dmgMult: 0.70, hitChance: 1.25 },
+    right_leg:    { dmgMult: 0.70, hitChance: 1.25 },
 };
 const BLOCK_ZONES = {
     high_guard:    { protects: ['head','throat'],           reduction: 0.85 },
