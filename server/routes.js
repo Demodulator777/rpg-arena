@@ -6292,6 +6292,21 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (bad) physicalDamagePenalty = 0.60;
     }
 
+    // Fang of the Worldpyre: consume 50 agility per round, +5 pyro per 50 consumed (max +50)
+    if (attacker.weapon?.id === 'wyrmflame_weapon') {
+        const consume = Math.min(50, Math.max(0, attacker.agility || 0));
+        if (consume > 0) {
+            attacker.agility = (attacker.agility || 0) - consume;
+            attacker._wyrmflamePyroBonus = Math.min(50, (attacker._wyrmflamePyroBonus || 0) + 5);
+        }
+    }
+    if (defender.weapon?.id === 'wyrmflame_weapon') {
+        const consume = Math.min(50, Math.max(0, defender.agility || 0));
+        if (consume > 0) {
+            defender.agility = (defender.agility || 0) - consume;
+            defender._wyrmflamePyroBonus = Math.min(50, (defender._wyrmflamePyroBonus || 0) + 5);
+        }
+    }
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
     // Soulcleaver weapon: +5% of hit_chance per round, caps at +25%
@@ -6810,6 +6825,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 let ed = (elemDmgs[elem] || 0) + magicFlatBonus;
                 if (ed <= 0) continue;
                 if (elem === 'pyro') ed = Math.floor(ed * firstScreamPyroMult);
+                // Fang of the Worldpyre: flat pyro damage bonus
+                if (elem === 'pyro' && attacker._wyrmflamePyroBonus) {
+                    ed += attacker._wyrmflamePyroBonus;
+                }
                 ed = Math.floor(ed * magicElemMult);
                 if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
                     const critElemMult = magicToElemental ? 1.2 : 1.1;
