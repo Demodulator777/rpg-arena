@@ -18558,6 +18558,11 @@ function generateLootFromBox(boxType, playerLevel) {
             const item = generateBackendRandomItem(playerLevel, randomType, 'legendary');
             if (item) {
                 item.desc = `✨ Guaranteed Mythic Item: ${item.desc}`;
+                item.type = 'equipment';
+                item.source = 'lootbox';
+                item.sell_price_cap = 1000;
+                item.stackable = false;
+                item.qty = 1;
                 result.items.push(item);
             }
         }
@@ -18613,9 +18618,10 @@ function generateLootFromBox(boxType, playerLevel) {
             }
 
             if (selectedQuality) {
-                const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
-                const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-                const item = generateBackendRandomItem(playerLevel, randomType);
+            const itemTypes = Object.keys(ITEM_GENERATORS);
+            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            const item = generateBackendRandomItem(playerLevel, randomType);
+            if (item) {
                 item.quality = selectedQuality;
                 item.desc = `✨ ${item.desc}`;
                 result.items.push({
@@ -18626,6 +18632,7 @@ function generateLootFromBox(boxType, playerLevel) {
                     stackable: false,
                     qty: 1
                 });
+            }
             } else {
                 result.items.push(createMaterialDrop());
             }
@@ -18635,22 +18642,24 @@ function generateLootFromBox(boxType, playerLevel) {
     if (boxType === 'legendary') {
         const hasLegendary = result.items.some(item => item.quality === 'legendary');
         if (!hasLegendary) {
-            const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+            const itemTypes = Object.keys(ITEM_GENERATORS);
             const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
             const legendaryItem = generateBackendRandomItem(playerLevel, randomType);
-            legendaryItem.quality = 'legendary';
-            legendaryItem.desc = `👑 ${legendaryItem.desc}`;
+            if (legendaryItem) {
+                legendaryItem.quality = 'legendary';
+                legendaryItem.desc = `👑 ${legendaryItem.desc}`;
 
-            const index = result.items.findIndex(i => i.quality !== 'legendary');
-            if (index !== -1) {
-                result.items[index] = {
-                    ...legendaryItem,
-                    type: 'equipment',
-                    source: 'lootbox',
-                    sell_price_cap: 1000,
-                    stackable: false,
-                    qty: 1
-                };
+                const index = result.items.findIndex(i => i.quality !== 'legendary');
+                if (index !== -1) {
+                    result.items[index] = {
+                        ...legendaryItem,
+                        type: 'equipment',
+                        source: 'lootbox',
+                        sell_price_cap: 1000,
+                        stackable: false,
+                        qty: 1
+                    };
+                }
             }
         }
     }
