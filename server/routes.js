@@ -6292,12 +6292,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (bad) physicalDamagePenalty = 0.60;
     }
 
-    // Fang of the Worldpyre: consume 50 agility per round, +5 pyro per 50 consumed (max +50)
+    // Fang of the Worldpyre: consume 50 agility per round, +5 pyro/dmg_max per 50 consumed (max +50)
     if (attacker.weapon?.id === 'wyrmflame_weapon') {
         const consume = Math.min(50, Math.max(0, attacker.agility || 0));
         if (consume > 0) {
             attacker.agility = (attacker.agility || 0) - consume;
             attacker._wyrmflamePyroBonus = Math.min(50, (attacker._wyrmflamePyroBonus || 0) + 5);
+            attacker._wyrmflameDmgBonus = Math.min(50, (attacker._wyrmflameDmgBonus || 0) + 5);
         }
     }
     if (defender.weapon?.id === 'wyrmflame_weapon') {
@@ -6305,6 +6306,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (consume > 0) {
             defender.agility = (defender.agility || 0) - consume;
             defender._wyrmflamePyroBonus = Math.min(50, (defender._wyrmflamePyroBonus || 0) + 5);
+            defender._wyrmflameDmgBonus = Math.min(50, (defender._wyrmflameDmgBonus || 0) + 5);
         }
     }
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
@@ -6786,7 +6788,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         }
 
         const dmgMinConfigured = Number(attacker.dmgMin || 0);
-        const dmgMaxConfigured = Number(attacker.dmgMax || 0);
+        const dmgMaxConfigured = Number(attacker.dmgMax || 0) + (attacker._wyrmflameDmgBonus || 0);
         // Zone multiplier with variance:
         //   dmgMult < 1 (penalty zones): effective mult ranges from dmgMult up to 1.0
         //   dmgMult >= 1 (bonus zones): ±0.1 variance around multiplier
