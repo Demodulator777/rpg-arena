@@ -18553,17 +18553,21 @@ function generateLootFromBox(boxType, playerLevel) {
         
         // Guarantee one crafted item for Mythic
         if (boxType === 'mythic') {
-            const itemTypes = Object.keys(ITEM_GENERATORS);
-            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-            const item = generateBackendRandomItem(playerLevel, randomType, 'legendary');
-            if (item) {
-                item.desc = `✨ Guaranteed Mythic Item: ${item.desc}`;
-                item.type = 'equipment';
-                item.source = 'lootbox';
-                item.sell_price_cap = 1000;
-                item.stackable = false;
-                item.qty = 1;
-                result.items.push(item);
+            const craftable = EQUIPMENT_RECIPES.filter(r => !r.bannerOnly);
+            const recipe = craftable[Math.floor(Math.random() * craftable.length)];
+            if (recipe) {
+                const scaled = scaleItemToLevel(recipe, playerLevel);
+                result.items.push({
+                    ...scaled,
+                    id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+                    type: 'equipment',
+                    source: 'crafted_drop',
+                    sell_price_cap: 1000,
+                    stackable: false,
+                    qty: 1,
+                    img: null,
+                    desc: `🏭 Mythic Crafted: ${scaled.desc || recipe.desc || ''}`
+                });
             }
         }
 
