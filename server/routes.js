@@ -18553,11 +18553,13 @@ function generateLootFromBox(boxType, playerLevel) {
         
         // Guarantee one crafted item for Mythic
         if (boxType === 'mythic') {
-            const itemTypes = ['weapon', 'armor', 'helmet', 'shield', 'boots', 'ring', 'amulet', 'accessory'];
+            const itemTypes = Object.keys(ITEM_GENERATORS);
             const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
             const item = generateBackendRandomItem(playerLevel, randomType, 'legendary');
-            item.desc = `✨ Guaranteed Mythic Item: ${item.desc}`;
-            result.items.push(item);
+            if (item) {
+                item.desc = `✨ Guaranteed Mythic Item: ${item.desc}`;
+                result.items.push(item);
+            }
         }
 
         const createMaterialDrop = () => {
