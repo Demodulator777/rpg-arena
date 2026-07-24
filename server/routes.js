@@ -6309,6 +6309,29 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             defender._wyrmflameDmgBonus = Math.min(50, (defender._wyrmflameDmgBonus || 0) + 5);
         }
     }
+    // Abyssal Blade: consume 50 crit chance per round, +5 dmg_min / +5 all resists per 50 consumed
+    if (attacker.weapon?.id === 'abyssal_weapon') {
+        const consume = Math.min(50, Math.max(0, attacker.crit_chance || 0));
+        if (consume > 0) {
+            attacker.crit_chance = (attacker.crit_chance || 0) - consume;
+            attacker._abyssalDmgBonus = Math.min(50, (attacker._abyssalDmgBonus || 0) + 5);
+            for (const elem of ['pyro','water','wind','electro']) {
+                if (!attacker.elem_resist) attacker.elem_resist = {};
+                attacker.elem_resist[elem] = (attacker.elem_resist[elem] || 0) + 5;
+            }
+        }
+    }
+    if (defender.weapon?.id === 'abyssal_weapon') {
+        const consume = Math.min(50, Math.max(0, defender.crit_chance || 0));
+        if (consume > 0) {
+            defender.crit_chance = (defender.crit_chance || 0) - consume;
+            defender._abyssalDmgBonus = Math.min(50, (defender._abyssalDmgBonus || 0) + 5);
+            for (const elem of ['pyro','water','wind','electro']) {
+                if (!defender.elem_resist) defender.elem_resist = {};
+                defender.elem_resist[elem] = (defender.elem_resist[elem] || 0) + 5;
+            }
+        }
+    }
     const defAgi = (defender.agility || 0) * (1 + (defender.agility_bonus || 0));
     const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
     // Soulcleaver weapon: +5% of hit_chance per round, caps at +25%
@@ -6787,7 +6810,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             totalElemDmg = 0;
         }
 
-        const dmgMinConfigured = Number(attacker.dmgMin || 0);
+        const dmgMinConfigured = Number(attacker.dmgMin || 0) + (attacker._abyssalDmgBonus || 0);
         const dmgMaxConfigured = Number(attacker.dmgMax || 0) + (attacker._wyrmflameDmgBonus || 0);
         // Zone multiplier with variance:
         //   dmgMult < 1 (penalty zones): effective mult ranges from dmgMult up to 1.0
