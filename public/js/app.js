@@ -5765,7 +5765,7 @@ function renderGearGrid(el, gear, equipped) {
         const sellPrice = getInventorySellPrice(d);
 
         return `
-        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc} ${isSelected ? 'inv-item-selected' : ''}" style="position:relative;${invBulkMode ? 'cursor:pointer' : ''}" ${invBulkMode ? `onclick="toggleInvBulkSelect(${i.id}, '${escHtml(d.name || '')}', ${sellPrice})"` : ''} ${!invBulkMode ? actionAttrs('openItemTooltip', i.id) : ''}>
+        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc} ${isSelected ? 'inv-item-selected' : ''}" style="position:relative;${invBulkMode ? 'cursor:pointer' : ''}" ${invBulkMode ? actionAttrs('toggleInvBulkSelect', i.id, d.name || '', sellPrice) : ''} ${!invBulkMode ? actionAttrs('openItemTooltip', i.id) : ''}>
             ${invBulkMode ? `<div class="inv-bulk-check" style="position:absolute;top:4px;left:4px;z-index:2;width:20px;height:20px;border-radius:50%;background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.15)'};border:2px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.3)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${isSelected ? '✓' : ''}</div>` : ''}
             <div class="inv-item-icon" 
                  data-hover-action="hoverItemTooltip" data-args='[${i.id}]'
@@ -5857,7 +5857,7 @@ function renderInventory(data) {
     // Bulk sell mode bar
     const bulkBar = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:6px 10px;background:rgba(201,146,42,0.06);border:1px solid rgba(201,146,42,0.15);border-radius:var(--radius-sm)">' +
         '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;user-select:none">' +
-        `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} onchange="toggleInvBulkMode(this.checked)"> Bulk Sell</label>` +
+        `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} data-change-action="toggleInvBulkMode"> Bulk Sell</label>` +
         (invBulkMode ? '<span style="font-size:0.75rem;color:var(--text-dim)">Click items to mark for sale</span>' : '') +
         (invBulkMode && Object.keys(invBulkSelected).length > 0
             ? `<span style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold)">${Object.keys(invBulkSelected).length} selected</span>` +
@@ -7325,7 +7325,10 @@ async function sellItem(invId, name, price) {
     catch(e) { showMsg('inv-msg',e.message,true); }
 }
 
-function toggleInvBulkMode(enabled) {
+function toggleInvBulkMode(enabled, el) {
+    if (typeof enabled === 'object' && enabled?.checked !== undefined) {
+        enabled = enabled.checked;
+    }
     invBulkMode = enabled;
     if (!enabled) invBulkSelected = {};
     loadInventory();
