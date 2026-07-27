@@ -8920,7 +8920,7 @@ function renderLeaderboard() {
     const pageNav = totalPages > 1 ? buildLbPageNav(lbPage, totalPages) : '';
     const pageNavCompact = totalPages > 1 ? buildLbPageNav(lbPage, totalPages, true) : '';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
-        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative"><div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div></div><div class="lb-stats" style="margin-left:auto"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div><div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none">' + pageNavCompact.replace(/<button /g, '<button style="pointer-events:auto" ') + '</div></div>' +
+        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none"><div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div></div><div class="lb-stats" style="margin-left:auto"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div><div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none">' + pageNavCompact.replace(/<button /g, '<button style="pointer-events:auto" ') + '</div></div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
         pageNav;
 }
