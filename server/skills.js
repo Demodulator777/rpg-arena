@@ -1422,8 +1422,8 @@ const SKILL_TREES = {
                     holy_strike: {
                         id: 'holy_strike', tier: 2, name: 'Holy Strike', emoji: '⚡',
                         type: 'progressive',
-                        desc: '+25% damage. Heal 12% of damage dealt.',
-                        effects: [{ type: 'active_combat', id: 'holy_strike', dmg_bonus: 0.25, heal_pct: 0.12 }],
+                        desc: '+25% damage. Heal 4% of damage dealt.',
+                        effects: [{ type: 'active_combat', id: 'holy_strike', dmg_bonus: 0.25, heal_pct: 0.04 }],
                         requires: ['divine_favor'],
                         unlockCondition: null,
                         thresholds: PALADIN_THRESHOLDS.tier2,
@@ -1431,8 +1431,8 @@ const SKILL_TREES = {
                     consecrate: {
                         id: 'consecrate', tier: 3, name: 'Consecrate', emoji: '🌿',
                         type: 'progressive',
-                        desc: 'Reflect 25% of damage received.',
-                        effects: [{ type: 'active_combat', id: 'consecrate', reflect_pct: 0.25 }],
+                        desc: 'Reflect 10% of damage received.',
+                        effects: [{ type: 'active_combat', id: 'consecrate', reflect_pct: 0.10 }],
                         requires: ['holy_strike'],
                         unlockCondition: 'wins_20',
                         thresholds: PALADIN_THRESHOLDS.tier3,
@@ -1449,12 +1449,12 @@ const SKILL_TREES = {
                     avatar_of_justice: {
                         id: 'avatar_of_justice', tier: 5, name: 'Avatar of Justice', emoji: '☀️',
                         type: 'progressive',
-                        desc: '+20% Magic, +15% Defense. Reflect 35% damage. Heal 6% per round.',
+                        desc: '+20% Magic, +15% Defense. Reflect 25% damage. Heal 4% per round.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.20 },
                             { type: 'passive_pct', stat: 'defense', value: 0.15 },
-                            { type: 'active_combat', id: 'consecrate', reflect_pct: 0.35 },
-                            { type: 'active_combat', id: 'holy_regen', heal_pct_per_round: 0.06 }
+                            { type: 'active_combat', id: 'consecrate', reflect_pct: 0.25 },
+                            { type: 'active_combat', id: 'holy_regen', heal_pct_per_round: 0.04 }
                         ],
                         requires: ['divine_judgment'],
                         unlockCondition: 'level_35',
@@ -1463,12 +1463,12 @@ const SKILL_TREES = {
                     divine_wrath: {
                         id: 'divine_wrath', tier: 5, name: 'Divine Wrath', emoji: '☀️⚡',
                         type: 'progressive',
-                        desc: '+30% Magic, +20% Defense. Divine Judgment can be used twice. Reflect 45% damage.',
+                        desc: '+30% Magic, +20% Defense. Divine Judgment can be used twice. Reflect 25% damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.30 },
                             { type: 'passive_pct', stat: 'defense', value: 0.20 },
                             { type: 'active_combat', id: 'divine_judgment', defense_mult: 3.0, ignore_armour: true, uses: 2 },
-                            { type: 'active_combat', id: 'consecrate', reflect_pct: 0.45 }
+                            { type: 'active_combat', id: 'consecrate', reflect_pct: 0.25 }
                         ],
                         requires: ['avatar_of_justice'],
                         unlockCondition: 'level_60',
