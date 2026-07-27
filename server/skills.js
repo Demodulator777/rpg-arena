@@ -1167,10 +1167,9 @@ const SKILL_TREES = {
                     nightfall: {
                         id: 'nightfall', tier: 3, name: 'Nightfall', emoji: '🌒',
                         type: 'progressive',
-                        desc: '+18% Wind Damage. Reduce enemy hit chance by 20%.',
+                        desc: '+18% Wind Damage.',
                         effects: [
-                            { type: 'passive_pct', stat: 'wind_dmg', value: 0.18 },
-                            { type: 'active_combat', id: 'darkness_debuff', enemy_hit_debuff: 0.20 }
+                            { type: 'passive_pct', stat: 'wind_dmg', value: 0.18 }
                         ],
                         requires: ['shadow_coat'],
                         unlockCondition: 'level_10',
@@ -1192,7 +1191,7 @@ const SKILL_TREES = {
                         effects: [
                             { type: 'passive_pct', stat: 'wind_dmg', value: 0.25 },
                             { type: 'passive_pct', stat: 'agility', value: 0.15 },
-                            { type: 'active_combat', id: 'void_blade', proc_chance: 1.00, bonus_from_stat: 'agility', bonus_mult: 1.50, elems: ['electro', 'wind'] }
+                            { type: 'active_combat', id: 'void_blade', proc_chance: 0.45, bonus_from_stat: 'agility', bonus_mult: 1.50, elems: ['electro', 'wind'] }
                         ],
                         requires: ['void_blade'],
                         unlockCondition: 'level_50',
@@ -1201,11 +1200,10 @@ const SKILL_TREES = {
                     shadow_incarnate: {
                         id: 'shadow_incarnate', tier: 5, name: 'Shadow Incarnate', emoji: '🌑✨',
                         type: 'progressive',
-                        desc: '+35% Wind Damage, +20% Agility. Darkness debuff reduces hit chance by 35%.',
+                        desc: '+35% Wind Damage, +20% Agility.',
                         effects: [
                             { type: 'passive_pct', stat: 'wind_dmg', value: 0.35 },
-                            { type: 'passive_pct', stat: 'agility', value: 0.20 },
-                            { type: 'active_combat', id: 'darkness_debuff', enemy_hit_debuff: 0.35 }
+                            { type: 'passive_pct', stat: 'agility', value: 0.20 }
                         ],
                         requires: ['shadow_master'],
                         unlockCondition: 'level_60',
