@@ -5859,10 +5859,12 @@ function renderInventory(data) {
         '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;user-select:none">' +
         `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} data-change-action="toggleInvBulkMode"> Bulk Sell</label>` +
         (invBulkMode ? '<span style="font-size:0.75rem;color:var(--text-dim)">Click items to mark for sale</span>' : '') +
-        (invBulkMode && Object.keys(invBulkSelected).length > 0
-            ? `<span data-bulk-count style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold)">${Object.keys(invBulkSelected).length} selected</span>` +
-              `<button class="btn-sm danger" ${actionAttrs('sellBulkSelected')}>Sell (${Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0).toLocaleString()}g)</button>`
-            : '') +
+        `<span data-bulk-count style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold);display:${invBulkMode && Object.keys(invBulkSelected).length > 0 ? 'inline' : 'none'}">` +
+            (Object.keys(invBulkSelected).length > 0 ? `${Object.keys(invBulkSelected).length} selected` : '') +
+        `</span>` +
+        `<button class="btn-sm danger" style="display:${invBulkMode && Object.keys(invBulkSelected).length > 0 ? 'inline-block' : 'none'}" data-action="sellBulkSelected">` +
+            (Object.keys(invBulkSelected).length > 0 ? `Sell (${Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0).toLocaleString()}g)` : '') +
+        `</button>` +
         '</div>';
 
     function getSlot(i) {
@@ -7362,10 +7364,20 @@ function toggleInvBulkSelect(invId, name, price, el) {
             const countEl = bulkBar.querySelector('[data-bulk-count]');
             const sellBtn = bulkBar.querySelector('[data-action="sellBulkSelected"]');
             const selected = Object.keys(invBulkSelected);
-            if (countEl) countEl.textContent = selected.length ? `${selected.length} selected` : '';
+            const hasSelection = selected.length > 0;
+            if (countEl) {
+                countEl.textContent = hasSelection ? `${selected.length} selected` : '';
+                countEl.style.display = hasSelection ? 'inline' : 'none';
+            }
             if (sellBtn) {
-                const total = Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0);
-                sellBtn.textContent = selected.length ? `Sell (${total.toLocaleString()}g)` : '';
+                if (hasSelection) {
+                    const total = Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0);
+                    sellBtn.textContent = `Sell (${total.toLocaleString()}g)`;
+                    sellBtn.style.display = 'inline-block';
+                } else {
+                    sellBtn.textContent = '';
+                    sellBtn.style.display = 'none';
+                }
             }
         }
     }
