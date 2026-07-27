@@ -5855,12 +5855,12 @@ function renderInventory(data) {
     const el = document.getElementById('inventory-content');
 
     // Bulk sell mode bar
-    const bulkBar = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:6px 10px;background:rgba(201,146,42,0.06);border:1px solid rgba(201,146,42,0.15);border-radius:var(--radius-sm)">' +
+    const bulkBar = '<div data-bulk-bar style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:6px 10px;background:rgba(201,146,42,0.06);border:1px solid rgba(201,146,42,0.15);border-radius:var(--radius-sm)">' +
         '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;user-select:none">' +
         `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} data-change-action="toggleInvBulkMode"> Bulk Sell</label>` +
         (invBulkMode ? '<span style="font-size:0.75rem;color:var(--text-dim)">Click items to mark for sale</span>' : '') +
         (invBulkMode && Object.keys(invBulkSelected).length > 0
-            ? `<span style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold)">${Object.keys(invBulkSelected).length} selected</span>` +
+            ? `<span data-bulk-count style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold)">${Object.keys(invBulkSelected).length} selected</span>` +
               `<button class="btn-sm danger" ${actionAttrs('sellBulkSelected')}>Sell (${Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0).toLocaleString()}g)</button>`
             : '') +
         '</div>';
@@ -7334,13 +7334,41 @@ function toggleInvBulkMode(enabled, el) {
     loadInventory();
 }
 
-function toggleInvBulkSelect(invId, name, price) {
-    if (invBulkSelected[invId]) {
+function toggleInvBulkSelect(invId, name, price, el) {
+    const wasSelected = !!invBulkSelected[invId];
+    if (wasSelected) {
         delete invBulkSelected[invId];
     } else {
         invBulkSelected[invId] = { name, price };
     }
-    loadInventory();
+
+    // Update clicked element visuals directly (no full reload)
+    if (el && el.classList) {
+        el.classList.toggle('inv-item-selected');
+        const check = el.querySelector('.inv-bulk-check');
+        if (check) {
+            const isSelected = !wasSelected;
+            check.style.background = isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.15)';
+            check.style.borderColor = isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.3)';
+            check.textContent = isSelected ? '✓' : '';
+        }
+    }
+
+    // Update bulk bar text (count + total gold) without re-render
+    const invContainer = el?.closest('#tab-inventory') || document.querySelector('#tab-inventory');
+    if (invContainer) {
+        const bulkBar = invContainer.querySelector('[data-bulk-bar]');
+        if (bulkBar) {
+            const countEl = bulkBar.querySelector('[data-bulk-count]');
+            const sellBtn = bulkBar.querySelector('[data-action="sellBulkSelected"]');
+            const selected = Object.keys(invBulkSelected);
+            if (countEl) countEl.textContent = selected.length ? `${selected.length} selected` : '';
+            if (sellBtn) {
+                const total = Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0);
+                sellBtn.textContent = selected.length ? `Sell (${total.toLocaleString()}g)` : '';
+            }
+        }
+    }
 }
 
 async function sellBulkSelected() {
