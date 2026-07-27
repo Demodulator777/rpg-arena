@@ -9086,7 +9086,7 @@ function renderLeaderboard() {
         : '';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
         (isMobile ? topNavHtml : '') +
-        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none"><div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div></div><div class="lb-stats" style="margin-left:auto"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
+        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none' + (isMobile ? ';justify-content:center' : '') + '"><div style="display:flex;align-items:center;gap:12px' + (isMobile ? ';display:none' : '') + '"><div></div><div></div><div></div></div><div class="lb-stats" style="' + (isMobile ? 'margin-left:0;width:100%;grid-template-columns:1fr 1fr 1fr' : 'margin-left:auto') + '"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
         pageNav;
 }
