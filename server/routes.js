@@ -6208,13 +6208,32 @@ function getEquippedWeaponData(equippedItems) {
     return null;
 }
 
+function getEquippedShieldData(equippedItems) {
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.slot === 'shield' && data?.rogueOffhand !== true) return data;
+        } catch {}
+    }
+    return null;
+}
+
 // ── Magic Shield & Elemental Damage Functions ─────────────────────────────────
 function calculateMagicShield(attacker, defender) {
     const defenderMagic = defender.magic || 0;
     const attackerMagic = attacker.magic || 0;
 
-    // Warriors and rogues cannot create force fields
-    if (defender.class === 'warrior' || defender.class === 'rogue') {
+    // Rogues cannot create force fields
+    if (defender.class === 'rogue') {
+        return { active: false, value: 0, remaining: 0 };
+    }
+
+    // Warriors: shield from equipped shield armor
+    if (defender.class === 'warrior') {
+        const shieldArmor = defender.shield?.stats?.armor || 0;
+        if (shieldArmor > 0) {
+            return { active: true, value: shieldArmor, remaining: shieldArmor };
+        }
         return { active: false, value: 0, remaining: 0 };
     }
 
@@ -7199,8 +7218,14 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     if (elemA) log.push(`🐉 ${fighterA.name}'s elemental spirit joins the battle!`);
     if (elemB) log.push(`🐉 ${fighterB.name}'s elemental spirit joins the battle!`);
 
-    if (shieldA.active) log.push(`✨ ${fighterA.name}'s magic creates a force field with ${shieldA.value} durability!`);
-    if (shieldB.active) log.push(`✨ ${fighterB.name}'s magic creates a force field with ${shieldB.value} durability!`);
+    if (shieldA.active) {
+        const sourceA = fighterA.class === 'warrior' ? 'shield' : 'magic';
+        log.push(`✨ ${fighterA.name}'s ${sourceA} creates a force field with ${shieldA.value} durability!`);
+    }
+    if (shieldB.active) {
+        const sourceB = fighterB.class === 'warrior' ? 'shield' : 'magic';
+        log.push(`✨ ${fighterB.name}'s ${sourceB} creates a force field with ${shieldB.value} durability!`);
+    }
     log.push('---');
 
     let roundEndedPrematurely = false;
@@ -7208,6 +7233,16 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let roundsCompleted = 0;
 
     for (let round = 1; round <= 10; round++) {
+        // Warrior shield fully refreshes every round (no regen)
+        if (fighterA.class === 'warrior' && shieldA.value > 0) {
+            shieldA.remaining = shieldA.value;
+            shieldA.active = true;
+        }
+        if (fighterB.class === 'warrior' && shieldB.value > 0) {
+            shieldB.remaining = shieldB.value;
+            shieldB.active = true;
+        }
+
         const atkZoneA = fighterA.attackZones[round-1] || 'chest';
         const blkZoneA = fighterA.blockZones[round-1]  || 'cross_guard';
         const atkZoneB = fighterB.attackZones[round-1] || 'chest';
@@ -7890,6 +7925,8 @@ async function buildCombatFighter(db, char) {
         } catch {}
     }
 
+    const shield = getEquippedShieldData(equippedArray);
+
     const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
@@ -7898,6 +7935,7 @@ async function buildCombatFighter(db, char) {
         name: char.name,
         class: char.class,
         weapon: weapon,
+        shield: shield,
         hp: hpCurrent,
         // For battle reports we want to show potential/full HP, not current HP after the fight.
         hpMax,
@@ -11394,11 +11432,13 @@ router.post('/missions/collect', auth, async (req, res) => {
             }
         }
         const playerWeapon = getEquippedWeaponData(equippedArray);
+        const playerShield = getEquippedShieldData(equippedArray);
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
             class: freshChar.class,
             weapon: playerWeapon,
+            shield: playerShield,
             hp: hpCurrent,
             hpMax: hpMax + (skillPassiveBonus(freshChar.vitality || 0, skillPassives.vitality) * 25),
             dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
@@ -13231,8 +13271,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
 
         const setBonusesA = getEquippedSetBonuses(equippedA);
         const weaponA = getEquippedWeaponData(equippedA);
+        const shieldA = getEquippedShieldData(equippedA);
         const fighterA = {
             id: freshA.id, name: freshA.name, class: freshA.class, weapon: weaponA,
+            shield: shieldA,
             hp: hpA,
             hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
             dmgMin: dmgMinA + skillPassiveBonus(dmgMinA, skillPassivesA.dmg_min),
@@ -13270,8 +13312,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
 
         const setBonusesD = getEquippedSetBonuses(equippedD);
         const weaponD = getEquippedWeaponData(equippedD);
+        const shieldD = getEquippedShieldData(equippedD);
         const fighterB = {
             id: freshD.id, name: freshD.name, class: freshD.class, weapon: weaponD,
+            shield: shieldD,
             hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
             dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
@@ -20099,7 +20143,7 @@ module.exports = {
     calcElemAttackValue, calcElemHealValue,
     getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
-    getEquippedSetBonuses, getEquippedWeaponData, skillPassiveBonus,
+    getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
     purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
