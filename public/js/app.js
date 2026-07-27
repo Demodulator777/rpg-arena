@@ -8919,9 +8919,8 @@ function renderLeaderboard() {
     const pageItems = filtered.slice(lbPage * LB_PAGE_SIZE, (lbPage + 1) * LB_PAGE_SIZE);
     const pageNav = totalPages > 1 ? buildLbPageNav(lbPage, totalPages) : '';
     const pageNavCompact = totalPages > 1 ? buildLbPageNav(lbPage, totalPages, true) : '';
-    const headerContent = '<div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div></div>';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
-        '<div class="lb-row lb-header-row" style="display:flex;justify-content:space-between;align-items:center;padding:2px 14px">' + headerContent + pageNavCompact + '</div>' +
+        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px"><div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div></div><div style="flex:1;display:flex;justify-content:center">' + pageNavCompact + '</div></div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
         pageNav;
 }
