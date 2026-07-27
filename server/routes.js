@@ -7231,16 +7231,21 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let roundEndedPrematurely = false;
     let winnerId = null;
     let roundsCompleted = 0;
+    let warriorPrevDmgA = 0, warriorPrevDmgB = 0;
 
     for (let round = 1; round <= 10; round++) {
-        // Warrior shield fully refreshes every round (no regen)
-        if (fighterA.class === 'warrior' && shieldA.value > 0) {
-            shieldA.remaining = shieldA.value;
-            shieldA.active = true;
+        // Warrior shield: base armor + 20% of last round's damage taken, fully refreshed
+        if (fighterA.class === 'warrior') {
+            const baseArmorA = fighterA.shield?.stats?.armor || 0;
+            const carryoverA = Math.floor((warriorPrevDmgA || 0) * 0.2);
+            const totalShieldA = baseArmorA + carryoverA;
+            shieldA = { active: totalShieldA > 0, value: totalShieldA, remaining: totalShieldA };
         }
-        if (fighterB.class === 'warrior' && shieldB.value > 0) {
-            shieldB.remaining = shieldB.value;
-            shieldB.active = true;
+        if (fighterB.class === 'warrior') {
+            const baseArmorB = fighterB.shield?.stats?.armor || 0;
+            const carryoverB = Math.floor((warriorPrevDmgB || 0) * 0.2);
+            const totalShieldB = baseArmorB + carryoverB;
+            shieldB = { active: totalShieldB > 0, value: totalShieldB, remaining: totalShieldB };
         }
 
         const atkZoneA = fighterA.attackZones[round-1] || 'chest';
@@ -7346,6 +7351,10 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         }
 
         fighterA.hp = hpA; fighterB.hp = hpB;
+
+        // Track damage taken by warriors for next round's shield carryover
+        if (fighterA.class === 'warrior') warriorPrevDmgA = dmgToA + elemDmgToA + burnToA;
+        if (fighterB.class === 'warrior') warriorPrevDmgB = dmgToB + elemDmgToB + burnToB;
 
         log.push(resA.logLine);
         log.push(resB.logLine);
