@@ -632,11 +632,11 @@ const SKILL_TREES = {
                     phoenix_soul: {
                         id: 'phoenix_soul', tier: 5, name: 'Phoenix Soul', emoji: '🕊️',
                         type: 'progressive',
-                        desc: '+20% Fire Damage, +20% Max HP. Heal 8% HP whenever Inferno is cast.',
+                        desc: '+20% Fire Damage, +20% Max HP. Heal 4% HP whenever Inferno is cast.',
                         effects: [
                             { type: 'passive_pct', stat: 'pyro_dmg', value: 0.20 },
                             { type: 'passive_pct', stat: 'hp_max', value: 0.20 },
-                            { type: 'active_combat', id: 'phoenix_soul', heal_pct: 0.08 }
+                            { type: 'active_combat', id: 'phoenix_soul', heal_pct: 0.04 }
                         ],
                         requires: ['inferno'],
                         unlockCondition: 'level_35',
