@@ -7355,23 +7355,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             }
             roundEndedPrematurely = true;
             if (hpA <= 0 && hpB <= 0) {
-                if (totalDmgToB === totalDmgToA) {
-                    const tieA = hasClassModifier(fighterB, 'tie_breaker');
-                    const tieB = hasClassModifier(fighterA, 'tie_breaker');
-                    if (tieA) {
-                        log.push(`Round ${round}: Both fighters fall — but ${fighterA.name} breaks the tie!`);
-                        winnerId = fighterA.id;
-                    } else if (tieB) {
-                        log.push(`Round ${round}: Both fighters fall — but ${fighterB.name} breaks the tie!`);
-                        winnerId = fighterB.id;
-                    } else {
-                        log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`);
-                        winnerId = 0;
-                    }
-                } else {
-                    log.push(`Round ${round}: Both fighters fall simultaneously!`);
-                    winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-                }
+                log.push(`Round ${round}: Both fighters fall simultaneously — it's a draw!`);
+                winnerId = 0;
             } else if (hpA <= 0) {
                 log.push(`Round ${round}: ${fighterA.name} has fallen!`);
                 winnerId = fighterB.id;
@@ -7386,48 +7371,44 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
     // Handle tutorial/forced wins
     if (forceWinnerId) {
-        if (roundEndedPrematurely) {
-            if (winnerId !== forceWinnerId) {
-                // If we need fighterA to win but fighterB won by KO
-                // This is rare in tutorial, but we handle it by "faking" fighterB's survival
-                if (forceWinnerId === fighterA.id) {
-                    hpA = Math.max(1, hpA);
-                    hpB = 0;
-                    winnerId = fighterA.id;
-                    // Replace the "fallen" line or just add one
-                    log.push(`Round ${log.length}: ${fighterB.name} has fallen!`);
-                } else {
-                    hpB = Math.max(1, hpB);
-                    hpA = 0;
-                    winnerId = fighterB.id;
-                    log.push(`Round ${log.length}: ${fighterA.name} has fallen!`);
-                }
-            }
-        } else {
-            // Winner decided by damage race
-            if (forceWinnerId === fighterA.id && totalDmgToB < totalDmgToA) {
-                // Swap or nudge damage totals
-                const originalTotalB = totalDmgToB;
-                totalDmgToB = totalDmgToA + Math.floor(Math.random() * 5) + 1;
-                // Add the extra damage to the last round or just fudge it
-            } else if (forceWinnerId === fighterB.id && totalDmgToA < totalDmgToB) {
-                totalDmgToA = totalDmgToB + Math.floor(Math.random() * 5) + 1;
-            }
-            winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
-        }
-    } else if (!roundEndedPrematurely) {
-        if (totalDmgToB === totalDmgToA) {
-            const tieA = hasClassModifier(fighterA, 'tie_breaker');
-            const tieB = hasClassModifier(fighterB, 'tie_breaker');
-            if (tieA) {
+        if (winnerId !== forceWinnerId) {
+            if (forceWinnerId === fighterA.id) {
+                hpA = Math.max(1, hpA);
+                hpB = 0;
                 winnerId = fighterA.id;
-            } else if (tieB) {
-                winnerId = fighterB.id;
+                log.push(`Round ${log.length}: ${fighterB.name} has fallen!`);
             } else {
-                winnerId = 0;
+                hpB = Math.max(1, hpB);
+                hpA = 0;
+                winnerId = fighterB.id;
+                log.push(`Round ${log.length}: ${fighterA.name} has fallen!`);
             }
+        }
+    } else if (winnerId === null) {
+        // No KO occurred — determine by remaining HP, then damage
+        if (hpA <= 0 && hpB <= 0) {
+            log.push(`Both fighters fall simultaneously — it's a draw!`);
+            winnerId = 0;
+        } else if (hpA <= 0) {
+            log.push(`${fighterA.name} has fallen!`);
+            winnerId = fighterB.id;
+        } else if (hpB <= 0) {
+            log.push(`${fighterB.name} has fallen!`);
+            winnerId = fighterA.id;
         } else {
-            winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+            if (totalDmgToB === totalDmgToA) {
+                const tieA = hasClassModifier(fighterA, 'tie_breaker');
+                const tieB = hasClassModifier(fighterB, 'tie_breaker');
+                if (tieA) {
+                    winnerId = fighterA.id;
+                } else if (tieB) {
+                    winnerId = fighterB.id;
+                } else {
+                    winnerId = 0;
+                }
+            } else {
+                winnerId = totalDmgToB >= totalDmgToA ? fighterA.id : fighterB.id;
+            }
         }
     }
 
