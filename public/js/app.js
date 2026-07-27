@@ -3015,7 +3015,7 @@ async function loadSetups() {
                 btn.textContent = '...';
                 btn.disabled = true;
                 try {
-                    await api('PUT', `/game/setups/${slot}`, { name });
+                    await api('PUT', `/game/setups/${slot}`, { name, snapshot: true });
                     await loadSetups();
                     showMsg('char-msg', `Setup ${slot} saved!`);
                 } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
@@ -3060,9 +3060,7 @@ async function loadSetups() {
                 setTimeout(async () => {
                     if (_cancelSetupRename) { _cancelSetupRename = false; return; }
                     try {
-                        var setups = await api('GET', '/game/setups');
-                        var s = setups.find(function(x) { return x.slot == slot; });
-                        if (s) await api('PUT', '/game/setups/' + slot, { name: name, data: s.data });
+                        await api('PUT', '/game/setups/' + slot, { name: name });
                     } catch {}
                 }, 0);
             });
