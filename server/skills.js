@@ -878,11 +878,11 @@ const SKILL_TREES = {
                     dark_pact: {
                         id: 'dark_pact', tier: 2, name: 'Dark Pact', emoji: '🌑',
                         type: 'progressive',
-                        desc: '+15% Magic, -8% Max HP. Drain 10% of damage dealt.',
+                        desc: '+15% Magic, -8% Max HP. Drain 5% of damage dealt.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.15 },
                             { type: 'passive_pct', stat: 'hp_max', value: -0.08 },
-                            { type: 'active_combat', id: 'life_drain', pct: 0.10 }
+                            { type: 'active_combat', id: 'life_drain', pct: 0.05 }
                         ],
                         requires: ['arcane_attunement'],
                         unlockCondition: 'level_10',
@@ -912,11 +912,11 @@ const SKILL_TREES = {
                     oblivion: {
                         id: 'oblivion', tier: 5, name: 'Oblivion', emoji: '🕳️',
                         type: 'progressive',
-                        desc: '+25% Magic, -15% Max HP. Drain 25% damage. Shadow magic ignores all resistances.',
+                        desc: '+25% Magic, -15% Max HP. Drain 10% damage. Shadow magic ignores all resistances.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.25 },
                             { type: 'passive_pct', stat: 'hp_max', value: -0.15 },
-                            { type: 'active_combat', id: 'life_drain', pct: 0.25 },
+                            { type: 'active_combat', id: 'life_drain', pct: 0.10 },
                             { type: 'class_modifier', id: 'ignore_resist_shadow' }
                         ],
                         requires: ['shadow_step'],
@@ -926,10 +926,10 @@ const SKILL_TREES = {
                     void_lord: {
                         id: 'void_lord', tier: 5, name: 'Void Lord', emoji: '🌑👑',
                         type: 'progressive',
-                        desc: '+35% Magic. Life drain increased to 35%. Void Curse affects all enemies.',
+                        desc: '+35% Magic. Life drain increased to 20%. Void Curse affects all enemies.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.35 },
-                            { type: 'active_combat', id: 'life_drain', pct: 0.35 },
+                            { type: 'active_combat', id: 'life_drain', pct: 0.20 },
                             { type: 'active_combat', id: 'void_curse', aoe: true }
                         ],
                         requires: ['oblivion'],
