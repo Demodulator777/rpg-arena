@@ -7898,8 +7898,11 @@ async function rerollShop() {
 // ── Leaderboard ───────────────────────────────────────────────────────────
 let lbMode = 'players'; // 'players' | 'squads'
 let lbSquadData = [];
+let lbPage = 0;
+const LB_PAGE_SIZE = 100;
 function setLbMode(mode, btn) {
     lbMode = mode;
+    lbPage = 0;
     document.querySelectorAll('.lb-mode-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     renderLeaderboard();
@@ -7907,6 +7910,7 @@ function setLbMode(mode, btn) {
 function setLbSort(sort, btn) {
     if (sort === 'weekly_dmg') {
         lbSort = sort;
+        lbPage = 0;
         window._weeklyLbSub = window._weeklyLbSub || 'damage';
         document.querySelectorAll('.lb-filters .filter-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
@@ -7922,6 +7926,7 @@ function setLbSort(sort, btn) {
         return;
     }
     lbSort = sort;
+    lbPage = 0;
     document.querySelectorAll('.lb-filters .filter-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
     loadLeaderboard();
@@ -8773,7 +8778,7 @@ async function kickMember(charId) {
 }
 window.kickMember = kickMember;
 
-function filterLeaderboard() { renderLeaderboard(); }
+function filterLeaderboard() { lbPage = 0; renderLeaderboard(); }
 function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const rank = p.rank || fallbackRank;
     const rc = rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
@@ -8909,9 +8914,37 @@ function renderLeaderboard() {
         document.getElementById('leaderboard-list').innerHTML = modeToggle + '<p class="empty">No players found.</p>';
         return;
     }
+    const totalPages = Math.ceil(filtered.length / LB_PAGE_SIZE);
+    if (lbPage >= totalPages) lbPage = 0;
+    const pageItems = filtered.slice(lbPage * LB_PAGE_SIZE, (lbPage + 1) * LB_PAGE_SIZE);
+    const pageNav = totalPages > 1 ? buildLbPageNav(lbPage, totalPages) : '';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
+        pageNav +
         '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div></div>' +
-        filtered.map((p,i)=>buildLeaderboardRow(p, i + 1)).join('');
+        pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
+        pageNav;
+}
+
+function buildLbPageNav(currentPage, totalPages) {
+    let html = '<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:8px 0;flex-wrap:wrap">';
+    const prevPage = Math.max(0, currentPage - 1);
+    html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', prevPage)} ${currentPage === 0 ? 'disabled' : ''}>◀ Prev</button>`;
+    const start = Math.max(0, currentPage - 3);
+    const end = Math.min(totalPages - 1, currentPage + 3);
+    if (start > 0) html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', 0)}>1</button><span style="color:var(--text-dim)">...</span>`;
+    for (let i = start; i <= end; i++) {
+        html += `<button class="filter-btn ${i === currentPage ? 'active' : ''}" ${actionAttrs('lbGoToPage', i)}>${i + 1}</button>`;
+    }
+    if (end < totalPages - 1) html += `<span style="color:var(--text-dim)">...</span><button class="filter-btn" ${actionAttrs('lbGoToPage', totalPages - 1)}>${totalPages}</button>`;
+    const nextPage = Math.min(totalPages - 1, currentPage + 1);
+    html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', nextPage)} ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next ▶</button>`;
+    html += '</div>';
+    return html;
+}
+
+function lbGoToPage(page) {
+    lbPage = page;
+    renderLeaderboard();
 }
 // ── Profile ───────────────────────────────────────────────────────────────
 async function openProfile(id) {
