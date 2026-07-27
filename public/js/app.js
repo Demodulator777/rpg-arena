@@ -5688,6 +5688,10 @@ async function craftItem(recipeId) {
 }
 
 // ── Inventory ─────────────────────────────────────────────────────────────
+// ── Inventory State ────────────────────────────────────────────────────────
+let invBulkMode = false;
+let invBulkSelected = {}; // { invId: { name, price } }
+
 async function loadInventory() {
     document.getElementById('inventory-content').innerHTML='<p class="loading">Loading...</p>';
     try {
@@ -5700,6 +5704,7 @@ async function loadInventory() {
 
 function setInvTab(tab, btn) {
     invTab = tab;
+    if (!invBulkMode) invBulkSelected = {};
     document.querySelectorAll('#tab-inventory .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     loadInventory();
@@ -5747,7 +5752,7 @@ function renderGearGrid(el, gear, equipped) {
     const merchantPrince = hasVaultKeeper && hasApprentice;
     const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
 
-    el.innerHTML = `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
+    el.innerHTML += `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
@@ -5756,9 +5761,12 @@ function renderGearGrid(el, gear, equipped) {
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
         const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
         const setupBadges = (i.setups || []).map(sn => `<span class="setup-badge" title="In setup: ${escHtml(sn)}">🔧 ${escHtml(sn)}</span>`).join('');
+        const isSelected = invBulkMode && invBulkSelected[i.id];
+        const sellPrice = getInventorySellPrice(d);
 
         return `
-        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc}" style="position:relative;" ${actionAttrs('openItemTooltip', i.id)}>
+        <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc} ${isSelected ? 'inv-item-selected' : ''}" style="position:relative;${invBulkMode ? 'cursor:pointer' : ''}" ${invBulkMode ? `onclick="toggleInvBulkSelect(${i.id}, '${escHtml(d.name || '')}', ${sellPrice})"` : ''} ${!invBulkMode ? actionAttrs('openItemTooltip', i.id) : ''}>
+            ${invBulkMode ? `<div class="inv-bulk-check" style="position:absolute;top:4px;left:4px;z-index:2;width:20px;height:20px;border-radius:50%;background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.15)'};border:2px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.3)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${isSelected ? '✓' : ''}</div>` : ''}
             <div class="inv-item-icon" 
                  data-hover-action="hoverItemTooltip" data-args='[${i.id}]'
                  data-leave-action="scheduleHideTooltip"
@@ -5768,8 +5776,8 @@ function renderGearGrid(el, gear, equipped) {
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
             ${setupBadges ? `<div class="inv-item-setup-badges">${setupBadges}</div>` : ''}
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
-                <button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>
-                ${upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
+                ${invBulkMode ? `<span style="font-size:0.7rem;color:var(--text-dim)">${sellPrice}g</span>` : `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>`}
+                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
@@ -5846,6 +5854,17 @@ async function upgradeItem(inventoryId) {
 function renderInventory(data) {
     const el = document.getElementById('inventory-content');
 
+    // Bulk sell mode bar
+    const bulkBar = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:6px 10px;background:rgba(201,146,42,0.06);border:1px solid rgba(201,146,42,0.15);border-radius:var(--radius-sm)">' +
+        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;user-select:none">' +
+        `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} onchange="toggleInvBulkMode(this.checked)"> Bulk Sell</label>` +
+        (invBulkMode ? '<span style="font-size:0.75rem;color:var(--text-dim)">Click items to mark for sale</span>' : '') +
+        (invBulkMode && Object.keys(invBulkSelected).length > 0
+            ? `<span style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold)">${Object.keys(invBulkSelected).length} selected</span>` +
+              `<button class="btn-sm danger" ${actionAttrs('sellBulkSelected')}>Sell (${Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0).toLocaleString()}g)</button>`
+            : '') +
+        '</div>';
+
     function getSlot(i) {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         return d.slot || '';
@@ -5864,7 +5883,8 @@ function renderInventory(data) {
 
     const gearTab = (slots, emptyMsg) => {
         const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
-        if (!gear.length) { el.innerHTML = `<p class="empty">${emptyMsg}</p>`; return; }
+        if (!gear.length) { el.innerHTML = bulkBar + `<p class="empty">${emptyMsg}</p>`; return; }
+        el.innerHTML = bulkBar;
         renderGearGrid(el, gear, data.equipped);
     };
 
@@ -5886,10 +5906,10 @@ function renderInventory(data) {
         // LOOT BOXES TAB
         const lootBoxes = data.items.filter(i => i.item_type === 'consumable' && isLootBox(i));
         if (!lootBoxes.length) {
-            el.innerHTML = '<p class="empty">No loot boxes. Buy them from the shop!</p>';
+            el.innerHTML = bulkBar + '<p class="empty">No loot boxes. Buy them from the shop!</p>';
             return;
         }
-        el.innerHTML = '<div class="inv-consumable-grid">' + lootBoxes.map(i => {
+        el.innerHTML = bulkBar + '<div class="inv-consumable-grid">' + lootBoxes.map(i => {
             const d = i.item_data;
             const sp = getInventorySellPrice(d);
             const itemImage = d.image || getItemImage(d.name);
@@ -5907,22 +5927,22 @@ function renderInventory(data) {
                 <div class="inv-consumable-desc">${d.desc}</div>
                 <div class="inv-consumable-actions">
                     <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>🎁 Open</button>
-                    <button class="btn-sm danger inv-consumable-btn" ${actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
+                    <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name, sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
         return;
     } else if (invTab === 'elementals') {
-        el.innerHTML = '<div class="loading">Loading elementals...</div>';
+        el.innerHTML = bulkBar + '<div class="loading">Loading elementals...</div>';
         (async () => {
             try {
                 const r = await api('GET', '/game/elementals');
                 if (r.error) throw new Error(r.error);
                 if (!r.elementals || r.elementals.length === 0) {
-                    el.innerHTML = '<p class="empty">No elementals. Discover one in the Elemental tab!</p>';
+                    el.innerHTML = bulkBar + '<p class="empty">No elementals. Discover one in the Elemental tab!</p>';
                     return;
                 }
-                el.innerHTML = '<div class="elem-inv-grid">' + r.elementals.map(e => {
+                el.innerHTML = bulkBar + '<div class="elem-inv-grid">' + r.elementals.map(e => {
                     const elEmoji = e.element === 'pyro' ? '🔥' : e.element === 'water' ? '💧' : e.element === 'wind' ? '🌪️' : '⚡';
                     const hpPct = e.hpMax > 0 ? Math.round((e.hp_current / e.hpMax) * 100) : 0;
                     const xpPct = e.xpNext > 0 ? Math.round(((e.xp || 0) / e.xpNext) * 100) : 0;
@@ -5956,15 +5976,15 @@ function renderInventory(data) {
                     </div>`;
                 }).join('') + '</div>';
             } catch (e) {
-                el.innerHTML = `<div class="error">Failed to load elementals: ${e.message}</div>`;
+                el.innerHTML = bulkBar + `<div class="error">Failed to load elementals: ${e.message}</div>`;
             }
         })();
         return;
     } else if (invTab === 'consumables') {
         // CONSUMABLES TAB
         const cons = data.items.filter(i => i.item_type === 'consumable' && !isLootBox(i));
-        if (!cons.length) { el.innerHTML = '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
-        el.innerHTML = '<div class="inv-consumable-grid">' + cons.map(i => {
+        if (!cons.length) { el.innerHTML = bulkBar + '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
+        el.innerHTML = bulkBar + '<div class="inv-consumable-grid">' + cons.map(i => {
             const d = i.item_data;
             const eff = d.effect ? (
                 d.effect.type === 'heal' ? '❤️ Restore ' + d.effect.value + ' HP' :
@@ -5991,7 +6011,7 @@ function renderInventory(data) {
                 <div class="inv-consumable-actions">
                     <button class="btn-sm inv-consumable-btn inv-consumable-use" ${actionAttrs('useItem', i.id, d.name || '')}>Use</button>
                     ${(d.effect?.type === 'heal' || d.effect?.type === 'heal_full') && character?.elemental ? `<button class="btn-sm inv-consumable-btn" ${actionAttrs('useItemOnBeast', i.id, d.name || '')}>Use on Beast</button>` : ''}
-                    <button class="btn-sm danger inv-consumable-btn" ${actionAttrs('sellItem', i.id, d.name || '', sp)}>Sell ${sp}g</button>
+                    <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name || '', sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name || '', sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
@@ -5999,7 +6019,7 @@ function renderInventory(data) {
         // MATERIALS TAB with exchange options
         const mats = data.items.filter(i => i.item_type === 'raw_mat' || i.item_type === 'component');
         if (!mats.length) {
-            el.innerHTML = '<p class="empty">No materials yet. Complete missions to gather resources!</p>';
+            el.innerHTML = bulkBar + '<p class="empty">No materials yet. Complete missions to gather resources!</p>';
             return;
         }
 
@@ -6042,7 +6062,7 @@ function renderInventory(data) {
         // Separate owned materials (excluding legendary fragments from the owned display)
         const ownedMaterials = mats.filter(m => m.item_data?.id !== 'legendary_fragment');
 
-        el.innerHTML = `
+        el.innerHTML = bulkBar + `
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <span style="font-size: 1.2rem;">⭐</span>
@@ -6056,12 +6076,14 @@ function renderInventory(data) {
                 ${ownedMaterials.map(i => {
             const d = i.item_data;
             const itemImage = d.image || getItemImage(d.name);
-            return `<div class="mat-card">
+            return `<div class="mat-card" style="position:relative">
+                        ${invBulkMode ? `<div style="position:absolute;top:4px;right:4px;font-size:0.7rem;color:var(--text-dim)">${getInventorySellPrice(d)}g</div>` : ''}
                         <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" data-error-hide="true" data-error-next-display="block">
                         <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
                         <div class="mat-name">${d.name || d.id}</div>
                         <div class="mat-qty">× ${d.qty || 1}</div>
                         <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
+                        ${invBulkMode ? `<button class="btn-sm danger" style="margin-top:6px;font-size:0.65rem;padding:2px 6px" ${actionAttrs('sellItemWithQty', i.id, d.name || d.id, getInventorySellPrice(d), d.qty || 1)}>Sell ${getInventorySellPrice(d)}g</button>` : ''}
                     </div>`;
         }).join('')}
             </div>
@@ -6937,7 +6959,7 @@ function escapeHtml(str) {
 function renderSingleLootboxItem(item) {
     const itemName = item.name || 'Unknown Item';
     const qtyText = (item.qty && item.qty > 1) ? ` x${item.qty}` : '';
-    const imagePath = `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+    const imagePath = getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
     const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
     const quality = (item.quality || 'common').toLowerCase();
     const rarityClass = ['rare', 'epic', 'legendary'].includes(quality) ? ` lootbox-rarity-${quality}` : '';
@@ -6985,9 +7007,7 @@ function renderLootboxSummary(result, boxName) {
     }
 
     for (const item of lootItems) {
-        // USE EXACT SAME LOGIC as single view
-        const imageName = item.name.toLowerCase().replace(/\s+/g, '-');
-        const imagePath = `/images/assets/${imageName}.png`;
+        const imagePath = item.img || getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
 
         summaryHtml += `
             <div class="lootbox-summary-row">
@@ -7303,6 +7323,105 @@ async function sellItem(invId, name, price) {
         showMsg('inv-msg',d.message);
     }
     catch(e) { showMsg('inv-msg',e.message,true); }
+}
+
+function toggleInvBulkMode(enabled) {
+    invBulkMode = enabled;
+    if (!enabled) invBulkSelected = {};
+    loadInventory();
+}
+
+function toggleInvBulkSelect(invId, name, price) {
+    if (invBulkSelected[invId]) {
+        delete invBulkSelected[invId];
+    } else {
+        invBulkSelected[invId] = { name, price };
+    }
+    loadInventory();
+}
+
+async function sellBulkSelected() {
+    const ids = Object.keys(invBulkSelected);
+    if (!ids.length) return;
+    const total = Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0);
+    const shouldSell = await openGameConfirmDialog({
+        title: 'Bulk Sell',
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Sell <strong>${ids.length}</strong> items for <strong>${total.toLocaleString()} gold</strong>?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">This action cannot be undone.</div>`,
+        confirmLabel: `Sell All (${total.toLocaleString()}g)`,
+        cancelLabel: 'Cancel',
+        danger: true
+    });
+    if (!shouldSell) return;
+    try {
+        const d = await api('POST', '/game/sell/bulk', { ids: ids.map(Number) });
+        character = d.character;
+        renderTopBar();
+        hideItemTooltip();
+        invBulkSelected = {};
+        await loadInventory();
+        showMsg('inv-msg', d.message);
+    } catch (e) {
+        showMsg('inv-msg', e.message, true);
+    }
+}
+
+async function sellItemWithQty(invId, name, price, currentQty) {
+    // Create a quantity selection dialog
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5)';
+    dialog.innerHTML = `
+        <div style="font-size:1rem;font-weight:600;margin-bottom:12px">Sell ${escHtml(name)}</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px">You have <strong>${currentQty}</strong> — price: <strong>${price}g</strong> each</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="filter-btn sell-qty-opt" data-qty="1">1x</button>
+            <button class="filter-btn sell-qty-opt" data-qty="10">10x</button>
+            <button class="filter-btn sell-qty-opt" data-qty="100">100x</button>
+            <button class="filter-btn sell-qty-opt" data-qty="${Math.min(currentQty, 1000)}">${Math.min(currentQty, 1000)}x</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+            <span style="font-size:0.85rem;color:var(--text-dim)">Custom:</span>
+            <input type="number" id="sell-qty-input" min="1" max="${currentQty}" value="1" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg1);color:var(--text);font-size:0.9rem">
+            <span style="font-size:0.8rem;color:var(--text-dim)">max ${currentQty}</span>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="filter-btn" id="sell-qty-cancel">Cancel</button>
+            <button class="btn-primary danger" id="sell-qty-confirm" style="padding:8px 20px">Sell</button>
+        </div>
+    `;
+    backdrop.appendChild(dialog);
+    document.body.appendChild(backdrop);
+
+    const result = await new Promise(resolve => {
+        const cleanup = () => { backdrop.remove(); };
+        dialog.querySelectorAll('.sell-qty-opt').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const qty = Number(btn.dataset.qty);
+                document.getElementById('sell-qty-input').value = qty;
+            });
+        });
+        dialog.querySelector('#sell-qty-cancel').addEventListener('click', () => { cleanup(); resolve(null); });
+        dialog.querySelector('#sell-qty-confirm').addEventListener('click', () => {
+            const qty = Math.max(1, Math.min(currentQty, Number(document.getElementById('sell-qty-input').value) || 1));
+            cleanup();
+            resolve(qty);
+        });
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) { cleanup(); resolve(null); }
+        });
+    });
+    if (!result) return;
+    try {
+        const d = await api('POST', `/game/sell/${invId}`, { qty: result });
+        character = d.character;
+        renderTopBar();
+        hideItemTooltip();
+        await loadInventory();
+        showMsg('inv-msg', `Sold ${result}x ${name} for ${(result * price).toLocaleString()} gold.`);
+    } catch (e) {
+        showMsg('inv-msg', e.message, true);
+    }
 }
 async function useItem(invId, name) {
     try {
