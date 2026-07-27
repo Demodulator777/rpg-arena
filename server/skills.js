@@ -1586,12 +1586,12 @@ const SKILL_TREES = {
                     undying_crusader: {
                         id: 'undying_crusader', tier: 5, name: 'Undying Crusader', emoji: '🕊️',
                         type: 'progressive',
-                        desc: '+25% Magic, +20% all resists, +30% HP. Holy fire deals +60% damage.',
+                        desc: '+25% Magic, +20% all resists, +30% HP. Holy fire deals +30% damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.25 },
                             { type: 'passive_pct', stat: 'hp_max', value: 0.30 },
                             { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 20 },
-                            { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 0.60 }
+                            { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 0.30 }
                         ],
                         requires: ['holy_crusade'],
                         unlockCondition: 'level_35',
@@ -1600,12 +1600,12 @@ const SKILL_TREES = {
                     crusader_king: {
                         id: 'crusader_king', tier: 5, name: 'Crusader King', emoji: '👑⚔️',
                         type: 'progressive',
-                        desc: '+35% Magic, +30% all resists. Holy Crusade can be used twice. Holy fire deals +100% damage.',
+                        desc: '+35% Magic, +30% all resists. Holy Crusade can be used twice. Holy fire deals +45% damage.',
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.35 },
                             { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 30 },
                             { type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 2.0, ignore_resist: true, uses: 2 },
-                            { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 1.00 }
+                            { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 0.45 }
                         ],
                         requires: ['undying_crusader'],
                         unlockCondition: 'level_60',
