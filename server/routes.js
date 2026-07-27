@@ -9645,11 +9645,9 @@ router.put('/setups/:slot', auth, async (req, res) => {
             UNIQUE(char_id, slot)
         )`);
         const name = req.body.name || `Setup ${slot}`;
-        // Use provided data (for rename-only) or snapshot current equipment
         let data;
-        if (req.body.data) {
-            data = req.body.data;
-        } else {
+        if (req.body.snapshot) {
+            // Save: snapshot current equipment
             const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
             data = {};
             if (eq) {
@@ -9658,6 +9656,12 @@ router.put('/setups/:slot', auth, async (req, res) => {
                     if (eq[key] != null) data[s] = eq[key];
                 }
             }
+        } else if (req.body.data) {
+            data = req.body.data;
+        } else {
+            // Rename-only: preserve existing data
+            const existing = await dbGet(db, 'SELECT data FROM character_setups WHERE char_id=? AND slot=?', [char.id, slot]);
+            try { data = JSON.parse(existing?.data || '{}'); } catch { data = {}; }
         }
         await dbRun(db, `INSERT INTO character_setups (char_id, slot, name, data, updated_at) VALUES (?, ?, ?, ?, datetime('now'))
             ON CONFLICT(char_id, slot) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
