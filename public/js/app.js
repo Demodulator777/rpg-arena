@@ -8918,15 +8918,16 @@ function renderLeaderboard() {
     if (lbPage >= totalPages) lbPage = 0;
     const pageItems = filtered.slice(lbPage * LB_PAGE_SIZE, (lbPage + 1) * LB_PAGE_SIZE);
     const pageNav = totalPages > 1 ? buildLbPageNav(lbPage, totalPages) : '';
+    const pageNavCompact = totalPages > 1 ? buildLbPageNav(lbPage, totalPages, true) : '';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
-        pageNav +
+        pageNavCompact +
         '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div></div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
         pageNav;
 }
 
-function buildLbPageNav(currentPage, totalPages) {
-    let html = '<div style="display:flex;justify-content:center;align-items:center;gap:6px;padding:8px 0;flex-wrap:wrap">';
+function buildLbPageNav(currentPage, totalPages, compact) {
+    let html = '<div style="display:flex;justify-content:center;align-items:center;gap:6px;' + (compact ? 'padding:0' : 'padding:8px 0') + ';flex-wrap:wrap">';
     const prevPage = Math.max(0, currentPage - 1);
     html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', prevPage)} ${currentPage === 0 ? 'disabled' : ''}>◀ Prev</button>`;
     const start = Math.max(0, currentPage - 3);
