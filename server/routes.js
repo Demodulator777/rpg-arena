@@ -9289,7 +9289,59 @@ router.post('/character', auth, async (req, res) => {
         const character = await getCurrentCharacter(db, userId);
         res.json(await buildCharacterResponse(character, db));
     } catch (e) {
-        console.error('❌ Character creation error:', e);
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/sell/bulk', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const ids = req.body?.ids || [];
+        if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No items specified.' });
+
+        let totalGold = 0;
+        let soldCount = 0;
+        const errors = [];
+
+        for (const invId of ids) {
+            try {
+                const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [invId, char.id]);
+                if (!item) { errors.push(`Item ${invId} not found`); continue; }
+                const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
+                if (eq) {
+                    const equippedIds = ['weapon','armor','helmet','shield','boots','ring','amulet','accessory'].map(s => eq[`${s}_id`]).filter(Boolean);
+                    if (equippedIds.includes(item.id)) { errors.push(`Item ${invId} is equipped`); continue; }
+                }
+                const data = JSON.parse(item.item_data);
+                const activePremSell = getActivePremium(char);
+                const merchantPrince = hasPremium(activePremSell, 'vault_keeper') && hasPremium(activePremSell, 'apprentice');
+                const sellRate = merchantPrince ? 0.40 : 0.30;
+                const sellPrice = getSellPriceForInventoryItem(data, sellRate);
+                totalGold += sellPrice;
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+                soldCount++;
+            } catch (e) {
+                errors.push(e.message);
+            }
+        }
+
+        if (totalGold > 0) {
+            await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [totalGold, char.id]);
+        }
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            message: `Sold ${soldCount} item(s) for ${totalGold} gold.`,
+            goldEarned: totalGold,
+            soldCount,
+            errors: errors.length ? errors : undefined,
+            character: await buildCharacterResponse(updated, db)
+        });
+    } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -12646,16 +12698,20 @@ router.post('/sell/:inventoryId', auth, async (req, res) => {
         const sellRate = merchantPrince ? 0.40 : 0.30;
         const sellPrice = getSellPriceForInventoryItem(data, sellRate);
 
+        let sellQty = Math.max(1, Number(req.body?.qty || 1));
         const currentQty = Math.max(1, Number(data.qty || 1));
-        if (currentQty > 1) {
-            data.qty = currentQty - 1;
-            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), item.id]);
-        } else {
+        sellQty = Math.min(sellQty, currentQty);
+        const totalGold = sellPrice * sellQty;
+
+        if (sellQty >= currentQty) {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [item.id]);
+        } else {
+            data.qty = currentQty - sellQty;
+            await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), item.id]);
         }
-        await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [sellPrice, char.id]);
+        await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [totalGold, char.id]);
         const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
-        res.json({ message: `Sold ${data.name} for ${sellPrice} gold.`, goldEarned: sellPrice, character: await buildCharacterResponse(updated, db) });
+        res.json({ message: `Sold ${sellQty}x ${data.name} for ${totalGold} gold.`, goldEarned: totalGold, character: await buildCharacterResponse(updated, db) });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
@@ -18594,7 +18650,6 @@ function generateLootFromBox(boxType, playerLevel) {
                     sell_price_cap: 1000,
                     stackable: false,
                     qty: 1,
-                    img: null,
                     desc: `🏭 Mythic Crafted: ${scaled.desc || recipe.desc || ''}`
                 });
             }
@@ -18711,13 +18766,12 @@ function generateLootFromBox(boxType, playerLevel) {
                 sell_price_cap: 1000,
                 stackable: false,
                 qty: 1,
-                img: null,
-                desc: `🏭 ${scaled.desc || recipe.desc || ''}`
-            });
+                    desc: `🏭 ${scaled.desc || recipe.desc || ''}`
+                });
+            }
         }
-    }
 
-    return result;
+        return result;
 }
 
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
