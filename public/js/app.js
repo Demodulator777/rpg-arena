@@ -5768,9 +5768,8 @@ function renderGearGrid(el, gear, equipped) {
         <div class="inv-item-cell ${isEquipped?'inv-item-equipped ' : ''}${qc} ${isSelected ? 'inv-item-selected' : ''}" style="position:relative;${invBulkMode ? 'cursor:pointer' : ''}" ${invBulkMode ? actionAttrs('toggleInvBulkSelect', i.id, d.name || '', sellPrice) : ''} ${!invBulkMode ? actionAttrs('openItemTooltip', i.id) : ''}>
             ${invBulkMode ? `<div class="inv-bulk-check" style="position:absolute;top:4px;left:4px;z-index:2;width:20px;height:20px;border-radius:50%;background:${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.15)'};border:2px solid ${isSelected ? 'var(--gold)' : 'rgba(255,255,255,0.3)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${isSelected ? '✓' : ''}</div>` : ''}
             <div class="inv-item-icon" 
-                 data-hover-action="hoverItemTooltip" data-args='[${i.id}]'
-                 data-leave-action="scheduleHideTooltip"
-                 ${actionAttrs('openItemTooltip', i.id)}>${itemIcon(d,'64px')}</div>
+                 ${!invBulkMode ? `data-hover-action="hoverItemTooltip" data-args='[${i.id}]' data-leave-action="scheduleHideTooltip"` : ''}
+                 ${!invBulkMode ? actionAttrs('openItemTooltip', i.id) : ''}>${itemIcon(d,'64px')}</div>
             ${upgradeBadge}
             ${isEquipped ? '<div class="inv-item-equipped-dot"></div>' : ''}
             <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
