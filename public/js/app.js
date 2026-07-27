@@ -9077,9 +9077,16 @@ function renderLeaderboard() {
     if (lbPage >= totalPages) lbPage = 0;
     const pageItems = filtered.slice(lbPage * LB_PAGE_SIZE, (lbPage + 1) * LB_PAGE_SIZE);
     const pageNav = totalPages > 1 ? buildLbPageNav(lbPage, totalPages) : '';
+    const isMobile = window.innerWidth <= 768;
     const pageNavCompact = totalPages > 1 ? buildLbPageNav(lbPage, totalPages, true) : '';
+    const topNavHtml = totalPages > 1
+        ? (isMobile
+            ? '<div style="display:flex;justify-content:center;padding:4px 0">' + buildLbPageNav(lbPage, totalPages, false) + '</div>'
+            : '<div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none">' + pageNavCompact.replace(/<button /g, '<button style="pointer-events:auto" ') + '</div>')
+        : '';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
-        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none"><div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div></div><div class="lb-stats" style="margin-left:auto"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div><div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none">' + pageNavCompact.replace(/<button /g, '<button style="pointer-events:auto" ') + '</div></div>' +
+        (isMobile ? topNavHtml : '') +
+        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none"><div style="display:flex;align-items:center;gap:12px"><div></div><div></div><div></div></div><div class="lb-stats" style="margin-left:auto"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
         pageNav;
 }
