@@ -11282,10 +11282,31 @@ function getLootboxImagePath(item) {
     return key ? `/images/assets/${key}.png` : null;
 }
 
+function getPotionImagePath(item) {
+    if (!item || !item.effect) return null;
+    const eff = item.effect;
+    if (eff.type === 'heal' || eff.type === 'heal_full') return '/images/assets/hppotion.png';
+    if (eff.type === 'mp') return '/images/assets/manapotion.png';
+    if (eff.type === 'temp_stat') {
+        const statMap = {
+            strength: 'strengthpotion',
+            defense: 'defensepotion',
+            agility: 'agilitypotion',
+            magic: 'magicpotion',
+        };
+        const name = statMap[eff.stat];
+        if (name) return `/images/assets/${name}.png`;
+    }
+    return null;
+}
+
 function itemIcon(item, size='2rem') {
     if (!item) return '';
     const isLootbox = item.category === 'lootbox';
-    const imgSrc = item.img || (isLootbox ? getLootboxImagePath(item) : (item.name && !item.consumable ? getAssetImagePath(item.name) : null));
+    const isPotion = !!item.effect;
+    let potionImg = null;
+    if (isPotion) potionImg = getPotionImagePath(item);
+    const imgSrc = item.img || (isLootbox ? getLootboxImagePath(item) : (potionImg || (item.name && !item.consumable ? getAssetImagePath(item.name) : null)));
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
     if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
@@ -11813,13 +11834,14 @@ function showShopItemTooltip(event, itemJson) {
     }[item.quality || 'common'];
 
     const isLootbox = item.category === 'lootbox';
+    const potionImg = !!item.effect ? getPotionImagePath(item) : null;
     const imgSrc =
         item.img ||
         (isLootbox
             ? getLootboxImagePath(item)
-            : (item.name && !item.consumable
+            : (potionImg || (item.name && !item.consumable
                 ? getAssetImagePath(item.name)
-                : null));
+                : null)));
 
     const priceType = item.priceType || 'gold';
     const priceIcon = priceType === 'gems' ? '💎' : '💰';
