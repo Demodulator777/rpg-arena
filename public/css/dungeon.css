@@ -942,9 +942,19 @@
 .raid-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  color: rgba(200,212,232,0.8);
-  font-size: 0.74rem;
+  gap: 4px;
+}
+
+.raid-field > span {
+  font-size: 0.75rem;
+  color: var(--text-dim, rgba(255,255,255,0.5));
+  display: flex;
+  justify-content: space-between;
+}
+
+.raid-field > span > span {
+  color: var(--text-bright, #e2e8f0);
+  font-weight: 600;
 }
 
 .raid-field-wide {
@@ -960,6 +970,38 @@
   color: #e2e8f0;
   padding: 8px 10px;
   font-size: 0.82rem;
+}
+
+.raid-input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 6px;
+  height: 6px;
+  padding: 0;
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.raid-input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6496ff;
+  border: 2px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+}
+
+.raid-input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6496ff;
+  border: 2px solid rgba(255,255,255,0.3);
+  cursor: pointer;
 }
 
 .raid-member-leader {
