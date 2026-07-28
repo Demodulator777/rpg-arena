@@ -2779,7 +2779,6 @@ function renderDungeonRaidHub(guildData) {
     const canCreateRaid = reputation >= apprenticeReq;
     const isRaidLocked = cooldownLeft > 0;
     // Commitment is character-scoped (not account-scoped), so switching characters can run parallel raids.
-    // Commitment is character-scoped (not account-scoped), so switching characters can run parallel raids.
     const existingRaid = allRaids.find(raid => raid.status === 'forming' && (raid.isLeader || raid.isMember));
     const hasRaidCommitment = !!existingRaid;
     const createLocked = isRaidLocked || hasRaidCommitment;
@@ -2787,6 +2786,8 @@ function renderDungeonRaidHub(guildData) {
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
         .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
         .join('');
+    const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
+    const constraintMin = 1;
 
     const raidCards = raids.length ? raids.map(raid => {
         const members = Array.isArray(raid.members) ? raid.members : [];
@@ -2795,7 +2796,6 @@ function renderDungeonRaidHub(guildData) {
                 ${member.isLeader ? 'Leader' : 'Member'} · ${member.name} Lv.${member.level}
             </span>
         `).join('');
-
         const rewardBits = [];
         if (raid.reward?.gold) rewardBits.push(`${Number(raid.reward.gold).toLocaleString()} Gold`);
         if (raid.reward?.gems) rewardBits.push(`${Number(raid.reward.gems).toLocaleString()} Gems`);
@@ -2990,6 +2990,8 @@ function renderDungeonRaidHub(guildData) {
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
         .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
         .join('');
+    const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
+    const constraintMin = 1;
 
     const raidCards = raids.length ? raids.map(raid => {
         const members = Array.isArray(raid.members) ? raid.members : [];
@@ -3055,11 +3057,11 @@ function renderDungeonRaidHub(guildData) {
                         <div class="raid-setting-row" style="margin-top:6px;gap:12px;display:flex;flex-wrap:wrap">
                             <label style="flex:1;min-width:120px">
                                 <span style="font-size:0.7rem;color:var(--text-dim)">Min Level: <span id="raid-min-level-val-${raid.id}">${raid.minLevel || 1}</span></span>
-                                <input type="range" id="raid-min-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="999" value="${raid.minLevel || 1}">
+                                <input type="range" id="raid-min-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="${constraintMax}" value="${raid.minLevel || 1}">
                             </label>
                             <label style="flex:1;min-width:120px">
-                                <span style="font-size:0.7rem;color:var(--text-dim)">Max Level: <span id="raid-max-level-val-${raid.id}">${raid.maxLevel || 999}</span></span>
-                                <input type="range" id="raid-max-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="999" value="${raid.maxLevel || 999}">
+                                <span style="font-size:0.7rem;color:var(--text-dim)">Max Level: <span id="raid-max-level-val-${raid.id}">${raid.maxLevel || constraintMax}</span></span>
+                                <input type="range" id="raid-max-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="${constraintMax}" value="${raid.maxLevel || constraintMax}">
                             </label>
                         </div>
                     ` : ''}
@@ -3117,11 +3119,11 @@ function renderDungeonRaidHub(guildData) {
                         </label>
                         <div class="raid-field">
                             <span>Min Level: <span id="guild-raid-min-level-val">1</span></span>
-                            <input type="range" id="guild-raid-min-level" min="1" max="999" value="1">
+                            <input type="range" id="guild-raid-min-level" min="1" max="${constraintMax}" value="1">
                         </div>
                         <div class="raid-field">
-                            <span>Max Level: <span id="guild-raid-max-level-val">999</span></span>
-                            <input type="range" id="guild-raid-max-level" min="1" max="999" value="999">
+                            <span>Max Level: <span id="guild-raid-max-level-val">${constraintMax}</span></span>
+                            <input type="range" id="guild-raid-max-level" min="1" max="${constraintMax}" value="${constraintMax}">
                         </div>
                     </div>
                     <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? `Raid Ready In ${formatRaidDuration(cooldownLeft)}` : hasRaidCommitment ? 'Already In Raid' : 'Create Raid'}</button>
@@ -3291,16 +3293,11 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       .then(guildData => {
         const raidHub = document.getElementById('dungeon-raid-hub');
         if (raidHub) raidHub.innerHTML = renderDungeonRaidHub(guildData);
-        // Set level slider constraints after render
-        const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
+        // Attach input listeners for real-time slider value display
         const maxSlider = document.getElementById('guild-raid-max-level');
         const minSlider = document.getElementById('guild-raid-min-level');
-        if (maxSlider) { maxSlider.max = constraintMax; maxSlider.value = constraintMax; }
-        if (minSlider) { minSlider.max = constraintMax; }
-        const maxVal = document.getElementById('guild-raid-max-level-val');
-        if (maxVal) maxVal.textContent = constraintMax;
-        // Attach real-time input listeners for slider value display
         const minDisplay = document.getElementById('guild-raid-min-level-val');
+        const maxVal = document.getElementById('guild-raid-max-level-val');
         if (minSlider && minDisplay) {
             minSlider.addEventListener('input', function() { minDisplay.textContent = this.value; });
         }
