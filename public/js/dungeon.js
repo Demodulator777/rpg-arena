@@ -3039,7 +3039,7 @@ function renderDungeonRaidHub(guildData) {
             <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
                 <div class="exchange-icon raid-card-icon">Raid</div>
                 <div class="exchange-info">
-                    <div class="exchange-name">Floor ${raid.floor} Raid: ${raid.bossName}</div>
+                    <div class="exchange-name">Floor ${raid.floor} Raid: ${raid.bossName} (${raid.minLevel || 1}-${raid.maxLevel || 999})</div>
                     <div class="exchange-desc">The whole party strikes as one. Raid attacks always connect and do not use zone setups.</div>
                     <div class="exchange-cost">
                         <span class="cost-item">Status: ${raid.status}</span>
@@ -3048,7 +3048,7 @@ function renderDungeonRaidHub(guildData) {
                     </div>
                     <div class="exchange-cost">${membersHtml}</div>
                     <div class="exchange-desc raid-summary">Raid results and rewards are sent to your inbox after completion.</div>
-                    ${raid.isLeader ? `
+                        ${raid.isLeader ? `
                         <div class="raid-setting-row">
                             <select id="raid-start-threshold-${raid.id}" class="raid-input raid-inline-input">
                                 <option value="0" ${raid.autoStartPlayers === 0 ? 'selected' : ''}>Manual start</option>
@@ -3060,16 +3060,6 @@ function renderDungeonRaidHub(guildData) {
                                 <option value="6" ${raid.autoStartPlayers === 6 ? 'selected' : ''}>Auto at 6</option>
                             </select>
                             <button class="exchange-btn raid-settings-btn" ${actionAttrs('updateGuildRaidSettings', raid.id)}>Update Start</button>
-                        </div>
-                        <div class="raid-setting-row" style="margin-top:6px;gap:12px;display:flex;flex-wrap:wrap">
-                            <label style="flex:1;min-width:120px">
-                                <span style="font-size:0.7rem;color:var(--text-dim)">Min Level: <span id="raid-min-level-val-${raid.id}">${raid.minLevel || 1}</span></span>
-                                <input type="range" id="raid-min-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="${constraintMax}" value="${raid.minLevel || 1}">
-                            </label>
-                            <label style="flex:1;min-width:120px">
-                                <span style="font-size:0.7rem;color:var(--text-dim)">Max Level: <span id="raid-max-level-val-${raid.id}">${raid.maxLevel || constraintMax}</span></span>
-                                <input type="range" id="raid-max-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="${constraintMax}" value="${raid.maxLevel || constraintMax}">
-                            </label>
                         </div>
                     ` : ''}
                     ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
@@ -3178,9 +3168,7 @@ function createGuildRaid() {
 
 function updateGuildRaidSettings(raidId) {
     const autoStartPlayers = Number(document.getElementById(`raid-start-threshold-${raidId}`)?.value || 0);
-    const minLevel = Number(document.getElementById(`raid-min-level-${raidId}`)?.value || 1);
-    const maxLevel = Number(document.getElementById(`raid-max-level-${raidId}`)?.value || 999);
-    apiFetch('POST', '/game/dungeon/guild/raid/update-settings', { raidId, autoStartPlayers, minLevel, maxLevel })
+    apiFetch('POST', '/game/dungeon/guild/raid/update-settings', { raidId, autoStartPlayers })
         .then(response => {
             if (response?.success) {
                 log(response.message || 'Raid settings updated.', 'log-success');
