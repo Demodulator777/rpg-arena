@@ -5367,7 +5367,6 @@ function renderForge() {
             }).join(', ');
 
             return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?qColor+'66':'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
-                ${r.equipped ? `<div style="position:absolute;top:8px;right:8px;background:${qColor}22;border:1px solid ${qColor}55;border-radius:10px;padding:2px 8px;font-size:0.62rem;color:${qColor}">✓ EQUIPPED</div>` : ''}
                 <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
                     <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
                     <div>
