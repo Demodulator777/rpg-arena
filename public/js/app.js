@@ -943,6 +943,10 @@ function renderTopbarMenu() {
                 <span>Upgrade tab in character menu</span>
                 <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
+                <span>Keep last 10 mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
+            </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
                 <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
                 <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
@@ -1051,6 +1055,10 @@ function renderTopbarMenu() {
             <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
                 <span>Upgrade tab in character menu</span>
                 <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
+            </button>
+            <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
+                <span>Keep last 10 mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
             </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
                 <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
@@ -1316,6 +1324,10 @@ function renderTopbarMenu() {
                 <span>Upgrade tab in character menu</span>
                 <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
             </button>
+            <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
+                <span>Keep last 10 mission reports</span>
+                <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
+            </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
                 <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
                 <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
@@ -1403,6 +1415,14 @@ async function toggleInboxBadgeSetting(settingKey) {
     syncClientPreferencesFromCharacter();
     renderTopbarMenu();
     pollUnread();
+}
+
+async function toggleInboxPruneMissions() {
+    const nextValue = character?.inbox_prune_missions !== false ? false : true;
+    const response = await api('POST', '/game/settings', { inboxPruneMissions: nextValue });
+    if (response?.character) character = response.character;
+    syncClientPreferencesFromCharacter();
+    renderTopbarMenu();
 }
 
 async function saveRecoveryEmail() {
