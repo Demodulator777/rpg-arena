@@ -5900,23 +5900,6 @@ function renderInventory(data) {
         return `/images/assets/${imageName}.png`;
     };
 
-    const getLootboxImagePath = (itemData) => {
-        const id = itemData?.id;
-        if (id && id.startsWith('lootbox_')) return `/images/assets/${id}.png`;
-        // Fallback: derive from item name via lookup
-        const name = itemData?.name || '';
-        const map = {
-            'Common Loot Box': 'lootbox_common',
-            'Novice Loot Box': 'lootbox_novice',
-            'Rare Loot Box': 'lootbox_rare',
-            'Epic Loot Box': 'lootbox_epic',
-            'Legendary Loot Box': 'lootbox_legendary',
-            'Mythic Loot Box': 'lootbox_mythic',
-        };
-        const key = map[name];
-        return key ? `/images/assets/${key}.png` : getItemImage(name);
-    };
-
     const gearTab = (slots, emptyMsg) => {
         const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
         if (!gear.length) { el.innerHTML = bulkBar + `<p class="empty">${emptyMsg}</p>`; return; }
@@ -11282,9 +11265,27 @@ function getAssetImagePath(name, basePath='/images/assets') {
     return slug ? `${basePath}/${slug}.png` : null;
 }
 
+function getLootboxImagePath(item) {
+    if (!item) return null;
+    const id = item.id || item.item_id;
+    if (id && id.startsWith('lootbox_')) return `/images/assets/${id}.png`;
+    const name = item.name || '';
+    const map = {
+        'Common Loot Box': 'lootbox_common',
+        'Novice Loot Box': 'lootbox_novice',
+        'Rare Loot Box': 'lootbox_rare',
+        'Epic Loot Box': 'lootbox_epic',
+        'Legendary Loot Box': 'lootbox_legendary',
+        'Mythic Loot Box': 'lootbox_mythic',
+    };
+    const key = map[name];
+    return key ? `/images/assets/${key}.png` : null;
+}
+
 function itemIcon(item, size='2rem') {
     if (!item) return '';
-    const imgSrc = item.img || (item.name && !item.consumable ? getAssetImagePath(item.name) : null);
+    const isLootbox = item.category === 'lootbox';
+    const imgSrc = item.img || (isLootbox ? getLootboxImagePath(item) : (item.name && !item.consumable ? getAssetImagePath(item.name) : null));
     const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
     if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
