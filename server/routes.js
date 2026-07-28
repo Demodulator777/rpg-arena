@@ -342,6 +342,25 @@ async function purgeExpiredChatMessages(db) {
     await dbRun(db, 'DELETE FROM chat_messages WHERE created_at < ?', [cutoff]);
 }
 
+async function pruneMissionReports(db, charId, keepCount = 10) {
+    const allReports = await dbAll(db,
+        "SELECT id, body FROM messages WHERE receiver_id = ? AND body LIKE 'BATTLE_REPORT:%' ORDER BY sent_at DESC",
+        [charId]
+    );
+    const missionIds = [];
+    for (const row of allReports) {
+        try {
+            const payload = JSON.parse(row.body.slice('BATTLE_REPORT:'.length));
+            if (payload.type === 'mission') missionIds.push(row.id);
+        } catch {}
+    }
+    if (missionIds.length <= keepCount) return;
+    const toDelete = missionIds.slice(keepCount);
+    for (const id of toDelete) {
+        await dbRun(db, 'DELETE FROM messages WHERE id = ?', [id]);
+    }
+}
+
 async function purgeOldApiLogs(db) {
     const cutoff = Math.floor(Date.now() / 1000) - 86400 * 7;
     await dbRun(db, 'DELETE FROM api_log WHERE created_at < ?', [cutoff]);
@@ -687,6 +706,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN inbox_autoread_battles INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_autoread_missions INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN inbox_prune_missions INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN password_reset_expires_at INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN password_reset_requested_at INTEGER DEFAULT NULL',
@@ -9098,7 +9118,7 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, email, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, email, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, inbox_prune_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
         : null;
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
@@ -9241,6 +9261,7 @@ async function buildCharacterResponse(char, db) {
         inbox_autoread_messages: Number(userSettings?.inbox_autoread_messages ?? 0) !== 0,
         inbox_autoread_battles: Number(userSettings?.inbox_autoread_battles ?? 0) !== 0,
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
+        inbox_prune_missions: Number(userSettings?.inbox_prune_missions ?? 1) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
         elemental: elemental ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
         profile_badges: (() => {
@@ -9639,12 +9660,22 @@ router.post('/settings', auth, async (req, res) => {
             updates.push('inbox_autoread_missions = ?');
             args.push(req.body.inboxAutoReadMissions ? 1 : 0);
         }
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxPruneMissions')) {
+            updates.push('inbox_prune_missions = ?');
+            args.push(req.body.inboxPruneMissions ? 1 : 0);
+        }
         if (!updates.length) {
             return res.status(400).json({ error: 'No settings provided.' });
         }
 
         args.push(req.user.userId);
         await dbRun(db, `UPDATE users SET ${updates.join(', ')} WHERE id = ?`, args);
+
+        // Trigger prune when auto-prune is toggled ON
+        if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxPruneMissions') && req.body.inboxPruneMissions) {
+            const char = await getCurrentCharacter(db, req.user.userId);
+            if (char) await pruneMissionReports(db, char.id, 10);
+        }
 
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.json({ success: true });
@@ -11875,6 +11906,14 @@ router.post('/missions/collect', auth, async (req, res) => {
                 battleStats
             });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
+        } catch {}
+
+        // Prune old mission reports if auto-prune is enabled
+        try {
+            const userRow = await dbGet(db, 'SELECT inbox_prune_missions FROM users WHERE id = ?', [freshChar.user_id]);
+            if (Number(userRow?.inbox_prune_missions ?? 1) !== 0) {
+                await pruneMissionReports(db, freshChar.id, 10);
+            }
         } catch {}
 
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
