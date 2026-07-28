@@ -5789,6 +5789,8 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
         mercenaryPool,
         memberCount: members.length,
         isLeader: String(raid.leader_char_id) === String(viewerCharId),
+        minLevel: Number(raid.min_level || 1),
+        maxLevel: Number(raid.max_level || 999),
         // Membership should be character-scoped. Account-scoped membership is provided separately
         // so the UI can block joining the same raid with multiple characters while still allowing
         // parallel raids across different characters.
@@ -17439,6 +17441,7 @@ router.get('/dungeon/guild', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const bounty = await ensureActiveGuildBounty(db, char.id);
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
+        const charLevel = Number(char.level || 1);
         const mats = await getInventoryMaterials(db, char.id);
         const elemInv = {};
         for (const [tier, items] of Object.entries(ELEM_TIER_ITEMS)) {
@@ -17454,7 +17457,8 @@ router.get('/dungeon/guild', auth, async (req, res) => {
             raidCooldownUntil: Number(char?.raid_cooldown_until || 0),
             bounty,
             raids,
-            elemInventory: elemInv
+            elemInventory: elemInv,
+            level: charLevel
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
