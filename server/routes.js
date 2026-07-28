@@ -10644,8 +10644,8 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         if (!targetBase) return res.status(404).json({ error: 'Base not found.' });
         if (!targetBase.owner_squad_id) return res.status(400).json({ error: 'Base is not occupied.' });
         if (Number(targetBase.owner_squad_id) === membership.squad_id) return res.status(400).json({ error: 'You cannot attack your own base.' });
-        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND base_id=? LIMIT 1",
-            [membership.squad_id, membership.squad_id, baseId]);
+        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE status='preparation' AND base_id=? LIMIT 1",
+            [baseId]);
         if (activeWar) return res.status(400).json({ error: 'There is already an active war for this base.' });
         const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
             [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
