@@ -2801,7 +2801,8 @@ function renderDungeonRaidHub(guildData) {
         if (raid.reward?.gems) rewardBits.push(`${Number(raid.reward.gems).toLocaleString()} Gems`);
         if (raid.reward?.item?.itemData?.name) rewardBits.push(raid.reward.item.itemData.name);
 
-        const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6;
+        const viewerLevel = guildData.level || 0;
+        const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6 && viewerLevel >= raid.minLevel && viewerLevel <= raid.maxLevel;
         const canStart = raid.status === 'forming' && raid.isLeader;
         const canClaim = raid.status === 'completed' && raid.isMember && !raid.rewardClaimed && raid.reward;
         const autoStartLabel = raid.autoStartMode === 'full'
@@ -2921,9 +2922,14 @@ function joinGuildRaid(raidId) {
                 log(response.message || 'Joined raid.', 'log-success');
                 refreshRaidUi();
                 refreshCharacter();
+            } else if (response?.error) {
+                log(response.error, 'log-warning');
             }
         })
-        .catch(e => console.error('Raid join failed:', e));
+        .catch(e => {
+            log(e?.message || 'Failed to join raid.', 'log-warning');
+            console.error('Raid join failed:', e);
+        });
 }
 
 function leaveGuildRaid(raidId) {
@@ -3000,7 +3006,8 @@ function renderDungeonRaidHub(guildData) {
                 ${member.isLeader ? 'Leader' : 'Member'} В· ${member.name} Lv.${member.level}
             </span>
         `).join('');
-        const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6;
+        const viewerLevel = guildData.level || 0;
+        const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6 && viewerLevel >= raid.minLevel && viewerLevel <= raid.maxLevel;
         const canStart = raid.status === 'forming' && raid.isLeader;
         const autoStartLabel = raid.autoStartPlayers > 0
             ? `Auto-start at ${raid.autoStartPlayers} player${raid.autoStartPlayers === 1 ? '' : 's'}`
