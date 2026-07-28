@@ -17586,7 +17586,7 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
     try {
         const db = await getDb();
         const now = Math.floor(Date.now() / 1000);
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, raid_cooldown_until');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, level, raid_cooldown_until');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const busy = await getCharacterBusyState(db, char);
         if (busy.busy) return res.status(400).json({ error: busy.reason });
