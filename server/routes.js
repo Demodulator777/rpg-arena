@@ -17484,12 +17484,9 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
         }
 
         const requestedMinLevel = Math.max(1, Number(req.body?.minLevel || 1));
-        const requestedMaxLevel = Math.max(requestedMinLevel, Number(req.body?.maxLevel || 999));
         const playerLevel = Number(char.level || 1);
         const constraintMaxLevel = playerLevel + Math.floor(playerLevel / 3);
-        if (requestedMaxLevel > constraintMaxLevel) {
-            return res.status(400).json({ error: `Max level cannot exceed ${constraintMaxLevel} (Player Level: ${playerLevel}).` });
-        }
+        const requestedMaxLevel = Math.min(constraintMaxLevel, Math.max(requestedMinLevel, Number(req.body?.maxLevel || constraintMaxLevel)));
 
         const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
         const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
@@ -17521,7 +17518,7 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
 router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, level');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const raidId = Number(req.body?.raidId || 0);
         const raid = await getGuildRaidById(db, raidId);
@@ -17532,12 +17529,9 @@ router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
         const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
         const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
         const requestedMinLevel = Math.max(1, Number(req.body?.minLevel || 1));
-        const requestedMaxLevel = Math.max(requestedMinLevel, Number(req.body?.maxLevel || 999));
         const playerLevel = Number(char.level || 1);
         const constraintMaxLevel = playerLevel + Math.floor(playerLevel / 3);
-        if (requestedMaxLevel > constraintMaxLevel) {
-            return res.status(400).json({ error: `Max level cannot exceed ${constraintMaxLevel} (Player Level: ${playerLevel}).` });
-        }
+        const requestedMaxLevel = Math.min(constraintMaxLevel, Math.max(requestedMinLevel, Number(req.body?.maxLevel || constraintMaxLevel)));
         const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ?, min_level = ?, max_level = ? WHERE id = ? AND status = ?', [autoStartMode, requestedMinLevel, requestedMaxLevel, raidId, 'forming']);
         const updated = updateResult?.rowsAffected ?? updateResult?.changes ?? 0;
         if (!updated) return res.status(409).json({ error: 'Raid already started before settings could be updated.' });
