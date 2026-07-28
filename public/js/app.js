@@ -7865,7 +7865,7 @@ function renderShop() {
         const shopItemData = escHtml(JSON.stringify(item));
         return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}" ${actionAttrs('openShopItemTooltip')}>
-                <span class="shop-card-icon">${itemIcon(item,'2rem')}</span>
+                <span class="shop-card-icon">${itemIcon(item,'4rem')}</span>
                 <span class="shop-card-name">${item.name}</span>
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
             </div>
@@ -11812,11 +11812,14 @@ function showShopItemTooltip(event, itemJson) {
         common: 'rgba(255,255,255,0.5)'
     }[item.quality || 'common'];
 
+    const isLootbox = item.category === 'lootbox';
     const imgSrc =
         item.img ||
-        (item.name && !item.consumable
-            ? getAssetImagePath(item.name)
-            : null);
+        (isLootbox
+            ? getLootboxImagePath(item)
+            : (item.name && !item.consumable
+                ? getAssetImagePath(item.name)
+                : null));
 
     const priceType = item.priceType || 'gold';
     const priceIcon = priceType === 'gems' ? '💎' : '💰';
