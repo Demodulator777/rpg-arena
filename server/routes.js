@@ -17437,7 +17437,7 @@ router.get('/dungeon/gold', auth, async (req, res) => {
 router.get('/dungeon/guild', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, dungeon_gold, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, level, dungeon_gold, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const bounty = await ensureActiveGuildBounty(db, char.id);
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
