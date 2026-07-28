@@ -5531,7 +5531,7 @@ async function getCharacterBusyState(db, char) {
 
 function buildRaidRewardPayload(floor, includeItem = false) {
     const safeFloor = Math.max(1, Number(floor) || 1);
-    const gold = (900 + safeFloor * 220) * 2;
+    const gold = (900 + safeFloor * 220) * 4;
     const gems = 1;
     const payload = { gold, gems };
     if (includeItem) {
