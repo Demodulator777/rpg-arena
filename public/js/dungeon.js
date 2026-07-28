@@ -3052,6 +3052,16 @@ function renderDungeonRaidHub(guildData) {
                             </select>
                             <button class="exchange-btn raid-settings-btn" ${actionAttrs('updateGuildRaidSettings', raid.id)}>Update Start</button>
                         </div>
+                        <div class="raid-setting-row" style="margin-top:6px;gap:12px;display:flex;flex-wrap:wrap">
+                            <label style="flex:1;min-width:120px">
+                                <span style="font-size:0.7rem;color:var(--text-dim)">Min Level: <span id="raid-min-level-val-${raid.id}">${raid.minLevel || 1}</span></span>
+                                <input type="range" id="raid-min-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="999" value="${raid.minLevel || 1}">
+                            </label>
+                            <label style="flex:1;min-width:120px">
+                                <span style="font-size:0.7rem;color:var(--text-dim)">Max Level: <span id="raid-max-level-val-${raid.id}">${raid.maxLevel || 999}</span></span>
+                                <input type="range" id="raid-max-level-${raid.id}" class="raid-input raid-inline-input" min="1" max="999" value="${raid.maxLevel || 999}">
+                            </label>
+                        </div>
                     ` : ''}
                     ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
                     ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<button class="exchange-btn" disabled title="Another character on your account is already in this raid.">Join Raid</button>` : ''}
@@ -3105,6 +3115,14 @@ function renderDungeonRaidHub(guildData) {
                                 <option value="6">6 players</option>
                             </select>
                         </label>
+                        <label class="raid-field">
+                            <span>Min Level: <span id="guild-raid-min-level-val">1</span></span>
+                            <input type="range" id="guild-raid-min-level" class="raid-input" min="1" max="999" value="1" data-change-action="updateMinLevelSlider">
+                        </label>
+                        <label class="raid-field">
+                            <span>Max Level: <span id="guild-raid-max-level-val">999</span></span>
+                            <input type="range" id="guild-raid-max-level" class="raid-input" min="1" max="999" value="999" data-change-action="updateMaxLevelSlider">
+                        </label>
                     </div>
                     <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? `Raid Ready In ${formatRaidDuration(cooldownLeft)}` : hasRaidCommitment ? 'Already In Raid' : 'Create Raid'}</button>
                 </div>
@@ -3121,10 +3139,24 @@ function renderDungeonRaidHub(guildData) {
     `;
 }
 
+function updateMinLevelSlider() {
+    const val = document.getElementById('guild-raid-min-level')?.value;
+    const display = document.getElementById('guild-raid-min-level-val');
+    if (val && display) display.textContent = val;
+}
+
+function updateMaxLevelSlider() {
+    const val = document.getElementById('guild-raid-max-level')?.value;
+    const display = document.getElementById('guild-raid-max-level-val');
+    if (val && display) display.textContent = val;
+}
+
 function createGuildRaid() {
     const floor = Number(document.getElementById('guild-raid-floor')?.value || 1);
     const autoStartPlayers = Number(document.getElementById('guild-raid-autostart')?.value || 0);
-    apiFetch('POST', '/game/dungeon/guild/raid/create', { floor, autoStartPlayers })
+    const minLevel = Number(document.getElementById('guild-raid-min-level')?.value || 1);
+    const maxLevel = Number(document.getElementById('guild-raid-max-level')?.value || 999);
+    apiFetch('POST', '/game/dungeon/guild/raid/create', { floor, autoStartPlayers, minLevel, maxLevel })
         .then(response => {
             if (response?.success) {
                 log(response.message || 'Raid created.', 'log-success');
@@ -3137,7 +3169,9 @@ function createGuildRaid() {
 
 function updateGuildRaidSettings(raidId) {
     const autoStartPlayers = Number(document.getElementById(`raid-start-threshold-${raidId}`)?.value || 0);
-    apiFetch('POST', '/game/dungeon/guild/raid/update-settings', { raidId, autoStartPlayers })
+    const minLevel = Number(document.getElementById(`raid-min-level-${raidId}`)?.value || 1);
+    const maxLevel = Number(document.getElementById(`raid-max-level-${raidId}`)?.value || 999);
+    apiFetch('POST', '/game/dungeon/guild/raid/update-settings', { raidId, autoStartPlayers, minLevel, maxLevel })
         .then(response => {
             if (response?.success) {
                 log(response.message || 'Raid settings updated.', 'log-success');
@@ -3257,6 +3291,14 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       .then(guildData => {
         const raidHub = document.getElementById('dungeon-raid-hub');
         if (raidHub) raidHub.innerHTML = renderDungeonRaidHub(guildData);
+        // Set level slider constraints after render
+        const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
+        const maxSlider = document.getElementById('guild-raid-max-level');
+        const minSlider = document.getElementById('guild-raid-min-level');
+        if (maxSlider) { maxSlider.max = constraintMax; maxSlider.value = constraintMax; }
+        if (minSlider) { minSlider.max = constraintMax; }
+        const maxVal = document.getElementById('guild-raid-max-level-val');
+        if (maxVal) maxVal.textContent = constraintMax;
       })
       .catch(e => {
         console.error('Failed to load raid hub:', e);
