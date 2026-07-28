@@ -2999,14 +2999,19 @@ function renderDungeonRaidHub(guildData) {
     const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
     const constraintMin = 1;
 
-    const raidCards = raids.length ? raids.map(raid => {
+    const viewerLevel = guildData.level || 0;
+    const visibleRaids = raids.filter(raid =>
+        raid.isMember || raid.isAccountMember || raid.isLeader ||
+        (viewerLevel >= raid.minLevel && viewerLevel <= raid.maxLevel)
+    );
+    const raidCards = visibleRaids.length ? visibleRaids.map(raid => {
         const members = Array.isArray(raid.members) ? raid.members : [];
-        const membersHtml = members.map(member => `
+        const showMembers = raid.isMember || raid.isAccountMember;
+        const membersHtml = showMembers ? members.map(member => `
             <span class="cost-item ${member.isLeader ? 'raid-member-leader' : ''}">
                 ${member.isLeader ? 'Leader' : 'Member'} В· ${member.name} Lv.${member.level}
             </span>
-        `).join('');
-        const viewerLevel = guildData.level || 0;
+        `).join('') : `<span class="cost-item">${raid.memberCount}/${raid.maxMemberCount || 6} members</span>`;
         const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6 && viewerLevel >= raid.minLevel && viewerLevel <= raid.maxLevel;
         const canStart = raid.status === 'forming' && raid.isLeader;
         const autoStartLabel = raid.autoStartPlayers > 0
