@@ -8466,7 +8466,7 @@ async function startBaseWar(baseId, intent) {
     try {
         const label = intent === 'loot' ? 'Loot Raid' : 'Capture';
         const res = await api('POST', '/game/squads/wars/start', { base_id: baseId, intent });
-        const timeLabel = intent === 'loot' ? '~10 minutes' : '24 hours';
+        const timeLabel = '24 hours';
         await openGameNoticeDialog({ title: `⚔️ ${label}`, message: `${label} started! Phases complete in ${timeLabel}. Assign fighters from the War Panel.` });
         await loadClanData(); renderSquads();
     } catch (e) {
