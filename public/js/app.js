@@ -6013,7 +6013,7 @@ function renderInventory(data) {
                                 d.effect.type === 'mp' ? '🔮 Restore ' + d.effect.value + ' MP' : ''
             ) : '';
             const sp = getInventorySellPrice(d);
-            const itemImage = d.image || getItemImage(d.name);
+            const itemImage = d.image || (d.effect ? getPotionImagePath(d) : null) || getItemImage(d.name);
             return `<div class="inv-consumable-card">
                 <div class="inv-consumable-top">
                     <div class="inv-consumable-icon">
