@@ -973,9 +973,6 @@
 }
 
 .raid-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  min-height: 6px;
   height: 6px;
   padding: 0;
   background: rgba(255,255,255,0.15);
