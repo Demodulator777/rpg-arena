@@ -342,9 +342,9 @@ async function purgeExpiredChatMessages(db) {
     await dbRun(db, 'DELETE FROM chat_messages WHERE created_at < ?', [cutoff]);
 }
 
-async function pruneMissionReports(db, charId, keepCount = 10) {
+async function hideOldMissionReports(db, charId, keepCount = 10) {
     const allReports = await dbAll(db,
-        "SELECT id, body FROM messages WHERE receiver_id = ? AND body LIKE 'BATTLE_REPORT:%' ORDER BY sent_at DESC",
+        "SELECT id, body FROM messages WHERE receiver_id = ? AND body LIKE 'BATTLE_REPORT:%' AND hidden=0 ORDER BY sent_at DESC",
         [charId]
     );
     const missionIds = [];
@@ -355,9 +355,9 @@ async function pruneMissionReports(db, charId, keepCount = 10) {
         } catch {}
     }
     if (missionIds.length <= keepCount) return;
-    const toDelete = missionIds.slice(keepCount);
-    for (const id of toDelete) {
-        await dbRun(db, 'DELETE FROM messages WHERE id = ?', [id]);
+    const toHide = missionIds.slice(keepCount);
+    for (const id of toHide) {
+        await dbRun(db, 'UPDATE messages SET hidden=1 WHERE id=?', [id]);
     }
 }
 
@@ -706,7 +706,6 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN inbox_autoread_battles INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_autoread_missions INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN email TEXT DEFAULT NULL',
-            'ALTER TABLE users ADD COLUMN inbox_prune_missions INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN password_reset_token_hash TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN password_reset_expires_at INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN password_reset_requested_at INTEGER DEFAULT NULL',
@@ -717,6 +716,8 @@ const WEEKLY_TASKS = [
             'ALTER TABLE messages ADD COLUMN reward_claimed INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN system_message INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
+            'ALTER TABLE messages ADD COLUMN hidden INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN inbox_prune_missions INTEGER DEFAULT 1',
             'ALTER TABLE squads ADD COLUMN logo TEXT DEFAULT NULL',
             `CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -9671,10 +9672,10 @@ router.post('/settings', auth, async (req, res) => {
         args.push(req.user.userId);
         await dbRun(db, `UPDATE users SET ${updates.join(', ')} WHERE id = ?`, args);
 
-        // Trigger prune when auto-prune is toggled ON
+        // Auto-hide old mission reports when toggle is turned ON
         if (Object.prototype.hasOwnProperty.call(req.body || {}, 'inboxPruneMissions') && req.body.inboxPruneMissions) {
             const char = await getCurrentCharacter(db, req.user.userId);
-            if (char) await pruneMissionReports(db, char.id, 10);
+            if (char) await hideOldMissionReports(db, char.id, 10);
         }
 
         const char = await getCurrentCharacter(db, req.user.userId);
@@ -11908,11 +11909,11 @@ router.post('/missions/collect', auth, async (req, res) => {
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
         } catch {}
 
-        // Prune old mission reports if auto-prune is enabled
+        // Auto-hide old mission reports if prune toggle is ON
         try {
             const userRow = await dbGet(db, 'SELECT inbox_prune_missions FROM users WHERE id = ?', [freshChar.user_id]);
             if (Number(userRow?.inbox_prune_missions ?? 1) !== 0) {
-                await pruneMissionReports(db, freshChar.id, 10);
+                await hideOldMissionReports(db, freshChar.id, 10);
             }
         } catch {}
 
@@ -13802,7 +13803,7 @@ router.get('/messages', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const messages = await dbAll(db, `SELECT m.*,COALESCE(m.sender_label, s.name, 'Arena Staff') as sender_name,r.name as receiver_name FROM messages m
             LEFT JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
-            WHERE m.receiver_id=? ORDER BY m.sent_at DESC LIMIT 50`, [char.id]);
+            WHERE m.receiver_id=? AND m.hidden=0 ORDER BY m.sent_at DESC LIMIT 50`, [char.id]);
         res.json(messages);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -13820,7 +13821,7 @@ router.get('/messages/unread-count', auth, async (req, res) => {
         const includeMessages = Number(prefs?.inbox_badge_messages ?? 1) !== 0;
         const includeBattles = Number(prefs?.inbox_badge_battles ?? 1) !== 0;
         const includeMissions = Number(prefs?.inbox_badge_missions ?? 1) !== 0;
-        const rows = await dbAll(db, 'SELECT body FROM messages WHERE receiver_id=? AND read=0', [char.id]);
+        const rows = await dbAll(db, 'SELECT body FROM messages WHERE receiver_id=? AND read=0 AND hidden=0', [char.id]);
         let count = 0;
         for (const row of rows) {
             const body = String(row?.body || '');
@@ -14159,7 +14160,7 @@ router.delete('/messages/:id', auth, async (req, res) => {
         await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ ok: false });
-        await dbRun(db, 'DELETE FROM messages WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
+        await dbRun(db, 'UPDATE messages SET hidden=1 WHERE id=? AND receiver_id=?', [req.params.id, char.id]);
         res.json({ ok:true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -19518,7 +19519,7 @@ router.get('/assistant/suggestions', auth, async (req, res) => {
         let hasUnclaimedRewards = false;
         try {
             const unclaimedResult = await db.execute({
-                sql: 'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND body LIKE "BATTLE_REPORT:%" AND read = 0',
+                sql: 'SELECT COUNT(*) as count FROM messages WHERE receiver_id = ? AND body LIKE "BATTLE_REPORT:%" AND read = 0 AND hidden = 0',
                 args: [char.id]
             });
             hasUnclaimedRewards = Number(unclaimedResult.rows?.[0]?.count || 0) > 0;
