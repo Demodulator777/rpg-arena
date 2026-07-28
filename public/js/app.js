@@ -5900,6 +5900,23 @@ function renderInventory(data) {
         return `/images/assets/${imageName}.png`;
     };
 
+    const getLootboxImagePath = (itemData) => {
+        const id = itemData?.id;
+        if (id && id.startsWith('lootbox_')) return `/images/assets/${id}.png`;
+        // Fallback: derive from item name via lookup
+        const name = itemData?.name || '';
+        const map = {
+            'Common Loot Box': 'lootbox_common',
+            'Novice Loot Box': 'lootbox_novice',
+            'Rare Loot Box': 'lootbox_rare',
+            'Epic Loot Box': 'lootbox_epic',
+            'Legendary Loot Box': 'lootbox_legendary',
+            'Mythic Loot Box': 'lootbox_mythic',
+        };
+        const key = map[name];
+        return key ? `/images/assets/${key}.png` : getItemImage(name);
+    };
+
     const gearTab = (slots, emptyMsg) => {
         const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
         if (!gear.length) { el.innerHTML = bulkBar + `<p class="empty">${emptyMsg}</p>`; return; }
@@ -5931,7 +5948,7 @@ function renderInventory(data) {
         el.innerHTML = bulkBar + '<div class="inv-consumable-grid">' + lootBoxes.map(i => {
             const d = i.item_data;
             const sp = getInventorySellPrice(d);
-            const itemImage = d.image || getItemImage(d.name);
+            const itemImage = d.image || getLootboxImagePath(d);
             return `<div class="inv-consumable-card lootbox-card">
                 <div class="inv-consumable-top">
                     <div class="inv-consumable-icon">
@@ -5945,7 +5962,7 @@ function renderInventory(data) {
                 </div>
                 <div class="inv-consumable-desc">${d.desc}</div>
                 <div class="inv-consumable-actions">
-                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>🎁 Open</button>
+                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>Open</button>
                     <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name, sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
                 </div>
             </div>`;
