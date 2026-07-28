@@ -1019,19 +1019,22 @@ const WEEKLY_TASKS = [
             leader_user_id INTEGER NOT NULL,
             floor INTEGER NOT NULL,
             boss_name TEXT NOT NULL,
-            boss_image TEXT,
-            boss_hp INTEGER NOT NULL DEFAULT 0,
-            boss_atk INTEGER NOT NULL DEFAULT 0,
-            boss_def INTEGER NOT NULL DEFAULT 0,
+            boss_image TEXT NOT NULL,
+            boss_hp INTEGER NOT NULL,
+            boss_atk INTEGER NOT NULL,
+            boss_def INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'forming',
             auto_start_mode TEXT NOT NULL DEFAULT 'manual',
             scheduled_start_at INTEGER NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'forming',
+            completed_at INTEGER DEFAULT NULL,
             created_at INTEGER NOT NULL,
-            started_at INTEGER NOT NULL DEFAULT 0,
-            completed_at INTEGER NOT NULL DEFAULT 0,
-            result_summary TEXT,
-            result_log TEXT
+            result_summary TEXT DEFAULT NULL,
+            result_log TEXT DEFAULT NULL,
+            mercenary_pool TEXT DEFAULT NULL
         )`, args: [] });
+        try { await db.execute({ sql: `ALTER TABLE guild_raids ADD COLUMN min_level INTEGER DEFAULT 1`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE guild_raids ADD COLUMN max_level INTEGER DEFAULT 999`, args: [] }); } catch {}
+
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raid_members (
             raid_id INTEGER NOT NULL,
             char_id INTEGER NOT NULL,
@@ -17462,7 +17465,7 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
     try {
         const db = await getDb();
         const now = Math.floor(Date.now() / 1000);
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, name, guild_reputation, dungeon_highest_floor, raid_cooldown_until, level');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const busy = await getCharacterBusyState(db, char);
         if (busy.busy) return res.status(400).json({ error: busy.reason });
@@ -17480,15 +17483,23 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
             return res.status(400).json({ error: `You can only create raids up to floor ${maxFloor}.` });
         }
 
+        const requestedMinLevel = Math.max(1, Number(req.body?.minLevel || 1));
+        const requestedMaxLevel = Math.max(requestedMinLevel, Number(req.body?.maxLevel || 999));
+        const playerLevel = Number(char.level || 1);
+        const constraintMaxLevel = playerLevel + Math.floor(playerLevel / 3);
+        if (requestedMaxLevel > constraintMaxLevel) {
+            return res.status(400).json({ error: `Max level cannot exceed ${constraintMaxLevel} (Player Level: ${playerLevel}).` });
+        }
+
         const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
         const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
 
         const boss = getGuildRaidBossForFloor(requestedFloor);
         const mercenaryPool = generateRaidMercenaryPool(requestedFloor, 10);
         const created = await dbRun(db, `INSERT INTO guild_raids
-      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at, mercenary_pool)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?, ?)`,
-            [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now, JSON.stringify(mercenaryPool)]
+      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at, mercenary_pool, min_level, max_level)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?, ?, ?, ?)`,
+            [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now, JSON.stringify(mercenaryPool), requestedMinLevel, requestedMaxLevel]
         );
         const raidId = Number(created.lastInsertRowid);
         await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
@@ -17520,7 +17531,14 @@ router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
         }
         const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
         const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
-        const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ? WHERE id = ? AND status = ?', [autoStartMode, raidId, 'forming']);
+        const requestedMinLevel = Math.max(1, Number(req.body?.minLevel || 1));
+        const requestedMaxLevel = Math.max(requestedMinLevel, Number(req.body?.maxLevel || 999));
+        const playerLevel = Number(char.level || 1);
+        const constraintMaxLevel = playerLevel + Math.floor(playerLevel / 3);
+        if (requestedMaxLevel > constraintMaxLevel) {
+            return res.status(400).json({ error: `Max level cannot exceed ${constraintMaxLevel} (Player Level: ${playerLevel}).` });
+        }
+        const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ?, min_level = ?, max_level = ? WHERE id = ? AND status = ?', [autoStartMode, requestedMinLevel, requestedMaxLevel, raidId, 'forming']);
         const updated = updateResult?.rowsAffected ?? updateResult?.changes ?? 0;
         if (!updated) return res.status(409).json({ error: 'Raid already started before settings could be updated.' });
         await tryStartGuildRaidIfReady(db, raidId);
@@ -17542,6 +17560,9 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
         const raidId = Number(req.body?.raidId || 0);
         const raid = await getGuildRaidById(db, raidId);
         if (!raid || raid.status !== 'forming') return res.status(404).json({ error: 'Raid not available.' });
+        if (char.level < raid.min_level || char.level > raid.max_level) {
+            return res.status(400).json({ error: `Your level (${char.level}) does not meet raid requirements (${raid.min_level}-${raid.max_level}).` });
+        }
         const existingMember = await getActiveRaidMembershipForChar(db, char.id);
         if (existingMember) return res.status(400).json({ error: 'You are already committed to another forming raid.' });
         const members = await getGuildRaidMembers(db, raidId);
