@@ -5334,7 +5334,7 @@ function renderForge() {
             <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weap.maxed?'MAXED':'Upgrade →'}</span>
         </button>` : '';
 
-    el.innerHTML = weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
+    el.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">💡 Tip: Hover the item header to preview stats</div>` + weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
         const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
         const equippedCount = pieces.filter(p => p.equipped).length;
         const equippedPct = Math.round(equippedCount / pieces.length * 100);
@@ -5373,12 +5373,9 @@ function renderForge() {
                     <div>
                         <div style="display:flex;align-items:center;gap:6px">
                             <span class="forge-card-name">${r.name}</span>
-                            <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:${qColor}22;color:${qColor};border:1px solid ${qColor}44;text-transform:uppercase;font-weight:700">${r.quality}</span>
                         </div>
-                        <div style="font-size:0.7rem;color:var(--text-dim)">${slotIcon[r.slot]||''} ${capitalize(r.slot)} · Lv.${r.level}</div>
                     </div>
                 </div>
-                <div style="font-size:0.72rem;color:var(--text-dim);margin:6px 0 2px">Hover the item header to preview scaled stats</div>
                 ${locked
                 ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
                 : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
