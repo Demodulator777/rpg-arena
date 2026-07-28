@@ -3115,14 +3115,14 @@ function renderDungeonRaidHub(guildData) {
                                 <option value="6">6 players</option>
                             </select>
                         </label>
-                        <label class="raid-field">
+                        <div class="raid-field">
                             <span>Min Level: <span id="guild-raid-min-level-val">1</span></span>
-                            <input type="range" id="guild-raid-min-level" class="raid-input" min="1" max="999" value="1">
-                        </label>
-                        <label class="raid-field">
+                            <input type="range" id="guild-raid-min-level" min="1" max="999" value="1" style="width:100%;height:20px;cursor:default">
+                        </div>
+                        <div class="raid-field">
                             <span>Max Level: <span id="guild-raid-max-level-val">999</span></span>
-                            <input type="range" id="guild-raid-max-level" class="raid-input" min="1" max="999" value="999">
-                        </label>
+                            <input type="range" id="guild-raid-max-level" min="1" max="999" value="999" style="width:100%;height:20px;cursor:default">
+                        </div>
                     </div>
                     <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? `Raid Ready In ${formatRaidDuration(cooldownLeft)}` : hasRaidCommitment ? 'Already In Raid' : 'Create Raid'}</button>
                 </div>
