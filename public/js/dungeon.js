@@ -3117,11 +3117,11 @@ function renderDungeonRaidHub(guildData) {
                         </label>
                         <label class="raid-field">
                             <span>Min Level: <span id="guild-raid-min-level-val">1</span></span>
-                            <input type="range" id="guild-raid-min-level" class="raid-input" min="1" max="999" value="1" data-change-action="updateMinLevelSlider">
+                            <input type="range" id="guild-raid-min-level" class="raid-input" min="1" max="999" value="1">
                         </label>
                         <label class="raid-field">
                             <span>Max Level: <span id="guild-raid-max-level-val">999</span></span>
-                            <input type="range" id="guild-raid-max-level" class="raid-input" min="1" max="999" value="999" data-change-action="updateMaxLevelSlider">
+                            <input type="range" id="guild-raid-max-level" class="raid-input" min="1" max="999" value="999">
                         </label>
                     </div>
                     <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? `Raid Ready In ${formatRaidDuration(cooldownLeft)}` : hasRaidCommitment ? 'Already In Raid' : 'Create Raid'}</button>
@@ -3299,6 +3299,14 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         if (minSlider) { minSlider.max = constraintMax; }
         const maxVal = document.getElementById('guild-raid-max-level-val');
         if (maxVal) maxVal.textContent = constraintMax;
+        // Attach real-time input listeners for slider value display
+        const minDisplay = document.getElementById('guild-raid-min-level-val');
+        if (minSlider && minDisplay) {
+            minSlider.addEventListener('input', function() { minDisplay.textContent = this.value; });
+        }
+        if (maxSlider && maxVal) {
+            maxSlider.addEventListener('input', function() { maxVal.textContent = this.value; });
+        }
       })
       .catch(e => {
         console.error('Failed to load raid hub:', e);
