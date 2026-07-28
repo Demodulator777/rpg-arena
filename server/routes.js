@@ -17571,11 +17571,7 @@ router.post('/dungeon/guild/raid/update-settings', auth, async (req, res) => {
         }
         const requestedAutoStartPlayers = Math.max(0, Math.min(GUILD_RAID_MAX_MEMBERS, Number(req.body?.autoStartPlayers || 0)));
         const autoStartMode = requestedAutoStartPlayers > 0 ? `count_${requestedAutoStartPlayers}` : 'manual';
-        const requestedMinLevel = Math.max(1, Number(req.body?.minLevel || 1));
-        const playerLevel = Number(char.level || 1);
-        const constraintMaxLevel = playerLevel + Math.floor(playerLevel / 3);
-        const requestedMaxLevel = Math.min(constraintMaxLevel, Math.max(requestedMinLevel, Number(req.body?.maxLevel || constraintMaxLevel)));
-        const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ?, min_level = ?, max_level = ? WHERE id = ? AND status = ?', [autoStartMode, requestedMinLevel, requestedMaxLevel, raidId, 'forming']);
+        const updateResult = await dbRun(db, 'UPDATE guild_raids SET auto_start_mode = ? WHERE id = ? AND status = ?', [autoStartMode, raidId, 'forming']);
         const updated = updateResult?.rowsAffected ?? updateResult?.changes ?? 0;
         if (!updated) return res.status(409).json({ error: 'Raid already started before settings could be updated.' });
         await tryStartGuildRaidIfReady(db, raidId);
