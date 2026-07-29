@@ -14184,6 +14184,11 @@ router.delete('/messages/:id', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+function appendFlag(map, key, val) {
+    const prev = map.get(key);
+    map.set(key, prev ? prev + ' ||| ' + val : val);
+}
+
 // ── Bot Detection Engine ────────────────────────────────────────────
 async function runBotDetection(db) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
@@ -14204,7 +14209,7 @@ async function runBotDetection(db) {
     try {
         const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
         for (const row of bots.rows) {
-            if (row.name && (!scanEnabledSet || scanEnabledSet.has(row.name))) botPlayers.set(row.name, 'Managed test bot');
+            if (row.name && (!scanEnabledSet || scanEnabledSet.has(row.name))) appendFlag(botPlayers, row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] bot_configs error:', e.message); }
     try {
@@ -14213,7 +14218,7 @@ async function runBotDetection(db) {
         const fpGroups = {};
         for (const r of fpRows.rows) {
             const name = r.char_name;
-            if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
+            if (!name || name === '?' || !r.created_at) continue;
             if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
             const p = (r.path || '').toLowerCase();
             if (!p.includes('/missions/')) continue;
@@ -14229,9 +14234,9 @@ async function runBotDetection(db) {
                 const gap = entries[i].ts - entries[i - 1].ts;
                 if (gap < 2 && cur.includes('/missions/start') && (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) instantStarts++;
             }
-            if (instantStarts >= 5) botPlayers.set(name, `Instant collect\u2192start: ${instantStarts} times in 24h`);
+            if (instantStarts >= 5) appendFlag(botPlayers, name, `Instant collect\u2192start: ${instantStarts} times in 24h`);
             const noTick = _missionNoTickStarts.get(name) || 0;
-            if (noTick >= 5) botPlayers.set(name, `No UI tick: ${noTick} direct starts`);
+            if (noTick >= 5) appendFlag(botPlayers, name, `No UI tick: ${noTick} direct starts`);
         }
     } catch (e) { console.error('[bot-detect] mission instant starts error:', e.message); }
     try {
@@ -14248,7 +14253,6 @@ async function runBotDetection(db) {
             groups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(groups)) {
-            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 20) continue;
@@ -14261,7 +14265,7 @@ async function runBotDetection(db) {
             const stddev = Math.sqrt(variance);
             const cv = stddev / mean;
             const maxGap = Math.max(...gaps);
-            if (cv < 0.5 && mean >= 60 && mean <= 900 && maxGap < 1800) botPlayers.set(name, `Mission timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+            if (cv < 0.5 && mean >= 60 && mean <= 900 && maxGap < 1800) appendFlag(botPlayers, name, `Mission timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
         }
     } catch (e) { console.error('[bot-detect] mission timing error:', e.message); }
     try {
@@ -14277,7 +14281,6 @@ async function runBotDetection(db) {
             mcGroups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(mcGroups)) {
-            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             if (timestamps.length < 6) continue;
             const gaps = [];
@@ -14286,7 +14289,7 @@ async function runBotDetection(db) {
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 0.2) botPlayers.set(name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
+            if (cv < 0.2) appendFlag(botPlayers, name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
         }
     } catch (e) { console.error('[bot-detect] mission cycle error:', e.message); }
     try {
@@ -14301,7 +14304,6 @@ async function runBotDetection(db) {
             bGroups[name].push(r.fought_at);
         }
         for (const [name, timestamps] of Object.entries(bGroups)) {
-            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 50) continue;
@@ -14313,7 +14315,7 @@ async function runBotDetection(db) {
             const stddev = Math.sqrt(variance);
             const cv = stddev / mean;
             const maxGap = Math.max(...gaps);
-            if (cv < 0.5 && mean < 60 && maxGap < 300) botPlayers.set(name, `Battle timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
+            if (cv < 0.5 && mean < 60 && maxGap < 300) appendFlag(botPlayers, name, `Battle timing CV=${cv.toFixed(2)}, mean=${Math.round(mean)}s`);
         }
     } catch (e) { console.error('[bot-detect] battle timing error:', e.message); }
     try {
@@ -14329,7 +14331,6 @@ async function runBotDetection(db) {
             cGroups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(cGroups)) {
-            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             if (timestamps.length < 50) continue;
             const span = timestamps[timestamps.length - 1] - timestamps[0];
@@ -14343,7 +14344,11 @@ async function runBotDetection(db) {
             if (mean >= 120) continue;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 1.5) { botPlayers.set(name, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, mean=${Math.round(mean)}s`); }
+            if (cv < 1.5) {
+                const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [name]);
+                const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
+                appendFlag(botPlayers, name, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, mean=${Math.round(mean)}s${countNote}`);
+            }
         }
     } catch (e) { console.error('[bot-detect] constant polling error:', e.message); }
     try {
@@ -14358,7 +14363,6 @@ async function runBotDetection(db) {
             bpGroups[name].push({ path: r.path, ts: r.created_at });
         }
         for (const [name, entries] of Object.entries(bpGroups)) {
-            if (botPlayers.has(name)) continue;
             const recent = entries.slice(0, 500);
             if (recent.length < 120) continue;
             recent.sort((a, b) => a.ts - b.ts);
@@ -14386,7 +14390,9 @@ async function runBotDetection(db) {
             const botPollEndpoints = ['/character', '/missions/active', '/missions/ui-tick', '/inventory'];
             const isBotPoll = botPollEndpoints.some(e => topPath.includes(e));
             if (isBotPoll && maxPathRatio > 0.2) {
-                botPlayers.set(name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls`);
+                const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [name]);
+                const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
+                appendFlag(botPlayers, name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls${countNote}`);
             }
         }
     } catch (e) { console.error('[bot-detect] bot pattern error:', e.message); }
@@ -14402,7 +14408,6 @@ async function runBotDetection(db) {
             pGroups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(pGroups)) {
-            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 15) continue;
@@ -14421,7 +14426,7 @@ async function runBotDetection(db) {
                     const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
                     const cv = Math.sqrt(variance) / mean;
                     if (cv < 0.8 || (isRelentless && isSustained)) {
-                        botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
+                        appendFlag(botPlayers, name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
                     }
                 }
             }
@@ -14445,13 +14450,10 @@ async function runSelectiveBotDetection(db, charName) {
     try {
         const bots = await db.execute({ sql: 'SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1 AND c.name = ?', args: [charName] });
         for (const row of bots.rows) {
-            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+            if (row.name) appendFlag(botPlayers, row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] selective bot_configs error:', e.message); }
     
-    // If already detected as managed bot, stop here
-    if (botPlayers.has(charName)) return botPlayers;
-
     // 2. Mission instant starts
     try {
         const fpCutoff = now - 86400;
@@ -14467,10 +14469,10 @@ async function runSelectiveBotDetection(db, charName) {
             const gap = entries[i].ts - entries[i - 1].ts;
             if (gap < 2 && cur.includes('/missions/start') && (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) instantStarts++;
         }
-        if (instantStarts >= 5) botPlayers.set(charName, `Instant collect\u2192start: ${instantStarts} times in 24h`);
+        if (instantStarts >= 5) appendFlag(botPlayers, charName, `Instant collect\u2192start: ${instantStarts} times in 24h`);
         
         const noTick = _missionNoTickStarts.get(charName) || 0;
-        if (noTick >= 5) botPlayers.set(charName, `No UI tick: ${noTick} direct starts`);
+        if (noTick >= 5) appendFlag(botPlayers, charName, `No UI tick: ${noTick} direct starts`);
     } catch (e) { console.error('[bot-detect] selective mission error:', e.message); }
 
     // 3. Mission cycle timing (collect-to-collect gaps)
@@ -14485,7 +14487,7 @@ async function runSelectiveBotDetection(db, charName) {
                 const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
                 const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
                 const cv = Math.sqrt(variance) / mean;
-                if (cv < 0.2) botPlayers.set(charName, `Mission cycle: ${mcTimestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
+                if (cv < 0.2) appendFlag(botPlayers, charName, `Mission cycle: ${mcTimestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
             }
         }
     } catch (e) { console.error('[bot-detect] selective mission cycle error:', e.message); }
@@ -14508,7 +14510,11 @@ async function runSelectiveBotDetection(db, charName) {
                     if (mean < 120) {
                         const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
                         const cv = Math.sqrt(variance) / mean;
-                        if (cv < 1.5) botPlayers.set(charName, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, mean=${Math.round(mean)}s`);
+                        if (cv < 1.5) {
+                            const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [charName]);
+                            const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
+                            appendFlag(botPlayers, charName, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, mean=${Math.round(mean)}s${countNote}`);
+                        }
                     }
                 }
                 }
@@ -14545,7 +14551,9 @@ async function runSelectiveBotDetection(db, charName) {
                     const botPollEndpoints = ['/character', '/missions/active', '/missions/ui-tick', '/inventory'];
                     const isBotPoll = botPollEndpoints.some(e => topPath.includes(e));
                     if (isBotPoll && maxPathRatio > 0.2) {
-                        botPlayers.set(charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls`);
+                        const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [charName]);
+                        const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
+                        appendFlag(botPlayers, charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls${countNote}`);
                     }
                 }
             }
