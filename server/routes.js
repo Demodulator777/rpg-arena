@@ -116,6 +116,10 @@ async function ensureFlaggedTable(db) {
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_types TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
     // Flag events log table
     try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS flag_events (id INTEGER PRIMARY KEY AUTOINCREMENT, char_name TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', signal_type TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
+    // Migration: scan_enabled toggle + scan_started_at
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_enabled INTEGER NOT NULL DEFAULT 1", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_notes TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_started_at INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
 }
 
 async function logFlagEvent(db, charName, reason, signalType) {
@@ -14181,16 +14185,24 @@ router.delete('/messages/:id', auth, async (req, res) => {
 });
 
 // ── Bot Detection Engine ────────────────────────────────────────────
+async function getScanDisabledSet(db) {
+    try {
+        const rows = await db.execute('SELECT char_name FROM flagged_characters WHERE scan_enabled = 0');
+        return new Set(rows.rows.map(r => r.char_name));
+    } catch { return new Set(); }
+}
+
 async function runBotDetection(db) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
     if (setting && setting.value === 'false') return new Map();
 
+    const scanDisabled = await getScanDisabledSet(db);
     const botPlayers = new Map();
     const now = Math.floor(Date.now() / 1000);
     try {
         const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
         for (const row of bots.rows) {
-            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+            if (row.name && !scanDisabled.has(row.name)) botPlayers.set(row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] bot_configs error:', e.message); }
     try {
@@ -14199,7 +14211,7 @@ async function runBotDetection(db) {
         const fpGroups = {};
         for (const r of fpRows.rows) {
             const name = r.char_name;
-            if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
+            if (!name || name === '?' || !r.created_at || botPlayers.has(name) || scanDisabled.has(name)) continue;
             const p = (r.path || '').toLowerCase();
             if (!p.includes('/missions/')) continue;
             if (!fpGroups[name]) fpGroups[name] = [];
@@ -14232,7 +14244,7 @@ async function runBotDetection(db) {
             groups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(groups)) {
-            if (botPlayers.has(name)) continue;
+            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 20) continue;
@@ -14259,7 +14271,7 @@ async function runBotDetection(db) {
             bGroups[name].push(r.fought_at);
         }
         for (const [name, timestamps] of Object.entries(bGroups)) {
-            if (botPlayers.has(name)) continue;
+            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 50) continue;
@@ -14285,7 +14297,7 @@ async function runBotDetection(db) {
             pGroups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(pGroups)) {
-            if (botPlayers.has(name)) continue;
+            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 15) continue;
@@ -14303,8 +14315,6 @@ async function runBotDetection(db) {
                     const mean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
                     const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
                     const cv = Math.sqrt(variance) / mean;
-                    // Regular poller (even with some randomization): CV < 0.8
-                    // OR relentless coverage with high CV — no real breaks for 2h+
                     if (cv < 0.8 || (isRelentless && isSustained)) {
                         botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
                     }
@@ -14312,6 +14322,51 @@ async function runBotDetection(db) {
             }
         }
     } catch (e) { console.error('[bot-detect] state polling error:', e.message); }
+    return botPlayers;
+}
+
+async function runSelectiveBotDetection(db, charName) {
+    // Check if scan is enabled for this character (skip if explicitly disabled)
+    try {
+        const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [charName]);
+        if (flagRow && flagRow.scan_enabled === 0) return new Map();
+    } catch {}
+
+    const botPlayers = new Map();
+    const now = Math.floor(Date.now() / 1000);
+
+    // 1. Managed test bots
+    try {
+        const bots = await db.execute({ sql: 'SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1 AND c.name = ?', args: [charName] });
+        for (const row of bots.rows) {
+            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+        }
+    } catch (e) { console.error('[bot-detect] selective bot_configs error:', e.message); }
+    
+    // If already detected as managed bot, stop here
+    if (botPlayers.has(charName)) return botPlayers;
+
+    // 2. Mission instant starts
+    try {
+        const fpCutoff = now - 86400;
+        const fpRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'POST' ORDER BY char_name, created_at`, args: [charName, fpCutoff] });
+        const entries = fpRows.rows.map(r => ({ ts: r.created_at, path: (r.path || '').toLowerCase() }))
+            .filter(r => r.path.includes('/missions/'));
+        
+        entries.sort((a, b) => a.ts - b.ts);
+        let instantStarts = 0;
+        for (let i = 1; i < entries.length; i++) {
+            const prev = entries[i - 1].path;
+            const cur = entries[i].path;
+            const gap = entries[i].ts - entries[i - 1].ts;
+            if (gap < 2 && cur.includes('/missions/start') && (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) instantStarts++;
+        }
+        if (instantStarts >= 5) botPlayers.set(charName, `Instant collect\u2192start: ${instantStarts} times in 24h`);
+        
+        const noTick = _missionNoTickStarts.get(charName) || 0;
+        if (noTick >= 5) botPlayers.set(charName, `No UI tick: ${noTick} direct starts`);
+    } catch (e) { console.error('[bot-detect] selective mission error:', e.message); }
+
     return botPlayers;
 }
 
@@ -14504,6 +14559,29 @@ router.post('/admin/set-moderator', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/admin/character-search', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const q = req.query.q || '';
+        if (q.length < 1) return res.json([]);
+        const result = await db.execute({ sql: `SELECT name FROM characters WHERE name LIKE ? ORDER BY name LIMIT 20`, args: [q + '%'] });
+        res.json(result.rows.map(r => r.name));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/toggle-character-scan', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const { char_name, scan_enabled } = req.body;
+        if (!char_name) return res.status(400).json({ error: 'char_name required' });
+        await ensureFlaggedTable(db);
+        await db.execute({ sql: 'UPDATE flagged_characters SET scan_enabled=? WHERE char_name=?', args: [scan_enabled ? 1 : 0, char_name] });
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/admin/flagged-characters', auth, async (req, res) => {
     if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {
@@ -14516,6 +14594,52 @@ router.get('/admin/flagged-characters', auth, async (req, res) => {
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+router.post('/admin/scan-character/:charName', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const charName = req.params.charName;
+
+        // 1. Activate monitoring for this character
+        await ensureFlaggedTable(db);
+        const now = Math.floor(Date.now() / 1000);
+        const existing = await dbGet(db, 'SELECT id, scan_enabled, scan_started_at FROM flagged_characters WHERE char_name=?', [charName]);
+        if (existing) {
+            await db.execute({
+                sql: 'UPDATE flagged_characters SET scan_enabled=1, scan_started_at=CASE WHEN scan_started_at=0 THEN ? ELSE scan_started_at END, last_seen_at=? WHERE char_name=?',
+                args: [now, now, charName]
+            });
+        } else {
+            await db.execute({
+                sql: "INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, scan_enabled, scan_started_at, signal_count, distinct_signals, signal_types) VALUES (?,'Monitoring active',?,?,1,?,0,0,'')",
+                args: [charName, now, now, now]
+            });
+        }
+
+        // 2. Get data stats
+        const dayAgo = now - 86400;
+        const apiCount = await dbGet(db, 'SELECT COUNT(*) AS c FROM api_log WHERE char_name=? AND created_at>?', [charName, dayAgo]);
+        const missionCount = await dbGet(db, "SELECT COUNT(*) AS c FROM api_log WHERE char_name=? AND created_at>? AND method='POST' AND path LIKE '%/missions/%'", [charName, dayAgo]);
+        const battleCount = await dbGet(db, 'SELECT COUNT(*) AS c FROM battles b JOIN characters ca ON b.attacker_id=ca.id WHERE ca.name=? AND b.fought_at>?', [charName, dayAgo]);
+
+        // 3. Run detection on existing data
+        const botPlayers = await runSelectiveBotDetection(db, charName);
+        await persistBotFlags(db, botPlayers);
+
+        res.json({
+            monitoring: true,
+            scan_started_at: existing?.scan_started_at || now,
+            detected: botPlayers.has(charName),
+            reason: botPlayers.get(charName) || null,
+            data: {
+                api_log_24h: apiCount?.c || 0,
+                missions_24h: missionCount?.c || 0,
+                battles_24h: battleCount?.c || 0
+            }
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 router.get('/admin/character-logs/:name', auth, async (req, res) => {
     if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
