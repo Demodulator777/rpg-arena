@@ -8218,7 +8218,7 @@ function renderSquads() {
             <div class="squads-meta">Create a squad or join one by invite code.</div>
             <div class="squads-actions">
                 <input id="squad-name" class="input-field" placeholder="Squad name (3-20 chars)">
-                <input id="squad-tag" class="input-field" placeholder="Tag (1-5 chars)" style="width:100px">
+                <input id="squad-tag" class="input-field" placeholder="Tag (1-5 chars, required)" style="width:100px" required>
                 <button class="btn-primary" ${actionAttrs('createSquad')}>Create</button>
             </div>
             <div class="squads-actions" style="margin-top:10px">
@@ -8791,6 +8791,10 @@ window.showSquadDetail = showSquadDetail;
 async function createSquad() {
     const name = document.getElementById('squad-name')?.value || '';
     const tag = document.getElementById('squad-tag')?.value || '';
+    if (!tag) {
+        await openGameNoticeDialog({ title: '🛡️ Squads', message: 'Squad tag is required.' });
+        return;
+    }
     try {
         const res = await api('POST', '/game/squads/create', { name, tag });
         await openGameNoticeDialog({ title: '🛡️ Squad Created', message: `Created "${res.squad?.name || name}".` });
