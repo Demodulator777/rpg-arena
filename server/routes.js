@@ -14265,6 +14265,30 @@ async function runBotDetection(db) {
         }
     } catch (e) { console.error('[bot-detect] mission timing error:', e.message); }
     try {
+        const mcCutoff = now - 86400;
+        const mcRows = await db.execute({ sql: `SELECT char_name, created_at FROM api_log WHERE created_at > ? AND method = 'POST' AND path LIKE '%/missions/collect%' ORDER BY char_name, created_at`, args: [mcCutoff] });
+        const mcGroups = {};
+        for (const r of mcRows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?' || !r.created_at) continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
+            if (!mcGroups[name]) mcGroups[name] = [];
+            mcGroups[name].push(r.created_at);
+        }
+        for (const [name, timestamps] of Object.entries(mcGroups)) {
+            if (botPlayers.has(name)) continue;
+            timestamps.sort((a, b) => a - b);
+            if (timestamps.length < 6) continue;
+            const gaps = [];
+            for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g >= 60 && g <= 3600) gaps.push(g); }
+            if (gaps.length < 5) continue;
+            const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
+            const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+            const cv = Math.sqrt(variance) / mean;
+            if (cv < 0.3) botPlayers.set(name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
+        }
+    } catch (e) { console.error('[bot-detect] mission cycle error:', e.message); }
+    try {
         const bCutoff = now - 21600;
         const bRows = await db.execute({ sql: `SELECT ca.name AS char_name, b.fought_at FROM battles b JOIN characters ca ON b.attacker_id = ca.id WHERE b.fought_at > ? ORDER BY ca.name, b.fought_at`, args: [bCutoff] });
         const bGroups = {};
@@ -14400,7 +14424,24 @@ async function runSelectiveBotDetection(db, charName) {
         if (noTick >= 5) botPlayers.set(charName, `No UI tick: ${noTick} direct starts`);
     } catch (e) { console.error('[bot-detect] selective mission error:', e.message); }
 
-    // 3. Constant polling
+    // 3. Mission cycle timing (collect-to-collect gaps)
+    try {
+        const mcCutoff = now - 86400;
+        const mcRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'POST' AND path LIKE '%/missions/collect%' ORDER BY created_at`, args: [charName, mcCutoff] });
+        const mcTimestamps = mcRows.rows.map(r => r.created_at).filter(Boolean).sort((a, b) => a - b);
+        if (mcTimestamps.length >= 6) {
+            const gaps = [];
+            for (let i = 1; i < mcTimestamps.length; i++) { const g = mcTimestamps[i] - mcTimestamps[i - 1]; if (g >= 60 && g <= 3600) gaps.push(g); }
+            if (gaps.length >= 5) {
+                const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
+                const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+                const cv = Math.sqrt(variance) / mean;
+                if (cv < 0.3) botPlayers.set(charName, `Mission cycle: ${mcTimestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
+            }
+        }
+    } catch (e) { console.error('[bot-detect] selective mission cycle error:', e.message); }
+
+    // 4. Constant polling
     try {
         const cpCutoff = now - 86400;
         const cpRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'GET' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions%' OR path LIKE '%/status%') ORDER BY created_at`, args: [charName, cpCutoff] });
