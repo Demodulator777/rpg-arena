@@ -8238,12 +8238,12 @@ function renderSquads() {
             <div style="display:flex;align-items:center;gap:12px">
                 ${logoDisplay}
                 <div>
-                    <div class="squads-title">${escHtml(squad.name)}</div>
+                    <div class="squads-title">${escHtml(squad.name)}${squad.squad_tag ? ` [${escHtml(squad.squad_tag)}]` : ''}</div>
                     <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
-                ${isLeader ? `<button class="btn-secondary btn-sm" ${actionAttrs('openUpdateTagModal')}>🏷️ Tag</button>` : ''}
+                ${(isLeader && !squad.squad_tag) ? `<button class="btn-secondary btn-sm" ${actionAttrs('openUpdateTagModal')}>🏷️ Tag</button>` : ''}
                 ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
             </div>
