@@ -9846,7 +9846,7 @@ router.get('/squads/me', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ squad: null, members: [] });
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at FROM squads WHERE id=?', [membership.squad_id]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at, squad_tag FROM squads WHERE id=?', [membership.squad_id]);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
             COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
             COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
@@ -9866,6 +9866,14 @@ router.post('/squads/create', auth, async (req, res) => {
         const name = normalizeSquadName(req.body?.name);
         if (!name) return res.status(400).json({ error: 'Invalid squad name (3-20 chars, letters/numbers/spaces/-/_).' });
 
+        const tag = (req.body?.tag || '').toUpperCase().trim();
+        if (tag && !/^[A-Z0-9]{1,5}$/.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 alphanumeric chars).' });
+        
+        if (tag) {
+            const tagExists = await dbGet(db, 'SELECT 1 FROM squads WHERE squad_tag=? LIMIT 1', [tag]);
+            if (tagExists) return res.status(400).json({ error: 'Squad tag already in use.' });
+        }
+
         let code = makeInviteCode();
         for (let i = 0; i < 5; i++) {
             const exists = await dbGet(db, 'SELECT 1 FROM squads WHERE invite_code=? LIMIT 1', [code]);
@@ -9873,11 +9881,33 @@ router.post('/squads/create', auth, async (req, res) => {
             code = makeInviteCode();
         }
         const now = Math.floor(Date.now() / 1000);
-        const ins = await dbRun(db, 'INSERT INTO squads (name, invite_code, owner_char_id, created_at) VALUES (?,?,?,?)', [name, code, char.id, now]);
+        const ins = await dbRun(db, 'INSERT INTO squads (name, invite_code, owner_char_id, created_at, squad_tag) VALUES (?,?,?,?,?)', [name, code, char.id, now, tag || null]);
         const squadId = Number(ins.lastInsertRowid || 0);
         await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [squadId, char.id, 'leader', now]);
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at FROM squads WHERE id=?', [squadId]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at, squad_tag FROM squads WHERE id=?', [squadId]);
         res.json({ success: true, squad });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/update-tag', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+        
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership || membership.role !== 'leader') return res.status(403).json({ error: 'Only squad leader can update tag' });
+        
+        const tag = (req.body?.tag || '').toUpperCase().trim();
+        if (tag && !/^[A-Z0-9]{1,5}$/.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 alphanumeric chars).' });
+        
+        if (tag) {
+            const tagExists = await dbGet(db, 'SELECT 1 FROM squads WHERE squad_tag=? AND id != ? LIMIT 1', [tag, membership.squad_id]);
+            if (tagExists) return res.status(400).json({ error: 'Squad tag already in use.' });
+        }
+        
+        await dbRun(db, 'UPDATE squads SET squad_tag=? WHERE id=?', [tag || null, membership.squad_id]);
+        res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -9941,6 +9971,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
             SELECT
                 s.id,
                 s.name,
+                s.squad_tag,
                 s.logo,
                 COUNT(sm.char_id) AS member_count,
                 CAST(AVG(c.level) AS INTEGER) AS avg_level,
@@ -9956,6 +9987,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
         res.json(rows.map(r => ({
             id: Number(r.id || 0),
             name: r.name,
+            tag: r.squad_tag || null,
             logo: r.logo || null,
             member_count: Number(r.member_count || 0),
             avg_level: Number(r.avg_level || 0),
@@ -10522,7 +10554,7 @@ router.get('/squads/:squadId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const squadId = Number(req.params.squadId);
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo FROM squads WHERE id=?', [squadId]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, squad_tag FROM squads WHERE id=?', [squadId]);
         if (!squad) return res.status(404).json({ error: 'Squad not found.' });
         const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
             COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
@@ -11999,6 +12031,8 @@ router.get('/inventory', auth, async (req, res) => {
     const db = await getDb();
     try {
         await dbRun(db, "ALTER TABLE elementals ADD COLUMN is_equipped INTEGER DEFAULT 0;");
+        await dbRun(db, "ALTER TABLE squads ADD COLUMN squad_tag TEXT;");
+        await dbRun(db, "CREATE UNIQUE INDEX IF NOT EXISTS idx_squad_tag ON squads(squad_tag);");
     } catch (e) { /* Column likely already exists */ }
 })();
 
