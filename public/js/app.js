@@ -8136,7 +8136,7 @@ function buildSquadLeaderboardRow(s, idx) {
     return `<div class="lb-row" ${actionAttrs('showSquadDetail', s.id)}>
         <div class="lb-rank ${rc}">${rs}</div>
         ${logoHtml}
-        <div class="lb-info"><div class="lb-name">${escHtml(s.name)}</div>
+        <div class="lb-info"><div class="lb-name">${s.tag ? `[${escHtml(s.tag)}]` : escHtml(s.name)}</div>
         <div class="lb-sub">${s.member_count} members · Avg Lv ${s.avg_level} · Avg 💰 ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
         <div class="lb-stats" style="grid-template-columns:1fr">
             <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div></div>
@@ -8217,6 +8217,7 @@ function renderSquads() {
             <div class="squads-meta">Create a squad or join one by invite code.</div>
             <div class="squads-actions">
                 <input id="squad-name" class="input-field" placeholder="Squad name (3-20 chars)">
+                <input id="squad-tag" class="input-field" placeholder="Tag (1-5 chars)" style="width:100px">
                 <button class="btn-primary" ${actionAttrs('createSquad')}>Create</button>
             </div>
             <div class="squads-actions" style="margin-top:10px">
@@ -8242,6 +8243,7 @@ function renderSquads() {
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
+                ${isLeader ? `<button class="btn-secondary btn-sm" ${actionAttrs('openUpdateTagModal')}>🏷️ Tag</button>` : ''}
                 ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
             </div>
@@ -8787,8 +8789,9 @@ window.showSquadDetail = showSquadDetail;
 
 async function createSquad() {
     const name = document.getElementById('squad-name')?.value || '';
+    const tag = document.getElementById('squad-tag')?.value || '';
     try {
-        const res = await api('POST', '/game/squads/create', { name });
+        const res = await api('POST', '/game/squads/create', { name, tag });
         await openGameNoticeDialog({ title: '🛡️ Squad Created', message: `Created "${res.squad?.name || name}".` });
         await loadSquads();
     } catch (e) {
@@ -8819,6 +8822,19 @@ async function leaveSquad() {
     }
 }
 window.leaveSquad = leaveSquad;
+
+async function openUpdateTagModal() {
+    const tag = prompt("Enter new squad tag (1-5 alphanumeric chars):");
+    if (!tag) return;
+    try {
+        await api('POST', '/game/squads/update-tag', { tag });
+        await openGameNoticeDialog({ title: '🛡️ Squad Tag', message: 'Squad tag updated!' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🛡️ Squad Tag', message: e.message || String(e) });
+    }
+}
+window.openUpdateTagModal = openUpdateTagModal;
 
 async function uploadSquadLogo() {
     const input = document.createElement('input');
