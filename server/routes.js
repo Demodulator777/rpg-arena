@@ -14315,6 +14315,48 @@ async function runBotDetection(db) {
     return botPlayers;
 }
 
+async function runSelectiveBotDetection(db, charName) {
+    const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
+    if (setting && setting.value === 'false') return new Map();
+
+    const botPlayers = new Map();
+    const now = Math.floor(Date.now() / 1000);
+
+    // 1. Managed test bots
+    try {
+        const bots = await db.execute({ sql: 'SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1 AND c.name = ?', args: [charName] });
+        for (const row of bots.rows) {
+            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+        }
+    } catch (e) { console.error('[bot-detect] selective bot_configs error:', e.message); }
+    
+    // If already detected as managed bot, stop here
+    if (botPlayers.has(charName)) return botPlayers;
+
+    // 2. Mission instant starts
+    try {
+        const fpCutoff = now - 86400;
+        const fpRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'POST' ORDER BY char_name, created_at`, args: [charName, fpCutoff] });
+        const entries = fpRows.rows.map(r => ({ ts: r.created_at, path: (r.path || '').toLowerCase() }))
+            .filter(r => r.path.includes('/missions/'));
+        
+        entries.sort((a, b) => a.ts - b.ts);
+        let instantStarts = 0;
+        for (let i = 1; i < entries.length; i++) {
+            const prev = entries[i - 1].path;
+            const cur = entries[i].path;
+            const gap = entries[i].ts - entries[i - 1].ts;
+            if (gap < 2 && cur.includes('/missions/start') && (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) instantStarts++;
+        }
+        if (instantStarts >= 5) botPlayers.set(charName, `Instant collect\u2192start: ${instantStarts} times in 24h`);
+        
+        const noTick = _missionNoTickStarts.get(charName) || 0;
+        if (noTick >= 5) botPlayers.set(charName, `No UI tick: ${noTick} direct starts`);
+    } catch (e) { console.error('[bot-detect] selective mission error:', e.message); }
+
+    return botPlayers;
+}
+
 async function persistBotFlags(db, botPlayers) {
     const now = Math.floor(Date.now() / 1000);
     try {
@@ -14505,17 +14547,25 @@ router.post('/admin/set-moderator', auth, async (req, res) => {
 });
 
 router.get('/admin/flagged-characters', auth, async (req, res) => {
-    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
-        // Run detection before returning so new flags appear immediately
         const botPlayers = await runBotDetection(db);
         await persistBotFlags(db, botPlayers);
-        await ensureFlaggedTable(db);
-        const result = await db.execute('SELECT * FROM flagged_characters ORDER BY last_seen_at DESC');
-        res.json(result.rows);
+        res.json({ success: true, count: botPlayers.size });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+router.get('/admin/scan-character/:charName', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const charName = req.params.charName;
+        // Run bot detection specifically for this character
+        const botPlayers = await runSelectiveBotDetection(db, charName);
+        await persistBotFlags(db, botPlayers);
+        res.json({ success: true, detected: botPlayers.has(charName), reason: botPlayers.get(charName) || 'None' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 
 router.get('/admin/character-logs/:name', auth, async (req, res) => {
     if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
