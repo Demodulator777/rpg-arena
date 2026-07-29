@@ -14282,11 +14282,11 @@ async function runBotDetection(db) {
             if (timestamps.length < 6) continue;
             const gaps = [];
             for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g >= 60 && g <= 3600) gaps.push(g); }
-            if (gaps.length < 5) continue;
+            if (gaps.length < 5) { console.log('[bot-detect] MC skip gaps:', name, 'collects:', timestamps.length, 'gaps:', gaps.length, 'gaps_raw:', timestamps.slice(0,10).map((t,j)=>j>0?t-timestamps[j-1]:0).join(',')); continue; }
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 0.3) botPlayers.set(name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
+            if (cv < 0.3) botPlayers.set(name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`); else console.log('[bot-detect] MC high CV:', name, 'CV:', cv.toFixed(3), 'mean:', Math.round(mean), 'gaps:', gaps.length);
         }
     } catch (e) { console.error('[bot-detect] mission cycle error:', e.message); }
     try {
@@ -14331,17 +14331,18 @@ async function runBotDetection(db) {
         for (const [name, timestamps] of Object.entries(cGroups)) {
             if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
+            if (timestamps.length >= 8) console.log('[bot-detect] CP candidate:', name, 'entries:', timestamps.length, 'span:', timestamps[timestamps.length-1]-timestamps[0]);
             if (timestamps.length < 10) continue;
             const span = timestamps[timestamps.length - 1] - timestamps[0];
             if (span < 600) continue;
             const gaps = [];
             for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-            if (gaps.length < 5) continue;
+            if (gaps.length < 5) { console.log('[bot-detect] CP skip gaps:', name, 'entries:', timestamps.length, 'span:', span, 'gaps:', gaps.length); continue; }
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (mean >= 180) continue;
+            if (mean >= 180) { console.log('[bot-detect] CP skip mean:', name, 'mean:', Math.round(mean)); continue; }
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 0.8) botPlayers.set(name, `Constant polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
+            if (cv < 0.8) { botPlayers.set(name, `Constant polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`); console.log('[bot-detect] CP DETECTED:', name); } else { console.log('[bot-detect] CP skip CV:', name, 'CV:', cv.toFixed(3), 'mean:', Math.round(mean), 'gaps:', gaps.length); }
         }
     } catch (e) { console.error('[bot-detect] constant polling error:', e.message); }
     try {
