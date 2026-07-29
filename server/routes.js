@@ -14348,7 +14348,7 @@ async function runBotDetection(db) {
     } catch (e) { console.error('[bot-detect] constant polling error:', e.message); }
     try {
         const bpCutoff = now - 86400;
-        const bpRows = await db.execute({ sql: `SELECT char_name, path, created_at FROM api_log WHERE created_at > ? ORDER BY created_at DESC LIMIT 20000`, args: [bpCutoff] });
+        const bpRows = await db.execute({ sql: `SELECT char_name, path, created_at FROM api_log WHERE created_at > ? ORDER BY created_at DESC LIMIT 50000`, args: [bpCutoff] });
         const bpGroups = {};
         for (const r of bpRows.rows) {
             const name = r.char_name;
@@ -14363,7 +14363,7 @@ async function runBotDetection(db) {
             if (recent.length < 120) continue;
             recent.sort((a, b) => a.ts - b.ts);
             const span = recent[recent.length - 1].ts - recent[0].ts;
-            if (span < 3600) continue;
+            if (span < 600) continue;
             const reqPerMin = recent.length / (span / 60);
             if (reqPerMin < 1.0) continue;
             const paths = new Set();
@@ -14374,6 +14374,7 @@ async function runBotDetection(db) {
                 paths.add(p);
             }
             const hasAchievements = [...paths].some(p => p.includes('/achievements'));
+            if (name === 'Vader' || name === 'vader') console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', [...paths], 'hasAchievements:', hasAchievements);
             if (!hasAchievements && paths.size <= 6) {
                 botPlayers.set(name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, ${paths.size} endpoints, no /achievements`);
             }
@@ -14511,7 +14512,7 @@ async function runSelectiveBotDetection(db, charName) {
             const entries = bpRows.rows;
             entries.sort((a, b) => a.created_at - b.created_at);
             const span = entries[entries.length - 1].created_at - entries[0].created_at;
-            if (span >= 3600) {
+            if (span >= 600) {
                 const reqPerMin = entries.length / (span / 60);
                 if (reqPerMin >= 1.0) {
                     const paths = new Set();
