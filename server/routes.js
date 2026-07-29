@@ -14382,7 +14382,7 @@ async function runBotDetection(db) {
                 pathCounts[p] = (pathCounts[p] || 0) + 1;
             }
             const maxPathRatio = Math.max(...Object.values(pathCounts)) / recent.length;
-            if (name === 'Vader' || name === 'vader') console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', paths.size, 'maxPathRatio:', (maxPathRatio*100).toFixed(0)+'%', 'hasAchievements:', hasAchievements);
+            if (['Vader','vader','Sanctus','En Peasant','en peasant'].includes(name)) console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', paths.size, 'maxPathRatio:', (maxPathRatio*100).toFixed(0)+'%', 'topPath:', Object.entries(pathCounts).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([p,c])=>p+':'+c).join(', '));
             if (maxPathRatio > 0.2) {
                 botPlayers.set(name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls`);
             }
