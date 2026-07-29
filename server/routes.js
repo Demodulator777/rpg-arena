@@ -14331,14 +14331,14 @@ async function runBotDetection(db) {
         for (const [name, timestamps] of Object.entries(cGroups)) {
             if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
-            if (timestamps.length < 20) continue;
+            if (timestamps.length < 50) continue;
             const span = timestamps[timestamps.length - 1] - timestamps[0];
-            if (span < 1800) continue;
+            if (span < 7200) continue;
             const reqPerMin = timestamps.length / (span / 60);
             if (reqPerMin < 0.5) continue;
             const gaps = [];
             for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-            if (gaps.length < 15) continue;
+            if (gaps.length < 30) continue;
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
             if (mean >= 120) continue;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
@@ -14452,14 +14452,14 @@ async function runSelectiveBotDetection(db, charName) {
         const cpRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'GET' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions%' OR path LIKE '%/status%') ORDER BY created_at`, args: [charName, cpCutoff] });
         const timestamps = cpRows.rows.map(r => r.created_at).filter(Boolean);
         timestamps.sort((a, b) => a - b);
-        if (timestamps.length >= 20) {
+        if (timestamps.length >= 50) {
             const span = timestamps[timestamps.length - 1] - timestamps[0];
-            if (span >= 1800) {
+            if (span >= 7200) {
                 const reqPerMin = timestamps.length / (span / 60);
                 if (reqPerMin >= 0.5) {
                 const gaps = [];
                 for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-                if (gaps.length >= 15) {
+                if (gaps.length >= 30) {
                     const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
                     if (mean < 120) {
                         const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
