@@ -136,8 +136,8 @@ router.use(async (req, res, next) => {
             const userId = req.user?.userId || 0;
             const username = req.user?.username || '';
             const path = req.originalUrl || req.url;
-            // Skip logging the action-log endpoint itself
-            if (path.includes('/admin/action-log')) return;
+            // Skip logging chat/admin endpoints to avoid cluttering api_log
+            if (path.includes('/chat/') || path.includes('/admin/')) return;
             let charName = '';
             try {
                 const char = await dbGet(db, 'SELECT name FROM characters WHERE (SELECT active_character_id FROM users WHERE id=?) = id', [userId]);
@@ -14336,7 +14336,7 @@ async function runBotDetection(db) {
             const span = timestamps[timestamps.length - 1] - timestamps[0];
             if (span < 7200) continue;
             const reqPerMin = timestamps.length / (span / 60);
-            if (reqPerMin < 0.5) continue;
+            if (reqPerMin < 1.0) continue;
             const gaps = [];
             for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
             if (gaps.length < 30) continue;
@@ -14360,6 +14360,8 @@ async function runBotDetection(db) {
             const name = r.char_name;
             if (!name || name === '?' || !r.created_at) continue;
             if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
+            const p = (r.path || '').toLowerCase();
+            if (p.includes('/chat/') || p.includes('/admin/')) continue;
             if (!bpGroups[name]) bpGroups[name] = [];
             bpGroups[name].push({ path: r.path, ts: r.created_at });
         }
@@ -14505,7 +14507,7 @@ async function runSelectiveBotDetection(db, charName) {
             const span = timestamps[timestamps.length - 1] - timestamps[0];
             if (span >= 7200) {
                 const reqPerMin = timestamps.length / (span / 60);
-                if (reqPerMin >= 0.5) {
+                if (reqPerMin >= 1.0) {
                 const gaps = [];
                 for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
                 if (gaps.length >= 30) {
@@ -14527,8 +14529,12 @@ async function runSelectiveBotDetection(db, charName) {
     try {
         const bpCutoff = now - 86400;
         const bpRows = await db.execute({ sql: `SELECT path, created_at FROM api_log WHERE char_name = ? AND created_at > ? ORDER BY created_at DESC LIMIT 500`, args: [charName, bpCutoff] });
-        if (bpRows.rows.length >= 120) {
-            const entries = bpRows.rows;
+        const filtered = bpRows.rows.filter(r => {
+            const p = (r.path || '').toLowerCase();
+            return !p.includes('/chat/') && !p.includes('/admin/');
+        });
+        if (filtered.length >= 120) {
+            const entries = filtered;
             entries.sort((a, b) => a.created_at - b.created_at);
             const span = entries[entries.length - 1].created_at - entries[0].created_at;
             if (span >= 600) {
