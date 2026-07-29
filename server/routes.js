@@ -14363,7 +14363,7 @@ async function runBotDetection(db) {
             if (recent.length < 120) continue;
             recent.sort((a, b) => a.ts - b.ts);
             const span = recent[recent.length - 1].ts - recent[0].ts;
-            if (span < 7200) continue;
+            if (span < 3600) continue;
             const reqPerMin = recent.length / (span / 60);
             if (reqPerMin < 1.0) continue;
             const paths = new Set();
@@ -14511,7 +14511,7 @@ async function runSelectiveBotDetection(db, charName) {
             const entries = bpRows.rows;
             entries.sort((a, b) => a.created_at - b.created_at);
             const span = entries[entries.length - 1].created_at - entries[0].created_at;
-            if (span >= 7200) {
+            if (span >= 3600) {
                 const reqPerMin = entries.length / (span / 60);
                 if (reqPerMin >= 1.0) {
                     const paths = new Set();
