@@ -9867,39 +9867,9 @@ router.post('/squads/create', auth, async (req, res) => {
         if (!name) return res.status(400).json({ error: 'Invalid squad name (3-20 chars, letters/numbers/spaces/-/_).' });
 
         const tag = (req.body?.tag || '').toUpperCase().trim();
-        if (tag && !/^[A-Z0-9]{1,5}$/.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 alphanumeric chars).' });
-        
-        if (tag) {
-            const tagExists = await dbGet(db, 'SELECT 1 FROM squads WHERE squad_tag=? LIMIT 1', [tag]);
-            if (tagExists) return res.status(400).json({ error: 'Squad tag already in use.' });
-        }
+        if (!tag) return res.status(400).json({ error: 'Squad tag is required.' });
+        if (!/^[A-Z0-9]{1,5}$/.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 alphanumeric chars).' });
 
-        let code = makeInviteCode();
-        for (let i = 0; i < 5; i++) {
-            const exists = await dbGet(db, 'SELECT 1 FROM squads WHERE invite_code=? LIMIT 1', [code]);
-            if (!exists) break;
-            code = makeInviteCode();
-        }
-        const now = Math.floor(Date.now() / 1000);
-        const ins = await dbRun(db, 'INSERT INTO squads (name, invite_code, owner_char_id, created_at, squad_tag) VALUES (?,?,?,?,?)', [name, code, char.id, now, tag || null]);
-        const squadId = Number(ins.lastInsertRowid || 0);
-        await dbRun(db, 'INSERT INTO squad_members (squad_id, char_id, role, joined_at) VALUES (?,?,?,?)', [squadId, char.id, 'leader', now]);
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, owner_char_id, created_at, squad_tag FROM squads WHERE id=?', [squadId]);
-        res.json({ success: true, squad });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.post('/squads/update-tag', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId);
-        if (!char) return res.status(404).json({ error: 'No character' });
-        
-        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
-        if (!membership || membership.role !== 'leader') return res.status(403).json({ error: 'Only squad leader can update tag' });
-        
-        const tag = (req.body?.tag || '').toUpperCase().trim();
-        if (tag && !/^[A-Z0-9]{1,5}$/.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 alphanumeric chars).' });
         
         if (tag) {
             const tagExists = await dbGet(db, 'SELECT 1 FROM squads WHERE squad_tag=? AND id != ? LIMIT 1', [tag, membership.squad_id]);
