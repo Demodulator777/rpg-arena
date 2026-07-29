@@ -14293,7 +14293,7 @@ async function runBotDetection(db) {
     } catch (e) { console.error('[bot-detect] battle timing error:', e.message); }
     try {
         const cPcutoff = now - 86400;
-        const cRows = await db.execute({ sql: `SELECT char_name, created_at FROM api_log WHERE created_at > ? AND method = 'GET' AND path LIKE '%/character%' ORDER BY char_name, created_at`, args: [cPcutoff] });
+        const cRows = await db.execute({ sql: `SELECT char_name, created_at FROM api_log WHERE created_at > ? AND method = 'GET' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions%' OR path LIKE '%/status%') ORDER BY char_name, created_at`, args: [cPcutoff] });
         const cGroups = {};
         for (const r of cRows.rows) {
             const name = r.char_name;
@@ -14305,18 +14305,17 @@ async function runBotDetection(db) {
         for (const [name, timestamps] of Object.entries(cGroups)) {
             if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
-            const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
-            if (unique.length < 30) continue;
-            const span = unique[unique.length - 1] - unique[0];
-            if (span < 1800) continue;
+            if (timestamps.length < 10) continue;
+            const span = timestamps[timestamps.length - 1] - timestamps[0];
+            if (span < 600) continue;
             const gaps = [];
-            for (let i = 1; i < unique.length; i++) { const g = unique[i] - unique[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-            if (gaps.length < 20) continue;
+            for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
+            if (gaps.length < 5) continue;
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (mean >= 120) continue;
+            if (mean >= 180) continue;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 0.5) botPlayers.set(name, `Constant polling: ${unique.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
+            if (cv < 0.8) botPlayers.set(name, `Constant polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
         }
     } catch (e) { console.error('[bot-detect] constant polling error:', e.message); }
     try {
@@ -14404,20 +14403,20 @@ async function runSelectiveBotDetection(db, charName) {
     // 3. Constant polling
     try {
         const cpCutoff = now - 86400;
-        const cpRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'GET' AND path LIKE '%/character%' ORDER BY created_at`, args: [charName, cpCutoff] });
+        const cpRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'GET' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions%' OR path LIKE '%/status%') ORDER BY created_at`, args: [charName, cpCutoff] });
         const timestamps = cpRows.rows.map(r => r.created_at).filter(Boolean);
-        const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
-        if (unique.length >= 30) {
-            const span = unique[unique.length - 1] - unique[0];
-            if (span >= 1800) {
+        timestamps.sort((a, b) => a - b);
+        if (timestamps.length >= 10) {
+            const span = timestamps[timestamps.length - 1] - timestamps[0];
+            if (span >= 600) {
                 const gaps = [];
-                for (let i = 1; i < unique.length; i++) { const g = unique[i] - unique[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-                if (gaps.length >= 20) {
+                for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
+                if (gaps.length >= 5) {
                     const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-                    if (mean < 120) {
+                    if (mean < 180) {
                         const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
                         const cv = Math.sqrt(variance) / mean;
-                        if (cv < 0.5) botPlayers.set(charName, `Constant polling: ${unique.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
+                        if (cv < 0.8) botPlayers.set(charName, `Constant polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
                     }
                 }
             }
