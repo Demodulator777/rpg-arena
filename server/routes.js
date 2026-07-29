@@ -12031,6 +12031,8 @@ router.get('/inventory', auth, async (req, res) => {
     const db = await getDb();
     try {
         await dbRun(db, "ALTER TABLE elementals ADD COLUMN is_equipped INTEGER DEFAULT 0;");
+    } catch (e) { /* Column likely already exists */ }
+    try {
         await dbRun(db, "ALTER TABLE squads ADD COLUMN squad_tag TEXT;");
         await dbRun(db, "CREATE UNIQUE INDEX IF NOT EXISTS idx_squad_tag ON squads(squad_tag);");
     } catch (e) { /* Column likely already exists */ }
