@@ -1117,15 +1117,102 @@ function toggleConfirmed(charName, confirmed) {
 // ── Flagged Characters ───────────────────────────────────────────────
 function loadFlagged() {
     var el = document.getElementById('tab-flagged');
-    el.innerHTML = '<div class="loading">Loading flagged characters...</div>';
+    el.innerHTML = '<div class="card-compact">' +
+        '<div class="row"><div class="lbl">Selective Scan</div>' +
+        '<div class="val"><input type="text" id="scan-char-input" placeholder="Character name" class="ed" style="width:150px">' +
+        '<button class="db-btn btn-apply" onclick="scanCharacter()">Scan</button>' +
+        '<span id="scan-status" style="margin-left:10px;font-size:12px"></span></div></div>' +
+    '</div><div class="loading">Loading flagged characters...</div>';
+    
     var token = localStorage.getItem('rpg_token');
     fetch('/api/game/admin/flagged-characters', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(function(r) { return r.json(); })
         .then(function(rows) {
             if (!rows || !rows.length) {
-                el.innerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No flagged characters.</p></div>';
+                el.querySelector('.loading').outerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No flagged characters.</p></div>';
                 return;
             }
+            var html = '<div class="table-wrap"><table><thead><tr>' +
+                '<th>Name</th>' +
+                '<th>Reason</th>' +
+                '<th title="Total flag events">Flags</th>' +
+                '<th title="Distinct signal types">Signals</th>' +
+                '<th>Detected</th>' +
+                '<th>Last Seen</th>' +
+                '<th>Confirmed</th>' +
+                '<th></th></tr></thead><tbody>';
+            for (var i = 0; i < rows.length; i++) {
+                var r = rows[i];
+                var det = r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '?';
+                var seen = r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '?';
+                var confirmedBtn = '<button class="db-btn ' + (r.confirmed ? 'btn-yes' : 'btn-no') + '" style="font-size:10px;padding:2px 6px" onclick="toggleConfirmed(\'' + esc(r.char_name) + '\', ' + !r.confirmed + ')">' + (r.confirmed ? '✅ Yes' : '❌ No') + '</button>';
+                var signalBadge = (r.distinct_signals || 0) > 1
+                    ? '<span style="color:#e06060;font-weight:700">' + (r.distinct_signals || 0) + '</span>'
+                    : '<span style="color:#6a6a70">' + (r.distinct_signals || 0) + '</span>';
+                html += '<tr class="flag-row" data-char="' + esc(r.char_name) + '">' +
+                    '<td><a href="#" class="flag-name-link" data-name="' + esc(r.char_name) + '" style="color:#e06060;font-weight:700;text-decoration:none">' + esc(r.char_name) + '</a></td>' +
+                    '<td style="color:#8a8a90;font-size:11px" title="Types: ' + esc(r.signal_types || '') + '">' + esc(r.reason || '') + '</td>' +
+                    '<td style="text-align:center;font-size:12px;cursor:pointer" class="flag-expand-btn" title="Click to see events">' + (r.signal_count || 0) + ' ▶</td>' +
+                    '<td style="text-align:center;font-size:12px">' + signalBadge + '</td>' +
+                    '<td style="font-size:11px">' + det + '</td>' +
+                    '<td style="font-size:11px">' + seen + '</td>' +
+                    '<td>' + confirmedBtn + '</td></tr>' +
+                    '<tr id="flag-events-' + esc(r.char_name) + '" style="display:none"><td colspan="8"><div style="padding:8px;background:#15151a;border-radius:4px;max-height:300px;overflow-y:auto"><div class="loading" style="padding:8px">Loading events...</div></div></td></tr>';
+            }
+            html += '</tbody></table></div>';
+            el.querySelector('.loading').outerHTML = html;
+            // Expand/collapse flag events
+            el.querySelectorAll('.flag-expand-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var row = this.closest('.flag-row');
+                    var name = row.getAttribute('data-char');
+                    var eventsRow = document.getElementById('flag-events-' + name);
+                    if (!eventsRow) return;
+                    if (eventsRow.style.display !== 'none') {
+                        eventsRow.style.display = 'none';
+                        this.innerHTML = this.innerHTML.replace('▼', '▶');
+                        return;
+                    }
+                    eventsRow.style.display = '';
+                    this.innerHTML = this.innerHTML.replace('▶', '▼');
+                    var div = eventsRow.querySelector('div');
+                    var content = div ? div.querySelector('div') : null;
+                    if (!content) return;
+                    if (content.textContent === 'Loading events...' || content.classList.contains('loading')) {
+                        var token = localStorage.getItem('rpg_token');
+                        fetch('/api/game/admin/flagged-events/' + encodeURIComponent(name), { headers: { 'Authorization': 'Bearer ' + token } })
+                            .then(function(r) { return r.json(); })
+                            .then(function(events) {
+                                content.innerHTML = events.map(function(e) {
+                                    return '<div style="font-size:11px;padding:4px;border-bottom:1px solid #2a2a35">' +
+                                        '<span style="color:#8a8a90">' + new Date(e.ts * 1000).toLocaleString() + '</span> ' +
+                                        '<span style="color:#c8a86e">' + esc(e.type) + '</span>: ' + esc(e.detail) +
+                                    '</div>';
+                                }).join('');
+                            });
+                    }
+                });
+            });
+        });
+}
+
+function scanCharacter() {
+    var name = document.getElementById('scan-char-input').value.trim();
+    if (!name) return;
+    var status = document.getElementById('scan-status');
+    status.textContent = 'Scanning...';
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/scan-character/' + encodeURIComponent(name), { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            status.textContent = res.detected ? 'Bot detected! (' + res.reason + ')' : 'No bot detected.';
+            if (res.detected) loadFlagged(); // Reload to show new flag
+        })
+        .catch(function(e) { status.textContent = 'Error: ' + e.message; });
+}
+window.scanCharacter = scanCharacter;
+
             var html = '<div class="table-wrap"><table><thead><tr>' +
                 '<th>Name</th>' +
                 '<th>Reason</th>' +
