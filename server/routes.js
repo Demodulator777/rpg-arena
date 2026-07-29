@@ -14187,14 +14187,24 @@ router.delete('/messages/:id', auth, async (req, res) => {
 // ── Bot Detection Engine ────────────────────────────────────────────
 async function runBotDetection(db) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
-    if (setting && setting.value === 'false') return new Map();
+    const globalOn = !(setting && setting.value === 'false');
+
+    // When global is OFF, only scan individually marked (🟢) characters
+    let scanEnabledSet = null;
+    if (!globalOn) {
+        try {
+            const rows = await db.execute('SELECT char_name FROM flagged_characters WHERE scan_enabled = 1');
+            scanEnabledSet = new Set(rows.rows.map(r => r.char_name));
+            if (scanEnabledSet.size === 0) return new Map();
+        } catch { return new Map(); }
+    }
 
     const botPlayers = new Map();
     const now = Math.floor(Date.now() / 1000);
     try {
         const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
         for (const row of bots.rows) {
-            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+            if (row.name && (!scanEnabledSet || scanEnabledSet.has(row.name))) botPlayers.set(row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] bot_configs error:', e.message); }
     try {
@@ -14204,6 +14214,7 @@ async function runBotDetection(db) {
         for (const r of fpRows.rows) {
             const name = r.char_name;
             if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
             const p = (r.path || '').toLowerCase();
             if (!p.includes('/missions/')) continue;
             if (!fpGroups[name]) fpGroups[name] = [];
@@ -14230,6 +14241,7 @@ async function runBotDetection(db) {
         for (const r of rows.rows) {
             const name = r.char_name;
             if (!name || name === '?' || !r.created_at) continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
             const p = (r.path || '').toLowerCase();
             if (!p.includes('/missions/') && !p.includes('/dungeon/mp-spent')) continue;
             if (!groups[name]) groups[name] = [];
@@ -14259,6 +14271,7 @@ async function runBotDetection(db) {
         for (const r of bRows.rows) {
             const name = r.char_name;
             if (!name || name === '?' || !r.fought_at) continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
             if (!bGroups[name]) bGroups[name] = [];
             bGroups[name].push(r.fought_at);
         }
@@ -14285,6 +14298,7 @@ async function runBotDetection(db) {
         for (const r of pRows.rows) {
             const name = r.char_name;
             if (!name || name === '?' || !r.created_at) continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
             if (!pGroups[name]) pGroups[name] = [];
             pGroups[name].push(r.created_at);
         }
@@ -14734,10 +14748,18 @@ router.post('/admin/sw-toggle', auth, async (req, res) => {
 router.post('/admin/report-dom-mutation', auth, async (req, res) => {
     try {
         const db = await getDb();
-        // Short-circuit when bot detection is disabled — no DB writes at all
         const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
-        if (setting && setting.value === 'false') return res.json({ success: true });
+        const globalOn = !(setting && setting.value === 'false');
         const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
+        if (!globalOn) {
+            // When global is OFF, only process dom mutations for individually marked (🟢) characters
+            if (char?.name) {
+                const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [char.name]);
+                if (!flagRow || flagRow.scan_enabled !== 1) return res.json({ success: true });
+            } else {
+                return res.json({ success: true });
+            }
+        }
         const charName = char?.name || '';
         const charId = char?.id || 0;
         const { mutation_type = '', target_info = '', detail = '' } = req.body;
