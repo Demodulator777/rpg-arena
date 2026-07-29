@@ -14547,11 +14547,15 @@ router.post('/admin/set-moderator', auth, async (req, res) => {
 });
 
 router.get('/admin/flagged-characters', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
+        // Run detection before returning so new flags appear immediately
         const botPlayers = await runBotDetection(db);
         await persistBotFlags(db, botPlayers);
-        res.json({ success: true, count: botPlayers.size });
+        await ensureFlaggedTable(db);
+        const result = await db.execute('SELECT * FROM flagged_characters ORDER BY last_seen_at DESC');
+        res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
