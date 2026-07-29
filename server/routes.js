@@ -14267,6 +14267,7 @@ async function runBotDetection(db) {
     try {
         const mcCutoff = now - 86400;
         const mcRows = await db.execute({ sql: `SELECT char_name, created_at FROM api_log WHERE created_at > ? AND method = 'POST' AND path LIKE '%/missions/collect%' ORDER BY char_name, created_at`, args: [mcCutoff] });
+        if (mcRows.rows.length > 0) console.log('[bot-detect] Mission collect rows:', mcRows.rows.length, 'first:', mcRows.rows[0]?.char_name);
         const mcGroups = {};
         for (const r of mcRows.rows) {
             const name = r.char_name;
@@ -14318,6 +14319,7 @@ async function runBotDetection(db) {
     try {
         const cPcutoff = now - 86400;
         const cRows = await db.execute({ sql: `SELECT char_name, created_at FROM api_log WHERE created_at > ? AND method = 'GET' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions%' OR path LIKE '%/status%') ORDER BY char_name, created_at`, args: [cPcutoff] });
+        if (cRows.rows.length > 0) console.log('[bot-detect] ConstPoll total rows:', cRows.rows.length, 'distinct chars:', [...new Set(cRows.rows.map(r=>r.char_name))].slice(0,10));
         const cGroups = {};
         for (const r of cRows.rows) {
             const name = r.char_name;
@@ -14379,6 +14381,7 @@ async function runBotDetection(db) {
             }
         }
     } catch (e) { console.error('[bot-detect] state polling error:', e.message); }
+    if (botPlayers.size > 0) console.log('[bot-detect] Detected:', [...botPlayers.entries()].map(([k,v])=>k+': '+v).join(', '));
     return botPlayers;
 }
 
