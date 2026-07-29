@@ -8127,6 +8127,7 @@ async function loadLeaderboard() {
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
 function buildSquadLeaderboardRow(s, idx) {
+    console.log('Squad row data:', s);
     const rank = idx + 1;
     const rc = rank===1?'gold-rank':rank===2?'silver-rank':rank===3?'bronze-rank':'';
     const rs = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
