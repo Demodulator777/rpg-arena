@@ -1197,8 +1197,8 @@ function loadFlagged() {
                             .then(function(events) {
                                 content.innerHTML = events.map(function(e) {
                                     return '<div style="font-size:11px;padding:4px;border-bottom:1px solid #2a2a35">' +
-                                        '<span style="color:#8a8a90">' + new Date(e.ts * 1000).toLocaleString() + '</span> ' +
-                                        '<span style="color:#c8a86e">' + esc(e.type) + '</span>: ' + esc(e.detail) +
+                                        '<span style="color:#8a8a90">' + new Date((e.ts || e.created_at) * 1000).toLocaleString() + '</span> ' +
+                                        '<span style="color:#c8a86e">' + esc(e.type || e.signal_type) + '</span>: ' + esc(e.detail || e.reason) +
                                     '</div>';
                                 }).join('');
                             });
