@@ -14374,9 +14374,17 @@ async function runBotDetection(db) {
                 paths.add(p);
             }
             const hasAchievements = [...paths].some(p => p.includes('/achievements'));
-            if (name === 'Vader' || name === 'vader') console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', [...paths], 'hasAchievements:', hasAchievements);
-            if (!hasAchievements && paths.size <= 6) {
-                botPlayers.set(name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, ${paths.size} endpoints, no /achievements`);
+            const pathCounts = {};
+            for (const e of recent) {
+                let p = (e.path || '').toLowerCase();
+                p = p.split('?')[0];
+                p = p.replace(/\/\d+$/, '');
+                pathCounts[p] = (pathCounts[p] || 0) + 1;
+            }
+            const maxPathRatio = Math.max(...Object.values(pathCounts)) / recent.length;
+            if (name === 'Vader' || name === 'vader') console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', paths.size, 'maxPathRatio:', (maxPathRatio*100).toFixed(0)+'%', 'hasAchievements:', hasAchievements);
+            if (maxPathRatio > 0.2) {
+                botPlayers.set(name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls`);
             }
         }
     } catch (e) { console.error('[bot-detect] bot pattern error:', e.message); }
@@ -14523,8 +14531,16 @@ async function runSelectiveBotDetection(db, charName) {
                         paths.add(p);
                     }
                     const hasAchievements = [...paths].some(p => p.includes('/achievements'));
-                    if (!hasAchievements && paths.size <= 6) {
-                        botPlayers.set(charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, ${paths.size} endpoints, no /achievements`);
+                    const pathCounts = {};
+                    for (const e of entries) {
+                        let p = (e.path || '').toLowerCase();
+                        p = p.split('?')[0];
+                        p = p.replace(/\/\d+$/, '');
+                        pathCounts[p] = (pathCounts[p] || 0) + 1;
+                    }
+                    const maxPathRatio = Math.max(...Object.values(pathCounts)) / entries.length;
+                    if (maxPathRatio > 0.2) {
+                        botPlayers.set(charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls`);
                     }
                 }
             }
