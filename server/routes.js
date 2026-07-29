@@ -14344,6 +14344,7 @@ async function runBotDetection(db) {
             if (mean >= 120) continue;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
+            if (['Vader','vader','Sanctus','En Peasant','en peasant','Forsaken','forsaken'].includes(name)) console.log('[bot-detect] cp debug:', name, 'entries:', timestamps.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'mean:', Math.round(mean)+'s', 'cv:', cv.toFixed(2), 'gaps:', gaps.length);
             if (cv < 1.5) {
                 const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [name]);
                 const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
@@ -14389,6 +14390,7 @@ async function runBotDetection(db) {
             const topPath = Object.entries(pathCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
             const botPollEndpoints = ['/character', '/missions/active', '/missions/ui-tick', '/inventory'];
             const isBotPoll = botPollEndpoints.some(e => topPath.includes(e));
+            if (['Vader','vader','Sanctus','En Peasant','en peasant','Forsaken','forsaken'].includes(name)) console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', paths.size, 'maxPathRatio:', (maxPathRatio*100).toFixed(0)+'%', 'topPath:', topPath, 'isBotPoll:', isBotPoll);
             if (isBotPoll && maxPathRatio > 0.2) {
                 const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [name]);
                 const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
@@ -14425,6 +14427,7 @@ async function runBotDetection(db) {
                     const mean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
                     const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
                     const cv = Math.sqrt(variance) / mean;
+                    if (['Vader','vader','Sanctus','En Peasant','en peasant','Forsaken','forsaken'].includes(name)) console.log('[bot-detect] sp debug:', name, 'unique:', unique.length, 'span:', Math.round(span/60)+'min', 'shortGaps:', shortGaps.length+'/'+allGaps.length, 'active:', Math.round(activeTime/60)+'min', 'ratio:', ratio.toFixed(2), 'CV:', cv.toFixed(2), 'relentless:', isRelentless, 'sustained:', isSustained);
                     if (cv < 0.8 || (isRelentless && isSustained)) {
                         appendFlag(botPlayers, name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
                     }
