@@ -14347,6 +14347,39 @@ async function runBotDetection(db) {
         }
     } catch (e) { console.error('[bot-detect] constant polling error:', e.message); }
     try {
+        const bpCutoff = now - 86400;
+        const bpRows = await db.execute({ sql: `SELECT char_name, path, created_at FROM api_log WHERE created_at > ? ORDER BY created_at DESC LIMIT 20000`, args: [bpCutoff] });
+        const bpGroups = {};
+        for (const r of bpRows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?' || !r.created_at) continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
+            if (!bpGroups[name]) bpGroups[name] = [];
+            bpGroups[name].push({ path: r.path, ts: r.created_at });
+        }
+        for (const [name, entries] of Object.entries(bpGroups)) {
+            if (botPlayers.has(name)) continue;
+            const recent = entries.slice(0, 500);
+            if (recent.length < 120) continue;
+            recent.sort((a, b) => a.ts - b.ts);
+            const span = recent[recent.length - 1].ts - recent[0].ts;
+            if (span < 7200) continue;
+            const reqPerMin = recent.length / (span / 60);
+            if (reqPerMin < 1.0) continue;
+            const paths = new Set();
+            for (const e of recent) {
+                let p = (e.path || '').toLowerCase();
+                p = p.split('?')[0];
+                p = p.replace(/\/\d+$/, '');
+                paths.add(p);
+            }
+            const hasAchievements = [...paths].some(p => p.includes('/achievements'));
+            if (!hasAchievements && paths.size <= 6) {
+                botPlayers.set(name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, ${paths.size} endpoints, no /achievements`);
+            }
+        }
+    } catch (e) { console.error('[bot-detect] bot pattern error:', e.message); }
+    try {
         const pCutoff = now - 86400;
         const pRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE created_at > ? AND method = 'GET' AND path NOT LIKE '%/chat/%' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions/active%' OR path LIKE '%/travel/status%' OR path LIKE '%/achievements%' OR path LIKE '%/setups%' OR path LIKE '%/messages/%') ORDER BY char_name, created_at LIMIT 10000`, args: [pCutoff] });
         const pGroups = {};
@@ -14471,6 +14504,31 @@ async function runSelectiveBotDetection(db, charName) {
             }
         }
     } catch (e) { console.error('[bot-detect] selective constant polling error:', e.message); }
+    try {
+        const bpCutoff = now - 86400;
+        const bpRows = await db.execute({ sql: `SELECT path, created_at FROM api_log WHERE char_name = ? AND created_at > ? ORDER BY created_at DESC LIMIT 500`, args: [charName, bpCutoff] });
+        if (bpRows.rows.length >= 120) {
+            const entries = bpRows.rows;
+            entries.sort((a, b) => a.created_at - b.created_at);
+            const span = entries[entries.length - 1].created_at - entries[0].created_at;
+            if (span >= 7200) {
+                const reqPerMin = entries.length / (span / 60);
+                if (reqPerMin >= 1.0) {
+                    const paths = new Set();
+                    for (const r of entries) {
+                        let p = (r.path || '').toLowerCase();
+                        p = p.split('?')[0];
+                        p = p.replace(/\/\d+$/, '');
+                        paths.add(p);
+                    }
+                    const hasAchievements = [...paths].some(p => p.includes('/achievements'));
+                    if (!hasAchievements && paths.size <= 6) {
+                        botPlayers.set(charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, ${paths.size} endpoints, no /achievements`);
+                    }
+                }
+            }
+        }
+    } catch (e) { console.error('[bot-detect] selective bot pattern error:', e.message); }
 
     return botPlayers;
 }
