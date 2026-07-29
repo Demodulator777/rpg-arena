@@ -8137,7 +8137,7 @@ function buildSquadLeaderboardRow(s, idx) {
     return `<div class="lb-row" ${actionAttrs('showSquadDetail', s.id)}>
         <div class="lb-rank ${rc}">${rs}</div>
         ${logoHtml}
-        <div class="lb-info"><div class="lb-name">${(s.squad_tag || s.tag) ? `[${escHtml(s.squad_tag || s.tag)}] ` : ''}${escHtml(s.name)}</div>
+        <div class="lb-info"><div class="lb-name">${escHtml(s.name)}${(s.squad_tag || s.tag) ? ` [${escHtml(s.squad_tag || s.tag)}]` : ''}</div>
         <div class="lb-sub">${s.member_count} members · Avg Lv ${s.avg_level} · Avg 💰 ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
         <div class="lb-stats" style="grid-template-columns:1fr">
             <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div></div>
