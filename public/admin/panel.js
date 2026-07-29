@@ -1108,20 +1108,22 @@ function pollConsole() {
     _consoleTimer = setTimeout(pollConsole, 3000);
 }
 
+function toggleConfirmed(charName, confirmed) {
+    adminApi('POST', '/admin/flagged/' + encodeURIComponent(charName) + '/confirm', { confirmed: confirmed })
+        .then(function() { loadFlagged(); })
+        .catch(function(e) { alert('Failed to update confirmed status: ' + e.message); });
+}
+
 // ── Flagged Characters ───────────────────────────────────────────────
 function loadFlagged() {
     var el = document.getElementById('tab-flagged');
-    el.innerHTML = '<div class="card-compact" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px">' +
-        '<span style="color:#8a8a90;font-size:12px">Routine scan checks run automatically for monitored characters.</span>' +
-        '<button class="db-btn btn-apply" data-action="open-scan-monitor" style="padding:6px 14px;font-size:12px">\u{1F50D} Scan Monitor</button>' +
-    '</div><div class="loading">Loading flagged characters...</div>';
-    
+    el.innerHTML = '<div class="loading">Loading flagged characters...</div>';
     var token = localStorage.getItem('rpg_token');
     fetch('/api/game/admin/flagged-characters', { headers: { 'Authorization': 'Bearer ' + token } })
         .then(function(r) { return r.json(); })
         .then(function(rows) {
             if (!rows || !rows.length) {
-                el.querySelector('.loading').outerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No flagged characters.</p></div>';
+                el.innerHTML = '<div class="card-compact"><p style="color:#6a6a70;text-align:center">No flagged characters.</p></div>';
                 return;
             }
             var html = '<div class="table-wrap"><table><thead><tr>' +
@@ -1131,13 +1133,13 @@ function loadFlagged() {
                 '<th title="Distinct signal types">Signals</th>' +
                 '<th>Detected</th>' +
                 '<th>Last Seen</th>' +
-                '<th>Confirmed (TOS)</th>' +
+                '<th>Confirmed</th>' +
                 '<th></th></tr></thead><tbody>';
             for (var i = 0; i < rows.length; i++) {
                 var r = rows[i];
                 var det = r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '?';
                 var seen = r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '?';
-                var confirmedBtn = '<span data-action="toggle-confirmed" data-char="' + esc(r.char_name) + '" data-confirmed="' + (r.confirmed ? '1' : '0') + '" style="cursor:pointer;font-size:12px;padding:2px 6px;background:' + (r.confirmed ? '#1a3a1a' : '#3a1a1a') + ';border-radius:4px;color:' + (r.confirmed ? '#4ade80' : '#e06060') + '">' + (r.confirmed ? 'Yes' : 'No') + '</span>';
+                var confirmedBtn = '<button class="db-btn ' + (r.confirmed ? 'btn-yes' : 'btn-no') + '" style="font-size:10px;padding:2px 6px" onclick="toggleConfirmed(\'' + esc(r.char_name) + '\', ' + !r.confirmed + ')">' + (r.confirmed ? '✅ Yes' : '❌ No') + '</button>';
                 var signalBadge = (r.distinct_signals || 0) > 1
                     ? '<span style="color:#e06060;font-weight:700">' + (r.distinct_signals || 0) + '</span>'
                     : '<span style="color:#6a6a70">' + (r.distinct_signals || 0) + '</span>';
@@ -1148,12 +1150,11 @@ function loadFlagged() {
                     '<td style="text-align:center;font-size:12px">' + signalBadge + '</td>' +
                     '<td style="font-size:11px">' + det + '</td>' +
                     '<td style="font-size:11px">' + seen + '</td>' +
-                    '<td style="text-align:center">' + confirmedBtn + '</td>' +
-                    '<td style="text-align:center"><button class="db-btn" data-action="view-details" data-char="' + esc(r.char_name) + '" style="font-size:10px;padding:2px 6px">Details</button></td></tr>' +
+                    '<td>' + confirmedBtn + '</td></tr>' +
                     '<tr id="flag-events-' + esc(r.char_name) + '" style="display:none"><td colspan="8"><div style="padding:8px;background:#15151a;border-radius:4px;max-height:300px;overflow-y:auto"><div class="loading" style="padding:8px">Loading events...</div></div></td></tr>';
             }
             html += '</tbody></table></div>';
-            el.querySelector('.loading').outerHTML = html;
+            el.innerHTML = html;
             // Expand/collapse flag events
             el.querySelectorAll('.flag-expand-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
@@ -1177,303 +1178,24 @@ function loadFlagged() {
                         fetch('/api/game/admin/flagged-events/' + encodeURIComponent(name), { headers: { 'Authorization': 'Bearer ' + token } })
                             .then(function(r) { return r.json(); })
                             .then(function(events) {
-                                content.innerHTML = events.map(function(e) {
-                                    return '<div style="font-size:11px;padding:4px;border-bottom:1px solid #2a2a35">' +
-                                        '<span style="color:#8a8a90">' + new Date(e.ts * 1000).toLocaleString() + '</span> ' +
-                                        '<span style="color:#c8a86e">' + esc(e.type) + '</span>: ' + esc(e.detail) +
+                                if (!events || !events.length) { content.innerHTML = '<div style="color:#6a6a70;padding:8px">No events logged yet.</div>'; return; }
+                                content.innerHTML = events.map(function(ev) {
+                                    var ts = ev.created_at ? new Date(ev.created_at * 1000).toLocaleString() : '?';
+                                    return '<div style="padding:4px 0;border-bottom:1px solid #1e1e28;font-size:11px;display:flex;gap:8px">' +
+                                        '<span style="color:#6a6a70;white-space:nowrap">' + ts + '</span>' +
+                                        '<span style="color:#c8d6e5">' + esc(ev.signal_type || '') + '</span>' +
+                                        '<span style="color:#8a8a90;flex:1">' + esc(ev.reason || '').slice(0, 200) + '</span>' +
                                     '</div>';
                                 }).join('');
-                            });
+                            }).catch(function() { content.innerHTML = '<div class="error">Failed to load events</div>'; });
                     }
                 });
             });
-        });
-}
-
-// ── Scan Monitor Modal ───────────────────────────────────────────────
-function showScanMonitor() {
-    var existing = document.getElementById('scan-monitor-modal');
-    if (existing) existing.remove();
-
-    var overlay = document.createElement('div');
-    overlay.id = 'scan-monitor-modal';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:1000;display:flex;align-items:center;justify-content:center';
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-
-    var modal = document.createElement('div');
-    modal.style.cssText = 'background:#1a1a24;border:1px solid #2a2a35;border-radius:8px;width:700px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;color:#e2e8f0';
-
-    modal.innerHTML = 
-        '<div style="padding:16px;border-bottom:1px solid #2a2a35;display:flex;justify-content:space-between;align-items:center">' +
-            '<span style="font-size:16px;font-weight:700">\u{1F50D} Scan Monitor</span>' +
-            '<span style="cursor:pointer;font-size:20px;color:#6a6a70" data-action="close-scan-monitor">\u2716</span>' +
-        '</div>' +
-        '<div style="padding:12px 16px;border-bottom:1px solid #2a2a35">' +
-            '<div style="display:flex;gap:6px;align-items:center">' +
-                '<div style="position:relative;flex:1">' +
-                    '<input type="text" id="sm-char-input" placeholder="Search character to add..." class="ed" style="width:100%;padding:8px;font-size:12px" autocomplete="off">' +
-                    '<div id="sm-autocomplete-list" style="position:absolute;top:100%;left:0;right:0;background:#1a1a24;border:1px solid #2a2a35;border-radius:4px;max-height:180px;overflow-y:auto;display:none;z-index:101"></div>' +
-                '</div>' +
-                '<button class="db-btn btn-apply" data-action="sm-add-char" style="padding:8px 14px;font-size:12px;white-space:nowrap">+ Add</button>' +
-            '</div>' +
-        '</div>' +
-        '<div style="flex:1;overflow-y:auto;padding:8px 16px">' +
-            '<div id="sm-list-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-                '<span style="font-size:12px;color:#8a8a90">Monitored Characters</span>' +
-                '<span style="font-size:11px;color:#6a6a70" id="sm-count">0</span>' +
-            '</div>' +
-            '<div id="sm-char-list"></div>' +
-            '<div id="sm-empty" style="text-align:center;padding:30px 0;color:#6a6a70;font-size:13px">No characters in monitor list. Add some above.</div>' +
-        '</div>' +
-        '<div style="padding:10px 16px;border-top:1px solid #2a2a35;display:flex;gap:8px;align-items:center">' +
-            '<button class="db-btn" data-action="sm-toggle-on" style="padding:6px 12px;font-size:11px">\u{1F7E2} Enable Scan</button>' +
-            '<button class="db-btn" data-action="sm-toggle-off" style="padding:6px 12px;font-size:11px">\u{1F534} Disable Scan</button>' +
-            '<button class="db-btn" data-action="sm-remove-selected" style="padding:6px 12px;font-size:11px;color:#e06060">Remove Selected</button>' +
-            '<span style="flex:1"></span>' +
-            '<span id="sm-status" style="font-size:11px;color:#8a8a90"></span>' +
-        '</div>';
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    document.querySelector('[data-action="close-scan-monitor"]').addEventListener('click', function() { overlay.remove(); });
-
-    // Autocomplete
-    var acInput = document.getElementById('sm-char-input');
-    var acList = document.getElementById('sm-autocomplete-list');
-    var acTimer = null;
-    acInput.addEventListener('input', function() {
-        if (acTimer) clearTimeout(acTimer);
-        acTimer = setTimeout(function() {
-            var q = acInput.value.trim();
-            if (q.length < 1) { acList.style.display = 'none'; return; }
-            var token = localStorage.getItem('rpg_token');
-            fetch('/api/game/admin/character-search?q=' + encodeURIComponent(q), { headers: { 'Authorization': 'Bearer ' + token } })
-                .then(function(r) { return r.json(); })
-                .then(function(names) {
-                    if (!names || !names.length) { acList.style.display = 'none'; return; }
-                    acList.innerHTML = names.map(function(n) {
-                        return '<div class="sm-ac-item" data-name="' + esc(n) + '" style="padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #2a2a35;color:#c8d6e5;transition:background 0.15s">' + esc(n) + '</div>';
-                    }).join('');
-                    acList.style.display = 'block';
-                });
-        }, 200);
-    });
-    acList.addEventListener('click', function(e) {
-        var item = e.target.closest('.sm-ac-item');
-        if (!item) return;
-        acInput.value = item.getAttribute('data-name');
-        acList.style.display = 'none';
-    });
-    document.addEventListener('mouseover', function(e) {
-        var item = e.target.closest('.sm-ac-item');
-        if (item) item.style.background = '#2a2a35';
-    });
-    document.addEventListener('mouseout', function(e) {
-        var item = e.target.closest('.sm-ac-item');
-        if (item) item.style.background = 'transparent';
-    });
-
-    // Click outside autocomplete to close
-    overlay.addEventListener('click', function(e) {
-        if (!e.target.closest('#sm-autocomplete-list') && !e.target.closest('#sm-char-input')) {
-            acList.style.display = 'none';
-        }
-    });
-
-    // Load monitored characters
-    loadMonitorList();
-
-    // Add character
-    document.querySelector('[data-action="sm-add-char"]').addEventListener('click', function() {
-        var name = acInput.value.trim();
-        if (!name) return;
-        var status = document.getElementById('sm-status');
-        status.textContent = 'Adding...';
-        var token = localStorage.getItem('rpg_token');
-        fetch('/api/game/admin/scan-character/' + encodeURIComponent(name), {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token }
-        }).then(function(r) { return r.json(); }).then(function(res) {
-            if (res.error) { status.textContent = 'Error: ' + res.error; return; }
-            status.textContent = 'Monitoring activated for ' + name;
-            acInput.value = '';
-            acList.style.display = 'none';
-            loadMonitorList();
-        }).catch(function(e) { status.textContent = 'Error: ' + e.message; });
-    });
-    acInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') document.querySelector('[data-action="sm-add-char"]').click();
-    });
-}
-
-function loadMonitorList() {
-    var listEl = document.getElementById('sm-char-list');
-    var emptyEl = document.getElementById('sm-empty');
-    var countEl = document.getElementById('sm-count');
-    if (!listEl) return;
-    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:#6a6a70">Loading...</div>';
-    var token = localStorage.getItem('rpg_token');
-    fetch('/api/game/admin/flagged-characters', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(function(r) { return r.json(); })
-        .then(function(rows) {
-            var monitored = (rows || []).filter(function(r) { return r.scan_enabled === 1 || r.scan_started_at > 0; });
-            if (!monitored.length) {
-                listEl.innerHTML = '';
-                if (emptyEl) emptyEl.style.display = 'block';
-                if (countEl) countEl.textContent = '0';
-                return;
-            }
-            if (emptyEl) emptyEl.style.display = 'none';
-            if (countEl) countEl.textContent = String(monitored.length);
-            listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
-                '<thead><tr style="background:rgba(255,255,255,0.03)">' +
-                '<th style="width:32px;padding:6px 4px"><input type="checkbox" id="sm-select-all"></th>' +
-                '<th style="text-align:left;padding:6px 4px;color:#8a8a90;font-weight:400">Character</th>' +
-                '<th style="width:70px;text-align:center;padding:6px 4px;color:#8a8a90;font-weight:400">Scan</th>' +
-                '<th style="width:60px;text-align:center;padding:6px 4px;color:#8a8a90;font-weight:400">Flags</th>' +
-                '<th style="width:50px;text-align:center;padding:6px 4px;color:#8a8a90;font-weight:400">Detected</th>' +
-                '<th style="width:50px;text-align:center;padding:6px 4px;color:#8a8a90;font-weight:400">Action</th>' +
-                '</tr></thead><tbody>' +
-                monitored.map(function(r) {
-                    var enabled = r.scan_enabled !== 0;
-                    return '<tr style="border-bottom:1px solid #2a2a35">' +
-                        '<td style="text-align:center;padding:6px 4px"><input type="checkbox" class="sm-char-cb" data-char="' + esc(r.char_name) + '"></td>' +
-                        '<td style="padding:6px 4px;font-weight:600;color:' + (enabled ? '#e2e8f0' : '#6a6a70') + '">' + esc(r.char_name) + '</td>' +
-                        '<td style="text-align:center;padding:6px 4px">' + (enabled ? '<span style="color:#4ade80">ON</span>' : '<span style="color:#e06060">OFF</span>') + '</td>' +
-                        '<td style="text-align:center;padding:6px 4px;color:#8a8a90">' + (r.signal_count || 0) + '</td>' +
-                        '<td style="text-align:center;padding:6px 4px">' + (r.reason && r.reason !== 'Monitoring active' ? '<span style="color:#e06060">\u26A0</span>' : '<span style="color:#6a6a70">\u2014</span>') + '</td>' +
-                        '<td style="text-align:center;padding:6px 4px"><button class="db-btn" data-action="sm-scan-char" data-char="' + esc(r.char_name) + '" style="font-size:10px;padding:2px 6px">Scan</button></td>' +
-                        '</tr>';
-                }).join('') +
-                '</tbody></table>';
-            // Select-all
-            document.getElementById('sm-select-all').addEventListener('change', function() {
-                var checked = this.checked;
-                document.querySelectorAll('.sm-char-cb').forEach(function(cb) { cb.checked = checked; });
-            });
         })
         .catch(function(e) {
-            listEl.innerHTML = '<div style="color:#e06060;padding:12px;text-align:center">Error: ' + e.message + '</div>';
+            el.innerHTML = '<div class="error">Failed to load: ' + esc(e.message) + '</div>';
         });
 }
-
-// ── Scan Monitor Event Handlers ──
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="open-scan-monitor"]');
-    if (!btn) return;
-    showScanMonitor();
-});
-
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="sm-scan-char"]');
-    if (!btn) return;
-    var charName = btn.getAttribute('data-char');
-    var status = document.getElementById('sm-status');
-    if (status) status.textContent = 'Scanning ' + charName + '...';
-    var token = localStorage.getItem('rpg_token');
-    fetch('/api/game/admin/scan-character/' + encodeURIComponent(charName), {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + token }
-    }).then(function(r) { return r.json(); }).then(function(res) {
-        var msg = 'Monitored: ' + charName;
-        if (res.data) msg += ' | ' + res.data.api_log_24h + ' API, ' + res.data.missions_24h + ' missions, ' + res.data.battles_24h + ' battles';
-        if (res.detected) msg += ' | \u26A0 BOT: ' + (res.reason || '');
-        else msg += ' | No detection yet';
-        if (status) status.textContent = msg;
-        loadMonitorList();
-    }).catch(function(e) { if (status) status.textContent = 'Error: ' + e.message; });
-});
-
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="sm-toggle-on"]');
-    if (!btn) return;
-    toggleSelectedScans(1);
-});
-
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="sm-toggle-off"]');
-    if (!btn) return;
-    toggleSelectedScans(0);
-});
-
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="sm-remove-selected"]');
-    if (!btn) return;
-    removeSelectedFromMonitor();
-});
-
-function toggleSelectedScans(enabled) {
-    var cbs = document.querySelectorAll('.sm-char-cb:checked');
-    if (!cbs.length) { setSmStatus('No characters selected'); return; }
-    var names = [];
-    cbs.forEach(function(cb) { names.push(cb.getAttribute('data-char')); });
-    setSmStatus('Toggling scan for ' + names.length + ' characters...');
-    var token = localStorage.getItem('rpg_token');
-    var done = 0;
-    names.forEach(function(name) {
-        fetch('/api/game/admin/toggle-character-scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ char_name: name, scan_enabled: enabled })
-        }).then(function(r) { return r.json(); }).then(function() {
-            done++;
-            if (done === names.length) {
-                setSmStatus('Updated ' + names.length + ' characters');
-                loadMonitorList();
-            }
-        }).catch(function() {
-            done++;
-            if (done === names.length) {
-                setSmStatus('Updated ' + done + ' characters (some may have failed)');
-                loadMonitorList();
-            }
-        });
-    });
-}
-
-function removeSelectedFromMonitor() {
-    var cbs = document.querySelectorAll('.sm-char-cb:checked');
-    if (!cbs.length) { setSmStatus('No characters selected'); return; }
-    if (!confirm('Remove ' + cbs.length + ' character(s) from monitor list?')) return;
-    var names = [];
-    cbs.forEach(function(cb) { names.push(cb.getAttribute('data-char')); });
-    setSmStatus('Removing...');
-    var token = localStorage.getItem('rpg_token');
-    var done = 0;
-    names.forEach(function(name) {
-        fetch('/api/game/admin/toggle-character-scan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ char_name: name, scan_enabled: 0 })
-        }).then(function(r) { return r.json(); }).then(function() {
-            done++;
-            if (done === names.length) {
-                setSmStatus('Removed ' + names.length + ' character(s)');
-                loadMonitorList();
-            }
-        }).catch(function() {
-            done++;
-            if (done === names.length) {
-                setSmStatus('Removed ' + done + ' character(s) (some failed)');
-                loadMonitorList();
-            }
-        });
-    });
-}
-
-function setSmStatus(msg) {
-    var el = document.getElementById('sm-status');
-    if (el) el.textContent = msg;
-}
-
-// ── Details button (view character logs) ──
-document.addEventListener('click', function(e) {
-    var btn = e.target.closest('[data-action="view-details"]');
-    if (!btn) return;
-    var name = btn.getAttribute('data-char');
-    if (name) renderCharacterLogs(name);
-});
 
 function renderCharacterLogs(name) {
     var el = document.getElementById('tab-flagged');
