@@ -14279,14 +14279,14 @@ async function runBotDetection(db) {
         for (const [name, timestamps] of Object.entries(mcGroups)) {
             if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
-            if (timestamps.length < 6) continue;
+            if (timestamps.length < 4) continue;
             const gaps = [];
             for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g >= 60 && g <= 3600) gaps.push(g); }
-            if (gaps.length < 5) { console.log('[bot-detect] MC skip gaps:', name, 'collects:', timestamps.length, 'gaps:', gaps.length, 'gaps_raw:', timestamps.slice(0,10).map((t,j)=>j>0?t-timestamps[j-1]:0).join(',')); continue; }
+            if (gaps.length < 3) { console.log('[bot-detect] MC skip gaps:', name, 'collects:', timestamps.length, 'gaps:', gaps.length); continue; }
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 0.3) botPlayers.set(name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`); else console.log('[bot-detect] MC high CV:', name, 'CV:', cv.toFixed(3), 'mean:', Math.round(mean), 'gaps:', gaps.length);
+            if (cv < 0.8) botPlayers.set(name, `Mission cycle: ${timestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`); else console.log('[bot-detect] MC high CV:', name, 'CV:', cv.toFixed(3), 'mean:', Math.round(mean), 'gaps:', gaps.length);
         }
     } catch (e) { console.error('[bot-detect] mission cycle error:', e.message); }
     try {
@@ -14331,18 +14331,17 @@ async function runBotDetection(db) {
         for (const [name, timestamps] of Object.entries(cGroups)) {
             if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
-            if (timestamps.length >= 8) console.log('[bot-detect] CP candidate:', name, 'entries:', timestamps.length, 'span:', timestamps[timestamps.length-1]-timestamps[0]);
-            if (timestamps.length < 10) continue;
+            if (timestamps.length < 20) continue;
             const span = timestamps[timestamps.length - 1] - timestamps[0];
-            if (span < 600) continue;
+            if (span < 1200) continue;
             const gaps = [];
             for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-            if (gaps.length < 5) { console.log('[bot-detect] CP skip gaps:', name, 'entries:', timestamps.length, 'span:', span, 'gaps:', gaps.length); continue; }
+            if (gaps.length < 15) continue;
             const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-            if (mean >= 180) { console.log('[bot-detect] CP skip mean:', name, 'mean:', Math.round(mean)); continue; }
+            if (mean >= 120) continue;
             const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
             const cv = Math.sqrt(variance) / mean;
-            if (cv < 0.8) { botPlayers.set(name, `Constant polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`); console.log('[bot-detect] CP DETECTED:', name); } else { console.log('[bot-detect] CP skip CV:', name, 'CV:', cv.toFixed(3), 'mean:', Math.round(mean), 'gaps:', gaps.length); }
+            if (cv < 1.5) { botPlayers.set(name, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`); } else { console.log('[bot-detect] CP skip CV:', name, 'CV:', cv.toFixed(3), 'mean:', Math.round(mean), 'gaps:', gaps.length); }
         }
     } catch (e) { console.error('[bot-detect] constant polling error:', e.message); }
     try {
@@ -14433,14 +14432,14 @@ async function runSelectiveBotDetection(db, charName) {
         const mcCutoff = now - 86400;
         const mcRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'POST' AND path LIKE '%/missions/collect%' ORDER BY created_at`, args: [charName, mcCutoff] });
         const mcTimestamps = mcRows.rows.map(r => r.created_at).filter(Boolean).sort((a, b) => a - b);
-        if (mcTimestamps.length >= 6) {
+        if (mcTimestamps.length >= 4) {
             const gaps = [];
             for (let i = 1; i < mcTimestamps.length; i++) { const g = mcTimestamps[i] - mcTimestamps[i - 1]; if (g >= 60 && g <= 3600) gaps.push(g); }
-            if (gaps.length >= 5) {
+            if (gaps.length >= 3) {
                 const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
                 const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
                 const cv = Math.sqrt(variance) / mean;
-                if (cv < 0.3) botPlayers.set(charName, `Mission cycle: ${mcTimestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
+                if (cv < 0.8) botPlayers.set(charName, `Mission cycle: ${mcTimestamps.length} collects in 24h, mean=${Math.round(mean)}s, CV=${cv.toFixed(3)}`);
             }
         }
     } catch (e) { console.error('[bot-detect] selective mission cycle error:', e.message); }
@@ -14451,17 +14450,17 @@ async function runSelectiveBotDetection(db, charName) {
         const cpRows = await db.execute({ sql: `SELECT created_at FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'GET' AND (path LIKE '%/character%' OR path LIKE '%/inventory%' OR path LIKE '%/missions%' OR path LIKE '%/status%') ORDER BY created_at`, args: [charName, cpCutoff] });
         const timestamps = cpRows.rows.map(r => r.created_at).filter(Boolean);
         timestamps.sort((a, b) => a - b);
-        if (timestamps.length >= 10) {
+        if (timestamps.length >= 20) {
             const span = timestamps[timestamps.length - 1] - timestamps[0];
-            if (span >= 600) {
+            if (span >= 1200) {
                 const gaps = [];
                 for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-                if (gaps.length >= 5) {
+                if (gaps.length >= 15) {
                     const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-                    if (mean < 180) {
+                    if (mean < 120) {
                         const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
                         const cv = Math.sqrt(variance) / mean;
-                        if (cv < 0.8) botPlayers.set(charName, `Constant polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
+                        if (cv < 1.5) botPlayers.set(charName, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, mean=${Math.round(mean)}s`);
                     }
                 }
             }
