@@ -116,6 +116,9 @@ async function ensureFlaggedTable(db) {
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_types TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
     // Flag events log table
     try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS flag_events (id INTEGER PRIMARY KEY AUTOINCREMENT, char_name TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', signal_type TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
+    // Migration: scan_enabled toggle
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_enabled INTEGER NOT NULL DEFAULT 1", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_notes TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
 }
 
 async function logFlagEvent(db, charName, reason, signalType) {
@@ -14181,16 +14184,24 @@ router.delete('/messages/:id', auth, async (req, res) => {
 });
 
 // ── Bot Detection Engine ────────────────────────────────────────────
+async function getScanDisabledSet(db) {
+    try {
+        const rows = await db.execute('SELECT char_name FROM flagged_characters WHERE scan_enabled = 0');
+        return new Set(rows.rows.map(r => r.char_name));
+    } catch { return new Set(); }
+}
+
 async function runBotDetection(db) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
     if (setting && setting.value === 'false') return new Map();
 
+    const scanDisabled = await getScanDisabledSet(db);
     const botPlayers = new Map();
     const now = Math.floor(Date.now() / 1000);
     try {
         const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
         for (const row of bots.rows) {
-            if (row.name) botPlayers.set(row.name, 'Managed test bot');
+            if (row.name && !scanDisabled.has(row.name)) botPlayers.set(row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] bot_configs error:', e.message); }
     try {
@@ -14199,7 +14210,7 @@ async function runBotDetection(db) {
         const fpGroups = {};
         for (const r of fpRows.rows) {
             const name = r.char_name;
-            if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
+            if (!name || name === '?' || !r.created_at || botPlayers.has(name) || scanDisabled.has(name)) continue;
             const p = (r.path || '').toLowerCase();
             if (!p.includes('/missions/')) continue;
             if (!fpGroups[name]) fpGroups[name] = [];
@@ -14232,7 +14243,7 @@ async function runBotDetection(db) {
             groups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(groups)) {
-            if (botPlayers.has(name)) continue;
+            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 20) continue;
@@ -14259,7 +14270,7 @@ async function runBotDetection(db) {
             bGroups[name].push(r.fought_at);
         }
         for (const [name, timestamps] of Object.entries(bGroups)) {
-            if (botPlayers.has(name)) continue;
+            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 50) continue;
@@ -14285,7 +14296,7 @@ async function runBotDetection(db) {
             pGroups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(pGroups)) {
-            if (botPlayers.has(name)) continue;
+            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 15) continue;
@@ -14303,8 +14314,6 @@ async function runBotDetection(db) {
                     const mean = shortGaps.reduce((s, v) => s + v, 0) / shortGaps.length;
                     const variance = shortGaps.reduce((s, v) => s + (v - mean) ** 2, 0) / shortGaps.length;
                     const cv = Math.sqrt(variance) / mean;
-                    // Regular poller (even with some randomization): CV < 0.8
-                    // OR relentless coverage with high CV — no real breaks for 2h+
                     if (cv < 0.8 || (isRelentless && isSustained)) {
                         botPlayers.set(name, `State polling: ${shortGaps.length}/${allGaps.length} gaps < 120s, ${Math.round(activeTime/60)}min active, CV=${cv.toFixed(2)}`);
                     }
@@ -14318,6 +14327,12 @@ async function runBotDetection(db) {
 async function runSelectiveBotDetection(db, charName) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
     if (setting && setting.value === 'false') return new Map();
+
+    // Check if scan is enabled for this character
+    try {
+        const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [charName]);
+        if (flagRow && flagRow.scan_enabled === 0) return new Map();
+    } catch {}
 
     const botPlayers = new Map();
     const now = Math.floor(Date.now() / 1000);
@@ -14542,6 +14557,29 @@ router.post('/admin/set-moderator', auth, async (req, res) => {
         const { userId, moderator } = req.body;
         if (!userId) return res.status(400).json({ error: 'userId required' });
         await db.execute({ sql: 'UPDATE users SET is_moderator=? WHERE id=?', args: [moderator ? 1 : 0, userId] });
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/character-search', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const q = req.query.q || '';
+        if (q.length < 1) return res.json([]);
+        const result = await db.execute({ sql: `SELECT name FROM characters WHERE name LIKE ? ORDER BY name LIMIT 20`, args: [q + '%'] });
+        res.json(result.rows.map(r => r.name));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/toggle-character-scan', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const { char_name, scan_enabled } = req.body;
+        if (!char_name) return res.status(400).json({ error: 'char_name required' });
+        await ensureFlaggedTable(db);
+        await db.execute({ sql: 'UPDATE flagged_characters SET scan_enabled=? WHERE char_name=?', args: [scan_enabled ? 1 : 0, char_name] });
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
