@@ -14379,9 +14379,9 @@ async function runSelectiveBotDetection(db, charName) {
 async function persistBotFlags(db, botPlayers) {
     const now = Math.floor(Date.now() / 1000);
     try {
-        const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
-        if (setting && setting.value === 'false') return;
         await ensureFlaggedTable(db);
+
+        // Always save detection results (manual scans, 🟢 chars when global OFF, etc.)
         const flaggedRows = await db.execute('SELECT char_name FROM flagged_characters');
         const existingFlags = new Set(flaggedRows.rows.map(r => r.char_name));
         for (const [bp, reason] of botPlayers) {
@@ -14392,10 +14392,8 @@ async function persistBotFlags(db, botPlayers) {
                 const types = cur?.signal_types ? cur.signal_types.split(',').filter(Boolean) : [];
                 const isNewType = !types.includes(reasonType);
                 if (isNewType) types.push(reasonType);
-                // Debounce: only count a new event if the type is new or last seen > 2 min ago
                 var isFresh = (cur?.last_seen_at || 0) > now - 120;
                 if (isFresh && !isNewType) {
-                    // Same type, still active — just bump last_seen_at + reason, don't count
                     await db.execute({
                         sql: 'UPDATE flagged_characters SET reason=?, last_seen_at=? WHERE char_name=?',
                         args: [reason, now, bp]
@@ -14415,21 +14413,23 @@ async function persistBotFlags(db, botPlayers) {
                 await logFlagEvent(db, bp, reason, reasonType);
             }
         }
-        const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
-        for (const flagged of flaggedRows.rows) {
-            if (detectedNames.has(flagged.char_name)) continue;
-            const flaggedData = await dbGet(db, 'SELECT reason, signal_types FROM flagged_characters WHERE char_name=?', [flagged.char_name]);
-            if (!flaggedData) continue;
-            // Do NOT clear if the character has ANY non-detection flags (e.g., untrusted_api, manual)
-            const sTypes = (flaggedData.signal_types || '').split(',').filter(Boolean);
-            const hasNonDetectionFlag = sTypes.some(t => !['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
-            if (hasNonDetectionFlag) continue;
-            
-            // Also do NOT clear if they have NO detection flags at all (shouldn't happen, but safe)
-            const isDetectionFlag = sTypes.some(t => ['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
-            if (!isDetectionFlag) continue;
 
-            await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
+        // Only clear stale flags when global scan is ON (prevent wiping when only 🟢 chars are scanned)
+        const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
+        const globalOn = !(setting && setting.value === 'false');
+        if (globalOn) {
+            const detectedNames = new Set([...botPlayers.keys()].filter(n => n && n !== '?'));
+            for (const flagged of flaggedRows.rows) {
+                if (detectedNames.has(flagged.char_name)) continue;
+                const flaggedData = await dbGet(db, 'SELECT reason, signal_types FROM flagged_characters WHERE char_name=?', [flagged.char_name]);
+                if (!flaggedData) continue;
+                const sTypes = (flaggedData.signal_types || '').split(',').filter(Boolean);
+                const hasNonDetectionFlag = sTypes.some(t => !['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
+                if (hasNonDetectionFlag) continue;
+                const isDetectionFlag = sTypes.some(t => ['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
+                if (!isDetectionFlag) continue;
+                await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
+            }
         }
     } catch (e) { console.error('[persistBotFlags]', e.message); }
 }
