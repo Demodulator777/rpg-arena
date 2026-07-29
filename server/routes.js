@@ -9988,6 +9988,7 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
             id: Number(r.id || 0),
             name: r.name,
             tag: r.squad_tag || null,
+            squad_tag: r.squad_tag || null,
             logo: r.logo || null,
             member_count: Number(r.member_count || 0),
             avg_level: Number(r.avg_level || 0),
@@ -14440,7 +14441,7 @@ router.get('/admin/check', auth, async (req, res) => {
 
 // Moderator management (admin only)
 router.get('/admin/users', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Admin or Moderator required' });
     try {
         const db = await getDb();
         const result = await db.execute({ sql: 'SELECT id, username, is_admin, is_moderator, ban_level, ban_expires_at, ban_reason, banned_by, ip_address FROM users ORDER BY username', args: [] });
