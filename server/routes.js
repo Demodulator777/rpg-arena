@@ -116,9 +116,10 @@ async function ensureFlaggedTable(db) {
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN signal_types TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
     // Flag events log table
     try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS flag_events (id INTEGER PRIMARY KEY AUTOINCREMENT, char_name TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '', signal_type TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
-    // Migration: scan_enabled toggle
+    // Migration: scan_enabled toggle + scan_started_at
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_enabled INTEGER NOT NULL DEFAULT 1", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_notes TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_started_at INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
 }
 
 async function logFlagEvent(db, charName, reason, signalType) {
@@ -14325,10 +14326,7 @@ async function runBotDetection(db) {
 }
 
 async function runSelectiveBotDetection(db, charName) {
-    const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
-    if (setting && setting.value === 'false') return new Map();
-
-    // Check if scan is enabled for this character
+    // Check if scan is enabled for this character (skip if explicitly disabled)
     try {
         const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [charName]);
         if (flagRow && flagRow.scan_enabled === 0) return new Map();
@@ -14597,14 +14595,48 @@ router.get('/admin/flagged-characters', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/admin/scan-character/:charName', auth, async (req, res) => {
+router.post('/admin/scan-character/:charName', auth, async (req, res) => {
     try {
         const db = await getDb();
         const charName = req.params.charName;
-        // Run bot detection specifically for this character
+
+        // 1. Activate monitoring for this character
+        await ensureFlaggedTable(db);
+        const now = Math.floor(Date.now() / 1000);
+        const existing = await dbGet(db, 'SELECT id, scan_enabled, scan_started_at FROM flagged_characters WHERE char_name=?', [charName]);
+        if (existing) {
+            await db.execute({
+                sql: 'UPDATE flagged_characters SET scan_enabled=1, scan_started_at=CASE WHEN scan_started_at=0 THEN ? ELSE scan_started_at END, last_seen_at=? WHERE char_name=?',
+                args: [now, now, charName]
+            });
+        } else {
+            await db.execute({
+                sql: "INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, scan_enabled, scan_started_at, signal_count, distinct_signals, signal_types) VALUES (?,'Monitoring active',?,?,1,?,0,0,'')",
+                args: [charName, now, now, now]
+            });
+        }
+
+        // 2. Get data stats
+        const dayAgo = now - 86400;
+        const apiCount = await dbGet(db, 'SELECT COUNT(*) AS c FROM api_log WHERE char_name=? AND created_at>?', [charName, dayAgo]);
+        const missionCount = await dbGet(db, "SELECT COUNT(*) AS c FROM api_log WHERE char_name=? AND created_at>? AND method='POST' AND path LIKE '%/missions/%'", [charName, dayAgo]);
+        const battleCount = await dbGet(db, 'SELECT COUNT(*) AS c FROM battles b JOIN characters ca ON b.attacker_id=ca.id WHERE ca.name=? AND b.fought_at>?', [charName, dayAgo]);
+
+        // 3. Run detection on existing data
         const botPlayers = await runSelectiveBotDetection(db, charName);
         await persistBotFlags(db, botPlayers);
-        res.json({ success: true, detected: botPlayers.has(charName), reason: botPlayers.get(charName) || 'None' });
+
+        res.json({
+            monitoring: true,
+            scan_started_at: existing?.scan_started_at || now,
+            detected: botPlayers.has(charName),
+            reason: botPlayers.get(charName) || null,
+            data: {
+                api_log_24h: apiCount?.c || 0,
+                missions_24h: missionCount?.c || 0,
+                battles_24h: battleCount?.c || 0
+            }
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
