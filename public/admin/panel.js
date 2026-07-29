@@ -1108,20 +1108,28 @@ function pollConsole() {
     _consoleTimer = setTimeout(pollConsole, 3000);
 }
 
-function toggleConfirmed(charName, confirmed) {
-    adminApi('POST', '/admin/flagged/' + encodeURIComponent(charName) + '/confirm', { confirmed: confirmed })
-        .then(function() { loadFlagged(); })
-        .catch(function(e) { alert('Failed to update confirmed status: ' + e.message); });
-}
-
 // ── Flagged Characters ───────────────────────────────────────────────
 function loadFlagged() {
     var el = document.getElementById('tab-flagged');
     el.innerHTML = '<div class="card-compact">' +
-        '<div class="row"><div class="lbl">Selective Scan</div>' +
-        '<div class="val"><input type="text" id="scan-char-input" placeholder="Character name" class="ed" style="width:150px">' +
-        '<button class="db-btn btn-apply" onclick="scanCharacter()">Scan</button>' +
-        '<span id="scan-status" style="margin-left:10px;font-size:12px"></span></div></div>' +
+        '<div class="row"><div class="lbl"><b>Selective Scan</b></div>' +
+        '<div class="val" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
+        '<div style="position:relative;display:inline-block">' +
+        '<input type="text" id="scan-char-input" placeholder="Character name" class="ed" style="width:150px" autocomplete="off" data-action="scan-char-autocomplete">' +
+        '<div id="scan-autocomplete-list" style="position:absolute;top:100%;left:0;right:0;background:#1a1a24;border:1px solid #2a2a35;border-radius:4px;max-height:200px;overflow-y:auto;display:none;z-index:100"></div>' +
+        '</div>' +
+        '<button class="db-btn btn-apply" data-action="scan-character" style="padding:4px 10px;font-size:11px">Scan</button>' +
+        '<button class="db-btn" data-action="add-to-watch" style="padding:4px 10px;font-size:11px">+ Watch</button>' +
+        '<button class="db-btn" data-action="batch-add-watch" style="padding:4px 10px;font-size:11px">+ Batch</button>' +
+        '<span id="scan-status" style="margin-left:4px;font-size:11px;color:#8a8a90"></span>' +
+        '</div></div>' +
+        '<div id="batch-add-panel" style="display:none;margin-top:6px;padding:8px;background:#15151a;border-radius:4px">' +
+        '<div style="font-size:11px;color:#8a8a90;margin-bottom:4px">Enter character names (one per line):</div>' +
+        '<textarea id="batch-char-input" rows="4" style="width:100%;background:#0e0e16;border:1px solid #2a2a35;border-radius:4px;color:#e2e8f0;padding:6px;font-size:12px" placeholder="CharacterOne\nCharacterTwo\nCharacterThree"></textarea>' +
+        '<div style="margin-top:4px;display:flex;gap:6px">' +
+        '<button class="db-btn btn-apply" data-action="batch-add-execute" style="padding:4px 10px;font-size:11px">Add All</button>' +
+        '<button class="db-btn" data-action="batch-add-cancel" style="padding:4px 10px;font-size:11px">Cancel</button>' +
+        '</div></div>' +
     '</div><div class="loading">Loading flagged characters...</div>';
     
     var token = localStorage.getItem('rpg_token');
@@ -1133,6 +1141,7 @@ function loadFlagged() {
                 return;
             }
             var html = '<div class="table-wrap"><table><thead><tr>' +
+                '<th>Scan</th>' +
                 '<th>Name</th>' +
                 '<th>Reason</th>' +
                 '<th title="Total flag events">Flags</th>' +
@@ -1145,19 +1154,23 @@ function loadFlagged() {
                 var r = rows[i];
                 var det = r.detected_at ? new Date(r.detected_at * 1000).toLocaleString() : '?';
                 var seen = r.last_seen_at ? new Date(r.last_seen_at * 1000).toLocaleString() : '?';
-                var confirmedBtn = '<button class="db-btn ' + (r.confirmed ? 'btn-yes' : 'btn-no') + '" style="font-size:10px;padding:2px 6px" onclick="toggleConfirmed(\'' + esc(r.char_name) + '\', ' + !r.confirmed + ')">' + (r.confirmed ? '✅ Yes' : '❌ No') + '</button>';
+                var scanEnabled = r.scan_enabled !== 0;
+                var toggleBtn = '<span data-action="toggle-scan" data-char="' + esc(r.char_name) + '" data-enabled="' + (scanEnabled ? '1' : '0') + '" style="cursor:pointer;font-size:14px;user-select:none">' + (scanEnabled ? '🟢' : '🔴') + '</span>';
+                var confirmedBtn = '<span data-action="toggle-confirmed" data-char="' + esc(r.char_name) + '" data-confirmed="' + (r.confirmed ? '1' : '0') + '" style="cursor:pointer;font-size:12px;padding:2px 6px;background:' + (r.confirmed ? '#1a3a1a' : '#3a1a1a') + ';border-radius:4px;color:' + (r.confirmed ? '#4ade80' : '#e06060') + '">' + (r.confirmed ? 'Yes' : 'No') + '</span>';
                 var signalBadge = (r.distinct_signals || 0) > 1
                     ? '<span style="color:#e06060;font-weight:700">' + (r.distinct_signals || 0) + '</span>'
                     : '<span style="color:#6a6a70">' + (r.distinct_signals || 0) + '</span>';
                 html += '<tr class="flag-row" data-char="' + esc(r.char_name) + '">' +
+                    '<td style="text-align:center">' + toggleBtn + '</td>' +
                     '<td><a href="#" class="flag-name-link" data-name="' + esc(r.char_name) + '" style="color:#e06060;font-weight:700;text-decoration:none">' + esc(r.char_name) + '</a></td>' +
                     '<td style="color:#8a8a90;font-size:11px" title="Types: ' + esc(r.signal_types || '') + '">' + esc(r.reason || '') + '</td>' +
                     '<td style="text-align:center;font-size:12px;cursor:pointer" class="flag-expand-btn" title="Click to see events">' + (r.signal_count || 0) + ' ▶</td>' +
                     '<td style="text-align:center;font-size:12px">' + signalBadge + '</td>' +
                     '<td style="font-size:11px">' + det + '</td>' +
                     '<td style="font-size:11px">' + seen + '</td>' +
-                    '<td>' + confirmedBtn + '</td></tr>' +
-                    '<tr id="flag-events-' + esc(r.char_name) + '" style="display:none"><td colspan="8"><div style="padding:8px;background:#15151a;border-radius:4px;max-height:300px;overflow-y:auto"><div class="loading" style="padding:8px">Loading events...</div></div></td></tr>';
+                    '<td style="text-align:center">' + confirmedBtn + '</td>' +
+                    '<td style="text-align:center"><button class="db-btn" data-action="scan-single" data-char="' + esc(r.char_name) + '" style="font-size:10px;padding:2px 6px">Scan</button></td></tr>' +
+                    '<tr id="flag-events-' + esc(r.char_name) + '" style="display:none"><td colspan="9"><div style="padding:8px;background:#15151a;border-radius:4px;max-height:300px;overflow-y:auto"><div class="loading" style="padding:8px">Loading events...</div></div></td></tr>';
             }
             html += '</tbody></table></div>';
             el.querySelector('.loading').outerHTML = html;
@@ -1197,6 +1210,176 @@ function loadFlagged() {
         });
 }
 
+// ── Autocomplete ──
+var _scanAutocompleteTimer = null;
+document.addEventListener('input', function(e) {
+    var input = e.target.closest('#scan-char-input');
+    if (!input) return;
+    if (_scanAutocompleteTimer) clearTimeout(_scanAutocompleteTimer);
+    _scanAutocompleteTimer = setTimeout(function() {
+        var q = input.value.trim();
+        var list = document.getElementById('scan-autocomplete-list');
+        if (q.length < 1) { list.style.display = 'none'; return; }
+        var token = localStorage.getItem('rpg_token');
+        fetch('/api/game/admin/character-search?q=' + encodeURIComponent(q), { headers: { 'Authorization': 'Bearer ' + token } })
+            .then(function(r) { return r.json(); })
+            .then(function(names) {
+                if (!names || !names.length) { list.style.display = 'none'; return; }
+                list.innerHTML = names.map(function(n) {
+                    return '<div class="scan-ac-item" data-name="' + esc(n) + '" style="padding:6px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid #2a2a35;color:#c8d6e5;transition:background 0.15s">' + esc(n) + '</div>';
+                }).join('');
+                list.style.display = 'block';
+            });
+    }, 200);
+});
+// Autocomplete item hover via delegation
+document.addEventListener('mouseover', function(e) {
+    var item = e.target.closest('.scan-ac-item');
+    if (item) item.style.background = '#2a2a35';
+});
+document.addEventListener('mouseout', function(e) {
+    var item = e.target.closest('.scan-ac-item');
+    if (item) item.style.background = 'transparent';
+});
+document.addEventListener('click', function(e) {
+    var item = e.target.closest('.scan-ac-item');
+    if (!item) {
+        var list = document.getElementById('scan-autocomplete-list');
+        if (list) list.style.display = 'none';
+        return;
+    }
+    var input = document.getElementById('scan-char-input');
+    input.value = item.getAttribute('data-name');
+    document.getElementById('scan-autocomplete-list').style.display = 'none';
+});
+
+// ── Batch add panel toggle ──
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="batch-add-watch"]');
+    if (!btn) return;
+    var panel = document.getElementById('batch-add-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="batch-add-cancel"]');
+    if (!btn) return;
+    document.getElementById('batch-add-panel').style.display = 'none';
+});
+
+// ── Scan button (header) ──
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="scan-character"]');
+    if (!btn) return;
+    scanCharacter();
+});
+
+// ── Add to Watch List ──
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="add-to-watch"]');
+    if (!btn) return;
+    var name = document.getElementById('scan-char-input').value.trim();
+    if (!name) return;
+    var status = document.getElementById('scan-status');
+    status.textContent = 'Adding...';
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/flag-character', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ char_name: name, reason: 'Manual watch list' })
+    }).then(function(r) { return r.json(); }).then(function(res) {
+        status.textContent = res.ok ? 'Added to watch list' : 'Error: ' + (res.error || 'unknown');
+        loadFlagged();
+    }).catch(function(e) { status.textContent = 'Error: ' + e.message; });
+});
+
+// ── Batch add execute ──
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="batch-add-execute"]');
+    if (!btn) return;
+    var textarea = document.getElementById('batch-char-input');
+    var names = textarea.value.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+    if (!names.length) return;
+    var status = document.getElementById('scan-status');
+    status.textContent = 'Adding ' + names.length + ' characters...';
+    var token = localStorage.getItem('rpg_token');
+    var done = 0;
+    names.forEach(function(name) {
+        fetch('/api/game/admin/flag-character', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ char_name: name, reason: 'Manual watch list' })
+        }).then(function(r) { return r.json(); }).then(function() {
+            done++;
+            if (done === names.length) {
+                status.textContent = 'Added ' + names.length + ' characters';
+                document.getElementById('batch-add-panel').style.display = 'none';
+                textarea.value = '';
+                loadFlagged();
+            }
+        }).catch(function() {
+            done++;
+            if (done === names.length) {
+                status.textContent = 'Added ' + done + ' characters (some may have failed)';
+                document.getElementById('batch-add-panel').style.display = 'none';
+                textarea.value = '';
+                loadFlagged();
+            }
+        });
+    });
+});
+
+// ── Toggle scan_enabled ──
+document.addEventListener('click', function(e) {
+    var span = e.target.closest('[data-action="toggle-scan"]');
+    if (!span) return;
+    var charName = span.getAttribute('data-char');
+    var current = span.getAttribute('data-enabled') === '1';
+    var newEnabled = current ? 0 : 1;
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/toggle-character-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ char_name: charName, scan_enabled: newEnabled })
+    }).then(function(r) { return r.json(); }).then(function() {
+        span.setAttribute('data-enabled', String(newEnabled));
+        span.textContent = newEnabled ? '\uD83D\uDFE2' : '\uD83D\uDD34';
+        loadFlagged();
+    });
+});
+
+// ── Scan single row ──
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="scan-single"]');
+    if (!btn) return;
+    var charName = btn.getAttribute('data-char');
+    var status = document.getElementById('scan-status');
+    status.textContent = 'Scanning ' + charName + '...';
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/scan-character/' + encodeURIComponent(charName), { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            status.textContent = res.detected ? charName + ': Bot detected! (' + res.reason + ')' : charName + ': No bot detected.';
+            if (res.detected) loadFlagged();
+        })
+        .catch(function(e) { status.textContent = 'Error: ' + e.message; });
+});
+
+// ── Toggle confirmed ──
+document.addEventListener('click', function(e) {
+    var span = e.target.closest('[data-action="toggle-confirmed"]');
+    if (!span) return;
+    var charName = span.getAttribute('data-char');
+    var newVal = span.getAttribute('data-confirmed') === '1' ? 0 : 1;
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/flagged/' + encodeURIComponent(charName) + '/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ confirmed: newVal })
+    }).then(function(r) { return r.json(); }).then(function() {
+        loadFlagged();
+    });
+});
+
 function scanCharacter() {
     var name = document.getElementById('scan-char-input').value.trim();
     if (!name) return;
@@ -1207,11 +1390,10 @@ function scanCharacter() {
         .then(function(r) { return r.json(); })
         .then(function(res) {
             status.textContent = res.detected ? 'Bot detected! (' + res.reason + ')' : 'No bot detected.';
-            if (res.detected) loadFlagged(); // Reload to show new flag
+            if (res.detected) loadFlagged();
         })
         .catch(function(e) { status.textContent = 'Error: ' + e.message; });
 }
-window.scanCharacter = scanCharacter;
 
 function renderCharacterLogs(name) {
     var el = document.getElementById('tab-flagged');
