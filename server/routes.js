@@ -14185,24 +14185,16 @@ router.delete('/messages/:id', auth, async (req, res) => {
 });
 
 // ── Bot Detection Engine ────────────────────────────────────────────
-async function getScanDisabledSet(db) {
-    try {
-        const rows = await db.execute('SELECT char_name FROM flagged_characters WHERE scan_enabled = 0');
-        return new Set(rows.rows.map(r => r.char_name));
-    } catch { return new Set(); }
-}
-
 async function runBotDetection(db) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
     if (setting && setting.value === 'false') return new Map();
 
-    const scanDisabled = await getScanDisabledSet(db);
     const botPlayers = new Map();
     const now = Math.floor(Date.now() / 1000);
     try {
         const bots = await db.execute('SELECT DISTINCT c.name FROM bot_configs bc JOIN characters c ON bc.char_id = c.id WHERE bc.enabled = 1');
         for (const row of bots.rows) {
-            if (row.name && !scanDisabled.has(row.name)) botPlayers.set(row.name, 'Managed test bot');
+            if (row.name) botPlayers.set(row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] bot_configs error:', e.message); }
     try {
@@ -14211,7 +14203,7 @@ async function runBotDetection(db) {
         const fpGroups = {};
         for (const r of fpRows.rows) {
             const name = r.char_name;
-            if (!name || name === '?' || !r.created_at || botPlayers.has(name) || scanDisabled.has(name)) continue;
+            if (!name || name === '?' || !r.created_at || botPlayers.has(name)) continue;
             const p = (r.path || '').toLowerCase();
             if (!p.includes('/missions/')) continue;
             if (!fpGroups[name]) fpGroups[name] = [];
@@ -14244,7 +14236,7 @@ async function runBotDetection(db) {
             groups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(groups)) {
-            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
+            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 20) continue;
@@ -14271,7 +14263,7 @@ async function runBotDetection(db) {
             bGroups[name].push(r.fought_at);
         }
         for (const [name, timestamps] of Object.entries(bGroups)) {
-            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
+            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 50) continue;
@@ -14297,7 +14289,7 @@ async function runBotDetection(db) {
             pGroups[name].push(r.created_at);
         }
         for (const [name, timestamps] of Object.entries(pGroups)) {
-            if (botPlayers.has(name) || scanDisabled.has(name)) continue;
+            if (botPlayers.has(name)) continue;
             timestamps.sort((a, b) => a - b);
             const unique = timestamps.filter((t, i) => i === 0 || t !== timestamps[i - 1]);
             if (unique.length < 15) continue;
