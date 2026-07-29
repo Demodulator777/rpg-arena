@@ -1110,7 +1110,13 @@ function pollConsole() {
 
 // ── Flagged Characters ───────────────────────────────────────────────
 function toggleConfirmed(charName, confirmed) {
-    adminApi('POST', '/admin/flagged/' + encodeURIComponent(charName) + '/confirm', { confirmed: confirmed })
+    var token = localStorage.getItem('rpg_token');
+    fetch('/api/game/admin/flagged/' + encodeURIComponent(charName) + '/confirm', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed: confirmed })
+    })
+        .then(function(r) { return r.json(); })
         .then(function() { loadFlagged(); })
         .catch(function(e) { alert('Failed to update confirmed status: ' + e.message); });
 }
