@@ -8050,8 +8050,36 @@ async function activatePremium(featureId) {
         character = d.character;
         renderTopBar();
         showMsg('premium-msg', d.message);
-        loadPremium();
+        updatePremiumCard(featureId);
     } catch(e) { showMsg('premium-msg', e.message, true); }
+}
+
+function updatePremiumCard(featureId) {
+    const btn = [...document.querySelectorAll('button[data-action="activatePremium"]')].find(b => parseActionArgs(b)?.[0] === featureId);
+    if (!btn) return;
+    const card = btn.closest('.premium-feature-card');
+    if (!card || card.classList.contains('is-active')) return;
+    card.classList.add('is-active');
+    card.style.background = 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))';
+    card.style.borderColor = 'rgba(241,196,15,0.5)';
+    card.querySelectorAll('.premium-feature-art-wrap').forEach(wrap => {
+        if (!wrap.querySelector('.premium-feature-days')) {
+            const badge = document.createElement('div');
+            badge.className = 'premium-feature-days';
+            badge.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700';
+            badge.textContent = '30d left';
+            wrap.appendChild(badge);
+        }
+    });
+    const match = btn.textContent.match(/([\d,]+)\s*💎/);
+    const cost = match ? match[1] : '500';
+    btn.textContent = `✅ Active · Renew for ${cost} 💎`;
+    btn.style.borderColor = 'rgba(241,196,15,0.4)';
+    btn.style.background = 'rgba(241,196,15,0.1)';
+    btn.style.color = 'var(--gold)';
+    btn.disabled = false;
+    const gemEl = document.querySelector('#premium-content > div:first-child span:last-child');
+    if (gemEl) gemEl.textContent = `💎 ${(character.gems || 0).toLocaleString()}`;
 }
 
 // ── Shop Reroll ────────────────────────────────────────────────────────────
