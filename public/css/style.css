@@ -4806,6 +4806,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     gap: 8px;
     margin-top: 16px;
 }
+.profile-scene { position: relative; }
 .profile-scene .class-scene-content { padding: 20px; }
 .profile-grid {
     display: grid;
@@ -6365,6 +6366,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(255,255,255,0.015) !important;
     overflow: hidden !important;
     position: relative !important;
+    transform: translateZ(0);
 }
 
 .eq-slot::before,
