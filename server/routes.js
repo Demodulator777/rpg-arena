@@ -10808,6 +10808,11 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
             [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
         if (cooldown) return res.status(400).json({ error: 'Your squad must wait 24h between wars.' });
+        // Defender 24h protection after a war ends
+        const defCooldown = await dbGet(db,
+            "SELECT 1 FROM clan_wars WHERE defender_squad_id=? AND status='completed' AND resolved_at > ? LIMIT 1",
+            [targetBase.owner_squad_id, Math.floor(Date.now() / 1000) - 86400]);
+        if (defCooldown) return res.status(400).json({ error: 'This squad is on a 24h cooldown after defending a war.' });
         const intent = req.body.intent === 'loot' ? 'loot' : 'capture';
         const now = Math.floor(Date.now() / 1000);
         const scoutEndsAt = now + 43200; // 12 hours
