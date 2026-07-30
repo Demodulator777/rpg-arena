@@ -6364,6 +6364,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border: none !important;
     background: rgba(255,255,255,0.015) !important;
     overflow: hidden !important;
+    position: relative !important;
 }
 
 .eq-slot::before,
@@ -6374,6 +6375,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: url('/images/equipment-bg.png') center/112% no-repeat !important;
     opacity: 0.2 !important;
     pointer-events: none !important;
+    z-index: -1 !important;
 }
 
 .eq-slot.filled,
