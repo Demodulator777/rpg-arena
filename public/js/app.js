@@ -1575,6 +1575,8 @@ window.addEventListener('DOMContentLoaded', async () => {
                 loadCharacterRoster()
             ]);
             character = charData;
+            window._lastBattleAt = charData.last_battle_at;
+            window._battleCooldownEndsAt = charData.battle_cooldown_ends_at;
             window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
             // Check SW status — only preload assets if SW is enabled (to warm cache)
@@ -4249,8 +4251,10 @@ async function loadMissions() {
     api('POST', '/game/missions/tab-viewed').catch(() => {});
     // Show overlay from cached data BEFORE any async calls so it's the first thing visible
     const now = Math.floor(Date.now() / 1000);
-    if (character && (character.battle_cooldown_ends_at || 0) > now && (character.last_battle_at || 0) > 0) {
-        showRestOverlay(character.last_battle_at, character.battle_cooldown_ends_at);
+    const cdEnds = window._battleCooldownEndsAt || character?.battle_cooldown_ends_at || 0;
+    const cdLast = window._lastBattleAt || character?.last_battle_at || 0;
+    if (cdEnds > now && cdLast > 0) {
+        showRestOverlay(cdLast, cdEnds);
     } else if (playerTravelTarget) {
         showTravelOverlay();
     }
@@ -5159,6 +5163,8 @@ async function checkTravelStatus() {
         const status=await api('GET','/game/travel/status');
         if (status.character) {
             character = status.character;
+            window._lastBattleAt = character.last_battle_at;
+            window._battleCooldownEndsAt = character.battle_cooldown_ends_at;
             renderTopBar();
             if (document.getElementById('tab-character')?.classList.contains('active')) renderCharacter();
         } else if (character) {
