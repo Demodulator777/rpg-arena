@@ -9254,16 +9254,12 @@ async function openProfile(id) {
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
             const itemData = escHtml(JSON.stringify(item));
-            const profileImgSrc = item.img || getAssetImagePath(item.name);
-            const profileItemHtml = profileImgSrc
-                ? `<img src="${profileImgSrc}" style="width:76px;height:76px;object-fit:contain;display:block"><span style="display:none;font-size:2.2rem;line-height:1">${item.emoji||'📦'}</span>`
-                : `<span style="font-size:2.2rem;line-height:1">${item.emoji||'📦'}</span>`;
             return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                 data-item="${itemData}"
                 data-hover-action="hoverEqTooltip"
                 data-leave-action="scheduleHideTooltip"
             >
-                <span class="eq-slot-icon">${profileItemHtml}</span>
+                <span class="eq-slot-icon">${itemIcon(item, 'slot')}</span>
             </div>`;
         }).join('');
 
