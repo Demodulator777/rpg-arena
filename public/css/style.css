@@ -6408,8 +6408,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         drop-shadow(0 0 16px rgba(201,146,42,0.12));
     transition: filter 0.18s ease;
 }
+.profile-eq-slot .eq-slot-icon img { filter: none !important; }
+.profile-eq-slot.filled:hover .eq-slot-icon img { filter: none !important; }
 .eq-slot.filled:hover .eq-slot-icon img,
-.profile-eq-slot.filled:hover .eq-slot-icon img,
 .eq-slot-small.filled:hover .eq-slot-small-icon img {
     filter:
         drop-shadow(0 0 12px rgba(255,255,255,0.1))
