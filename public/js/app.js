@@ -4252,6 +4252,9 @@ async function loadMissions() {
         if (!character) character = char;
         await checkTravelStatus();
 
+        // Load overlays first (active mission, rest, training, travel) so they render immediately
+        await checkAndShowMissionOverlay();
+
         // Load Abyss data if not loaded
         if (!abyssData) {
             await loadAbyssData();
@@ -4264,7 +4267,6 @@ async function loadMissions() {
             renderWorldMap();
         }
 
-        await checkAndShowMissionOverlay();
         await checkTrainingStatus();
     } catch(e) {
         console.error('Error loading missions:', e);
