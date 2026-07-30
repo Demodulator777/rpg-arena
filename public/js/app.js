@@ -9816,6 +9816,7 @@ async function loadInbox() {
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
+        window._warPanelCache = {};
 
         // Separate messages into categories
         const messagesList = [];
@@ -9831,6 +9832,16 @@ async function loadInbox() {
                 const isMission = report?.type === 'mission';
                 if (isMission) missionsList.push({ ...m, report });
                 else battlesList.push({ ...m, report });
+            } else if (m.body && m.body.startsWith('WAR_PANEL:')) {
+                let warInfo = null;
+                try {
+                    const pipeIdx = m.body.indexOf('|');
+                    const jsonPart = pipeIdx >= 0 ? m.body.slice('WAR_PANEL:'.length, pipeIdx) : m.body.slice('WAR_PANEL:'.length);
+                    warInfo = JSON.parse(jsonPart);
+                    warInfo._displayText = pipeIdx >= 0 ? m.body.slice(pipeIdx + 1) : '';
+                } catch {}
+                if (warInfo) window._warPanelCache[m.id] = warInfo;
+                messagesList.push(m);
             } else {
                 messagesList.push(m);
             }
@@ -9892,18 +9903,22 @@ function renderInboxFilter(filter) {
         const rewardSummary = describeInboxReward(m.reward_payload);
         const claimableReward = !!rewardSummary && !Number(m.reward_claimed || 0);
         const isSystem = Number(m.system_message || 0) !== 0;
+        const warInfo = window._warPanelCache?.[m.id];
+        const isWarMsg = !!warInfo;
+        const displayBody = isWarMsg ? (warInfo._displayText || '') : m.body;
         return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
             <div class="msg-header">
                 <div class="msg-meta">
-                    <span class="msg-tag ${claimableReward ? 'tag-mission' : 'tag-personal'}">${claimableReward ? 'Reward' : 'Message'}</span>
+                    <span class="msg-tag ${isWarMsg ? 'tag-battle' : claimableReward ? 'tag-mission' : 'tag-personal'}">${isWarMsg ? '⚔️ War' : claimableReward ? 'Reward' : 'Message'}</span>
                     <span class="msg-date">${dateStr}</span>
                 </div>
                 <div class="msg-from ${m.read?'':'unread-from'}">From: ${escHtml(m.sender_name)}</div>
             </div>
             <div class="msg-subject">${escHtml(m.subject)}</div>
             ${rewardSummary ? `<div class="msg-summary-line">${rewardSummary}${Number(m.reward_claimed || 0) ? ' · <span class="gain">Claimed</span>' : ''}</div>` : ''}
-            <div class="msg-body-full" style="display:none">${escHtml(m.body)}</div>
+            <div class="msg-body-full" style="display:none">${escHtml(displayBody)}</div>
             <div class="msg-actions" style="display:none">
+                ${isWarMsg ? `<button class="btn-sm" ${actionAttrs('openWarPanelFromMsg', m.id)}>⚔️ Open War Panel</button>` : ''}
                 ${!isSystem ? `<button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>` : ''}
                 ${claimableReward ? `<button class="btn-sm" ${actionAttrs('claimMessageReward', m.id)}>🎁 Claim Reward</button>` : ''}
                 ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
@@ -9996,6 +10011,12 @@ function renderInboxFilter(filter) {
     document.querySelectorAll('.inbox-tab').forEach(t => {
         t.classList.toggle('active', parseActionArgs(t)?.[0] === filter);
     });
+}
+
+function openWarPanelFromMsg(msgId) {
+    const warInfo = window._warPanelCache?.[msgId];
+    if (!warInfo || !warInfo.warId) { alert('War not found. Try reloading the inbox.'); return; }
+    openWarPanel(warInfo.warId);
 }
 
 function viewBattleReport(msgId) {
