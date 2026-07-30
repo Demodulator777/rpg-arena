@@ -11387,10 +11387,9 @@ function itemIcon(item, size='2rem') {
     let potionImg = null;
     if (isPotion) potionImg = getPotionImagePath(item);
     const imgSrc = item.img || (isLootbox ? getLootboxImagePath(item) : (potionImg || (item.name && !item.consumable ? getAssetImagePath(item.name) : null)));
-    const iStyle = size==='slot' ? 'object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
+    const iStyle = size==='slot' ? 'max-width:100%;max-height:100%;object-fit:contain;display:block' : `width:${size};height:${size};object-fit:contain;border-radius:4px;display:block`;
     const sStyle = size==='slot' ? 'font-size:2.2rem;line-height:1' : `font-size:${size};line-height:1`;
-    const errAttrs = size === 'slot' ? '' : ' data-error-hide="true" data-error-next-display="block"';
-    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}"${errAttrs}><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
+    if (imgSrc) return `<img src="${imgSrc}" style="${iStyle}" data-error-hide="true" data-error-next-display="block"><span style="display:none;${sStyle}">${item.emoji||'📦'}</span>`;
     return `<span style="${sStyle}">${item.emoji||'📦'}</span>`;
 }
 
