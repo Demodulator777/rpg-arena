@@ -9361,6 +9361,11 @@ async function openProfile(id) {
             ` : ''}
           </div>
       </div>`;
+      requestAnimationFrame(() => {
+          content.querySelectorAll('.profile-eq-slot img[data-error-hide]').forEach(img => {
+              void img.offsetHeight;
+          });
+      });
     } catch(e) { content.innerHTML=`<p class="error">Failed to load profile: ${e.message||'Unknown error'}</p>`; }
 }
 function miniStat(icon,label,val,max,cls) {
