@@ -11628,6 +11628,7 @@ router.post('/missions/collect', auth, async (req, res) => {
             id: freshChar.id,
             name: freshChar.name,
             class: freshChar.class,
+            level: freshChar.level,
             weapon: playerWeapon,
             shield: playerShield,
             hp: hpCurrent,
