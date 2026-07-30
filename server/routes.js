@@ -10429,9 +10429,12 @@ router.post('/squads/bases/:baseId/capture', auth, async (req, res) => {
             const defPower = npcsPerOutpost * npcPower;
             await dbRun(db, 'INSERT INTO clan_war_outposts (war_id, outpost_index, attacker_power, defender_power) VALUES (?,?,0,?)', [warId, i, defPower]);
         }
-        // Give the squad some time to assign — also generate a notification
-        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)',
-            [char.id, char.id, '⚔️ NPC Base Capture', `Your squad has started capturing "${base.name}"! Assign members to outposts in the war panel.`]);
+        // Notify all squad members
+        const squad = await dbGet(db, 'SELECT name FROM squads WHERE id=?', [membership.squad_id]);
+        const squadName = squad?.name || 'Unknown';
+        await notifySquadMembersAboutWar(db, membership.squad_id, warId,
+            '⚔️ NPC Base Capture',
+            `Your squad (${squadName}) has started capturing "${base.name}"! Assign members to outposts in the war panel.`);
         res.json({ success: true, war_id: warId, npc_count: cfg.npc_count, npc_level: cfg.npc_level, npc_power: npcPower });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -10562,6 +10565,42 @@ router.get('/squads/:squadId', auth, async (req, res) => {
 });
 
 // ── Auto-advance war phase based on deadlines ──────────────────────────────
+// ── War Notifications ───────────────────────────────────────────────────────
+async function notifySquadMembersAboutWar(db, squadId, warId, subject, bodyText) {
+    const members = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadId]);
+    if (!members.length) return;
+    const now = Math.floor(Date.now() / 1000);
+    const body = `WAR_PANEL:${JSON.stringify({ warId })}|${bodyText}`;
+    const stmt = 'INSERT INTO messages (sender_id, receiver_id, subject, body, sent_at, system_message, sender_label) VALUES (?,?,?,?,?,?,?)';
+    for (const m of members) {
+        await dbRun(db, stmt, [0, m.char_id, subject, body, now, 1, '⚔️ War System']);
+    }
+}
+async function notifySquadWarEnd(db, squadId, warId, subject, bodyText) {
+    const members = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadId]);
+    if (!members.length) return;
+    const now = Math.floor(Date.now() / 1000);
+    const body = `WAR_PANEL:${JSON.stringify({ warId })}|${bodyText}`;
+    const stmt = 'INSERT INTO messages (sender_id, receiver_id, subject, body, sent_at, system_message, sender_label) VALUES (?,?,?,?,?,?,?)';
+    for (const m of members) {
+        await dbRun(db, stmt, [0, m.char_id, subject, body, now, 1, '⚔️ War Report']);
+    }
+}
+async function postGlobalWarReport(db, attackerSquadName, defenderSquadName, baseName, attackerWon, baseCaptured) {
+    const now = Math.floor(Date.now() / 1000);
+    let msgText;
+    if (baseCaptured) {
+        msgText = `🏴 ${attackerSquadName} attacked ${defenderSquadName} and took ${baseName}!`;
+    } else if (attackerWon) {
+        msgText = `⚔️ ${attackerSquadName} attacked ${defenderSquadName} at ${baseName} and WON!`;
+    } else {
+        msgText = `⚔️ ${attackerSquadName} attacked ${defenderSquadName} at ${baseName} and LOST!`;
+    }
+    await dbRun(db,
+        'INSERT INTO chat_messages (sender_user_id, sender_char_id, sender_name, recipient_char_id, message_text, created_at) VALUES (?,?,?,NULL,?,?)',
+        [0, 0, '🏛️ War Report', msgText, now]);
+}
+
 async function autoAdvanceWar(db, war) {
     const now = Math.floor(Date.now() / 1000);
     const scoutEnds = Number(war.scout_ends_at || 0);
@@ -10635,6 +10674,25 @@ async function resolveWarBattle(db, war) {
         const now = Math.floor(Date.now() / 1000);
         await dbRun(db, "UPDATE clan_wars SET status='completed', phase='resolved', attacker_wins=?, defender_wins=?, resolved_at=? WHERE id=?",
             [attackerWins, defenderWins, now, warId]);
+        // ---- Loot raid notifications ----
+        const [attSquadL, defSquadL, baseL] = await Promise.all([
+            dbGet(db, 'SELECT name FROM squads WHERE id=?', [war.attacker_squad_id]),
+            dbGet(db, 'SELECT name FROM squads WHERE id=?', [war.defender_squad_id]),
+            dbGet(db, 'SELECT name FROM clan_bases WHERE id=?', [war.base_id])
+        ]);
+        const attNameL = attSquadL?.name || 'Unknown';
+        const defNameL = defSquadL?.name || 'Unknown';
+        const baseNameL = baseL?.name || 'Unknown';
+        const attackerWonL = attackerWins >= 3;
+        await Promise.all([
+            notifySquadWarEnd(db, war.attacker_squad_id, warId,
+                `⚔️ Loot Raid ${attackerWonL ? 'Victory' : 'Defeat'}`,
+                `Your squad (${attNameL}) loot raid against ${defNameL} at ${baseNameL} ended in ${attackerWonL ? 'victory' : 'defeat'}! (${attackerWins}-${defenderWins})`),
+            notifySquadWarEnd(db, war.defender_squad_id, warId,
+                `⚔️ Loot Raid ${attackerWonL ? 'Defeat' : 'Victory'}`,
+                `The loot raid by ${attNameL} against ${defNameL} at ${baseNameL} ended in ${attackerWonL ? 'defeat' : 'victory'}! (${defenderWins}-${attackerWins})`)
+        ]);
+        await postGlobalWarReport(db, attNameL, defNameL, baseNameL, attackerWonL, false);
         return;
     }
 
@@ -10672,6 +10730,49 @@ async function resolveWarBattle(db, war) {
     const now = Math.floor(Date.now() / 1000);
     await dbRun(db, "UPDATE clan_wars SET status='completed', phase='resolved', attacker_wins=?, defender_wins=?, resolved_at=? WHERE id=?",
         [attackerWins, defenderWins, now, warId]);
+
+    // ---- Capture war notifications ----
+    const [attSquadC, defSquadC, baseC] = await Promise.all([
+        dbGet(db, 'SELECT name FROM squads WHERE id=?', [war.attacker_squad_id]),
+        dbGet(db, 'SELECT name FROM squads WHERE id=?', [war.defender_squad_id]),
+        dbGet(db, 'SELECT name FROM clan_bases WHERE id=?', [war.base_id])
+    ]);
+    const attNameC = attSquadC?.name || 'Unknown';
+    const defNameC = war.defender_squad_id ? (defSquadC?.name || 'Unknown') : 'NPC Defenders';
+    const baseNameC = baseC?.name || 'Unknown';
+    const isNpcWar = Number(war.is_npc_war || 0) === 1;
+    // Notify attacker squad
+    if (capturedBase) {
+        await notifySquadWarEnd(db, war.attacker_squad_id, warId,
+            '🏴 Base Captured!',
+            `Your squad (${attNameC}) captured ${baseNameC} from ${defNameC}! (${attackerWins}-${defenderWins})`);
+    } else if (attackerWins >= 3) {
+        await notifySquadWarEnd(db, war.attacker_squad_id, warId,
+            '⚔️ War Ended — Consolation Loot',
+            `Your squad (${attNameC}) won ${attackerWins} outposts against ${defNameC} at ${baseNameC} but did not capture the base. (${attackerWins}-${defenderWins})`);
+    } else {
+        await notifySquadWarEnd(db, war.attacker_squad_id, warId,
+            '⚔️ War Ended — Defeated',
+            `Your squad (${attNameC}) was defeated by ${defNameC} at ${baseNameC}. (${attackerWins}-${defenderWins})`);
+    }
+    // Notify defender squad (skip for NPC wars)
+    if (!isNpcWar && war.defender_squad_id) {
+        if (capturedBase) {
+            await notifySquadWarEnd(db, war.defender_squad_id, warId,
+                '🏴 Base Lost!',
+                `${attNameC} captured ${baseNameC} from your squad (${defNameC})! (${defenderWins}-${attackerWins})`);
+        } else if (attackerWins >= 3) {
+            await notifySquadWarEnd(db, war.defender_squad_id, warId,
+                '⚔️ War Ended — Base Defended (Loot Lost)',
+                `${attNameC} raided your squad (${defNameC}) at ${baseNameC}. You held the base but lost some treasury gold. (${defenderWins}-${attackerWins})`);
+        } else {
+            await notifySquadWarEnd(db, war.defender_squad_id, warId,
+                '⚔️ War Ended — Base Defended',
+                `${attNameC} attacked ${defNameC} at ${baseNameC} and was repelled! (${defenderWins}-${attackerWins})`);
+        }
+    }
+    // Global chat report
+    await postGlobalWarReport(db, attNameC, defNameC, baseNameC, attackerWins >= 3, capturedBase);
 }
 
 // ── Clan War System ─────────────────────────────────────────────────────────
@@ -10717,6 +10818,23 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         for (let i = 0; i < 5; i++) {
             await dbRun(db, 'INSERT INTO clan_war_outposts (war_id, outpost_index, attacker_power, defender_power) VALUES (?,?,0,0)', [warId, i]);
         }
+        // Notify all squad members
+        const [attSquad, defSquad] = await Promise.all([
+            dbGet(db, 'SELECT name FROM squads WHERE id=?', [membership.squad_id]),
+            dbGet(db, 'SELECT name FROM squads WHERE id=?', [targetBase.owner_squad_id])
+        ]);
+        const base = await dbGet(db, 'SELECT name FROM clan_bases WHERE id=?', [baseId]);
+        const attName = attSquad?.name || 'Unknown';
+        const defName = defSquad?.name || 'Unknown';
+        const baseName = base?.name || 'Unknown';
+        await Promise.all([
+            notifySquadMembersAboutWar(db, membership.squad_id, warId,
+                '⚔️ War Declared!',
+                `Your squad (${attName}) has declared war against ${defName} at ${baseName}! Open the war panel to assign fighters to outposts.`),
+            notifySquadMembersAboutWar(db, targetBase.owner_squad_id, warId,
+                '⚔️ War Declared!',
+                `${attName} has declared war against your squad (${defName}) at ${baseName}! Prepare your defenses in the war panel.`)
+        ]);
         res.json({ success: true, war_id: warId });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
