@@ -917,6 +917,12 @@ class TestBot {
       const myLevel = this.character.level || 1;
       const tgtLevel = target.level || 1;
 
+      // Never attack newbies (level 1)
+      if (tgtLevel <= 1) {
+        log(this.name, `Skipping ${target.name} (level ${tgtLevel}) — newbie protection`);
+        return false;
+      }
+
       // Per-target cooldown
       if (this.cooldowns.perTarget[targetId] && now < this.cooldowns.perTarget[targetId]) return false;
 
