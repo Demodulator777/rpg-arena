@@ -7979,6 +7979,7 @@ async function buildCombatFighter(db, char) {
         id: char.id,
         name: char.name,
         class: char.class,
+        level: char.level,
         weapon: weapon,
         shield: shield,
         hp: hpCurrent,
@@ -13352,7 +13353,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const weaponA = getEquippedWeaponData(equippedA);
         const shieldA = getEquippedShieldData(equippedA);
         const fighterA = {
-            id: freshA.id, name: freshA.name, class: freshA.class, weapon: weaponA,
+            id: freshA.id, name: freshA.name, class: freshA.class, level: freshA.level, weapon: weaponA,
             shield: shieldA,
             hp: hpA,
             hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
@@ -13393,7 +13394,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const weaponD = getEquippedWeaponData(equippedD);
         const shieldD = getEquippedShieldData(equippedD);
         const fighterB = {
-            id: freshD.id, name: freshD.name, class: freshD.class, weapon: weaponD,
+            id: freshD.id, name: freshD.name, class: freshD.class, level: freshD.level, weapon: weaponD,
             shield: shieldD,
             hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
