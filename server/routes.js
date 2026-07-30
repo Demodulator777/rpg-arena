@@ -7228,6 +7228,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     }
     const log = [];
     let hpA = fighterA.hp, hpB = fighterB.hp;
+    const newbieStartHpA = (fighterA.level || 99) <= 3 ? hpA : null;
+    const newbieStartHpB = (fighterB.level || 99) <= 3 ? hpB : null;
     let penaltyA = false, penaltyB = false;
     let totalDmgToA = 0, totalDmgToB = 0;
     let totalElemDmgDealtA = 0;
@@ -7500,6 +7502,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         log.push(`Winner: ${roundEndedPrematurely ? fighterB.name + ' wins!' : fighterB.name + ' wins by dealing more damage!'}`);
     }
 
+    if (newbieStartHpA !== null) hpA = newbieStartHpA;
+    if (newbieStartHpB !== null) hpB = newbieStartHpB;
     return {
         log,
         winnerId,
