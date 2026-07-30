@@ -483,6 +483,12 @@ class BotAccount {
         return false;
       }
 
+      // Never attack newbies (level 1)
+      if (tgtLevel <= 1) {
+        log(this.name, `Skipping ${target.name} (level ${tgtLevel}) — newbie protection`);
+        return false;
+      }
+
       // Power check: skip if target is significantly stronger
       const myPower = (this.character.strength || 0) + (this.character.agility || 0) + (this.character.magic || 0) + (this.character.defense || 0) + myLevel * 5;
       const tgtPower = (target.strength || 0) + (target.agility || 0) + (target.magic || 0) + (target.defense || 0) + tgtLevel * 5;
