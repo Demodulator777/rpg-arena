@@ -4247,11 +4247,16 @@ async function activateSkill(skillId) {
 async function loadMissions() {
     // Signal tab view for bot detection
     api('POST', '/game/missions/tab-viewed').catch(() => {});
-    // Show overlay immediately from cached data before any async calls
-    showCachedOverlay();
+    // Show overlay from cached data BEFORE any async calls so it's the first thing visible
+    const now = Math.floor(Date.now() / 1000);
+    if (character && (character.battle_cooldown_ends_at || 0) > now && (character.last_battle_at || 0) > 0) {
+        showRestOverlay(character.last_battle_at, character.battle_cooldown_ends_at);
+    } else if (playerTravelTarget) {
+        showTravelOverlay();
+    }
     try {
-        // Refresh overlay from server (will update if cached guess was wrong)
-        await checkAndShowMissionOverlay();
+        // Async overlay refresh in background — corrects display if cached data was stale
+        checkAndShowMissionOverlay().catch(() => {});
 
         // Then load map content
         const char = character || await api('GET', '/game/character');
@@ -4273,21 +4278,6 @@ async function loadMissions() {
         console.error('Error loading missions:', e);
         const layer = document.getElementById('map-nodes-layer');
         if (layer) layer.innerHTML = `<p style="color:red;padding:20px">Failed to load: ${e.message}</p>`;
-    }
-}
-
-function showCachedOverlay() {
-    // Check active mission (cached from window.activeMission)
-    if (window.activeMission) return; // mission overlay already visible from prior interval
-    // Check travel target (client-side, no API needed)
-    if (playerTravelTarget) { showTravelOverlay(); return; }
-    // Check battle cooldown from cached character
-    if (!character) return;
-    const endsAt = character?.battle_cooldown_ends_at || 0;
-    const lastBattle = character?.last_battle_at || 0;
-    const now = Math.floor(Date.now() / 1000);
-    if (endsAt > now && lastBattle > 0) {
-        showRestOverlay(lastBattle, endsAt);
     }
 }
 
