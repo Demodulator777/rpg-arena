@@ -8863,7 +8863,7 @@ async function showSquadDetail(squadId) {
         const s = res.squad;
         const members = res.members || [];
         if (!s) return;
-        const isInSquad = squadsData?.me?.squad != null;
+        const amMember = (members || []).some(m => m.id === character?.id);
         const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
         const membersHtml = members.map(m => {
             const splashSrc = `/images/class/${m.class}-st.png`;
@@ -8900,8 +8900,8 @@ async function showSquadDetail(squadId) {
                 <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
             </div>
             <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
-            ${!isInSquad ? `<div style="margin-top:14px;text-align:center">
-                <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
+            ${!amMember ? `<div style="margin-top:14px;text-align:center">
+                <button class="btn-secondary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
             </div>` : ''}
         </div>`;
         ensureGameDialogModal();
