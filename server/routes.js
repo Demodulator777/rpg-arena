@@ -9950,6 +9950,7 @@ router.post('/squads/leave', auth, async (req, res) => {
             } else {
                 // No officers — just delete the whole squad.
                 await dbRun(db, 'DELETE FROM squad_members WHERE squad_id=?', [membership.squad_id]);
+                await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE owner_squad_id=?', [membership.squad_id]);
                 await dbRun(db, 'DELETE FROM squads WHERE id=?', [membership.squad_id]);
                 return res.json({ success: true, message: 'Squad disbanded.' });
             }
@@ -9957,6 +9958,7 @@ router.post('/squads/leave', auth, async (req, res) => {
         await dbRun(db, 'DELETE FROM squad_members WHERE char_id=?', [char.id]);
         const left = await dbGet(db, 'SELECT COUNT(*) AS c FROM squad_members WHERE squad_id=?', [membership.squad_id]);
         if (Number(left?.c || 0) <= 0) {
+            await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=NULL, occupied_at=NULL WHERE owner_squad_id=?', [membership.squad_id]);
             await dbRun(db, 'DELETE FROM squads WHERE id=?', [membership.squad_id]);
         }
         res.json({ success: true });
@@ -10816,6 +10818,8 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         if (!targetBase) return res.status(404).json({ error: 'Base not found.' });
         if (!targetBase.owner_squad_id) return res.status(400).json({ error: 'Base is not occupied.' });
         if (Number(targetBase.owner_squad_id) === membership.squad_id) return res.status(400).json({ error: 'You cannot attack your own base.' });
+        const ownerSquad = await dbGet(db, 'SELECT id FROM squads WHERE id=?', [targetBase.owner_squad_id]);
+        if (!ownerSquad) return res.status(400).json({ error: 'The occupying squad no longer exists.' });
         const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE status='preparation' AND base_id=? LIMIT 1",
             [baseId]);
         if (activeWar) return res.status(400).json({ error: 'There is already an active war for this base.' });
