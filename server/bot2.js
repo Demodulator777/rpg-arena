@@ -366,7 +366,7 @@ class TestBot {
     const isWpn = (kw) => name.includes(kw) || (d.weaponType || '').includes(kw);
     const cls = this.cfg.class;
     if (cls === 'paladin') {
-      return isWpn('mace') || isWpn('hammer') || isWpn('staff') || isWpn('axe') || isWpn('blade') || isWpn('spear') || isWpn('scythe') || isWpn('sword');
+      return isWpn('mace') || isWpn('hammer') || isWpn('staff') || isWpn('axe') || isWpn('blade') || isWpn('spear') || isWpn('scythe') || isWpn('sword') || isWpn('greatsword');
     }
     if (cls === 'warrior') {
       return !isWpn('staff') && !isWpn('dagger');
