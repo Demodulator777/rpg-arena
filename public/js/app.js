@@ -8317,7 +8317,7 @@ function renderSquads() {
             const base = clanData.baseInfo;
             const treasury = clanData.treasury;
             const wars = clanData.wars || [];
-            const tierNames = { main: '🏰 Main', large: '🏯 Large', medium: '🏘️ Medium', small: '🛖 Small' };
+    const tierNames = { main: 'Main', large: 'Large', medium: 'Medium', small: 'Small' };
 
             if (treasury) {
                 tabContent += `<div class="squads-card" style="margin-top:10px">
