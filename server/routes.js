@@ -6338,7 +6338,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (!ok) physicalDamagePenalty = 0.40;
     }
     if (attacker.class === 'paladin') {
-        const heavy = isWpn('mace') || isWpn('hammer') || isWpn('staff') || isWpn('axe') || isWpn('blade') || isWpn('spear') || isWpn('scythe') || isWpn('sword');
+        const heavy = isWpn('mace') || isWpn('hammer') || isWpn('staff') || isWpn('axe') || isWpn('blade') || isWpn('spear') || isWpn('scythe') || isWpn('sword') || isWpn('greatsword');
         if (!heavy && weapon) physicalDamagePenalty = 0.60;
     }
     if (attacker.class === 'warrior') {
