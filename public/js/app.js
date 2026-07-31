@@ -8717,25 +8717,19 @@ async function assignToOutpost(warId) {
                 <div><div class="squads-title">📋 Assign Fighters</div>
                 <div class="squads-meta">${isAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
             </div></div>
-            <div style="padding:8px 12px">
-                <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
-                    <tr style="border-bottom:1px solid #ffffff22">
-                        <th style="text-align:left;padding:4px">Member</th>
-                        <th style="text-align:center;padding:4px">Power</th>
-                        <th style="text-align:center;padding:4px">Outpost</th>
-                    </tr>
-                    ${members.map(m => `
-                    <tr style="border-bottom:1px solid #ffffff11${isCaptured(m) ? ';opacity:0.5;text-decoration:line-through' : ''}">
-                        <td style="padding:4px">${escHtml(m.name)}${isCaptured(m) ? ' (captured)' : ''}</td>
-                        <td style="text-align:center;padding:4px">${m.power.toLocaleString()}</td>
-                        <td style="text-align:center;padding:4px">
-                            <select class="input-field" id="assign-${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem" ${isCaptured(m) ? 'disabled' : ''}>
-                                <option value="-1">— Unassigned —</option>
-                                ${[0,1,2,3,4].map(i => `<option value="${i}" ${m.assigned_outpost === i ? 'selected' : ''}>Outpost ${i+1}</option>`).join('')}
-                            </select>
-                        </td>
-                    </tr>`).join('')}
-                </table>
+            <div style="padding:8px 12px;display:flex;flex-direction:column;gap:8px">
+                ${members.map(m => `
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:10px;border:1px solid #ffffff12;background:rgba(0,0,0,0.18)${isCaptured(m) ? ';opacity:0.5' : ''}">
+                    <div style="flex:1 1 140px;min-width:120px;display:flex;align-items:center;gap:6px">
+                        <span style="font-size:0.82rem;font-weight:600">${escHtml(m.name)}</span>
+                        ${isCaptured(m) ? '<span style="font-size:0.65rem;color:#e74c3c">(captured)</span>' : ''}
+                    </div>
+                    <div style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
+                    <select class="input-field" id="assign-${m.id}" style="flex:1 1 130px;min-width:120px;padding:4px 8px;font-size:0.78rem" ${isCaptured(m) ? 'disabled' : ''}>
+                        <option value="-1">— Unassigned —</option>
+                        ${[0,1,2,3,4].map(i => `<option value="${i}" ${m.assigned_outpost === i ? 'selected' : ''}>Outpost ${i+1}</option>`).join('')}
+                    </select>
+                </div>`).join('')}
             </div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px">
                 <button class="btn-primary btn-sm" id="save-assignments" data-war-id="${warId}">💾 Save Assignments</button>
