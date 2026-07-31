@@ -8510,7 +8510,7 @@ async function showClanBaseDetail(baseId) {
             </div></div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
-                ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-success btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}
+                ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}
                 ${b.can_loot ? `<button class="btn-success btn-sm" ${actionAttrs('lootBase', b.id)}>💰 Loot Base (10% Gold)</button>` : ''}
             </div>
         </div>`;
