@@ -2680,9 +2680,21 @@ function renderElementBadge(elementType, value, type) {
     </div>`;
 }
 
+function renderTempStatBuffs(buffs) {
+    const STAT_EMOJI = { strength: '💪', defense: '🛡️', agility: '⚡', magic: '✨', vitality: '❤️' };
+    const entries = Object.entries(buffs || {});
+    if (!entries.length) return '';
+    const parts = entries.map(([stat, b]) => {
+        const val = b?.value || 0;
+        const leftSec = Math.max(0, (b?.exp || 0) - Math.floor(Date.now() / 1000));
+        const mins = Math.ceil(leftSec / 60);
+        return `${STAT_EMOJI[stat] || '🧪'} +${val} ${stat} (${mins}m)`;
+    }).join(' · ');
+    return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.72rem;color:#7ef29b;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:6px;padding:5px 8px;margin-bottom:8px">${parts}</div>`;
+}
+
 function renderCharacter() {
-    if (!character) return;
-    const c = getLiveCharacterSnapshot(character);
+    if (!character) return;    const c = getLiveCharacterSnapshot(character);
     const eq = c.equipped||{};
     const lxp = c.level*25;
     const xpPct = Math.min(100,(c.xp/lxp)*100);
@@ -2834,6 +2846,7 @@ function renderCharacter() {
         <div id="char-msg" class="msg hidden" style="grid-column:1/-1;margin-bottom:8px"></div>
         <div class="char-panel">
           <h3>STATS</h3>
+          ${renderTempStatBuffs(c.temp_stat_buffs)}
           ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr > 0)}
           ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef > 0)}
           ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility', false)}
@@ -7528,7 +7541,7 @@ async function useItem(invId, name) {
     }
     catch(e) {
         const msg = e?.message || 'Could not use this item.';
-        if (/^Health potions are on cooldown\b/i.test(msg)) {
+        if (/^Health potions are on cooldown\b/i.test(msg) || /potions are on cooldown for/i.test(msg)) {
             await openGameNoticeDialog({
                 title: 'Potion Cooldown',
                 message: msg,
