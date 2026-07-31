@@ -188,7 +188,6 @@ function render(char, data) {
       </div>` : ''}
     <div class="tabs">
       <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
-      <button class="tab-btn" data-action="tournamentTab" data-args='["matches"]'>Matches (${matches.length})</button>
       <button class="tab-btn" data-action="tournamentTab" data-args='["history"]'>History</button>
     </div>
     <div id="tab-standings">
@@ -199,35 +198,6 @@ function render(char, data) {
         </table>
       </div>
       ${t.mode === 'least_damage' && participants.some(p => p.dsq) ? '<div style="margin-top:10px;font-size:0.72rem;color:#e74c3c;text-align:center;font-style:italic">⚠ DSQ = dealt less damage than taken — excluded from rankings</div>' : ''}
-    </div>
-    <div id="tab-matches" style="display:none">
-      ${rounds.length === 0
-        ? (t.battle_log
-          ? '<div style="text-align:center;padding:20px"><button class="btn-join" data-action="showAllVsAllLog">👥 View Full Battle Log</button></div>'
-          : '<div style="color:#8890a0;text-align:center;padding:20px;font-family:\'IM Fell English\',serif;font-style:italic">No matches yet</div>')
-        : rounds.map(r => `
-        <div class="matches-section">
-          <div class="round-label">Round ${+r + 1}</div>
-          ${roundGroups[r].map(m => {
-            const p1 = participants.find(p => p.id === m.participant1_id);
-            const p2 = participants.find(p => p.id === m.participant2_id);
-            const w = m.winner_id ? participants.find(p => p.id === m.winner_id) : null;
-            const winnerName = w?.name || 'Unknown';
-            const isDraw = m.is_draw;
-            var bl = m.battle_log; if (typeof bl === 'string') { try { bl = JSON.parse(bl); } catch { bl = []; } } if (!Array.isArray(bl)) bl = [];
-            const logStr = escJson(JSON.stringify(bl));
-            return `<div class="match-card" data-action="showLog" data-args='${JSON.stringify([logStr])}'>
-              <div class="match-result">
-                ${p1?.name || '?'}
-                ${isDraw ? '<span class="match-draw"> vs </span>' : w?.id === m.participant1_id ? '<span class="match-winner"> ▶ </span>' : '<span class="match-loser"> ▶ </span>'}
-                ${p2?.name || '?'}
-              </div>
-              <div style="flex:1;text-align:right;font-size:0.75rem;padding-right:30px">
-                ${isDraw ? '<span class="match-draw">Draw</span>' : `<span class="match-winner">${winnerName} wins</span>`}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>`).join('')}
     </div>
     <div id="tab-history" style="display:none">
       <div class="history-section" id="history-list">
@@ -287,7 +257,6 @@ function tournamentTab(tab) {
     b.classList.toggle('active', a[0] === tab);
   });
   document.getElementById('tab-standings').style.display = tab === 'standings' ? 'block' : 'none';
-  document.getElementById('tab-matches').style.display = tab === 'matches' ? 'block' : 'none';
   document.getElementById('tab-history').style.display = tab === 'history' ? 'block' : 'none';
   if (tab === 'history') tournamentLoadHistory();
 }
