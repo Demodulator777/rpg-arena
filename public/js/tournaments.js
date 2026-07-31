@@ -166,7 +166,9 @@ function render(char, data) {
           <div class="fighters-needed ${participants.length >= 8 ? 'ready' : ''}">
             ${participants.length < 8 ? `⚠ ${8 - participants.length} more warriors needed to commence` : '✅ Minimum fighters assembled!'}
           </div>` : ''}
-      </div>` : ''}
+        <div class="fighters-needed">
+          ⚠ If fewer than 4 players join, the tournament will be called off and entry fees refunded.
+        </div>` : ''}
     ${t.status === 'active' ? `
       <p class="t-active-notice">${t.mode === 'all_vs_all' ? '⚔ All vs All battlefield is live! <button class="btn-join" data-action="showLiveLog" style="padding:3px 10px;font-size:0.78rem;margin-left:6px">👥 View Live Log</button>' : '⚔ Battles are being fought every minute — refresh to see results'}</p>` : ''}
     ${t.status === 'complete' ? `
