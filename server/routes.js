@@ -10429,9 +10429,9 @@ router.post('/squads/bases/:baseId/capture', auth, async (req, res) => {
             return res.status(400).json({ error: `Need at least ${cfg.min_members} squad members to capture a ${base.tier} base (current: ${memberCount?.c || 0}).` });
         }
         // Check for existing war
-        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND is_npc_war=1 LIMIT 1",
-            [membership.squad_id, membership.squad_id]);
-        if (activeWar) return res.status(400).json({ error: 'Your squad already has an active NPC war.' });
+        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND status IN ('preparation','attacking') LIMIT 1",
+            [membership.squad_id]);
+        if (activeWar) return res.status(400).json({ error: 'Your squad already has an active war. Finish it before starting another.' });
         const now = Math.floor(Date.now() / 1000);
         const attackEndsAt = now + 43200; // 12h assignment phase
         const warIns = await dbRun(db, `INSERT INTO clan_wars (attacker_squad_id, defender_squad_id, base_id, status, phase, created_at, attack_ends_at, is_npc_war, defender_npc_count)
@@ -10823,6 +10823,10 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE status='preparation' AND base_id=? LIMIT 1",
             [baseId]);
         if (activeWar) return res.status(400).json({ error: 'There is already an active war for this base.' });
+        const squadActiveWar = await dbGet(db,
+            "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND status IN ('preparation','attacking') LIMIT 1",
+            [membership.squad_id]);
+        if (squadActiveWar) return res.status(400).json({ error: 'Your squad already has an active war. Finish it before declaring another.' });
         const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
             [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
         if (cooldown) return res.status(400).json({ error: 'Your squad must wait 24h between wars.' });
