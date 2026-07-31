@@ -8453,7 +8453,6 @@ function renderBaseMapContent() {
                     ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
                 </div>`;
     }).join('')}
-    }).join('')}
         </div>
     </div>`;
 }
