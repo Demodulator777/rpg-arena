@@ -10589,7 +10589,7 @@ async function notifySquadMembersAboutWar(db, squadId, warId, subject, bodyText)
     const body = `WAR_PANEL:${JSON.stringify({ warId })}|${bodyText}`;
     const stmt = 'INSERT INTO messages (sender_id, receiver_id, subject, body, sent_at, system_message, sender_label) VALUES (?,?,?,?,?,?,?)';
     for (const m of members) {
-        await dbRun(db, stmt, [0, m.char_id, subject, body, now, 1, '⚔️ War System']);
+        await dbRun(db, stmt, [m.char_id, m.char_id, subject, body, now, 1, '⚔️ War System']);
     }
 }
 async function notifySquadWarEnd(db, squadId, warId, subject, bodyText) {
@@ -10599,7 +10599,7 @@ async function notifySquadWarEnd(db, squadId, warId, subject, bodyText) {
     const body = `WAR_PANEL:${JSON.stringify({ warId })}|${bodyText}`;
     const stmt = 'INSERT INTO messages (sender_id, receiver_id, subject, body, sent_at, system_message, sender_label) VALUES (?,?,?,?,?,?,?)';
     for (const m of members) {
-        await dbRun(db, stmt, [0, m.char_id, subject, body, now, 1, '⚔️ War Report']);
+        await dbRun(db, stmt, [m.char_id, m.char_id, subject, body, now, 1, '⚔️ War Report']);
     }
 }
 async function postGlobalWarReport(db, attackerSquadName, defenderSquadName, baseName, attackerWon, baseCaptured) {
