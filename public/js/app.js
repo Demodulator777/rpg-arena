@@ -8390,11 +8390,11 @@ function renderSquads() {
             <div class="squads-title">👥 Members (${members.length})</div>
             <div class="squads-members">
                 ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
-                    <span>
-                        <span class="squads-member-name">${escHtml(m.name)}</span>
-                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)}</span>
-                    </span>
+                   <span>
+                       <span class="squads-member-name">${escHtml(m.name)}</span>
+                       <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
+                       <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)} · 🟢 ${formatRelativeTime(m.last_online_at)}</span>
+                   </span>
                     <span style="display:flex;align-items:center;gap:4px">
                         ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader')) ? `
                             <select class="input-field squad-role-select" data-role-select="${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem">
@@ -8447,10 +8447,12 @@ function renderBaseMapContent() {
         const color = tierColors[b.tier] || '#888';
         const isOwned = b.owner_squad_id && b.owner_squad_id === clanData.squad_id;
         const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
+        const iconSize = b.tier === 'main' ? 32 : b.tier === 'large' ? 28 : b.tier === 'medium' ? 24 : 20;
         return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
-                    <div style="width:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;height:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;border-radius:50%;background:${isOwned ? '#2ecc71' : isOccupied ? '#e74c3c' : color};border:2px solid ${isOwned ? '#27ae60' : isOccupied ? '#c0392b' : 'rgba(255,255,255,0.3)'};margin:0 auto;box-shadow:0 0 ${isOwned ? 8 : 4}px ${color}44"></div>
+                    <img src="/images/assets/base${b.tier}.png" style="width:${iconSize}px;height:auto;margin:0 auto;display:block;filter:drop-shadow(0 0 4px rgba(0,0,0,0.5))">
                     ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
                 </div>`;
+    }).join('')}
     }).join('')}
         </div>
     </div>`;
@@ -11405,6 +11407,16 @@ function itemIcon(item, size='2rem') {
 function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.toggle('hidden',!msg);}
 function showMsg(id,msg,isError=false){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.background=isError?'rgba(192,57,43,0.1)':'';el.style.borderColor=isError?'rgba(192,57,43,0.4)':'';el.style.color=isError?'var(--red-light)':'';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function formatRelativeTime(ts) {
+    if (!ts) return 'Never';
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - ts;
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+}
+
 function formatDate(ts) {
     const d = new Date(ts * 1000);
     const now = new Date();
