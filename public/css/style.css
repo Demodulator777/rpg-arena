@@ -2831,6 +2831,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(8,12,22,0.98);
     color: var(--text-bright);
 }
+.squad-role-select {
+    background: rgba(8,12,22,0.97);
+    color: var(--text-bright);
+}
+.squad-role-select option {
+    background: rgba(8,12,22,0.98);
+    color: var(--text-bright);
+}
 .achievement-launch-meta {
     color: var(--gold);
     font-size: 0.72rem;
