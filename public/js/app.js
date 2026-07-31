@@ -6861,6 +6861,13 @@ function createLootboxModal() {
                 border-radius: 16px;
                 padding: 6px;
             }
+            .lootbox-summary-emoji {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 30px;
+                line-height: 1;
+            }
             
             .lootbox-loader-spinner {
                 text-align: center;
@@ -7020,8 +7027,8 @@ function renderLootboxSummary(result, boxName) {
     if (goldAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/images/assets/gold-coin.png" data-error-src="/images/assets/prize.png" alt="Gold">
-                <div><strong>💰 ${goldAmount.toLocaleString()} Gold</strong></div>
+                <span class="lootbox-summary-img lootbox-summary-emoji">💰</span>
+                <div><strong>${goldAmount.toLocaleString()} Gold</strong></div>
             </div>
         `;
     }
@@ -7029,8 +7036,8 @@ function renderLootboxSummary(result, boxName) {
     if (gemsAmount > 0) {
         summaryHtml += `
             <div class="lootbox-summary-row">
-                <img class="lootbox-summary-img" src="/images/assets/gem.png" data-error-src="/images/assets/prize.png" alt="Gems">
-                <div><strong>💎 ${gemsAmount.toLocaleString()} Gems</strong></div>
+                <span class="lootbox-summary-img lootbox-summary-emoji">💎</span>
+                <div><strong>${gemsAmount.toLocaleString()} Gems</strong></div>
             </div>
         `;
     }
