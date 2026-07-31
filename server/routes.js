@@ -6363,6 +6363,15 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             defender._wyrmflameDmgBonus = Math.min(50, (defender._wyrmflameDmgBonus || 0) + 5);
         }
     }
+    // Silence-Carver (Abyssal Void): +5% defense per round, cap +25%.
+    // Applied to the defense stat itself (not just armor reduction) so defense-based
+    // skills (Divine Judgment, Holy Crusade, etc.) use the boosted value.
+    for (const f of [attacker, defender]) {
+        if (f.weapon?.id !== 'abyssal_void_weapon') continue;
+        if (f._avBaseDefense == null) f._avBaseDefense = f.defense || 0;
+        const avMult = 1.0 + Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
+        f.defense = Math.floor(f._avBaseDefense * avMult);
+    }
     // Abyssal Blade: consume 50 crit chance per round, +5 dmg_min / +5 all resists per 50 consumed
     if (attacker.weapon?.id === 'abyssal_weapon') {
         const consume = Math.min(50, Math.max(0, attacker.crit_chance || 0));
@@ -6952,10 +6961,6 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
             if (finalDmg > 0 && (defender.armor || 0) > 0) {
                 let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
-                // Silence-Carver (Abyssal Void): +5% defense per round, cap +25%
-                if (defender.weapon?.id === 'abyssal_void_weapon') {
-                    effArmor = Math.floor(effArmor * (1.0 + Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05))));
-                }
                 const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
                 if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
                 const brArmourEff = getActiveCombatEffect(attacker, 'berserker_rage');
