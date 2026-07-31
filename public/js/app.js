@@ -8449,8 +8449,10 @@ function renderBaseMapContent() {
         const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
         const iconSize = b.tier === 'main' ? 32 : b.tier === 'large' ? 28 : b.tier === 'medium' ? 24 : 20;
         return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
-                    <img class="clan-base-icon" src="/images/assets/base${b.tier}.png" style="width:${iconSize}px;height:auto;margin:0 auto;display:block">
-                    ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
+                    <div class="clan-base-wrap${isOwned ? ' owned' : ''}">
+                        <img class="clan-base-icon" src="/images/assets/base${b.tier}.png" style="width:${iconSize}px;height:auto;margin:0 auto;display:block">
+                        ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
+                    </div>
                 </div>`;
     }).join('')}
         </div>
